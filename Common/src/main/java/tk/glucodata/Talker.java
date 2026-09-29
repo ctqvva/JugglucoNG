@@ -190,6 +190,8 @@ public static void previewVoice(int index) {
     talk.speakPreview();
 }
 
+// legacy API: TextToSpeech.speak(String,int,HashMap) on the pre-minandroid branch, required at minSdk 26
+@SuppressWarnings("deprecation")
 private void speakPreview() {
     if (DontTalk) return;
     try {
@@ -457,6 +459,8 @@ if(!DontTalk) {
             }
         }
 
+        // legacy API: overrides the deprecated UtteranceProgressListener.onError(String)
+        @SuppressWarnings("deprecation")
         @Override
         public void onError(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onError "+utteranceId);};
@@ -517,6 +521,8 @@ private static void ensureMinStreamVolume() {
  *         never reached the engine (see {@link #selspeak}), and callers holding transient audio
  *         focus must release it themselves on false.
  */
+// legacy API: TextToSpeech.speak(String,int,HashMap) on the pre-21 branch, required at minSdk 26
+@SuppressWarnings("deprecation")
 public boolean speak(String message) {
     if(!DontTalk) {
         try {

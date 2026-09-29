@@ -1980,8 +1980,6 @@ char localestrbuf[10] = "en";
 std::string_view localestr;
 bool hour24clock = true;
 
-#define mklanguagenum2(a, b) a | b << 8
-#define mklanguagenum(lang) mklanguagenum2(lang[0], lang[1])
 /*
 bool chinese() {
     const int16_t lannum=mklanguagenum(localestrbuf);

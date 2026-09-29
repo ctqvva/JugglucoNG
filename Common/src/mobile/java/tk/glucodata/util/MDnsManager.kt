@@ -90,6 +90,9 @@ class MDnsManager(private val context: Context) {
                 Log.d("MDNS", "Service discovery started")
             }
 
+            // resolveService and NsdServiceInfo.host are replaced by registerServiceInfoCallback /
+            // getHostAddresses, both API 34+; keeping the minSdk-26 path as-is.
+            @Suppress("DEPRECATION")
             override fun onServiceFound(service: NsdServiceInfo) {
                 if (service.serviceType == serviceType || service.serviceType == "$serviceType.") {
                     nsdManager.resolveService(service, object : NsdManager.ResolveListener {

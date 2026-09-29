@@ -246,7 +246,7 @@ fun FloatingGlucoseOverlay(
 
     val valueContent: @Composable () -> Unit = {
         if (glucosePoint != null) {
-            val point = glucosePoint!!
+            val point = glucosePoint
             val unit = if (unitInt == 1) "mmol/L" else "mg/dL"
             val dvs = currentSnapshot?.displayValues ?: run {
                 val isRawModeForCal = viewMode == 1 || viewMode == 3
@@ -279,7 +279,7 @@ fun FloatingGlucoseOverlay(
                     if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
                         Spacer(Modifier.height(sideSecondarySpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = dvs.secondaryStr,
                             fontSize = sideSecondaryFontSize,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
@@ -307,7 +307,7 @@ fun FloatingGlucoseOverlay(
                     if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
                         Spacer(Modifier.width(inlineSpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = dvs.secondaryStr,
                             fontSize = fontSize * 0.7f,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,

@@ -38,7 +38,8 @@ JAVA_METHOD = re.compile(r"^\s*(?:public|protected)\s+(?:static\s+|final\s+|sync
 
 
 def rel(path):
-    return os.path.relpath(path, ROOT)
+    # Forward slashes on every OS: the exclusion prefixes below and the committed map use them.
+    return os.path.relpath(path, ROOT).replace(os.sep, "/")
 
 
 VENDORED = [
@@ -209,7 +210,7 @@ def main():
         lines.append("")
     out = os.path.join(ROOT, "docs", "test-coverage-map.md")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    open(out, "w").write("\n".join(lines))
+    open(out, "w", encoding="utf-8", newline="\n").write("\n".join(lines))
     print(f"wrote {out}: {len(covered)} referenced / {len(uncovered)} unreferenced")
 
 

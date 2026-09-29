@@ -57,6 +57,7 @@ public class WeatherSpec implements Parcelable {
 
     }
 
+    @SuppressWarnings("deprecation") // Parcel.readList(List,ClassLoader): typed overload is API 33+; vendored Gadgetbridge parcel format must stay byte-identical
     protected WeatherSpec(Parcel in) {
         int version = in.readInt();
         if (version == VERSION) {

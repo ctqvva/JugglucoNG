@@ -23,24 +23,24 @@ abstract class CalibrationDatabase : RoomDatabase() {
         
         // Migration from version 1 to 2: Add isRawMode column
         private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE calibrations ADD COLUMN isRawMode INTEGER NOT NULL DEFAULT 0")
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calibrations ADD COLUMN isRawMode INTEGER NOT NULL DEFAULT 0")
             }
         }
         
         // Migration from version 2 to 3: Add sensorValueRaw column (default to sensorValue for existing rows)
         private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE calibrations ADD COLUMN sensorValueRaw REAL NOT NULL DEFAULT 0")
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calibrations ADD COLUMN sensorValueRaw REAL NOT NULL DEFAULT 0")
                 // Copy sensorValue to sensorValueRaw for existing calibrations
-                database.execSQL("UPDATE calibrations SET sensorValueRaw = sensorValue")
+                db.execSQL("UPDATE calibrations SET sensorValueRaw = sensorValue")
             }
         }
 
         // Migration from version 3 to 4: Add journalEntryId column (null = entered by hand)
         private val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE calibrations ADD COLUMN journalEntryId INTEGER")
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calibrations ADD COLUMN journalEntryId INTEGER")
             }
         }
 
@@ -49,8 +49,8 @@ abstract class CalibrationDatabase : RoomDatabase() {
         // an old anchor is only recoverable from the source history of the
         // device that took it, exactly as before this column existed.
         private val MIGRATION_4_5 = object : Migration(4, 5) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE calibrations ADD COLUMN sensorValueStock REAL NOT NULL DEFAULT 0")
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calibrations ADD COLUMN sensorValueStock REAL NOT NULL DEFAULT 0")
             }
         }
 

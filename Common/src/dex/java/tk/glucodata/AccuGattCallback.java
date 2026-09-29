@@ -189,6 +189,8 @@ private void askValues(BluetoothGatt mBluetoothGatt) {
         disconnect();
         }
     }
+// legacy BLE API: required at minSdk 26
+@SuppressWarnings("deprecation")
 static private boolean writer(BluetoothGatt mBluetoothGatt, BluetoothGattCharacteristic cha, byte[] data) {
         if (!cha.setValue(data)) {
             {if(doLog){showbytes(LOG_ID + ": "+ cha.getUuid().toString() + " cha.setValue failed", data);};}
@@ -208,6 +210,8 @@ static private boolean writer(BluetoothGatt mBluetoothGatt, BluetoothGattCharact
         BluetoothGattCharacteristic characteristic = bluetoothGattDescriptor.getCharacteristic();
         var uuid=characteristic.getUuid().toString();
         if (doLog) {
+            // legacy BLE API: required at minSdk 26
+            @SuppressWarnings("deprecation")
             byte[] value = bluetoothGattDescriptor.getValue();
             {if(doLog){showbytes("Accu: onDescriptorWrite char: " + uuid + " desc: " + bluetoothGattDescriptor.getUuid().toString() + " status=" + status, value);};}
         }
@@ -339,6 +343,8 @@ private boolean discovered=false;
     }
 
 private int phase=0;
+    // legacy BLE callback and API: still invoked by the platform below API 33
+    @SuppressWarnings("deprecation")
     @Override
     public void onCharacteristicRead(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
         final var value=bluetoothGattCharacteristic.getValue();
@@ -492,6 +498,8 @@ private  void    processChanged(byte[] value) {
             }
     }
 
+    // legacy BLE callback: still invoked by the platform below API 33
+    @SuppressWarnings("deprecation")
     @Override // android.bluetooth.BluetoothGattCallback
     public void onCharacteristicChanged(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
         onCharacteristicChanged(bluetoothGatt, bluetoothGattCharacteristic, bluetoothGattCharacteristic.getValue());

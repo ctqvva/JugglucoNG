@@ -9,7 +9,7 @@ class CloneRecoveryWakeTests {
         var releases = 0
         val leases = CloneRecoveryWakeLeases({ 100L }) { value ->
             timeout = value
-            val end: () -> Unit = { releases++; Unit }
+            val end: () -> Unit = { releases++ }
             end
         }
         val token = leases.acquire()
@@ -25,7 +25,7 @@ class CloneRecoveryWakeTests {
         val released = mutableListOf<Int>()
         val leases = CloneRecoveryWakeLeases({ 0L }) { _ ->
             val id = ++acquisitions
-            val end: () -> Unit = { released.add(id); Unit }
+            val end: () -> Unit = { released.add(id) }
             end
         }
         val first = leases.acquire()
@@ -43,7 +43,7 @@ class CloneRecoveryWakeTests {
         var released = 0
         val leases = CloneRecoveryWakeLeases({ 0L }) { _ ->
             acquired++
-            val end: () -> Unit = { released++; Unit }
+            val end: () -> Unit = { released++ }
             end
         }
         val old = leases.acquire()
@@ -66,7 +66,7 @@ class CloneRecoveryWakeTests {
         val requestedTimeouts = mutableListOf<Long>()
         val leases = CloneRecoveryWakeLeases({ time }) { timeout ->
             requestedTimeouts.add(timeout)
-            val end: () -> Unit = { releases++; Unit }
+            val end: () -> Unit = { releases++ }
             end
         }
         val expired = leases.acquire()

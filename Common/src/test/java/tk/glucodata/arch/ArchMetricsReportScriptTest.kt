@@ -3,6 +3,7 @@ package tk.glucodata.arch
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Test
 
 /**
@@ -26,6 +27,13 @@ class ArchMetricsReportScriptTest {
 
     @Test
     fun theScriptRunsAndPrintsAReport() {
+        // A Windows host rarely runs this: bash is often not on PATH (or is WSL's, which cannot
+        // open a Windows path), and a core.autocrlf checkout breaks the script. It is a report
+        // for the Linux CI, so skip rather than fail.
+        assumeFalse(
+            "arch-metrics.sh is a report for the Linux CI",
+            System.getProperty("os.name").orEmpty().lowercase().startsWith("windows"),
+        )
         val script = File(repoRoot(), "scripts/arch-metrics.sh")
         assertTrue("scripts/arch-metrics.sh not found", script.isFile)
 

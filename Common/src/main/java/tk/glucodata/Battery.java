@@ -52,6 +52,7 @@ class Battery {
 static private final String LOG_ID="Battery";
 
 
+@SuppressWarnings("deprecation") // startActivityForResult: migrating to the ActivityResult API would change the result plumbing
 static void batteryscreen(MainActivity context,View parent ) {
 	if(isWearable)
 		return;

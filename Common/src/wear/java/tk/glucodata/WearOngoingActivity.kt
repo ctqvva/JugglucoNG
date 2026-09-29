@@ -42,7 +42,8 @@ object WearOngoingActivity : OngoingNotification {
     }
 
     private fun status(context: Context): Status {
-        val value = runCatching { CurrentDisplaySource.resolveCurrent()?.primaryStr }
+        // The sensor the complications and the watch face show, not native's own "main".
+        val value = runCatching { tk.glucodata.glucosecomplication.GlucoseComplicationData.currentReading()?.text }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
             ?: context.getString(R.string.novalue)

@@ -127,6 +127,7 @@ public interface LayoutView {
 
 		ViewTreeObserver vto = view.getViewTreeObserver();
 		vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+			@SuppressWarnings("deprecation") // legacy API: vendored widget, left as written
 			@Override
 			public void onGlobalLayout() {
 				layoutset.lay(view);

@@ -414,6 +414,7 @@ public class UnifiedScanActivity extends AppCompatActivity {
         flashButton.setAlpha(torchEnabled ? 1f : 0.8f);
     }
 
+    @SuppressWarnings("deprecation") // ComponentActivity.onBackPressed override; OnBackPressedDispatcher is a different back-handling flow
     @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {

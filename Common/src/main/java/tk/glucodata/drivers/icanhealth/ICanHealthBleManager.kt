@@ -1053,6 +1053,8 @@ class ICanHealthBleManager(
         return super.connectDevice(delayMillis)
     }
 
+    // BluetoothAdapter.getDefaultAdapter(): the fallback when no BluetoothManager is reachable; minSdk 26
+    @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
     private fun hydrateBluetoothDeviceFromAddress(): Boolean {
         if (mActiveBluetoothDevice != null) {
@@ -1378,6 +1380,8 @@ class ICanHealthBleManager(
         }
     }
 
+    // legacy BluetoothGattCallback overload: the platform still invokes it below API 33
+    @Suppress("DEPRECATION")
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         val data = characteristic.value ?: return
@@ -1422,6 +1426,8 @@ class ICanHealthBleManager(
         }.onFailure { Log.stack(TAG, "dumpGattSurface", it) }
     }
 
+    // legacy BluetoothGattCallback overload: the platform still invokes it below API 33
+    @Suppress("DEPRECATION")
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicRead(
         gatt: BluetoothGatt,
@@ -3876,6 +3882,8 @@ class ICanHealthBleManager(
         gattQueue.add(op)
     }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     private fun drainGattQueue() {
         if (gattOpActive || gattQueue.isEmpty()) return
         val gatt = mBluetoothGatt ?: return

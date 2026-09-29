@@ -23,9 +23,9 @@ class AnytimeNativeCt3Tests {
             val gid = 20 + k
             val input = AnytimeNativeInput().apply {
                 glucoseId = gid
-                iw = 30.0f + 0.05f * k + 2.0f * sin(k / 20.0f).toFloat()
+                iw = 30.0f + 0.05f * k + 2.0f * sin(k / 20.0f)
                 ib = 1.0f
-                temperatureC = 33.0f + 0.5f * sin(k / 50.0f).toFloat()
+                temperatureC = 33.0f + 0.5f * sin(k / 50.0f)
                 flags = if (k == 1) 0x80 else 0
                 newBgValue = if (k == 1) 120.0f else 0f
                 k0 = 1.0f

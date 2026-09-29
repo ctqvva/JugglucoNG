@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
@@ -222,6 +223,9 @@ internal fun sensorTraceExportName(serial: String, at: Date = Date()): String {
 @Composable
 internal fun SensorTraceLog(sensor: SensorInfo) {
     val context = LocalContext.current
+    // LocalClipboard (the replacement) copies through a suspend call and a platform ClipEntry;
+    // that is a rewrite of the copy path, not an import swap, so the legacy local stays.
+    @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val identifiers = remember(sensor.serial, sensor.deviceAddress) {
         buildSet {
@@ -406,7 +410,7 @@ private fun TraceLogActions(onCopy: () -> Unit, onShare: () -> Unit, onSave: () 
 private fun TraceLogAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
     val text = stringResource(label)
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(text) } },
         state = rememberTooltipState(),
     ) {

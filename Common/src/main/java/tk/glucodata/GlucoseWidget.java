@@ -100,6 +100,7 @@ static private void showviews(RemoteViews views,int rId,AppWidgetManager appWidg
         Log.stack(LOG_ID, "showviews(" + appWidgetId + ")", th);
     }
    }
+@SuppressWarnings("deprecation") // Bundle.get(String): log-only key dump; typed getters are API 33+
 static private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
    try {
    var widgetInfo=appWidgetManager.getAppWidgetOptions(appWidgetId);

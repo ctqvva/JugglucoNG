@@ -105,6 +105,8 @@ private void docmd0(BluetoothGatt bluetoothGatt) {
      phase = Round1;
      cmd(bluetoothGatt,0x0);
    }
+    // minSdk 26: the API 33 replacement needs an SDK_INT branch and device verification on a BLE path.
+    @SuppressWarnings("deprecation")
     @SuppressLint("MissingPermission")
     @Override // android.bluetooth.BluetoothGattCallback
     public void onDescriptorWrite(BluetoothGatt bluetoothGatt, BluetoothGattDescriptor bluetoothGattDescriptor, int status) {
@@ -811,6 +813,8 @@ private    void getdata(byte[] value) {
         }
     }
 
+    // Deprecated override kept: the platform dispatches this signature below API 33.
+    @SuppressWarnings("deprecation")
     @Override // android.bluetooth.BluetoothGattCallback
     public void onCharacteristicChanged(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
         {if(doLog) {Log.i(LOG_ID, "onCharacteristicChanged/2");};};
@@ -833,6 +837,8 @@ private    void getdata(byte[] value) {
     }
 
 
+   // Deprecated override kept: the platform dispatches this signature below API 33.
+   @SuppressWarnings("deprecation")
    @Override 
    public void onCharacteristicRead(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
    switch(status) {
@@ -950,6 +956,8 @@ private    void getdata(byte[] value) {
         return writer(mBluetoothGatt, nr, data);
     }
 
+    // minSdk 26: the API 33 writeCharacteristic(char, value, type) needs an SDK_INT branch and device verification.
+    @SuppressWarnings("deprecation")
     private boolean writer(BluetoothGatt mBluetoothGatt, int nr, byte[] data) {
         final var cha = charact[nr];
 

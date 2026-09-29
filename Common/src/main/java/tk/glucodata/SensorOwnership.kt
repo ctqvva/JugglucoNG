@@ -83,7 +83,7 @@ object SensorOwnershipPolicy {
         if (!peerIsCurrent) return true
 
         // The peer is there but not reading it either.
-        if (!peer!!.owns) return true
+        if (!peer.owns) return true
 
         // The assigned watch must not tear down a proven live GATT because the
         // phone's last pre-release announcement has the same reading timestamp.

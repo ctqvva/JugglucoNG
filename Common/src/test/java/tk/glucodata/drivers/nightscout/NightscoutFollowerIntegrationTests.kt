@@ -34,7 +34,7 @@ class NightscoutFollowerIntegrationTests {
         val reading = parseEntryRaw(entry)
         assertNotNull(reading)
         assertEquals(142f, reading!!.glucoseMgdl, 0.01f)
-        assertEquals(1718928000000L, reading!!.timestampMs)
+        assertEquals(1718928000000L, reading.timestampMs)
     }
 
     @Test

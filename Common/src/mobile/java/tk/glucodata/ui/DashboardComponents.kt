@@ -724,7 +724,7 @@ fun DashboardCombinedHeader(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = secondaryText ?: "",
+                                    text = secondaryText,
                                     style = secondaryThreeValueStyle,
                                     color = glucoseContentColor.copy(alpha = 0.90f),
                                     softWrap = false,
@@ -737,7 +737,7 @@ fun DashboardCombinedHeader(
                                     modifier = Modifier.padding(horizontal = 4.dp)
                                 )
                                 Text(
-                                    text = tertiaryText ?: "",
+                                    text = tertiaryText,
                                     style = tertiaryThreeValueStyle,
                                     color = glucoseContentColor.copy(alpha = 0.66f),
                                     softWrap = false,
@@ -746,7 +746,7 @@ fun DashboardCombinedHeader(
                             }
                         } else if (hasSecondary) {
                             Text(
-                                text = secondaryText ?: "",
+                                text = secondaryText,
                                 style = secondaryInlineStyle,
                                 color = glucoseContentColor.copy(alpha = 0.80f),
                                 softWrap = false,
@@ -755,7 +755,7 @@ fun DashboardCombinedHeader(
                             )
                         } else if (hasTertiary) {
                             Text(
-                                text = tertiaryText ?: "",
+                                text = tertiaryText,
                                 style = tertiaryThreeValueStyle,
                                 color = glucoseContentColor.copy(alpha = 0.60f),
                                 softWrap = false,
@@ -1669,6 +1669,10 @@ private fun SwipeableDeleteRow(
     var rowWidthPx by remember(isDisabled) { mutableStateOf(0) }
 
     // Key on isDisabled so state resets when toggled
+    // confirmValueChange is deprecated without a replacement: upstream's advice is to build an
+    // anchor set that omits the disallowed anchors. Keeping the callback until that rework happens,
+    // because it is what vetoes the StartToEnd (disable) swipe from actually dismissing the row.
+    @Suppress("DEPRECATION")
     val dismissState = key(isDisabled) {
         androidx.compose.material3.rememberSwipeToDismissBoxState(
             // Require a more deliberate swipe before destructive actions fire.
@@ -1771,8 +1775,7 @@ fun CalibrationsCard(
     val isRawMode = viewMode == 1 || viewMode == 3
     
     // Collect calibrations and enable state
-    val allCalibrations by tk.glucodata.data.calibration.CalibrationManager.getCalibrationsFlow()?.collectAsState(initial = tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations())
-        ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations()) }
+    val allCalibrations by tk.glucodata.data.calibration.CalibrationManager.getCalibrationsFlow().collectAsState(initial = tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations())
     val currentSensor = SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId
     val calibrations = allCalibrations.filter {
         currentSensor.isNotBlank() &&

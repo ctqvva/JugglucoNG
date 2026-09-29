@@ -44,6 +44,7 @@ private static void addBondStateReceiver() {
     bondStateReceiver=new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            @SuppressWarnings("deprecation") // typed getParcelableExtra is API 33+; needs an SDK_INT branch
             final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             if(device==null) {
                 Log.e(LOG_ID,"Bond Broadcast: BluetoothDevice.EXTRA_DEVICE ==null");

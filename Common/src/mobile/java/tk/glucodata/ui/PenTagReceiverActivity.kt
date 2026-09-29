@@ -37,6 +37,9 @@ class PenTagReceiverActivity : Activity() {
         handle(intent)
     }
 
+    // Intent.getParcelableExtra(String) is deprecated at API 33; the typed overload does not
+    // exist at minSdk 26.
+    @Suppress("DEPRECATION")
     private fun handle(intent: Intent?) {
         if (reading) return
         val tag: Tag? = intent?.getParcelableExtra(NfcAdapter.EXTRA_TAG)

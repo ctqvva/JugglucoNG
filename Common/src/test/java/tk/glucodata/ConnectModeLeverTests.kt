@@ -120,17 +120,21 @@ class ConnectModeLeverTests {
         // both live in flavour source sets, so a src/main scan stayed green while the measurement
         // was absent for most users. GlucoseMeterGatt is a plain BluetoothGattCallback and has no
         // connectGatt of ours to time, hence the subclass filter.
-        val missing = sources("Common/src")
+        // Any modifiers: Libre3 declares it synchronized since upstream's connect deadline.
+        val javaDeclaration = Regex("""public\s+(?:\w+\s+)*void onConnectionStateChange\(""")
+        val drivers = sources("Common/src")
             .filterNot { it.path.replace('\\', '/').contains("/Common/src/test/") }
             .filter { it.name != "SuperGattCallback.java" }
             .filter { file ->
                 val text = file.readText()
                 (text.contains("extends SuperGattCallback") || text.contains(": SuperGattCallback("))
-                    && (text.contains("override fun onConnectionStateChange(")
-                        || text.contains("public void onConnectionStateChange("))
-                    && !text.contains("noteFirstGattCallback(")
+                    && (text.contains("override fun onConnectionStateChange(") || javaDeclaration.containsMatchIn(text))
             }
-            .map { it.name }
+        assertTrue(
+            "the gate must see the Libre3 driver",
+            drivers.any { it.path.replace('\\', '/').endsWith("/libre3/java/tk/glucodata/Libre3GattCallback.java") },
+        )
+        val missing = drivers.filterNot { it.readText().contains("noteFirstGattCallback(") }.map { it.name }
         assertTrue(
             "every SuperGattCallback subclass must report how long connectGatt took to produce " +
                 "its first callback; missing in $missing",

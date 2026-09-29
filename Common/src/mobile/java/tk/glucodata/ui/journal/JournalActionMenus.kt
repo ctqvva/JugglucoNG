@@ -25,7 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.FloatingActionButton
@@ -75,7 +75,7 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
     JournalEntryType.INSULIN -> Icons.Default.Vaccines
     JournalEntryType.CARBS -> Icons.Default.Restaurant
     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
+    JournalEntryType.ACTIVITY -> Icons.AutoMirrored.Filled.DirectionsRun
     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
 }
 

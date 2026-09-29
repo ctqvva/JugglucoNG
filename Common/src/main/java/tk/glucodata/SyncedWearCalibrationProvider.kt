@@ -243,7 +243,7 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
             )
         }
         if (!finalSource.isFinite() || finalSource <= 0f) return value
-        return (finalSource * sourceScale / watchUnitMgdlPerUnit).toFloat()
+        return finalSource * sourceScale / watchUnitMgdlPerUnit
     }
 
     override fun getIntegratedCalibrationFingerprint(sensorId: String?, isRawMode: Boolean): Long {

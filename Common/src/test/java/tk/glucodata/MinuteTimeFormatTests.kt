@@ -21,6 +21,10 @@ class MinuteTimeFormatTests {
     private fun reference(timestamp: Long): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
 
+    // Locale(String, String) is deprecated; Locale.of needs Java 19 and this module targets 17.
+    private fun localeOf(language: String, country: String): Locale =
+        Locale.Builder().setLanguage(language).setRegion(country).build()
+
     private fun check(zone: String, locale: Locale) {
         TimeZone.setDefault(TimeZone.getTimeZone(zone))
         Locale.setDefault(locale)
@@ -37,11 +41,11 @@ class MinuteTimeFormatTests {
     fun matchesSimpleDateFormatAcrossZonesAndLocales() {
         check("Europe/Amsterdam", Locale.GERMANY)
         check("America/New_York", Locale.US)
-        check("Asia/Kolkata", Locale("hi", "IN"))
-        check("Asia/Tashkent", Locale("ru", "RU"))
+        check("Asia/Kolkata", localeOf("hi", "IN"))
+        check("Asia/Tashkent", localeOf("ru", "RU"))
         check("Australia/Lord_Howe", Locale.UK)
-        check("Asia/Tehran", Locale("fa", "IR"))
-        check("Africa/Cairo", Locale("ar", "EG"))
+        check("Asia/Tehran", localeOf("fa", "IR"))
+        check("Africa/Cairo", localeOf("ar", "EG"))
     }
 
     @Test
@@ -52,7 +56,7 @@ class MinuteTimeFormatTests {
         assertEquals(reference(t), MinuteTimeFormat.format(t))
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"))
         assertEquals(reference(t), MinuteTimeFormat.format(t))
-        Locale.setDefault(Locale("ar", "EG"))
+        Locale.setDefault(localeOf("ar", "EG"))
         assertEquals(reference(t), MinuteTimeFormat.format(t))
     }
 }

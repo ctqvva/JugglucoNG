@@ -34,7 +34,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -426,7 +426,7 @@ private fun DestinationCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
+                            if (destination.isSms()) Icons.Filled.Sms else Icons.AutoMirrored.Filled.Send,
                             contentDescription = null
                         )
                         Text(
@@ -459,7 +459,7 @@ private fun DestinationIcon(preset: String, enabled: Boolean) {
                 imageVector = when (preset) {
                     OutboundApiSettings.PRESET_TELEGRAM_BOT,
                     OutboundApiSettings.PRESET_GLUCO_WATCH_VK,
-                    OutboundApiSettings.PRESET_VK_MESSAGES -> Icons.Filled.Send
+                    OutboundApiSettings.PRESET_VK_MESSAGES -> Icons.AutoMirrored.Filled.Send
                     OutboundApiSettings.PRESET_SMS -> Icons.Filled.Sms
                     else -> Icons.Filled.CloudUpload
                 },
@@ -1310,19 +1310,19 @@ private fun destinationPresetSpecs(): List<PresetSpec> =
             id = OutboundApiSettings.PRESET_TELEGRAM_BOT,
             titleRes = R.string.outbound_api_preset_telegram,
             descriptionRes = R.string.outbound_api_preset_telegram_desc,
-            icon = Icons.Filled.Send
+            icon = Icons.AutoMirrored.Filled.Send
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_GLUCO_WATCH_VK,
             titleRes = R.string.outbound_api_preset_gluco_watch_vk,
             descriptionRes = R.string.outbound_api_preset_gluco_watch_vk_desc,
-            icon = Icons.Filled.Send
+            icon = Icons.AutoMirrored.Filled.Send
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_VK_MESSAGES,
             titleRes = R.string.outbound_api_preset_vk,
             descriptionRes = R.string.outbound_api_preset_vk_desc,
-            icon = Icons.Filled.Send
+            icon = Icons.AutoMirrored.Filled.Send
         ),
         PresetSpec(
             id = OutboundApiSettings.PRESET_SMS,

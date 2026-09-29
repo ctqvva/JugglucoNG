@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -259,7 +259,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     title = stringResource(R.string.speakglucose),
                     checked = uiState.speakGlucose,
                     onCheckedChange = { persist(uiState.copy(speakGlucose = it)) },
-                    icon = Icons.Default.VolumeUp,
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
                 )

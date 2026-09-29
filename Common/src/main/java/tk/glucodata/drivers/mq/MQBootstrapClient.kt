@@ -307,7 +307,7 @@ object MQBootstrapClient {
         if (usable && root.failure != MQBootstrapFailure.NONE) {
             Log.w(
                 TAG,
-                "MQ continue-wear bootstrap returned usable state despite appCode failure: snapshot=${mergedConfig?.snapshotId} sensitivity=${mergedConfig?.sensitivity} message=${root.message}",
+                "MQ continue-wear bootstrap returned usable state despite appCode failure: snapshot=${mergedConfig.snapshotId} sensitivity=${mergedConfig.sensitivity} message=${root.message}",
             )
         }
 

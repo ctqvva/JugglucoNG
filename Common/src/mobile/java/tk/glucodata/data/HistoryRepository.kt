@@ -271,11 +271,12 @@ class HistoryRepository(context: Context = Applic.app) {
         }
 
         /**
-         * Resolved by name from [tk.glucodata.HistorySyncAccess], so the name must survive R8.
-         * The manual keep list in proguard-rules.my did not cover this one: in every minified
-         * build the lookup threw, the bridge answered "no rows", and the Ottai driver read that
-         * as "nothing stored" and re-pulled the sensor's entire history on every reconnect.
-         * @Keep pins it at the declaration, where it cannot drift away from the caller.
+         * Called through [tk.glucodata.data.MobileHistoryRepositoryBridge], the registered
+         * HistoryRepositoryBridge. It used to be resolved by name from HistorySyncAccess, and the
+         * keep list in proguard-rules.my did not cover it: in every minified build the lookup
+         * threw, the bridge answered "no rows", and the Ottai driver read that as "nothing
+         * stored" and re-pulled the sensor's entire history on every reconnect (713631f9).
+         * @Keep is left from then and is now redundant.
          */
         @Keep
         @JvmStatic
@@ -296,7 +297,7 @@ class HistoryRepository(context: Context = Applic.app) {
             }
         }
 
-        /** Resolved by name from [tk.glucodata.HistorySyncAccess] — see [getHistoryTimestampsForSensorBlocking]. */
+        /** Called through [tk.glucodata.data.MobileHistoryRepositoryBridge] — see [getHistoryTimestampsForSensorBlocking]. */
         @Keep
         @JvmStatic
         fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int {
@@ -552,7 +553,7 @@ class HistoryRepository(context: Context = Applic.app) {
             enqueueHistoryBatch(roomSerial, readings)
         }
 
-        /** Resolved by name from [tk.glucodata.HistorySyncAccess] — see [getHistoryTimestampsForSensorBlocking]. */
+        /** Called through [tk.glucodata.data.MobileHistoryRepositoryBridge] — see [getHistoryTimestampsForSensorBlocking]. */
         @Keep
         @JvmStatic
         fun storeHistoryBatchBlocking(

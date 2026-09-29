@@ -724,6 +724,8 @@ Layout getdateview(MainActivity activity) {
     }
 
 
+// legacy API: DatePicker.setCalendarViewShown, required at minSdk 26
+@SuppressWarnings("deprecation")
 public Layout getdateviewal(MainActivity activity, long date, Dater erdate) {
 {if(doLog) {Log.i(LOG_ID, "getdateviewal");};};
     dater=erdate;

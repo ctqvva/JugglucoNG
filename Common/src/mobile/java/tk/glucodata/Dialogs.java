@@ -256,6 +256,7 @@ public class Dialogs {
         algexporter(context, type, prefix, ".tsv", days);
     }
 
+    @SuppressWarnings("deprecation") // legacy API: startActivityForResult; the ActivityResult API is a different lifecycle
     static private void exportdata(MainActivity context, int type, String name, float days) {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);

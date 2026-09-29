@@ -90,6 +90,7 @@ static void settingsnoaccessdir()   {
 
 static void makefilesfailed()   { throw new noAccessToFilesDirException("no access files: ETXTBSY"); }
 
+@SuppressWarnings("deprecation") // legacy API: Build.CPU_ABI/CPU_ABI2 device info, log-only
 static public boolean setlibrary(Applic con) {
 if(true) {
    var loc=Locale.getDefault();

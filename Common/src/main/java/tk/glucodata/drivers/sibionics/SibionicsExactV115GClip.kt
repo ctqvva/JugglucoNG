@@ -1,4 +1,12 @@
-@file:Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "LocalVariableName")
+// Mirror of the decompiled vendor algorithm: names, casts and control flow are kept
+// byte-for-byte faithful to the recovered native code and are never hand-edited, so the
+// tidiness warnings it trips are suppressed for the whole file rather than per site.
+@file:Suppress(
+    "UNUSED_VARIABLE",
+    "UNUSED_PARAMETER",
+    "LocalVariableName",
+    "REDUNDANT_CALL_OF_CONVERSION_METHOD",
+)
 
 package tk.glucodata.drivers.sibionics
 

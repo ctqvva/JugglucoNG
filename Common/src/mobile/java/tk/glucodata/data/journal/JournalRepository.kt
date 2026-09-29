@@ -166,32 +166,32 @@ class JournalRepository {
                 nsRemoteId = nsRemoteId ?: existing?.nsRemoteId,
                 insulinCurveJsonSnapshot = when {
                     !isInsulin -> null
-                    preserveCurveSnapshot -> existing?.insulinCurveJsonSnapshot
+                    preserveCurveSnapshot -> existing.insulinCurveJsonSnapshot
                     else -> resolvedCurve?.points?.let(::serializeJournalCurve)
                 },
                 insulinCurveProfileId = when {
                     !isInsulin -> null
-                    preserveCurveSnapshot -> existing?.insulinCurveProfileId
+                    preserveCurveSnapshot -> existing.insulinCurveProfileId
                     else -> resolvedCurve?.profileId
                 },
                 insulinCurveModelVersion = when {
                     !isInsulin -> null
-                    preserveCurveSnapshot -> existing?.insulinCurveModelVersion
+                    preserveCurveSnapshot -> existing.insulinCurveModelVersion
                     else -> resolvedCurve?.modelVersion
                 },
                 insulinCurveEvidence = when {
                     !isInsulin -> null
-                    preserveCurveSnapshot -> existing?.insulinCurveEvidence
+                    preserveCurveSnapshot -> existing.insulinCurveEvidence
                     else -> resolvedCurve?.evidence?.storageValue
                 },
                 insulinBodyWeightKg = when {
                     !isInsulin -> null
-                    preserveCurveSnapshot -> existing?.insulinBodyWeightKg
+                    preserveCurveSnapshot -> existing.insulinBodyWeightKg
                     else -> resolvedCurve?.usedBodyWeightKg
                 },
                 insulinCurveWasApproximated = when {
                     !isInsulin -> false
-                    preserveCurveSnapshot -> existing?.insulinCurveWasApproximated ?: true
+                    preserveCurveSnapshot -> existing.insulinCurveWasApproximated
                     else -> resolvedCurve?.approximated ?: true
                 }
             )

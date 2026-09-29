@@ -18,6 +18,9 @@ class RecordedMainValueTests {
         const val NOW = 1_800_000_000_000L
     }
 
+    // Needles below span line breaks; a CRLF checkout must not fail them.
+    private fun source(path: String): String = File(path).readText().replace("\r\n", "\n")
+
     private fun record(timestamp: Long, serial: String = "sensor-a") = ReadingDisplay(
         timestamp = ReadingDisplay.minuteOf(timestamp),
         sensorSerial = serial,
@@ -73,7 +76,7 @@ class RecordedMainValueTests {
      */
     @Test
     fun noWritePathCanMoveASealedMainValue() {
-        val dao = File("src/mobile/java/tk/glucodata/data/ReadingDisplayDao.kt").readText()
+        val dao = source("src/mobile/java/tk/glucodata/data/ReadingDisplayDao.kt")
 
         assertTrue(
             "recording a new minute must ignore one that already has a record",
@@ -113,7 +116,7 @@ class RecordedMainValueTests {
      */
     @Test
     fun nothingButPresentationWritesARecord() {
-        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val repo = source("src/mobile/java/tk/glucodata/data/HistoryRepository.kt")
 
         assertTrue(
             "the presentation path is the writer",
@@ -131,7 +134,7 @@ class RecordedMainValueTests {
      */
     @Test
     fun aMinuteIsRecordedWhetherOrNotACalibrationApplies() {
-        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val repo = source("src/mobile/java/tk/glucodata/data/HistoryRepository.kt")
         val writer = repo.substringAfter("suspend fun recordPresentedMinutes")
             .substringBefore("\n    /**")
 
@@ -153,7 +156,7 @@ class RecordedMainValueTests {
      */
     @Test
     fun aRecordedValueIsOnlyAttachedToItsOwnSensorsLine() {
-        val repo = File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val repo = source("src/mobile/java/tk/glucodata/data/HistoryRepository.kt")
         val helper = repo.substringAfter("private fun sealedRecordForLine").substringBefore("\n    }")
         assertTrue(
             "the line helper must check the record's owner against the reading's sensor",
@@ -182,8 +185,8 @@ class RecordedMainValueTests {
      */
     @Test
     fun onlyVisibleMinutesAreOfferedForRecording() {
-        val recorder = File("src/mobile/java/tk/glucodata/ui/PresentedMinuteRecorder.kt").readText()
-        val chart = File("src/mobile/java/tk/glucodata/ui/DashboardChart.kt").readText()
+        val recorder = source("src/mobile/java/tk/glucodata/ui/PresentedMinuteRecorder.kt")
+        val chart = source("src/mobile/java/tk/glucodata/ui/DashboardChart.kt")
 
         assertTrue(
             "a fling past a stretch is not a presentation",

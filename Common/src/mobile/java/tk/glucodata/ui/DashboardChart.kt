@@ -71,7 +71,7 @@ import androidx.compose.material.icons.automirrored.filled.LastPage
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.filled.WaterDrop
@@ -959,6 +959,9 @@ fun InteractiveGlucoseChart(
     val context = LocalContext.current
     // 1. Get Vibrator & Check Capabilities ONCE (Performance)
     val hapticsConfig = remember(context) {
+        // Context.VIBRATOR_SERVICE is only reached on the pre-M branch below; the typed
+        // getSystemService(Vibrator::class.java) replacement is already used from M on.
+        @Suppress("DEPRECATION")
         val vib = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             context.getSystemService(Vibrator::class.java)
         } else {
@@ -1654,6 +1657,9 @@ fun InteractiveGlucoseChart(
 //        view.performHapticFeedback(feedbackType)
 //    }
 
+    // Vibrator.vibrate(VibrationEffect) is deprecated at API 33; the VibrationAttributes overload
+    // does not exist at minSdk 26 and the SDK_INT branches below already pick the right path.
+    @Suppress("DEPRECATION")
     fun performSubtleTick(isFrequent: Boolean = false) {
         val now = System.currentTimeMillis()
 
@@ -2032,7 +2038,7 @@ fun InteractiveGlucoseChart(
                                 onTimelineTap != null && !isDoubleTapStart && !startedOnJournalMarker
                             ) {
                                 coroutineScope.launch {
-                                    kotlinx.coroutines.delay(viewConfiguration.longPressTimeoutMillis.toLong())
+                                    kotlinx.coroutines.delay(viewConfiguration.longPressTimeoutMillis)
                                     if (!longPressTriggered && totalDragDistance < viewConfiguration.touchSlop) {
                                         buildTimelineTapSuggestion(latestTouchPosition, forceMenu = true)?.let { suggestion ->
                                             dismissJournalActionIfNeeded()
@@ -4836,7 +4842,7 @@ private fun JournalMarkerChip(
                     JournalEntryType.INSULIN -> Icons.Default.Vaccines
                     JournalEntryType.CARBS -> Icons.Default.Restaurant
                     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-                    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
+                    JournalEntryType.ACTIVITY -> Icons.AutoMirrored.Filled.DirectionsRun
                     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
                 },
                 contentDescription = null,

@@ -106,7 +106,8 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import java.util.Locale
 
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -319,7 +320,7 @@ private fun SensorIdentityControl(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.ShowChart,
+                imageVector = Icons.AutoMirrored.Filled.ShowChart,
                 contentDescription = stringResource(R.string.sensor_color_title),
                 tint = color,
                 modifier = Modifier.size(18.dp),
@@ -2408,7 +2409,7 @@ fun SensorCard(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

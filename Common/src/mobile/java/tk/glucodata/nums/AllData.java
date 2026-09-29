@@ -448,14 +448,17 @@ public void onMessageReceived(IQDevice device, IQApp app, List<Object> message, 
 
        case NUMS: {
           log("NUMS "+ base+" "+size+" "+end);
-          List<Object> gegs = (List<Object>) li.get(4);
+          List<?> gegs = (List<?>) li.get(4);
           log("mess: "+gegs);
            if (size != gegs.size()) {
              errorm("input said " + size + " got " + gegs.size());
              continue;
              }
          int datiter = end - gegs.size(),start=datiter;
-          ListIterator<List<Number>> iter = ((List<List<Number>>) li.get(4)).listIterator();
+          // unchecked: gegs is the array-of-arrays our own watch app sends; the Garmin IQ decoder
+          // hands each element back as a List of Number (shape written by numio.readAr).
+          @SuppressWarnings("unchecked")
+          ListIterator<List<Number>> iter = ((List<List<Number>>) gegs).listIterator();
           while (iter.hasNext())
              numio.writeAr(base,datiter++, iter.next());
           

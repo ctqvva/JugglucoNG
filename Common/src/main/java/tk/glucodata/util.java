@@ -99,6 +99,7 @@ static void sethtml(TextView view, String text) {
 static void sethtml(TextView view,int res) {
 	sethtml(view,view.getContext().getString(res));
 	}
+@SuppressWarnings("deprecation") // legacy API: Configuration.locale is the pre-N path
 static  Locale getReslocale() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
             return Applic.app.getResources().getConfiguration().getLocales().get(0);

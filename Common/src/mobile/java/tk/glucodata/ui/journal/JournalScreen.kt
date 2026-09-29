@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
@@ -544,7 +544,7 @@ private fun JournalMetricsPanel(
         .toFloat()
     val activityMinutesToday = todaysEntries
         .filter { it.type == JournalEntryType.ACTIVITY }
-        .sumOf { (it.durationMinutes ?: 0).toInt() }
+        .sumOf { it.durationMinutes ?: 0 }
 
     var iobDetailsExpanded by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -662,7 +662,7 @@ private fun JournalMetricsPanel(
                 title = stringResource(R.string.journal_metric_activity_today),
                 value = stringResource(R.string.minutes_short_format, activityMinutesToday),
                 detail = stringResource(R.string.journal_type_activity),
-                icon = Icons.Default.DirectionsRun,
+                icon = Icons.AutoMirrored.Filled.DirectionsRun,
                 type = JournalEntryType.ACTIVITY,
                 modifier = Modifier.weight(1f)
             )

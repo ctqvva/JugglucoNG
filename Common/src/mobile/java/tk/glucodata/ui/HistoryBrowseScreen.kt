@@ -25,11 +25,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
@@ -376,12 +376,12 @@ private fun JournalEntryType.historyFilterIcon(): ImageVector = when (this) {
     JournalEntryType.INSULIN -> Icons.Default.Vaccines
     JournalEntryType.CARBS -> Icons.Default.Restaurant
     JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-    JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
-    JournalEntryType.NOTE -> Icons.Default.Label
+    JournalEntryType.ACTIVITY -> Icons.AutoMirrored.Filled.DirectionsRun
+    JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
 }
 
 private fun HistoryFilterOption.historyFilterIcon(): ImageVector = when (this) {
-    HistoryFilterOption.Readings -> Icons.Default.ShowChart
+    HistoryFilterOption.Readings -> Icons.AutoMirrored.Filled.ShowChart
     is HistoryFilterOption.Journal -> type.historyFilterIcon()
 }
 

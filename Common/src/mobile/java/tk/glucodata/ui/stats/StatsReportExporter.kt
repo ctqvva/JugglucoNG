@@ -1115,7 +1115,7 @@ object StatsReportExporter {
                             if (runStart == null) runStart = point.timestamp
                             lastMatch = point.timestamp
                         } else if (runStart != null && lastMatch != null) {
-                            val durationMinutes = ((lastMatch!! - runStart!!) / 60_000f + 5f).coerceAtLeast(5f)
+                            val durationMinutes = ((lastMatch - runStart) / 60_000f + 5f).coerceAtLeast(5f)
                             if (durationMinutes >= 10f) {
                                 episodeCount += 1
                                 totalMinutes += durationMinutes
@@ -1125,7 +1125,7 @@ object StatsReportExporter {
                         }
                     }
                     if (runStart != null && lastMatch != null) {
-                        val durationMinutes = ((lastMatch!! - runStart!!) / 60_000f + 5f).coerceAtLeast(5f)
+                        val durationMinutes = ((lastMatch - runStart) / 60_000f + 5f).coerceAtLeast(5f)
                         if (durationMinutes >= 10f) {
                             episodeCount += 1
                             totalMinutes += durationMinutes

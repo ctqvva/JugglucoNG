@@ -79,6 +79,8 @@ public class Libre2GattCallback extends SuperGattCallback {
 	final byte[] packet = new byte[46];
 
 
+	// legacy BLE API: required at minSdk 26
+	@SuppressWarnings("deprecation")
 	@SuppressLint("MissingPermission")
 	final void writeBLELogin() {
 		conphase = 2;
@@ -115,6 +117,8 @@ public class Libre2GattCallback extends SuperGattCallback {
 
 		}
 	}
+// legacy BLE API: required at minSdk 26
+@SuppressWarnings("deprecation")
 static void showCharacter(String label, BluetoothGattCharacteristic characteristic) {
 	byte[] value=characteristic.getValue();
         {if(doLog){Log.showbytes(label + " UUID: " + characteristic.getUuid().toString(), value);};}
@@ -226,6 +230,8 @@ private PendingIntent onalarm=null;
 	BluetoothGattCharacteristic CompositeRawDatacharacteristic;
 
 
+	// legacy BLE API: required at minSdk 26
+	@SuppressWarnings("deprecation")
 	private  boolean m2831x() {
 		try {
 			var sensorbluetooth=SensorBluetooth.blueone;
@@ -325,6 +331,8 @@ status	int: The result of the write operation BluetoothGatt#GATT_SUCCESS if the 
 private	boolean justenablednotification = false;
  private   BluetoothGattCharacteristic characteristic;
 private   boolean failedbefore=false;
+	// legacy BLE API: required at minSdk 26
+	@SuppressWarnings("deprecation")
 	@Override
 	public void onCharacteristicWrite(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
 		{if(doLog) {Log.d(LOG_ID, bluetoothGatt.getDevice().getAddress() + " onCharacteristicWrite, status:" + status + " UUID:" + bluetoothGattCharacteristic.getUuid().toString());};};
@@ -403,6 +411,8 @@ private static PowerManager.WakeLock getwakelock() {
 		}
 		*/
 
+// legacy BLE API: required at minSdk 26
+@SuppressWarnings("deprecation")
 private boolean setDescriptor(BluetoothGattCharacteristic ch, byte[] type) {
        var gatt=mBluetoothGatt;
         BluetoothGattDescriptor descriptor = ch.getDescriptor(mCharacteristicConfigDescriptor);
@@ -585,6 +595,8 @@ private	void oldonCharacteristicChanged(byte[] value) {
 
 	//mCharacteristicUUID_BLELogin.toString().equals(bluetoothGattCharacteristic.getUuid().toString())
 	byte[] buf25 = new byte[25];// this.f14472dGb = new byte[25];
+	// legacy BLE API: required at minSdk 26
+	@SuppressWarnings("deprecation")
 	public final void phase2(byte[] value) {
 		if (value.length != 14) {
 			Log.e(LOG_ID, SerialNumber+" phase2 wrong " + value);
@@ -716,6 +728,8 @@ private final boolean enableNotification(BluetoothGattCharacteristic bluetoothGa
 		}
 	}
 
+// legacy BLE callback: still invoked by the platform below API 33
+@SuppressWarnings("deprecation")
 @Override // android.bluetooth.BluetoothGattCallback
 public void onCharacteristicChanged(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
 	byte[] value = bluetoothGattCharacteristic.getValue();

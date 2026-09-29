@@ -60,6 +60,8 @@ public class SiGattCallback extends SuperGattCallback {
       ++siNR;
    }
 
+   // minSdk 26: the API 33 replacement needs an SDK_INT branch and device verification on a BLE path.
+   @SuppressWarnings("deprecation")
    @SuppressLint("MissingPermission")
    @Override // android.bluetooth.BluetoothGattCallback
    public synchronized void onDescriptorWrite(BluetoothGatt bluetoothGatt,
@@ -250,6 +252,8 @@ public class SiGattCallback extends SuperGattCallback {
       return enablenotifications(bluetoothGatt);
    }
 
+   // minSdk 26: the API 33 writeDescriptor(desc, value) needs an SDK_INT branch and device verification.
+   @SuppressWarnings("deprecation")
    private boolean enablenotifications(BluetoothGatt bluetoothGatt) {
       {
          if (doLog) {
@@ -391,6 +395,8 @@ public class SiGattCallback extends SuperGattCallback {
    }
 
    @SuppressLint("MissingPermission")
+   // minSdk 26: the API 33 writeCharacteristic(char, value, type) needs an SDK_INT branch and device verification.
+   @SuppressWarnings("deprecation")
    private boolean write2(byte[] bytes) {
       if (bytes == null || bytes.length == 0) {
          Log.e(LOG_ID, "write2 skipped empty command");
@@ -601,6 +607,8 @@ public class SiGattCallback extends SuperGattCallback {
     * }
     * }
     */
+   // Deprecated override kept: the platform dispatches this signature below API 33.
+   @SuppressWarnings("deprecation")
    @Override // android.bluetooth.BluetoothGattCallback
    public void onCharacteristicChanged(BluetoothGatt bluetoothGatt,
          BluetoothGattCharacteristic bluetoothGattCharacteristic) {

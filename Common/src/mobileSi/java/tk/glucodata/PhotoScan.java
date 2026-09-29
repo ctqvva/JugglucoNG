@@ -103,6 +103,7 @@ public class PhotoScan {
     /*
      * Sibionics2:
      */
+    @SuppressWarnings("deprecation") // WindowInsets.getSystemWindowInset*/consumeSystemWindowInsets: minSdk 26, WindowInsetsCompat would change the padding flow
     private static void asktransmitter(MainActivity act, String name, long sensorptr) {
         var title = getlabel(act, R.string.scantranstitle);
         var message = getlabel(act, R.string.scantransmessage);
@@ -148,6 +149,7 @@ public class PhotoScan {
         act.addContentView(layout, params);
     }
 
+    @SuppressWarnings("deprecation") // WindowInsets.getSystemWindowInset*/consumeSystemWindowInsets: minSdk 26, WindowInsetsCompat would change the padding flow
     private static void selectType(String name, long sensorptr, MainActivity act) {
         int subtype = Natives.getSensorptrSiSubtype(sensorptr);
 
@@ -941,6 +943,7 @@ public class PhotoScan {
         scanner(act, type, sensorptr, null);
     }
 
+    @SuppressWarnings("deprecation") // startActivityForResult: result is routed through MainActivity.onActivityResult; ActivityResultLauncher is a different flow
     public static void scanner(MainActivity act, int type, long sensorptr, String title) {
         if (!isWearable) {
             final Intent unifiedIntent = createUnifiedScanIntent(act, type, sensorptr, title);

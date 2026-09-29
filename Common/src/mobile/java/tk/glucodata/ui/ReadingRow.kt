@@ -633,7 +633,7 @@ fun ReadingRow(
                                             insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
                                             food = entry.foodId?.let(journalFoodsById::get),
                                             expanded = true,
-                                            onClick = { onJournalEntryClick?.invoke(entry) }
+                                            onClick = { onJournalEntryClick.invoke(entry) }
                                         )
                                     }
                                 }
@@ -649,7 +649,7 @@ fun ReadingRow(
                                             insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
                                             food = entry.foodId?.let(journalFoodsById::get),
                                             expanded = false,
-                                            onClick = { onJournalEntryClick?.invoke(entry) }
+                                            onClick = { onJournalEntryClick.invoke(entry) }
                                         )
                                     }
                                 }

@@ -91,7 +91,7 @@ class SatelliteMeterProtocolTests {
             )
         }
         assertTrue(update!!.complete)
-        assertEquals(10, update!!.readings.size)
+        assertEquals(10, update.readings.size)
 
         val future = SatelliteMeterSession("007", 1_600_000_000_000L)
         future.notificationsEnabled()

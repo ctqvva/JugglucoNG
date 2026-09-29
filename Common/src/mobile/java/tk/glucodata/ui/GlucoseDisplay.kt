@@ -1,9 +1,9 @@
 package tk.glucodata.ui
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.TrendingDown
-import androidx.compose.material.icons.rounded.TrendingFlat
-import androidx.compose.material.icons.rounded.TrendingUp
+import androidx.compose.material.icons.automirrored.rounded.TrendingDown
+import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -69,9 +69,9 @@ fun formatSensorTime(rawTime: String): String {
 
 fun getTrendIcon(rate: Float, modifier: Modifier = Modifier): ImageVector =
     when {
-        rate > 0.5f -> Icons.Rounded.TrendingUp
-        rate < -0.5f -> Icons.Rounded.TrendingDown
-        else -> Icons.Rounded.TrendingFlat
+        rate > 0.5f -> Icons.AutoMirrored.Rounded.TrendingUp
+        rate < -0.5f -> Icons.AutoMirrored.Rounded.TrendingDown
+        else -> Icons.AutoMirrored.Rounded.TrendingFlat
     }
 
 @Composable

@@ -72,7 +72,7 @@ void updateusedsensors(uint32_t nu) {
     wait--;
 }
 
-static void printGlString(const char *name, GLenum s) {
+[[maybe_unused]] static void printGlString(const char *name, GLenum s) {
 #ifndef NDEBUG
   const char *v = (const char *)glGetString(s);
   if (v)
@@ -200,7 +200,7 @@ int getalarmcode(const uint32_t glval, float drate, SensorGlucoseData *hist);
 void processglucosevalue(int sendindex, int newstart);
 struct {
   float left, top, right, bottom;
-} menupos, hidepos;
+} menupos, hidepos [[maybe_unused]];
 #ifndef NOLOG
 void logmenupos() {
   LOGGER("left=%.1f top=%.1f right=%.1f bottom=%.1f\n", menupos.left,
@@ -504,7 +504,7 @@ bool showtextbox(JCurve *j, NVGcontext *avg) {
 }
 #endif
 #ifndef DONTTALK
-static bool speakmenutap(float x, float y) {
+[[maybe_unused]] static bool speakmenutap(float x, float y) {
   if (x < menupos.left || x >= menupos.right) {
     return false;
   }

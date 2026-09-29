@@ -39,6 +39,7 @@ public class watchdrip extends BroadcastReceiver {
 private static String  LOG_ID="watchdrip";
 private static final double MGDL_PER_MMOLL=18.0182;
 
+ @SuppressWarnings("deprecation") // Bundle.get(String): log-only key dump; typed getters are API 33+
  static   String  tostring(Bundle bundle) {
         if(bundle==null)
             return "";
@@ -63,6 +64,7 @@ private static final double MGDL_PER_MMOLL=18.0182;
 				return;
 				}
 //			WearInt.settings  = intent.getParcelableExtra("SETTINGS");
+			@SuppressWarnings("deprecation") // typed getParcelable is API 33+; needs an SDK_INT branch
 			Settings settings= extras.getParcelable("SETTINGS");
 			if(settings==null) {
 					Log.e(LOG_ID,"settings==null");

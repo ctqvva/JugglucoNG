@@ -162,7 +162,7 @@ class CloneRecoveryStagingTests {
 
         assertEquals(CloneRecoveryPhase.FAILED, failed.phase)
         assertTrue(failed.error!!.length <= CloneHistoryRecoveryProtocol.MAXIMUM_STATUS_ERROR_CHARS)
-        assertFalse(failed.error!!.contains('\n'))
+        assertFalse(failed.error.contains('\n'))
         assertThrows(IllegalArgumentException::class.java) {
             staging.prepareIncoming(
                 manifest.copy(mode = CloneRecoveryMode.FULL_HISTORY),

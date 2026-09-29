@@ -892,6 +892,8 @@ class MQBleManager(
         }
     }
 
+    // legacy BluetoothGattCallback overload: the platform still invokes it below API 33
+    @Suppress("DEPRECATION")
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         if (stop || gatt !== mBluetoothGatt || characteristic.uuid != MQConstants.NUS_TX_NOTIFY) return
@@ -1946,6 +1948,8 @@ class MQBleManager(
         attemptWrite(bytes, tag, attempt = 1)
     }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     private fun writeFrameNow(bytes: ByteArray, tag: String): Boolean {
         if (stop || phase != Phase.STREAMING) return false
         val gatt = mBluetoothGatt ?: return false
@@ -1974,6 +1978,8 @@ class MQBleManager(
         }
     }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     private fun attemptWrite(bytes: ByteArray, tag: String, attempt: Int) {
         val gatt = mBluetoothGatt ?: return
         val ch = charRxWrite ?: run {

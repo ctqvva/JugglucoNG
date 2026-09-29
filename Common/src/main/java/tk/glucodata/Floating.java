@@ -266,6 +266,8 @@ public class Floating extends View {
         Natives.setfloatglucose(false);
     }
 
+    // legacy API: TYPE_SYSTEM_ALERT is the pre-O overlay type, required at minSdk 26
+    @SuppressWarnings("deprecation")
     private static void hidefloating() {
         Log.i(LOG_ID, "hidefloating() density=" + density);
         hide = true;
@@ -289,6 +291,8 @@ public class Floating extends View {
 
     private boolean asking = false;
 
+    // legacy API: TYPE_SYSTEM_ALERT is the pre-O overlay type, required at minSdk 26
+    @SuppressWarnings("deprecation")
     private void untouchable() {
         if (asking)
             return;
@@ -385,6 +389,8 @@ public class Floating extends View {
 
     static float floatingx, floatingy;
 
+    // legacy API: TYPE_SYSTEM_ALERT is the pre-O overlay type, required at minSdk 26
+    @SuppressWarnings("deprecation")
     private static WindowManager.LayoutParams makeparams(int screenwidth, int screenheight) {
         var xpos = -screenwidth * .5f + xview;
         var ypos = -screenheight * .5f + yview;

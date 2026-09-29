@@ -8,9 +8,6 @@ import static tk.glucodata.MainActivity.REQUEST_BARCODE;
 import static tk.glucodata.PhotoScan.connectSensor;
 import static tk.glucodata.watchdrip.tostring;
 
-import static com.google.zxing.integration.android.IntentIntegrator.DATA_MATRIX;
-import static com.google.zxing.integration.android.IntentIntegrator.QR_CODE;
-
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 import android.app.Activity;
@@ -19,12 +16,13 @@ import android.content.Intent;
 class ZXing {
     final static String LOG_ID="ZXing";
     static long wassensorptr=0L;
+    @SuppressWarnings("deprecation") // legacy API: zxing IntentIntegrator; ScanContract is a different result flow
     static void scanZXingAlg(Activity act,int type,long sensorptr) {
          if(!isWearable&&useZXing) {
              IntentIntegrator intentIntegrator = new IntentIntegrator(act);
              intentIntegrator.setPrompt(Applic.app.getString(R.string.photomessage));
              intentIntegrator.setOrientationLocked(true); 
-             intentIntegrator.setDesiredBarcodeFormats( DATA_MATRIX, QR_CODE);
+             intentIntegrator.setDesiredBarcodeFormats( IntentIntegrator.DATA_MATRIX, IntentIntegrator.QR_CODE);
              intentIntegrator.setRequestCode(type);
 //             intentIntegrator.addExtra("sensorptr",sensorptr); //does
              wassensorptr=sensorptr;
@@ -32,6 +30,7 @@ class ZXing {
              }
           }
 //    static void scanZXing(Activity act,int type) { scanZXingAlg(Activity act,REQUEST_BARCODE); }
+    @SuppressWarnings("deprecation") // legacy API: zxing IntentIntegrator.parseActivityResult; ScanContract is a different result flow
     static void zXingResult(int resultCode, Intent data,MainActivity act,int type) {
          if(!isWearable&&useZXing) {
                 try {

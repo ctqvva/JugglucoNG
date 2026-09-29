@@ -1219,6 +1219,9 @@ private fun SwipeableCalibrationRow(
     }
     
     // Key on isEnabled so state resets when toggled
+    // confirmValueChange is deprecated without replacement; the dynamic-anchor alternative
+    // would change how the delete/disable swipe behaves on this row, so keep the callback.
+    @Suppress("DEPRECATION")
     val dismissState = key(cal.isEnabled) {
         rememberSwipeToDismissBoxState(
             // Require a more deliberate swipe before destructive actions fire.

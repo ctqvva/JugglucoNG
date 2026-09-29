@@ -6,12 +6,15 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
+import tk.glucodata.BuildConfig
 
 /**
  * The Room migration runner (plan tasks H3/H4). Runs the production `Migration`
@@ -39,6 +42,12 @@ class HistoryMigrationTest {
         emptyList(),
         FrameworkSQLiteOpenHelperFactory()
     )
+
+    // The schemas are debug-only assets (Common/build.gradle), but gradle.properties keeps
+    // the release unit-test variants, where MigrationTestHelper would find no schema file.
+    // The migrations do not depend on the build type, so the debug run covers them.
+    @Before
+    fun schemasAreDebugAssets() = assumeTrue("Room schemas are debug-only assets", BuildConfig.DEBUG)
 
     private fun migrate(from: Int, databaseName: String = DB_NAME) {
         helper.createDatabase(databaseName, from).close()

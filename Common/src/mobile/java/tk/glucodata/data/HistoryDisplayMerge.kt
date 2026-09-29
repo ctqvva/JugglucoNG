@@ -286,7 +286,7 @@ internal object HistoryDisplayMerge {
     ): List<HistoryReading> {
         val byBucket = LinkedHashMap<LogicalSensorBucket, HistoryReading>(readings.size)
         for (reading in readings) {
-            val sensorSerial = reading.sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            val sensorSerial = reading.sensorSerial.trim().takeIf { it.isNotEmpty() } ?: continue
             val resolvedSensorId = logicalResolver.resolve(sensorSerial) ?: continue
             val key = LogicalSensorBucket(
                 sensorId = resolvedSensorId,

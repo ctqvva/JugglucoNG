@@ -107,7 +107,10 @@ android {
                 version = "$CMAKEVERSION"
                 cppFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 cFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
-                arguments "-DJUGGLUCO_APP=TRUE -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=TRUE", "-Dlibre3=TRUE", "-DDEXCOM=TRUE"
+                // -Dlibre3 / -DDEXCOM were cache variables no CMakeLists ever read, so CMake
+                // warned on every configure. The real defines reach the compiler through
+                // cppFlags/cFlags above (-DLIBRE3=1 -DDEXCOM=1).
+                arguments "-DJUGGLUCO_APP=TRUE -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=TRUE"
             }
         }
     }
@@ -303,8 +306,9 @@ android {
             jniLibs.srcDirs += ['src/wearSi/jniLibs']
         }
         // The exported Room schemas are read by MigrationTestHelper through the
-        // variant's assets (plan task H3). Debug only: release never needs them,
-        // and unit tests run against debug.
+        // variant's assets (plan task H3). Debug only: release never needs them.
+        // gradle.properties keeps the release unit-test variants, and the
+        // migration tests skip there on BuildConfig.DEBUG.
         debug {
             assets.srcDirs += files("$projectDir/schemas")
         }
@@ -328,7 +332,7 @@ androidComponents {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-Xmaxwarns" << "10000"
 }
 
 kotlin {

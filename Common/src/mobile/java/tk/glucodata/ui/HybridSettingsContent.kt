@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -152,7 +153,7 @@ internal fun HybridSettingsContent(
                 },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
-                        Icon(Icons.Default.HelpOutline, stringResource(R.string.help))
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, stringResource(R.string.help))
                     }
                 },
             )

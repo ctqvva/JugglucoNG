@@ -15,6 +15,9 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
+// overridePendingTransition's replacement (overrideActivityTransition) is API 34+ and would need
+// an SDK_INT branch; the no-animation restart is deliberate and unchanged.
+@Suppress("DEPRECATION")
 fun Activity.hardRestart() {
     finish()
     overridePendingTransition(0, 0)

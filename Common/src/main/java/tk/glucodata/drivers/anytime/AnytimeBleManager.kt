@@ -2011,6 +2011,8 @@ class AnytimeBleManager(
         recoverGattAndReconnect("CCCD write timeout", ACTIVE_SESSION_RECONNECT_DELAY_MS)
     }
 
+    // BluetoothAdapter.getDefaultAdapter(): no Context reaches this callback; minSdk 26
+    @Suppress("DEPRECATION")
     private fun isBluetoothAdapterReady(): Boolean {
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return false
         return adapter.isEnabled
@@ -2474,6 +2476,8 @@ class AnytimeBleManager(
         return scheduled
     }
 
+    // BluetoothAdapter.getDefaultAdapter(): no Context reaches this callback; minSdk 26
+    @Suppress("DEPRECATION")
     private fun resolveActiveDeviceFromStoredAddress() {
         if (mActiveBluetoothDevice != null) return
         if (shouldForceScanReconnect(System.currentTimeMillis())) {
@@ -2671,6 +2675,8 @@ class AnytimeBleManager(
         }
     }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
         if (mBluetoothGatt !== gatt) {
             Log.d(TAG, "Ignoring services callback from stale GATT")
@@ -2975,6 +2981,8 @@ class AnytimeBleManager(
         handler.post(drainGattWriteQueueRunnable)
     }
 
+    // legacy BluetoothGattCallback overload: the platform still invokes it below API 33
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onCharacteristicChanged(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
@@ -4966,6 +4974,8 @@ class AnytimeBleManager(
 
     private val drainGattWriteQueueRunnable = Runnable { drainGattWriteQueue() }
 
+    // legacy BLE API: required at minSdk 26; the API 33 overloads are not a drop-in replacement
+    @Suppress("DEPRECATION")
     private fun drainGattWriteQueue() {
         if (stop) return
         val stale = synchronized(pendingGattWrites) {

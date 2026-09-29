@@ -14,7 +14,10 @@ class RendezvousTlsSafetyTests {
         error("Project root not found")
     }
 
-    private fun source(path: String): String = File(projectRoot(), path).readText()
+    // Needles below span line breaks. A CRLF checkout (core.autocrlf on Windows, and this repo
+    // has no .gitattributes) must not turn that into a failure about TLS verification.
+    private fun source(path: String): String =
+        File(projectRoot(), path).readText().replace("\r\n", "\n")
 
     @Test
     fun rendezvousHttpsFailsClosedOnCertificateErrors() {

@@ -465,7 +465,8 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
         struct timeval tv;
         gettimeofday(&tv, nullptr);
 
-        uint32_t starttime2=tv.tv_sec,rel_msec;
+        uint32_t starttime2=tv.tv_sec;
+        [[maybe_unused]] uint32_t rel_msec; // sendpacket()'s return; RTT is measured in ackeddata() from the echoed header
    //     uint32_t startmsec=tv.tv_usec/100;
         int totalminuslastunits=(len-1)/dataunit;
         int trans_id;

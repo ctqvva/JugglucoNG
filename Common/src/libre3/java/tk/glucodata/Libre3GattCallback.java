@@ -114,6 +114,8 @@ private final void checkBluetoothGatt(BluetoothGatt bluetoothGatt) {
             }
         }
     }
+    // Deprecated override kept: the platform dispatches this signature below API 33.
+    @SuppressWarnings("deprecation")
     @Override 
     public void onCharacteristicRead(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int i2) {
         checkBluetoothGatt(bluetoothGatt);
@@ -123,6 +125,8 @@ private final void checkBluetoothGatt(BluetoothGatt bluetoothGatt) {
         }
     }
 
+    // minSdk 26: getValue() is the only way to read the written bytes before API 33.
+    @SuppressWarnings("deprecation")
     @Override 
     public void onCharacteristicWrite(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int i2) {
         checkBluetoothGatt(bluetoothGatt);
@@ -197,6 +201,8 @@ private boolean connected=false;
             }
         }
 
+        // Deprecated override kept: the platform dispatches this signature below API 33.
+        @SuppressWarnings("deprecation")
         @Override 
         public void onDescriptorRead(BluetoothGatt bluetoothGatt, BluetoothGattDescriptor bluetoothGattDescriptor, int status) {
         {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+ "onDescriptorRead status="+status);};};
@@ -364,6 +370,8 @@ Waarschijnlijk wordt er ook iets opgeslagen
 private boolean sendSecurityCommand(int b) {
         return sendSecurityCommand((byte)b);
     }
+// minSdk 26: the API 33 writeCharacteristic(char, value, type) needs an SDK_INT branch and device verification.
+@SuppressWarnings("deprecation")
 @SuppressLint("MissingPermission")
 private boolean sendSecurityCommand(byte b) {
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"sendSecurityCommand "+b);};};
@@ -442,6 +450,8 @@ private    void save_history(byte[] value) {
     byte[] olddec=intDecrypt(cryptptr,4, value);
         Natives.saveLibre3History(this.sensorptr, olddec);
     }
+// Deprecated override kept: the platform dispatches this signature below API 33.
+@SuppressWarnings("deprecation")
 @Override 
 public void onCharacteristicChanged(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
 
@@ -801,6 +811,8 @@ private    void preparedata(byte[] value) {
 //        sendevent(mSLibre3Event);
     }
 
+    // minSdk 26: the API 33 writeCharacteristic(char, value, type) needs an SDK_INT branch and device verification.
+    @SuppressWarnings("deprecation")
     @SuppressLint("MissingPermission")
   private  int writedata(BluetoothGattCharacteristic bluetoothGattCharacteristic) {
       if(wrtData==null) {
@@ -1028,6 +1040,8 @@ private boolean qsendcommand(byte[] command) {
         return fromqueue();
     return false;    
     }
+// minSdk 26: the API 33 writeCharacteristic(char, value, type) needs an SDK_INT branch and device verification.
+@SuppressWarnings("deprecation")
 private boolean sendcommandonly(byte[] encr) {
     gattCharPatchDataControl.setValue(encr);
     wrotecharacter=true;

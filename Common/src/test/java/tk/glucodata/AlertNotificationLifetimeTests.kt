@@ -111,7 +111,7 @@ class AlertNotificationLifetimeTests {
         }
 
         private val compiled: Class<*> by lazy {
-            val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            val root = generateSequence(File(checkNotNull(System.getProperty("user.dir")))) { it.parentFile }
                 .first { File(it, "Common/src/main/java/tk/glucodata/Notify.java").exists() }
             val source = File(root, "Common/src/main/java/tk/glucodata/Notify.java").readText()
             val start = source.indexOf("                var GluNotBuilder = mkbuilderintent(type, intent, false);")
@@ -214,7 +214,7 @@ class AlertNotificationLifetimeTests {
                     }
                 """.trimIndent())
             }
-            val paths = File(AlertDeliveryPolicy::class.java.protectionDomain.codeSource.location.toURI()).path
+            val paths = File(AlertDeliveryPolicy::class.java.protectionDomain!!.codeSource.location.toURI()).path
             val output = java.io.ByteArrayOutputStream()
             val result = checkNotNull(ToolProvider.getSystemJavaCompiler()).run(null, output, output,
                 "-classpath", paths, "-d", dir.path, receiver.path, javaFile.path)

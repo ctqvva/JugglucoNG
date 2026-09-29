@@ -180,6 +180,7 @@ final var helplayout2=helplayout;
     setonback(closerun);
 };
 
+    @SuppressWarnings("deprecation") // legacy API: Html.fromHtml(String) is the pre-N path
     @SuppressLint("deprecation")
 public static   void help(String text,Activity act,Consumer<ViewGroup>  okproc,Placer place, ViewGroup.MarginLayoutParams params) {
     if(doLog) {

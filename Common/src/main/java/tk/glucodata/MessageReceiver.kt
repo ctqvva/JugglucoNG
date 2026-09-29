@@ -116,7 +116,7 @@ class MessageReceiver: WearableListenerService() {
             }
             WearMessagePath.SYNC2_JOURNAL_REQ -> {
                 if (!isWearable) WearJournalSync.onRequest(
-                    if (data != null && data.size >= 9) {
+                    if (data.size >= 9) {
                         java.nio.ByteBuffer.wrap(data, 1, 8).long
                     } else {
                         0L
@@ -155,7 +155,7 @@ class MessageReceiver: WearableListenerService() {
             WearMessagePath.CALIBRATE -> {
                 // Watch-relayed fingerstick calibration; applied to the local
                 // driver that owns the BLE connection.
-                if (data != null && data.size >= 4) {
+                if (data.size >= 4) {
                     val mgdl = java.nio.ByteBuffer.wrap(data).int
                     MessageSender.scope.launch {
                         tk.glucodata.drivers.ManagedCalibration.applyFingerstickCalibration(mgdl)

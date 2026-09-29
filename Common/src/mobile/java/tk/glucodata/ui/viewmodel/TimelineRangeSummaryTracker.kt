@@ -36,7 +36,7 @@ class TimelineRangeSummaryTracker(val startMs: Long, val endMs: Long) {
                 Plan(listOf(startMs..endMs), headStretches = 0, newCutMs = null)
             }
         }
-        val grow = if (newCut > cut!!) (cut + 1)..newCut else null
+        val grow = if (newCut > cut) (cut + 1)..newCut else null
         return Plan(listOfNotNull(grow, tailAfter(newCut)), headStretches = if (grow != null) 1 else 0, newCutMs = newCut)
     }
 

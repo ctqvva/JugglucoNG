@@ -60,6 +60,7 @@ Layout lay=null;
 	this.libfile=libfile;
 	}
 	@SuppressLint("deprecation")
+	@SuppressWarnings("deprecation") // legacy API: Html.fromHtml(String) is the pre-N path
 	void showchoice(MainActivity context,boolean getback) {
        
     if(lay!=null) {

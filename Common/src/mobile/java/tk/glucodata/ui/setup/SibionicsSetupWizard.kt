@@ -15,9 +15,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothSearching
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Image
@@ -445,7 +445,7 @@ fun SibionicsSetupWizard(
                 windowInsets = TopAppBarDefaults.windowInsets, // Ensure status bar padding
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -721,7 +721,7 @@ fun ScanSensorStep(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.scanning_devices))
                     } else {
-                        Icon(Icons.Default.BluetoothSearching, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.search_bluetooth))
                     }
@@ -1061,7 +1061,7 @@ fun ScanTransmitterStep(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.scanning_devices))
                 } else {
-                    Icon(Icons.Default.BluetoothSearching, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.search_bluetooth))
                 }

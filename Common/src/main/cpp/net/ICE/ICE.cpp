@@ -1095,7 +1095,7 @@ class initJuice {
          };
      };
 
-static std::pair<const char *,const char *> getloginpass(char *twiliooutput,const int len) {
+[[maybe_unused]] static std::pair<const char *,const char *> getloginpass(char *twiliooutput,const int len) {
      char *endstr=twiliooutput+len;
      char *startsearch=twiliooutput+(len>300?len-300:0);
     std::string_view  password{R"("password": ")"};
@@ -1142,7 +1142,7 @@ static bool turnTextPresent(const char *value) {
     return value&&value[0];
     }
 
-static bool isTwilioTurnServer(const juice_turn_server_t &server) {
+[[maybe_unused]] static bool isTwilioTurnServer(const juice_turn_server_t &server) {
     return turnTextPresent(server.host)&&!strcmp(server.host,"global.turn.twilio.com");
     }
 

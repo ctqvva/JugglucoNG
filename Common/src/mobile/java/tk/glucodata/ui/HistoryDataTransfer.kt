@@ -21,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.History
@@ -778,6 +778,9 @@ fun ScheduledBackupSettingsSheet(
                         summary.insulinPresets,
                         summary.calibrations,
                         context.getString(
+                            // android.R.string.yes/no are deprecated since API 33 with no
+                            // replacement usable at minSdk 26; the platform strings still resolve.
+                            @Suppress("DEPRECATION")
                             if (summary.settingsIncluded) android.R.string.yes else android.R.string.no
                         )
                     )
@@ -984,7 +987,7 @@ fun ScheduledBackupSettingsSheet(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scheduled_backup_test))

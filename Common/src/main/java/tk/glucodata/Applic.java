@@ -169,6 +169,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
     }
 
+    @SuppressWarnings("deprecation") // legacy API: Thread.getId() is the thread id available at minSdk 26
     static public void RunOnUiThread(Runnable action) {
         if (Thread.currentThread().getId() != uiThreadId) {
             mHandler.post(action);
@@ -189,6 +190,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
     public static Applic app;
     private final IntentFilter mintimefilter;
 
+    @SuppressWarnings("deprecation") // legacy API: Thread.getId() is the thread id available at minSdk 26
     @MainThread
     public Applic() {
         super();

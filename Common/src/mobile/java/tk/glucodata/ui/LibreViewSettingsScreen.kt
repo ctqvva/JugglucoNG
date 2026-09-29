@@ -12,12 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -171,7 +171,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 title = { Text(stringResource(R.string.libreview_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
                     }
                 }
             )
@@ -437,7 +437,7 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     title = stringResource(R.string.libreview_current),
                     checked = libreCurrent,
                     onCheckedChange = { libreCurrent = it },
-                    icon = Icons.Default.ShowChart,
+                    icon = Icons.AutoMirrored.Filled.ShowChart,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.MIDDLE
                 )

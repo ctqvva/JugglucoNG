@@ -549,7 +549,7 @@ bool activate=true;
 int Connect::makeconnection(passhost_t *pass,crypt_t*ctx,char stype) {
    int res=makeconnection2(pass,stype);
    if(res>=0) {
-      const auto tag=get_owner_tag(res);
+      [[maybe_unused]] const auto tag=get_owner_tag(res);
       *getmirrorerror(pass)='\0';
       if(ctx)
          sendpassinit(pass,ctx);

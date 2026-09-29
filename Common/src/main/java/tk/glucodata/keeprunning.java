@@ -157,6 +157,7 @@ static boolean start(Context context) {
       }
    return false;
    }
+@SuppressWarnings("deprecation") // legacy API: stopForeground(boolean) is the pre-33 path
 void stopper() {
    logLifecycleState("stopper",null);
    Notify.invalidateStartupRestore(this);

@@ -44,7 +44,8 @@ class ArchitectureGateTests {
                 .toList()
         }
 
-    private fun relativePath(file: File): String = file.relativeTo(moduleRoot).path
+    // '/' on every OS: the allowlists are written that way, and a Windows checkout gives '\'.
+    private fun relativePath(file: File): String = file.relativeTo(moduleRoot).invariantSeparatorsPath
 
     /**
      * A shrink-only gate: [violating] must be a subset of the allow-list, and the allow-list

@@ -29,6 +29,7 @@ class LogConfig {
    final private static String LOG_ID="LogConfig" ;
 
 
+@SuppressWarnings("deprecation") // legacy API: startActivityForResult; the ActivityResult API is a different lifecycle
 private static void saveRequest(MainActivity context,String filename,int request) {
     if(doLog) {
         Log.i(LOG_ID,"saveRequest "+filename);

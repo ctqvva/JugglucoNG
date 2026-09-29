@@ -22,7 +22,6 @@ internal fun autoExpandedChartYRange(
         ?.takeIf { it.isFinite() && it > 0.1f && it < safeMin }
         ?.let { value ->
             (kotlin.math.floor((value - edgePadding) / expansionStep) * expansionStep)
-                .toFloat()
                 .coerceAtLeast(0f)
         }
         ?.coerceAtMost(safeMin)
@@ -30,7 +29,7 @@ internal fun autoExpandedChartYRange(
     val high = visibleMax
         ?.takeIf { it.isFinite() && it > safeMax }
         ?.let { value ->
-            (kotlin.math.ceil((value + edgePadding) / expansionStep) * expansionStep).toFloat()
+            kotlin.math.ceil((value + edgePadding) / expansionStep) * expansionStep
         }
         ?.coerceAtLeast(safeMax)
         ?: safeMax

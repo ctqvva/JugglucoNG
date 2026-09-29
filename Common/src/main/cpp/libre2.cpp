@@ -1165,7 +1165,11 @@ if(settings&&!settings->data()->havelibrary) {//settings==null for abbotttest
     }
 #endif
 //static int init=((init=doabbottinit(doch)),initptr=&init,init);
-static int init=(init=doabbottinit(doch),initptr=&init,init);
+// Two statics, in this order: doabbottinit() must finish before its address is published,
+// or abbottreinit() on another thread starts a second concurrent vendor-library init
+// instead of blocking on this guard.
+static int init=doabbottinit(doch);
+[[maybe_unused]] static const bool initpublished=(initptr=&init,true);
 return init;
 }
 int  abbottreinit() {

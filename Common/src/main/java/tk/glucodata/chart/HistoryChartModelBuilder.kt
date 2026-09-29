@@ -137,7 +137,7 @@ object HistoryChartModelBuilder {
                 val differs = live != null && kotlin.math.abs(live - value) > PREVIEW_DIFFERENCE
                 if (differs) {
                     if (previewLast != Long.MIN_VALUE && point.timestamp - previewLast > gapThresholdMs) flushPreview()
-                    preview.add(ChartPointModel(point.timestamp, live!!))
+                    preview.add(ChartPointModel(point.timestamp, live))
                     previewLast = point.timestamp
                 } else if (preview.isNotEmpty()) {
                     flushPreview()

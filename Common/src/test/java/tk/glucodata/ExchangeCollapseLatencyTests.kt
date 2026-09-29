@@ -2,6 +2,7 @@ package tk.glucodata
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,7 +21,10 @@ import org.junit.Test
  * destination).
  *
  * Shape taken from the field trace: readings every 60 s, each one reaching the callback ~4 s
- * before its own timestamp, smoothing window 3 min.
+ * before its own timestamp, smoothing window 3 min. handleGlucoseResultInternal hands the
+ * reading to Room (storeCurrentReadingAsync, asynchronous on Dispatchers.IO) before dowithglucose
+ * reaches emitExchangeOutputs. The replay models the usual case, where that row is already in
+ * history when the payload is resolved; the case where it has not landed yet is not covered here.
  */
 class ExchangeCollapseLatencyTests {
     private val minute = 60_000L
@@ -62,6 +66,7 @@ class ExchangeCollapseLatencyTests {
         val out = ArrayList<Emission>()
         for (k in 0 until readings) {
             val stamp = base + k * minute
+            history += GlucosePoint(stamp, valueAt(k), 0f)
             val current = CurrentGlucoseSource.Snapshot(
                 timeMillis = stamp,
                 valueText = "",
@@ -105,7 +110,6 @@ class ExchangeCollapseLatencyTests {
                 payloadValue = snapshot.primaryValue,
                 emitted = gate.shouldEmit(sensorId, snapshot.timeMillis, intervalMinutes)
             )
-            history += GlucosePoint(stamp, valueAt(k), 0f)
         }
         return out
     }
@@ -175,15 +179,19 @@ class ExchangeCollapseLatencyTests {
     fun valueIsSmoothedFromTheWindowBehindTheReading() {
         val noisy = { k: Int -> 100f + k + if (k % 2 == 0) 4f else -4f }
 
-        val run = replay(Settings(), valueAt = noisy).drop(steadyState)
+        // 5 min, not the default 3: at 3 the boundary fit spans only the last two readings and
+        // returns the newest one unchanged, so an unsmoothed payload would pass too.
+        val run = replay(Settings(smoothingMinutes = 5), valueAt = noisy).drop(steadyState)
 
         run.forEachIndexed { i, e ->
             val k = steadyState + i
-            val trailing = (k - 3..k).map(noisy)
-            assertTrue(
-                "reading $k: ${e.payloadValue} outside the trailing window ${trailing.min()}..${trailing.max()}",
-                e.payloadValue >= trailing.min() - 0.001f && e.payloadValue <= trailing.max() + 0.001f
-            )
+            // Built from readings 0..k only: nothing after the reading may shape its value.
+            val upToReading = (0..k).map { GlucosePoint(base + it * minute, noisy(it), 0f) }
+            val expected = DataSmoothing.smoothNativePoints(
+                upToReading, 5, false, e.readingTimeMs - arrivalLeadMs
+            ).last().value
+            assertEquals("reading $k", expected, e.payloadValue, 0.001f)
+            assertNotEquals("reading $k is sent smoothed, not raw", noisy(k), e.payloadValue, 0.001f)
         }
     }
 

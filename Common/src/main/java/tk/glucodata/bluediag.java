@@ -506,6 +506,8 @@ public class bluediag {
      * }
      */
 
+    // legacy WindowInsets API: required at minSdk 26 (see the inset listener below)
+    @SuppressWarnings("deprecation")
     bluediag(MainActivity act, final ArrayList<SuperGattCallback> gatts) {
         activity = act;
         BluetoothManager mBluetoothManager = (BluetoothManager) act.getSystemService(Context.BLUETOOTH_SERVICE);

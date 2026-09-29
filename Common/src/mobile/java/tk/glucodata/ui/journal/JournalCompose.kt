@@ -50,7 +50,7 @@ import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
@@ -1833,7 +1833,7 @@ private fun JournalFoodLibrarySelector(
                                         onSaveToLibrary = if (canSaveToLibrary) {
                                             {
                                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                onFoodImported?.invoke(food.toLibraryFoodInput(sortOrder = foods.size + 100))
+                                                onFoodImported.invoke(food.toLibraryFoodInput(sortOrder = foods.size + 100))
                                                 expandedFoodId = null
                                             }
                                         } else {
@@ -2422,7 +2422,7 @@ private fun JournalActionRow(
                         JournalTrayAction.INSULIN -> Icons.Default.Vaccines
                         JournalTrayAction.CARBS -> Icons.Default.Restaurant
                         JournalTrayAction.FINGERSTICK -> Icons.Default.Bloodtype
-                        JournalTrayAction.ACTIVITY -> Icons.Default.DirectionsRun
+                        JournalTrayAction.ACTIVITY -> Icons.AutoMirrored.Filled.DirectionsRun
                         JournalTrayAction.NOTE -> Icons.AutoMirrored.Filled.Label
                     },
                     contentDescription = null,
@@ -3536,7 +3536,7 @@ private fun journalTypeIcon(type: JournalEntryType): ImageVector {
         JournalEntryType.INSULIN -> Icons.Default.Vaccines
         JournalEntryType.CARBS -> Icons.Default.Restaurant
         JournalEntryType.FINGERSTICK -> Icons.Default.Bloodtype
-        JournalEntryType.ACTIVITY -> Icons.Default.DirectionsRun
+        JournalEntryType.ACTIVITY -> Icons.AutoMirrored.Filled.DirectionsRun
         JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
     }
 }

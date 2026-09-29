@@ -19,7 +19,6 @@ object CloneRecoveryWake {
                 val release: () -> Unit = {
                     runCatching { if (wake.isHeld) wake.release() }
                         .onFailure { Log.stack("CloneRecoveryWake", "release", it) }
-                    Unit
                 }
                 release
             }

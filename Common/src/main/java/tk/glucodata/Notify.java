@@ -1743,6 +1743,8 @@ public class Notify {
 
     Vibrator vibrator = null;
 
+    // legacy API: vibrate(VibrationEffect,AudioAttributes) is required below API 33
+    @SuppressWarnings("deprecation")
     private void vibrateWaveform(Vibrator vibrator, long[] timings, int[] amplitudes, int repeatIndex) {
         if (android.os.Build.VERSION.SDK_INT < 33) {
             vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, repeatIndex), ScanNfcV.audioattributes);
@@ -1760,6 +1762,8 @@ public class Notify {
         vibratealarm(kind, hapticProfileName, durationSeconds, 0);
     }
 
+    // legacy API: VIBRATOR_SERVICE and vibrate(long[],int) are required at minSdk 26
+    @SuppressWarnings("deprecation")
     private void vibratealarm(int kind, String hapticProfileName, int durationSeconds, int soundDelayLeadInSeconds) {
         var context = Applic.app;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -3045,6 +3049,8 @@ public class Notify {
         makeseparatenotification(glvalue, message, glucose, type, alertTypeId, null, null);
     }
 
+    // legacy API: setPriority/PRIORITY_HIGH and setContent(RemoteViews) are required at minSdk 26
+    @SuppressWarnings("deprecation")
     private void makeseparatenotification(float glvalue, String message, notGlucose glucose, String type,
             int alertTypeId, String deliveryModeOverride, String customAlertId) {
         if (!isWearable) {
@@ -3385,6 +3391,8 @@ public class Notify {
         return mkbuilderintent(type, notifyPendingIntent, true);
     }
 
+    // legacy API: the pre-O Notification.Builder(Context) constructor is required at minSdk 26
+    @SuppressWarnings("deprecation")
     private Notification.Builder mkbuilderintent(String type, PendingIntent notifyPendingIntent,
             boolean groupWithService) {
         Notification.Builder GluNotBuilder;
@@ -3483,6 +3491,8 @@ public class Notify {
     }
 
     // UPDATE METHOD
+    // legacy API: setContent(RemoteViews) and setPriority/PRIORITY_* are required at minSdk 26
+    @SuppressWarnings("deprecation")
     public Notification makearrownotification(int draw, float glvalue, String message, notGlucose glucose, String type,
             boolean once) {
         return makearrownotification(draw, glvalue, message, glucose, type, once, null);
@@ -3940,6 +3950,8 @@ public class Notify {
         return notif;
     }
 
+    // legacy API: setContent(RemoteViews) and the StaticLayout constructor are required at minSdk 26
+    @SuppressWarnings("deprecation")
     Notification getforgroundnotification() {
         // Use custom layout even for initial notification to show Graph Grid
         final String message = app

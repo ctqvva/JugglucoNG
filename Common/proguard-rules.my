@@ -47,8 +47,9 @@
 # method and does not rename it but DELETES it: no shipped mapping.txt has ever contained
 # onConnectionUpdated, and in the 2026-08-01 jamming storm the framework invoked it 210/207
 # times into the two running apps while the app logged zero "conn params" lines. Same failure
-# class as the HistoryRepository note above -- dispatch by name that R8 cannot see -- and the
-# same silence: with the method gone the link-parameter history of an outage exists nowhere.
+# class as the old HistoryRepository lookup by name (713631f9, see ProguardKeepRulesTests) --
+# dispatch by name that R8 cannot see -- and the same silence: with the method gone the
+# link-parameter history of an outage exists nowhere.
 # The declaration also carries @Keep, which cannot drift; keep both in sync.
 -keepclassmembers class * extends android.bluetooth.BluetoothGattCallback {
     public void onConnectionUpdated(android.bluetooth.BluetoothGatt, int, int, int, int);

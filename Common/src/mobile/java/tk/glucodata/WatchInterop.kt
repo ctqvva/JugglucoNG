@@ -139,7 +139,7 @@ object WatchInterop {
             val appInstalled = id in appNodeIds
             WearNodeInfo(
                 id = id,
-                displayName = node.displayName ?: id,
+                displayName = node.displayName,
                 isGalaxy = MessageSender.isGalaxy(node),
                 directSensorMode = if (appInstalled) try { Natives.directsensorwatch(id) } catch (_: Throwable) { -1 } else -1,
                 claimState = WearSensorClaimStatus.remoteState(id),

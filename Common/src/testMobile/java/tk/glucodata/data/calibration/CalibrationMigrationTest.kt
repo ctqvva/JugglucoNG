@@ -5,12 +5,15 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
+import tk.glucodata.BuildConfig
 
 /**
  * Calibration migrations on the H3 runner (plan task H4). The released starting
@@ -32,6 +35,12 @@ class CalibrationMigrationTest {
         FrameworkSQLiteOpenHelperFactory()
     )
 
+    // The schemas are debug-only assets (Common/build.gradle), but gradle.properties keeps
+    // the release unit-test variants, where MigrationTestHelper would find no schema file.
+    // The migrations do not depend on the build type, so the debug run covers them.
+    @Before
+    fun schemasAreDebugAssets() = assumeTrue("Room schemas are debug-only assets", BuildConfig.DEBUG)
+
     @Test
     fun migratesFromTheReleasedV3SchemaToCurrent() {
         helper.createDatabase(DB_NAME, 3).close()
@@ -51,16 +60,17 @@ class CalibrationMigrationTest {
         val migrated = helper.runMigrationsAndValidate(DB_NAME, CALIBRATION_DATABASE_VERSION, true, *CalibrationDatabase.ALL_MIGRATIONS)
 
         migrated.query(
-            "SELECT sensorId, sensorValue, sensorValueRaw, userValue, sensorValueStock, journalEntryId " +
-                "FROM calibrations"
+            "SELECT sensorId, sensorValue, userValue, journalEntryId, sensorValueStock, sensorValueRaw FROM calibrations"
         ).use { cursor ->
             assertTrue("the calibration survived", cursor.moveToFirst())
             assertEquals("S-1", cursor.getString(0))
             assertEquals(5.5, cursor.getDouble(1), 0.001)
-            assertEquals("the sensor's own raw value survives the migration", 5.4, cursor.getDouble(2), 0.001)
-            assertEquals(6.0, cursor.getDouble(3), 0.001)
-            assertEquals("sensorValueStock is a column added at v5 with a zero default", 0.0, cursor.getDouble(4), 0.001)
-            assertTrue("journalEntryId starts null (entered by hand)", cursor.isNull(5))
+            assertEquals(6.0, cursor.getDouble(2), 0.001)
+            assertTrue("journalEntryId starts null (entered by hand)", cursor.isNull(3))
+            // 0 means the stock value is unknown; anything above it would be taken as a
+            // recorded stock anchor (CalibrationManager.applyRecordedStock).
+            assertEquals("sensorValueStock starts unknown (0)", 0.0, cursor.getDouble(4), 0.0)
+            assertEquals("sensorValueRaw survived", 5.4, cursor.getDouble(5), 0.001)
             assertEquals(1, cursor.count)
         }
         migrated.close()

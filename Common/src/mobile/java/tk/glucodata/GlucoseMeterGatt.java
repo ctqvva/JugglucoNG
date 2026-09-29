@@ -275,6 +275,7 @@ private void beginSatelliteSession(BluetoothGatt gatt) {
 long receivedTime=0L;
 boolean newvalues=false;
     @Override
+    @SuppressWarnings("deprecation") // overrides the deprecated 2-arg onCharacteristicChanged + getValue(); must stay for API < 33
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
         final var value=characteristic.getValue();
         final var uuid=characteristic.getUuid().toString();
@@ -402,6 +403,7 @@ private void handleManufactory(BluetoothGatt gatt,String manufacturer) {
         tryer(()->gatt.readCharacteristic(TimeChar));
        }
     @Override
+    @SuppressWarnings("deprecation") // overrides the deprecated 3-arg onCharacteristicRead + getValue(); must stay for API < 33
     public void onCharacteristicRead(@NonNull BluetoothGatt bluetoothGatt,@NonNull  BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
         final var value=bluetoothGattCharacteristic.getValue();
         final var uuid=bluetoothGattCharacteristic.getUuid().toString();
@@ -536,6 +538,7 @@ boolean connected=false;
     }
 
     @Override
+    @SuppressWarnings("deprecation") // overrides the deprecated 3-arg onDescriptorRead; must stay for API < 33
     public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         if(doLog)
             Log.i(LOG_ID,"onDescriptorRead/3 "+status);
@@ -547,6 +550,7 @@ boolean connected=false;
                 Log.i(LOG_ID,"onDescriptorRead/4 "+status);
     }
 
+  @SuppressWarnings("deprecation") // setValue+writeCharacteristic: API 33 writeCharacteristic(char,byte[],int) needs an SDK_INT branch; meter write path, not verifiable without hardware
   private boolean writer(BluetoothGatt mBluetoothGatt,BluetoothGattCharacteristic cha, byte[] data) {
         if (!cha.setValue(data)) {
             {if(doLog){Log.showbytes(LOG_ID + ": " +cha.getUuid().toString() + " cha.setValue failed", data);};}
@@ -560,6 +564,7 @@ boolean connected=false;
         return true;
     }
 
+@SuppressWarnings("deprecation") // setValue+writeCharacteristic: API 33 writeCharacteristic(char,byte[],int) needs an SDK_INT branch; meter write path, not verifiable without hardware
 private boolean writeSatellite(BluetoothGatt gatt,byte[] command) {
     final BluetoothGattCharacteristic characteristic=SatelliteRxChar;
     if(characteristic==null || !characteristic.setValue(command)) {
@@ -590,7 +595,7 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
         BluetoothGattCharacteristic characteristic = bluetoothGattDescriptor.getCharacteristic();
         var uuid=characteristic.getUuid().toString();
         if (doLog) {
-            byte[] value = bluetoothGattDescriptor.getValue();
+            @SuppressWarnings("deprecation") byte[] value = bluetoothGattDescriptor.getValue(); // log-only; API 33 value-carrying callback needs an SDK_INT branch
             {if(doLog){showbytes("GlucoseMeter: onDescriptorWrite char: " + uuid + " desc: " + bluetoothGattDescriptor.getUuid().toString() + " status=" + status, value);};}
             }
         switch(uuid) {
@@ -731,6 +736,7 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
     }
 
 
+    @SuppressWarnings("deprecation") // connectGatt(Context,boolean,cb[,transport]): replacement needs an SDK_INT branch; BLE connect path, not verifiable without the meter
     private Runnable getConnectDevice() {
         disconnect();
         return () -> {

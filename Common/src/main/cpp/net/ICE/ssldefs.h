@@ -13,7 +13,10 @@
 #define SSL_set_verify SSL_set_verifyptr
 #define SSL_set_verify_depth SSL_set_verify_depthptr
 #define SSL_get_ex_data_X509_STORE_CTX_idx SSL_get_ex_data_X509_STORE_CTX_idxptr
+// OpenSSL headers already define these as macros; ours must win (dlsym redirection).
+#undef SSL_library_init
 #define SSL_library_init SSL_library_initptr
+#undef SSL_load_error_strings
 #define SSL_load_error_strings SSL_load_error_stringsptr
 #define SSL_CTX_get_cert_store SSL_CTX_get_cert_storeptr
 #define SSL_CTX_set_verify SSL_CTX_set_verifyptr
@@ -21,6 +24,7 @@
 #define SSL_CIPHER_get_name SSL_CIPHER_get_nameptr
 #define SSL_CTX_load_verify_locations SSL_CTX_load_verify_locationsptr
 
+#undef SSL_set_tlsext_host_name
 #define SSL_set_tlsext_host_name SSL_set_tlsext_host_nameptr
 #define SSL_ctrl SSL_ctrlptr
 

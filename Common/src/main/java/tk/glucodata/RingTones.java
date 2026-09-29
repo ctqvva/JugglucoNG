@@ -135,6 +135,8 @@ static private void subEnableControls(View view,boolean enable){
 		}
 	}
 }
+ // legacy API: ComponentActivity.startActivityForResult, required at minSdk 26 (no result-API rewrite)
+ @SuppressWarnings("deprecation")
  public void mkviews(MainActivity context,String label,View parview) {
  		if(parview!=null) {
 //			parview.setVisibility(GONE);

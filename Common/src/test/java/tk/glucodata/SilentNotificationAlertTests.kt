@@ -73,7 +73,7 @@ class SilentNotificationAlertTests {
 
     companion object {
         private val compiled: Class<*> by lazy {
-            val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            val root = generateSequence(File(checkNotNull(System.getProperty("user.dir")))) { it.parentFile }
                 .first { File(it, "Common/src/main/java/tk/glucodata/Notify.java").exists() }
             val source = File(root, "Common/src/main/java/tk/glucodata/Notify.java").readText()
             val method = source.substring(source.indexOf("    private boolean arrowglucosealarm("),
@@ -114,7 +114,7 @@ class SilentNotificationAlertTests {
             """.trimIndent())
             val paths = listOf(AlertStateTracker::class.java, AlertConfig::class.java,
                 AlertType::class.java, kotlin.Unit::class.java).map {
-                File(it.protectionDomain.codeSource.location.toURI()).path
+                File(it.protectionDomain!!.codeSource.location.toURI()).path
             }.distinct().joinToString(File.pathSeparator)
             val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler())
             val output = java.io.ByteArrayOutputStream()

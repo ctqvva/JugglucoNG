@@ -36,6 +36,7 @@ import androidx.health.connect.client.records.metadata.Device.Companion.TYPE_UNK
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
@@ -234,6 +235,9 @@ companion object {
         intent.putExtra("callerId", context.packageName)
         context.startActivity(intent)
     }
+   // GlobalScope on purpose: this bootstraps the process-wide `instance` singleton,
+   // which lives until HealthConnection.stop() and must not die with the caller's screen.
+   @OptIn(DelicateCoroutinesApi::class)
    fun init(context:MainActivity)  {
      if(instance==null) {
 	       GlobalScope.launch {
@@ -285,6 +289,8 @@ private suspend   fun susinit(context: MainActivity): Int {
 fun writeAll(sensorptr:Long,sensorname:String) {
 	instance?.writeAllIns(sensorptr,sensorname);
     }
+    // GlobalScope on purpose: same singleton bootstrap as init(), retried lazily here.
+    @OptIn(DelicateCoroutinesApi::class)
     fun importActivity(daysBack: Int = 14) {
         instance?.importActivityIns(daysBack) ?: MainActivity.thisone?.let { context ->
             GlobalScope.launch {

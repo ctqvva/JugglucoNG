@@ -232,7 +232,7 @@ private fun paintArrow( canvas: Canvas, paint: Paint, density: Float, rate: Floa
 		val sy1: Float = (ty1 + l * hy).toFloat();
 		val sx2: Float = (tx1 - l * hx).toFloat();
 		val sy2: Float = (ty1 - l * hy).toFloat();
-		paint.strokeWidth = density.toFloat() * 5.0f
+		paint.strokeWidth = density * 5.0f
 		canvas.drawLine(x1.toFloat(), y1.toFloat(), xtus, ytus, paint)
 		canvas.drawPath(Path().apply {
 			moveTo(sx1, sy1);

@@ -60,8 +60,16 @@ public class GraphLine implements Parcelable {
     }
 */
 
+    // legacy API: the typed readArrayList(ClassLoader,Class) overload is API 33+, minSdk is 26.
+    // The parcel comes from another app, so keep only the elements that really are GraphPoints.
+    @SuppressWarnings("deprecation")
     public GraphLine(Parcel parcel) {
-        values = parcel.readArrayList(GraphPoint.class.getClassLoader());
+        values = new ArrayList<>();
+        final ArrayList<?> read = parcel.readArrayList(GraphPoint.class.getClassLoader());
+        if (read != null)
+            for (Object p : read)
+                if (p instanceof GraphPoint)
+                    values.add((GraphPoint) p);
         color = parcel.readInt();
     }
 

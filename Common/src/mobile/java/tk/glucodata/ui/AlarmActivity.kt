@@ -364,6 +364,9 @@ class AlarmActivity : ComponentActivity() {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         } else {
+            // Pre-O_MR1 fallback: setShowWhenLocked/setTurnScreenOn are API 27+. This is the path
+            // that wakes the user for a dangerous reading, so the flags stay untouched.
+            @Suppress("DEPRECATION")
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                     WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or

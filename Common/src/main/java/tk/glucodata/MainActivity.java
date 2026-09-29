@@ -481,6 +481,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * }
      * }
      */
+    @SuppressWarnings("deprecation") // legacy API: setStatusBarColor/setNavigationBarColor are the bar-transparency calls at minSdk 26
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -647,6 +648,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             ;
             try {
+                @SuppressWarnings("deprecation") // legacy API: the typed getParcelableExtra overload needs API 33
                 Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
                 startnfc(tag);
             } catch (Throwable th) {
@@ -1824,6 +1826,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if ((requestCode & (REQUEST_MASK | REQUEST_RINGTONE)) == REQUEST_RINGTONE) {
             if (resultCode == Activity.RESULT_OK) {
                 try {
+                    @SuppressWarnings("deprecation") // legacy API: the typed getParcelableExtra overload needs API 33
                     Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
                     if (uri == null) {
                         {
@@ -2021,6 +2024,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    @SuppressWarnings("deprecation") // legacy API: onBackPressed; the OnBackPressedDispatcher is a different lifecycle
     @Override
     public void onBackPressed() {
         {
@@ -2048,6 +2052,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    @SuppressWarnings("deprecation") // legacy API: startActivityForResult; the ActivityResult API is a different lifecycle
     void tonotaccesssettings() {
         {
             if (doLog) {
@@ -2148,6 +2153,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // final var colres= android.R.color.holo_blue_bright;
             // final var colres= android.R.color.holo_blue_light; //Very infrequently button
             // not shown. Maybe this helps.
+            @SuppressWarnings("deprecation") // legacy API: pre-M branch of the SDK_INT check on this declaration
             final var col = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                     ? getResources().getColor(colres, getTheme())
                     : getResources().getColor(colres);
@@ -2170,6 +2176,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fineres = proc;
     }
 
+    @SuppressWarnings("deprecation") // legacy API: LOCATION_MODE is what pre-31 devices report
     private static int getLocationMode(Context context) {
         return Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.LOCATION_MODE,
                 Settings.Secure.LOCATION_MODE_OFF);

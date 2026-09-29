@@ -118,6 +118,7 @@ public class ScanNfcV {
     static VibrationAttributes vibrationattributes = android.os.Build.VERSION.SDK_INT < 33 ? null
             : new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_ALARM).build();
 
+    @SuppressWarnings("deprecation") // legacy API: vibrate(VibrationEffect,AudioAttributes) is the pre-33 path
     static void vibrates(Vibrator vibrator, final long[] vibrationPatternstart, final int[] amplitude) {
         if (android.os.Build.VERSION.SDK_INT < 33) {
             vibrator.vibrate(VibrationEffect.createWaveform(vibrationPatternstart, amplitude, 1), audioattributes);
@@ -137,6 +138,7 @@ public class ScanNfcV {
 
     }
 
+    @SuppressWarnings("deprecation") // legacy API: vibrate(long[],int) is the pre-26 path
     public static void startvibration(Vibrator vibrator) {
         if (android.os.Build.VERSION.SDK_INT < 26)
             vibrator.vibrate(new long[] { 0, 100, 10, 50, 50 }, 1);
@@ -282,6 +284,7 @@ public class ScanNfcV {
         return new int[] { ret, value };
     }
 
+    @SuppressWarnings("deprecation") // legacy API: vibrate(long[],int) is the pre-26 path
     static public synchronized void scan(GlucoseCurve curve, Tag tag) {
         askpermission = false;
         MainActivity main = (MainActivity) (curve.getContext());
@@ -528,6 +531,7 @@ public class ScanNfcV {
         return glucoseValue > 0 || (resultCode & 0x7F) <= 9;
     }
 
+    @SuppressWarnings("deprecation") // legacy API: WindowInsets system-window accessors at minSdk 26
     static private void newsensor(Activity act, String text, String name, long accountid) {
         if (!isWearable) {
             XInfuus.sendSensorActivateBroadcast(act, name, Natives.laststarttime());

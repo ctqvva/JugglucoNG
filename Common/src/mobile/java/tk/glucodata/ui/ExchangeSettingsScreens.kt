@@ -22,10 +22,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.BluetoothSearching
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Edit
@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationImportant
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -137,7 +137,7 @@ fun WatchSettingsScreen(navController: NavController) {
                 title = { Text(stringResource(R.string.watches)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
@@ -466,7 +466,7 @@ fun WearOsConfigScreen(navController: NavController) {
                 title = { Text("WearOS config") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
@@ -490,7 +490,7 @@ fun WearOsConfigScreen(navController: NavController) {
                     SettingsItem(
                         title = "No Wear OS watches found",
                         subtitle = "Tap refresh after opening Juggluco on the watch",
-                        icon = Icons.Filled.BluetoothSearching,
+                        icon = Icons.AutoMirrored.Filled.BluetoothSearching,
                         iconTint = MaterialTheme.colorScheme.tertiary
                     )
                 } else {
@@ -756,7 +756,7 @@ fun GarminStatusScreen(navController: NavController) {
                 title = { Text("Garmin status") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
@@ -886,7 +886,7 @@ fun GarminStatusScreen(navController: NavController) {
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.getkerfstok))
                     }
@@ -1173,7 +1173,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                 title = { Text(stringResource(R.string.webserver)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {

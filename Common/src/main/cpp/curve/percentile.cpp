@@ -801,7 +801,12 @@ void showstats(NVGcontext* vg,JCurve &jcurve,stats *stat,const jugglucotext *tex
 
 #define NANOVG_RT_IMPLEMENTATION
 #define NANORT_IMPLEMENTATION
+// Vendored nanort/nanovg: BVHAccel::Dump/Load only use fread/fwrite results in
+// assert(), which NDEBUG compiles out. Not our source, so silence it here.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
 #include "nanovg_rt.h"
+#pragma clang diagnostic pop
 
 #ifdef __cplusplus
 extern "C" {

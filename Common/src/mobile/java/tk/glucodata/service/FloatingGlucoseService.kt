@@ -101,6 +101,9 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             manager.createNotificationChannel(chan)
         }
         
+        // Notification.Builder(Context) is the pre-O fallback; kept as written because the
+        // foreground-service notification cannot be verified without the device.
+        @Suppress("DEPRECATION")
         val builder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             android.app.Notification.Builder(this, channelId)
         } else {

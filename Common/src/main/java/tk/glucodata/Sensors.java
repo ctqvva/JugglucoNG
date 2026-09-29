@@ -44,6 +44,7 @@ void setSensorptrText(long sensorptr) {
    setSensorptr( sensorptr);
     settext(Natives.sensortextfromSensorptr(sensorptr));
     }
+@SuppressWarnings("deprecation") // legacy API: Html.fromHtml(String) is the pre-N path
 void settext(String text) {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             textview.setText(fromHtml(text,TO_HTML_PARAGRAPH_LINES_CONSECUTIVE));
@@ -101,6 +102,7 @@ Sensors(MainActivity act) {
         viewgroup=scroll; 
         }
 private static boolean isVisible=false;
+@SuppressWarnings("deprecation") // legacy API: WindowInsets system-window accessors at minSdk 26
 static    void show(MainActivity act,String text, long sensorptr) {
     if(isVisible)
         return;

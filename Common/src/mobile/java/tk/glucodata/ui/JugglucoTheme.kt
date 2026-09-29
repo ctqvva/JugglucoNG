@@ -77,6 +77,9 @@ fun JugglucoTheme(
         )
     }
     if (!view.isInEditMode) {
+        // statusBarColor/navigationBarColor are deprecated for edge-to-edge; migrating means a
+        // real inset/layout change across every screen, not a warning fix.
+        @Suppress("DEPRECATION")
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()

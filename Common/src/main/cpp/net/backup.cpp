@@ -132,7 +132,7 @@ static bool startserver(char *port, passhost_t *hosts,int *hostlen,bool *shutdow
             }
         break;
         }
-    const auto tag=get_owner_tag(sock);
+    [[maybe_unused]] const auto tag=get_owner_tag(sock);
     constexpr int const BACKLOG=5;
     if(listen(sock, BACKLOG) == -1) {
         if(*shutdownreceiver) {
@@ -445,7 +445,7 @@ globalsocket=serversock;
                 } 
             continue;
             }
-        const auto tag=get_owner_tag(new_fd);
+        [[maybe_unused]] const auto tag=get_owner_tag(new_fd);
         if(!networkpresent) {
             LOGGERTAG("serverloop !networkpresent close %d\n",new_fd);
             sockclose(new_fd);

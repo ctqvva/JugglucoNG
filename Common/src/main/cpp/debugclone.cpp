@@ -1361,7 +1361,11 @@ bool *wrongptr=nullptr;
 bool wrongfiles() {
 
 //    static bool wrong=((wrong=needsdebug()),wrongptr=&wrong,wrong);
-    static bool wrong=(wrong=needsdebug(),wrongptr=&wrong,wrong);
+    // Two statics, in this order: the value is computed first, and only then is its address
+    // published. resetwrong() keys on wrongptr, so publishing early would let another thread
+    // start a second needsdebug() instead of blocking on this guard.
+    static bool wrong=needsdebug();
+    [[maybe_unused]] static const bool wrongpublished=(wrongptr=&wrong,true);
 #ifdef TESTDEBUG
     return true;
 #else

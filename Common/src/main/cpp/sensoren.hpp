@@ -546,7 +546,8 @@ public:
 
 #ifndef NOLOG
     time_t tim = starttime;
-    LOGGER("makelibre3sensor(%s,%u) %s", shortname.data(), starttime,
+    // shortname is not NUL-terminated (a view into the NFC serial), so the length is passed.
+    LOGGER("makelibre3sensor(%.*s,%u) %s", (int)shortname.size(), shortname.data(), starttime,
            ctime(&tim));
 #endif
 

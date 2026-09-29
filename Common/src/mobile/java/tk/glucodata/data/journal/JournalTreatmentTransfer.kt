@@ -403,6 +403,7 @@ object JournalTreatmentTransfer {
         val longValue = when (value) {
             is Number -> value.toDouble().takeIf { it.isFinite() }?.toLong()
             is String -> value.trim().toDoubleOrNull()?.toLong()
+            null -> null
             else -> null
         } ?: return null
         val millis = when (longValue) {
@@ -493,6 +494,7 @@ object JournalTreatmentTransfer {
             val parsed = when (value) {
                 is Number -> value.toFloat()
                 is String -> value.trim().replace(',', '.').toFloatOrNull()
+                null -> null
                 else -> null
             }
             if (parsed != null && parsed.isFinite()) return parsed

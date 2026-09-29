@@ -13,10 +13,10 @@ import tk.glucodata.GlucoseUncertaintyBridge
  * Sensor-agnostic store for per-reading credible intervals.
  *
  * Drivers live in `src/main` and cannot see Room, so they reach this through
- * `tk.glucodata.GlucoseUncertaintyAccess` by reflection, the same bridge
- * pattern the history sync uses. The static entry points below are that
- * bridge's target — renaming or re-signing them breaks it silently in
- * minified builds unless `proguard-rules.my` is updated to match.
+ * `tk.glucodata.GlucoseUncertaintyAccess`, which calls it as the
+ * [GlucoseUncertaintyBridge] registered from the mobile `Specific.registerBridges()`.
+ * Ordinary interface calls: the @Keep below is left from the old lookup by name
+ * and is no longer needed.
  */
 @Keep
 object GlucoseUncertaintyStore : GlucoseUncertaintyBridge {
