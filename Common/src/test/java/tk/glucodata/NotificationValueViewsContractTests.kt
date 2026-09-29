@@ -5,14 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Source/resource contract for the phone native value rows.
- *
- * Plain JVM file scans (no Android runtime): the IBM Plex weight preference must be
- * carried by inflation-time font/layout resources because
- * TextView.setFontVariationSettings is not remotely callable below API 35, and the
- * legacy raster row must be hidden on the phone while Wear keeps it.
- */
+/** Guard the host-safe resource path and the unchanged Wear/stale surfaces. */
 class NotificationValueViewsContractTests {
     private fun repoRoot(): File =
         generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }

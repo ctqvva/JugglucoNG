@@ -21,12 +21,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
 
-/**
- * Native phone value rows on a simulated API 34 device: the IBM weight preference
- * selects an inflation-time row layout (the remote font-variation setter does not
- * exist below API 35), numeric text is bound verbatim with its secondary/tertiary
- * spans intact, and rows survive a RemoteViews parcel round-trip.
- */
+/** Host-safe notification typography, parceling, and single-row value layout. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 @ConscryptMode(ConscryptMode.Mode.OFF)
@@ -235,5 +230,27 @@ class NotificationValueViewsTests {
         val colors = result.getSpans(0, result.length, ForegroundColorSpan::class.java)
         assertEquals(listOf(0xff223344.toInt(), 0xff445566.toInt()), colors.map { it.foregroundColor })
         assertEquals(0.7f, result.getSpans(0, result.length, RelativeSizeSpan::class.java).single().sizeChange, 0.001f)
+    }
+
+    @Test fun ibmValueSurvivesRestrictedNotificationHostAsAccessibleGlyphBitmap() {
+        val parent = android.widget.RemoteViews(app.packageName, R.layout.notification_material_regular_expanded)
+        NotificationValueViews.bindNativeValueRows(app, parent, true, "7.0",
+            0xff112233.toInt(), emptyList(), 0f, 0xff112233.toInt(), true,
+            1f, 1f, 400, false, false, false)
+        val restrictedHost = object : android.content.ContextWrapper(app) {
+            override fun isRestricted() = true
+        }
+        val parcel = Parcel.obtain()
+        try {
+            parent.writeToParcel(parcel, 0)
+            parcel.setDataPosition(0)
+            val restored = android.widget.RemoteViews.CREATOR.createFromParcel(parcel)
+            val root = restored.apply(restrictedHost, null)
+            assertEquals(View.GONE, root.findViewById<TextView>(R.id.notification_value_text).visibility)
+            val glyphs = root.findViewById<ImageView>(R.id.notification_value_bitmap)
+            assertEquals(View.VISIBLE, glyphs.visibility)
+            assertEquals("7.0", glyphs.contentDescription.toString())
+            assertTrue(glyphs.drawable.intrinsicWidth > 0)
+        } finally { parcel.recycle() }
     }
 }
