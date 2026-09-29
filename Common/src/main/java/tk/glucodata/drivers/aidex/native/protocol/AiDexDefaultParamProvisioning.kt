@@ -368,30 +368,20 @@ object AiDexDefaultParamProvisioning {
         settingType: String,
         firmwareVersion: String?,
     ): List<CatalogEntry> {
-        val matches = catalogEntries.filter { it.settingType == settingType && it.aidexVersion == "X" }
-        val versionKey = deriveCatalogVersionKey(firmwareVersion) ?: return matches.sortedBy { it.version }
-        val exact = matches.filter { it.version == versionKey }
-        val remainder = matches.filterNot { it.version == versionKey }
-            .sortedWith(
-                compareBy<CatalogEntry> { versionPriority(it.version, versionKey) }
-                    .thenByDescending { majorMinorMatches(it.version, versionKey) }
-                    .thenBy { it.version }
-            )
-        return exact + remainder
-    }
-
-    private fun versionPriority(entryVersion: String, firmwareVersion: String): Int {
-        return when {
-            entryVersion == firmwareVersion -> 0
-            majorMinorMatches(entryVersion, firmwareVersion) -> 1
-            else -> 2
+        // Only this firmware's own entry is a candidate. Callers re-sort by diff byte count, so a
+        // nearest-version fallback let another firmware's parameter table win the compare and then
+        // be written by the guarded apply; an unreadable firmware string is not evidence that any
+        // entry fits, so it yields no candidate rather than the whole catalog.
+        // Catalog versions are three-component ("1.7.1"), and only DIS 2A28 reports that shape (or
+        // "1.7.1.3", whose build digit deriveCatalogVersionKey trims). The 0x10 and 0x21 frames
+        // carry bare major.minor ("1.7") — a well-formed key that matches no entry, so on a link
+        // where 2A28 never read, the read-only diagnoseCurrentDefaultParam loses its compare too
+        // and the manual 0x31 prints "DP compare unavailable". Accepted, and deliberately not
+        // fixed by a major.minor fallback: see testCatalogCompareRefusesForeignFirmwareEntries.
+        val versionKey = deriveCatalogVersionKey(firmwareVersion) ?: return emptyList()
+        return catalogEntries.filter {
+            it.settingType == settingType && it.aidexVersion == "X" && it.version == versionKey
         }
-    }
-
-    private fun majorMinorMatches(entryVersion: String, firmwareVersion: String): Boolean {
-        val left = entryVersion.split('.')
-        val right = firmwareVersion.split('.')
-        return left.size >= 2 && right.size >= 2 && left[0] == right[0] && left[1] == right[1]
     }
 
     private fun normalizedChunkPayloadBytes(maxChunkPayloadBytes: Int): Int {

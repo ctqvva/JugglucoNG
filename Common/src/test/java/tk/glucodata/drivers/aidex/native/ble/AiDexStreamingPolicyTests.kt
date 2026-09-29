@@ -25,6 +25,24 @@ class AiDexStreamingPolicyTests {
     }
 
     @Test
+    fun decideNoStreamRecovery_keepsWaitingWhileHistoryIsStillDownloading() {
+        // Same inputs as the connected-broadcast test below except historyDownloading:
+        // dropping that term would step onto the recovery ladder mid-download.
+        assertEquals(
+            AiDexStreamingPolicy.NoStreamRecoveryAction.KEEP_WAITING,
+            AiDexStreamingPolicy.decideNoStreamRecovery(
+                hasRecentBroadcastData = false,
+                historyDownloading = true,
+                allowConnectedBroadcastRequest = true,
+                connectedBroadcastRequestAttempted = false,
+                hasSessionFallbackData = false,
+                historyRefreshAttempted = false,
+                liveCccdRefreshAttempted = false,
+            )
+        )
+    }
+
+    @Test
     fun decideNoStreamRecovery_requestsHistoryRefreshWhenSessionFallbackAlreadyWorked() {
         assertEquals(
             AiDexStreamingPolicy.NoStreamRecoveryAction.REQUEST_HISTORY_REFRESH,
@@ -203,5 +221,33 @@ class AiDexStreamingPolicyTests {
         )
 
         assertEquals(25_000L, delayMs)
+    }
+
+    @Test
+    fun resolveNoStreamWatchdogDelayMs_capsStretchAfterBackwardWallClockStep() {
+        // lastGlucoseTimeMs still holds a stamp from before an hour-long backward clock
+        // correction: the recovery ladder must arm inside the capped window, not in an hour.
+        val delayMs = AiDexStreamingPolicy.resolveNoStreamWatchdogDelayMs(
+            defaultDelayMs = 80_000L,
+            nowMs = 200_000L,
+            latestKnownReadingMs = 200_000L + 3_600_000L,
+            expectedLiveIntervalMs = 60_000L,
+            expectedLiveGraceMs = 20_000L,
+        )
+
+        assertEquals(380_000L, delayMs)
+    }
+
+    @Test
+    fun resolveNoStreamWatchdogDelayMs_stillStretchesForSensorClockSkew() {
+        val delayMs = AiDexStreamingPolicy.resolveNoStreamWatchdogDelayMs(
+            defaultDelayMs = 25_000L,
+            nowMs = 200_000L,
+            latestKnownReadingMs = 260_000L,
+            expectedLiveIntervalMs = 60_000L,
+            expectedLiveGraceMs = 20_000L,
+        )
+
+        assertEquals(140_000L, delayMs)
     }
 }

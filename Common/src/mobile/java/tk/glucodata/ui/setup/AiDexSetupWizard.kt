@@ -1,11 +1,15 @@
 package tk.glucodata.ui.setup
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,18 +32,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.SensorIdentity
+import tk.glucodata.drivers.aidex.AiDexDriver
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
-import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.drivers.aidex.AiDexScanIdentity
+import tk.glucodata.drivers.aidex.AiDexSetupPolicy
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
 import tk.glucodata.ui.util.rememberBleScanner
-import java.util.UUID
 
 enum class AiDexSetupStep {
     SCAN,
@@ -47,6 +57,30 @@ enum class AiDexSetupStep {
     CONNECTING,
     SUCCESS
 }
+
+private const val AIDEX_SETUP_SESSION_TIMEOUT_MS = 90_000L
+/** Bounds the wait while Android is pairing; see [AiDexSetupPolicy.decideConnectingState]. */
+private const val AIDEX_SETUP_HARD_TIMEOUT_MS = 180_000L
+/**
+ * Room after a pairing poll before the soft deadline can roll back: a pairing confirmed at the
+ * last moment still needs the key exchange after it (the driver allows up to about 35 s), and a
+ * failed one shows up as broadcast-only a few seconds after the bond drops.
+ */
+private const val AIDEX_SETUP_PAIRING_GRACE_MS = 40_000L
+/** How long "Not connected" waits for Retry; well inside the driver's own 10-minute retry. */
+private const val AIDEX_SETUP_NOT_CONNECTED_LIMIT_MS = 180_000L
+
+private fun aiDexSetupDriver(serial: String, address: String): AiDexDriver? =
+    SensorBluetooth.mygatts().firstOrNull { callback ->
+        callback is AiDexDriver &&
+            SensorIdentity.matches(callback.SerialNumber, serial) &&
+            address.equals(callback.mActiveDeviceAddress, ignoreCase = true)
+    } as? AiDexDriver
+
+@SuppressLint("MissingPermission")
+private fun aiDexBondState(context: Context, address: String): Int = runCatching {
+    context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(address)?.bondState
+}.getOrNull() ?: BluetoothDevice.BOND_NONE
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,11 +93,148 @@ fun AiDexSetupWizard(
     val ui = rememberWizardUiMetrics()
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
     var selectedDeviceName by remember { mutableStateOf("") }
+    var selectedDeviceAddress by remember { mutableStateOf("") }
+    var rollbackSelectedOnAbort by remember { mutableStateOf(false) }
+    var setupJob by remember { mutableStateOf<Job?>(null) }
+    var connectingState by remember { mutableStateOf(AiDexSetupPolicy.ConnectingState.CONNECTING) }
+    var notConnectedReason by remember { mutableStateOf(AiDexSetupPolicy.NotConnectedReason.CONNECT_FAILED) }
+    // Success reached through a timeout on a paired sensor whose link is down right now.
+    var addedWithoutLink by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var signedIn by remember { mutableStateOf(AiDexProvisioningStore.hasSession(context)) }
-    val navigateBack = {
-        if (currentStep == AiDexSetupStep.SCAN) onDismiss() else currentStep = AiDexSetupStep.SCAN
+
+    // Polls the driver until it streams from this sensor. A new sensor has no glucose before its
+    // warm-up ends, so a finished handshake is the success; the driver starts it on its own.
+    // Deadlines run on elapsedRealtime, like the driver's own broadcast-only hold: a wall-clock
+    // step must neither stretch "Not connected" past the driver's retry nor end a connect at once.
+    suspend fun awaitSetupSession(name: String, address: String, mayRollback: Boolean) {
+        var deadlines = AiDexSetupPolicy.initialDeadlines(
+            nowMs = SystemClock.elapsedRealtime(),
+            sessionTimeoutMs = AIDEX_SETUP_SESSION_TIMEOUT_MS,
+            hardTimeoutMs = AIDEX_SETUP_HARD_TIMEOUT_MS,
+        )
+        // What Android did on the current attempt, for the "Not connected" text.
+        var sawPairing = false
+        var sawBonded = false
+        var gaveUpBefore = false
+        while (true) {
+            val now = SystemClock.elapsedRealtime()
+            val driver = aiDexSetupDriver(name, address)
+            val bondState = aiDexBondState(context, address)
+            val pairing = bondState == BluetoothDevice.BOND_BONDING
+            val gaveUp = driver?.broadcastOnlyConnection == true
+            if (gaveUpBefore && !gaveUp) {
+                // The driver tries again: a new attempt, with its own pairing story.
+                sawPairing = false
+                sawBonded = false
+            }
+            gaveUpBefore = gaveUp
+            if (pairing) sawPairing = true
+            if (sawPairing && bondState == BluetoothDevice.BOND_BONDED) sawBonded = true
+            notConnectedReason = AiDexSetupPolicy.notConnectedReason(sawPairing, sawBonded)
+            deadlines = AiDexSetupPolicy.nextDeadlines(
+                current = deadlines,
+                nowMs = now,
+                pairingInProgress = pairing,
+                driverGaveUp = gaveUp,
+                sessionTimeoutMs = AIDEX_SETUP_SESSION_TIMEOUT_MS,
+                hardTimeoutMs = AIDEX_SETUP_HARD_TIMEOUT_MS,
+                graceMs = AIDEX_SETUP_PAIRING_GRACE_MS,
+                notConnectedLimitMs = AIDEX_SETUP_NOT_CONNECTED_LIMIT_MS,
+            )
+            val state = AiDexSetupPolicy.decideConnectingState(
+                sessionEstablished = driver?.isVendorConnected() == true,
+                pairingInProgress = pairing,
+                driverGaveUp = gaveUp,
+                // A sensor this setup added that the rollback keeps anyway (the rollback's own rule):
+                // its timeout is no failure. A configured sensor's failed re-setup stays a failure.
+                sensorStays = mayRollback && driver?.let {
+                    !AiDexSetupPolicy.mayRollBack(it.isVendorPaired(), it.hasCompletedHandshake())
+                } == true,
+                nowMs = now,
+                deadlineMs = deadlines.softMs,
+                hardDeadlineMs = deadlines.hardMs,
+                notConnectedDeadlineMs = deadlines.notConnectedMs,
+            )
+            connectingState = state
+            when (state) {
+                AiDexSetupPolicy.ConnectingState.READY -> {
+                    currentStep = AiDexSetupStep.SUCCESS
+                    return
+                }
+                AiDexSetupPolicy.ConnectingState.TIMED_OUT -> {
+                    if (mayRollback) {
+                        SensorBluetooth.rollbackUnpairedAiDexSensor(context, name)
+                    }
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.aidex_setup_session_failed),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    currentStep = AiDexSetupStep.SCAN
+                    return
+                }
+                AiDexSetupPolicy.ConnectingState.KEPT -> {
+                    // Added here and kept by the rollback rule: not a failure, though the link
+                    // may need Reconnect on the card.
+                    // Ends through SUCCESS so this job returns before the wizard closes, instead of
+                    // closing it from inside a running job.
+                    addedWithoutLink = true
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.aidex_setup_kept_reconnecting),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    currentStep = AiDexSetupStep.SUCCESS
+                    return
+                }
+                else -> delay(500)
+            }
+        }
+    }
+
+    // A cancelled wait rolls the sensor back only while it is still the wizard's current job, so
+    // the new job is installed before the old one is cancelled.
+    fun retrySetupConnection() {
+        val name = selectedDeviceName
+        val address = selectedDeviceAddress
+        val mayRollback = rollbackSelectedOnAbort
+        val previous = setupJob
+        connectingState = AiDexSetupPolicy.ConnectingState.CONNECTING
+        setupJob = scope.launch {
+            val thisJob = coroutineContext[Job]
+            try {
+                aiDexSetupDriver(name, address)?.let { driver ->
+                    withContext(Dispatchers.IO) { driver.softReconnect() }
+                }
+                awaitSetupSession(name, address, mayRollback)
+            } catch (t: CancellationException) {
+                if (setupJob === thisJob && mayRollback) {
+                    SensorBluetooth.rollbackUnpairedAiDexSensor(context, name)
+                }
+                throw t
+            }
+        }
+        previous?.cancel()
+    }
+    val abortConnecting = {
+        setupJob?.cancel()
+        setupJob = null
+        if (selectedDeviceName.isNotBlank() && rollbackSelectedOnAbort) {
+            SensorBluetooth.rollbackUnpairedAiDexSensor(context, selectedDeviceName)
+        }
+    }
+    val navigateBack: () -> Unit = {
+        when (currentStep) {
+            AiDexSetupStep.SCAN -> onDismiss()
+            AiDexSetupStep.KEY_MANAGEMENT -> currentStep = AiDexSetupStep.SCAN
+            AiDexSetupStep.CONNECTING -> {
+                abortConnecting()
+                currentStep = AiDexSetupStep.SCAN
+            }
+            AiDexSetupStep.SUCCESS -> onDismiss()
+        }
     }
     BackHandler {
         navigateBack()
@@ -101,7 +272,7 @@ fun AiDexSetupWizard(
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()
-                            if (name.isEmpty()) {
+                            if (name.isEmpty() || !AiDexScanIdentity.canBind(name, address)) {
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.aidex_parse_error, selectedName),
@@ -110,23 +281,52 @@ fun AiDexSetupWizard(
                                 return@AiDexScanStep
                             }
 
+                            val alreadyConfigured = SensorBluetooth.isExistingAiDexSetup(context, name)
+                            val mayRollback = !alreadyConfigured
+                            if (selectedDeviceName.isNotBlank()
+                                && !selectedDeviceName.equals(name, ignoreCase = true)
+                                && rollbackSelectedOnAbort
+                            ) {
+                                SensorBluetooth.rollbackUnpairedAiDexSensor(context, selectedDeviceName)
+                            }
                             selectedDeviceName = name
+                            selectedDeviceAddress = address
+                            rollbackSelectedOnAbort = mayRollback
+                            connectingState = AiDexSetupPolicy.ConnectingState.CONNECTING
+                            addedWithoutLink = false
                             currentStep = AiDexSetupStep.CONNECTING
 
-                            // Initiate Connection Logic
-                            scope.launch {
+                            setupJob?.cancel()
+                            setupJob = scope.launch {
+                                val thisJob = coroutineContext[Job]
                                 try {
                                     // Saved material is optional. With none present, the BLE driver
                                     // always tries the serial-derived key first and reports a
                                     // missing-key status only if the sensor rejects it.
                                     AiDexProvisioningStore.installSaved(context, name)
-                                    SensorBluetooth.addAiDexSensor(context, name, address)
-
-                                    // 2. Wait a bit then show success
-                                    kotlinx.coroutines.delay(2000)
-                                    currentStep = AiDexSetupStep.SUCCESS
+                                    if (!SensorBluetooth.addAiDexSensor(context, name, address)) {
+                                        if (mayRollback) {
+                                            SensorBluetooth.rollbackUnpairedAiDexSensor(context, name)
+                                        }
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.aidex_setup_session_failed),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        currentStep = AiDexSetupStep.SCAN
+                                        return@launch
+                                    }
+                                    awaitSetupSession(name, address, mayRollback)
+                                } catch (t: CancellationException) {
+                                    if (setupJob === thisJob && mayRollback) {
+                                        SensorBluetooth.rollbackUnpairedAiDexSensor(context, name)
+                                    }
+                                    throw t
                                 } catch (t: Throwable) {
                                     Log.e(tag, "Failed to add/select AiDex sensor: ${t.message}")
+                                    if (mayRollback) {
+                                        SensorBluetooth.rollbackUnpairedAiDexSensor(context, name)
+                                    }
                                     Toast.makeText(context, context.getString(R.string.nobluetooth), Toast.LENGTH_LONG).show()
                                     currentStep = AiDexSetupStep.SCAN
                                 }
@@ -150,10 +350,39 @@ fun AiDexSetupWizard(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    SensorSetupConnectingScreen(
-                        ui = ui,
-                        sensorLabel = selectedDeviceName.ifBlank { null }
-                    )
+                    val sensorLabel = selectedDeviceName.ifBlank { null }
+                    when (connectingState) {
+                        AiDexSetupPolicy.ConnectingState.AWAITING_PAIRING_CONFIRMATION -> SensorSetupConnectingScreen(
+                            ui = ui,
+                            sensorLabel = sensorLabel,
+                            title = stringResource(R.string.aidex_setup_confirm_pairing_title),
+                            supportingText = stringResource(R.string.aidex_setup_confirm_pairing_text)
+                        )
+                        AiDexSetupPolicy.ConnectingState.NOT_CONNECTED -> {
+                            SensorSetupNotConnectedScreen(
+                                ui = ui,
+                                sensorLabel = sensorLabel,
+                                title = stringResource(R.string.aidex_setup_not_connected_title),
+                                supportingText = stringResource(
+                                    when (notConnectedReason) {
+                                        AiDexSetupPolicy.NotConnectedReason.PAIRING_NOT_CONFIRMED ->
+                                            R.string.aidex_setup_pairing_not_confirmed
+                                        AiDexSetupPolicy.NotConnectedReason.CONNECT_FAILED ->
+                                            R.string.aidex_setup_connect_failed
+                                    }
+                                ),
+                                action = {
+                                    Button(onClick = { retrySetupConnection() }) {
+                                        Text(stringResource(R.string.aidex_setup_retry))
+                                    }
+                                }
+                            )
+                        }
+                        else -> SensorSetupConnectingScreen(
+                            ui = ui,
+                            sensorLabel = sensorLabel
+                        )
+                    }
                 }
                 AiDexSetupStep.SUCCESS -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -161,7 +390,10 @@ fun AiDexSetupWizard(
                 ) {
                     SensorSetupSuccessScreen(
                         ui = ui,
-                        sensorLabel = selectedDeviceName.ifBlank { null }
+                        sensorLabel = selectedDeviceName.ifBlank { null },
+                        title = stringResource(
+                            if (addedWithoutLink) R.string.aidex_setup_added_title else R.string.status_connected
+                        )
                     )
                 }
             }
@@ -179,10 +411,10 @@ fun AiDexScanStep(
     data class ScanCandidate(
         val address: String,
         val rawName: String,
-        val selectionName: String,
         val serial: String?,
         val isLikelyAiDex: Boolean,
         val detectedViaFf30: Boolean,
+        val serialFromAdvert: Boolean,
     )
 
     val context = LocalContext.current
@@ -244,7 +476,7 @@ fun AiDexScanStep(
                     null
                 } ?: return@startScan
                 val record = result.scanRecord
-                val candidate = detectAiDexCandidate(
+                val candidate = AiDexScanIdentity.detectCandidate(
                     address = address,
                     deviceName = try {
                         device.name
@@ -257,26 +489,42 @@ fun AiDexScanStep(
                 )
 
                 if (!showAllDevices && !candidate.isLikelyAiDex) return@startScan
-                val next = ScanCandidate(
-                    address = address,
-                    rawName = candidate.displayName,
-                    selectionName = candidate.selectionName,
-                    serial = candidate.serial,
-                    isLikelyAiDex = candidate.isLikelyAiDex,
-                    detectedViaFf30 = candidate.detectedViaFf30,
-                )
-                val existing = devices.firstOrNull { it.address == address }
-                devices = if (existing == null) {
-                    devices + next
-                } else {
-                    val preferNextIdentity = next.serial != null && existing.serial == null
-                    devices.map { current ->
-                        if (current.address != address) current else current.copy(
-                            rawName = if (preferNextIdentity) next.rawName else current.rawName,
-                            selectionName = if (preferNextIdentity) next.selectionName else current.selectionName,
-                            serial = if (preferNextIdentity) next.serial else current.serial,
-                            isLikelyAiDex = current.isLikelyAiDex || next.isLikelyAiDex,
-                            detectedViaFf30 = current.detectedViaFf30 || next.detectedViaFf30,
+                val existing = devices.firstOrNull { it.address.equals(address, ignoreCase = true) }
+                if (existing == null) {
+                    devices = devices + ScanCandidate(
+                        address = address,
+                        rawName = candidate.displayName,
+                        serial = candidate.serial,
+                        isLikelyAiDex = candidate.isLikelyAiDex,
+                        detectedViaFf30 = candidate.detectedViaFf30,
+                        serialFromAdvert = candidate.serialFromAdvert,
+                    )
+                } else if (AiDexScanIdentity.shouldReplaceScanSerial(
+                        existing.serial,
+                        existing.serialFromAdvert,
+                        candidate.serial,
+                        candidate.serialFromAdvert,
+                        address,
+                    )
+                ) {
+                    devices = devices.map { row ->
+                        if (!row.address.equals(address, ignoreCase = true)) row
+                        else row.copy(
+                            rawName = candidate.displayName,
+                            serial = candidate.serial,
+                            isLikelyAiDex = true,
+                            detectedViaFf30 = row.detectedViaFf30 || candidate.detectedViaFf30,
+                            serialFromAdvert = candidate.serialFromAdvert,
+                        )
+                    }
+                } else if ((candidate.isLikelyAiDex && !existing.isLikelyAiDex) ||
+                    (candidate.detectedViaFf30 && !existing.detectedViaFf30)
+                ) {
+                    devices = devices.map { row ->
+                        if (!row.address.equals(address, ignoreCase = true)) row
+                        else row.copy(
+                            isLikelyAiDex = row.isLikelyAiDex || candidate.isLikelyAiDex,
+                            detectedViaFf30 = row.detectedViaFf30 || candidate.detectedViaFf30,
                         )
                     }
                 }
@@ -378,7 +626,7 @@ fun AiDexScanStep(
                 // If we're in "sensors only" mode, skip non-matching devices.
                 if (!showAllDevices && !device.isLikelyAiDex) return@items
 
-                val canSelect = device.isLikelyAiDex || showAllDevices
+                val canSelect = AiDexScanIdentity.canBind(device.serial, device.address)
 
                 ListItem(
                     headlineContent = {
@@ -398,10 +646,7 @@ fun AiDexScanStep(
                     },
                     leadingContent = { Icon(Icons.Default.Bluetooth, null) },
                     modifier = Modifier.clickable(enabled = canSelect) {
-                        onDeviceSelected(
-                            device.selectionName,
-                            device.address,
-                        )
+                        onDeviceSelected(device.serial.orEmpty(), device.address)
                     }
                 )
                 HorizontalDivider()
@@ -422,109 +667,6 @@ fun AiDexScanStep(
                 ),
         )
     }
-}
-
-private data class AiDexScanDetection(
-    val displayName: String,
-    val selectionName: String,
-    val serial: String?,
-    val isLikelyAiDex: Boolean,
-    val detectedViaFf30: Boolean,
-)
-
-private val AIDEX_CGM_SERVICE_UUID: UUID = UUID.fromString("0000181f-0000-1000-8000-00805f9b34fb")
-private val AIDEX_VENDOR_SERVICE_UUID: UUID = UUID.fromString("0000f000-0000-1000-8000-00805f9b34fb")
-private val AIDEX_FF30_SERVICE_UUID: UUID = UUID.fromString("0000ff30-0000-1000-8000-00805f9b34fb")
-
-private fun detectAiDexCandidate(
-    address: String,
-    deviceName: String?,
-    scanRecordName: String?,
-    scanRecordBytes: ByteArray?,
-    advertisedServiceUuids: List<UUID>?,
-): AiDexScanDetection {
-    val localName = extractAiDexLocalName(scanRecordBytes)
-    val names = linkedSetOf<String>()
-    listOf(scanRecordName, localName, deviceName)
-        .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
-        .forEach { names.add(it) }
-
-    val recognizedName = names.firstOrNull {
-        AiDexSerialIdentity.canonicalFromAdvertisement(it) != null
-    }
-    val serial = recognizedName?.let(AiDexSerialIdentity::canonicalFromAdvertisement)
-    val nameLooksAiDex = names.any(::looksLikeAiDexFamilyName)
-    val hasFf30 = advertisedServiceUuids?.contains(AIDEX_FF30_SERVICE_UUID) == true ||
-        scanRecordAdvertises16BitService(scanRecordBytes, 0xFF30)
-    val hasPrimaryServiceHint =
-        advertisedServiceUuids?.any { it == AIDEX_CGM_SERVICE_UUID || it == AIDEX_VENDOR_SERVICE_UUID } == true ||
-            scanRecordAdvertises16BitService(scanRecordBytes, 0x181F) ||
-            scanRecordAdvertises16BitService(scanRecordBytes, 0xF000)
-    val isLikelyAiDex = serial != null || nameLooksAiDex || hasFf30 || hasPrimaryServiceHint
-    val displayName = recognizedName ?: names.firstOrNull() ?: address
-    val selectionName = serial ?: AiDexSerialIdentity.fallbackCanonicalFromAddress(address)
-    return AiDexScanDetection(
-        displayName = displayName,
-        selectionName = selectionName,
-        serial = serial,
-        isLikelyAiDex = isLikelyAiDex,
-        detectedViaFf30 = hasFf30,
-    )
-}
-
-private fun looksLikeAiDexFamilyName(rawName: String): Boolean {
-    val lowered = rawName.lowercase()
-    return lowered.contains("aidex") ||
-        lowered.contains("linx") ||
-        lowered.contains("lumi") ||
-        lowered.contains("vista")
-}
-
-private fun extractAiDexLocalName(scanRecord: ByteArray?): String? {
-    if (scanRecord == null) return null
-    var offset = 0
-    while (offset < scanRecord.size - 1) {
-        val len = scanRecord[offset].toInt() and 0xFF
-        if (len == 0) break
-        val next = offset + len + 1
-        if (next > scanRecord.size) break
-        val type = scanRecord[offset + 1].toInt() and 0xFF
-        if (type == 0x08 || type == 0x09) {
-            val start = offset + 2
-            if (next > start) {
-                return try {
-                    String(scanRecord, start, next - start, Charsets.UTF_8)
-                } catch (_: Throwable) {
-                    null
-                }
-            }
-        }
-        offset = next
-    }
-    return null
-}
-
-private fun scanRecordAdvertises16BitService(scanRecord: ByteArray?, serviceShortUuid: Int): Boolean {
-    if (scanRecord == null) return false
-    var offset = 0
-    while (offset < scanRecord.size - 1) {
-        val len = scanRecord[offset].toInt() and 0xFF
-        if (len == 0) break
-        val next = offset + len + 1
-        if (next > scanRecord.size) break
-        val type = scanRecord[offset + 1].toInt() and 0xFF
-        if (type == 0x02 || type == 0x03) {
-            var uuidOffset = offset + 2
-            while (uuidOffset + 1 < next) {
-                val uuid = (scanRecord[uuidOffset].toInt() and 0xFF) or
-                    ((scanRecord[uuidOffset + 1].toInt() and 0xFF) shl 8)
-                if (uuid == serviceShortUuid) return true
-                uuidOffset += 2
-            }
-        }
-        offset = next
-    }
-    return false
 }
 
 internal fun requiredBleScanPermissions(): Array<String> {

@@ -40,7 +40,10 @@ class AiDexKeyExchange(
     val snIv: ByteArray = pairingMaterial?.ivCopy()
         ?: SerialCrypto.deriveIv(bareSerial)
 
-    /** PAIR key from F001 notification. Stable until the sensor accepts DELETE_BOND. */
+    /**
+     * PAIR key from F001 notification. Stable until the sensor accepts DELETE_BOND (0xF2) or
+     * CLEAR_STORAGE (0xF3), which wipes it too (AiDexBleManager pairKeyResetPending).
+     */
     var pairKey: ByteArray? = null
         private set
 

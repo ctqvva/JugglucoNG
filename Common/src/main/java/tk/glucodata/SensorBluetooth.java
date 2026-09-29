@@ -40,7 +40,6 @@ import android.os.ParcelUuid;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Arrays;
@@ -82,12 +81,20 @@ public class SensorBluetooth {
     private static final String LOG_ID = "SensorBluetooth";
     private static final int scantimeout = 390000;
     private static final int scaninterval = 60000;
+    // A low-latency scan listens all the time. This caps each start of one, not the total: when it
+    // expires the scan starts again and the mode is chosen anew, so full duty lasts as long as some
+    // driver keeps asking, plus up to one cap after it stops (a running scan is not switched down
+    // early, see scanStarter). The total bound is the driver's: its wantsLowLatencyScan() must turn
+    // false by itself when its wait ends, as Ottai's time-gated wantsLowLatencyActivationScan does.
+    private static final int lowlatencyscantimeout = 120000;
 
     // public Applic Applic.app;
     static private BluetoothAdapter mBluetoothAdapter;
     private BroadcastReceiver mBluetoothAdapterReceiver = null;;
     static private BluetoothManager mBluetoothManager = null;
 
+    // legacy adapter API: required at minSdk 26
+    @SuppressWarnings("deprecation")
     @SuppressLint("MissingPermission")
     void enableBluetooth() {
         if (!mBluetoothAdapter.isEnabled()) {
@@ -305,9 +312,39 @@ public class SensorBluetooth {
     long scantimeouttime = 0L;
 
     boolean mScanning = false;
+    // The mode the running scan was started with; settings cannot change under a running scan.
+    volatile boolean scanLowLatency = false;
+
+    /** Whether a sensor asks for a low-latency scan now; see SuperGattCallback.wantsLowLatencyScan. */
+    private static boolean lowLatencyScanWanted() {
+        // Walked without the list's lock, as start() and scanStarter already walk it: this runs under
+        // scanStarter's lock, often for a driver holding its own monitor, so locking here (or
+        // mygatts()) would order that monitor before the list's lock, and any path that takes a
+        // driver's monitor under the list's lock would deadlock against it (the Clone paths and
+        // updateDevicers used to; GattMonitorOrderTests now forbids it).
+        // A concurrent add or remove can then throw mid-walk; the default mode is always a safe
+        // answer, and the next start asks again.
+        try {
+            boolean wanted = false;
+            for (SuperGattCallback cb : gattcallbacks) {
+                // start() scans without any filter once one sensor has no service; at full duty that
+                // would hand every advertisement nearby to the main thread, so it keeps the default.
+                if (cb.getService() == null)
+                    return false;
+                if (cb.wantsLowLatencyScan())
+                    wanted = true;
+            }
+            return wanted;
+        } catch (RuntimeException e) {
+            Log.stack(LOG_ID, "lowLatencyScanWanted", e);
+            return false;
+        }
+    }
 
     class Scanner21 implements Scanner {
         final private ScanSettings mScanSettings;
+        // Full duty, for the short waits a driver asks for through wantsLowLatencyScan().
+        final private ScanSettings mLowLatencyScanSettings;
         private BluetoothLeScanner mBluetoothLeScanner = null;
         @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
         private final ScanCallback mScanCallback = new ScanCallback() {
@@ -395,6 +432,10 @@ public class SensorBluetooth {
             ScanSettings.Builder builder = new ScanSettings.Builder();
             builder.setReportDelay(0);
             mScanSettings = builder.build();
+            mLowLatencyScanSettings = new ScanSettings.Builder()
+                    .setReportDelay(0)
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                    .build();
             {
                 if (doLog) {
                     Log.i(LOG_ID, "Scanner21");
@@ -459,18 +500,24 @@ public class SensorBluetooth {
                     }
                 }
 
+                // From the filters this start built, not from a second walk alone: a callback added
+                // or removed between the two walks must not put an unfiltered scan at full duty.
+                final boolean lowLatency = mScanFilters != null && lowLatencyScanWanted();
                 if (doLog) {
                     Log.i(LOG_ID, "SCAN: calling startScan with "
-                            + (mScanFilters == null ? "NO FILTERS" : mScanFilters.size() + " filters"));
+                            + (mScanFilters == null ? "NO FILTERS" : mScanFilters.size() + " filters")
+                            + " mode=" + (lowLatency ? "LOW_LATENCY" : "default"));
                 }
                 try {
-                    this.mBluetoothLeScanner.startScan(mScanFilters, mScanSettings, mScanCallback);
+                    this.mBluetoothLeScanner.startScan(mScanFilters,
+                            lowLatency ? mLowLatencyScanSettings : mScanSettings, mScanCallback);
                 } catch (Throwable e) {
                     Log.stack(LOG_ID, e);
                     if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
                         Applic.missingScanPermission();
                     return false;
                 }
+                scanLowLatency = lowLatency;
                 return true;
             }
             return false;
@@ -558,7 +605,24 @@ public class SensorBluetooth {
         }
         ;
         scantimeouttime = System.currentTimeMillis();
-        SensorBluetooth.this.stopScan(true);
+        // Under scanStarter's lock, and only for a scan still running: scanStarter can stop a default
+        // scan to restart it at low latency while this timeout is already running (cancel does not
+        // stop a running task), and stopScan(true) here would then cancel that restart and leave no
+        // scan at all. A scan already stopped is not this timeout's; whoever stopped it decides what
+        // follows. checkdevice stops without this lock, so that race is only narrowed.
+        synchronized (SensorBluetooth.this) {
+            if (!mScanning)
+                return;
+            if (scanLowLatency) {
+                // The low-latency cap, not a search that came up empty: start again at once and let
+                // the sensors choose the mode anew, instead of the retry wait below.
+                SensorBluetooth.this.stopScan(false);
+                if (bluetoothIsEnabled())
+                    SensorBluetooth.this.scanStarter(0L);
+                return;
+            }
+            SensorBluetooth.this.stopScan(true);
+        }
     };
 
     static boolean bluetoothIsEnabled() {
@@ -622,12 +686,21 @@ public class SensorBluetooth {
                         return;
                     }
                     if (scanner.start()) {
-                        mScanning = true;
-                        if (scanOnUI) {
-                            Applic.app.getHandler().postDelayed(mScanTimeoutRunnable, scantimeout);
-                        } else {
-                            timeoutFuture = Applic.scheduler.schedule(mScanTimeoutRunnable, scantimeout,
-                                    TimeUnit.MILLISECONDS);
+                        // Published with its timeout under scanStarter's lock: a restart there in
+                        // between would cancel a timeout not yet stored, and the one stored after it
+                        // would end some later scan early. Not the other order: stopScan cancels the
+                        // timeout even while mScanning is still false, which would leave this scan
+                        // with none. Results arriving while this waits for the lock are dropped
+                        // (processScanResult, !mScanning); the next advertisement is heard.
+                        synchronized (SensorBluetooth.this) {
+                            mScanning = true;
+                            final long timeout = scanLowLatency ? lowlatencyscantimeout : scantimeout;
+                            if (scanOnUI) {
+                                Applic.app.getHandler().postDelayed(mScanTimeoutRunnable, timeout);
+                            } else {
+                                timeoutFuture = Applic.scheduler.schedule(mScanTimeoutRunnable, timeout,
+                                        TimeUnit.MILLISECONDS);
+                            }
                         }
                         Log.i(LOG_ID, "scanRunnable: Scanner STARTED");
                     } else {
@@ -671,10 +744,25 @@ public class SensorBluetooth {
             return false;
         }
         if (mScanning || scanstart) {
-            if (doLog) {
-                Log.i(LOG_ID, "scanStarter skipped, scan already active/pending");
+            // A running scan keeps the settings it started with, so a sensor that has just begun
+            // asking for a low-latency scan is only served by a restart: one of Android's five
+            // startScan calls per 30 s, at once, because the caller's delay was never meant to stop
+            // a running scan. Only up: going back down is left to the low-latency cap
+            // (lowlatencyscantimeout), so a driver re-armed in a loop cannot spend a restart per
+            // flip. A result the stopped scan already queued is dropped (processScanResult,
+            // !mScanning); the sensor's next advertisement reaches the new scan.
+            if (mScanning && !scanLowLatency && lowLatencyScanWanted()) {
+                if (doLog) {
+                    Log.i(LOG_ID, "scanStarter restarts scan at low latency");
+                }
+                stopScan(false);
+                delayMillis = 0L;
+            } else {
+                if (doLog) {
+                    Log.i(LOG_ID, "scanStarter skipped, scan already active/pending");
+                }
+                return false;
             }
-            return false;
         }
         for (SuperGattCallback cb : gattcallbacks) {
             if (cb.mBluetoothGatt == null) {
@@ -727,6 +815,7 @@ public class SensorBluetooth {
         if (this.mScanning) {
             stopscantime = System.currentTimeMillis();
             this.mScanning = false;
+            scanLowLatency = false;
             scanner.stop();
             if (retry) {
                 if (bluetoothIsEnabled()) {
@@ -753,6 +842,45 @@ public class SensorBluetooth {
         synchronized (gattcallbacks) {
             return new ArrayList<>(gattcallbacks);
         }
+    }
+
+    /**
+     * True when another live AiDex callback already holds [address], including leftover
+     * MAC-fallback rows. Broadcast-only name rebind must not attach a second manager to that radio.
+     */
+    public static boolean aidexLiveAddressOccupiedByOtherSerial(String serial, String address) {
+        if (serial == null || address == null || address.isEmpty()) {
+            return false;
+        }
+        synchronized (gattcallbacks) {
+            for (SuperGattCallback cb : gattcallbacks) {
+                if (cb == null || !(cb instanceof tk.glucodata.drivers.aidex.AiDexDriver)) {
+                    continue;
+                }
+                if (!address.equalsIgnoreCase(cb.mActiveDeviceAddress)) {
+                    continue;
+                }
+                if (SensorIdentity.matches(cb.SerialNumber, serial)) {
+                    continue;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Exact id match: no alias or registry resolution, so ids of two drivers never conflate. */
+    private static boolean containsExactly(List<String> ids, String want) {
+        if (ids == null || want == null) {
+            return false;
+        }
+        final String trimmed = want.trim();
+        for (String id : ids) {
+            if (id != null && id.trim().equalsIgnoreCase(trimmed)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void addSelectionCandidate(List<String> candidates, Set<String> seen, String serial) {
@@ -900,7 +1028,10 @@ public class SensorBluetooth {
 
         final SensorBluetooth currentBlue = blueone;
         if (currentBlue != null) {
-            for (SuperGattCallback cb : currentBlue.gattcallbacks) {
+            // A snapshot: re-homing runs outside the list's lock, where a concurrent add or remove
+            // would throw out of a live walk.
+            for (SuperGattCallback cb : mygatts()) {
+                if (cb == null) continue;
                 addReplacementCandidate(candidates, seen, cb.SerialNumber, removedSerial);
             }
         }
@@ -949,8 +1080,13 @@ public class SensorBluetooth {
                     ;
                 }
                 ;
-                gatt.free();
-                gattcallbacks.remove(i);
+                final boolean claimed;
+                synchronized (gattcallbacks) {
+                    claimed = gattcallbacks.remove(gatt);
+                }
+                if (claimed) {
+                    gatt.free();
+                }
                 rehomeCurrentSensorAfterRemoval(str);
                 if (removedSerial != null && !removedSerial.equals(str)) {
                     rehomeCurrentSensorAfterRemoval(removedSerial);
@@ -1008,10 +1144,26 @@ public class SensorBluetooth {
             ;
         }
         ;
-        for (int i = 0; i < gattcallbacks.size(); i++) {
-            gattcallbacks.get(i).free();
+        // Taken off the list under its lock, freed after it, as every other remover does: free()
+        // takes the callback's monitor, and resetDevicer relies on a removed callback being off
+        // the list before it is freed. Drained until the list stays empty, so a callback added
+        // while a batch is being freed (a free can wait seconds for a driver's handler) is freed
+        // too, as the old in-place loop did; bounded, in case something keeps adding.
+        for (int pass = 0; pass < 8; pass++) {
+            final ArrayList<SuperGattCallback> removed;
+            synchronized (gattcallbacks) {
+                if (gattcallbacks.isEmpty()) break;
+                removed = new ArrayList<>(gattcallbacks);
+                gattcallbacks.clear();
+            }
+            for (SuperGattCallback cb : removed) {
+                try {
+                    cb.free();
+                } catch (Throwable t) {
+                    Log.stack(LOG_ID, "removeDevices free", t);
+                }
+            }
         }
-        gattcallbacks.clear();
         Natives.setmaxsensors(0);
     }
 
@@ -1079,6 +1231,11 @@ public class SensorBluetooth {
                     ;
                 }
                 ;
+                if (isAiDexMacFallbackLeftover(Applic.app, name)) {
+                    Log.i(LOG_ID, "setDevices: dropping leftover " + name);
+                    dropAiDexLeftoverPersistAndNative(Applic.app, name);
+                    continue;
+                }
                 if (findGattCallbackIndex(name) >= 0) {
                     continue;
                 }
@@ -1092,7 +1249,9 @@ public class SensorBluetooth {
                         callback.free();
                         continue;
                     }
-                    gattcallbacks.add(callback);
+                    synchronized (gattcallbacks) {
+                        gattcallbacks.add(callback);
+                    }
                     adoptCurrentSensorIfBlank(name);
                 }
                 increasedwait = startincreasedwait;
@@ -1121,12 +1280,35 @@ public class SensorBluetooth {
         }
     }
 
-    synchronized void addPersistedManagedCallbacks() {
+    /**
+     * Serializes a whole pass against another one. Not the instance monitor: the leftover drop
+     * below frees native data and is deliberately kept outside it.
+     */
+    private static final Object persistedManagedLock = new Object();
+
+    void addPersistedManagedCallbacks() {
+        synchronized (persistedManagedLock) {
         final Context context = Applic.app;
         if (context == null) {
             return;
         }
+        final java.util.ArrayList<String> leftovers = new java.util.ArrayList<>();
+        synchronized (this) {
+            for (String sensorId : ManagedSensorIdentityRegistry.INSTANCE.persistedSensorIds(context)) {
+                if (isAiDexMacFallbackLeftover(context, sensorId)) {
+                    leftovers.add(sensorId);
+                }
+            }
+        }
+        for (String leftover : leftovers) {
+            Log.i(LOG_ID, "addPersistedManagedCallbacks: dropping leftover " + leftover);
+            dropAiDexLeftoverPersistAndNative(context, leftover);
+        }
+        synchronized (this) {
         for (String sensorId : ManagedSensorIdentityRegistry.INSTANCE.persistedSensorIds(context)) {
+            if (isAiDexMacFallbackLeftover(context, sensorId)) {
+                continue;
+            }
             if (findGattCallbackIndex(sensorId) >= 0) {
                 continue;
             }
@@ -1143,7 +1325,9 @@ public class SensorBluetooth {
                 cb.discard();
                 continue;
             }
-            gattcallbacks.add(cb);
+            synchronized (gattcallbacks) {
+                gattcallbacks.add(cb);
+            }
             final boolean canRunWithoutNativeData =
                     cb instanceof ManagedBluetoothSensorDriver
                             && ((ManagedBluetoothSensorDriver) cb).canConnectWithoutDataptr();
@@ -1153,6 +1337,8 @@ public class SensorBluetooth {
             if (canRunWithoutNativeData) {
                 cb.connectDevice(0);
             }
+        }
+        }
         }
     }
 
@@ -1223,28 +1409,41 @@ public class SensorBluetooth {
     /** Keep mirrored sensor records visible without claiming their physical transmitter. */
     public static void blockLocalCloneConnection(String sensorId) {
         if (sensorId == null || sensorId.isEmpty()) return;
+        // Matched under the list's lock, paused after it: setPause and closeGattTransport take the
+        // callback's monitor, and code holding that monitor reaches mygatts(), so taking the two
+        // locks in this order could deadlock (as removeDevice does, the list's lock is let go first).
+        final ArrayList<SuperGattCallback> matched = new ArrayList<>();
         synchronized (gattcallbacks) {
             for (SuperGattCallback callback : gattcallbacks) {
                 if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
-                    callback.setPause(true);
-                    callback.closeGattTransport();
+                    matched.add(callback);
                 }
             }
+        }
+        for (SuperGattCallback callback : matched) {
+            callback.setPause(true);
+            callback.closeGattTransport();
         }
     }
 
     public static void retireCloneSensor(String sensorId) {
         if (sensorId == null || sensorId.isEmpty()) return;
+        // Removed under the list's lock, freed after it, as removeDevice does: free() takes the
+        // callback's monitor (see blockLocalCloneConnection).
+        final ArrayList<SuperGattCallback> retired = new ArrayList<>();
         synchronized (gattcallbacks) {
             for (int index = gattcallbacks.size() - 1; index >= 0; index--) {
                 SuperGattCallback callback = gattcallbacks.get(index);
                 if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
-                    callback.free();
+                    retired.add(callback);
                     gattcallbacks.remove(index);
                 }
             }
-            Natives.setmaxsensors(gattcallbacks.size());
         }
+        for (SuperGattCallback callback : retired) {
+            callback.free();
+        }
+        Natives.setmaxsensors(gattcallbacks.size());
         final String current = SensorIdentity.resolveMainSensor();
         if (SensorIdentity.matches(current, sensorId)) {
             final String replacement = resolveReplacementSensorSerial(sensorId);
@@ -1253,13 +1452,20 @@ public class SensorBluetooth {
     }
 
     // --- KOTLIN SENSORS (AiDex) SUPPORT ---
-    public static void addAiDexSensor(Context context, String name, String address) {
+    public static boolean addAiDexSensor(Context context, String name, String address) {
         if (context == null || name == null || name.trim().isEmpty() || address == null || address.trim().isEmpty()) {
             Log.w(LOG_ID, "addAiDexSensor: invalid input name/address");
-            return;
+            return false;
+        }
+        if (tk.glucodata.drivers.aidex.AiDexScanIdentity.INSTANCE.isMacFallbackSerial(name, address)) {
+            Log.w(LOG_ID, "addAiDexSensor: refusing MAC-fallback serial " + name);
+            return false;
+        }
+        if (blueone == null) {
+            Log.w(LOG_ID, "addAiDexSensor: bluetooth not started — not persisting " + name);
+            return false;
         }
         try {
-            // Add to persistent storage
             android.content.SharedPreferences prefs = context.getSharedPreferences("tk.glucodata_preferences",
                     Context.MODE_PRIVATE);
             java.util.Set<String> sensors;
@@ -1273,41 +1479,354 @@ public class SensorBluetooth {
             if (sensors == null) {
                 sensors = new java.util.HashSet<>();
             }
-            java.util.Set<String> newSensors = new java.util.HashSet<>(sensors);
-            newSensors.add(name + "|" + address);
-            prefs.edit().putStringSet("aidex_sensors", newSensors).apply();
-            // aidex_sensors feeds AiDexManagedSensorIdentityAdapter.resolveCanonicalSensorId.
-            SensorIdentity.invalidateCaches();
 
-            // If SensorBluetooth is alive, add it immediately
+            String serial = name.trim();
+            SuperGattCallback existing = null;
+            java.util.ArrayList<SuperGattCallback> leftoverOwners = new java.util.ArrayList<>();
+            SuperGattCallback realAddressOwner = null;
             if (blueone != null) {
-                String serial = name;
-                // Check if already added (avoid duplicates)
-                for (SuperGattCallback cb : blueone.gattcallbacks) {
-                    if (cb.SerialNumber != null && cb.SerialNumber.equals(serial)) {
-                        return;
+                synchronized (blueone.gattcallbacks) {
+                    for (SuperGattCallback cb : blueone.gattcallbacks) {
+                        if (cb.SerialNumber != null && cb.SerialNumber.equals(serial)) {
+                            existing = cb;
+                        } else if (cb instanceof tk.glucodata.drivers.aidex.AiDexDriver
+                                && address.equalsIgnoreCase(cb.mActiveDeviceAddress)) {
+                            // Row first, like every shared call site: a live address alone can be
+                            // moved by a spoofed advert and must not make a real sensor a leftover.
+                            if (isAiDexMacFallbackLeftover(context, cb.SerialNumber)) {
+                                leftoverOwners.add(cb);
+                            } else {
+                                realAddressOwner = cb;
+                            }
+                        }
                     }
                 }
+            }
+            if (realAddressOwner != null) {
+                Log.w(LOG_ID, "addAiDexSensor: address " + address
+                        + " already bound to " + realAddressOwner.SerialNumber);
+                teardownLeftoverAiDexOwners(context, leftoverOwners);
+                return false;
+            }
+            for (String entry : sensors) {
+                tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.PersistedEntry parsed =
+                        tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                                .parsePersistedEntry(entry);
+                if (tk.glucodata.drivers.aidex.AiDexScanIdentity.INSTANCE
+                        .persistAddressOccupiedByOtherRealSerial(
+                                parsed.getSerial(), parsed.getAddress(), serial, address)) {
+                    Log.w(LOG_ID, "addAiDexSensor: address " + address
+                            + " already persisted to " + parsed.getSerial());
+                    teardownLeftoverAiDexOwners(context, leftoverOwners);
+                    return false;
+                }
+            }
+            if (tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE.aliasBelongsToOtherDriver(
+                    serial,
+                    ManagedSensorIdentityRegistry.INSTANCE.getAll(),
+                    adapter -> adapter.persistedSensorIds(context))) {
+                Log.w(LOG_ID, "addAiDexSensor: " + serial + " would take over another driver's sensor");
+                teardownLeftoverAiDexOwners(context, leftoverOwners);
+                return false;
+            }
+            String persistedAddress = tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                    .persistedAddress(context, serial);
+            if (persistedAddress != null && !persistedAddress.equalsIgnoreCase(address)) {
+                Log.w(LOG_ID, "addAiDexSensor: refusing to retarget existing " + serial
+                        + " from " + persistedAddress + " to " + address);
+                return false;
+            }
+            boolean delayConnectAfterLeftover = !leftoverOwners.isEmpty();
+            if (delayConnectAfterLeftover) {
+                for (SuperGattCallback leftover : leftoverOwners) {
+                    Log.i(LOG_ID, "addAiDexSensor: retargeting leftover MAC serial "
+                            + leftover.SerialNumber + " -> " + serial);
+                }
+                teardownLeftoverAiDexOwners(context, leftoverOwners);
+            }
+
+            java.util.Set<String> newSensors = new java.util.HashSet<>();
+            for (String entry : sensors) {
+                tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.PersistedEntry parsed =
+                        tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                                .parsePersistedEntry(entry);
+                if (tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                        .matchesCallbackId(parsed.getSerial(), serial)) {
+                    continue;
+                }
+                boolean leftoverTornDown = false;
+                for (SuperGattCallback leftover : leftoverOwners) {
+                    if (tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                            .matchesCallbackId(parsed.getSerial(), leftover.SerialNumber)) {
+                        leftoverTornDown = true;
+                        break;
+                    }
+                }
+                if (leftoverTornDown) {
+                    dropAiDexLeftoverPersistAndNative(context, parsed.getSerial());
+                    continue;
+                }
+                if (tk.glucodata.drivers.aidex.AiDexScanIdentity.INSTANCE
+                        .isMacFallbackSerial(parsed.getSerial(), parsed.getAddress())
+                        && address.equalsIgnoreCase(parsed.getAddress())) {
+                    dropAiDexLeftoverPersistAndNative(context, parsed.getSerial());
+                    continue;
+                }
+                newSensors.add(entry);
+            }
+            newSensors.add(serial + "|" + address);
+            prefs.edit().putStringSet("aidex_sensors", newSensors).commit();
+            SensorIdentity.invalidateCaches();
+
+            if (blueone != null) {
+                if (existing != null) {
+                    boolean applied = tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                            .applyPersistedBleAddress(existing, address);
+                    if (applied) {
+                        existing.connectDevice(delayConnectAfterLeftover ? 250 : 0);
+                    } else {
+                        Log.w(LOG_ID, "addAiDexSensor: could not resolve " + address + " for existing " + serial);
+                    }
+                    return true;
+                }
                 long dataptr = Natives.getdataptr(name);
-                // Clear finished flag so sensor appears in activeSensors/bluetoothactive
                 if (dataptr != 0L) {
                     Natives.unfinishSensor(dataptr);
                 }
-                // Multi-sensor fix: Do NOT force this sensor as main on reconnect.
-                // The user's main sensor selection should be respected. The old code
-                // (Edit 85) called setcurrentsensor() here, which caused the main
-                // sensor to silently switch to AiDex whenever it reconnected, even
-                // if the user had intentionally set another sensor (e.g. Sibionics)
-                // as main. The main sensor is now only changed explicitly by the user
-                // or when the first-ever sensor is added (via addsensor() in C++).
                 SuperGattCallback cb = tk.glucodata.drivers.aidex.AiDexNativeFactory.createBleManager(name, dataptr);
-                cb.mActiveDeviceAddress = address;
-                blueone.gattcallbacks.add(cb);
+                boolean applied = tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                        .applyPersistedBleAddress(cb, address);
+                synchronized (blueone.gattcallbacks) {
+                    blueone.gattcallbacks.add(cb);
+                }
                 blueone.adoptCurrentSensorIfBlank(serial);
-                cb.connectDevice(0);
+                if (applied) {
+                    cb.connectDevice(delayConnectAfterLeftover ? 250 : 0);
+                } else {
+                    Log.w(LOG_ID, "addAiDexSensor: persisted " + serial
+                            + " without a resolvable device for " + address);
+                }
             }
+            return true;
         } catch (Throwable t) {
             Log.stack(LOG_ID, "addAiDexSensor", t);
+            return false;
+        }
+    }
+
+    public static boolean isExistingAiDexSetup(Context context, String serial) {
+        if (serial == null || serial.trim().isEmpty()) {
+            return false;
+        }
+        String want = serial.trim();
+        if (blueone != null) {
+            synchronized (blueone.gattcallbacks) {
+                for (SuperGattCallback cb : blueone.gattcallbacks) {
+                    if (cb instanceof tk.glucodata.drivers.aidex.AiDexDriver
+                            && SensorIdentity.matches(cb.SerialNumber, want)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        if (context != null) {
+            for (String persisted : tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                    .persistedSensorIds(context)) {
+                if (SensorIdentity.matches(persisted, want)
+                        || tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                        .matchesCallbackId(persisted, want)) {
+                    return true;
+                }
+            }
+        }
+        return isNativeActiveSensor(want);
+    }
+
+    private static boolean isNativeActiveSensor(String serial) {
+        if (serial == null || serial.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            String[] active = Natives.activeSensors();
+            if (active == null) {
+                return false;
+            }
+            for (String sensorId : active) {
+                if (SensorIdentity.matches(sensorId, serial)) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    private static void teardownLeftoverAiDexOwners(Context context,
+            java.util.List<SuperGattCallback> leftovers) {
+        if (leftovers == null || leftovers.isEmpty()) {
+            return;
+        }
+        for (SuperGattCallback leftover : leftovers) {
+            teardownLeftoverAiDex(context, leftover);
+            if (blueone != null) {
+                synchronized (blueone.gattcallbacks) {
+                    blueone.gattcallbacks.remove(leftover);
+                }
+            }
+        }
+    }
+
+    // Never removes the Android bond: a sensor torn down here may still hold its side of it, and
+    // removing ours strands it with keys no phone has. The user's own Forget/Unpair does that.
+    private static void teardownLeftoverAiDex(Context context, SuperGattCallback leftover) {
+        if (leftover == null) {
+            return;
+        }
+        try {
+            if (leftover instanceof tk.glucodata.drivers.aidex.AiDexDriver) {
+                ((tk.glucodata.drivers.aidex.AiDexDriver) leftover).forgetVendor(false);
+            } else {
+                leftover.finishSensor();
+                leftover.close();
+            }
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "teardownLeftoverAiDex forgetVendor", t);
+        }
+        tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                .removePersistedSensor(context, leftover.SerialNumber);
+    }
+
+    private static void dropAiDexLeftoverPersistAndNative(Context context, String leftoverSerial) {
+        dropAiDexLeftoverPersistAndNative(context, leftoverSerial, true);
+    }
+
+    private static void dropAiDexLeftoverPersistAndNative(
+            Context context, String leftoverSerial, boolean freeMatchingLiveCallback) {
+        if (leftoverSerial == null || leftoverSerial.trim().isEmpty()) {
+            return;
+        }
+        try {
+            if (isNativeActiveSensor(leftoverSerial)) {
+                long dataptr = Natives.getdataptr(leftoverSerial);
+                if (dataptr != 0L) {
+                    try {
+                        Natives.finishSensor(dataptr);
+                    } finally {
+                        Natives.freedataptr(dataptr);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "dropAiDexLeftoverPersistAndNative finishSensor", t);
+        }
+        tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                .removePersistedSensor(context, leftoverSerial);
+        final SensorBluetooth one = blueone;
+        if (!freeMatchingLiveCallback || one == null) {
+            return;
+        }
+        SuperGattCallback live = null;
+        synchronized (gattcallbacks) {
+            for (SuperGattCallback cb : gattcallbacks) {
+                if (cb instanceof tk.glucodata.drivers.aidex.AiDexDriver
+                        && SensorIdentity.matches(cb.SerialNumber, leftoverSerial)) {
+                    live = cb;
+                    break;
+                }
+            }
+            // Claim it under the lock so a concurrent drop cannot free the same callback twice.
+            if (live != null) {
+                gattcallbacks.remove(live);
+            }
+        }
+        if (live != null) {
+            try {
+                live.free();
+            } catch (Throwable t) {
+                Log.stack(LOG_ID, "dropAiDexLeftoverPersistAndNative free", t);
+            }
+            one.rehomeCurrentSensorAfterRemoval(leftoverSerial);
+        }
+    }
+
+    /**
+     * An AiDex id left over from the old MAC-as-serial fallback: its persisted row, or the live
+     * AiDex callback carrying it, has a serial that spells its own BLE address. The id shape alone
+     * decides nothing — other drivers' bare 12-hex MACs (Ottai, Anytime, MQ) and real AiDex
+     * `<letter>-<12 hex>` serials must never be dropped as leftovers.
+     */
+    private static boolean isAiDexMacFallbackLeftover(Context context, String sensorId) {
+        if (sensorId == null || sensorId.trim().isEmpty()) {
+            return false;
+        }
+        // The stored row is the sensor's own record, so it outranks a live address that a rebind
+        // may have rewritten; the live callback is asked only when the row proves nothing.
+        final Boolean persisted = context == null ? null
+                : tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                        .persistedLeftoverVerdict(context, sensorId);
+        final String want = sensorId.trim();
+        return tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE.leftoverVerdict(persisted, () -> {
+            synchronized (gattcallbacks) {
+                for (SuperGattCallback cb : gattcallbacks) {
+                    if (cb instanceof tk.glucodata.drivers.aidex.AiDexDriver
+                            && want.equalsIgnoreCase(cb.SerialNumber)
+                            && tk.glucodata.drivers.aidex.AiDexScanIdentity.INSTANCE
+                                    .isMacFallbackSerial(cb.SerialNumber, cb.mActiveDeviceAddress)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
+    public static void rollbackUnpairedAiDexSensor(Context context, String serial) {
+        if (context == null || serial == null || serial.trim().isEmpty()) {
+            return;
+        }
+        try {
+            if (blueone == null) {
+                Log.i(LOG_ID, "rollbackUnpairedAiDexSensor: blueone unset — keeping persist for "
+                        + serial);
+                return;
+            }
+            SuperGattCallback victim = null;
+            boolean paired = false;
+            synchronized (blueone.gattcallbacks) {
+                for (SuperGattCallback cb : blueone.gattcallbacks) {
+                    if (!(cb instanceof tk.glucodata.drivers.aidex.AiDexDriver)) {
+                        continue;
+                    }
+                    if (!SensorIdentity.matches(cb.SerialNumber, serial)) {
+                        continue;
+                    }
+                    tk.glucodata.drivers.aidex.AiDexDriver driver = (tk.glucodata.drivers.aidex.AiDexDriver) cb;
+                    if (!tk.glucodata.drivers.aidex.AiDexSetupPolicy.mayRollBack(
+                            driver.isVendorPaired(), driver.hasCompletedHandshake())) {
+                        paired = true;
+                        break;
+                    }
+                    victim = cb;
+                    break;
+                }
+                if (victim != null) {
+                    blueone.gattcallbacks.remove(victim);
+                }
+            }
+            if (paired) {
+                Log.i(LOG_ID, "rollbackUnpairedAiDexSensor: keeping paired " + serial);
+                return;
+            }
+            if (victim != null) {
+                // The Android bond stays. A setup abandoned after SMP finished leaves the sensor
+                // bonded on its own side; removing ours strands it with keys no phone holds. Kept,
+                // the next setup of this sensor pairs over the existing bond, with no new prompt.
+                teardownLeftoverAiDex(context, victim);
+            }
+            tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter.INSTANCE
+                    .removePersistedSensor(context, serial);
+        } catch (Throwable t) {
+            Log.stack(LOG_ID, "rollbackUnpairedAiDexSensor", t);
         }
     }
 
@@ -1509,8 +2028,18 @@ public class SensorBluetooth {
         // native sync asks us to rebuild this same roster. Take the native and
         // managed snapshots under the same monitor as comparison and mutation;
         // otherwise a pre-disable snapshot can re-add a callback after retirement.
+        // Removed callbacks are only claimed here and freed after the lock: free() takes the
+        // callback's monitor, and code holding that monitor reaches mygatts() (a connect checking
+        // CloneSensorRegistry), so freeing under this lock could deadlock.
+        final ArrayList<SuperGattCallback> claimedVictims = new ArrayList<>();
+        final ArrayList<String> removedSerials = new ArrayList<>();
+        final ArrayList<String> removedLeftovers = new ArrayList<>();
+        final ArrayList<String> lateLeftovers = new ArrayList<>();
+        ArrayList<String> allDevs = null;
+        try {
         synchronized (gattcallbacks) {
             String[] nativeDevs = filterActiveSensorNames(Natives.activeSensors());
+
             ArrayList<String> candidateDevs = new ArrayList<>();
             if (nativeDevs != null) {
                 for (String s : nativeDevs) {
@@ -1524,15 +2053,18 @@ public class SensorBluetooth {
                     candidateDevs.add(serial);
                 }
             }
-            ArrayList<String> allDevs = distinctRuntimeSensorIds(candidateDevs);
+            allDevs = distinctRuntimeSensorIds(candidateDevs);
+
             String[] devs = allDevs.toArray(new String[0]);
-            ArrayList<Integer> rem = new ArrayList<>();
-            int gatnr = gattcallbacks.size();
+            // Snapshot: another thread may add or remove callbacks while this pass runs, and an index
+            // captured here would then free the wrong sensor.
+            final ArrayList<SuperGattCallback> live = mygatts();
+            ArrayList<SuperGattCallback> rem = new ArrayList<>();
+            final ArrayList<String> droppedLeftovers = new ArrayList<>();
+            final ArrayList<SuperGattCallback> leftoverVictims = new ArrayList<>();
+            int gatnr = live.size();
             if (devs == null) {
-                for (int i = 0; i < gatnr; i++) {
-                    String was = gattcallbacks.get(i).SerialNumber;
-                    rem.add(i);
-                }
+                rem.addAll(live);
                 if (rem.size() == 0) {
                     return false;
                 }
@@ -1541,11 +2073,21 @@ public class SensorBluetooth {
                 int heb = 0;
 
                 for (int i = 0; i < gatnr; i++) {
-                    var gatt = gattcallbacks.get(i);
+                    var gatt = live.get(i);
                     String was = gatt.SerialNumber;
+                    if (isAiDexMacFallbackLeftover(Applic.app, was)) {
+                        // Decided once, here: a concurrent drop can erase the row and the callback before
+                        // the removal loop reaches this victim, and a second look would then miss it.
+                        rem.add(gatt);
+                        leftoverVictims.add(gatt);
+                        if (was != null) {
+                            droppedLeftovers.add(was);
+                        }
+                        continue;
+                    }
                     int matched = consumeMatchingDeviceIds(devs, gatt);
                     if (matched == 0) {
-                        rem.add(i);
+                        rem.add(gatt);
                     } else {
                         gatt.stopHealth = false;
                         heb += matched;
@@ -1557,14 +2099,11 @@ public class SensorBluetooth {
             }
             if (mBluetoothManager != null)
                 stopScan(false);
-            // rem.sort((x,y)->{return x-y;});
-            Collections.sort(rem, (x, y) -> {
-                return x - y;
-            });
 
             for (int el = rem.size() - 1; el >= 0; el--) {
-                int weg = rem.get(el);
-                final String removedSerial = gattcallbacks.get(weg).SerialNumber;
+                final SuperGattCallback victim = rem.get(el);
+                final String removedSerial = victim.SerialNumber;
+                final boolean leftover = leftoverVictims.contains(victim);
                 {
                     if (doLog) {
                         Log.i(LOG_ID, "remove " + removedSerial);
@@ -1572,9 +2111,18 @@ public class SensorBluetooth {
                     ;
                 }
                 ;
-                gattcallbacks.get(weg).free();
-                gattcallbacks.remove(weg);
-                rehomeCurrentSensorAfterRemoval(removedSerial, allDevs);
+                // Claim it before freeing: a concurrent remover must not free the same callback twice.
+                final boolean claimed;
+                synchronized (gattcallbacks) {
+                    claimed = gattcallbacks.remove(victim);
+                }
+                if (claimed) {
+                    claimedVictims.add(victim);
+                }
+                if (leftover) {
+                    removedLeftovers.add(removedSerial);
+                }
+                removedSerials.add(removedSerial);
             }
             int index = gattcallbacks.size();
             if (devs != null) {
@@ -1593,14 +2141,28 @@ public class SensorBluetooth {
                             ;
                         }
                         ;
+                        if (containsExactly(droppedLeftovers, dev)) {
+                            continue;
+                        }
+                        if (isAiDexMacFallbackLeftover(Applic.app, dev)) {
+                            Log.i(LOG_ID, "updateDevicers: dropping leftover " + dev);
+                            lateLeftovers.add(dev);
+                            continue;
+                        }
                         final boolean persistedManaged = hasPersistedManagedRecord(dev);
+                        if (!persistedManaged && !isNativeActiveSensor(dev)) {
+                            // Gone since this pass listed it: another thread dropped or removed it.
+                            continue;
+                        }
                         final boolean suppressGenericManagedShell = shouldSuppressGenericManagedShell(dev);
                         final long managedDataptr =
                             (persistedManaged || suppressGenericManagedShell) ? resolvePersistedManagedDataptr(dev) : 0L;
                         if (persistedManaged || suppressGenericManagedShell) {
                             final SuperGattCallback managed = ManagedSensorIdentityRegistry.INSTANCE.createManagedCallback(Applic.app, dev, managedDataptr);
                             if (managed != null) {
-                                gattcallbacks.add(managed);
+                                synchronized (gattcallbacks) {
+                                    gattcallbacks.add(managed);
+                                }
                                 if (managedDataptr != 0L) {
                                     adoptCurrentSensorIfBlank(dev);
                                 }
@@ -1611,12 +2173,49 @@ public class SensorBluetooth {
                         }
                         final long dataptr = Natives.getdataptr(dev);
                         if (dataptr != 0L) {
-                            gattcallbacks.add(getGattCallback(dev, dataptr));
+                            final SuperGattCallback generic = getGattCallback(dev, dataptr);
+                            synchronized (gattcallbacks) {
+                                gattcallbacks.add(generic);
+                            }
                             adoptCurrentSensorIfBlank(dev);
                             increasedwait = startincreasedwait;
                             index++;
                         }
                     }
+                }
+            }
+        }
+        } finally {
+            // Out of the list's lock, in the old order: free, drop the leftover's rows, re-home.
+            // In a finally, so a throw in the add loop cannot strand callbacks already removed.
+            for (SuperGattCallback victim : claimedVictims) {
+                try {
+                    victim.free();
+                } catch (Throwable t) {
+                    Log.stack(LOG_ID, "updateDevicers free", t);
+                }
+            }
+            // Each step guarded on its own: one failure must neither hide the add loop's exception
+            // nor skip the steps after it.
+            for (String serial : removedLeftovers) {
+                try {
+                    dropAiDexLeftoverPersistAndNative(Applic.app, serial, false);
+                } catch (Throwable t) {
+                    Log.stack(LOG_ID, "updateDevicers drop removed " + serial, t);
+                }
+            }
+            for (String serial : removedSerials) {
+                try {
+                    rehomeCurrentSensorAfterRemoval(serial, allDevs);
+                } catch (Throwable t) {
+                    Log.stack(LOG_ID, "updateDevicers rehome " + serial, t);
+                }
+            }
+            for (String dev : lateLeftovers) {
+                try {
+                    dropAiDexLeftoverPersistAndNative(Applic.app, dev);
+                } catch (Throwable t) {
+                    Log.stack(LOG_ID, "updateDevicers drop late " + dev, t);
                 }
             }
         }
@@ -1795,7 +2394,9 @@ public class SensorBluetooth {
         if (dataptr != 0L) {
             SuperGattCallback cb = getGattCallback(str, dataptr);
             // nullKAuth=false;
-            gattcallbacks.add(cb);
+            synchronized (gattcallbacks) {
+                gattcallbacks.add(cb);
+            }
             adoptCurrentSensorIfBlank(str);
             Natives.setmaxsensors(gattcallbacks.size());
             increasedwait = startincreasedwait;
@@ -1810,6 +2411,16 @@ public class SensorBluetooth {
         }
         return false;
 
+    }
+
+    private static boolean isListed(SuperGattCallback callback) {
+        // An array copy, not an iterator: some registries add to the list without its lock.
+        synchronized (gattcallbacks) {
+            for (Object cb : gattcallbacks.toArray()) {
+                if (cb == callback) return true;
+            }
+            return false;
+        }
     }
 
     private boolean resetDevicer(long streamptr, String name) {
@@ -1828,6 +2439,12 @@ public class SensorBluetooth {
                 cb.resetdataptr();
                 cb.sensorstartmsec = Natives.getSensorStartmsec(cb.dataptr);
                 cb.setPause(false);
+                // Found without the list's lock: a concurrent remover takes cb off the list before
+                // it frees it, and free() sets stop only once. If that happened, the unpause above
+                // must not outlive the free, or a callback no stop path can reach would reconnect.
+                if (!isListed(cb)) {
+                    cb.setPause(true);
+                }
                 // NFC created a separate stream wrapper for the same native record.
                 Natives.freedataptr(streamptr);
                 return checkandconnect(cb, 0);
@@ -1968,6 +2585,8 @@ public class SensorBluetooth {
             mBluetoothAdapterReceiver = new BroadcastReceiver() {
                 // private boolean wasScanning=false;
                 @SuppressLint("MissingPermission")
+                // legacy adapter API: required at minSdk 26
+                @SuppressWarnings("deprecation")
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if ("android.bluetooth.adapter.action.STATE_CHANGED".equals(intent.getAction())) {
@@ -2083,6 +2702,8 @@ public class SensorBluetooth {
         bondStateReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                // legacy Intent extra API: required at minSdk 26
+                @SuppressWarnings("deprecation")
                 final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 final var tmp = blueone;
                 if (tmp == null) {

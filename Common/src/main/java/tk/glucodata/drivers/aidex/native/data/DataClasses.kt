@@ -11,7 +11,7 @@ package tk.glucodata.drivers.aidex.native.data
 data class GlucoseFrame(
     /** Opcode byte (byte[0]) — determines scaling and frame type */
     val opcode: Int,
-    /** Minutes since sensor start (decoded from bytes[1..4] seconds / 60) */
+    /** Minutes since sensor start (u16 LE at bytes[4..5]) */
     val timeOffsetMinutes: Int,
     /** Calibrated glucose in mg/dL (after opcode scaling) */
     val glucoseMgDl: Float,
@@ -23,7 +23,7 @@ data class GlucoseFrame(
     val i2: Float,
     /** CRC-16 from frame tail (u16le([15..16])) */
     val crc16: Int,
-    /** Whether this is a valid glucose reading (not sentinel, in range) */
+    /** Whether this is a valid glucose reading (not sentinel; raw and scaled value in range) */
     val isValid: Boolean,
 ) {
     /**
@@ -96,26 +96,6 @@ data class CalibrationRecord(
     /** Calibration offset (s16 / 100) */
     val calibrationOffset: Float,
 )
-
-/**
- * Parsed broadcast advertisement reading.
- */
-data class BroadcastReading(
-    /** Glucose value in mg/dL (10-bit packed) */
-    val glucoseMgDl: Int,
-    /** Simple 8-bit glucose fallback */
-    val glucoseFallback: Int,
-    /** Time offset in minutes since sensor start */
-    val timeOffsetMinutes: Long,
-    /** Trend value (signed i8) */
-    val trend: Int,
-    /** Device name from advertisement */
-    val deviceName: String,
-) {
-    /** The best glucose value to use */
-    val bestGlucose: Int
-        get() = if (glucoseMgDl in 30..500) glucoseMgDl else glucoseFallback
-}
 
 /**
  * A glucose reading ready for storage/display.

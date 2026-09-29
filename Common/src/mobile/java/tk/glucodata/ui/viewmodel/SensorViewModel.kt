@@ -1366,18 +1366,6 @@ class SensorViewModel : ViewModel() {
         }
     }
 
-    fun sendAiDexMaintenanceCommand(serial: String, opCode: Int) {
-        val gatt = findGatt(serial)
-        if (gatt is tk.glucodata.drivers.aidex.AiDexDriver) {
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val success = gatt.sendMaintenanceCommand(opCode)
-                if (success) {
-                    refreshSensors()
-                }
-            }
-        }
-    }
-
     /**
      * Multi-strategy AiDex sensor reset: vendor native lib -> FF32 direct write -> BLE bond removal.
      * Must run on IO dispatcher (uses Thread.sleep internally).

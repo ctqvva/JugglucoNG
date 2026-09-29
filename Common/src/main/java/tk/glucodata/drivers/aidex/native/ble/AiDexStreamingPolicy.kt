@@ -69,6 +69,12 @@ internal object AiDexStreamingPolicy {
         if (latestKnownReadingMs <= 0L) return defaultDelayMs
         val waitUntil = latestKnownReadingMs + expectedLiveIntervalMs + expectedLiveGraceMs
         val historyAwareDelay = (waitUntil - nowMs).takeIf { it > 0L } ?: 0L
-        return maxOf(defaultDelayMs, historyAwareDelay)
+        // The stretch only ever has to cover a reading stamped ahead of wall clock by the
+        // acceptance slack upstream. A larger gap is not a fresher reading — it is the wall
+        // clock stepped backwards while latestKnownReadingMs still holds a pre-step stamp,
+        // and the no-stream recovery ladder must not stay unarmed for the size of that step.
+        val maxStretchMs = AiDexHistoryPolicy.OFFSET_TIMESTAMP_FUTURE_SLACK_MS +
+            expectedLiveIntervalMs + expectedLiveGraceMs
+        return maxOf(defaultDelayMs, historyAwareDelay.coerceAtMost(maxStretchMs))
     }
 }

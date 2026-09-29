@@ -1,10 +1,13 @@
 // JugglucoNG — AiDex Native Kotlin Driver
-// HistoryMerge.kt — Testable pure-logic helpers for history merge and filtering
+// HistoryMerge.kt — Testable pure-logic helpers for the 0x23/0x24 history merge
 //
 // Extracted from AiDexBleManager so these can be unit tested without
-// Android framework dependencies.
+// Android framework dependencies. The store filter is
+// AiDexHistoryPolicy.historyStoreRejection.
 
 package tk.glucodata.drivers.aidex.native.data
+
+import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
 
 /**
  * Lightweight container for history entries ready for storage.
@@ -29,24 +32,14 @@ data class MergeResult(
     val mergedCount: Int,
     /** Number of entries that used fallback glucose */
     val fallbackCount: Int,
-    /** Number of entries with no glucose at all (will be filtered) */
+    /** Number of entries with no glucose at all, sentinel minutes included (will be filtered) */
     val noGlucoseCount: Int,
     /** Updated fallback value for cross-page continuity */
     val lastKnownGlucose: Int?,
 )
 
 /**
- * Result of filtering history entries for storage.
- */
-data class FilterResult(
-    /** Entries that passed all filters */
-    val passed: List<HistoryStoreEntry>,
-    /** Total entries filtered out */
-    val filteredCount: Int,
-)
-
-/**
- * Pure-logic helpers for history merge and filtering.
+ * Pure-logic helpers for the history merge.
  * All methods are stateless and testable without Android dependencies.
  */
 object HistoryMerge {
@@ -58,8 +51,17 @@ object HistoryMerge {
     const val MGDL_PER_MMOL = 18.0182f
     const val MAX_PLAUSIBLE_RAW_MGDL = MAX_PLAUSIBLE_RAW_MMOL * MGDL_PER_MMOL
     const val MAX_OFFSET_DAYS = 30
-    const val WARMUP_DURATION_MS = 7L * 60_000L  // 7 minutes
-    private const val CONTROL_VALUE_DEVIATION_THRESHOLD_MGDL = 20
+
+    /**
+     * Cache value for a minute 0x23 delivered as the sentinel (no reading). It merges to
+     * glucose 0, which the store drops, instead of taking the carried-forward fallback.
+     * A real 0x23 value is never 1023: the parser flags exactly that value as the sentinel.
+     */
+    const val CALIBRATED_SENTINEL_MARKER: Int = AiDexOpcodes.SENTINEL_GLUCOSE
+
+    /** True for a cached 0x23 glucose value, false for a missing minute or a sentinel marker. */
+    fun isRealCachedGlucose(value: Int?): Boolean =
+        value != null && value != CALIBRATED_SENTINEL_MARKER
 
     /**
      * Raw AiDex values can spike briefly after physical sensor disturbance.
@@ -74,16 +76,15 @@ object HistoryMerge {
     }
 
     /**
-     * Cache 0x23 calibrated history entries, skipping sentinels and control values.
+     * Cache 0x23 calibrated history entries. A sentinel row is cached as
+     * [CALIBRATED_SENTINEL_MARKER] and counted as skipped; it never replaces a real value
+     * already cached for that minute (HEAD skipped it, so the real value stayed).
      *
-     * The last entry of a full page (>=120 entries) can be a control/calibration value
-     * embedded by the sensor. Skip it if it makes an implausible one-minute jump from
-     * its neighbor. Field logs showed a page-tail 70 -> 97 mg/dL row overwriting the
-     * matching direct F003 value; falling back to the previous history glucose is safer
-     * than preserving an isolated page-boundary spike.
+     * A full CRC-stripped page is 119 data rows. A last-row jump is real glucose,
+     * not a CRC trailer — do not skip it.
      *
      * @param entries Parsed 0x23 history entries
-     * @param cache Mutable map to populate (offset -> glucose mg/dL)
+     * @param cache Mutable map to populate (offset -> glucose mg/dL, or the sentinel marker)
      * @return Pair of (cached count, skipped count)
      */
     fun cacheCalibratedEntries(
@@ -92,18 +93,14 @@ object HistoryMerge {
     ): Pair<Int, Int> {
         var cached = 0
         var skipped = 0
-        val lastIdx = entries.size - 1
 
-        for ((idx, entry) in entries.withIndex()) {
-            if (entry.isSentinel) { skipped++; continue }
-
-            if (idx == lastIdx && entries.size >= 120) {
-                val prevGlucose = if (idx > 0) entries[idx - 1].glucoseMgDl else entry.glucoseMgDl
-                val deviation = kotlin.math.abs(entry.glucoseMgDl - prevGlucose)
-                if (deviation > CONTROL_VALUE_DEVIATION_THRESHOLD_MGDL) {
-                    skipped++
-                    continue
+        for (entry in entries) {
+            if (entry.isSentinel) {
+                if (!isRealCachedGlucose(cache[entry.timeOffsetMinutes])) {
+                    cache[entry.timeOffsetMinutes] = CALIBRATED_SENTINEL_MARKER
                 }
+                skipped++
+                continue
             }
 
             cache[entry.timeOffsetMinutes] = entry.glucoseMgDl
@@ -114,10 +111,26 @@ object HistoryMerge {
     }
 
     /**
+     * The 0x23 cursor after a non-empty page: one past the last row of this page that holds a
+     * real cached value, else one past the page. A sentinel marker does not count, so a
+     * sentinel tail is asked for again by the next page, as on HEAD
+     * (`entries.lastOrNull { cache.containsKey(it) } ?: entries.last()`, + 1, before markers).
+     */
+    fun nextRawCursorAfterPage(
+        entries: List<CalibratedHistoryEntry>,
+        cache: Map<Int, Int>,
+    ): Int {
+        val lastCached = entries.lastOrNull { isRealCachedGlucose(cache[it.timeOffsetMinutes]) }
+        return (lastCached ?: entries.last()).timeOffsetMinutes + 1
+    }
+
+    /**
      * Merge 0x24 ADC entries with cached 0x23 calibrated glucose.
      *
      * For each ADC entry:
      * - If an exact offset match exists in the 0x23 cache, use it (and remove from cache)
+     * - A sentinel marker gives glucose=0 (dropped by the store); it neither uses nor
+     *   updates the fallback, so no neighbour's value is invented for that minute
      * - Otherwise, use the most recent successfully matched value as fallback
      * - If no fallback available yet, set glucose=0 (will be filtered by store)
      *
@@ -139,12 +152,15 @@ object HistoryMerge {
         val entries = adcEntries.map { entry ->
             val cachedGlucose = calibratedCache.remove(entry.timeOffsetMinutes)
             val glucose: Float
-            if (cachedGlucose != null) {
+            if (cachedGlucose == CALIBRATED_SENTINEL_MARKER) {
+                glucose = 0f
+                noGlucose++
+            } else if (cachedGlucose != null) {
                 glucose = cachedGlucose.toFloat()
                 lastKnownGlucose = cachedGlucose
                 merged++
             } else if (lastKnownGlucose != null) {
-                glucose = lastKnownGlucose!!.toFloat()
+                glucose = lastKnownGlucose.toFloat()
                 fallback++
             } else {
                 glucose = 0f
@@ -167,65 +183,5 @@ object HistoryMerge {
             noGlucoseCount = noGlucose,
             lastKnownGlucose = lastKnownGlucose,
         )
-    }
-
-    /**
-     * Filter history entries for storage, applying all validity checks.
-     *
-     * Filters:
-     * - Invalid entries (isValid = false)
-     * - offsetMinutes <= 0
-     * - offsetMinutes > MAX_OFFSET_DAYS * 24 * 60
-     * - offsetMinutes > historyNewestOffset (beyond sensor's newest data)
-     * - offsetMinutes >= liveOffsetCutoff (already stored by live F003)
-     * - ADC saturation sentinel (glucoseInt >= 1023 and > 0)
-     * - Out-of-range glucose (not in MIN_VALID..MAX_VALID)
-     * - Warmup period (first 7 minutes after sensor start)
-     * - Future timestamps (> now + 2 minutes)
-     *
-     * @param entries List of history store entries to filter
-     * @param sensorStartMs Sensor start time in millis since epoch
-     * @param nowMs Current time in millis since epoch
-     * @param historyNewestOffset Sensor's reported newest offset (0 = no limit)
-     * @param liveOffsetCutoff Offset at or above which entries are already stored by live pipeline (0 = no limit)
-     * @return FilterResult with passed entries and filter count
-     */
-    fun filterForStorage(
-        entries: List<HistoryStoreEntry>,
-        sensorStartMs: Long,
-        nowMs: Long,
-        historyNewestOffset: Int = 0,
-        liveOffsetCutoff: Int = 0,
-    ): FilterResult {
-        val passed = mutableListOf<HistoryStoreEntry>()
-        var filtered = 0
-
-        for (entry in entries) {
-            if (!entry.isValid) { filtered++; continue }
-            if (entry.offsetMinutes <= 0) { filtered++; continue }
-            if (entry.offsetMinutes.toLong() > MAX_OFFSET_DAYS * 24L * 60L) { filtered++; continue }
-
-            if (historyNewestOffset > 0 && entry.offsetMinutes > historyNewestOffset) {
-                filtered++; continue
-            }
-            if (liveOffsetCutoff > 0 && entry.offsetMinutes >= liveOffsetCutoff) {
-                filtered++; continue
-            }
-
-            val glucoseInt = entry.glucoseMgDl.toInt()
-            if (glucoseInt >= 1023 && entry.glucoseMgDl > 0f) { filtered++; continue }
-            if (glucoseInt !in MIN_VALID_GLUCOSE_MGDL..MAX_VALID_GLUCOSE_MGDL) { filtered++; continue }
-
-            val historicalTimeMs = sensorStartMs + (entry.offsetMinutes.toLong() * 60_000L)
-
-            val sensorAgeAtRecordMs = historicalTimeMs - sensorStartMs
-            if (sensorAgeAtRecordMs in 0 until WARMUP_DURATION_MS) { filtered++; continue }
-
-            if (historicalTimeMs > nowMs + 120_000L) { filtered++; continue }
-
-            passed.add(entry)
-        }
-
-        return FilterResult(passed = passed, filteredCount = filtered)
     }
 }

@@ -1,10 +1,12 @@
 package tk.glucodata.drivers.aidex
 
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import tk.glucodata.Applic
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
+import tk.glucodata.drivers.ManagedSensorIdentityRegistry
 import tk.glucodata.SuperGattCallback
 
 object AiDexManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
@@ -91,16 +93,194 @@ object AiDexManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
     override fun persistedSensorIds(context: Context): List<String> {
         return readPersistedEntries(context)
             .mapNotNull { entry ->
-                entry.substringBefore('|').trim().takeIf { it.isNotEmpty() }
+                parsePersistedEntry(entry).serial.takeIf { it.isNotEmpty() }
             }
             .distinct()
+    }
+
+    fun persistedAddress(context: Context, sensorId: String): String? {
+        val canonical = resolveCanonicalSensorId(sensorId) ?: return null
+        return readPersistedEntries(context).firstNotNullOfOrNull { entry ->
+            val parsed = parsePersistedEntry(entry)
+            if (parsed.address != null && matchesCallbackId(canonical, parsed.serial)) {
+                parsed.address
+            } else {
+                null
+            }
+        }
     }
 
     override fun createManagedCallback(context: Context, sensorId: String, dataptr: Long): SuperGattCallback? {
         if (!isManagedSensorId(sensorId)) {
             return null
         }
-        return AiDexNativeFactory.createBleManager(sensorId, dataptr)
+        val callback = AiDexNativeFactory.createBleManager(sensorId, dataptr)
+        persistedAddress(context, sensorId)?.let { applyPersistedBleAddress(callback, it) }
+        return callback
+    }
+
+    data class PersistedEntry(
+        val serial: String,
+        val address: String?,
+    )
+
+    fun parsePersistedEntry(entry: String): PersistedEntry {
+        val serial = entry.substringBefore('|').trim()
+        val address = entry.substringAfter('|', "").trim().takeIf { it.isNotEmpty() }
+        return PersistedEntry(serial = serial, address = address)
+    }
+
+    fun persistedSerialMatches(entrySerial: String, serial: String): Boolean {
+        val want = serial.trim()
+        if (want.isEmpty()) return false
+        return matchesCallbackId(entrySerial, want) || matchesCallbackId(want, entrySerial)
+    }
+
+    fun upsertPersistedAddress(
+        entries: Set<String>,
+        serial: String,
+        address: String,
+    ): LinkedHashSet<String> {
+        val want = serial.trim()
+        val mac = address.trim()
+        if (want.isEmpty() || mac.isEmpty()) {
+            return LinkedHashSet(entries)
+        }
+        val matching = entries.map(::parsePersistedEntry).filter { persistedSerialMatches(it.serial, want) }
+        if (matching.size == 1 && matching[0].address.equals(mac, ignoreCase = true)) {
+            return LinkedHashSet(entries)
+        }
+        val updated = LinkedHashSet<String>()
+        for (entry in entries) {
+            val parsed = parsePersistedEntry(entry)
+            if (persistedSerialMatches(parsed.serial, want)) continue
+            updated.add(entry)
+        }
+        updated.add("$want|$mac")
+        return updated
+    }
+
+     /**
+      * Persist [serial]→[address] if the MAC is free. Returns false when the address is invalid,
+      * when it is occupied by another real SN, or when [serial] spells [address] itself — that is
+      * the MAC-as-serial leftover shape the cleanup tears down, so no caller may create it. A
+      * no-op that already maps this serial to [address] is success, so the caller may then bind
+      * the live GATT to that radio.
+      */
+    fun persistAddress(context: Context, serial: String, address: String): Boolean {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            return false
+        }
+        val current = readPersistedEntries(context)
+        val updated = persistAddressUpdate(current, serial, address) ?: return false
+        if (updated != current) {
+            persistEntries(context, updated)
+        }
+        return true
+    }
+
+    /**
+     * The rows to store once [serial] is bound to [address], or null when the write must be
+     * refused: the address already belongs to another real SN, or [serial] spells [address]
+     * itself. That second shape is the old MAC-as-serial leftover, which the shared cleanup tears
+     * down — so writing it would turn a live sensor into a leftover.
+     */
+    fun persistAddressUpdate(current: Set<String>, serial: String, address: String): LinkedHashSet<String>? {
+        if (AiDexScanIdentity.isMacFallbackSerial(serial, address)) {
+            return null
+        }
+        if (addressOccupiedByOtherRealSerial(current, serial, address)) {
+            return null
+        }
+        return upsertPersistedAddress(current, serial, address)
+    }
+
+    /**
+     * True when [serial]'s native alias is already a persisted sensor of another driver: storing
+     * the AiDex row would make both drivers resolve the same id. [persistedIds] is not guarded,
+     * so a driver whose records cannot be read throws instead of reading as "owns nothing".
+     */
+    fun aliasBelongsToOtherDriver(
+        serial: String?,
+        adapters: List<ManagedSensorIdentityAdapter>,
+        persistedIds: (ManagedSensorIdentityAdapter) -> List<String>,
+    ): Boolean = ManagedSensorIdentityRegistry.isPersistedByOtherDriver(this, nativeAlias(serial), adapters, persistedIds)
+
+    fun addressOccupiedByOtherRealSerial(context: Context, serial: String, address: String): Boolean {
+        return addressOccupiedByOtherRealSerial(readPersistedEntries(context), serial, address)
+    }
+
+    fun addressOccupiedByOtherRealSerial(
+        entries: Set<String>,
+        serial: String,
+        address: String,
+    ): Boolean {
+        for (entry in entries) {
+            val parsed = parsePersistedEntry(entry)
+            if (
+                AiDexScanIdentity.persistAddressOccupiedByOtherRealSerial(
+                    parsed.serial,
+                    parsed.address,
+                    serial,
+                    address,
+                )
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /** The `aidex_sensors` row stored for exactly [sensorId], serial and address as persisted. */
+    fun persistedEntryFor(context: Context, sensorId: String?): PersistedEntry? =
+        persistedEntryFor(readPersistedEntries(context), sensorId)
+
+    fun persistedEntryFor(entries: Set<String>, sensorId: String?): PersistedEntry? {
+        val want = normalized(sensorId) ?: return null
+        return entries.map(::parsePersistedEntry).firstOrNull { it.serial.equals(want, ignoreCase = true) }
+    }
+
+    /**
+      * What the stored row says about [sensorId]: true when its serial spells that row's own MAC
+      * (the old MAC-as-serial leftover), false when the row proves it is a real sensor, and null
+      * when there is no row or the row carries no address — then only the live callback can tell.
+      */
+    fun persistedLeftoverVerdict(context: Context, sensorId: String?): Boolean? =
+        persistedLeftoverVerdict(readPersistedEntries(context), sensorId)
+
+    fun persistedLeftoverVerdict(entries: Set<String>, sensorId: String?): Boolean? {
+        val row = persistedEntryFor(entries, sensorId) ?: return null
+        val address = row.address ?: return null
+        return AiDexScanIdentity.isMacFallbackSerial(row.serial, address)
+    }
+
+    /**
+     * The leftover decision shared code makes: the stored row's verdict when it has one, and only
+     * otherwise the live check. A live address can be moved by a rebind or a spoofed advert, so it
+     * never overrules a row.
+     */
+    fun leftoverVerdict(persisted: Boolean?, liveCallbackSpellsItsOwnAddress: () -> Boolean): Boolean =
+        persisted ?: liveCallbackSpellsItsOwnAddress()
+
+    // BluetoothAdapter.getDefaultAdapter(): no Context reaches this helper; minSdk 26
+    @Suppress("DEPRECATION")
+    fun applyPersistedBleAddress(callback: SuperGattCallback, address: String): Boolean {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            callback.mActiveDeviceAddress = address
+            return false
+        }
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        if (adapter == null) {
+            callback.mActiveDeviceAddress = address
+            return false
+        }
+        return try {
+            callback.setDevice(adapter.getRemoteDevice(address))
+            true
+        } catch (_: Throwable) {
+            callback.mActiveDeviceAddress = address
+            false
+        }
     }
 
     override fun removePersistedSensor(context: Context, sensorId: String?) {

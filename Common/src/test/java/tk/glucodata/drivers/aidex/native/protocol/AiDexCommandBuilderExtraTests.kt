@@ -28,6 +28,10 @@ class AiDexCommandBuilderExtraTests {
         assertEquals(opcode, decoded[0].toInt() and 0xFF)
     }
 
+    // Covers the legacy path on purpose: the whole point of this test is to prove the
+    // deprecated aliases still emit the startup/start-time opcodes. Do not repoint it at
+    // getStartupDeviceInfo() - that would silently drop coverage of the old builders.
+    @Suppress("DEPRECATION")
     @Test
     fun aliasesShareTheSameOpcodes() {
         val (exchange, builder) = builderWithSessionKey()

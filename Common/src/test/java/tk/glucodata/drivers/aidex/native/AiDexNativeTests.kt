@@ -13,9 +13,13 @@ import tk.glucodata.drivers.aidex.native.crypto.AesCfb128
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.drivers.aidex.native.crypto.Crc8Maxim
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
+import tk.glucodata.drivers.aidex.native.ble.AiDexHistoryPolicy
+import tk.glucodata.drivers.aidex.native.ble.AiDexHistoryPolicy.HistoryStoreRejection
 import tk.glucodata.drivers.aidex.native.ble.aiDexActivationTimeZone
 import tk.glucodata.drivers.aidex.native.ble.aiDexDeviceNameMatchesSerial
 import tk.glucodata.drivers.aidex.native.ble.aiDexDisplayName
+import tk.glucodata.drivers.aidex.native.ble.aiDexExtractLocalName
+import tk.glucodata.drivers.aidex.native.ble.aiDexPreferredAdvertisedName
 import tk.glucodata.drivers.aidex.native.data.*
 import tk.glucodata.drivers.aidex.native.protocol.AiDexCommandBuilder
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDpCatalogProvider
@@ -155,6 +159,21 @@ class Crc16CcittFalseTests {
         assertFalse(Crc16CcittFalse.validateResponse(byteArrayOf()))
     }
 
+    @Test
+    fun connectedBroadcast_rejectsABadCrcOnceTheFrameCanCarryATrailer() {
+        val sample = byteArrayOf(0x11, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x78, 0x00)
+        assertEquals(sample.size, Crc16CcittFalse.connectedBroadcastPayloadEnd(sample.size, crcValid = false))
+
+        val withBadTrailer = sample + byteArrayOf(0x00, 0x00)
+        assertNull(Crc16CcittFalse.connectedBroadcastPayloadEnd(withBadTrailer.size, crcValid = false))
+
+        val withGoodTrailer = Crc16CcittFalse.makeCommand(0x11)
+        assertEquals(
+            withGoodTrailer.size - 2,
+            Crc16CcittFalse.connectedBroadcastPayloadEnd(withGoodTrailer.size, crcValid = true),
+        )
+    }
+
     // Verify CRC-16 on multiple live log command plaintexts
     @Test
     fun testLiveLogPlaintextCRCs() {
@@ -284,6 +303,42 @@ class DeviceNameMatchingTests {
     @Test
     fun testAiDexDeviceNameRejectsDifferentSerial() {
         assertFalse(aiDexDeviceNameMatchesSerial("AiDEX x-2222293NWA", "X-222228AWH2"))
+    }
+
+    @Test
+    fun testAiDexDeviceNameRejectsALongerSerialThatContainsThisOne() {
+        assertFalse(aiDexDeviceNameMatchesSerial("X-2222267V4E2", "X-2222267V4E"))
+        assertFalse(aiDexDeviceNameMatchesSerial("AiDEX X-2222293NWA9", "2222293NWA"))
+        assertTrue(aiDexDeviceNameMatchesSerial("X-2222267V4E", "X-2222267V4E"))
+        assertTrue(aiDexDeviceNameMatchesSerial("X2222267V4E", "X-2222267V4E"))
+        assertTrue(aiDexDeviceNameMatchesSerial("LUMIX2222267V4E", "2222267V4E"))
+    }
+
+    @Test
+    fun testPreferredAdvertisedNamePrefersScanRecordOverCachedDeviceName() {
+        val name = "AiDEX X-2222293NWA"
+        val record = ByteArray(2 + name.length)
+        record[0] = (1 + name.length).toByte()
+        record[1] = 0x09
+        System.arraycopy(name.toByteArray(Charsets.UTF_8), 0, record, 2, name.length)
+        assertEquals(name, aiDexPreferredAdvertisedName("stale-cached-other-sn", record))
+        assertEquals("stale-cached-other-sn", aiDexPreferredAdvertisedName("stale-cached-other-sn", byteArrayOf()))
+    }
+
+    @Test
+    fun testExtractLocalNamePrefersCompleteNameOverShortened() {
+        val shortName = "AiDEX"
+        val complete = "AiDEX X-2222293NWA"
+        val record = ByteArray(2 + shortName.length + 2 + complete.length)
+        var i = 0
+        record[i++] = (1 + shortName.length).toByte()
+        record[i++] = 0x08
+        System.arraycopy(shortName.toByteArray(Charsets.UTF_8), 0, record, i, shortName.length)
+        i += shortName.length
+        record[i++] = (1 + complete.length).toByte()
+        record[i++] = 0x09
+        System.arraycopy(complete.toByteArray(Charsets.UTF_8), 0, record, i, complete.length)
+        assertEquals(complete, aiDexExtractLocalName(record))
     }
 }
 
@@ -886,6 +941,27 @@ class LiveSensorCryptoTests {
         assertEquals(63, records[118].glucoseMgDl)
         assertEquals(14518, records[118].timeOffsetMinutes)
     }
+
+    @Test
+    fun testHistoryParsing_ProductionF002Slice_DoesNotIngestCrcAsRow() {
+        val decryptedHex = "23 01 40 38 42 80 42 40 41 80 3F 80 3E 80 3D 40 3E 80 43 80 46 80 48 40 49 80 49 80 49 80 48 40 46 80 44 80 43 80 42 40 41 80 40 80 3F 80 3D 40 3D 80 3C 80 3C 80 3D 40 3D 80 3E 80 3E 80 3E 40 3E 80 3E 80 3E 80 3E 40 3D 80 3D 80 3C 80 3C 40 3C 80 3D 80 3E 80 3F 40 3F 80 3E 80 3D 80 3C 40 3B 80 3B 80 3B 80 3B 40 3B 80 3B 80 3B 80 3C 40 3C 80 3C 80 3C 80 3C 40 3C 80 3C 80 3C 80 3B 40 3B 80 3B 80 3C 80 3C 40 3D 80 3D 80 3D 80 3D 00 3D 80 3E 80 41 80 45 40 47 80 46 80 44 80 45 40 45 80 45 80 44 80 43 40 43 80 41 80 3F 80 3E 40 3E 80 3E 80 3E 80 3E 40 3F 80 3F 80 3F 80 3F 40 3F 80 3F 80 3F 80 3F 40 3F 80 3F 80 3E 80 3E 40 3E 80 3D 80 3C 80 3B 40 3B 80 3B 80 3B 80 3B 40 3B 80 3B 80 3C 80 3C 40 3C 80 3C 80 3C 80 3D 40 3F 80 8B 7D"
+        val fullData = AiDexParser.dataFromHex(decryptedHex)
+        assertEquals(244, fullData.size)
+        assertTrue(Crc16CcittFalse.validateResponse(fullData))
+
+        val naivePayload = fullData.copyOfRange(2, fullData.size)
+        val naiveRecords = AiDexParser.parseHistoryResponse(naivePayload)
+        assertEquals("regression: unstripped CRC must parse as a 120th phantom row", 120, naiveRecords.size)
+        assertEquals(14519, naiveRecords.last().timeOffsetMinutes)
+
+        val payload = Crc16CcittFalse.f002DataPayload(fullData)
+        val records = AiDexParser.parseHistoryResponse(payload)
+        assertEquals(119, records.size)
+        assertEquals(14400, records.first().timeOffsetMinutes)
+        assertEquals(14518, records.last().timeOffsetMinutes)
+        assertEquals(63, records.last().glucoseMgDl)
+        assertTrue(records.none { it.timeOffsetMinutes == 14519 })
+    }
 }
 
 // ============================================================================
@@ -1087,6 +1163,27 @@ class StartupMetadataParsingTests {
     }
 
     @Test
+    fun testParseLocalStartTimePayload_unknownTimeZoneIsNotMinus128() {
+        val payload = byteArrayOf(
+            0xEA.toByte(), 0x07,
+            0x09,
+            0x1B,
+            0x0C,
+            0x00,
+            0x00,
+            0x80.toByte(),
+            0x00,
+        )
+
+        val parsed = AiDexParser.parseLocalStartTimePayload(payload)
+
+        assertNotNull(parsed)
+        assertEquals(0, AiDexParser.sessionTimeZoneQuarters(0x80.toByte()))
+        assertEquals(0, parsed!!.tzQuarters)
+        assertEquals(-8, AiDexParser.sessionTimeZoneQuarters(0xF8.toByte()))
+    }
+
+    @Test
     fun testParseLocalStartTimePayload_acceptsAllZeros() {
         val payload = ByteArray(9)
 
@@ -1242,7 +1339,9 @@ class DefaultParamCatalogCompareTests {
     fun testLongDpShapeUsesElsePreserveRangeLikeOfficialOtaManager() {
         val currentRawHex = "010105000080C613008303BFFE68006700650068006B00100E302AD06BB0FFC4FFECFF00000000100E302AD06B0A0000000000C4092800FA00740E2003EE020A000A000800FA0019007D000802AA009CFF640000001100E803B80B32005500D501280046001E0032006400020014002003B004050014001E005A005A00F401F4019033B04F000000000000000000000000000000000000000000000000000000000000000000000000"
 
-        val comparisons = AiDexDefaultParamProvisioning.compareKnownCatalog(currentRawHex, "GX-01S", "1.7.1")
+        // Firmware key names the entry directly: the catalog no longer offers other versions as
+        // fallback candidates, so ask for the 1.2.0 blob whose preserve-range shape is under test.
+        val comparisons = AiDexDefaultParamProvisioning.compareKnownCatalog(currentRawHex, "GX-01S", "1.2.0")
         val candidate120 = comparisons.first { it.entry.version == "1.2.0" }
 
         assertEquals(336, candidate120.current.hex.length)
@@ -1291,6 +1390,20 @@ class DefaultParamCatalogCompareTests {
         } finally {
             AiDexDpCatalogProvider.setStorageForTests(null)
         }
+    }
+
+    @Test
+    fun testCatalogCompareRefusesForeignFirmwareEntries() {
+        val currentRawHex = "010105000080C613008303BFFE68006700650068006B00100E302AD06BB0FFC4FFECFF00000000100E302AD06B0A0000000000C4092800FA00740E2003EE020A000A000800FA0019007D000802AA009CFF640000001100E803B80B32005500D501280046001E0032006400020014002003B004050014001E005A005A00F401F4019033B04F000000000000000000000000000000000000000000000000000000000000000000000000"
+
+        // "1.7" is what the 0x10 startup frame reports; the catalog only knows 1.7.0 / 1.7.1, and
+        // guessing between them would hand a foreign blob to the guarded 0x30 apply.
+        assertTrue(AiDexDefaultParamProvisioning.compareKnownCatalog(currentRawHex, "GX-01S", "1.7").isEmpty())
+        assertTrue(AiDexDefaultParamProvisioning.compareKnownCatalog(currentRawHex, "GX-01S", null).isEmpty())
+
+        val comparisons = AiDexDefaultParamProvisioning.compareKnownCatalog(currentRawHex, "GX-01S", "1.7.1.3")
+        assertFalse(comparisons.isEmpty())
+        assertTrue(comparisons.all { it.entry.version == "1.7.1" })
     }
 
     @Test
@@ -1389,43 +1502,60 @@ class CacheCalibratedEntriesTests {
     }
 
     @Test
-    fun testSkipsSentinels() {
+    fun testSentinelCachedAsMarkerAndCountedSkipped() {
         val cache = mutableMapOf<Int, Int>()
         val entries = listOf(entry(100, 80), entry(101, 1023, sentinel = true), entry(102, 90))
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
         assertEquals(2, cached)
         assertEquals(1, skipped)
-        assertNull(cache[101])
+        assertEquals(HistoryMerge.CALIBRATED_SENTINEL_MARKER, cache[101])  // HEAD: null
+        assertFalse(HistoryMerge.isRealCachedGlucose(cache[101]))
+        assertTrue(HistoryMerge.isRealCachedGlucose(cache[100]))
     }
 
     @Test
-    fun testSkipsControlValue_FullPage() {
-        // Simulate a full 120-entry page where the last entry is a control value
+    fun testSentinelDoesNotReplaceRealCachedValue() {
+        // As on HEAD, where the sentinel row was skipped and the earlier value stayed.
+        val cache = mutableMapOf(101 to 85)
+        val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(listOf(entry(101, 1023, sentinel = true)), cache)
+        assertEquals(0, cached)
+        assertEquals(1, skipped)
+        assertEquals(85, cache[101])
+    }
+
+    @Test
+    fun testRealValueReplacesSentinelMarker() {
+        val cache = mutableMapOf(101 to HistoryMerge.CALIBRATED_SENTINEL_MARKER)
+        HistoryMerge.cacheCalibratedEntries(listOf(entry(101, 85)), cache)
+        assertEquals(85, cache[101])
+    }
+
+    @Test
+    fun testFullPageLastRowJumpIsCached() {
         val cache = mutableMapOf<Int, Int>()
-        val entries = (0 until 120).map { i ->
-            if (i < 119) entry(1000 + i, 80) else entry(1000 + i, 366)  // spike at end
+        val entries = (0 until 119).map { i ->
+            if (i < 118) entry(1000 + i, 80) else entry(1000 + i, 366)
         }
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
         assertEquals(119, cached)
-        assertEquals(1, skipped)
-        assertNull(cache[1119])  // control value skipped
+        assertEquals(0, skipped)
+        assertEquals(366, cache[1118])
     }
 
     @Test
     fun testKeepsLastEntry_SmallDeviation() {
-        // Full 120-entry page, last entry is close to neighbors — keep it
         val cache = mutableMapOf<Int, Int>()
-        val entries = (0 until 120).map { i ->
-            entry(1000 + i, 80 + (i % 5))  // small variation
+        val entries = (0 until 119).map { i ->
+            entry(1000 + i, 80 + (i % 5))
         }
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
-        assertEquals(120, cached)
+        assertEquals(119, cached)
         assertEquals(0, skipped)
     }
 
     @Test
     fun testKeepsLastEntry_PartialPage() {
-        // Partial page (<120 entries) — last entry is NOT treated as control value
+        // Partial page — last-row jumps are still real glucose
         val cache = mutableMapOf<Int, Int>()
         val entries = (0 until 50).map { i ->
             if (i < 49) entry(1000 + i, 80) else entry(1000 + i, 366)  // spike at end
@@ -1455,39 +1585,35 @@ class CacheCalibratedEntriesTests {
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
         assertEquals(1, cached)
         assertEquals(2, skipped)
+        assertEquals(
+            mapOf(
+                100 to HistoryMerge.CALIBRATED_SENTINEL_MARKER,
+                101 to HistoryMerge.CALIBRATED_SENTINEL_MARKER,
+                102 to 80,
+            ),
+            cache,
+        )
     }
 
     @Test
-    fun testControlValueDeviation_ExactThreshold() {
-        // Deviation of exactly 20 should NOT be skipped (> 20 required)
+    fun testFullPageLastRowJumpAboveTwentyIsCached() {
         val cache = mutableMapOf<Int, Int>()
-        val entries = (0 until 120).map { i ->
-            if (i < 119) entry(1000 + i, 80) else entry(1000 + i, 100)  // deviation = 20
-        }
-        val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
-        assertEquals(120, cached)
-        assertEquals(0, skipped)
-    }
-
-    @Test
-    fun testControlValueDeviation_JustAboveThreshold() {
-        // Deviation of 21 should be skipped
-        val cache = mutableMapOf<Int, Int>()
-        val entries = (0 until 120).map { i ->
-            if (i < 119) entry(1000 + i, 80) else entry(1000 + i, 101)  // deviation = 21
+        val entries = (0 until 119).map { i ->
+            if (i < 118) entry(1000 + i, 80) else entry(1000 + i, 101)
         }
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
         assertEquals(119, cached)
-        assertEquals(1, skipped)
+        assertEquals(0, skipped)
+        assertEquals(101, cache[1118])
     }
 
     @Test
-    fun testSkipsObservedAiDexPageTailBump() {
+    fun testObservedAiDexPageTailBumpIsCached() {
         val cache = mutableMapOf<Int, Int>()
-        val entries = (0 until 120).map { i ->
+        val entries = (0 until 119).map { i ->
             when (i) {
-                118 -> entry(6989 + i, 70)
-                119 -> entry(6989 + i, 97)
+                117 -> entry(6989 + i, 70)
+                118 -> entry(6989 + i, 97)
                 else -> entry(6989 + i, 70)
             }
         }
@@ -1495,9 +1621,39 @@ class CacheCalibratedEntriesTests {
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, cache)
 
         assertEquals(119, cached)
-        assertEquals(1, skipped)
-        assertEquals(70, cache[7107])
-        assertNull(cache[7108])
+        assertEquals(0, skipped)
+        assertEquals(70, cache[7106])
+        assertEquals(97, cache[7107])
+    }
+
+    // nextRawCursorAfterPage must give HEAD's cursor, where a sentinel was never cached.
+
+    @Test
+    fun testNextRawCursor_FullyCachedPage() {
+        val cache = mutableMapOf<Int, Int>()
+        val entries = (14_400..14_518).map { entry(it, 100) }  // 119 rows
+        HistoryMerge.cacheCalibratedEntries(entries, cache)
+        assertEquals(14_519, HistoryMerge.nextRawCursorAfterPage(entries, cache))
+    }
+
+    @Test
+    fun testNextRawCursor_SentinelTailIsFetchedAgain() {
+        val cache = mutableMapOf<Int, Int>()
+        val entries = (14_400..14_518).map {
+            if (it >= 14_516) entry(it, 1023, sentinel = true) else entry(it, 100)
+        }
+        HistoryMerge.cacheCalibratedEntries(entries, cache)
+        // Last real row 14515 + 1; the markers at 14516..14518 do not count.
+        assertEquals(14_516, HistoryMerge.nextRawCursorAfterPage(entries, cache))
+    }
+
+    @Test
+    fun testNextRawCursor_AllSentinelPageMovesPast() {
+        val cache = mutableMapOf<Int, Int>()
+        val entries = (100..118).map { entry(it, 1023, sentinel = true) }
+        HistoryMerge.cacheCalibratedEntries(entries, cache)
+        // No real row: one past the page, 118 + 1.
+        assertEquals(119, HistoryMerge.nextRawCursorAfterPage(entries, cache))
     }
 }
 
@@ -1578,7 +1734,7 @@ class HistoryMergeEntryTests {
         assertEquals(0, result.mergedCount)
         assertEquals(0, result.fallbackCount)
         assertEquals(2, result.noGlucoseCount)
-        // Glucose should be 0 (will be filtered by filterForStorage)
+        // Glucose should be 0 (rejected by AiDexHistoryPolicy.historyStoreRejection)
         assertEquals(0f, result.entries[0].glucoseMgDl)
         assertEquals(0f, result.entries[1].glucoseMgDl)
         assertNull(result.lastKnownGlucose)
@@ -1692,11 +1848,73 @@ class HistoryMergeEntryTests {
         assertEquals(3, cache.size)
         assertEquals(80, cache[200])
     }
+
+    @Test
+    fun testSentinelMinutesMergeToZero_failsOnHead() {
+        // HEAD never cached the sentinels, so 1060 and 1061 took the fallback: [80, 80, 80, 90].
+        val cache = mutableMapOf<Int, Int>()
+        HistoryMerge.cacheCalibratedEntries(
+            listOf(
+                CalibratedHistoryEntry(1059, 80, statusBit = false, isSentinel = false),
+                CalibratedHistoryEntry(1060, 1023, statusBit = false, isSentinel = true),
+                CalibratedHistoryEntry(1061, 1023, statusBit = false, isSentinel = true),
+                CalibratedHistoryEntry(1062, 90, statusBit = false, isSentinel = false),
+            ),
+            cache,
+        )
+        val result = HistoryMerge.mergeHistoryEntries((1059..1062).map { adcEntry(it) }, cache, null)
+
+        assertEquals(listOf(80f, 0f, 0f, 90f), result.entries.map { it.glucoseMgDl })
+        assertEquals(2, result.mergedCount)
+        assertEquals(0, result.fallbackCount)
+        assertEquals(2, result.noGlucoseCount)
+        assertEquals(90, result.lastKnownGlucose)
+        assertTrue(cache.isEmpty())  // markers are consumed like matches
+    }
+
+    @Test
+    fun testSentinelMinuteIgnoresInitialFallback_failsOnHead() {
+        // The marker neither uses the fallback (HEAD never cached the sentinel, so 1060 got 70)
+        // nor replaces it; the plain miss at 1061 keeps today's fallback.
+        val cache = mutableMapOf(1060 to HistoryMerge.CALIBRATED_SENTINEL_MARKER)
+        val result = HistoryMerge.mergeHistoryEntries(
+            listOf(adcEntry(1060), adcEntry(1061)),
+            cache,
+            initialFallback = 70,
+        )
+
+        assertEquals(listOf(0f, 70f), result.entries.map { it.glucoseMgDl })
+        assertEquals(0, result.mergedCount)
+        assertEquals(1, result.fallbackCount)
+        assertEquals(1, result.noGlucoseCount)
+        assertEquals(70, result.lastKnownGlucose)
+    }
 }
 
 // ============================================================================
-// MARK: - History Filter Tests
+// MARK: - History Store Filter Tests
 // ============================================================================
+
+// Retargeted from the deleted HistoryMerge.filterForStorage to the predicate
+// storeHistoryEntries uses. Production has a wear gate and no warmup gate;
+// the deleted copy had it the other way round.
+private fun storeRejection(
+    entry: HistoryStoreEntry,
+    sensorStartMs: Long,
+    nowMs: Long,
+    historyNewestOffset: Int = 0,
+    liveOffsetCutoff: Int = 0,
+    wearDays: Int? = null,
+): HistoryStoreRejection? = AiDexHistoryPolicy.historyStoreRejection(
+    offsetMinutes = entry.offsetMinutes,
+    glucoseMgDl = entry.glucoseMgDl,
+    isValid = entry.isValid,
+    sensorStartMs = sensorStartMs,
+    nowMs = nowMs,
+    wearDays = wearDays,
+    historyNewestOffset = historyNewestOffset,
+    liveOffsetCutoff = liveOffsetCutoff,
+)
 
 class HistoryFilterTests {
 
@@ -1710,50 +1928,38 @@ class HistoryFilterTests {
         valid: Boolean = true,
     ) = HistoryStoreEntry(offset, glucose, raw, valid)
 
+    private fun reject(
+        entry: HistoryStoreEntry,
+        nowMs: Long = now,
+        historyNewestOffset: Int = 0,
+        liveOffsetCutoff: Int = 0,
+        wearDays: Int? = null,
+    ) = storeRejection(entry, sensorStart, nowMs, historyNewestOffset, liveOffsetCutoff, wearDays)
+
     @Test
     fun testValidEntryPasses() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry()), sensorStart, now
-        )
-        assertEquals(1, result.passed.size)
-        assertEquals(0, result.filteredCount)
+        assertNull(reject(storeEntry()))
     }
 
     @Test
     fun testFilterInvalid() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(valid = false)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.INVALID, reject(storeEntry(valid = false)))
     }
 
     @Test
     fun testFilterOffsetZero() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 0)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.NONPOSITIVE_OFFSET, reject(storeEntry(offset = 0)))
     }
 
     @Test
     fun testFilterNegativeOffset() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = -1)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.NONPOSITIVE_OFFSET, reject(storeEntry(offset = -1)))
     }
 
     @Test
     fun testFilterOffsetTooLarge() {
         // MAX_OFFSET_DAYS = 30, so max offset = 30 * 24 * 60 = 43200 minutes
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 43201)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.OFFSET_TOO_LARGE, reject(storeEntry(offset = 43201)))
     }
 
     @Test
@@ -1761,140 +1967,98 @@ class HistoryFilterTests {
         // Exactly at max should pass (43200 minutes = 30 days)
         val maxOffset = (30 * 24 * 60)
         val laterNow = sensorStart + (31L * 24 * 60 * 60_000L) // 31 days after start
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = maxOffset)), sensorStart, laterNow
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(offset = maxOffset), nowMs = laterNow))
+    }
+
+    @Test
+    fun testFilterPastWearDuration() {
+        // Declared 14 days = 20160 minutes; "now" is 15 days in, so only the wear gate differs.
+        assertNull(reject(storeEntry(offset = 20159), wearDays = 14))
+        assertEquals(HistoryStoreRejection.PAST_WEAR, reject(storeEntry(offset = 20160), wearDays = 14))
     }
 
     @Test
     fun testFilterBeyondNewestOffset() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 1001)), sensorStart, now,
-            historyNewestOffset = 1000,
+        assertEquals(
+            HistoryStoreRejection.PAST_NEWEST,
+            reject(storeEntry(offset = 1001), historyNewestOffset = 1000),
         )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
     }
 
     @Test
     fun testFilterAtNewestOffset() {
         // At newest offset exactly should pass
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 1000)), sensorStart, now,
-            historyNewestOffset = 1000,
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(offset = 1000), historyNewestOffset = 1000))
     }
 
     @Test
     fun testFilterAtLiveOffsetCutoff() {
-        // At liveOffsetCutoff should be filtered (>= check)
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 1000)), sensorStart, now,
-            liveOffsetCutoff = 1000,
+        assertEquals(
+            HistoryStoreRejection.LIVE_DEDUPE,
+            reject(storeEntry(offset = 1000), liveOffsetCutoff = 1000),
         )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+    }
+
+    @Test
+    fun testFilterAboveLiveOffsetCutoff_keepsReconnectBackfill() {
+        assertNull(reject(storeEntry(offset = 1001), liveOffsetCutoff = 1000))
     }
 
     @Test
     fun testFilterBelowLiveOffsetCutoff() {
         // Below liveOffsetCutoff should pass
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 999)), sensorStart, now,
-            liveOffsetCutoff = 1000,
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(offset = 999), liveOffsetCutoff = 1000))
     }
 
     @Test
     fun testFilterGlucoseZero() {
         // glucose=0 is below MIN_VALID (20), so should be filtered
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 0f)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.OUT_OF_RANGE, reject(storeEntry(glucose = 0f)))
     }
 
     @Test
     fun testFilterGlucoseBelowMin() {
         // glucose=19 is below MIN_VALID (20)
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 19f)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.OUT_OF_RANGE, reject(storeEntry(glucose = 19f)))
     }
 
     @Test
     fun testFilterGlucoseAtMin() {
         // glucose=20 is at MIN_VALID, should pass
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 20f)), sensorStart, now
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(glucose = 20f)))
     }
 
     @Test
     fun testFilterGlucoseAboveMax() {
         // glucose=501 is above MAX_VALID (500)
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 501f)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.OUT_OF_RANGE, reject(storeEntry(glucose = 501f)))
     }
 
     @Test
     fun testFilterGlucoseAtMax() {
         // glucose=500 is at MAX_VALID, should pass
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 500f)), sensorStart, now
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(glucose = 500f)))
     }
 
     @Test
     fun testFilterAdcSaturation() {
         // glucose=1023 (ADC sentinel)
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 1023f)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.SENTINEL, reject(storeEntry(glucose = 1023f)))
     }
 
     @Test
     fun testFilterAdcSaturationHigh() {
         // glucose > 1023 also filtered
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(glucose = 2000f)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
+        assertEquals(HistoryStoreRejection.SENTINEL, reject(storeEntry(glucose = 2000f)))
     }
 
     @Test
-    fun testFilterWarmup() {
-        val warmupMinutes = (HistoryMerge.WARMUP_DURATION_MS / 60_000L).toInt()
-        // Readings within the configured warmup window should be filtered.
-        // offset=warmupMinutes-1 -> timestamp is still inside WARMUP_DURATION_MS.
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = warmupMinutes - 1)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
-    }
-
-    @Test
-    fun testFilterWarmup_AtBoundary() {
-        val warmupMinutes = (HistoryMerge.WARMUP_DURATION_MS / 60_000L).toInt()
-        // offset=warmupMinutes lands exactly on the warmup boundary and should pass.
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = warmupMinutes)), sensorStart, now
-        )
-        assertEquals(1, result.passed.size)
+    fun testNoWarmupGate() {
+        // storeHistoryEntries stores valid readings from offset 1 on; the deleted
+        // filterForStorage dropped offsets 1..6 as warmup.
+        for (offset in 1..7) {
+            assertNull("offset $offset", reject(storeEntry(offset = offset)))
+        }
     }
 
     @Test
@@ -1902,76 +2066,51 @@ class HistoryFilterTests {
         // Entry with timestamp > now + 2 minutes
         // offset so large that sensorStart + offset*60000 > now + 120000
         val farFutureOffset = ((now - sensorStart) / 60_000L).toInt() + 3  // 3 minutes beyond "now"
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = farFutureOffset)), sensorStart, now
-        )
-        assertEquals(0, result.passed.size)
-        assertEquals(1, result.filteredCount)
+        assertEquals(HistoryStoreRejection.FUTURE, reject(storeEntry(offset = farFutureOffset)))
     }
 
     @Test
     fun testFilterFutureTimestamp_Within2MinTolerance() {
         // Entry 1 minute in the future — within 2-minute tolerance
         val nearFutureOffset = ((now - sensorStart) / 60_000L).toInt() + 1
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = nearFutureOffset)), sensorStart, now
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(offset = nearFutureOffset)))
     }
 
     @Test
     fun testMultipleFilters() {
-        val warmupMinutes = (HistoryMerge.WARMUP_DURATION_MS / 60_000L).toInt()
         val entries = listOf(
-            storeEntry(offset = 1000, glucose = 100f),   // valid
-            storeEntry(offset = 0, glucose = 100f),       // offset zero
-            storeEntry(offset = 1001, glucose = 0f),      // glucose zero
+            storeEntry(offset = 1000, glucose = 100f),                 // stored
+            storeEntry(offset = 0, glucose = 100f),                    // offset zero
+            storeEntry(offset = 1001, glucose = 0f),                   // glucose zero
             storeEntry(offset = 1002, glucose = 100f, valid = false),  // invalid
-            storeEntry(offset = 1003, glucose = 1023f),   // ADC saturation
-            storeEntry(offset = warmupMinutes - 1, glucose = 100f),     // warmup
-            storeEntry(offset = 1004, glucose = 80f),     // valid
+            storeEntry(offset = 1003, glucose = 1023f),                // ADC saturation
+            storeEntry(offset = 6, glucose = 100f),                    // stored: no warmup gate
+            storeEntry(offset = 1004, glucose = 80f),                  // stored
         )
-        val result = HistoryMerge.filterForStorage(entries, sensorStart, now)
-        assertEquals(2, result.passed.size)
-        assertEquals(5, result.filteredCount)
-        assertEquals(1000, result.passed[0].offsetMinutes)
-        assertEquals(1004, result.passed[1].offsetMinutes)
+        assertEquals(
+            listOf(
+                null,
+                HistoryStoreRejection.NONPOSITIVE_OFFSET,
+                HistoryStoreRejection.OUT_OF_RANGE,
+                HistoryStoreRejection.INVALID,
+                HistoryStoreRejection.SENTINEL,
+                null,
+                null,
+            ),
+            entries.map { reject(it) },
+        )
     }
 
     @Test
     fun testNewestOffsetZero_NoLimit() {
         // historyNewestOffset=0 means no limit applied
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 20000)), sensorStart, now,
-            historyNewestOffset = 0,
-        )
-        assertEquals(1, result.passed.size)
+        assertNull(reject(storeEntry(offset = 20000), historyNewestOffset = 0))
     }
 
     @Test
     fun testLiveOffsetCutoffZero_NoLimit() {
         // liveOffsetCutoff=0 means no limit applied
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 20000)), sensorStart, now,
-            liveOffsetCutoff = 0,
-        )
-        assertEquals(1, result.passed.size)
-    }
-
-    @Test
-    fun testEmptyInput() {
-        val result = HistoryMerge.filterForStorage(emptyList(), sensorStart, now)
-        assertEquals(0, result.passed.size)
-        assertEquals(0, result.filteredCount)
-    }
-
-    @Test
-    fun testRawValuePreserved() {
-        val result = HistoryMerge.filterForStorage(
-            listOf(storeEntry(offset = 1000, glucose = 100f, raw = 84.7f)),
-            sensorStart, now
-        )
-        assertEquals(84.7f, result.passed[0].rawMgDl, 0.01f)
+        assertNull(reject(storeEntry(offset = 20000), liveOffsetCutoff = 0))
     }
 
     @Test
@@ -2028,17 +2167,16 @@ class HistoryPipelineTests {
         // Realistic scenario: 0x23 has 119 entries (full page minus control), 0x24 has 47 entries
         val cache = mutableMapOf<Int, Int>()
 
-        // 0x23: 120 entries, last is control value (glucose=366, prev=85)
-        val entries_0x23 = (0 until 120).map { i ->
+        val entries_0x23 = (0 until 119).map { i ->
             CalibratedHistoryEntry(
                 1000 + i,
-                if (i < 119) 80 + (i % 10) else 366,
+                if (i < 118) 80 + (i % 10) else 366,
                 statusBit = false, isSentinel = false
             )
         }
         val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries_0x23, cache)
-        assertEquals(119, cached)  // control value skipped
-        assertEquals(1, skipped)
+        assertEquals(119, cached)
+        assertEquals(0, skipped)
 
         // 0x24: 47 entries starting at 1000 — all should find matches
         val entries_0x24 = (0 until 47).map { i ->
@@ -2081,7 +2219,7 @@ class HistoryPipelineTests {
     fun testFullPipeline_GlucoseZeroFiltered() {
         // Scenario that caused the original bug:
         // 0x24 entries with no 0x23 match and no fallback → glucose=0
-        // filterForStorage should catch these
+        // the store predicate should catch these
         val cache = mutableMapOf<Int, Int>()
         val adcEntries = (100..104).map {
             AdcHistoryEntry(it, 5.0f, 10.0f, 0.5f, 50f, 90f)
@@ -2092,26 +2230,45 @@ class HistoryPipelineTests {
         // All should be filtered out — glucose=0 is below MIN_VALID (20)
         val sensorStart = 1_700_000_000_000L
         val now = sensorStart + (15L * 24 * 60 * 60_000L)
-        val filterResult = HistoryMerge.filterForStorage(mergeResult.entries, sensorStart, now)
-        assertEquals(0, filterResult.passed.size)
-        assertEquals(5, filterResult.filteredCount)
+        assertEquals(
+            List(5) { HistoryStoreRejection.OUT_OF_RANGE },
+            mergeResult.entries.map { storeRejection(it, sensorStart, now) },
+        )
+    }
+
+    @Test
+    fun testFullPipeline_SentinelMinuteNeverStored() {
+        val cache = mutableMapOf<Int, Int>()
+        HistoryMerge.cacheCalibratedEntries(
+            listOf(
+                CalibratedHistoryEntry(1059, 80, statusBit = false, isSentinel = false),
+                CalibratedHistoryEntry(1060, 1023, statusBit = false, isSentinel = true),
+                CalibratedHistoryEntry(1061, 90, statusBit = false, isSentinel = false),
+            ),
+            cache,
+        )
+        val adcEntries = (1059..1061).map {
+            AdcHistoryEntry(it, 5.0f, 10.0f, 0.5f, 50f, 90f)
+        }
+        val mergeResult = HistoryMerge.mergeHistoryEntries(adcEntries, cache, null)
+
+        val sensorStart = 1_700_000_000_000L
+        val now = sensorStart + (15L * 24 * 60 * 60_000L)
+        val stored = mergeResult.entries.filter { storeRejection(it, sensorStart, now) == null }
+        // HEAD stored 1060 with 80, carried from 1059.
+        assertEquals(listOf(1059, 1061), stored.map { it.offsetMinutes })
     }
 
     @Test
     fun testLiveOffsetCutoff_DedupsHistoryVsLive() {
-        // History entries at or above the live cutoff should be filtered
-        // to prevent duplicates with live F003 pipeline
         val entries = (998..1002).map {
             HistoryStoreEntry(it, 100f, 50f, true)
         }
         val sensorStart = 1_700_000_000_000L
         val now = sensorStart + (15L * 24 * 60 * 60_000L)
-        val result = HistoryMerge.filterForStorage(
-            entries, sensorStart, now, liveOffsetCutoff = 1000
-        )
-        // Only offsets 998, 999 should pass (< 1000)
-        assertEquals(2, result.passed.size)
-        assertEquals(998, result.passed[0].offsetMinutes)
-        assertEquals(999, result.passed[1].offsetMinutes)
+        val stored = entries.filter {
+            storeRejection(it, sensorStart, now, liveOffsetCutoff = 1000) == null
+        }
+        assertEquals(listOf(998, 999, 1001, 1002), stored.map { it.offsetMinutes })
     }
 }

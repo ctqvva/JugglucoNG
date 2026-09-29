@@ -39,11 +39,22 @@ class AiDexReconnectTests {
     }
 
     @Test
-    fun testThirdReconnectUses2ndFallbackAgain() {
-        reconnect.nextReconnectDelayMs()
-        reconnect.nextReconnectDelayMs()
-        val delay = reconnect.nextReconnectDelayMs()
-        assertEquals(5_000L, delay)
+    fun testReconnectDelayDoublesUpToCeiling() {
+        assertEquals(2_500L, reconnect.nextReconnectDelayMs())  // adaptive base
+        assertEquals(5_000L, reconnect.nextReconnectDelayMs())
+        assertEquals(10_000L, reconnect.nextReconnectDelayMs())
+        assertEquals(20_000L, reconnect.nextReconnectDelayMs())
+        assertEquals(40_000L, reconnect.nextReconnectDelayMs())
+        assertEquals(60_000L, reconnect.nextReconnectDelayMs())  // clamped
+        // A storm must never wrap the shift into a negative (or tiny) delay.
+        repeat(200) { assertEquals(60_000L, reconnect.nextReconnectDelayMs()) }
+    }
+
+    @Test
+    fun testReconnectBackoffResetsAfterConnectionSuccess() {
+        repeat(6) { reconnect.nextReconnectDelayMs() }
+        reconnect.onConnectionSuccess()
+        assertEquals(2_500L, reconnect.nextReconnectDelayMs())
     }
 
     // ========================================================================

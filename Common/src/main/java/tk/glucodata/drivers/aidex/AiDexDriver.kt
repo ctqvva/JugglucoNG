@@ -177,6 +177,9 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
     /** Whether the vendor BLE stack is actively connected right now. */
     fun isVendorConnected(): Boolean
 
+    /** Whether a key exchange has completed on this driver instance, even if the link dropped since. */
+    fun hasCompletedHandshake(): Boolean
+
     // ── Metadata ────────────────────────────────────────────────────────
 
     /** Calibration records stored on the sensor. Newest first. */
@@ -216,6 +219,7 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
      * Called from terminate/forget flows.
      */
     fun forgetVendor()
+    fun forgetVendor(unbond: Boolean)
 
     /**
      * Non-destructive disconnect: stop vendor BLE but preserve pairing keys

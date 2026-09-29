@@ -10,7 +10,6 @@ import tk.glucodata.drivers.aidex.native.ble.aiDexExtractLocalName
 import tk.glucodata.drivers.aidex.native.crypto.AesCfb128
 import tk.glucodata.drivers.aidex.native.crypto.Crc8Maxim
 import tk.glucodata.drivers.aidex.native.crypto.SerialCrypto
-import tk.glucodata.drivers.aidex.native.data.BroadcastReading
 import tk.glucodata.drivers.aidex.native.data.GlucoseReading
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDefaultParamProvisioning
 import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
@@ -53,22 +52,6 @@ class AiDexPureLogicTests {
         assertNull(aiDexExtractLocalName(byteArrayOf()))
         assertNull(aiDexExtractLocalName(byteArrayOf(1)))
         assertNull(aiDexExtractLocalName(byteArrayOf(0)))
-    }
-
-    @Test
-    fun broadcastBestGlucoseUsesInclusiveRange() {
-        fun reading(mgDl: Int, fallback: Int) = BroadcastReading(
-            glucoseMgDl = mgDl,
-            glucoseFallback = fallback,
-            timeOffsetMinutes = 0L,
-            trend = 0,
-            deviceName = "dev",
-        )
-        assertEquals(30, reading(30, 99).bestGlucose)
-        assertEquals(500, reading(500, 99).bestGlucose)
-        assertEquals(99, reading(29, 99).bestGlucose)
-        assertEquals(99, reading(501, 99).bestGlucose)
-        assertEquals(99, reading(0, 99).bestGlucose)
     }
 
     @Test

@@ -40,6 +40,10 @@ class AiDexReconnect {
     var reconnect2ndFallbackMs: Long = 5_000L
         private set
 
+    /** Ceiling for the doubling soft-reconnect backoff */
+    var reconnectMaxBackoffMs: Long = 60_000L
+        private set
+
     /** Delay when a competing BLE session is detected */
     var competingSessionDelayMs: Long = 20_000L
         private set
@@ -123,17 +127,19 @@ class AiDexReconnect {
     /**
      * Calculate the delay for the next reconnect attempt after a normal disconnect.
      *
-     * First attempt uses base + adaptive bump. Second uses the longer 2nd fallback.
-     * Further attempts alternate between adaptive and 2nd fallback.
+     * First attempt uses base + adaptive bump; after that the 2nd fallback doubles per attempt up
+     * to [reconnectMaxBackoffMs] — 5s, 10s, 20s, 40s, 60s… The flat 5s this used to return retried
+     * ~200 times in 50 minutes when the link could not be set up at all, which drains both
+     * batteries and never converges. [onConnectionSuccess] clears the streak, so a session that
+     * comes up is always back to the fast delay.
      */
     fun nextReconnectDelayMs(): Long {
         val attempt = softAttempts
         softAttempts++
-        return if (attempt == 0) {
-            adaptiveDelayMs()
-        } else {
-            reconnect2ndFallbackMs
-        }
+        if (attempt == 0) return adaptiveDelayMs()
+        // Bound the shift: an unclamped one wraps Long and hands back a negative delay.
+        val delay = reconnect2ndFallbackMs shl (attempt - 1).coerceAtMost(5)
+        return delay.coerceAtMost(reconnectMaxBackoffMs)
     }
 
     /**

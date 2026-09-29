@@ -1,7 +1,9 @@
 package tk.glucodata.drivers.aidex.native.protocol
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
@@ -129,14 +131,88 @@ class AiDexParserDataFrameTests {
         assertEquals(2287, AiDexParser.parseDataFrame(f3)!!.timeOffsetMinutes)
     }
 
+    // -- Validity (R8): raw AND scaled value must be in 20..500 --
+
+    private fun parse(opcode: Int, glucosePacked: Int) =
+        AiDexParser.parseDataFrame(buildFrame(glucosePacked = glucosePacked, opcode = opcode))!!
+
+    @Test
+    fun halfScaleInRangeStaysValid() {
+        assertEquals(0.5f, AiDexOpcodes.scalingFactor(0xD2)!!)
+        val r100 = parse(0xD2, 100)
+        assertEquals(50f, r100.glucoseMgDl, 0.0f)
+        assertTrue(r100.isValid)
+        val r40 = parse(0xD2, 40) // 40 * 0.5 = 20, the lowest valid scaled value
+        assertEquals(20f, r40.glucoseMgDl, 0.0f)
+        assertTrue(r40.isValid)
+    }
+
+    @Test
+    fun halfScaleBelowTwentyScaledIsInvalid_failsOnHead() {
+        // HEAD checked only raw in 20..500, so both of these were valid.
+        val r39 = parse(0xD2, 39)
+        assertEquals(19.5f, r39.glucoseMgDl, 0.0f)
+        assertFalse(r39.isValid)
+        val r20 = parse(0xD2, 20)
+        assertEquals(10f, r20.glucoseMgDl, 0.0f)
+        assertFalse(r20.isValid)
+    }
+
+    @Test
+    fun halfScaleRawAboveFiveHundredStaysInvalid() {
+        // Same as HEAD: 300 mg/dL would be in range, but the half scale is unconfirmed.
+        val r600 = parse(0xD2, 600)
+        assertEquals(300f, r600.glucoseMgDl, 0.0f)
+        assertFalse(r600.isValid)
+        val r1023 = parse(0xD2, 1023)
+        assertEquals(511.5f, r1023.glucoseMgDl, 0.0f)
+        assertFalse(r1023.isValid)
+    }
+
+    @Test
+    fun unscaledOpcodesKeepHeadValidity() {
+        // 0x01 (the documented capture's opcode), 0x00 and 0x42 have no scaling factor.
+        assertNull(AiDexOpcodes.scalingFactor(0x01))
+        assertNull(AiDexOpcodes.scalingFactor(0x00))
+        assertNull(AiDexOpcodes.scalingFactor(0x42))
+
+        // Bits 10..15 set: 0xFC00 | 300 = 0xFD2C, masked to 300.
+        val masked = parse(0x01, 0xFD2C)
+        assertEquals(300f, masked.glucoseMgDl, 0.0f)
+        assertTrue(masked.isValid)
+
+        assertTrue(parse(0x01, 63).isValid)
+
+        val sentinel = parse(0x00, 1023)
+        assertEquals(1023f, sentinel.glucoseMgDl, 0.0f)
+        assertFalse(sentinel.isValid)
+
+        // An unknown opcode is not invalidated for being unknown.
+        val unknown = parse(0x42, 100)
+        assertEquals(100f, unknown.glucoseMgDl, 0.0f)
+        assertTrue(unknown.isValid)
+    }
+
+    @Test
+    fun validityOverEveryRawValue() {
+        // 0xD2: valid iff raw in 40..500 (HEAD: 20..500, so raw 20..39 fails on HEAD).
+        // 0xA1 (direct, 1.0) and 0x01 (no scaling): valid iff raw in 20..500, as on HEAD.
+        for (raw in 0..1023) {
+            assertEquals("0xD2 raw=$raw", raw in 40..500, parse(0xD2, raw).isValid)
+            assertEquals("0xA1 raw=$raw", raw in 20..500, parse(0xA1, raw).isValid)
+            assertEquals("0x01 raw=$raw", raw in 20..500, parse(0x01, raw).isValid)
+        }
+    }
+
     private fun buildFrame(
-        offsetMinutes: Int,
         glucosePacked: Int,
-        i1Raw: Int,
-        i2Raw: Int,
+        opcode: Int = 0x01,
+        offsetMinutes: Int = 0,
+        i1Raw: Int = 0,
+        i2Raw: Int = 0,
     ): ByteArray {
         val frame = ByteArray(17)
-        frame[0] = 0x01
+        frame[0] = opcode.toByte()
         frame[4] = (offsetMinutes and 0xFF).toByte()
         frame[5] = ((offsetMinutes shr 8) and 0xFF).toByte()
         frame[6] = (glucosePacked and 0xFF).toByte()

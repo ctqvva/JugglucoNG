@@ -53,6 +53,24 @@ object ManagedSensorIdentityRegistry {
             .distinct()
             .toList()
 
+    /**
+     * True when a driver other than [owner] already keeps [sensorId] as one of its persisted
+     * sensors. Fails closed on purpose: [persistedIds] is not guarded here, so a driver whose
+     * records cannot be read throws instead of reading as "owns nothing" — the caller decides,
+     * and the one caller (SensorBluetooth.addAiDexSensor) refuses the bind.
+     */
+    fun isPersistedByOtherDriver(
+        owner: ManagedSensorIdentityAdapter,
+        sensorId: String?,
+        adapters: List<ManagedSensorIdentityAdapter>,
+        persistedIds: (ManagedSensorIdentityAdapter) -> List<String>,
+    ): Boolean {
+        val want = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return false
+        return adapters.any { adapter ->
+            adapter !== owner && persistedIds(adapter).any { it.equals(want, ignoreCase = true) }
+        }
+    }
+
     fun createManagedCallback(context: Context, sensorId: String, dataptr: Long): SuperGattCallback? =
         orderedAdapters(sensorId, context)
             .mapNotNull { it.createManagedCallback(context, sensorId, dataptr) }

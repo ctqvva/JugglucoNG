@@ -389,6 +389,26 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return false;
     }
 
+    /**
+     * Whether the shared scan should run at SCAN_MODE_LOW_LATENCY for this sensor right now.
+     * <p>
+     * Otherwise it runs at the platform default, SCAN_MODE_LOW_POWER: about a tenth of the time
+     * listening, which is right for a scan that may stay up for hours. A driver may ask for full
+     * duty only for a short wait, and the answer must turn false by itself when that wait ends
+     * (gated by time, not only by a flag some callback may never clear): SensorBluetooth caps each
+     * low-latency start, but when the cap expires it asks again and starts another one, so an
+     * answer that stays true keeps the radio at full duty indefinitely. Going down is not immediate
+     * either: a scan already at full duty keeps it until its cap expires. Asked when a scan starts,
+     * not per result.
+     * <p>
+     * Called while SensorBluetooth holds its own lock, and drivers call scanStarter() while holding
+     * theirs: an override must not take the driver's monitor (no @Synchronized), only read
+     * volatile state, or the two locks are taken in opposite orders.
+     */
+    public boolean wantsLowLatencyScan() {
+        return false;
+    }
+
     public void onScanRecord(byte[] scanRecord) {
         // Default empty implementation
     }
@@ -1204,17 +1224,26 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * out to be a duplicate of a live one: both were resolved from the same sensor, so they
      * share a dataptr, and {@link #free()} would hand the running callback's
      * SensorGlucoseData back to the allocator — taking that sensor's history with it.
+     * Only the native free is skipped: a driver's terminal teardown still has to run, or
+     * this object keeps its worker thread and pending state for the life of the process.
      */
-    synchronized void discard() {
+    void discard() {
         stop = true;
         if (doLog) {
             Log.i(LOG_ID, "discard " + SerialNumber);
         }
-        close();
-        dataptr = 0L;
+        // Outside the monitor: a driver's terminal hook may wait for its own worker (AiDex waits
+        // up to 3 s for its handler), and a task there can need this monitor (close() ->
+        // closeGattTransport()). stop is set first and the connect runnable re-checks it under the
+        // monitor, so no new GATT starts meanwhile.
+        onTerminalFree();
+        synchronized (this) {
+            close();
+            dataptr = 0L;
+        }
     }
 
-    synchronized void free() {
+    void free() {
         stop = true;
         {
             if (doLog) {
@@ -1223,10 +1252,16 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             ;
         }
         ;
-        close();
-        Natives.freedataptr(dataptr);
-        dataptr = 0L;
+        onTerminalFree(); // outside the monitor, see discard()
+        synchronized (this) {
+            close();
+            Natives.freedataptr(dataptr);
+            dataptr = 0L;
+        }
         // sensorbluetooth=null;
+    }
+
+    protected void onTerminalFree() {
     }
 
     public boolean streamingEnabled() {// TODO: libre3?
@@ -1318,7 +1353,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * <p>
      * Subclasses have to call this from their own onConnectionStateChange — that is in practice
      * the first callback of an attempt, and no driver except AiDex chains to super, so the base
-     * class cannot funnel it. They call it first, above their own staleness guards, so the gatt
+     * class cannot funnel it. They call it first, above their own staleness guards (Libre3 lets
+     * acceptConnectionAttemptCallback drop a retired GATT first, which this ignores as well; its
+     * synchronized callback cannot run inside the null window below, since the connect runnable
+     * holds the monitor across it), so the gatt
      * is taken here instead: a late callback from a retired GATT belongs to an earlier attempt,
      * and letting it consume the timestamp would publish its age against the attempt in flight —
      * corrupting exactly the number this exists to collect, in the drivers with the most
@@ -1340,6 +1378,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
     }
 
+    // legacy BLE API: required at minSdk 26
+    @SuppressWarnings("deprecation")
     private Runnable getConnectDevice() {
         var cb = this;
         if (cb.mBluetoothGatt != null) {
@@ -1568,6 +1608,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     public void onConnectionParamsUpdated(BluetoothGatt gatt, int interval, int latency, int timeout, int status) {
     }
 
+    // legacy BLE API: required at minSdk 26
+    @SuppressWarnings("deprecation")
     boolean disableNoCheck(BluetoothGatt gatt, BluetoothGattCharacteristic ch) {
         gatt.setCharacteristicNotification(ch, false);
         BluetoothGattDescriptor descriptor = ch.getDescriptor(mCharacteristicConfigDescriptor);
@@ -1617,6 +1659,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return enableGattDescriptornote(SerialNumber, bluetoothGatt1, bluetoothGattCharacteristic, type);
     }
 
+    // legacy BLE API: required at minSdk 26
+    @SuppressWarnings("deprecation")
     @SuppressLint("MissingPermission")
     static boolean enableGattDescriptornote(String note, BluetoothGatt bluetoothGatt1,
             BluetoothGattCharacteristic bluetoothGattCharacteristic, byte[] type) {

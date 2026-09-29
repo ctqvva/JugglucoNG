@@ -78,6 +78,11 @@ object AiDexNativeFactory {
         return callback is AiDexBleManager
     }
 
+    @JvmStatic
+    fun destroyNativeManager(callback: SuperGattCallback?) {
+        (callback as? AiDexBleManager)?.destroy()
+    }
+
     /**
      * Check whether a native AiDex callback is in broadcast-only mode.
      *

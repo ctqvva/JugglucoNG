@@ -10,6 +10,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +48,8 @@ internal const val SENSOR_SETUP_SUCCESS_AUTO_ADVANCE_MS = 1400L
 
 private enum class SensorSetupStatusTone {
     Connecting,
-    Success
+    Success,
+    Attention
 }
 
 @Composable
@@ -61,6 +65,28 @@ fun SensorSetupConnectingScreen(
         sensorLabel = sensorLabel,
         title = title,
         supportingText = supportingText
+    )
+}
+
+/**
+ * Setup stopped and waits for the user: no connecting animation, no progress. [action] sits in
+ * the column under the text, so it cannot cover the text on a short screen.
+ */
+@Composable
+fun SensorSetupNotConnectedScreen(
+    ui: WizardUiMetrics,
+    sensorLabel: String? = null,
+    title: String,
+    supportingText: String,
+    action: @Composable () -> Unit
+) {
+    SensorSetupStatusScreen(
+        ui = ui,
+        tone = SensorSetupStatusTone.Attention,
+        sensorLabel = sensorLabel,
+        title = title,
+        supportingText = supportingText,
+        action = action
     )
 }
 
@@ -85,7 +111,8 @@ private fun SensorSetupStatusScreen(
     tone: SensorSetupStatusTone,
     sensorLabel: String?,
     title: String,
-    supportingText: String?
+    supportingText: String?,
+    action: (@Composable () -> Unit)? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "SetupStatus")
     val haloScalePrimary by infiniteTransition.animateFloat(
@@ -141,14 +168,17 @@ private fun SensorSetupStatusScreen(
     val containerColor = when (tone) {
         SensorSetupStatusTone.Connecting -> MaterialTheme.colorScheme.primaryContainer
         SensorSetupStatusTone.Success -> MaterialTheme.colorScheme.tertiaryContainer
+        SensorSetupStatusTone.Attention -> MaterialTheme.colorScheme.errorContainer
     }
     val contentColor = when (tone) {
         SensorSetupStatusTone.Connecting -> MaterialTheme.colorScheme.onPrimaryContainer
         SensorSetupStatusTone.Success -> MaterialTheme.colorScheme.onTertiaryContainer
+        SensorSetupStatusTone.Attention -> MaterialTheme.colorScheme.onErrorContainer
     }
     val accentColor = when (tone) {
         SensorSetupStatusTone.Connecting -> MaterialTheme.colorScheme.primary
         SensorSetupStatusTone.Success -> MaterialTheme.colorScheme.tertiary
+        SensorSetupStatusTone.Attention -> MaterialTheme.colorScheme.error
     }
     val heroShape = RoundedCornerShape(
         topStart = if (ui.compact) 30.dp else 36.dp,
@@ -161,11 +191,15 @@ private fun SensorSetupStatusScreen(
     val icon = when (tone) {
         SensorSetupStatusTone.Connecting -> Icons.Default.Bluetooth
         SensorSetupStatusTone.Success -> Icons.Default.CheckCircle
+        SensorSetupStatusTone.Attention -> Icons.Default.BluetoothDisabled
     }
 
+    // Scrolls when the screen is too short (landscape, large font), so the action under the
+    // text is never squeezed out; centred as before when everything fits.
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = ui.horizontalPadding),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -267,8 +301,8 @@ private fun SensorSetupStatusScreen(
 
         Spacer(modifier = Modifier.height(ui.spacerLarge))
 
-        if (tone == SensorSetupStatusTone.Success) {
-            LinearProgressIndicator(
+        when (tone) {
+            SensorSetupStatusTone.Success -> LinearProgressIndicator(
                 progress = { completionProgress },
                 modifier = Modifier
                     .fillMaxWidth(0.42f)
@@ -277,8 +311,7 @@ private fun SensorSetupStatusScreen(
                 color = accentColor,
                 trackColor = accentColor.copy(alpha = 0.18f)
             )
-        } else {
-            LinearProgressIndicator(
+            SensorSetupStatusTone.Connecting -> LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth(0.42f)
                     .height(6.dp)
@@ -286,6 +319,7 @@ private fun SensorSetupStatusScreen(
                 color = accentColor,
                 trackColor = accentColor.copy(alpha = 0.18f)
             )
+            SensorSetupStatusTone.Attention -> action?.invoke()
         }
     }
 }

@@ -361,7 +361,7 @@ class AiDexNativeSensorManagerTests {
 
         val reading2 = makeReading("OTHER")
         manager.onGlucoseReceived("OTHER", reading2)
-        assertFalse(lastIsMain!!)
+        assertFalse(lastIsMain)
     }
 
     @Test

@@ -74,4 +74,33 @@ object Crc16CcittFalse {
                 ((data[data.size - 1].toInt() and 0xFF) shl 8)
         return expectedCrc == actualCrc
     }
+
+    /**
+     * F002 data opcodes are `[opcode, status, ...body..., CRC16_lo, CRC16_hi]`.
+     * Returns the body after opcode+status, with a validated CRC trailer removed.
+     * This is the production slice used by 0x23/0x24 history handlers.
+     */
+    /**
+     * Connected 0x11 is opcode + status + a 7-byte sample, optionally plus a CRC-16 trailer.
+     * A frame that long whose trailer does not match is corrupt glucose and must not be stored.
+     * A shorter frame may legitimately have no trailer; rejecting it would drop a real sample.
+     */
+    const val CONNECTED_BROADCAST_MIN_WITH_CRC = 11
+
+    fun connectedBroadcastPayloadEnd(size: Int, crcValid: Boolean): Int? {
+        if (size < 3) return null
+        if (crcValid) return size - 2
+        if (size >= CONNECTED_BROADCAST_MIN_WITH_CRC) return null
+        return size
+    }
+
+    fun f002DataPayload(data: ByteArray): ByteArray {
+        val payloadEndExclusive = if (data.size >= 4 && validateResponse(data)) {
+            data.size - 2
+        } else {
+            data.size
+        }
+        if (payloadEndExclusive <= 2) return ByteArray(0)
+        return data.copyOfRange(2, payloadEndExclusive)
+    }
 }

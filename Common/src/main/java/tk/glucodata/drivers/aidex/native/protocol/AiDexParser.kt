@@ -70,6 +70,10 @@ object AiDexParser {
      * The field is really the same u16 LE minute offset that the `0x23`/`0x24`/`0x27` history
      * and calibration payloads use, and it sits at bytes[4..5]. See
      * `AiDexParserDataFrameTests` for the evidence this is decoded from.
+     *
+     * Valid means: not the sentinel, raw in 20..500 and the scaled mg/dL in 20..500. The 0xD2
+     * half scale is an unverified port (no capture), so a 0xD2 raw above 500 stays rejected
+     * until a capture confirms the scale: 0xD2 readings above 250 mg/dL are dropped.
      */
     fun parseDataFrame(data: ByteArray): GlucoseFrame? {
         if (data.size != AiDexOpcodes.DATA_FRAME_LENGTH) return null
@@ -89,9 +93,9 @@ object AiDexParser {
         val glucoseMgDl = if (scaling != null) rawGlucose * scaling else rawGlucose.toFloat()
 
         val isSentinel = rawGlucose == AiDexOpcodes.SENTINEL_GLUCOSE
-        val isInRange = rawGlucose >= AiDexOpcodes.MIN_VALID_GLUCOSE &&
-                rawGlucose <= AiDexOpcodes.MAX_VALID_GLUCOSE
-        val isValid = !isSentinel && isInRange
+        val isValid = !isSentinel &&
+                rawGlucose in AiDexOpcodes.MIN_VALID_GLUCOSE..AiDexOpcodes.MAX_VALID_GLUCOSE &&
+                glucoseMgDl in AiDexOpcodes.MIN_VALID_GLUCOSE.toFloat()..AiDexOpcodes.MAX_VALID_GLUCOSE.toFloat()
 
         return GlucoseFrame(
             opcode = opcode,
@@ -110,6 +114,63 @@ object AiDexParser {
     fun parseStatusFrame(data: ByteArray): StatusFrame? {
         if (data.size != AiDexOpcodes.STATUS_FRAME_LENGTH) return null
         return StatusFrame(header = data[0].toInt() and 0xFF)
+    }
+
+    // -- Broadcast Sample (advertisement payload or connected 0x11 reply) --
+
+    data class BroadcastSample(val offsetMinutes: Int, val trend: Int, val glucoseMgDl: Int)
+
+    data class BroadcastSampleParse(val sample: BroadcastSample? = null, val rejectionReason: String? = null)
+
+    const val BROADCAST_MAX_OFFSET_MINUTES: Int = 30 * 24 * 60
+
+    fun decodePackedBroadcastGlucoseMgDl(data: ByteArray, loIndex: Int = 5, carryIndex: Int = 6): Int {
+        if (loIndex !in data.indices) return 0
+        val lo = data[loIndex].toInt() and 0xFF
+        val carry = data.getOrNull(carryIndex)?.toInt()?.and(0xFF) ?: 0
+        return lo or ((carry and 0x03) shl 8)
+    }
+
+    /**
+     * Parse a broadcast glucose sample. No captured advert exists; the tests use synthetic
+     * payloads.
+     *
+     * Layout:
+     *   bytes[0..3]: offset minutes, read as u32 LE. Any accepted value is <= 43200, so
+     *                bytes[2..3] are zero; an out-of-range u32 falls back to u16 LE of
+     *                bytes[0..1]. Either way only bytes[0..1] effectively count.
+     *   byte[4]:     trend (signed i8)
+     *   bytes[5..6]: glucose mg/dL, 10-bit: lo | ((carry & 0x03) << 8)
+     *
+     * A 10-bit glucose outside 20..500 is rejected. There is deliberately no byte-5 fallback:
+     * it read the low byte alone, so 1023 became 255, 501 became 245 and 540 became a false 28.
+     */
+    fun parseBroadcastSample(payload: ByteArray): BroadcastSampleParse {
+        if (payload.size < 7) {
+            return BroadcastSampleParse(rejectionReason = "too-short")
+        }
+
+        // .toInt() of the u32 is kept from the manager: FF FF FF FF reads as -1, then u16 65535.
+        val offsetCandidate = u32LE(payload, 0).toInt()
+        val offsetMinutes = when {
+            offsetCandidate > 0 && offsetCandidate <= BROADCAST_MAX_OFFSET_MINUTES -> offsetCandidate
+            else -> u16LE(payload, 0)
+        }
+        if (offsetMinutes <= 0 || offsetMinutes > BROADCAST_MAX_OFFSET_MINUTES) {
+            return BroadcastSampleParse(
+                rejectionReason = "invalid-offset(u32=$offsetCandidate,u16=${u16LE(payload, 0)})"
+            )
+        }
+
+        val trend = payload[4].toInt()
+        val packed = decodePackedBroadcastGlucoseMgDl(payload)
+        if (packed !in AiDexOpcodes.MIN_VALID_GLUCOSE..AiDexOpcodes.MAX_VALID_GLUCOSE) {
+            return BroadcastSampleParse(rejectionReason = "invalid-glucose(packed=$packed)")
+        }
+
+        return BroadcastSampleParse(
+            sample = BroadcastSample(offsetMinutes = offsetMinutes, trend = trend, glucoseMgDl = packed)
+        )
     }
 
     // -- History Parsing: GET_HISTORIES_RAW (0x23) --
@@ -294,6 +355,16 @@ object AiDexParser {
     }
 
     /**
+     * Bluetooth Time Zone is signed quarters of an hour. 0x80 means the offset is not known;
+     * sign-extending it is -128 quarters and shifts the session start by 32 hours.
+     * Genuine west-of-UTC zones stay negative.
+     */
+    fun sessionTimeZoneQuarters(raw: Byte): Int {
+        if ((raw.toInt() and 0xFF) == 0x80) return 0
+        return raw.toInt()
+    }
+
+    /**
      * Parse a local/session start-time payload.
      *
      * Shared by standard CGM `2AAA`, legacy raw `0x21`, and the upstream
@@ -310,7 +381,7 @@ object AiDexParser {
             hour = payload[4].toInt() and 0xFF,
             minute = payload[5].toInt() and 0xFF,
             second = payload[6].toInt() and 0xFF,
-            tzQuarters = if (payload.size >= 8) payload[7].toInt() else 0,
+            tzQuarters = if (payload.size >= 8) sessionTimeZoneQuarters(payload[7]) else 0,
             dstQuarters = if (payload.size >= 9) payload[8].toInt() and 0xFF else 0,
         )
 
@@ -398,6 +469,13 @@ object AiDexParser {
     private fun u16LE(data: ByteArray, offset: Int): Int {
         return (data[offset].toInt() and 0xFF) or
                 ((data[offset + 1].toInt() and 0xFF) shl 8)
+    }
+
+    private fun u32LE(data: ByteArray, offset: Int): Long {
+        return (data[offset].toInt() and 0xFF).toLong() or
+                ((data[offset + 1].toInt() and 0xFF).toLong() shl 8) or
+                ((data[offset + 2].toInt() and 0xFF).toLong() shl 16) or
+                ((data[offset + 3].toInt() and 0xFF).toLong() shl 24)
     }
 
     private fun s16LE(data: ByteArray, offset: Int): Int {

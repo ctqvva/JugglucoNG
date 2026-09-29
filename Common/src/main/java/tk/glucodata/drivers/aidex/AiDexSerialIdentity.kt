@@ -68,7 +68,10 @@ object AiDexSerialIdentity {
     ): String? {
         if (address.isNullOrBlank() || advertisedName.isNullOrBlank()) return null
         if (!storedSensorId.equals(fallbackCanonicalFromAddress(address), ignoreCase = true)) return null
-        return canonicalFromAdvertisement(advertisedName)
-            ?.substring(CANONICAL_PREFIX.length)
+        // Same body the scan bind uses. canonicalFromAdvertisement keeps an 11-character
+        // "X" + serial as the whole body, so the F001 secret was derived for X2222267V4E
+        // instead of 2222267V4E and the challenge never matched.
+        val normalized = AiDexScanIdentity.normalizeSerial(advertisedName) ?: return null
+        return normalized.removePrefix(CANONICAL_PREFIX).takeIf { it.isNotBlank() }
     }
 }
