@@ -1,5 +1,7 @@
 package tk.glucodata
 
+import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,5 +22,72 @@ class LiveCalibrationPolicyTests {
     @Test
     fun aDriverThatFoldsCalibrationInItselfIsLeftAloneLikeSibionicsAuto() {
         assertFalse(LiveCalibrationPolicy.appliesGenericCalibration(integratesUserCalibration = true))
+    }
+
+    @Test
+    fun aidexLeavesGenericCalibrationToTheApp() {
+        // Default false is what makes handleGlucoseResult apply getCalibratedValue.
+        // AiDEX does not override the flag, so its direct live path stays on that gate.
+        // Ottai is not part of this: its live value is published as resolved formula
+        // glucose and never reaches integratesUserCalibration.
+        val contract = source("Common/src/main/java/tk/glucodata/drivers/ManagedBluetoothSensorDriver.kt")
+        assertTrue(
+            contract.contains("fun integratesUserCalibration(isRawMode: Boolean): Boolean = false"),
+        )
+        for (path in listOf(
+            "Common/src/main/java/tk/glucodata/drivers/aidex/AiDexDriver.kt",
+            "Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt",
+        )) {
+            assertFalse(path, source(path).contains("fun integratesUserCalibration"))
+        }
+    }
+
+    @Test
+    fun aidexDirectLivePassesItsRawLaneIntoTheSharedPublishPath() {
+        val aidex = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
+        assertTrue(aidex.contains("handleGlucoseResult(res, sampleTimestampMs, normalizedRawValue ?: Float.NaN)"))
+    }
+
+    @Test
+    fun ottaiPublishesCurrentThroughTheResolvedExternalPath() {
+        // displayValue is formula glucose in display units, not a user calibration.
+        // processExternalCurrentReading marks it resolved, so the display does not
+        // calibrate it. handleGlucoseResult would apply getCalibratedValue once,
+        // the first time, because Ottai does not fold calibration in. This must stay
+        // the only publish of that sample: both paths would publish it twice.
+        val ottai = source("Common/src/main/java/tk/glucodata/drivers/ottai/OttaiBleManager.kt")
+        assertTrue(ottai.contains("processExternalCurrentReading(id, reading.displayValue"))
+        assertFalse(ottai.contains("handleGlucoseResult("))
+    }
+
+    @Test
+    fun sharedLivePublishRecordsTheUncalibratedLanesBeforeItCalibrates() {
+        val callback = source("Common/src/main/java/tk/glucodata/SuperGattCallback.java")
+        val publish = callback.substringAfter("private void handleGlucoseResultInternal")
+            .substringBefore("public void searchforDeviceAddress")
+        val markers = Regex("LiveReadingLanes\\.stock|getCalibratedValue")
+            .findAll(publish)
+            .map { it.value }
+            .toList()
+        assertEquals(
+            listOf(
+                "LiveReadingLanes.stock",
+                "getCalibratedValue",
+                "LiveReadingLanes.stock",
+                "getCalibratedValue",
+            ),
+            markers,
+        )
+    }
+
+    private fun source(relative: String): String {
+        var dir: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
+        while (dir != null) {
+            if (File(dir, "Common/src/main/java/tk/glucodata/SuperGattCallback.java").isFile) {
+                return File(dir, relative).readText()
+            }
+            dir = dir.parentFile
+        }
+        throw AssertionError("repo root not found from ${System.getProperty("user.dir")}")
     }
 }
