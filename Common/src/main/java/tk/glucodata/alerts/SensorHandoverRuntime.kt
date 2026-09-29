@@ -3,8 +3,11 @@ package tk.glucodata.alerts
 import android.content.Context
 import androidx.core.content.edit
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import tk.glucodata.Applic
+import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.MultiSensorSelection
 import tk.glucodata.NativeSensorTermination
@@ -45,11 +48,23 @@ internal object SensorHandoverRuntime {
 
     private const val PREFS_NAME = "tk.glucodata_preferences"
 
-    /** A successor counts as delivering when it has a reading at most this old. */
-    private const val RECENT_READING_MAX_AGE_MS = 15L * 60_000L
+    /**
+     * A sensor counts as delivering when it has a reading at most this old: a successor at the
+     * switch, and the sensor switched away from when REMOVE decides about it.
+     */
+    const val RECENT_READING_MAX_AGE_MS = 15L * 60_000L
+
+    /**
+     * How long past its end a sensor that then stops still counts as ended with it when REMOVE
+     * decides ([oldSensorRemovalDelayMs]): a start recorded a few minutes off, or a firmware that
+     * stops a little after the end the app computes (an Ottai unit measured against the 15-day
+     * default stops about 28 min past it). A tuning handle: wider keeps a sensor that has stopped
+     * in the list that much longer.
+     */
+    const val OLD_SENSOR_END_OVERRUN_MS = 60L * 60_000L
 
     /** Side-effect thread; the alert lock is never held while a handover executes. */
-    private val executor = Executors.newSingleThreadExecutor { r ->
+    private val executor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "SensorHandover").apply { isDaemon = true }
     }
 
@@ -251,7 +266,17 @@ internal object SensorHandoverRuntime {
         }
 
         if (oldSensorAction() == OLD_ACTION_REMOVE) {
-            removeOldSensor(decision.oldSerial)
+            // Not decided here: the switch comes within a tick of the old sensor's end, when one
+            // that measured up to that end still has a recent reading. Until the check scheduled
+            // below, the old sensor is deselected as with DEACTIVATE (the selection write above).
+            val oldSerial = decision.oldSerial
+            val oldGatt = findGatt(oldSerial)
+            val oldEndMs = roster.primary?.endMs ?: 0L
+            val delayMs = oldSensorRemovalDelayMs(oldEndMs, System.currentTimeMillis())
+            Log.i(LOG_ID, "Removal of $oldSerial after handover is decided in ${delayMs / 60_000L} min")
+            executor.schedule(
+                Runnable { removeOldSensorIfSilent(oldSerial, oldGatt, oldEndMs) }, delayMs, TimeUnit.MILLISECONDS
+            )
         }
 
         runCatching {
@@ -275,6 +300,51 @@ internal object SensorHandoverRuntime {
         if (startMs <= 0L) return warmupMinutes.toInt()
         val remaining = (startMs + SensorHandoverState.WARMUP_DURATION_MS - nowMs) / 60_000L
         return remaining.coerceIn(1L, warmupMinutes).toInt()
+    }
+
+    /**
+     * The REMOVE decision [performHandover] schedules ([oldSensorRemovalDelayMs]). REMOVE runs the
+     * forget path, which cannot be undone (pairing keys wiped; for Ottai also a cloud unbind
+     * request), while an end can pass with the sensor still measuring: the end is only as good as
+     * its inputs — a start recorded off, or, while an Ottai unit's firmware lifetime is not yet read
+     * here, the cloud rating, which can sit days to weeks before the firmware's end. So a sensor that still
+     * delivers here stays deselected, as with DEACTIVATE, and so does one taken back meanwhile:
+     * handover or REMOVE turned off, the sensor selected again, or its entry in the sensor list
+     * gone or replaced. A skipped removal is not retried: the expiry was latched before the switch.
+     *
+     * Silence only means "ended" for a sensor that delivered here up to its end
+     * ([deliveredUpToEnd]). One whose readings here stop well before that end - a record imported
+     * with an end already in the past - was not measuring here when its end passed, so its silence
+     * now says nothing about it and it stays deselected too. A sensor another phone is holding is
+     * screened before that, by its Clone mark: its mirrored readings are stored here under its own
+     * serial and run up to its end, so the store cannot tell it from one measured here, while its
+     * silence is only the mirror link being down - it is never dialled locally, so the mirror is
+     * its only source of freshness.
+     */
+    private fun removeOldSensorIfSilent(serial: String, gatt: SuperGattCallback?, oldEndMs: Long) {
+        val takenBack = runCatching {
+            !isEnabled() || oldSensorAction() != OLD_ACTION_REMOVE || findGatt(serial) !== gatt ||
+                SensorIdentity.matches(SensorIdentity.resolveMainSensor(), serial) ||
+                MultiSensorSelection.selectedOrder().any { SensorIdentity.matches(it, serial) }
+        }.getOrDefault(true)
+        when {
+            takenBack -> Log.i(
+                LOG_ID, "Not removing $serial after handover: taken back, or its sensor-list entry gone or replaced"
+            )
+            CloneSensorRegistry.isCloneSensor(serial) -> Log.i(
+                LOG_ID, "Not removing $serial after handover: it is mirrored from another device, so it stays deselected"
+            )
+            hasRecentReading(serial) -> Log.i(
+                LOG_ID, "Not removing $serial after handover: it still delivers, so it stays deselected"
+            )
+            // Blocking Room read (runBlocking inside the bridge) on this executor's own thread,
+            // and only here, where the sensor is already known to be silent. Bound it if it ever
+            // stalls the handover queue.
+            !deliveredUpToEnd(HistorySyncAccess.getLatestTimestampForSensor(serial), oldEndMs) -> Log.i(
+                LOG_ID, "Not removing $serial after handover: no reading stored here up to its end, so it stays deselected"
+            )
+            else -> removeOldSensor(serial)
+        }
     }
 
     /**
@@ -382,3 +452,36 @@ internal object SensorHandoverRuntime {
         }
     }
 }
+
+/**
+ * Delay from [nowMs] until REMOVE decides about the sensor a handover switched away from, whose end
+ * is [oldEndMs]. The switch comes within a tick of that end, when a sensor that measured up to it
+ * still has a reading inside [SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS] and would read as
+ * delivering. The decision waits until a reading taken before the end plus
+ * [SensorHandoverRuntime.OLD_SENSOR_END_OVERRUN_MS] no longer counts as recent, so a sensor still
+ * delivering then has a reading from no earlier than that point. However late the switch, the
+ * decision still waits one full freshness window: the old sensor's driver has to scan and connect
+ * before it can say anything at all, and a decision taken while it is still doing that would read
+ * that silence as an ending.
+ */
+internal fun oldSensorRemovalDelayMs(oldEndMs: Long, nowMs: Long): Long =
+    (oldEndMs + SensorHandoverRuntime.OLD_SENSOR_END_OVERRUN_MS +
+        SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS - nowMs)
+        .coerceAtLeast(SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS)
+
+/**
+ * Whether the sensor a handover switched away from delivered here up to its end [oldEndMs].
+ * [latestStoredMs] is the newest reading Room holds for it, 0 both when it has none and when the
+ * store cannot be asked at all. Room on purpose, and not the native journal: the journal does not
+ * separate what this phone measured from what an import or an NFC backfill put there, so it cannot
+ * answer this question. Either way nothing here says the sensor was ever measuring HERE, so nothing
+ * here says it has stopped. Only a sensor that did deliver up to its end may have its later silence read as
+ * an ending, which is what REMOVE acts on, and REMOVE cannot be undone: it wipes the pairing keys
+ * and, for Ottai, asks the cloud to unbind. A record imported with an end already in the past is
+ * silent here for a reason that has nothing to do with the sensor being over. A sensor another
+ * phone is holding does store readings here, over Clone, so this cannot screen it out;
+ * [SensorHandoverRuntime] screens it by its Clone mark instead.
+ */
+internal fun deliveredUpToEnd(latestStoredMs: Long, oldEndMs: Long): Boolean =
+    latestStoredMs > 0L &&
+        latestStoredMs >= oldEndMs - SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS

@@ -288,4 +288,51 @@ class SensorHandoverStateTests {
         assertEquals(0L, store.suppressUntil)
         assertFalse(state.missedReadingSuppressed(now))
     }
+
+    // REMOVE decides about the sensor switched away from only once a reading it took by its end no
+    // longer counts as recent. The switch comes within a tick of that end, when such a reading
+    // still does, so deciding then would keep a sensor that measured up to its end for good.
+    @Test
+    fun removeWaitsUntilAReadingFromTheEndIsNoLongerRecent() {
+        val switchAt = oldEnd + 15_000L
+        val decideAt = switchAt + oldSensorRemovalDelayMs(oldEnd, switchAt)
+        assertTrue(decideAt - oldEnd > SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS)
+        // A sensor still delivering at the decision has a reading from no earlier than end + overrun.
+        assertTrue(decideAt - (oldEnd + SensorHandoverRuntime.OLD_SENSOR_END_OVERRUN_MS - 1L) >
+            SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS)
+        // A sensor stopping ~28 min past its computed end (an Ottai unit against the 15-day default):
+        // its last reading is no longer recent then.
+        assertTrue(decideAt - (oldEnd + 30L * 60_000L) > SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS)
+        // However late the switch, the decision still waits one freshness window: the old sensor's
+        // driver has to scan and connect first, and silence before that is not an ending.
+        val lateSwitch = oldEnd + SensorHandoverRuntime.OLD_SENSOR_END_OVERRUN_MS +
+            SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS + 60_000L
+        assertEquals(
+            SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS,
+            oldSensorRemovalDelayMs(oldEnd, lateSwitch)
+        )
+    }
+
+    // REMOVE wipes pairing keys and, for Ottai, asks the cloud to unbind, so it may only act on a
+    // sensor whose silence really does mean it ended. One that never delivered here up to its end -
+    // a record imported with an end already past - is silent for a reason that says nothing about
+    // the sensor. A sensor another phone holds is NOT screened here: Clone stores its rows under
+    // the sensor's own serial, so it reaches the end like a local one. The Clone mark screens it.
+    @Test
+    fun removeOnlyActsOnASensorThatDeliveredHereUpToItsEnd() {
+        // Nothing stored for it here - also what a build with no Room bridge answers.
+        assertFalse(deliveredUpToEnd(0L, oldEnd))
+        // Rows exist but stop a day short of the end: it was not measuring here when it ran out.
+        assertFalse(deliveredUpToEnd(oldEnd - 24L * 60 * 60 * 1000, oldEnd))
+        // Its last reading falls inside the freshness window before the end: it measured up to it.
+        assertTrue(deliveredUpToEnd(oldEnd - 60_000L, oldEnd))
+        // Firmware that runs a little past the end the app computes (~28 min, an Ottai unit against
+        // the 15-day default).
+        assertTrue(deliveredUpToEnd(oldEnd + 28L * 60_000L, oldEnd))
+        // The window edge itself counts as delivering; one millisecond past it does not.
+        assertTrue(deliveredUpToEnd(oldEnd - SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS, oldEnd))
+        assertFalse(
+            deliveredUpToEnd(oldEnd - SensorHandoverRuntime.RECENT_READING_MAX_AGE_MS - 1L, oldEnd)
+        )
+    }
 }
