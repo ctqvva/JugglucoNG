@@ -250,7 +250,7 @@ class NotificationValueViewsTests {
             assertEquals(2, container.childCount)
             val first = container.getChildAt(0)
             val peer = container.getChildAt(1)
-            assertEquals(first.top, peer.top)
+            assertTrue("peer stays beside the primary", peer.left >= first.right)
             assertTrue("peer and its arrow must remain within the host", peer.right <= container.width)
             for (index in 0 until 2) {
                 val row = container.getChildAt(index) as android.view.ViewGroup
