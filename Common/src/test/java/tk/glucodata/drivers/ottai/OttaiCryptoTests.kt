@@ -114,4 +114,18 @@ class OttaiCryptoTests {
         assertNull(OttaiCrypto.parseAuthKeys("abcd"))
         assertNull(OttaiCrypto.parseAuthKeys("zz".repeat(96))) // 192 chars but non-hex
     }
+
+    /**
+     * The command that starts the sensor clock: {0x03} zero-padded to one block, AES-128-ECB
+     * under the session key. Known answer from openssl, not from this code:
+     *   printf '\003\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000' \
+     *     | openssl enc -aes-128-ecb -nopad -K 0123456789abcdef0123456789abcdef | xxd -p
+     * Replace it with an official-app capture when one exists.
+     */
+    @Test
+    fun activateCmd_knownAnswer() {
+        val enc = OttaiCrypto.encryptActivateCmd(byteArrayOf(0x03), "0123456789abcdef0123456789abcdef")
+        assertNotNull(enc)
+        assertEquals("8dded66125e4db7c41a1fbb139aebc1c", OttaiCrypto.bytesToHex(enc!!).lowercase())
+    }
 }

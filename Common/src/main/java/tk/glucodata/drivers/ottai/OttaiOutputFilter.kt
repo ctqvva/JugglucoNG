@@ -12,11 +12,11 @@ object OttaiOutputFilter {
     const val MIN_RAW_CURRENT = 1_000
     const val MAX_TEMPERATURE_C = 45.0
 
-    // A body-worn sensor never reports this cold. The gate had no lower bound at all, so a
-    // corrupt frame only got caught when its temperature happened to decode HIGH — the
-    // 2026-07-14 corruption produced 185.07, 360.93, 421.01, 325.39 and 388.72 C, all refused,
-    // while nothing would have stopped the same garbage decoding to a negative value.
-    const val MIN_TEMPERATURE_C = 15.0
+    // Negative temperatures are the cold twin of the 2026-07-14 corruptions (185–421 C).
+    // A body-worn sensor outdoors in winter does sit below 15 C; those points are real and
+    // must publish. The misframe detector uses the same 0 C floor so a winter frame is not
+    // thrown away as a whole either.
+    const val MIN_TEMPERATURE_C = 0.0
     const val MAX_GLUCOSE_MMOL = 40.0f
 
     // A one-minute CGM point moving this far while the electrode current jumps this much
@@ -29,12 +29,20 @@ object OttaiOutputFilter {
     const val MISFRAMED_MIN_RECORDS = 8
 
     /**
-     * Temperatures no body-worn sensor reports, however cold or hot its surroundings. Well
-     * outside the hard gate's 15–45 C on purpose: a sensor outdoors in winter really does sit
-     * below 15 C, and its frame must not be mistaken for a misframed one.
+     * Temperatures no body-worn sensor reports. The hard gate already rejects below 0 C and
+     * above 45 C; this band is wider on the hot side (60 C) so a warm-but-real frame is not
+     * judged misframed, while a winter frame under 15 C is neither rejected nor misframed.
      */
     const val IMPOSSIBLE_TEMPERATURE_LOW_C = 0.0
     const val IMPOSSIBLE_TEMPERATURE_HIGH_C = 60.0
+
+    /**
+     * A live notify is one sample and is judged record by record. Only a history frame is
+     * dropped whole: abandoning its window is how a misread page cannot be stored, and doing
+     * that to a live notify would skip a real sample.
+     */
+    fun discardsWholeFrame(live: Boolean, readings: List<OttaiReading>): Boolean =
+        !live && isMisframedFrame(readings)
 
     /**
      * True when a history frame is almost certainly decoded at the wrong record width.

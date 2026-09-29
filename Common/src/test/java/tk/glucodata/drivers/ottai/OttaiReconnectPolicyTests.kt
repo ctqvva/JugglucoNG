@@ -55,33 +55,96 @@ class OttaiReconnectPolicyTests {
         assertTrue(OttaiBleManager.shouldDistrustCeiling(limit + 1))
     }
 
+    /**
+     * The count behind that distrust (noteCeilingOutcome). Only payloads the bound actually judged
+     * count, and a payload that kept anything ends the run: corruption comes in occasional frames,
+     * a wrong bound in every frame.
+     */
+    @Test
+    fun onlyConsecutiveWholePayloadRejectionsBuildTowardsDistrust() {
+        val bounded = 500
+        assertEquals(2, OttaiBleManager.ceilingFullDropsAfter(2, offered = 0, kept = 0, ceiling = bounded))
+        assertEquals(2, OttaiBleManager.ceilingFullDropsAfter(2, offered = 5, kept = 0, ceiling = Int.MAX_VALUE))
+        assertEquals(0, OttaiBleManager.ceilingFullDropsAfter(2, offered = 5, kept = 1, ceiling = bounded))
+        assertEquals(3, OttaiBleManager.ceilingFullDropsAfter(2, offered = 5, kept = 0, ceiling = bounded))
+
+        fun dropsAfter(vararg keptPerPayload: Int): Int =
+            keptPerPayload.fold(0) { drops, kept -> OttaiBleManager.ceilingFullDropsAfter(drops, 5, kept, bounded) }
+        assertTrue(OttaiBleManager.shouldDistrustCeiling(dropsAfter(0, 0, 0)))
+        // A mixed payload in between resets the run.
+        assertFalse(OttaiBleManager.shouldDistrustCeiling(dropsAfter(0, 0, 2, 0)))
+        assertEquals(1, dropsAfter(0, 0, 2, 0))
+    }
+
+    /**
+     * dataNoCeiling() is private and reads the driver's fields, so its two rules are pinned in the
+     * source (comments stripped, whitespace flattened): once distrusted it is unbounded, before
+     * anything else; otherwise only the confirmed start (materials.activeTimeMs) bounds it. The
+     * provisional or the stream anchor there is the dataNoCeiling poison: a start near "now" drops
+     * every record, and the anchor that would learn the true start is seeded downstream.
+     */
+    @Test
+    fun theCeilingIsBoundedOnlyByTheConfirmedStart() {
+        var dir: java.io.File? = java.io.File(System.getProperty("user.dir") ?: ".").absoluteFile
+        while (dir != null && !java.io.File(dir, "Common/src/main/java").isDirectory) dir = dir.parentFile
+        val source = java.io.File(dir ?: error("repo root not found"),
+            "Common/src/main/java/tk/glucodata/drivers/ottai/OttaiBleManager.kt").readText()
+        val from = source.indexOf("private fun dataNoCeiling(")
+        assertTrue(from >= 0)
+        val to = source.indexOf("private fun noteCeilingOutcome(", from)
+        assertTrue(to > from)
+        val body = source.substring(from, to)
+            .replace(Regex("/\\*[\\s\\S]*?\\*/"), " ")
+            .replace(Regex("//[^\\n]*"), " ")
+            .replace(Regex("\\s+"), " ")
+        val distrusted = body.indexOf("if (ceilingDistrusted) return Int.MAX_VALUE")
+        val bounded = body.indexOf("return dataNoCeilingFor(")
+        assertTrue("distrust must short-circuit the bound", distrusted in 0 until bounded)
+        assertEquals(1, Regex("dataNoCeilingFor\\(").findAll(body).count())
+        assertTrue(body.contains("authoritativeStartMs = materials.activeTimeMs,"))
+        for (forbidden in listOf("effectiveActiveTimeMs(", "provisionalActiveTimeMs", "streamStartTimeMs")) {
+            assertFalse("dataNoCeiling must not read $forbidden", body.contains(forbidden))
+        }
+    }
+
     private val ours = "70:D0:7E:42:4D:A2"
     private val stranger = "C0:9B:9E:60:07:37"
 
     /**
-     * Two activation starts corroborate each other when they land within
-     * CONFIRMED_START_AGREEMENT_MS. Both are (wall clock - dataNo * interval) from independent
-     * reads, so a genuine pair differs only by flooring and poll jitter, while a corrupt dataNo
-     * lands hours or days away. The commit is one-way and is the sole input the dataNo ceiling
-     * trusts, so a single frame must never be enough to write it.
+     * Two activation starts corroborate each other only when they come from different records and
+     * land within CONFIRMED_START_AGREEMENT_MS. A genuine pair differs only by flooring and poll
+     * jitter, a corrupt dataNo lands hours or days away, and one record read twice agrees with
+     * itself by construction. The commit is one-way and is the sole input the dataNo ceiling
+     * trusts, so a single record must never be enough to write it. Calls the driver's predicate
+     * rather than restating its arithmetic.
      */
     @Test
     fun activationStartsAgreeOnlyWithinACoupleOfRecords() {
         val tolerance = OttaiBleManager.CONFIRMED_START_AGREEMENT_MS
         assertEquals(2 * minute, tolerance)
 
-        // Same start seen twice, and a start one record apart: corroborated.
-        assertTrue(kotlin.math.abs(now - now) <= tolerance)
-        assertTrue(kotlin.math.abs(now - (now - minute)) <= tolerance)
+        val truthful = now - 1_600 * minute
+        val corrupt = now - 17_000 * minute
+
+        // Consecutive records whose starts agree, or sit a record apart either way after flooring.
+        assertTrue(OttaiBleManager.startsCorroborate(truthful, 1_600, truthful, 1_601))
+        assertTrue(OttaiBleManager.startsCorroborate(truthful, 1_600, truthful + minute, 1_601))
+        assertTrue(OttaiBleManager.startsCorroborate(truthful, 1_600, truthful - minute, 1_601))
+
+        // One record read twice — a notify and the poll behind it — even a minute later. A corrupt
+        // front of 17_000 arriving that way would have committed a start 10.7 days early, for good.
+        assertFalse(OttaiBleManager.startsCorroborate(corrupt, 17_000, corrupt, 17_000))
+        assertFalse(OttaiBleManager.startsCorroborate(corrupt, 17_000, corrupt + minute, 17_000))
+        assertFalse(OttaiBleManager.startsCorroborate(truthful, 1_600, truthful, 1_600))
 
         // A corrupt dataNo of 17_000 against a true one of 1_600 puts the derived starts
         // 15_400 records apart — nowhere near agreement.
-        val truthful = now - 1_600 * minute
-        val corrupt = now - 17_000 * minute
-        assertFalse(kotlin.math.abs(truthful - corrupt) <= tolerance)
+        assertFalse(OttaiBleManager.startsCorroborate(truthful, 1_600, corrupt, 17_000))
 
         // Even a modest corruption of three records fails to corroborate.
-        assertFalse(kotlin.math.abs(truthful - (truthful - 3 * minute)) <= tolerance)
+        assertFalse(OttaiBleManager.startsCorroborate(truthful, 1_600, truthful - 3 * minute, 1_601))
+        // Nothing pending yet: nothing to agree with.
+        assertFalse(OttaiBleManager.startsCorroborate(0L, -1, truthful, 1_600))
     }
 
     @Test

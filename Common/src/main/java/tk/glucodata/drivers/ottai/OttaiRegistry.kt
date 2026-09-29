@@ -32,6 +32,38 @@ import tk.glucodata.drivers.ManagedSensorUiSignals
 internal fun normalizeOttaiActiveTimeMs(value: Long): Long =
     if (value in 1L..9_999_999_999L) value * 1_000L else value
 
+/**
+ * saveMaterials' merge for the start and preheat: 0 in the incoming materials means "not known
+ * here", not "no start". The GLOBAL/SYAI cloud answers activeTime = 0 for a vendor-activated
+ * sensor and a credentials file exported before activation carries 0; writing that 0 erased a
+ * start the driver had recovered locally. A positive incoming start still replaces the stored
+ * one — unless it is a temporary material bind's own stamp
+ * ([OttaiCloudClient.activeTimeOutsideTemporaryBind]), which an imported file could otherwise
+ * bring back. The stored start is kept as it is: toMaterials and this merge keep the stamp out of
+ * it, and a stored start that merely postdates the bind belongs to a sensor activated after it —
+ * clearing that could leave both start slots empty and have the wizard offer to activate it.
+ */
+internal fun mergeOttaiLifetimeFields(
+    existing: OttaiRegistry.DeviceMaterials,
+    incoming: OttaiRegistry.DeviceMaterials,
+    temporaryBindAtMs: Long,
+): OttaiRegistry.DeviceMaterials {
+    fun known(startMs: Long): Long? = OttaiCloudClient
+        .activeTimeOutsideTemporaryBind(normalizeOttaiActiveTimeMs(startMs), temporaryBindAtMs)
+        .takeIf { it > 0L }
+    return incoming.copy(
+        activeTimeMs = known(incoming.activeTimeMs) ?: existing.activeTimeMs,
+        preheatPeriodMs = incoming.preheatPeriodMs.takeIf { it > 0L } ?: existing.preheatPeriodMs,
+    )
+}
+
+/**
+ * The accepted maxActive importJson keeps: the file's when it carries a usable one, otherwise the
+ * stored one. A file exported before activation, or by an older build, says nothing about it.
+ */
+internal fun acceptedMaxActiveAfterImport(fileValueMs: Long, storedMs: Long): Long =
+    OttaiConstants.sanitizeActiveExpireMs(fileValueMs).takeIf { it > 0L } ?: storedMs
+
 object OttaiRegistry {
 
     enum class SessionProfile {
@@ -42,6 +74,10 @@ object OttaiRegistry {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val PREF_DRAFT_SENSORS_KEY = "ottai_draft_sensors"
     private const val PREF_V3_BOOTSTRAP_PENDING_PREFIX = "ottai_v3_bootstrap_pending_"
+    // When this app first bound a sensor temporarily for its materials. Deliberately not in
+    // removeSensor's wipe list: remove + re-add is when a cloud read can bring that bind's
+    // activeTime stamp back.
+    private const val PREF_TEMP_BIND_AT_PREFIX = "ottai_temp_bind_at_"
     private const val CN_COMMON_DEVICE_ID_LENGTH = 32
     private const val CN_COMMON_DEVICE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     private const val CN_COMMON_NATIVE_PREFIX = "n:"
@@ -76,8 +112,23 @@ object OttaiRegistry {
     ) {
         val authKeys: List<ByteArray>? get() = OttaiCrypto.parseAuthKeys(keyAHex)
         val coefficients: List<Double>
-            get() = coefficient.split(',').mapNotNull { it.trim().toDoubleOrNull() }
+            get() = parseCoefficients(coefficient)
         val hasAll: Boolean get() = keyAHex.isNotBlank() && method.isNotBlank() && activeTimeMs > 0L
+    }
+
+    /**
+     * The cloud's coefficient CSV, index for index: C{i} in the method is the i-th token, so a
+     * token dropped from the middle shifts every later coefficient and gives a plausible but
+     * wrong glucose. Any empty, unparsable or non-finite token therefore voids the whole set,
+     * except one trailing empty token (a trailing comma), which shifts nothing. With the set void the method
+     * names a coefficient that has no value, and OttaiFormula refuses the reading: no readings
+     * until the cloud sends a valid set, never readings from a shifted one (owner decision,
+     * 2026-09-23).
+     */
+    internal fun parseCoefficients(csv: String): List<Double> {
+        val tokens = csv.split(',').map { it.trim() }
+        val kept = if (tokens.size > 1 && tokens.last().isEmpty()) tokens.dropLast(1) else tokens
+        return kept.map { token -> token.toDoubleOrNull()?.takeIf { it.isFinite() } ?: return emptyList() }
     }
 
     private fun prefs(c: Context): SharedPreferences =
@@ -120,6 +171,40 @@ object OttaiRegistry {
         return normalized
     }
 
+    /** Null when nothing has ever been stored for the runtime backend (clean install). */
+    internal fun loadStoredApiBaseOrNull(c: Context): String? =
+        storedApiBaseOrNull(prefs(c).getString(OttaiConstants.PREF_API_BASE, null))
+
+    /** Null until a sign-in has succeeded on this install. Written only by [saveApiBase]. */
+    internal fun loadLoginApiBaseOrNull(c: Context): String? =
+        storedApiBaseOrNull(prefs(c).getString(OttaiConstants.PREF_LOGIN_API_BASE, null))
+
+    internal fun storedApiBaseOrNull(stored: String?): String? =
+        stored?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Unsigned setup opens on Ottai Global unless an earlier sign-in says which region to reopen.
+     *
+     * [loginApiBase] is only ever written by a successful sign-in, so it is a real choice and is
+     * honoured for all three regions. [storedApiBase] is the runtime backend and is NOT evidence of
+     * a choice: every sign-out up to 2026-08-18 stamped the CN host into it, and that legacy value
+     * cannot be told apart from a deliberate CN account — so CN there is ignored in favour of
+     * Global. A non-CN host could only have been written by a non-CN sign-in, so it is still
+     * trusted, which keeps a Syai user who signed out before this key existed on Syai.
+     *
+     * The production entry point. Both preferences are plain nullable hosts, so a call site that
+     * read them itself could silently swap them; only the resolver below takes them apart.
+     */
+    internal fun wizardApiBaseForUnsigned(c: Context): String =
+        wizardApiBaseForUnsigned(loadLoginApiBaseOrNull(c), loadStoredApiBaseOrNull(c))
+
+    internal fun wizardApiBaseForUnsigned(loginApiBase: String?, storedApiBase: String?): String {
+        storedApiBaseOrNull(loginApiBase)?.let { return normalizeApiBase(it) }
+        val stored = storedApiBaseOrNull(storedApiBase) ?: return OttaiConstants.API_BASE_GLOBAL
+        val normalized = normalizeApiBase(stored)
+        return if (normalized == OttaiConstants.API_BASE) OttaiConstants.API_BASE_GLOBAL else normalized
+    }
+
     internal fun normalizeApiBase(stored: String?): String {
         val trimmed = stored?.trim()
         return when (trimmed) {
@@ -129,8 +214,37 @@ object OttaiRegistry {
         }
     }
 
+    /**
+     * Every caller is a sign-in that just succeeded, so the same host is also remembered as the
+     * region to reopen setup on once the user signs out again ([wizardApiBaseForUnsigned]).
+     */
     @JvmStatic fun saveApiBase(c: Context, v: String) {
+        prefs(c).edit()
+            .putString(OttaiConstants.PREF_API_BASE, v)
+            .putString(OttaiConstants.PREF_LOGIN_API_BASE, v)
+            .apply()
+    }
+
+    /**
+     * Runtime backend only. For the one place that persists a token the wizard does not treat as
+     * signed in (a web JWT without the decrypt root) — that host must keep serving the session's
+     * cloud calls without becoming the region setup reopens on.
+     */
+    internal fun saveRuntimeApiBase(c: Context, v: String) {
         prefs(c).edit().putString(OttaiConstants.PREF_API_BASE, v).apply()
+    }
+
+    /**
+     * Whether logout must backfill the sign-in region for a session older than the key itself.
+     * A token can only come from a real sign-in, and every sign-in wrote the runtime host it used —
+     * whereas the legacy CN stamp that pre-2026-08-18 logouts left behind has no token next to it.
+     */
+    internal fun shouldBackfillLoginApiBaseOnLogout(loginApiBase: String?, accessToken: String): Boolean =
+        storedApiBaseOrNull(loginApiBase) == null && accessToken.isNotBlank()
+
+    /** Sign-ins write the key via [saveApiBase]; this is only the logout backfill for pre-key sessions. */
+    internal fun saveLoginApiBase(c: Context, v: String) {
+        prefs(c).edit().putString(OttaiConstants.PREF_LOGIN_API_BASE, v).apply()
     }
 
     /** Missing means a legacy token issued to the recovered watch client. Never relabel tokens. */
@@ -377,6 +491,24 @@ object OttaiRegistry {
 
     @JvmStatic
     fun removeSensor(context: Context, sensorId: String?) {
+        removeSensor(context, sensorId) { canonical ->
+            finishRemovedNativeMirror(
+                canonical,
+                persistedRecords(context),
+                { Natives.activeSensors() },
+                { Natives.getdataptr(it) },
+                { Natives.finishSensor(it) },
+                { Natives.freedataptr(it) },
+            )
+        }
+    }
+
+    /**
+     * [removeSensor] with its native step injected, so the removal runs on the JVM. [finishMirror]
+     * gets the canonical id before any record is dropped, which is when the public overload reads
+     * the records it hands to [finishRemovedNativeMirror].
+     */
+    internal fun removeSensor(context: Context, sensorId: String?, finishMirror: (canonical: String) -> Unit) {
         val id = sensorId?.trim() ?: return
         val canonical = OttaiConstants.canonicalSensorId(id).ifEmpty { id }
         // When this sensor started is the one fact removal must not destroy. It takes a BLE
@@ -392,6 +524,16 @@ object OttaiRegistry {
         val recoveredStartMs = loadMaterials(context, canonical).activeTimeMs
             .takeIf { it > 0L }
             ?: loadProvisionalActiveTime(context, canonical)
+        // The driver mirrors readings into a native sensor shell (ensureNativePresenceShell), and
+        // that shell stays in Natives.activeSensors() after the record below is gone. The next
+        // updateDevices() then finds an active native sensor no driver owns and gives it a Libre2
+        // callback scanning for fde3: the "Disconnected" card that took a second Disconnect to
+        // clear (2026-09-22). Finish it before the record goes, so there is no
+        // moment with an active shell and no record. The records are read when finishMirror runs,
+        // before the drop, so finishRemovedNativeMirror can tell a real removal from an alias that
+        // removes nothing.
+        runCatching { finishMirror(canonical) }
+            .onFailure { Log.stack(TAG, "removeSensor(finishNativeMirror)", it) }
         writeRecords(context, persistedRecords(context).filter { !it.matchesId(canonical) })
         writeRecords(
             context,
@@ -406,8 +548,9 @@ object OttaiRegistry {
                 OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX, OttaiConstants.PREF_RETAIN_TIME_PREFIX,
                 // PREF_ACCEPTED_MAX_ACTIVE is deliberately NOT in this list: it is the lifetime
                 // the sensor itself accepted at activation, kept for the same reason as the start
-                // below. Dropping it sends an extended 28-day unit back to the 15-day rated
-                // default, which reads as EXPIRED partway through a working sensor.
+                // below. Dropping it sends an extended 28-day unit back to the cloud rating, which
+                // reads as EXPIRED partway through a working sensor. The cursor (PREF_LAST_DATA_NO)
+                // is cleared below on purpose.
                 OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX,
                 OttaiConstants.PREF_DEVICE_VERSION_PREFIX, OttaiConstants.PREF_LAST_DATA_NO_PREFIX,
                 OttaiConstants.PREF_DEVICE_ID_PREFIX, OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX,
@@ -422,6 +565,97 @@ object OttaiRegistry {
         saveProvisionalActiveTime(context, canonical, recoveredStartMs)
     }
 
+    // Held only around a driver's JNI calls on an Ottai shell (unlessReleased), which take no Java
+    // lock: restore paths reach it while holding gattcallbacks or SensorBluetooth's monitor, so a
+    // holder that took either would deadlock them. The removal only waits on it as a barrier
+    // (finishRemovedNativeMirror): its getdataptr can call back into the adapters, which take
+    // gattcallbacks.
+    // ponytail: one lock for every Ottai sensor; only one streams at a time in practice and a
+    // finish is a user tap. Per-id locks if two ever stream at once and contend.
+    internal val nativeShellLock = Any()
+
+    /**
+     * Runs a driver's native call on its shell unless [released] says the driver was torn down,
+     * and decides that under [nativeShellLock]. Every such call goes through
+     * ensureDirectStreamShell, which revives a finished shell (reactivateFromData), so a check
+     * made outside the lock is check-then-act: a reading already past it when the user removed
+     * the sensor could land after [removeSensor] finished the shell and bring the Libre2 ghost
+     * back. removeDevice sets released (free() -> onTerminalFree) before it removes the record,
+     * so a call either completes before the finish or sees released and does nothing.
+     */
+    internal inline fun <T> unlessReleased(released: () -> Boolean, skipped: T, call: () -> T): T =
+        synchronized(nativeShellLock) { if (released()) skipped else call() }
+
+    /**
+     * [removeSensor]'s native step, apart so it runs on the JVM. [records] is the persisted list
+     * before this removal drops anything.
+     *
+     * Only when the removal really drops a record: an alias that removes nothing here must not
+     * retire a shell whose record stays. It first waits on [nativeShellLock] as a barrier, so a
+     * driver write already past its released check lands before the finish, never after it
+     * ([unlessReleased]). The lock is not held across the finish itself: getdataptr can call back
+     * into the identity adapters, which take gattcallbacks, while updateDevicers holds
+     * gattcallbacks and restores an Ottai manager that needs this lock. Released is set before
+     * the record goes (removeDevice: free() -> onTerminalFree), so once the barrier is passed the
+     * released manager writes nothing more. A manager that is not released is not covered, as it
+     * was not before: one updateDevicers restores from the record not yet dropped, or the
+     * WearSync2 order, which drops the record before it frees the manager.
+     */
+    internal fun finishRemovedNativeMirror(
+        canonical: String,
+        records: List<SensorRecord>,
+        activeSensors: () -> Array<String>?,
+        getdataptr: (String) -> Long,
+        finishSensor: (Long) -> Unit,
+        freedataptr: (Long) -> Unit,
+    ): Boolean {
+        if (records.none { it.matchesId(canonical) }) return false
+        synchronized(nativeShellLock) {
+            // Barrier only: wait out a write that is already inside unlessReleased.
+        }
+        return finishNativeMirror(canonical, activeSensors(), getdataptr, finishSensor, freedataptr)
+    }
+
+    /**
+     * Finishes [sensorId]'s native shell: finished, not removed. The stored readings stay, and a
+     * re-add of the same sensor revives the shell on its first write (ensureDirectStreamShell ->
+     * reactivateFromData), which a removed-by-user mark would refuse for good. Same trap, same
+     * cure as SibionicsRegistry.finishNativeMirror.
+     *
+     * Only a shell already listed as active is opened: getdataptr can create a shell for an id it
+     * does not know, and a sensor that never had one must not get one on its way out.
+     * activeSensors() lists short names, which drop the first five characters of the full one.
+     */
+    internal fun finishNativeMirror(
+        sensorId: String,
+        activeSensors: Array<String>?,
+        getdataptr: (String) -> Long,
+        finishSensor: (Long) -> Unit,
+        freedataptr: (Long) -> Unit,
+    ): Boolean {
+        val shortName = sensorId.drop(5)
+        val active = activeSensors.orEmpty().any {
+            it.equals(sensorId, ignoreCase = true) ||
+                (shortName.isNotEmpty() && it.equals(shortName, ignoreCase = true))
+        }
+        if (!active) return false
+        val streamPtr = getdataptr(sensorId)
+        if (streamPtr == 0L) {
+            Log.w(TAG, "native mirror of $sensorId is active but could not be opened")
+            return false
+        }
+        return try {
+            finishSensor(streamPtr)
+            Log.i(TAG, "finished native mirror of $sensorId")
+            true
+        } catch (t: Throwable) {
+            Log.stack(TAG, "finishNativeMirror($sensorId)", t)
+            false
+        } finally {
+            freedataptr(streamPtr)
+        }
+    }
+
     // ---- per-sensor materials ----
 
     @JvmStatic
@@ -429,6 +663,7 @@ object OttaiRegistry {
         val id = resolveCanonicalSensorId(context, sensorId)
             ?: OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
         val existing = loadMaterials(context, id)
+        val lifetime = mergeOttaiLifetimeFields(existing, m, loadTemporaryBindAtMs(context, id))
         val coefficient = m.coefficient.ifBlank { existing.coefficient }
         val method = OttaiMethodDefaults.resolve(m.method.ifBlank { existing.method }, coefficient)
         val activeExpireTimeMs = OttaiConstants.sanitizeActiveExpireMs(m.activeExpireTimeMs)
@@ -436,17 +671,16 @@ object OttaiRegistry {
             putString(OttaiConstants.PREF_KEYA_PREFIX + id, m.keyAHex)
             putString(OttaiConstants.PREF_METHOD_PREFIX + id, method)
             putString(OttaiConstants.PREF_COEFF_PREFIX + id, coefficient)
-            putLong(
-                OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id,
-                normalizeOttaiActiveTimeMs(m.activeTimeMs),
-            )
+            putLong(OttaiConstants.PREF_ACTIVE_TIME_PREFIX + id, lifetime.activeTimeMs)
             if (activeExpireTimeMs > 0L) {
                 putLong(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id, activeExpireTimeMs)
             } else {
                 remove(OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX + id)
             }
+            // retainTimeMs stays as sent: it feeds the activation's destruction write, whose
+            // default for an omitted value mirrors the official app.
             putLong(OttaiConstants.PREF_RETAIN_TIME_PREFIX + id, m.retainTimeMs)
-            putLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, m.preheatPeriodMs)
+            putLong(OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX + id, lifetime.preheatPeriodMs)
             putString(OttaiConstants.PREF_DEVICE_VERSION_PREFIX + id, m.deviceVersion)
             putInt(OttaiConstants.PREF_DEVICE_ID_PREFIX + id, m.deviceId)
         }.commit()
@@ -575,6 +809,24 @@ object OttaiRegistry {
         prefs(c).edit().putBoolean(OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX + OttaiConstants.canonicalSensorId(id), v).apply()
     }
 
+    /**
+     * When this app wrote the activation command, or 0 — see OttaiBleManager.warmupAnchorMs. Kept
+     * apart from the provisional slot, which cgm-info also writes.
+     */
+    @JvmStatic fun loadActivationCommandAt(c: Context, id: String): Long =
+        prefs(c).getLong(OttaiConstants.PREF_ACTIVATION_COMMAND_AT_PREFIX + OttaiConstants.canonicalSensorId(id), 0L)
+    @JvmStatic fun saveActivationCommandAt(c: Context, id: String, atMs: Long) {
+        prefs(c).edit().putLong(OttaiConstants.PREF_ACTIVATION_COMMAND_AT_PREFIX + OttaiConstants.canonicalSensorId(id), atMs).apply()
+    }
+    @JvmStatic fun loadActivateCommandIssued(c: Context, id: String): Boolean =
+        prefs(c).getBoolean(OttaiConstants.PREF_ACTIVATE_CMD_ISSUED_PREFIX + OttaiConstants.canonicalSensorId(id), false)
+
+    @JvmStatic fun saveActivateCommandIssued(c: Context, id: String, issued: Boolean): Boolean =
+        prefs(c).edit().putBoolean(
+            OttaiConstants.PREF_ACTIVATE_CMD_ISSUED_PREFIX + OttaiConstants.canonicalSensorId(id),
+            issued,
+        ).commit()
+
     @JvmStatic
     fun isV3CredentialBootstrapPending(c: Context, id: String): Boolean =
         prefs(c).getBoolean(
@@ -589,6 +841,18 @@ object OttaiRegistry {
             if (pending) putBoolean(key, true) else remove(key)
         }.apply()
     }
+
+    /**
+     * When this app first bound [id] temporarily for its materials, or 0. Kept after the binding is
+     * released: nothing shows the server drops the activeTime stamp that bind wrote. See
+     * OttaiCloudClient.activeTimeOutsideTemporaryBind.
+     */
+    @JvmStatic fun loadTemporaryBindAtMs(c: Context, id: String): Long =
+        prefs(c).getLong(PREF_TEMP_BIND_AT_PREFIX + OttaiConstants.canonicalSensorId(id), 0L)
+
+    /** Written with commit(): the caller sends the bind only once this returned true. */
+    @JvmStatic fun saveTemporaryBindAtMs(c: Context, id: String, atMs: Long): Boolean =
+        prefs(c).edit().putLong(PREF_TEMP_BIND_AT_PREFIX + OttaiConstants.canonicalSensorId(id), atMs).commit()
 
     @JvmStatic fun loadLastDataNo(c: Context, id: String): Int =
         prefs(c).getInt(OttaiConstants.PREF_LAST_DATA_NO_PREFIX + OttaiConstants.canonicalSensorId(id), -1)
@@ -730,7 +994,11 @@ object OttaiRegistry {
 
     @JvmStatic
     fun exportJson(context: Context, sensorId: String): String? {
-        val canonical = OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
+        // Resolve once, as loadMaterials does: keyA, start and accepted lifetime must come from one
+        // record, or a short-id/full-MAC duplicate exports one record's start with the other's
+        // lifetime.
+        val requested = OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
+        val canonical = resolveCanonicalSensorId(context, requested) ?: requested
         val record = findRecord(context, canonical)
             ?: findDraftRecord(context, canonical)
             ?: SensorRecord(canonical, "", OttaiConstants.DEFAULT_DISPLAY_NAME)
@@ -738,7 +1006,9 @@ object OttaiRegistry {
         if (m.keyAHex.isBlank()) return null
         return org.json.JSONObject().apply {
             put("v", 1)
-            put("sensorId", canonical)
+            // The importer connects and signs its auth with this id, so it stays a MAC even when
+            // the record resolved to a legacy short id.
+            put("sensorId", canonical.takeIf { OttaiConstants.looksLikeMac(it) } ?: requested)
             put("bleAddress", record.address)
             put("displayName", record.displayName)
             put("keyAHex", m.keyAHex)
@@ -786,11 +1056,17 @@ object OttaiRegistry {
                 deviceId = o.optInt("deviceId", 0),
             ),
         )) return null
-        // Older exports carry provisionalActiveTimeMs; ignore it rather than adopting another
-        // device's guess as this one's activation start. A local live anchor establishes the real
-        // start here, and until it does, no start beats a wrong one.
-        saveProvisionalActiveTime(context, id, 0L)
-        saveAcceptedMaxActive(context, id, o.optLong("acceptedMaxActiveMs", 0L))
+        // Older exports carry provisionalActiveTimeMs; this function does not read it, since another
+        // device's guess is not this one's start. Nor does it clear the local one: a file without a
+        // start says nothing about it (removeSensor parks a recovered start there), and a stored
+        // start is read before it (restoreFromPersistence, the wizard, removeSensor).
+        // The accepted lifetime is keyed by the id the driver runs under: the resolved record.
+        val target = resolveCanonicalSensorId(context, id) ?: id
+        saveAcceptedMaxActive(
+            context,
+            target,
+            acceptedMaxActiveAfterImport(o.optLong("acceptedMaxActiveMs", 0L), loadAcceptedMaxActive(context, target)),
+        )
         return id
     }
 
@@ -858,6 +1134,10 @@ object OttaiRegistry {
             // fresh sensor and closes its GATT before the first connection callback.
             setActivationAttempted(context, canonical, true)
             OttaiBleManager.activateRequestedFor = canonical
+            OttaiBleManager.advancedActivateRequestedFor = null
+            (SensorBluetooth.gattcallbacks.firstOrNull { cb ->
+                (cb as? OttaiBleManager)?.matchesManagedSensorId(canonical) == true
+            } as? OttaiBleManager)?.noteNewUserActivationGesture(advanced = false)
         }
         val stableId = addSensor(
             context,
@@ -890,6 +1170,8 @@ object OttaiRegistry {
      * not added to SensorBluetooth.gattcallbacks and no managed record is written: only a draft
      * address exists until cgmAuth + bindV3 have produced usable materials.
      */
+    // BluetoothAdapter.getDefaultAdapter(): the fallback when no BluetoothManager is reachable; minSdk 26
+    @Suppress("DEPRECATION")
     fun startV3CredentialBootstrap(
         context: Context,
         sensorId: String,
@@ -938,6 +1220,8 @@ object OttaiRegistry {
         connectSensor(context, sensorId, awaitFreshActivationAdvertisement = false)
     }
 
+    // BluetoothAdapter.getDefaultAdapter(): the fallback when no BluetoothManager is reachable; minSdk 26
+    @Suppress("DEPRECATION")
     private fun connectSensor(
         context: Context,
         sensorId: String,
@@ -990,11 +1274,14 @@ object OttaiRegistry {
         val canonical = OttaiConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
         setActivationAttempted(context, canonical, true)
         OttaiBleManager.activateRequestedFor = canonical
+        OttaiBleManager.advancedActivateRequestedFor = canonical
         val mgr = SensorBluetooth.gattcallbacks.firstOrNull { cb ->
             (cb as? OttaiBleManager)?.matchesManagedSensorId(canonical) == true
         } as? OttaiBleManager
-        // The Advanced "Activate" is an explicit user action — force it so it can also
-        // attempt to re-arm/extend an already-started or expired (cmd>3) sensor.
+        mgr?.noteNewUserActivationGesture(advanced = true)
+        // Advanced "Activate" is an explicit re-arm. requestForceActivation only bypasses the
+        // already-started guard; the Issued-0x03 write gate is the Advanced-only flag above,
+        // not forceActivationRequested (leftover 0–2 first-use also posted that helper).
         if (mgr != null && mgr.requestForceActivation()) return true
         connectSensor(context, canonical, awaitFreshActivationAdvertisement = true)
         return false

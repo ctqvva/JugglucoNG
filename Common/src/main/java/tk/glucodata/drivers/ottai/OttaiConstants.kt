@@ -207,6 +207,36 @@ object OttaiConstants {
     fun sanitizeActiveExpireMs(value: Long): Long =
         value.takeIf { it in MIN_ACTIVE_EXPIRE_MS..MAX_ACTIVE_EXPIRE_MS } ?: 0L
 
+    /**
+     * Poll records to create an Ottai native shell with. Geometry is fixed when the shell is first
+     * built. Its start is the creation instant and only ever moves earlier, while records are dated
+     * from the confirmed start (58 s later on 2026-09-22), so a record's poll index can exceed its
+     * dataNo by a minute and a shell exactly one lifetime long refuses the last record. Cover the
+     * longest of the lifetime this app requests, the accepted one and the cloud rating (the
+     * official app writes the rating, and the first shell-creating calls on a connection run before
+     * the maxActive readback), rounded up, plus a day.
+     */
+    @JvmStatic
+    fun nativeShellRecords(acceptedMaxActiveMs: Long, cloudActiveExpireMs: Long): Int {
+        val dayMs = 24L * 3600L * 1000L
+        val lifetimeMs = maxOf(
+            EXTENDED_LIFETIME_MS,
+            sanitizeActiveExpireMs(acceptedMaxActiveMs),
+            sanitizeActiveExpireMs(cloudActiveExpireMs),
+        )
+        return (((lifetimeMs + dayMs - 1L) / dayMs + 1L) * 24L * 60L).toInt()
+    }
+
+    /**
+     * Records the firmware produces over the accepted lifetime (one a minute), or 0 while it is
+     * unknown. The capacity warning measures the mapping against the lifetime itself, not against
+     * [nativeShellRecords]: a shell rebuilt from wearduration2 has no spare and can still lose its
+     * final record to the start offset, which is why new shells are asked for a day more.
+     */
+    @JvmStatic
+    fun nativeLifetimeRecords(acceptedMaxActiveMs: Long): Int =
+        ((sanitizeActiveExpireMs(acceptedMaxActiveMs) + 59_999L) / 60_000L).toInt()
+
     @JvmStatic
     fun activationMaxActiveCandidatesMs(cloudActiveExpireMs: Long): List<Long> {
         val cloudMs = sanitizeActiveExpireMs(cloudActiveExpireMs)
@@ -221,18 +251,22 @@ object OttaiConstants {
         return candidates.distinct()
     }
 
+    /**
+     * Lifetime the sensor end, the countdown and the expiry warnings are measured against: the
+     * maxActive the firmware accepted, then the cloud rating, then 15 days.
+     *
+     * The firmware enforces exactly the value it accepted. On the field a unit written with 25 days
+     * ran 24.999 and two written with 28 ran 27.999 and past day 19, under a 14-day cloud rating
+     * each time; the one unit seen to stop on day 15 carried the official 15 d 30 min. The cloud
+     * rating is what the account plan rates a sensor at, not what it runs, so it only stands in
+     * while the firmware value is unknown — and the driver reads that value back off the sensor
+     * (CHAR_MAX_ACTIVE_TIME) each time a connection finds it streaming (status 3).
+     */
     @JvmStatic
     fun expectedLifetimeMs(cloudActiveExpireMs: Long, acceptedMaxActiveMs: Long): Long =
         sanitizeActiveExpireMs(acceptedMaxActiveMs).takeIf { it > 0L }
             ?: sanitizeActiveExpireMs(cloudActiveExpireMs).takeIf { it > 0L }
             ?: DEFAULT_ACTIVE_EXPIRE_MS
-
-    @JvmStatic
-    fun shouldAttemptEndedSensorRecovery(commandStatus: Int, activeTimeMs: Long, nowMs: Long): Boolean =
-        commandStatus == 4 &&
-            activeTimeMs > 0L &&
-            nowMs >= activeTimeMs &&
-            nowMs < activeTimeMs + EXTENDED_LIFETIME_MS
 
     /** Sensor command state is authoritative; cloud/provisional timestamps are not. */
     fun commandNeedsActivation(commandStatus: Int): Boolean = commandStatus in 0..2
@@ -241,10 +275,200 @@ object OttaiConstants {
     fun shouldStartActivation(commandStatus: Int, explicitlyRequested: Boolean): Boolean =
         explicitlyRequested && commandNeedsActivation(commandStatus)
 
+    /**
+     * Setup Connect may arm [activateRequestedFor] without immediately force-writing.
+     * Wizard Connect always passes [activate]=false so the command byte decides.
+     */
+    fun setupConnectArmsActivation(activate: Boolean, activateIfNeeded: Boolean): Boolean =
+        activate || activateIfNeeded
+
+    fun setupConnectForcesImmediateActivation(activate: Boolean): Boolean = activate
+
+    /**
+     * Draft BLE address after a material fetch. A scanned colon MAC that is not the cloud id,
+     * or an existing draft that already holds such a radio, wins. [macWithColons] of the cloud
+     * id is only the last resort — never overwrite a non-cloud draft when the scan is absent.
+     */
+    @JvmStatic
+    fun isNonCloudColonBle(address: String?, cloudId: String): Boolean {
+        val normalized = normalizeBleAddress(address, allowPlain = false) ?: return false
+        val cloud = canonicalSensorId(cloudId)
+        if (cloud.isEmpty()) return true
+        return !canonicalSensorId(normalized).equals(cloud, ignoreCase = true)
+    }
+
+    @JvmStatic
+    fun draftBleAddressForMaterials(
+        scannedBle: String?,
+        existingDraftBle: String?,
+        cloudId: String,
+    ): String {
+        normalizeBleAddress(scannedBle, allowPlain = false)
+            ?.takeIf { isNonCloudColonBle(it, cloudId) }
+            ?.let { return it }
+        normalizeBleAddress(existingDraftBle, allowPlain = false)
+            ?.takeIf { isNonCloudColonBle(it, cloudId) }
+            ?.let { return it }
+        return macWithColons(cloudId)
+    }
+
+    /**
+     * Cache-hit fetch may persist a real radio (scan or existing non-cloud draft).
+     * It must not recreate last-resort cloud-id-as-address after Connect deleted the draft.
+     * Post-cloud fetch may still write that last resort when no radio exists yet.
+     */
+    @JvmStatic
+    fun shouldPersistMaterialsDraftAddress(
+        resolvedAddress: String,
+        cloudId: String,
+        allowCloudIdFallback: Boolean,
+    ): Boolean = isNonCloudColonBle(resolvedAddress, cloudId) || allowCloudIdFallback
+
+    /**
+     * Connect prefers Compose, then a non-cloud draft radio, then the managed record,
+     * then a leftover cloud-id draft, then [macWithColons]. A poisoned draft must not
+     * overwrite a managed radio.
+     */
+    @JvmStatic
+    fun connectBleAddress(
+        composeBle: String?,
+        draftBle: String?,
+        managedBle: String?,
+        cloudId: String,
+    ): String {
+        val compose = normalizeBleAddress(composeBle, allowPlain = false)
+        val draft = normalizeBleAddress(draftBle, allowPlain = false)
+        val managed = normalizeBleAddress(managedBle, allowPlain = false)
+        return compose
+            ?: draft?.takeIf { isNonCloudColonBle(it, cloudId) }
+            ?: managed
+            ?: draft
+            ?: macWithColons(cloudId)
+    }
+
     fun shouldRescanPendingSetupActivation(
         commandStatus: Int,
         explicitlyRequested: Boolean,
-    ): Boolean = commandStatus < 0 && explicitlyRequested
+        commandByteSeenThisAttempt: Boolean = false,
+    ): Boolean = commandStatus < 0 && explicitlyRequested && !commandByteSeenThisAttempt
+
+    /**
+     * After 0x03 was Issued, wizard Connect / automatic resume must not enter RTC/maxActive/0x03.
+     * Only the Advanced-only gesture may, and only while the byte is still 0–2.
+     */
+    fun mayEnterActivationWrites(
+        commandStatus: Int,
+        activateCommandIssued: Boolean,
+        advancedActivate: Boolean,
+    ): Boolean {
+        if (!commandNeedsActivation(commandStatus)) return false
+        if (activateCommandIssued && !advancedActivate) return false
+        return true
+    }
+
+    fun shouldScheduleFirstUseActivation(
+        commandStatus: Int,
+        explicitlyRequested: Boolean,
+        activateCommandIssued: Boolean,
+        advancedActivate: Boolean,
+        activationInFlight: Boolean,
+        activationBusy: Boolean,
+    ): Boolean {
+        if (activateCommandIssued && !advancedActivate) return false
+        if (activationInFlight || activationBusy) return false
+        return shouldStartActivation(commandStatus, explicitlyRequested || advancedActivate)
+    }
+
+    fun shouldResumeLifetimeNegotiation(
+        activateCommandIssued: Boolean,
+        activationNegotiationActive: Boolean,
+        activationRetryPending: Boolean,
+        activationBusy: Boolean,
+    ): Boolean = !activateCommandIssued &&
+        activationNegotiationActive &&
+        activationRetryPending &&
+        !activationBusy
+
+    fun shouldReconnectToResumeActivation(
+        activateCommandIssued: Boolean,
+        activationNegotiationActive: Boolean,
+        activationRetryPending: Boolean,
+        hasCandidates: Boolean,
+        activationInFlight: Boolean,
+    ): Boolean = !activateCommandIssued &&
+        activationNegotiationActive &&
+        (activationRetryPending || hasCandidates || activationInFlight)
+
+    fun shouldScanForActivationCandidateOn147(
+        resumeActivation: Boolean,
+        activationRetryPending: Boolean,
+        gattStatus: Int,
+    ): Boolean = resumeActivation && activationRetryPending && gattStatus == 147
+
+    /**
+     * maxActive was already GATT-accepted and 0x03 has not been Issued. A drop before 0x03
+     * must resume at destruction, not rewrite the lifetime: a NACK on that replay walks the
+     * 30→15 ladder down and shortens the sensor.
+     */
+    fun shouldSkipToPostLifetimeWrites(
+        activateCommandIssued: Boolean,
+        maxActiveAccepted: Boolean,
+    ): Boolean = !activateCommandIssued && maxActiveAccepted
+
+    /**
+     * setSensorWearDays on an id with no shell creates one, and a shell created with no start
+     * stamps "now". Native only ever moves a start earlier, so that call before 0x03 pins the
+     * poll index to the maxActive accept instead of the activation. Touch native only once a
+     * start exists, or once a shell was already sized from one.
+     */
+    fun wearUpdateMayTouchNativeShell(startMs: Long, shellAlreadySized: Boolean): Boolean =
+        shellAlreadySized || startMs > 0L
+
+    fun shouldBeginActivationNegotiation(
+        activationNegotiationActive: Boolean,
+        candidatesEmpty: Boolean,
+    ): Boolean = !activationNegotiationActive || candidatesEmpty
+
+    fun staleActivationStartShouldFailClosed(
+        requestStarted: Boolean,
+        hasLiveAuthenticatedGatt: Boolean,
+        mayEnterWrites: Boolean,
+    ): Boolean = !requestStarted && hasLiveAuthenticatedGatt && mayEnterWrites
+
+    fun shouldIgnoreAlreadyStartedActivation(
+        forceActivation: Boolean,
+        advancedActivate: Boolean,
+        hasOfficialStart: Boolean,
+    ): Boolean = !forceActivation && !advancedActivate && hasOfficialStart
+
+    fun autoFailClosedBeforeActivationAck(
+        commandNeedsActivation: Boolean,
+        activateCommandIssued: Boolean,
+        activationCommandSentAtMs: Long,
+        waitingForActivateCommandAck: Boolean,
+    ): Boolean = commandNeedsActivation &&
+        activateCommandIssued &&
+        activationCommandSentAtMs <= 0L &&
+        waitingForActivateCommandAck
+
+    fun isActivationLinkLossWriteStatus(gattStatus: Int): Boolean =
+        gattStatus == 8 || gattStatus == 19 || gattStatus == 22 ||
+            gattStatus == 133 || gattStatus == 147
+
+    fun writeErrorShouldFailActivation(
+        actStepActive: Boolean,
+        actStepIsActivateCommand: Boolean,
+        gattStatus: Int,
+    ): Boolean {
+        if (!actStepActive) return false
+        if (isActivationLinkLossWriteStatus(gattStatus)) return actStepIsActivateCommand
+        return true
+    }
+
+    fun shouldRetryMaxActiveOnWriteError(gattStatus: Int): Boolean =
+        !isActivationLinkLossWriteStatus(gattStatus)
+
+    fun setupConnectingShouldReturnToSensor(activationFailed: Boolean): Boolean = activationFailed
 
     /** CN Ottai and Syai sensors need a physical NFC field wake around activation attempts. */
     fun requiresNfcActivationWake(apiBase: String): Boolean =
@@ -257,9 +481,9 @@ object OttaiConstants {
      * persisting the candidate.
      *
      * [allowNameMatch] governs the name-only fallback, which exists solely for the
-     * address-changed case. It admits ANY advertisement whose name contains "ottai" —
-     * including a stranger's sensor in range — so callers must disable it once this
-     * sensor's own address is known to be stable (i.e. it is already activated).
+     * address-changed case. It admits ANY advertisement whose name contains "ottai"
+     * or "syai" — including a stranger's sensor in range — so callers must disable it
+     * once this sensor's own address is known to be stable (i.e. it is already activated).
      * Otherwise the manager retargets its transport at every neighbouring Ottai in turn,
      * each one failing the auth-signature check, and never reaches its own sensor.
      */
@@ -300,10 +524,94 @@ object OttaiConstants {
         val expected = normalizeBleAddress(expectedAddress, allowPlain = false)
         if (expected?.equals(scanned, ignoreCase = true) == true) return true
         if (!allowNameMatch || exactOnlyWindowOpen) return false
-        return advertisedName?.trim()?.contains("ottai", ignoreCase = true) == true
+        return looksLikeOttaiAdvertisementName(advertisedName)
     }
 
-    /** Past the extended end, only declare the sensor expired once samples stop this long. */
+    /** GAP names used by Ottai Global and Syai during address-changed activation scans. */
+    fun looksLikeOttaiAdvertisementName(name: String?): Boolean {
+        val n = name?.trim().orEmpty()
+        if (n.isEmpty()) return false
+        return n.contains("ottai", ignoreCase = true) || n.contains("syai", ignoreCase = true)
+    }
+
+    /**
+     * Where the current cloud id came from. BLE-copied ids follow a later user tap;
+     * QR / typed / account / known-sensor ids stay put while the radio address changes.
+     */
+    enum class CloudIdOrigin {
+        UNKNOWN,
+        BLE,
+        INDEPENDENT,
+    }
+
+    data class UserBleTapResult(
+        val bleAddress: String,
+        val cloudId: String,
+        val origin: CloudIdOrigin,
+        val bleAssigned: Boolean,
+    )
+
+    /**
+     * A user tap always retargets the BLE radio. Cloud id follows only when it was
+     * auto-copied from a previous BLE tap (or still empty).
+     */
+    fun applyUserBleTap(
+        existingBle: String,
+        existingCloudId: String,
+        origin: CloudIdOrigin,
+        scannedAddress: String,
+    ): UserBleTapResult {
+        if (scannedAddress.isBlank()) {
+            return UserBleTapResult(existingBle, existingCloudId, origin, bleAssigned = false)
+        }
+        val nextCloud = cloudIdForBleSelection(existingCloudId, scannedAddress, origin)
+        val nextOrigin = when {
+            origin == CloudIdOrigin.INDEPENDENT -> CloudIdOrigin.INDEPENDENT
+            looksLikeMac(nextCloud) -> CloudIdOrigin.BLE
+            else -> origin
+        }
+        return UserBleTapResult(
+            bleAddress = scannedAddress,
+            cloudId = nextCloud,
+            origin = nextOrigin,
+            bleAssigned = true,
+        )
+    }
+
+    /** Status text only when the tap actually changed the radio address. */
+    fun bleTapStatusAddress(
+        previousBle: String,
+        assignedBle: String,
+        bleAssigned: Boolean,
+    ): String? {
+        if (!bleAssigned) return null
+        val previous = canonicalSensorId(previousBle)
+        val assigned = canonicalSensorId(assignedBle)
+        if (previous.isNotBlank() && previous.equals(assigned, ignoreCase = true)) return null
+        return assignedBle
+    }
+
+    fun cloudIdForBleSelection(
+        existingCloudId: String,
+        bleAddress: String,
+        origin: CloudIdOrigin,
+    ): String {
+        val existing = canonicalSensorId(existingCloudId)
+        if (origin == CloudIdOrigin.INDEPENDENT && looksLikeMac(existing)) return existing
+        val fromBle = canonicalSensorId(bleAddress)
+        return if (looksLikeMac(fromBle)) fromBle else existingCloudId
+    }
+
+    fun shouldAssignScannedBleAddress(scannedAddress: String): Boolean = scannedAddress.isNotBlank()
+
+    fun preferredWizardStatus(status: String, materialError: String): String =
+        materialError.trim().ifBlank { status }
+
+    /** Fetch errors and later action errors (sign-out, connect) must both remain visible. */
+    fun wizardVisibleMessages(status: String, materialError: String): List<String> =
+        listOf(materialError.trim(), status.trim()).filter { it.isNotBlank() }
+
+    /** Past the reported end, only declare the sensor expired once samples stop this long. */
     const val EXPIRED_STALE_GRACE_MS = 6L * 3600L * 1000L
 
     /** Reading cadence (minutes). */
@@ -352,6 +660,7 @@ object OttaiConstants {
     const val PREF_USER_ID = "ottai_user_id"
     const val PREF_ACCOUNT_LOGIN = "ottai_account_login"  // login typed at sign-in (phone/email/username), display only
     const val PREF_API_BASE = "ottai_api_base"  // which backend the signed-in account is on (CN vs global)
+    const val PREF_LOGIN_API_BASE = "ottai_login_api_base"  // backend of the last SUCCESSFUL sign-in; outlives sign-out so setup reopens there
     const val PREF_SESSION_PROFILE = "ottai_session_profile"  // identity which issued the current access token
     const val PREF_KEYA_PREFIX = "ottai_keya_"            // decrypted 6x16 hex (192)
     const val PREF_METHOD_PREFIX = "ottai_method_"        // decrypted method text
@@ -362,9 +671,9 @@ object OttaiConstants {
     // the first post-restart sample bypass the continuity gate.
     const val PREF_CONTINUITY_BASELINE_PREFIX = "ottai_continuity_baseline_"
     const val PREF_ACTIVE_EXPIRE_PREFIX = "ottai_active_expire_"  // activeExpireTime ms (maxActive duration)
-    // Actual maxActive duration (ms) the firmware ACCEPTED at activation — the real
-    // sensor lifetime. Persisted when the firmware ACKs the maxActive write, and/or
-    // recovered by reading b8fd9848 back off the sensor. Drives expected-end/remaining.
+    // maxActive duration (ms) the firmware ACCEPTED at activation — the sensor's lifetime, which
+    // the firmware enforces exactly (see expectedLifetimeMs). Persisted when the firmware ACKs the
+    // maxActive write, and corrected by reading b8fd9848 back on every status 3.
     const val PREF_ACCEPTED_MAX_ACTIVE_PREFIX = "ottai_accepted_max_active_"
     const val PREF_PREHEAT_PERIOD_PREFIX = "ottai_preheat_period_"
     const val PREF_RETAIN_TIME_PREFIX = "ottai_retain_time_"      // retainTime ms (destruction value)
@@ -377,6 +686,11 @@ object OttaiConstants {
     const val PREF_HISTORY_HOLES_PREFIX = "ottai_history_holes_"
     const val PREF_DEVICE_ID_PREFIX = "ottai_device_id_"
     const val PREF_ACTIVATION_ATTEMPTED_PREFIX = "ottai_act_tried_"  // one-shot auto-activate guard
+    // When this app wrote the activation command to a sensor that needed it: the warmup gate's
+    // start until one is confirmed. removeSensor keeps it, like the start itself.
+    const val PREF_ACTIVATION_COMMAND_AT_PREFIX = "ottai_activation_command_at_"
+    // Durable 0x03 Issued latch for the write gate (commit). Distinct from the warmup PREF.
+    const val PREF_ACTIVATE_CMD_ISSUED_PREFIX = "ottai_activate_cmd_issued_"
     // "dataNo,sampleMs,tempC*10;" per accepted reading — feeds the stats temperature card.
     const val PREF_TEMPERATURE_HISTORY_PREFIX = "ottai_temp_history_"
     const val PREF_SELF_DEVICE_ID = "ottai_self_device_id"

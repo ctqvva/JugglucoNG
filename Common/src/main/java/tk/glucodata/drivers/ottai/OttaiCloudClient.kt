@@ -7,7 +7,7 @@
 // Geoblock: only CN-backend (api.ottai.com) requests carry forwarded-IP headers set to a China IP
 // (that backend is geoblocked to China). GLOBAL (seas.ottai.com) / SYAI (api.syai.com) requests send
 // NO forwarded headers — a forged CN IP there looks cross-region and the backend rejects the token
-// (AuthFailed_TokenInvalid / accountLogin biz=Error). See headers(). CONFIRMED on-device: a RU user on
+// (AuthFailed_TokenInvalid / accountLogin biz=Error). See watchHeaders(). CONFIRMED on-device: a RU user on
 // GLOBAL failed until a VPN masked the real IP; the official global app sends no such headers and works.
 //
 // SECURITY: the signature SEED and all returned secrets (accessToken,
@@ -41,6 +41,8 @@ object OttaiCloudClient {
     private const val PHONE_PKG = "com.ottai.tag"
     private const val TIMEOUT_MS = 30_000
     private const val TEMPORARY_UNBIND_DELAY_MS = 2_000L
+    // See activeTimeOutsideTemporaryBind.
+    internal const val TEMPORARY_BIND_STAMP_SLACK_MS = 5 * 60_000L
     internal const val TEMPORARY_MATERIAL_UNBIND_METHOD = "PUT"
 
     private data class ApiIdentity(
@@ -204,7 +206,14 @@ object OttaiCloudClient {
     }
 
     private fun activeProfile(ctx: Context, apiBase: String): OttaiRegistry.SessionProfile =
-        if (apiBase == OttaiConstants.API_BASE) OttaiRegistry.loadSessionProfile(ctx)
+        profileFor(apiBase, OttaiRegistry.loadSessionProfile(ctx))
+
+    /** Only the CN backend can hold a phone-app session; every other host is the watch identity. */
+    internal fun profileFor(
+        apiBase: String,
+        stored: OttaiRegistry.SessionProfile,
+    ): OttaiRegistry.SessionProfile =
+        if (apiBase == OttaiConstants.API_BASE) stored
         else OttaiRegistry.SessionProfile.WATCH
 
     private fun requestDeviceId(ctx: Context, profile: OttaiRegistry.SessionProfile): String =
@@ -221,7 +230,7 @@ object OttaiCloudClient {
         authorizationOverride: String? = null,
         profileOverride: OttaiRegistry.SessionProfile? = null,
     ): MutableMap<String, String> {
-        val token = authorizationOverride ?: OttaiRegistry.loadAccessToken(ctx)
+        val token = resolvedAuthorization(authorizationOverride, OttaiRegistry.loadAccessToken(ctx))
         val profile = profileOverride ?: activeProfile(ctx, apiBase)
         val deviceId = requestDeviceId(ctx, profile)
         if (profile == OttaiRegistry.SessionProfile.CN_PHONE) {
@@ -234,17 +243,37 @@ object OttaiCloudClient {
                 if (token.isBlank()) remove("Authorization")
             }
         }
+        return watchHeaders(
+            apiBase = apiBase,
+            deviceId = deviceId,
+            token = token,
+            ts = ts,
+            tzOffsetSec = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000,
+            tzId = TimeZone.getDefault().id,
+            language = Locale.getDefault().language,
+        )
+    }
+
+    /** Recovered watch-app identity; the pure half of [headers] for the WATCH profile. */
+    internal fun watchHeaders(
+        apiBase: String,
+        deviceId: String,
+        token: String,
+        ts: Long,
+        tzOffsetSec: Int,
+        tzId: String,
+        language: String,
+    ): MutableMap<String, String> {
         val identity = sessionIdentity(OttaiRegistry.SessionProfile.WATCH)
-        val offsetSec = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000
         val h = mutableMapOf(
             "appName" to identity.appName,
             "versionName" to "1.1.0",
             "versionCode" to "244301",
             "packageName" to identity.packageName,
             "ua" to "Android_Watch_Ottai_Arc",
-            "timezone" to offsetSec.toString(),
-            "timeZoneName" to TimeZone.getDefault().id,
-            "language" to Locale.getDefault().language,
+            "timezone" to tzOffsetSec.toString(),
+            "timeZoneName" to tzId,
+            "language" to language,
             "traceId" to "trace_testtest",
             "timestamp" to ts.toString(),
             "country" to "zh_CN",
@@ -308,10 +337,8 @@ object OttaiCloudClient {
     private fun base(ctx: Context): String = OttaiRegistry.loadApiBase(ctx)
 
     /**
-     * The composite bind endpoint requires a deviceVersion even when Syai or global Ottai allows
-     * recovering a sensor which is not present in the signed-in account. These values come from
-     * exported sensors and are used only as bind request metadata; the response remains
-     * authoritative for the recovered sensor's persisted version and materials.
+     * Known product-line versions from exported sensors. They must not be sent as bind
+     * metadata on [BIZ_OUT_OF_PRODUCE_TIME] — that failure skips temporary bind entirely.
      */
     internal const val SYAI_MATERIAL_BIND_DEVICE_VERSION = "E1.1.4(V1.7.S2530.1)"
     internal const val GLOBAL_MATERIAL_BIND_DEVICE_VERSION = "vE1.2.3(V1.7.SH2542.1)"
@@ -320,14 +347,12 @@ object OttaiCloudClient {
         selectedDeviceVersion: String?,
         failureCode: String?,
     ): String? {
+        if (failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)) return null
         selectedDeviceVersion?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
-        if (!failureCode.equals(BIZ_OUT_OF_PRODUCE_TIME, ignoreCase = true)) return null
-        return when (apiBase) {
-            OttaiConstants.API_BASE_SYAI -> SYAI_MATERIAL_BIND_DEVICE_VERSION
-            OttaiConstants.API_BASE_GLOBAL -> GLOBAL_MATERIAL_BIND_DEVICE_VERSION
-            else -> null
-        }
+        return null
     }
+
+    internal fun shouldPersistWebLogin(result: LoginResult): Boolean = result.ok
 
     fun materialBindDeviceVersion(
         ctx: Context,
@@ -420,20 +445,45 @@ object OttaiCloudClient {
         return result
     }
 
-    /** GET /device/validateDeviceByMacV2 — sig over (mac). Read-only, no sensor change. */
+    /**
+     * Login-only Authorization: null means use the stored JWT (authenticated cloud calls).
+     * Empty string means send none. Username [passwordLogin] defaults to empty so a leftover
+     * partial session cannot ride along; [mailLogin] still passes the fresh web token.
+     */
+    internal fun resolvedAuthorization(authorizationOverride: String?, storedAccessToken: String): String =
+        authorizationOverride ?: storedAccessToken
+
+    internal const val PASSWORD_LOGIN_DEFAULT_AUTHORIZATION_OVERRIDE: String = ""
+
+    internal fun shouldWipeLeftoverPartialSession(accessToken: String, glucoseSecretKey: String): Boolean =
+        accessToken.isNotBlank() && glucoseSecretKey.isBlank()
+
+    fun wipeLeftoverPartialSession(ctx: Context) {
+        if (!shouldWipeLeftoverPartialSession(
+                OttaiRegistry.loadAccessToken(ctx),
+                OttaiRegistry.loadGlucoseSecretKey(ctx),
+            )
+        ) return
+        OttaiRegistry.saveAccessToken(ctx, "")
+        OttaiRegistry.saveUserId(ctx, "")
+    }
+
     /**
      * Global-app login: account (email or phone) + password, no SMS. POSTs the confirmed
      * `/user/accountLogin` (it needs an apiToken in the body, same as smsCode). The exact
      * signature arg-order isn't capturable from the Flutter global app, so a few orderings
      * are tried with a fresh apiToken each (a wrong signature is rejected pre-auth, so it
      * isn't a failed-login attempt). Persists creds on success; see [lastError] otherwise.
+     *
+     * [authorizationOverride] defaults to empty so leftover JWT is not sent. Do not pass null
+     * from username login; [mailLogin] passes the web token.
      */
     fun passwordLogin(
         ctx: Context,
         account: String,
         password: String,
         base: String = OttaiConstants.API_BASE_GLOBAL,
-        authorizationOverride: String? = null,
+        authorizationOverride: String? = PASSWORD_LOGIN_DEFAULT_AUTHORIZATION_OVERRIDE,
     ): LoginResult? {
         val acct = account.trim()
         if (acct.isBlank() || password.isBlank()) { lastFailure = CloudFailure("account/password required"); return null }
@@ -481,13 +531,33 @@ object OttaiCloudClient {
         return null
     }
 
-    /** POST /user/logout (best-effort) and clear all locally-stored account credentials. */
-    fun logout(ctx: Context) {
+    /** POST /user/logout (best-effort) and clear all locally-stored account credentials.
+     *
+     * Returns false when a required Global/Syai unbind did not succeed and [forceLocal] is
+     * false; credentials are kept so a later remove can still release the cloud binding.
+     * [forceLocal] always wipes local secrets after the user confirmed that trade-off.
+     */
+    fun logout(ctx: Context, forceLocal: Boolean = false): Boolean {
+        val apiBase = base(ctx)
+        // Global/Syai: the account holds one bound sensor. Clearing the token first made a
+        // later remove skip unbind, so the next sensor came back AppUser_AlreadyBinding.
+        // CN keeps its previous logout (token wipe only) — do not change that path.
+        val requiresUnbind = shouldReleaseCloudBindingOnLogout(apiBase)
+        val unbindSucceeded = if (requiresUnbind && !forceLocal) {
+            releaseBoundDeviceWhileSignedIn(ctx)
+        } else {
+            true
+        }
+        if (logoutKeepsLocalCredentials(requiresUnbind, unbindSucceeded, forceLocal)) {
+            if (lastError.isBlank()) lastFailure = CloudFailure("Could not release cloud sensor binding")
+            return false
+        }
         runCatching {
             val ts = now()
-            httpPostJson(base(ctx) + OttaiConstants.EP_LOGOUT, "{}", headers(ctx, ts, base(ctx)))
+            httpPostJson(apiBase + OttaiConstants.EP_LOGOUT, "{}", headers(ctx, ts, apiBase))
         }
         clearSession(ctx)
+        return true
     }
 
     /**
@@ -496,14 +566,77 @@ object OttaiCloudClient {
      * that the app stops presenting the account as signed in.
      */
     fun clearSession(ctx: Context) {
+        // A session signed in before PREF_LOGIN_API_BASE existed is its own proof of region: only a
+        // real sign-in leaves a token, and every sign-in wrote the runtime host it used. Remember it
+        // before the wipe — afterwards this host is indistinguishable from the CN stamp old logouts
+        // left behind, and the unsigned wizard would fall back to Global.
+        if (OttaiRegistry.shouldBackfillLoginApiBaseOnLogout(
+                OttaiRegistry.loadLoginApiBaseOrNull(ctx),
+                OttaiRegistry.loadAccessToken(ctx),
+            )
+        ) {
+            OttaiRegistry.saveLoginApiBase(ctx, base(ctx))
+        }
         OttaiRegistry.saveAccessToken(ctx, null)
         OttaiRegistry.saveGlucoseSecretKey(ctx, null)
         OttaiRegistry.saveUserId(ctx, null)
         OttaiRegistry.saveAccountLogin(ctx, null)
         OttaiRegistry.saveSessionProfile(ctx, null)
-        OttaiRegistry.saveApiBase(ctx, OttaiConstants.API_BASE)  // reset to CN default
+        // Neither the runtime host nor OttaiConstants.PREF_LOGIN_API_BASE is cleared: the sign-in
+        // region is what reopens setup on the matching login instead of the CN default.
     }
 
+    /**
+     * Failed Global/Syai unbind keeps credentials unless the user chose local-only sign-out.
+     * CN never requires unbind, so it never keeps credentials here.
+     */
+    internal fun logoutKeepsLocalCredentials(
+        requiresUnbind: Boolean,
+        unbindSucceeded: Boolean,
+        forceLocal: Boolean,
+    ): Boolean = requiresUnbind && !unbindSucceeded && !forceLocal
+
+    /**
+     * Global and Syai must release the cloud binding while the token is still present.
+     * CN logout must not grow this side effect.
+     */
+    internal fun shouldReleaseCloudBindingOnLogout(apiBase: String): Boolean {
+        val base = OttaiRegistry.normalizeApiBase(apiBase)
+        return base == OttaiConstants.API_BASE_GLOBAL || base == OttaiConstants.API_BASE_SYAI
+    }
+
+    private fun releaseBoundDeviceWhileSignedIn(ctx: Context): Boolean {
+        if (OttaiRegistry.loadAccessToken(ctx).isBlank()) return true
+        return when (val looked = lookupBoundMacForUnbind(ctx)) {
+            is BoundMacLookup.Bound -> unbind(ctx, looked.mac).also {
+                Log.i(TAG, "logout unbind ${looked.mac} released=$it")
+            }
+            BoundMacLookup.None -> true
+            BoundMacLookup.Failed -> false
+        }
+    }
+
+    private sealed class BoundMacLookup {
+        data class Bound(val mac: String) : BoundMacLookup()
+        data object None : BoundMacLookup()
+        data object Failed : BoundMacLookup()
+    }
+
+    /** MAC of the currently bound cloud device, even when the payload omits keyA. */
+    private fun lookupBoundMacForUnbind(ctx: Context): BoundMacLookup {
+        val ts = now()
+        val resp = httpGet(
+            base(ctx) + OttaiConstants.EP_GET_BIND_DEVICE,
+            emptyMap(),
+            headers(ctx, ts, base(ctx)),
+        ) ?: return BoundMacLookup.Failed
+        if (!isCloudBizOk(resp)) return BoundMacLookup.Failed
+        val mac = parseDeviceResp(resp, requireKeyA = false)?.mac.orEmpty()
+        val canonical = OttaiConstants.canonicalSensorId(mac).takeIf { OttaiConstants.looksLikeMac(it) }
+        return if (canonical == null) BoundMacLookup.None else BoundMacLookup.Bound(canonical)
+    }
+
+    /** GET /device/validateDeviceByMacV2 — sig over (mac). Read-only, no sensor change. */
     fun validateByMac(ctx: Context, mac: String): DeviceResp? =
         validateForSetup(ctx, mac)?.device?.takeIf { it.keyA.isNotBlank() }
 
@@ -690,10 +823,20 @@ object OttaiCloudClient {
         ctx: Context,
         mac: String,
         deviceVersion: String,
-        historicalActiveTimeMs: Long = 0L,
     ): DeviceResp? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
         val userId = OttaiRegistry.loadUserId(ctx)
+        // This bind stamps activeTime = now on the account's device record, and nothing shows the
+        // stamp goes when the binding is released. Record the first such bind for this MAC before
+        // the POST — a lost response or a failed unbind still counts — so toMaterials and
+        // saveMaterials can refuse the stamp when this device reads it back later.
+        if (canonical.isNotBlank() &&
+            OttaiRegistry.loadTemporaryBindAtMs(ctx, canonical) <= 0L &&
+            !OttaiRegistry.saveTemporaryBindAtMs(ctx, canonical, now())
+        ) {
+            lastFailure = CloudFailure("Could not record the temporary cloud binding")
+            return null
+        }
         val resp = bind(ctx, canonical, deviceVersion.trim(), userId, BindContract.LEGACY) ?: return null
         val bindFailure = lastFailure
         // The phone app waits before releasing the temporary binding. More importantly, never
@@ -704,13 +847,38 @@ object OttaiCloudClient {
             .getOrDefault(false)
         if (!released) Log.w(TAG, "temporary material binding cleanup was not confirmed")
         lastFailure = bindFailure
-        return sanitizeTemporaryBindResponse(resp, historicalActiveTimeMs)
+        return sanitizeTemporaryBindResponse(resp)
     }
 
-    internal fun sanitizeTemporaryBindResponse(
-        response: DeviceResp,
-        historicalActiveTimeMs: Long,
-    ): DeviceResp = response.copy(activeTime = historicalActiveTimeMs.takeIf { it > 0L } ?: 0L)
+    /**
+     * The temporary bind's activeTime is this request's own now(), never the sensor's start. No
+     * caller-supplied start replaces it: /deviceBind/list carries only bindTime, which a re-bind
+     * can move, so the start stays unknown (0) and the driver derives it.
+     */
+    internal fun sanitizeTemporaryBindResponse(response: DeviceResp): DeviceResp =
+        response.copy(activeTime = 0L)
+
+    /**
+     * A cloud [activeTimeMs] for a MAC this app has temporarily bound ([temporaryBindAtMs] > 0)
+     * that is not older than that bind — the whole half-line at and after it, slack included, not
+     * equality with the stamp — is treated as the bind's own echo and reads as unknown (0). The
+     * slack covers a server that truncates the stamp to seconds or stamps its own clock (neither
+     * verified). An older value is kept.
+     */
+    internal fun activeTimeOutsideTemporaryBind(activeTimeMs: Long, temporaryBindAtMs: Long): Long =
+        if (temporaryBindAtMs > 0L && activeTimeMs >= temporaryBindAtMs - TEMPORARY_BIND_STAMP_SLACK_MS) {
+            0L
+        } else {
+            activeTimeMs
+        }
+
+    /**
+     * CN V3 bind echoes its epoch-seconds request; legacy responses are already ms. Normalize
+     * FIRST: a seconds echo compared raw is far older than the ms stamp, survives as a "real"
+     * start, and re-dates a running sensor to the bind moment once scaled.
+     */
+    internal fun materialsActiveTimeMs(cloudActiveTime: Long, temporaryBindAtMs: Long): Long =
+        activeTimeOutsideTemporaryBind(normalizeOttaiActiveTimeMs(cloudActiveTime), temporaryBindAtMs)
 
     /** PUT /deviceBind/unBindDevice — release a cloud binding. */
     fun unbind(ctx: Context, mac: String): Boolean = unbind(ctx, mac, null)
@@ -763,21 +931,29 @@ object OttaiCloudClient {
 
     /**
      * GET /deviceBind/list — the account's bound + previously-bound sensors, newest
-     * first. Lets the user pick a sensor instead of typing/scanning a MAC. Returns an
-     * empty list on error (see [lastError]).
+     * first. Lets the user pick a sensor instead of typing/scanning a MAC.
+     *
+     * `null` is an HTTP/parse failure ([lastError] is set). An empty list is a real
+     * empty account and must not be confused with that failure.
      */
-    fun listDevices(ctx: Context, pageSize: Int = 80, pageNumber: Int = 1): List<DeviceSummary> {
+    fun listDevices(ctx: Context, pageSize: Int = 80, pageNumber: Int = 1): List<DeviceSummary>? {
         val ts = now()
         val resp = httpGet(
             base(ctx) + OttaiConstants.EP_DEVICE_LIST,
             mapOf("pageSize" to pageSize.toString(), "pageNumber" to pageNumber.toString()),
             headers(ctx, ts, base(ctx)),
-        ) ?: return emptyList()
-        val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return emptyList()
+        ) ?: return null
+        if (!isCloudBizOk(resp)) return null
+        return parseDeviceListPayload(resp)
+    }
+
+    /** `null` = unparseable body; empty = successful payload with no sensors. */
+    internal fun parseDeviceListPayload(resp: JSONObject): List<DeviceSummary>? {
+        val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
         val items = data.optJSONArray("items")
             ?: data.optJSONArray("list")
             ?: data.optJSONArray("records")
-            ?: return emptyList()
+            ?: return null
         val out = ArrayList<DeviceSummary>(items.length())
         for (i in 0 until items.length()) {
             val o = items.optJSONObject(i) ?: continue
@@ -798,7 +974,37 @@ object OttaiCloudClient {
         return out
     }
 
-    private fun parseDeviceResp(resp: JSONObject, requireKeyA: Boolean = true): DeviceResp? {
+    /** HTTP 2xx bodies may be parsed; error-stream JSON is never a successful body. */
+    internal fun httpBodyIsSuccess(httpCode: Int): Boolean = httpCode in 200..299
+
+    /**
+     * [request]'s verdict on one response: the body its caller may parse, and the non-secret
+     * failure (business code/message) for [lastFailure]; null failure means the call succeeded.
+     * A 2xx with a failing business code returns both: callers branch on the body's own code.
+     */
+    internal fun classifyResponse(httpCode: Int, text: String): Pair<JSONObject?, CloudFailure?> {
+        val json = if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull()
+        // Capture non-secret business error (code/message) for the UI/logs.
+        val bizCode = json?.opt("code")?.toString().orEmpty()
+        val bizMsg = (json?.opt("message") ?: json?.opt("msg") ?: json?.opt("detailMessage"))
+            ?.toString().orEmpty().takeIf { it != "null" }.orEmpty()
+        val failure = if (!httpBodyIsSuccess(httpCode) || (json != null && !isCloudBizOk(json))) {
+            CloudFailure("http=$httpCode biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
+        } else {
+            null
+        }
+        // Error-stream JSON is for lastFailure only. Treating it as a successful body made
+        // logout/unbind see a blank `code` as "no bound device" / unbind-ok and wipe the token.
+        return (if (httpBodyIsSuccess(httpCode)) json else null) to failure
+    }
+
+    /** Business `code` on this JSON body — not the process-global [lastFailure] flag. */
+    internal fun isCloudBizOk(resp: JSONObject): Boolean {
+        val bizCode = resp.opt("code")?.toString().orEmpty()
+        return bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true)
+    }
+
+    internal fun parseDeviceResp(resp: JSONObject, requireKeyA: Boolean = true): DeviceResp? {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
         val vo = data.optJSONObject("cgmDeviceRespVO") ?: data
         // method + coefficient (and their update-times) are authoritative in the dedicated
@@ -841,12 +1047,20 @@ object OttaiCloudClient {
             OttaiCrypto.decryptMethod(resp.method, secret, resp.methodUpdateTime.toString(), canonical).orEmpty() else ""
         val coeffPlain = if (resp.coefficient.isNotBlank())
             OttaiCrypto.decryptCoefficient(resp.coefficient, secret, resp.coeffUpdateTime.toString(), canonical).orEmpty() else ""
+        // validate, getBindDevice, the temporary bind and bindV3 all turn their response into
+        // materials here, so a temporary bind's stamp is refused here rather than per route.
+        val activeTimeMs = materialsActiveTimeMs(
+            resp.activeTime,
+            OttaiRegistry.loadTemporaryBindAtMs(ctx, canonical),
+        )
+        if (activeTimeMs != normalizeOttaiActiveTimeMs(resp.activeTime)) {
+            Log.w(TAG, "cloud activeTime matches a temporary bind of this app; treated as unknown")
+        }
         return OttaiRegistry.DeviceMaterials(
             keyAHex = keyAPlain,
             method = OttaiMethodDefaults.resolve(methodPlain, coeffPlain),
             coefficient = coeffPlain,
-            // CN V3 bind echoes its epoch-seconds request. Legacy responses are already ms.
-            activeTimeMs = normalizeOttaiActiveTimeMs(resp.activeTime),
+            activeTimeMs = activeTimeMs,
             activeExpireTimeMs = resp.activeExpireTime,
             retainTimeMs = resp.retainTime,
             preheatPeriodMs = resp.preheatPeriodTime,
@@ -1022,14 +1236,14 @@ object OttaiCloudClient {
         // Syai's web profile omits both userName and glucoseSecretKey. Its mobile profile accepts
         // the web JWT and exposes the server-assigned userName; Ottai's web profile does too.
         var userName: String? = null
-        repeat(WEB_UPGRADE_ATTEMPTS) { attempt ->
+        for (attempt in 0 until WEB_UPGRADE_ATTEMPTS) {
             val profile = if (isSyai(webBase)) {
                 mobileGetUser(ctx, mobileBase, webToken)
             } else {
                 webGetUser(webBase, webToken)
             }
             userName = profile?.optString("userName").orEmptyIfNull().takeIf { it.isNotBlank() }
-            if (userName != null) return@repeat
+            if (userName != null) break
             if (profile != null) {
                 lastFailure = CloudFailure("account profile has no username")
                 return null
@@ -1196,20 +1410,14 @@ object OttaiCloudClient {
                 }
             }
             val code = conn.responseCode
-            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val stream = if (httpBodyIsSuccess(code)) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
             val path = url.substringBefore('?').substringAfterLast("/server")
-            val json = if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull()
-            // Capture non-secret business error (code/message) for the UI/logs.
-            val bizCode = json?.opt("code")?.toString().orEmpty()
-            val bizMsg = (json?.opt("message") ?: json?.opt("msg") ?: json?.opt("detailMessage"))
-                ?.toString().orEmpty().takeIf { it != "null" }.orEmpty()
-            val bizOk = bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true)
-            if (code !in 200..299 || !bizOk) {
-                lastFailure = CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
-                Log.w(TAG, "$path -> $lastError")
+            val (json, failure) = classifyResponse(code, text)
+            lastFailure = failure
+            if (failure != null) {
+                Log.w(TAG, "$path -> ${failure.text}")
             } else {
-                lastFailure = null
                 // Without this a successful cloud phase is invisible and reconstructable only from
                 // the absence of warnings. Path and status ONLY: the body carries keyA and the
                 // account glucoseSecretKey.

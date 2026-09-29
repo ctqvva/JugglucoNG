@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import tk.glucodata.drivers.ottai.OttaiCloudClient
+import tk.glucodata.drivers.ottai.OttaiConstants
+import tk.glucodata.drivers.ottai.OttaiRegistry
 
 class OttaiSetupFlowTests {
     @Test
@@ -93,6 +95,45 @@ class OttaiSetupFlowTests {
         assertEquals(
             OttaiCloudBindingUiState.HIDDEN,
             ottaiCloudBindingUiState(false, active.mac, "", active.mac, "", devices),
+        )
+    }
+
+    @Test
+    fun wizardLabelIgnoresProvisionalStartAndAcceptedMaxActiveUntilCloudStart() {
+        val materials = OttaiRegistry.DeviceMaterials(
+            keyAHex = "a".repeat(192),
+            method = "x",
+            coefficient = "1",
+            activeTimeMs = 0L,
+            deviceVersion = "V2",
+            deviceId = 1,
+            activeExpireTimeMs = 14L * 24L * 60L * 60L * 1000L,
+        )
+        assertEquals(
+            OttaiMaterialState.READY_TO_ACTIVATE,
+            ottaiMaterialState(
+                materials,
+                recoveredStartMs = 0L,
+                activatedLifetimeMs = 28L * 24L * 60L * 60L * 1000L,
+            ),
+        )
+        assertEquals(
+            OttaiMaterialState.READY_TO_ACTIVATE,
+            ottaiMaterialState(
+                materials,
+                recoveredStartMs = 1_700_000_000_000L,
+                activatedLifetimeMs = 28L * 24L * 60L * 60L * 1000L,
+            ),
+        )
+        val started = materials.copy(activeTimeMs = 1_700_000_000_000L)
+        assertEquals(
+            OttaiMaterialState.ACTIVE,
+            ottaiMaterialState(
+                started,
+                recoveredStartMs = 0L,
+                activatedLifetimeMs = 28L * 24L * 60L * 60L * 1000L,
+                nowMs = 1_700_000_000_000L + OttaiConstants.DEFAULT_PREHEAT_PERIOD_MS + 60_000L,
+            ),
         )
     }
 

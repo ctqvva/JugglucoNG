@@ -37,6 +37,23 @@ class OttaiNfcTests {
             OttaiNfc.WakeInterface.UNSUPPORTED,
             OttaiNfc.classifyTechs(arrayOf("android.nfc.tech.IsoDep")),
         )
+        assertFalse(OttaiNfc.isOttaiWakeInterface(OttaiNfc.WakeInterface.UNSUPPORTED))
+        assertFalse(OttaiNfc.isOttaiWakeInterface(OttaiNfc.WakeInterface.NFC_V))
+        assertTrue(OttaiNfc.isOttaiWakeInterface(OttaiNfc.WakeInterface.NFC_A_FIELD_ONLY))
+        assertTrue(OttaiNfc.isOttaiWakeInterface(OttaiNfc.WakeInterface.MIFARE_ULTRALIGHT))
+        assertEquals(
+            OttaiNfc.WakeInterface.UNSUPPORTED,
+            OttaiNfc.classifyTechs(
+                arrayOf("android.nfc.tech.IsoDep", "android.nfc.tech.NfcA"),
+            ),
+        )
+        assertFalse(
+            OttaiNfc.isOttaiWakeInterface(
+                OttaiNfc.classifyTechs(
+                    arrayOf("android.nfc.tech.NfcV", "android.nfc.tech.NfcA"),
+                ),
+            ),
+        )
     }
 
     @Test

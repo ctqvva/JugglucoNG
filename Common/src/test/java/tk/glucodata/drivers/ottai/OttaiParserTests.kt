@@ -2,7 +2,6 @@ package tk.glucodata.drivers.ottai
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,42 +63,8 @@ class OttaiParserTests {
         assertTrue(OttaiParser.isRecordSane(mk(100, 6000)))   // |100 - 100| = 0
         assertTrue(OttaiParser.isRecordSane(mk(100, 0)))      // |100 - 0| = 100 <= 120
         assertFalse(OttaiParser.isRecordSane(mk(200, 0)))     // |200 - 0| = 200 > 120
-        assertTrue(OttaiParser.isRecordSane(mk(50, 0)))       // dataNo < 60 -> skew check skipped
-    }
-
-    @Test
-    fun averageTick_rule() {
-        fun mk(dataNo: Int, runtime: Int) = OttaiRecord(dataNo, 5, runtime, 100, 35.0, ByteArray(12))
-        assertTrue(OttaiParser.isAverageTick(mk(10, 3200)))
-        assertFalse(OttaiParser.isAverageTick(mk(10, 3000)))  // below warmup
-        assertFalse(OttaiParser.isAverageTick(mk(7, 4000)))   // not multiple of 5
-    }
-
-    @Test
-    fun parseLive_endToEnd_decryptFrameFormula() {
-        val sessionKey = "0123456789abcdef0123456789abcdef"
-        // one 8-byte record: voltage=5, runtime bytes, current LE16=200 (0xC8,0x00), temp 0x0DAC
-        val payload = byteArrayOf(
-            0, 0, 0, 0,
-            7, 0,            // frontDataNo = 7
-            1, 0,            // marker
-            5, 0x01, 0x03, 0x02, 0xC8.toByte(), 0x00, 0xAC.toByte(), 0x0D,
-        )
-        val cipher = OttaiCrypto.encryptPayload(payload, sessionKey)!!
-        // method: current * coeff0  => 200 * 0.025 = 5.0
-        val reading = OttaiParser.parseLive(
-            cipher = cipher,
-            sessionKeyHex = sessionKey,
-            method = "V0 C0 ML",
-            coefficients = listOf(0.025),
-            activeTimeMs = 1_700_000_000_000L,
-        )
-        assertNotNull(reading)
-        assertEquals(7, reading!!.record.dataNo)
-        assertEquals(200, reading.record.rawCurrent)
-        assertEquals(5.0, reading.adjustGlucose, 1e-9)
-        assertEquals(1_700_000_000_000L + reading.record.runtimeSec * 1000L, reading.monitorTimeMs)
-        assertTrue(reading.valid || reading.record.dataNo < 60)
+        assertTrue(OttaiParser.isRecordSane(mk(50, 0)))       // |50 - 0| = 50 <= 120
+        assertFalse(OttaiParser.isRecordSane(mk(30, 200 * 60))) // first hour, runtime hours away
     }
 
     private fun hex(s: String) = ByteArray(s.length / 2) {
@@ -128,6 +93,10 @@ class OttaiParserTests {
         val eightData = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
         assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(nineData, "E1.2.3(V1.7.SH2542.1)"))
         assertEquals(OttaiParser.BLE_RECORD_SIZE_E12, OttaiParser.chooseRecordSize(nineData, "vE1.2.3(V1.7.SH2542.1)"))
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.recordSizeToLearn(nineData, "E1.2.3(V1.7.SH2542.1)", alreadyLearned = 0),
+        )
         assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(eightData, "V1.5.S2428.1"))
     }
 
@@ -305,6 +274,104 @@ class OttaiParserTests {
         assertEquals(35.0, r.temperatureC, 1e-9)
     }
 
+    /**
+     * The live chain as OttaiBleManager runs it: decryptPayload, frameRecords with the held
+     * version and learned size, the last record, toReading. It replaces a test of parseLive,
+     * a shortcut with no production caller that framed without the version or learned size.
+     * The plaintext is the CN V3 live notify: header + one 9-byte record, 17 bytes.
+     */
+    @Test
+    fun liveChain_nineByteNotify() {
+        val sessionKey = "0123456789abcdef0123456789abcdef"
+        val cipher = OttaiCrypto.encryptPayload(hex("000000007600ffff1f3c34e115ba47c50b"), sessionKey)!!
+        assertEquals(32, cipher.size) // zero-padded to two AES blocks
+        val payload = OttaiCrypto.decryptPayload(cipher, sessionKey)!!
+        assertEquals(24, payload.size) // the trailing all-zero 8 bytes are trimmed, 7 pad bytes stay
+
+        val records = OttaiParser.frameRecords(
+            payload,
+            "E1.1.4(V1.7.S2530.1)",
+            learned = OttaiParser.BLE_RECORD_SIZE_E12,
+        )
+        val base = 1_700_000_000_000L
+        val coefficients =
+            "0.1,0.5,18.5,0.0000,-0.0017,0.5010,0.1098,0.015,0.95,0.8,1.1,0.05,172800,1"
+                .split(',').map { it.toDouble() }
+        val reading = OttaiParser.toReading(
+            records.last(), OttaiMethodDefaults.STANDARD_14_COEFF_METHOD, coefficients, base,
+        )
+
+        assertEquals(1, records.size)
+        assertEquals(118, reading.record.dataNo)
+        assertEquals(15391, reading.record.rawCurrent)
+        assertEquals(30.13, reading.record.temperatureC, 1e-9)
+        assertEquals(118 * 60, reading.record.runtimeSec) // 9-byte runtime comes from dataNo
+        assertEquals(base + 118 * 60_000L, reading.monitorTimeMs)
+        assertTrue(reading.valid)
+        // Independent value, not computed by this code: the closed form in
+        // OttaiMethodDefaultsTests.standardMethod_goldenValues, vector (15391, 30.13, 7080):
+        // R3 7.744526 x R4 1.095903 = 8.487 -> 8.5.
+        assertEquals(8.5, reading.adjustGlucose, 1e-9)
+    }
+
+    /**
+     * An all-zero record inside a 9-byte page is skipped, but it keeps its slot: the record
+     * after it is still front + its own position. Compacting the index would date every later
+     * record a minute early.
+     */
+    @Test
+    fun frameRecords_zeroRecordInTheMiddleKeepsLaterDataNos() {
+        val record = "1f3c34e115ba47c50b"
+        val payload = hex("000000006400ffff" + record + "00".repeat(9) + record) // front = 100
+        assertEquals(35, payload.size)
+        val dataNos = OttaiParser.frameRecords(payload, "E1.2.3(V1.7.SH2542.1)")
+            .map { OttaiParser.parseRecord(it).dataNo }
+        assertEquals(listOf(100, 102), dataNos)
+    }
+
+    @Test
+    fun chooseRecordSize_learnedWidthThatFitsOutranksTheVersionString() {
+        // A one-record frame cannot settle the layout. A learned width that fits the body
+        // wins; the version string only seeds a width nothing has proved yet.
+        val shortNine = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(
+                shortNine, "E1.2.3(V1.7.SH2542.1)", learned = OttaiParser.BLE_RECORD_SIZE,
+            ),
+        )
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.chooseRecordSize(shortNine, "E1.2.3(V1.7.SH2542.1)"),
+        )
+        // Real 8-byte records outrank both a 9-byte version string and a learned 9.
+        val eightData = hex("000000000a000300" + "05010203401fac0d" + "05010203501fb00d" + "05010203601fb40d")
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(
+                eightData, "E1.2.3(V1.7.SH2542.1)", learned = OttaiParser.BLE_RECORD_SIZE_E12,
+            ),
+        )
+    }
+
+    @Test
+    fun chooseRecordSize_ignoresALearnedSizeOutsideEightAndNine() {
+        // The tied live notify: alone it frames as 8, a learned 9 flips it. A learned 12 or 0 is
+        // not a record size at all and must neither be returned nor change the vote.
+        val tied = hex("000000007600ffff1f3c34e115ba47c50b" + "000000401fac0d")
+        val version = "E1.1.4(V1.7.S2530.1)"
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(tied, version, learned = null))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(tied, version, learned = 12))
+        assertEquals(OttaiParser.BLE_RECORD_SIZE, OttaiParser.chooseRecordSize(tied, version, learned = 0))
+        // The same tie must not be forced to 9 just because the version string is E1.2.
+        // A 2026-09-26 sensor in that family sent 8-byte records.
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.chooseRecordSize(tied, "E1.2.3(V1.7.SH2542.1)"),
+        )
+        assertNull(OttaiParser.recordSizeToLearn(tied, "E1.2.3(V1.7.SH2542.1)", alreadyLearned = 0))
+    }
+
     @Test
     fun eightByteHistoryPageBeatsANineByteVersionString() {
         // 2026-09-26 trace: a sensor whose version maps to the 9-byte family sends 20 8-byte
@@ -326,6 +393,52 @@ class OttaiParserTests {
         val recs = OttaiParser.frameRecords(live, version, OttaiParser.BLE_RECORD_SIZE)
         assertEquals(1, recs.size)
         assertEquals(30.63, OttaiParser.parseRecord(recs[0]).temperatureC, 1e-9)
+    }
+
+    @Test
+    fun recordSizeToLearn_doesNotSeedAWidthTheFrameCannotHold() {
+        // First live notify of an E1.2 sensor: 8-byte body, version maps to 9. Persisting 9
+        // here would frame the next non-decisive page on the wrong grid.
+        val live = hex("00000000d067ffff1e18fd54722ef70b")
+        val version = "E1.2.3(V1.7.SH2542.1)"
+        assertNull(OttaiParser.decisiveRecordSize(live, version))
+        assertNull(OttaiParser.recordSizeToLearn(live, version, alreadyLearned = 0))
+        // A width already learned is not replaced by the version string either.
+        assertNull(OttaiParser.recordSizeToLearn(live, version, alreadyLearned = OttaiParser.BLE_RECORD_SIZE))
+        assertNull(OttaiParser.recordSizeToLearn(live, version, alreadyLearned = OttaiParser.BLE_RECORD_SIZE_E12))
+    }
+
+    @Test
+    fun recordSizeToLearn_versionSeedsOnlyWhileNothingIsLearned() {
+        // One record plus padding: content cannot decide, the body holds a 9-byte record,
+        // and nothing has been learned, so the confirmed version may seed.
+        val shortNine = hex("00000000814cffff1f3c34e115ba47c50b" + "00".repeat(15))
+        val version = "E1.2.3(V1.7.SH2542.1)"
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE_E12,
+            OttaiParser.recordSizeToLearn(shortNine, version, alreadyLearned = 0),
+        )
+        assertNull(OttaiParser.recordSizeToLearn(shortNine, version, alreadyLearned = OttaiParser.BLE_RECORD_SIZE))
+    }
+
+    @Test
+    fun recordSizeToLearn_contentReplacesALearnedWidthTheVersionDisagreesWith() {
+        val version = "E1.2.3(V1.7.SH2542.1)"
+        val page = ByteArray(168).also { p ->
+            for (i in 0 until 20) {
+                val src = 8 + i * 8
+                p[src + 4] = 0x0C; p[src + 5] = 0x1E
+                p[src + 6] = 0xA4.toByte(); p[src + 7] = 0x0C
+            }
+        }
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.recordSizeToLearn(page, version, alreadyLearned = OttaiParser.BLE_RECORD_SIZE_E12),
+        )
+        assertEquals(
+            OttaiParser.BLE_RECORD_SIZE,
+            OttaiParser.recordSizeToLearn(page, version, alreadyLearned = 0),
+        )
     }
 
     @Test

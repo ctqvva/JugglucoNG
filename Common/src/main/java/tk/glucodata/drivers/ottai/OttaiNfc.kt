@@ -13,12 +13,10 @@
 package tk.glucodata.drivers.ottai
 
 import android.nfc.Tag
-import android.nfc.tech.IsoDep
 import android.nfc.tech.MifareClassic
 import android.nfc.tech.MifareUltralight
 import android.nfc.tech.Ndef
 import android.nfc.tech.NfcA
-import android.nfc.tech.NfcV
 import android.os.SystemClock
 import tk.glucodata.Applic
 import tk.glucodata.Log
@@ -96,18 +94,19 @@ object OttaiNfc {
             return tagId == consumedTagId && SystemClock.elapsedRealtime() <= consumeTagUntilMs
         }
         val wakeInterface = classifyTechs(tag.techList)
-        val details = runCatching { dump(tag, wakeInterface) }
+        // Libre is NFC-V; IsoDep is a pen. Neither is an Ottai wake. Returning true here used to
+        // steal the tap, disarm dumpMode, and skip the real handler while activation stayed armed.
+        if (!isOttaiWakeInterface(wakeInterface)) return false
+        val details = runCatching { dump(tag) }
             .getOrElse { "NFC inspection error: $it" }
-        val result = Result(details, wakeInterface != WakeInterface.UNSUPPORTED)
-        if (result.wakeDetected) {
-            consumedTagId = tagId
-            consumeTagUntilMs = SystemClock.elapsedRealtime() + CONSUMED_TAG_WINDOW_MS
-            wakeHapticPending = true
-            dumpMode = false
-            activationSensorId?.let { sensorId ->
-                activationSensorId = null
-                Applic.app?.let { OttaiNfcWakeReminder.cancel(it, sensorId) }
-            }
+        val result = Result(details, true)
+        consumedTagId = tagId
+        consumeTagUntilMs = SystemClock.elapsedRealtime() + CONSUMED_TAG_WINDOW_MS
+        wakeHapticPending = true
+        dumpMode = false
+        activationSensorId?.let { sensorId ->
+            activationSensorId = null
+            Applic.app?.let { OttaiNfcWakeReminder.cancel(it, sensorId) }
         }
         lastDump = details
         Log.i(TAG, "\n$details")
@@ -117,37 +116,37 @@ object OttaiNfc {
 
     internal fun classifyTechs(techs: Array<String>): WakeInterface = when {
         techs.contains(NFC_V_TECH) -> WakeInterface.NFC_V
+        techs.contains(ISO_DEP_TECH) -> WakeInterface.UNSUPPORTED
         techs.contains(MIFARE_ULTRALIGHT_TECH) -> WakeInterface.MIFARE_ULTRALIGHT
         techs.contains(NFC_A_TECH) -> WakeInterface.NFC_A_FIELD_ONLY
         else -> WakeInterface.UNSUPPORTED
     }
 
+    /** Ottai/Syai wake is NFC-A field-only or Mifare Ultralight. NFC-V is Libre. */
+    internal fun isOttaiWakeInterface(wakeInterface: WakeInterface): Boolean =
+        wakeInterface == WakeInterface.NFC_A_FIELD_ONLY ||
+            wakeInterface == WakeInterface.MIFARE_ULTRALIGHT
+
     private fun hex(b: ByteArray?): String =
         b?.joinToString("") { "%02x".format(it.toInt() and 0xff) } ?: "null"
 
-    private fun dump(tag: Tag, wakeInterface: WakeInterface): String {
+    private fun dump(tag: Tag): String {
         val sb = StringBuilder()
         val uid = tag.id
         sb.append("== Ottai NFC diagnostics ==\n")
         sb.append("UID=").append(hex(uid))
             .append("  techs=").append(tag.techList.joinToString(",")).append('\n')
         appendUidBreakdown(sb, uid)
-        // Collect from EVERY interface the tag exposes, not only the one that decided the wake.
-        // All transceived commands below are standard, read-only ISO15693 / MIFARE reads — never an
+        // Collect from every interface a wake tag exposes. NfcV/ISO15693 and IsoDep are
+        // deliberately absent: onTag() returns before dump() for those (Libre and pens),
+        // so dumping them would only ever transceive against somebody else's sensor.
+        // All transceived commands below are standard, read-only MIFARE/NTAG reads — never an
         // undocumented or write command (see file header).
         val techs = tag.techList
-        if (techs.contains(NFC_V_TECH)) runSection(sb, "NfcV/ISO15693") { dumpNfcV(sb, tag, uid) }
         if (techs.contains(MIFARE_ULTRALIGHT_TECH)) runSection(sb, "MifareUltralight") { dumpMifareUltralight(sb, tag) }
         if (techs.contains(NFC_A_TECH)) runSection(sb, "NfcA") { dumpNfcA(sb, tag) }
-        if (techs.contains(ISO_DEP_TECH)) runSection(sb, "IsoDep") { dumpIsoDep(sb, tag) }
         if (techs.contains(NDEF_TECH)) runSection(sb, "Ndef") { dumpNdef(sb, tag) }
         if (techs.contains(MIFARE_CLASSIC_TECH)) runSection(sb, "MifareClassic") { dumpMifareClassic(sb, tag) }
-        if (wakeInterface == WakeInterface.UNSUPPORTED &&
-            !techs.contains(NFC_V_TECH) && !techs.contains(MIFARE_ULTRALIGHT_TECH) &&
-            !techs.contains(NFC_A_TECH)
-        ) {
-            sb.append("no standard readable memory interface exposed\n")
-        }
         return sb.toString()
     }
 
@@ -165,74 +164,6 @@ object OttaiNfc {
         val prefix = uid[7].toInt() and 0xff
         val mfg = uid[6].toInt() and 0xff
         sb.append("uid.iso15693: prefix=%02x mfg=%02x serialLE=%s\n".format(prefix, mfg, hex(uid.copyOfRange(0, 6))))
-    }
-
-    /** ISO15693 read-only dump: identity, system info, security status, and full memory. */
-    private fun dumpNfcV(sb: StringBuilder, tag: Tag, uid: ByteArray) {
-        val nfcv = NfcV.get(tag) ?: run { sb.append("NfcV interface unavailable\n"); return }
-        nfcv.connect()
-        try {
-            sb.append("maxTransceive=").append(nfcv.maxTransceiveLength)
-                .append(" dsfid=").append(nfcv.dsfId.toInt() and 0xff)
-                .append(" respFlags=").append(nfcv.responseFlags.toInt() and 0xff).append('\n')
-
-            // Get System Info (0x2B): non-addressed (flags 0x02) then addressed (0x22 + UID).
-            var addressed = false
-            var sys = tx(nfcv, byteArrayOf(0x02, 0x2B))
-            if (sys == null || (sys.isNotEmpty() && (sys[0].toInt() and 0xff) != 0)) {
-                addressed = true
-                sys = tx(nfcv, byteArrayOf(0x22, 0x2B) + uid)
-            }
-            sb.append("GetSystemInfo(").append(if (addressed) "addr" else "non-addr").append("): ")
-                .append(hex(sys)).append('\n')
-            val blockCount = parseSystemInfo(sb, sys)
-
-            // Extended Get System Info (0x3B) for large-memory tags — harmless if unsupported.
-            val ext = if (addressed) tx(nfcv, byteArrayOf(0x22, 0x3B) + uid) else tx(nfcv, byteArrayOf(0x02, 0x3B))
-            if (ext != null) sb.append("ExtGetSystemInfo: ").append(hex(ext)).append('\n')
-
-            // Get Multiple Block Security Status (0x2C) — lock/security flags, read-only.
-            val upTo = (blockCount ?: 256).coerceAtMost(256)
-            val secCmd = if (addressed) byteArrayOf(0x22, 0x2C) + uid + byteArrayOf(0x00, (upTo - 1).toByte())
-            else byteArrayOf(0x02, 0x2C, 0x00, (upTo - 1).toByte())
-            tx(nfcv, secCmd)?.let { sb.append("BlockSecurityStatus[0..${upTo - 1}]: ").append(hex(it)).append('\n') }
-
-            // Read Single Block (0x20) until an error/NACK, or the reported block count.
-            var count = 0
-            val limit = blockCount ?: 256
-            for (blk in 0 until limit) {
-                val cmd = if (addressed) byteArrayOf(0x22, 0x20) + uid + byteArrayOf(blk.toByte())
-                else byteArrayOf(0x02, 0x20, blk.toByte())
-                val resp = tx(nfcv, cmd)
-                if (resp == null || resp.isEmpty() || (resp[0].toInt() and 0xff) != 0) {
-                    sb.append("blk ").append(blk).append(": stop (").append(hex(resp)).append(")\n")
-                    break
-                }
-                sb.append("blk %02x: %s\n".format(blk, hex(resp.copyOfRange(1, resp.size))))
-                count = blk + 1
-            }
-            sb.append("== read $count blocks ==\n")
-        } finally {
-            runCatching { nfcv.close() }
-        }
-    }
-
-    /** Parse the standard ISO15693 GetSystemInfo response; returns VICC block count when present. */
-    private fun parseSystemInfo(sb: StringBuilder, sys: ByteArray?): Int? {
-        if (sys == null || sys.size < 10 || (sys[0].toInt() and 0xff) != 0) return null
-        val infoFlags = sys[1].toInt() and 0xff
-        var i = 10 // [0]=respFlags [1]=infoFlags [2..9]=UID
-        var dsfid = -1; var afi = -1; var blockCount: Int? = null; var blockSize = -1; var icRef = -1
-        if (infoFlags and 0x01 != 0 && i < sys.size) dsfid = sys[i++].toInt() and 0xff
-        if (infoFlags and 0x02 != 0 && i < sys.size) afi = sys[i++].toInt() and 0xff
-        if (infoFlags and 0x04 != 0 && i + 1 < sys.size) {
-            blockCount = (sys[i++].toInt() and 0xff) + 1
-            blockSize = (sys[i++].toInt() and 0xff) + 1
-        }
-        if (infoFlags and 0x08 != 0 && i < sys.size) icRef = sys[i++].toInt() and 0xff
-        sb.append("sysinfo: dsfid=%d afi=%d blocks=%s blockSize=%d icRef=%02x\n"
-            .format(dsfid, afi, blockCount?.toString() ?: "?", blockSize, icRef))
-        return blockCount
     }
 
     /** Some Ottai M8 sensors expose Mifare Ultralight. Dump all readable pages. */
@@ -277,19 +208,6 @@ object OttaiNfc {
         }
     }
 
-    /** ISO-DEP (ISO14443-4) identity bytes, if the sensor answers as a smartcard. */
-    private fun dumpIsoDep(sb: StringBuilder, tag: Tag) {
-        val iso = IsoDep.get(tag) ?: run { sb.append("IsoDep interface unavailable\n"); return }
-        iso.connect()
-        try {
-            sb.append("historicalBytes=").append(hex(iso.historicalBytes))
-                .append(" hiLayerResponse=").append(hex(iso.hiLayerResponse))
-                .append(" maxTransceive=").append(iso.maxTransceiveLength).append('\n')
-        } finally {
-            runCatching { iso.close() }
-        }
-    }
-
     /** NDEF payload, if the tag carries one. */
     private fun dumpNdef(sb: StringBuilder, tag: Tag) {
         val ndef = Ndef.get(tag) ?: run { sb.append("Ndef interface unavailable\n"); return }
@@ -317,7 +235,4 @@ object OttaiNfc {
             runCatching { mc.close() }
         }
     }
-
-    private fun tx(nfcv: NfcV, cmd: ByteArray): ByteArray? =
-        runCatching { nfcv.transceive(cmd) }.getOrNull()
 }

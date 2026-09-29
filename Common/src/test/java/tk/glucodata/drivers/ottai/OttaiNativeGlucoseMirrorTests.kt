@@ -98,8 +98,8 @@ class OttaiNativeGlucoseMirrorTests {
 
         assertEquals(3, stored)
         assertEquals(listOf(60L, 120L, 180L), batch!!.timestampsSec.toList())
-        assertEquals(12.6f, batch!!.glucoses.last(), 0.0001f)
-        assertEquals("AABBCCDDEEFF", batch!!.sensorId)
+        assertEquals(12.6f, batch.glucoses.last(), 0.0001f)
+        assertEquals("AABBCCDDEEFF", batch.sensorId)
         assertEquals(listOf("ottai-history" to 180_000L), wakes)
     }
 

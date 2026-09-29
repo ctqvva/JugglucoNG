@@ -37,6 +37,29 @@ class OttaiHistoryDiffTests {
         assertTrue(OttaiBleManager.shouldDiffStoredHistory(previousDataNo = -1, diffRetryPending = false))
     }
 
+    /**
+     * Stored rows are mapped back to dataNo through the stream anchor, so the diff may only use one
+     * that history is dated from too. An anchor no live frame of this link checked — seeded from the
+     * provisional, for a vendor-activated sensor days after the real start, or left by an earlier
+     * link — marks records present that were never requested, and later sessions do not diff
+     * again; the diff defers until a trusted anchor exists. The same predicate gates dating
+     * history from the stream anchor.
+     */
+    @Test
+    fun theDiffAndHistoryDatingWaitForATrustedStreamAnchor() {
+        val anchor = 1_785_000_000_000L
+        // Not checked on this link, no confirmed start: not usable.
+        assertEquals(0L, OttaiBleManager.trustedStreamStartMs(anchor, streamStartReliable = false, confirmedStartMs = 0L))
+        // Checked against a live frame's arrival.
+        assertEquals(anchor, OttaiBleManager.trustedStreamStartMs(anchor, streamStartReliable = true, confirmedStartMs = 0L))
+        // The start is confirmed: the answer is the anchor, not the confirmed start. Five minutes
+        // apart here, so answering confirmedStartMs instead would date every history record and
+        // every diffed Room row five minutes early, and mark rows present that are not there.
+        assertEquals(anchor, OttaiBleManager.trustedStreamStartMs(anchor, streamStartReliable = false, confirmedStartMs = anchor - 5L * 60_000L))
+        // A confirmed start is not itself an anchor.
+        assertEquals(0L, OttaiBleManager.trustedStreamStartMs(0L, streamStartReliable = true, confirmedStartMs = anchor))
+    }
+
     @Test
     fun noGapsWhenEverythingIsStored() {
         assertEquals(emptyList<OttaiBleManager.MissingRange>(), OttaiBleManager.missingRanges(present(500)))
@@ -132,5 +155,21 @@ class OttaiHistoryDiffTests {
                 assertTrue("cap=$cap coalesce=$coalesce lost record 151", 151 in covered)
             }
         }
+    }
+
+    /**
+     * A window leaves the hole ledger only when its records were STORED, and trimHistoryHoles is
+     * the only thing that shrinks the ledger. A payload whose records were dated ahead of their own
+     * arrival after a clock step and skipped stored nothing — flag down, chain healthy — and
+     * counting it as delivered trimmed the window with nothing in it; with roomBackfillChecked
+     * latched for the session those records were never asked for again.
+     */
+    @Test
+    fun aPayloadThatStoredNothingKeepsItsWindowOnTheHoleLedger() {
+        assertTrue(OttaiBleManager.payloadDelivered(undatedSkips = 0))
+        // The regression: one record of the chunk skipped for want of a date is enough.
+        assertFalse(OttaiBleManager.payloadDelivered(undatedSkips = 1))
+        // Partial: what stored is stored, and the window is still asked for again for the rest.
+        assertFalse(OttaiBleManager.payloadDelivered(undatedSkips = 3))
     }
 }

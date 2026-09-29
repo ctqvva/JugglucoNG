@@ -3,6 +3,7 @@ package tk.glucodata.drivers.ottai
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class OttaiHistoryProgressTests {
@@ -46,27 +47,77 @@ class OttaiHistoryProgressTests {
     fun anUndeliverableChunkExhaustsItsRetriesInsteadOfLoopingForever() {
         // Replay of chunk [37,50) from the 2026-08-11 trace: every frame tops out at 44, so the
         // window can never complete. Walk the watchdog/frame cycle and require it to terminate.
+        val start = 37
         val endExclusive = 50
         var retries = 0
         var best = -1
         var cycles = 0
         var gaveUp = false
-        while (cycles++ < 100) {
+        cycle@ while (cycles++ < 100) {
             // Frame lands: the same two plausible records, 40 and 44.
             val frameMax = 44
             retries = OttaiBleManager.historyRetriesAfterFrame(retries, frameMax, best)
             if (frameMax > best) best = frameMax
             assertTrue("window must stay incomplete for this replay", frameMax + 1 < endExclusive)
             // Watchdog fires on the stalled window.
-            if (retries < OttaiBleManager.HISTORY_MAX_RETRIES) {
-                retries++
-            } else {
-                gaveUp = true
-                break
+            when (OttaiBleManager.historyWatchdogAction(start, endExclusive, retries)) {
+                OttaiBleManager.HistoryWatchdogAction.RETRY -> {
+                    retries++
+                    // The re-issue is the identical window, so it keeps what the chunk reached.
+                    if (!OttaiBleManager.keepsChunkBest(start, endExclusive, start, endExclusive)) best = -1
+                }
+                OttaiBleManager.HistoryWatchdogAction.GIVE_UP -> {
+                    gaveUp = true
+                    break@cycle
+                }
+                else -> fail("a window in flight is retried or given up")
             }
         }
         assertTrue("chunk must reach the retry bound and be ledgered", gaveUp)
         assertEquals(OttaiBleManager.HISTORY_MAX_RETRIES, retries)
+    }
+
+    @Test
+    fun theHistoryWatchdogRetriesAWindowThreeTimesThenGivesItUp() {
+        assertEquals(OttaiBleManager.HistoryWatchdogAction.NONE, OttaiBleManager.historyWatchdogAction(0, -1, 0))
+        assertEquals(OttaiBleManager.HistoryWatchdogAction.NONE, OttaiBleManager.historyWatchdogAction(-1, 0, 0))
+        // A malformed window is skipped, not retried and not ledgered.
+        assertEquals(OttaiBleManager.HistoryWatchdogAction.SKIP, OttaiBleManager.historyWatchdogAction(5, 5, 0))
+        assertEquals(OttaiBleManager.HistoryWatchdogAction.SKIP, OttaiBleManager.historyWatchdogAction(-1, 270, 0))
+        for (retries in 0 until OttaiBleManager.HISTORY_MAX_RETRIES) {
+            assertEquals(OttaiBleManager.HistoryWatchdogAction.RETRY, OttaiBleManager.historyWatchdogAction(0, 270, retries))
+        }
+        assertEquals(OttaiBleManager.HistoryWatchdogAction.GIVE_UP, OttaiBleManager.historyWatchdogAction(0, 270, 3))
+        assertEquals(3, OttaiBleManager.HISTORY_MAX_RETRIES)
+    }
+
+    @Test
+    fun onlyTheIdenticalWindowKeepsTheChunksProgressMarker() {
+        assertTrue(OttaiBleManager.keepsChunkBest(37, 50, 37, 50))
+        assertFalse(OttaiBleManager.keepsChunkBest(37, 50, 50, 63))
+        assertFalse(OttaiBleManager.keepsChunkBest(37, 50, 37, 49))
+        assertFalse(OttaiBleManager.keepsChunkBest(-1, -1, 37, 50))
+    }
+
+    /**
+     * The Room diff maps each stored timestamp back to its record: the nearest minute from the
+     * start. An off-by-one here marks a missing minute present, and the diff latches "complete"
+     * with it still missing.
+     */
+    @Test
+    fun storedTimestampsMapToTheNearestRecord() {
+        val startMs = 1_700_000_340_000L
+        val minute = 60_000L
+        fun present(vararg timestamps: Long) =
+            OttaiBleManager.presentFromTimestamps(timestamps, startMs, 10).withIndex().filter { it.value }.map { it.index }
+        assertEquals(listOf(5), present(startMs + 5 * minute + 29_000L))
+        assertEquals(listOf(6), present(startMs + 5 * minute + 30_000L))
+        assertEquals(listOf(0), present(startMs - 30_000L))
+        assertEquals(listOf(9), present(startMs + 9 * minute + 29_999L))
+        // The live record and anything past it are not the diff's to mark.
+        assertEquals(emptyList<Int>(), present(startMs + 10 * minute, startMs + 60 * minute))
+        assertEquals(listOf(0, 3, 4), present(startMs, startMs + 3 * minute + 1_000L, startMs + 4 * minute - 1_000L))
+        assertEquals(10, OttaiBleManager.presentFromTimestamps(LongArray(0), startMs, 10).size)
     }
 
     @Test

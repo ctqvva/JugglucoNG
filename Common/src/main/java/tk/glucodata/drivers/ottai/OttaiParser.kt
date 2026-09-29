@@ -1,9 +1,8 @@
 // JugglucoNG — Ottai driver
 // OttaiParser.kt — BLE live/history payload framing + 12-byte record parser.
 //
-// Faithful to CgmMonitor.java (framing) + a1.a.e()/b()/c() (record parse,
-// validity, AVERAGE rule) in the 1.1.0 watch decompile. See
-// AGENTS/ottai-phase0-confirmed.md.
+// Faithful to CgmMonitor.java (framing) + a1.a.e()/b() (record parse, validity)
+// in the 1.1.0 watch decompile. See AGENTS/ottai-phase0-confirmed.md.
 //
 // Decrypted+trimmed payload layout:
 //   bytes 0..3   status/prefix (unused by the parser)
@@ -40,7 +39,10 @@ data class OttaiRecord(
 
 data class OttaiReading(
     val record: OttaiRecord,
-    /** Formula output (adjustGlucose); 0.0 means below-floor / invalid. */
+    /**
+     * Formula output (adjustGlucose); 0.0 means below-floor / invalid, NaN a method or coefficient
+     * set that cannot be evaluated (OttaiFormula.evaluate), which OttaiOutputFilter refuses.
+     */
     val adjustGlucose: Double,
     /** activeTimeMs + runtimeSec*1000. 0 if activeTime unknown. */
     val monitorTimeMs: Long,
@@ -83,10 +85,11 @@ object OttaiParser {
      * rejected, and the real sample in record[0] went unexamined. Fourteen consecutive
      * minutes were lost that way while the sensor was connected and talking.
      *
-     * So [learned] wins over the guess: once [decisiveRecordSize] has settled the layout from
+     * So [learned] wins over the guess: once [contentRecordSize] has settled the layout from
      * a payload that could actually settle it, a short frame consumes that answer rather than
-     * voting again. The version string still outranks both — a confirmed family is not a
-     * guess at all.
+     * voting again. The payload's own records outrank the version string. A confirmed family
+     * only seeds a width nothing has proved yet, and only when [versionSeedApplies]: the
+     * width must fit, and an E1.2 seed of 9 must not contradict the payload's own records.
      */
     internal fun chooseRecordSize(
         payload: ByteArray,
@@ -99,7 +102,12 @@ object OttaiParser {
         val bodyLen = payload.size - HEADER_SIZE
         learned?.takeIf { (it == BLE_RECORD_SIZE || it == BLE_RECORD_SIZE_E12) && bodyLen >= it }
             ?.let { return it }
-        confirmedRecordSize(deviceVersion)?.takeIf { bodyLen >= it }?.let { return it }
+        // A confirmed family only seeds a width the payload does not contradict. A 24-byte
+        // notify fits one 9-byte record or two 8-byte ones; an E1.2 version string used to
+        // force 9 before any page could show the records were 8.
+        confirmedRecordSize(deviceVersion)?.takeIf { confirmed ->
+            versionSeedApplies(payload, confirmed, bodyLen)
+        }?.let { return it }
         val (nine, eight) = recordSizeEvidence(payload)
         return if (nine > eight) BLE_RECORD_SIZE_E12 else BLE_RECORD_SIZE
     }
@@ -126,15 +134,38 @@ object OttaiParser {
     private const val DECISIVE_MARGIN = 2
 
     /**
-     * The layout this payload can prove, or null when it cannot prove one.
+     * The layout this payload can prove, or the confirmed version string when it cannot.
      *
-     * A confirmed version string proves it without looking at content. Otherwise the winner
-     * must have at least [MIN_DECISIVE_RECORDS] vendor-valid records and lead by
-     * [DECISIVE_MARGIN], which a minute live notify can never do and a history page or a
-     * nine-record live read always does.
+     * Content is checked first ([contentRecordSize]). The version string is only the
+     * fallback, for a frame too short to settle the layout, and only when
+     * [versionSeedApplies]. A 16-byte live notify has an 8-byte body, which no 9-byte
+     * record fits in, so E1.2 does not seed 9 there. A tied 24-byte frame does not seed 9
+     * either. A minute live notify can never settle the layout from content; a history page
+     * or a nine-record live read always can.
      */
-    internal fun decisiveRecordSize(payload: ByteArray, deviceVersion: String): Int? =
-        contentRecordSize(payload) ?: confirmedRecordSize(deviceVersion)
+    internal fun decisiveRecordSize(payload: ByteArray, deviceVersion: String): Int? {
+        contentRecordSize(payload)?.let { return it }
+        val confirmed = confirmedRecordSize(deviceVersion) ?: return null
+        val bodyLen = payload.size - HEADER_SIZE
+        // Same evidence gate as chooseRecordSize. Without it, a tied 24-byte frame is
+        // learned as 9 from an E1.2 version string, and the learned width then wins
+        // before chooseRecordSize can refuse it.
+        if (!versionSeedApplies(payload, confirmed, bodyLen)) return null
+        return confirmed
+    }
+
+    /**
+     * The width the driver may store, or null when this payload must not change it.
+     *
+     * Content always wins, including over a width already learned. The version string may
+     * seed a width only while nothing has been learned, and only when [versionSeedApplies].
+     * V1.5 stays 8-byte whenever the body fits. E1.2 may seed 9 only when the payload's own
+     * records agree: a tied 24-byte frame must not be persisted as 9, or the learned width
+     * wins on the next frame before chooseRecordSize can refuse it.
+     */
+    internal fun recordSizeToLearn(payload: ByteArray, deviceVersion: String, alreadyLearned: Int): Int? =
+        contentRecordSize(payload)
+            ?: if (alreadyLearned == 0) decisiveRecordSize(payload, deviceVersion) else null
 
     /**
      * The layout the payload's own records prove, or null when they cannot.
@@ -161,6 +192,31 @@ object OttaiParser {
 
     /** Leading E-number of a version string: `E1.1.4(...)`, `vE1.2.3(...)`. */
     private val E_NUMBER = Regex("""(?:^|[^0-9A-Za-z])v?e(\d+)\.(\d+)""", RegexOption.IGNORE_CASE)
+
+    /**
+     * V1.5 is 8-byte on every unit, so a frame that fits 8 keeps that seed even if one record
+     * also parses as 9. E1.2 is not that sure: seed 9 only when the 9-byte reading is ahead,
+     * or it has a valid record and the 8-byte reading has none. A tie falls through to the vote
+     * and is not learned.
+     */
+    private fun versionSeedApplies(payload: ByteArray, confirmed: Int, bodyLen: Int): Boolean {
+        if (bodyLen < confirmed) return false
+        if (confirmed != BLE_RECORD_SIZE_E12) return true
+        return confirmedLayoutAgrees(payload, confirmed)
+    }
+
+    /**
+     * Version seed agrees when this layout is strictly ahead, or it has a valid record and the
+     * other layout has none. A tie, or evidence for the other width, falls through to the vote.
+     */
+    private fun confirmedLayoutAgrees(payload: ByteArray, confirmed: Int): Boolean {
+        val (nine, eight) = recordSizeEvidence(payload)
+        return when (confirmed) {
+            BLE_RECORD_SIZE_E12 -> nine > eight || (nine > 0 && eight == 0)
+            BLE_RECORD_SIZE -> eight > nine || (eight > 0 && nine == 0)
+            else -> false
+        }
+    }
 
     /** Record size for firmware whose live format we've directly confirmed; null = unknown. */
     private fun confirmedRecordSize(deviceVersion: String): Int? {
@@ -259,48 +315,18 @@ object OttaiParser {
     }
 
     /**
-     * Vendor sanity gate (a1.a.b numeric part): reject dataNo==65535, and once
-     * dataNo>=60 reject if |dataNo - runtime/60| > 120 (data/time skew > ~2h).
+     * Vendor sanity gate (a1.a.b numeric part): reject dataNo==65535, and reject
+     * |dataNo - runtime/60| > 120 (data/time skew > ~2h) at every dataNo. The old
+     * dataNo>=60 skip let an 8-byte record in the first hour keep a runtime hours
+     * away from its index. A normal first hour stays inside 120 minutes, and 9-byte
+     * frames derive runtime from dataNo so their skew is zero.
      * The app also requires userId/mac/softVersion present — those are checked by
      * the driver, not here.
      */
     fun isRecordSane(rec: OttaiRecord): Boolean {
         if (rec.dataNo == INVALID_DATA_NO) return false
-        if (rec.dataNo >= 60 && kotlin.math.abs(rec.dataNo - (rec.runtimeSec / 60)) > 120) return false
+        if (kotlin.math.abs(rec.dataNo - (rec.runtimeSec / 60)) > 120) return false
         return true
-    }
-
-    /** AVERAGE-record condition (a1.a.c): runtime>=warmup, dataNo>=5, dataNo%5==0. */
-    fun isAverageTick(rec: OttaiRecord, warmupSec: Int = 3200): Boolean =
-        rec.runtimeSec >= warmupSec && rec.dataNo >= 5 && rec.dataNo % 5 == 0
-
-    /**
-     * Full live parse: decrypt → frame → take last record → run formula.
-     * Returns null if decryption/framing yields nothing.
-     */
-    fun parseLive(
-        cipher: ByteArray,
-        sessionKeyHex: String,
-        method: String,
-        coefficients: List<Double>,
-        activeTimeMs: Long,
-    ): OttaiReading? {
-        val payload = OttaiCrypto.decryptPayload(cipher, sessionKeyHex) ?: return null
-        val records = frameRecords(payload)
-        if (records.isEmpty()) return null
-        return toReading(records.last(), method, coefficients, activeTimeMs)
-    }
-
-    /** Full history parse: decrypt → frame → all records → run formula each. */
-    fun parseHistory(
-        cipher: ByteArray,
-        sessionKeyHex: String,
-        method: String,
-        coefficients: List<Double>,
-        activeTimeMs: Long,
-    ): List<OttaiReading> {
-        val payload = OttaiCrypto.decryptPayload(cipher, sessionKeyHex) ?: return emptyList()
-        return frameRecords(payload).map { toReading(it, method, coefficients, activeTimeMs) }
     }
 
     /** Build a reading from a 12-byte parser record (no decryption). */

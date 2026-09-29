@@ -48,7 +48,11 @@ object OttaiFormula {
      * @param v V0..V5: [current, temperature, runtime, dataNo, runtime/3600(int), voltage]
      * @param recordBytes the 12-byte parser record (00 00 ‖ dataNoLE ‖ 8-byte record);
      *                    B{i} uses the SIGNED value of recordBytes[i]
-     * @return adjustGlucose (last group result; values < 0.1 forced to 0.0)
+     * @return adjustGlucose (last group result; values < 0.1 forced to 0.0). NaN when any
+     *         group is malformed (an operator short of operands, a negative RD precision, an MD by
+     *         zero): the whole evaluation is void, because a later group reading the broken one
+     *         through R{i} with a comparison or bitwise operator would turn it into a plausible
+     *         number. NaN as well when any group names a coefficient C{i} the set does not hold.
      */
     fun evaluate(
         methodText: String,
@@ -63,14 +67,25 @@ object OttaiFormula {
         for (group in groups) {
             val rawTokens = group.split(' ').filter { it.isNotEmpty() }
             if (rawTokens.isEmpty()) continue
+            // A coefficient the method names but the set does not hold (a short set, or one
+            // OttaiRegistry.parseCoefficients voided) would stay a literal token and read as 0.0:
+            // a glucose computed with a zero coefficient. No value at all instead.
+            if (rawTokens.any { namesMissingCoefficient(it, coefficients) }) return Double.NaN
             val tokens = rawTokens.map { substitute(it, coefficients, v, recordBytes, groupResults) }
-            groupResults.add(evalGroup(tokens))
+            groupResults.add(evalGroup(tokens) ?: return Double.NaN)
         }
 
         if (groupResults.isEmpty()) return 0.0
         var adjust = groupResults.last()
         if (adjust < 0.1) adjust = 0.0
         return adjust
+    }
+
+    /** A C{i} reference, as [substitute] reads it, with no coefficient at i. */
+    private fun namesMissingCoefficient(token: String, coefficients: List<Double>): Boolean {
+        if (token.length < 2 || token[0] != 'C') return false
+        val idx = token.substring(1).toIntOrNull() ?: return false
+        return idx >= 0 && idx >= coefficients.size
     }
 
     private fun substitute(
@@ -97,14 +112,20 @@ object OttaiFormula {
     /**
      * Evaluate one space-tokenised, already-substituted group as the decompiled
      * stack machine: pointer `sp` starts at -1; operators adjust `sp` and write
-     * the result; literals push (sp++). Group result is stack[0].
+     * the result; literals push (sp++). Group result is stack[0], or null when the group is
+     * malformed and the evaluation is void.
      */
-    private fun evalGroup(tokens: List<String>): Double {
+    private fun evalGroup(tokens: List<String>): Double? {
         val stack = DoubleArray(tokens.size)
         var sp = -1
         for (tok in tokens) {
             val op = tok.uppercase(Locale.ROOT)
             if (op in OPERATORS) {
+                // The method comes from the cloud, so it is untrusted input. An operator with
+                // fewer operands than it reads (a malformed or future-syntax method) used to index
+                // below the stack and throw on every live notify and history page, a crash loop.
+                // Void instead: evaluate returns NaN, which OttaiOutputFilter.hardRejectReason refuses.
+                if (sp + 1 < arity(op)) return null
                 var r = 1.0 // decompiled default
                 when (op) {
                     "AD" -> { sp--; r = stack[sp + 1] + stack[sp] }
@@ -132,8 +153,14 @@ object OttaiFormula {
                     "LE" -> { sp -= 2; r = if (stack[sp] <= stack[sp + 1]) stack[sp + 2] else 0.0 }
                     "RD" -> {
                         sp--
+                        // A negative precision is not a format String.format accepts: it throws, the
+                        // same crash loop as a missing operand. A huge one allocates that many
+                        // digits; past MAX_RD_DECIMALS they are only zeros, so the cap changes nothing.
                         val decimals = stack[sp + 1].toInt()
-                        r = String.format(Locale.ROOT, "%." + decimals + "f", stack[sp]).toDouble()
+                        if (decimals < 0) return null
+                        r = String.format(
+                            Locale.ROOT, "%." + min(decimals, MAX_RD_DECIMALS) + "f", stack[sp],
+                        ).toDouble()
                     }
                     "LN" -> { r = ln(stack[sp]) }
                     "MX" -> { sp--; r = max(stack[sp], stack[sp + 1]) }
@@ -148,9 +175,14 @@ object OttaiFormula {
                     "BO" -> { sp--; r = (stack[sp].toInt() or stack[sp + 1].toInt()).toDouble() }
                     "BN" -> { r = (stack[sp].toInt().inv()).toDouble() }
                     "BX" -> { sp--; r = (stack[sp].toInt() xor stack[sp + 1].toInt()).toDouble() }
-                    "MD" -> { sp--; r = (stack[sp].toInt() % stack[sp + 1].toInt()).toDouble() }
+                    "MD" -> {
+                        sp--
+                        val divisor = stack[sp + 1].toInt()
+                        // Integer modulo by zero throws: the same crash loop as a missing operand.
+                        if (divisor == 0) return null
+                        r = (stack[sp].toInt() % divisor).toDouble()
+                    }
                 }
-                if (sp < 0) sp = 0 // guard malformed expressions
                 stack[sp] = r
             } else {
                 sp++
@@ -159,6 +191,20 @@ object OttaiFormula {
             }
         }
         return if (stack.isEmpty()) 0.0 else stack[0]
+    }
+
+    /**
+     * Fraction digits after which %f of any double prints only zeros: the smallest subnormal,
+     * 4.9E-324, needs 324 places plus 17 significant digits.
+     */
+    private const val MAX_RD_DECIMALS = 400
+
+    /** Stack values [op] reads: the stack must hold this many before it runs. */
+    private fun arity(op: String): Int = when (op) {
+        "BW", "BE" -> 4
+        "GT", "GE", "LT", "LE" -> 3
+        "NG", "AB", "SQ", "LN", "SN", "CS", "TN", "AS", "AC", "AT", "BN" -> 1
+        else -> 2 // AD SB ML DV PW RD MX MI BA BO BX MD
     }
 
     /** Build the V0..V5 vector from parsed record fields (matches a1.a.e()). */

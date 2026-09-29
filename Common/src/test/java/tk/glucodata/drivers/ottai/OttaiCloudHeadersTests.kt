@@ -2,6 +2,7 @@ package tk.glucodata.drivers.ottai
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,24 +53,36 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
-    fun syaiExpiredRecoveryUsesKnownBindVersionWithoutAccountMembership() {
-        assertEquals(
-            OttaiCloudClient.SYAI_MATERIAL_BIND_DEVICE_VERSION,
+    fun syaiExpiredRecoveryDoesNotTemporaryBindOnOutOfProduceTime() {
+        assertNull(
             OttaiCloudClient.materialBindDeviceVersion(
                 OttaiConstants.API_BASE_SYAI,
                 null,
                 OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
             ),
         )
+        assertNull(
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_SYAI,
+                OttaiCloudClient.SYAI_MATERIAL_BIND_DEVICE_VERSION,
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
     }
 
     @Test
-    fun globalExpiredRecoveryUsesKnownBindVersionWithoutAccountMembership() {
-        assertEquals(
-            OttaiCloudClient.GLOBAL_MATERIAL_BIND_DEVICE_VERSION,
+    fun globalExpiredRecoveryDoesNotTemporaryBindOnOutOfProduceTime() {
+        assertNull(
             OttaiCloudClient.materialBindDeviceVersion(
                 OttaiConstants.API_BASE_GLOBAL,
                 null,
+                OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
+            ),
+        )
+        assertNull(
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_GLOBAL,
+                OttaiCloudClient.GLOBAL_MATERIAL_BIND_DEVICE_VERSION,
                 OttaiCloudClient.BIZ_OUT_OF_PRODUCE_TIME,
             ),
         )
@@ -101,9 +114,16 @@ class OttaiCloudHeadersTests {
     }
 
     @Test
-    fun selectedSensorVersionAlwaysWinsMaterialRecovery() {
+    fun selectedSensorVersionWinsMaterialRecoveryExceptOutOfProduceTime() {
         assertEquals(
             "vE1.2.3(V1.7.SH2542.1)",
+            OttaiCloudClient.materialBindDeviceVersion(
+                OttaiConstants.API_BASE_SYAI,
+                " vE1.2.3(V1.7.SH2542.1) ",
+                "AppDevice_AlreadyUsed",
+            ),
+        )
+        assertNull(
             OttaiCloudClient.materialBindDeviceVersion(
                 OttaiConstants.API_BASE_SYAI,
                 " vE1.2.3(V1.7.SH2542.1) ",
@@ -302,20 +322,384 @@ class OttaiCloudHeadersTests {
 
     @Test
     fun temporaryBindTimeIsNeverUsedAsHistoricalStart() {
-        val temporary = deviceResponse(activeTime = 999_999L)
+        val temporary = deviceResponse(activeTime = 1_757_000_000_000L)
 
+        // No caller-supplied start survives: the list's bindTime can move with a re-bind (#34).
+        assertEquals(0L, OttaiCloudClient.sanitizeTemporaryBindResponse(temporary).activeTime)
+    }
+
+    @Test
+    fun aTemporaryBindStampReadsAsUnknown() {
+        val boundAt = 1_757_000_000_000L
+        val slack = OttaiCloudClient.TEMPORARY_BIND_STAMP_SLACK_MS
+        // The bind's own stamp, a seconds-truncated echo, and anything later are the synthetic start.
+        assertEquals(0L, OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt, boundAt))
+        assertEquals(0L, OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt - 999L, boundAt))
+        assertEquals(0L, OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt + 60_000L, boundAt))
+        assertEquals(0L, OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt - slack, boundAt))
+        // A real start older than the bind survives; with no bind on record nothing is touched.
+        val tenDaysBefore = boundAt - 10L * 24 * 3_600_000L
+        assertEquals(tenDaysBefore, OttaiCloudClient.activeTimeOutsideTemporaryBind(tenDaysBefore, boundAt))
         assertEquals(
-            123_000L,
-            OttaiCloudClient.sanitizeTemporaryBindResponse(temporary, 123_000L).activeTime,
+            boundAt - slack - 1L,
+            OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt - slack - 1L, boundAt),
         )
+        assertEquals(boundAt, OttaiCloudClient.activeTimeOutsideTemporaryBind(boundAt, 0L))
+        assertEquals(0L, OttaiCloudClient.activeTimeOutsideTemporaryBind(0L, boundAt))
+    }
+
+    @Test
+    fun materialsNormalizeSecondsBeforeTheTemporaryBindCheck() {
+        val boundAt = 1_700_000_183_000L
+        // bindV3 echoes the bind's own stamp in epoch seconds: compared raw it is far older than
+        // the ms stamp and would survive as a start at the bind moment.
+        assertEquals(0L, OttaiCloudClient.materialsActiveTimeMs(boundAt / 1_000L, boundAt))
+        assertEquals(0L, OttaiCloudClient.materialsActiveTimeMs(boundAt, boundAt))
+        val tenDaysBeforeSec = (boundAt - 10L * 24 * 3_600_000L) / 1_000L
         assertEquals(
-            0L,
-            OttaiCloudClient.sanitizeTemporaryBindResponse(temporary, 0L).activeTime,
+            tenDaysBeforeSec * 1_000L,
+            OttaiCloudClient.materialsActiveTimeMs(tenDaysBeforeSec, boundAt),
+        )
+        // No temporary bind on record: only the unit is normalized.
+        assertEquals(boundAt, OttaiCloudClient.materialsActiveTimeMs(boundAt / 1_000L, 0L))
+        assertEquals(boundAt, OttaiCloudClient.materialsActiveTimeMs(boundAt, 0L))
+        assertEquals(0L, OttaiCloudClient.materialsActiveTimeMs(0L, boundAt))
+    }
+
+    @Test
+    fun forgedCnIpHeadersGoOnlyToTheCnBackend() {
+        // Geoblock rule (35053c6c, confirmed on-device): a forged CN IP makes GLOBAL/SYAI reject the
+        // session, while the CN backend refuses requests without one.
+        for (base in listOf(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiConstants.API_BASE_SYAI,
+            OttaiConstants.API_BASE_SYAI_LEGACY,
+            OttaiRegistry.normalizeApiBase(OttaiConstants.API_BASE_SYAI_LEGACY),
+        )) {
+            val headers = watchHeaders(base)
+            for (name in forwardedIpHeaders) assertFalse("$name sent to $base", headers.containsKey(name))
+        }
+        val cn = watchHeaders(OttaiConstants.API_BASE)
+        for (name in forwardedIpHeaders) assertEquals(name, OttaiConstants.CN_FORWARD_IP, cn[name])
+    }
+
+    @Test
+    fun watchHeadersKeepTheRecoveredIdentityAndOrder() {
+        val headers = watchHeaders(OttaiConstants.API_BASE, token = "test-token")
+        assertEquals(
+            listOf(
+                "appName", "versionName", "versionCode", "packageName", "ua", "timezone", "timeZoneName",
+                "language", "traceId", "timestamp", "country", "deviceId",
+            ) + forwardedIpHeaders + "Authorization",
+            headers.keys.toList(),
+        )
+        assertEquals("ottai-watch", headers["appName"])
+        assertEquals("com.ottai.tag.watch", headers["packageName"])
+        assertEquals("ottai-watch:a:test-device", headers["deviceId"])
+        assertEquals("10800", headers["timezone"])
+        assertEquals("Europe/Moscow", headers["timeZoneName"])
+        assertEquals("ru", headers["language"])
+        assertEquals("123", headers["timestamp"])
+        assertEquals("test-token", headers["Authorization"])
+    }
+
+    @Test
+    fun blankTokenSendsNoAuthorization() {
+        assertFalse(watchHeaders(OttaiConstants.API_BASE_GLOBAL, token = "").containsKey("Authorization"))
+        assertFalse(watchHeaders(OttaiConstants.API_BASE, token = "").containsKey("Authorization"))
+    }
+
+    @Test
+    fun onlyTheCnBackendCanUseAStoredPhoneProfile() {
+        val phone = OttaiRegistry.SessionProfile.CN_PHONE
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        assertEquals(phone, OttaiCloudClient.profileFor(OttaiConstants.API_BASE, phone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE, watch))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_GLOBAL, phone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_SYAI, phone))
+        assertEquals(watch, OttaiCloudClient.profileFor(OttaiConstants.API_BASE_SYAI_LEGACY, phone))
+    }
+
+    @Test
+    fun listDevicesParseFailureIsNotAnEmptyAccount() {
+        assertNull(OttaiCloudClient.parseDeviceListPayload(JSONObject().put("code", "200")))
+        assertNull(
+            OttaiCloudClient.parseDeviceListPayload(
+                JSONObject().put("code", "200").put("data", JSONObject()),
+            ),
         )
         assertFalse(
-            OttaiCloudClient.sanitizeTemporaryBindResponse(temporary, 0L).activeTime == temporary.activeTime,
+            OttaiCloudClient.isCloudBizOk(JSONObject().put("code", "AuthFailed").put("data", JSONObject())),
+        )
+        // request() hands its callers a body only through classifyResponse: never an error stream's.
+        assertNull(OttaiCloudClient.classifyResponse(502, """{"code":"200","data":{}}""").first)
+        assertNotNull(OttaiCloudClient.classifyResponse(200, """{"code":"200","data":{}}""").first)
+    }
+
+    @Test
+    fun listDevicesEmptyItemsIsAnEmptyAccount() {
+        val resp = JSONObject()
+            .put("code", "200")
+            .put("data", JSONObject().put("items", org.json.JSONArray()))
+        assertEquals(emptyList<OttaiCloudClient.DeviceSummary>(), OttaiCloudClient.parseDeviceListPayload(resp))
+    }
+
+    @Test
+    fun listDevicesReadsMacAndVersionFromItems() {
+        val items = org.json.JSONArray().put(
+            JSONObject()
+                .put("mac", "001122334455")
+                .put("serialNo", "SN1")
+                .put("deviceType", "cgm")
+                .put("deviceVersion", "vE1.2.3")
+                .put("bindTime", 10)
+                .put("unbindTime", 0),
+        )
+        val resp = JSONObject().put("data", JSONObject().put("items", items))
+        val parsed = OttaiCloudClient.parseDeviceListPayload(resp)!!
+        assertEquals(1, parsed.size)
+        assertEquals("001122334455", parsed[0].mac)
+        assertEquals("vE1.2.3", parsed[0].deviceVersion)
+        assertTrue(parsed[0].isActive)
+    }
+
+    @Test
+    fun logoutUnbindIsOnlyForGlobalAndSyai() {
+        assertFalse(OttaiCloudClient.shouldReleaseCloudBindingOnLogout(OttaiConstants.API_BASE))
+        assertTrue(OttaiCloudClient.shouldReleaseCloudBindingOnLogout(OttaiConstants.API_BASE_GLOBAL))
+        assertTrue(OttaiCloudClient.shouldReleaseCloudBindingOnLogout(OttaiConstants.API_BASE_SYAI))
+        assertTrue(OttaiCloudClient.shouldReleaseCloudBindingOnLogout(OttaiConstants.API_BASE_SYAI_LEGACY))
+    }
+
+    @Test
+    fun failedUnbindKeepsCredentialsUntilForcedLocalLogout() {
+        assertTrue(
+            OttaiCloudClient.logoutKeepsLocalCredentials(
+                requiresUnbind = true,
+                unbindSucceeded = false,
+                forceLocal = false,
+            ),
+        )
+        assertFalse(
+            OttaiCloudClient.logoutKeepsLocalCredentials(
+                requiresUnbind = true,
+                unbindSucceeded = true,
+                forceLocal = false,
+            ),
+        )
+        assertFalse(
+            OttaiCloudClient.logoutKeepsLocalCredentials(
+                requiresUnbind = true,
+                unbindSucceeded = false,
+                forceLocal = true,
+            ),
+        )
+        assertFalse(
+            OttaiCloudClient.logoutKeepsLocalCredentials(
+                requiresUnbind = false,
+                unbindSucceeded = false,
+                forceLocal = false,
+            ),
         )
     }
+
+    @Test
+    fun unsignedWizardDefaultsToGlobalUntilASignInSaysOtherwise() {
+        // Clean install: nothing stored either way.
+        assertEquals(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiRegistry.wizardApiBaseForUnsigned(null, null),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiRegistry.wizardApiBaseForUnsigned("", "   "),
+        )
+        // The region of the last successful sign-in wins for every region, including CN.
+        assertEquals(
+            OttaiConstants.API_BASE,
+            OttaiRegistry.wizardApiBaseForUnsigned(OttaiConstants.API_BASE, OttaiConstants.API_BASE),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_SYAI,
+            OttaiRegistry.wizardApiBaseForUnsigned(OttaiConstants.API_BASE_SYAI, OttaiConstants.API_BASE),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiRegistry.wizardApiBaseForUnsigned(OttaiConstants.API_BASE_GLOBAL, null),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_SYAI,
+            OttaiRegistry.wizardApiBaseForUnsigned(OttaiConstants.API_BASE_SYAI_LEGACY, null),
+        )
+        // The runtime backend keeps mapping "nothing stored" to CN — that is an existing session's
+        // host, not the wizard default, and CN runtime must not move.
+        assertEquals(
+            OttaiConstants.API_BASE,
+            OttaiRegistry.normalizeApiBase(null),
+        )
+    }
+
+    @Test
+    fun logoutBackfillsTheRegionOnlyForALivePreKeySession() {
+        // A token proves a sign-in; the legacy CN stamp left none behind it.
+        assertTrue(OttaiRegistry.shouldBackfillLoginApiBaseOnLogout(null, "token"))
+        assertTrue(OttaiRegistry.shouldBackfillLoginApiBaseOnLogout("  ", "token"))
+        // The unsigned legacy stamp has nothing to prove the region with.
+        assertFalse(OttaiRegistry.shouldBackfillLoginApiBaseOnLogout(null, ""))
+        // A key a sign-in already wrote must not be overwritten by the runtime host.
+        assertFalse(
+            OttaiRegistry.shouldBackfillLoginApiBaseOnLogout(OttaiConstants.API_BASE_SYAI, "token"),
+        )
+    }
+
+    @Test
+    fun partialWebTokenIsNotASignInWorthReopeningOn() {
+        // persistWebLogin gates the login-region key on ok, not on the bare token.
+        assertFalse(OttaiCloudClient.LoginResult("u", "token", "").ok)
+        assertTrue(OttaiCloudClient.LoginResult("u", "token", "secret").ok)
+        assertFalse(OttaiCloudClient.shouldPersistWebLogin(OttaiCloudClient.LoginResult("u", "token", "")))
+        assertTrue(OttaiCloudClient.shouldPersistWebLogin(OttaiCloudClient.LoginResult("u", "token", "secret")))
+    }
+
+    @Test
+    fun unsignedWizardIgnoresTheCnHostLeftBehindByOlderSignOuts() {
+        // Every sign-out up to 2026-08-18 stamped CN into the runtime pref, so CN there proves
+        // nothing about what the user picked: a Global/Syai user must not land on the CN SMS form.
+        assertEquals(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiRegistry.wizardApiBaseForUnsigned(null, OttaiConstants.API_BASE),
+        )
+        // A non-CN runtime host could only come from a non-CN sign-in, so it is still trusted and
+        // keeps a pre-key Syai/Global sign-out in its own region.
+        assertEquals(
+            OttaiConstants.API_BASE_SYAI,
+            OttaiRegistry.wizardApiBaseForUnsigned(null, OttaiConstants.API_BASE_SYAI),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_SYAI,
+            OttaiRegistry.wizardApiBaseForUnsigned(null, OttaiConstants.API_BASE_SYAI_LEGACY),
+        )
+        assertEquals(
+            OttaiConstants.API_BASE_GLOBAL,
+            OttaiRegistry.wizardApiBaseForUnsigned(null, OttaiConstants.API_BASE_GLOBAL),
+        )
+        // A CN sign-in after the upgrade re-establishes CN, so the ignore rule is not a one-way trap.
+        assertEquals(
+            OttaiConstants.API_BASE,
+            OttaiRegistry.wizardApiBaseForUnsigned(OttaiConstants.API_BASE, OttaiConstants.API_BASE),
+        )
+    }
+
+    @Test
+    fun materialFetchErrorBeatsInformationalStatus() {
+        assertEquals(
+            "fetch failed",
+            OttaiConstants.preferredWizardStatus("Selected AABBCCDDEEFF", "fetch failed"),
+        )
+        assertEquals(
+            "Selected AABBCCDDEEFF",
+            OttaiConstants.preferredWizardStatus("Selected AABBCCDDEEFF", ""),
+        )
+        assertEquals(
+            listOf("fetch failed", "Selected AABBCCDDEEFF"),
+            OttaiConstants.wizardVisibleMessages("Selected AABBCCDDEEFF", "fetch failed"),
+        )
+        assertEquals(
+            listOf("unbind failed"),
+            OttaiConstants.wizardVisibleMessages("unbind failed", ""),
+        )
+    }
+
+    @Test
+    fun sequentialBleTapsRetargetRadioAndBleCopiedCloudId() {
+        val first = OttaiConstants.applyUserBleTap(
+            existingBle = "",
+            existingCloudId = "",
+            origin = OttaiConstants.CloudIdOrigin.UNKNOWN,
+            scannedAddress = "AA:BB:CC:DD:EE:FF",
+        )
+        assertTrue(first.bleAssigned)
+        assertEquals("AA:BB:CC:DD:EE:FF", first.bleAddress)
+        assertEquals("AABBCCDDEEFF", first.cloudId)
+        assertEquals(OttaiConstants.CloudIdOrigin.BLE, first.origin)
+        assertEquals(
+            "AA:BB:CC:DD:EE:FF",
+            OttaiConstants.bleTapStatusAddress("", first.bleAddress, first.bleAssigned),
+        )
+
+        val second = OttaiConstants.applyUserBleTap(
+            existingBle = first.bleAddress,
+            existingCloudId = first.cloudId,
+            origin = first.origin,
+            scannedAddress = "11:22:33:44:55:66",
+        )
+        assertTrue(second.bleAssigned)
+        assertEquals("11:22:33:44:55:66", second.bleAddress)
+        assertEquals("112233445566", second.cloudId)
+        assertEquals(
+            "11:22:33:44:55:66",
+            OttaiConstants.bleTapStatusAddress(first.bleAddress, second.bleAddress, second.bleAssigned),
+        )
+        assertNull(
+            OttaiConstants.bleTapStatusAddress(
+                second.bleAddress,
+                second.bleAddress,
+                bleAssigned = true,
+            ),
+        )
+    }
+
+    @Test
+    fun usernameLoginDoesNotSendStoredJwtAndWipeIsNotLogout() {
+        assertEquals("", OttaiCloudClient.PASSWORD_LOGIN_DEFAULT_AUTHORIZATION_OVERRIDE)
+        assertEquals(
+            "",
+            OttaiCloudClient.resolvedAuthorization(
+                OttaiCloudClient.PASSWORD_LOGIN_DEFAULT_AUTHORIZATION_OVERRIDE,
+                "leftover-jwt",
+            ),
+        )
+        assertEquals("web-jwt", OttaiCloudClient.resolvedAuthorization("web-jwt", "leftover-jwt"))
+        assertEquals("stored-jwt", OttaiCloudClient.resolvedAuthorization(null, "stored-jwt"))
+        assertTrue(OttaiCloudClient.shouldWipeLeftoverPartialSession("leftover-jwt", ""))
+        assertFalse(OttaiCloudClient.shouldWipeLeftoverPartialSession("leftover-jwt", "secret"))
+        assertFalse(OttaiCloudClient.shouldWipeLeftoverPartialSession("", ""))
+    }
+
+    @Test
+    fun independentCloudIdSurvivesBleTransportTap() {
+        val tapped = OttaiConstants.applyUserBleTap(
+            existingBle = "",
+            existingCloudId = "AA:BB:CC:DD:EE:FF",
+            origin = OttaiConstants.CloudIdOrigin.INDEPENDENT,
+            scannedAddress = "11:22:33:44:55:66",
+        )
+        assertEquals("11:22:33:44:55:66", tapped.bleAddress)
+        assertEquals("AABBCCDDEEFF", tapped.cloudId)
+        assertEquals(OttaiConstants.CloudIdOrigin.INDEPENDENT, tapped.origin)
+        assertEquals(
+            "AABBCCDDEEFF",
+            OttaiConstants.cloudIdForBleSelection(
+                "AA:BB:CC:DD:EE:FF",
+                "11:22:33:44:55:66",
+                OttaiConstants.CloudIdOrigin.INDEPENDENT,
+            ),
+        )
+        assertTrue(OttaiConstants.shouldAssignScannedBleAddress("11:22:33:44:55:66"))
+        assertFalse(OttaiConstants.shouldAssignScannedBleAddress(""))
+    }
+
+    private fun watchHeaders(apiBase: String, token: String = "test-token") = OttaiCloudClient.watchHeaders(
+        apiBase = apiBase,
+        deviceId = "test-device",
+        token = token,
+        ts = 123L,
+        tzOffsetSec = 10_800,
+        tzId = "Europe/Moscow",
+        language = "ru",
+    )
+
+    private val forwardedIpHeaders = listOf("X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP", "True-Client-IP")
 
     private fun deviceResponse(activeTime: Long) = OttaiCloudClient.DeviceResp(
         mac = "001122334455",

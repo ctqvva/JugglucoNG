@@ -178,6 +178,56 @@ class OttaiBleAuthTests {
         assertArrayEq(OttaiCrypto.encryptPayload(byteArrayOf(0x03), sessionKey)!!, enc)
     }
 
+    /**
+     * The app's public key goes on the wire as two fixed 32-byte fields and is signed that
+     * way. BigInteger.toByteArray() gives 33 bytes when the top bit is set (sign byte) and
+     * fewer than 32 when the top byte is zero (about 1 handshake in 128): both must come out
+     * as exactly 32.
+     */
+    @Test
+    fun coordBytes_alwaysThirtyTwoBytes() {
+        val one = OttaiBleAuth.coordBytes(java.math.BigInteger.ONE)
+        assertArrayEq(ByteArray(31) + byteArrayOf(1), one)
+
+        val top = OttaiBleAuth.coordBytes(java.math.BigInteger.ONE.shiftLeft(255)) // sign byte stripped
+        assertEquals(32, top.size)
+        assertEquals(0x80.toByte(), top[0])
+        assertTrue(top.drop(1).all { it == 0.toByte() })
+
+        val short = OttaiBleAuth.coordBytes(java.math.BigInteger.ONE.shiftLeft(247)) // sign byte stripped, then padded
+        assertEquals(32, short.size)
+        assertEquals(0.toByte(), short[0])
+        assertEquals(0x80.toByte(), short[1])
+        assertTrue(short.drop(2).all { it == 0.toByte() })
+    }
+
+    @Test
+    fun publicCoords_ofTheP256Generator() {
+        // Generator coordinates from `openssl ecparam -name prime256v1 -param_enc explicit -text`.
+        val params = java.security.AlgorithmParameters.getInstance("EC")
+            .apply { init(java.security.spec.ECGenParameterSpec(OttaiBleAuth.CURVE)) }
+        val ecSpec = params.getParameterSpec(java.security.spec.ECParameterSpec::class.java)
+        val g = java.security.KeyFactory.getInstance("EC").generatePublic(
+            java.security.spec.ECPublicKeySpec(ecSpec.generator, ecSpec),
+        ) as ECPublicKey
+        val (x, y) = OttaiBleAuth.publicCoords(g)
+        assertEquals("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", OttaiCrypto.bytesToHex(x).lowercase())
+        assertEquals("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", OttaiCrypto.bytesToHex(y).lowercase())
+    }
+
+    @Test
+    fun appTime3_carriesTheIncrementAcrossBytes() {
+        // 0x123456FF + 1 = 0x12345700; 0x0000FFFF + 1 = 0x00010000.
+        assertArrayEq(
+            byteArrayOf(0x12, 0x34, 0x57),
+            OttaiBleAuth.appTime3(byteArrayOf(0x12, 0x34, 0x56, 0xFF.toByte())),
+        )
+        assertArrayEq(
+            byteArrayOf(0x00, 0x01, 0x00),
+            OttaiBleAuth.appTime3(byteArrayOf(0x00, 0x00, 0xFF.toByte(), 0xFF.toByte())),
+        )
+    }
+
     private fun assertArrayEq(expected: ByteArray, actual: ByteArray) {
         assertEquals(OttaiCrypto.bytesToHex(expected), OttaiCrypto.bytesToHex(actual))
     }
