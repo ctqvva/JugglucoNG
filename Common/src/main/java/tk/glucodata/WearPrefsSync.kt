@@ -131,6 +131,8 @@ object WearPrefsSync {
         }
         if (written == 0) return 0
         editor.apply()
+        // This watch now holds the phone's preferences: a resync it owed is done.
+        if (Applic.isWearable) WearSensorSelectionSync.onPhonePrefsApplied()
         if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
         if (sensorSelectionChanged) {
             MultiSensorSelection.notifyStoredChanged()
@@ -171,9 +173,10 @@ object WearPrefsSync {
         return out.toString()
     }
 
-    // What was last sent, so the periodic re-push stays silent while nothing
-    // changes. Same convergence story as the colour scheme: a watch that was off
-    // when the user changed a setting must still catch up on its own.
+    // What was last sent to a watch known to be listening (pushTo, pushIfChanged),
+    // so the periodic re-push stays silent while nothing changes. A broadcast does
+    // not record it (see push()): a watch that was off or out of reach when the
+    // user changed a setting must still catch up on its own.
     @Volatile private var lastSentHash: Int? = null
 
     @JvmStatic
@@ -182,7 +185,10 @@ object WearPrefsSync {
             val payload = encode(Applic.app)
             if (payload.isEmpty()) return
             MessageSender.getMessageSender()?.sendWearPrefs(payload)
-            lastSentHash = payload.contentHashCode()
+            // A broadcast is not known to have arrived: with no watch in reach it is dropped.
+            // Forget what was sent, so the next SYNC2_REQ, which proves a watch is there,
+            // sends it once more through pushIfChanged.
+            lastSentHash = null
         }.onFailure { Log.stack(LOG_ID, "push", it) }
     }
 
