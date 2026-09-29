@@ -1801,7 +1801,11 @@ fun SensorCard(
             sensor.isAidex && sensor.officialEndMs > 0 -> sensor.officialEndMs
             !sensor.isAidex && sensor.expectedEndMs > 0 -> sensor.expectedEndMs
             sensor.officialEndMs > 0 -> sensor.officialEndMs
-            sensor.isAidex -> start + (15L * 24 * 3600 * 1000)
+            sensor.isAidex -> {
+                val days = tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
+                    .ratedDays(sensor.vendorModel) ?: 15
+                start + (days.toLong() * 24 * 3600 * 1000)
+            }
             else -> start + (14L * 24 * 3600 * 1000)
         }
         

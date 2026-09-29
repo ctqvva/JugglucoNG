@@ -55,6 +55,7 @@ import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
 import tk.glucodata.drivers.ManagedSensorUiFamily
+import tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
 import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
@@ -989,7 +990,7 @@ class DashboardViewModel(
                 if (managedSnapshot?.uiFamily == ManagedSensorUiFamily.AIDEX ||
                     sName.startsWith("X-", ignoreCase = true)
                 ) {
-                    15
+                    AiDexWearProfile.ratedDays(managedSnapshot?.vendorModel) ?: 15
                 } else {
                     14
                 }

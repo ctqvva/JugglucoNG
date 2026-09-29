@@ -815,16 +815,20 @@ public:
     auto *info = getinfo();
     if (!info)
       return 14 * 24 * 60;
-    const int wear = (isLibre2() || isDexcom() || isAccuChek())
-                         ? info->wearduration
-                         : info->wearduration2;
+    // isLibre2() is true for an AiDex shell (15-minute interval, not a 5-minute
+    // Libre 3). Its wearduration field stays at the 14-day value initInfoFile
+    // wrote. The rating aidexSetWearDays stores is wearduration2. A value under
+    // one day is the ident.len alias (8 minutes) and is not a life.
     if (isAiDex()) {
-      if (wear)
-        return wear;
+      if (info->wearduration2 >= 24 * 60)
+        return info->wearduration2;
       if (info->days >= 10 && info->days <= maxdays)
         return info->days * 24 * 60;
       return 15 * 24 * 60;
     }
+    const int wear = (isLibre2() || isDexcom() || isAccuChek())
+                         ? info->wearduration
+                         : info->wearduration2;
     if (wear)
       return wear;
     return 14 * 24 * 60;
@@ -879,15 +883,16 @@ public:
         isSibionics1() ? maxSIhours
                        : ((isAccuChek() ? maxdaysAccu : info->days + 1) * 24);
 #endif
-    // info->days is the shell's storage geometry — 14 for a direct-stream
-    // shell seeded before its lifetime was known — while a longer activated
-    // lifetime only ever lands in wearduration2 (setSensorWearDays). Where the
-    // two disagree the longer one is the real end; otherwise checkinfo()
-    // retires a 28-day sensor on day 14 and it silently leaves the watch feed.
-    // Only AiDex, Libre3 and direct-stream shells carry wearduration2, and for
-    // the first two it never exceeds days*24*60, so this is a no-op there.
-    const int minutes =
-        std::max(hours * 60, static_cast<int>(info->wearduration2));
+    // info->days is the shell's storage geometry. A longer activated life lands
+    // in wearduration2 and must win, or checkinfo() retires a 28-day sensor on
+    // day 14. AiDex also stores a 7- or 8-day rating only in wearduration2,
+    // because infowrong() rejects info->days < 10. A wearduration2 of at least
+    // one day is that rating. The fresh shell's value is the ident.len alias,
+    // 8 minutes, and must not finish the sensor. Libre3 never stores a
+    // wearduration2 above days*24*60, so the max is a no-op there.
+    int minutes = std::max(hours * 60, static_cast<int>(info->wearduration2));
+    if (isAiDex() && info->wearduration2 >= 24 * 60)
+      minutes = static_cast<int>(info->wearduration2);
     uint32_t maxtime = minutes * 60 + getstarttime();
 
     // ARCHITECTURAL FIX: Support Custom Calibration for aged sensors.

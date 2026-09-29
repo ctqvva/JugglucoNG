@@ -26,7 +26,9 @@ import tk.glucodata.drivers.aidex.native.protocol.AiDexDpCatalogProvider
 import tk.glucodata.drivers.aidex.native.protocol.AiDexDefaultParamProvisioning
 import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
 import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
+import tk.glucodata.drivers.aidex.native.protocol.AiDexOfficialDpCatalogSnapshot
 import tk.glucodata.drivers.aidex.native.protocol.AiDexParser
+import tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -1299,6 +1301,53 @@ class DefaultParamCatalogCompareTests {
         assertEquals("1034_GXXXS_14", AiDexDefaultParamProvisioning.normalizeCatalogModelName("GXXXS14"))
         assertEquals("1034_GXXXS_16", AiDexDefaultParamProvisioning.normalizeCatalogModelName("1034GXXXS16"))
         assertNull(AiDexDefaultParamProvisioning.normalizeCatalogModelName("mystery"))
+    }
+
+    @Test
+    fun catalogWearDaysMatchTheModelRating() {
+        assertEquals(15, AiDexWearProfile.ratedDays("GX-01S"))
+        assertEquals(10, AiDexWearProfile.ratedDays("GX-02S"))
+        assertEquals(10, AiDexWearProfile.ratedDays("gx-02s"))
+        assertEquals(8, AiDexWearProfile.ratedDays("GX-03S"))
+        assertEquals(14, AiDexWearProfile.ratedDays("GXXXS14"))
+        assertEquals(16, AiDexWearProfile.ratedDays("GXXXS16"))
+        assertEquals(7, AiDexWearProfile.ratedDays("GXXXS7"))
+        assertNull(AiDexWearProfile.ratedDays("mystery"))
+
+        AiDexOfficialDpCatalogSnapshot.entries.forEach { entry ->
+            assertEquals(
+                "${entry.settingType}@${entry.version}",
+                AiDexWearProfile.catalogWearDays(entry.settingContent),
+                AiDexWearProfile.ratedDays(entry.settingType),
+            )
+        }
+    }
+
+    @Test
+    fun resolveKeepsAShorterModelWhenTheByteIsThe15DayDefault() {
+        assertNull(AiDexWearProfile.resolve(null, null))
+        assertEquals(10, AiDexWearProfile.resolve(null, 10))
+        assertEquals(10, AiDexWearProfile.resolve(10, 10))
+        assertEquals(10, AiDexWearProfile.resolve(15, 10))
+        assertEquals(8, AiDexWearProfile.resolve(15, 8))
+        assertEquals(16, AiDexWearProfile.resolve(16, 15))
+        assertEquals(15, AiDexWearProfile.resolve(15, 15))
+        assertEquals(12, AiDexWearProfile.resolve(12, null))
+    }
+
+    @Test
+    fun persistedWearDaysIgnoresThe14DayShell() {
+        val start = 1_700_000_000_000L
+        fun end(days: Int) = start + days.toLong() * 24L * 60L * 60L * 1000L
+        assertEquals(10, AiDexWearProfile.persistedWearDays(start, end(10)))
+        assertEquals(7, AiDexWearProfile.persistedWearDays(start, end(7)))
+        assertEquals(8, AiDexWearProfile.persistedWearDays(start, end(8)))
+        assertEquals(15, AiDexWearProfile.persistedWearDays(start, end(15)))
+        assertEquals(16, AiDexWearProfile.persistedWearDays(start, end(16)))
+        assertNull(AiDexWearProfile.persistedWearDays(start, end(14)))
+        assertNull(AiDexWearProfile.persistedWearDays(start, start + 8L * 60_000L))
+        assertNull(AiDexWearProfile.persistedWearDays(start, end(10) + 60_000L))
+        assertNull(AiDexWearProfile.persistedWearDays(0L, end(10)))
     }
 
     @Test

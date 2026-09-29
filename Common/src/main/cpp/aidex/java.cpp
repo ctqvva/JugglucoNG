@@ -184,14 +184,20 @@ extern "C" JNIEXPORT void JNICALL fromjava(aidexSetWearDays)(JNIEnv *env,
                                                              jclass cl,
                                                              jlong dataptr,
                                                              jint days) {
-  if (days < 10 || days > maxdays) {
+  if (days < 1 || days > maxdays) {
     return;
   }
   aidexstream *sdata = reinterpret_cast<aidexstream *>(dataptr);
   if (sdata && sdata->hist) {
     auto *info = sdata->hist->getinfo();
-    info->days = static_cast<uint8_t>(days);
+    // info->days is the shell size. infowrong() treats days < 10 as a broken
+    // file, so a 7- or 8-day rating is stored only in wearduration2.
+    // getweardurationMIN() reads that field for AiDex once it is at least a day.
+    if (days >= 10) {
+      info->days = static_cast<uint8_t>(days);
+    }
     info->wearduration2 = static_cast<uint16_t>(days * 24 * 60);
-    LOGGER("aidexSetWearDays: days=%d wear=%u\n", days, info->wearduration2);
+    LOGGER("aidexSetWearDays: days=%d wear=%u shelldays=%u\n", days,
+           info->wearduration2, info->days);
   }
 }

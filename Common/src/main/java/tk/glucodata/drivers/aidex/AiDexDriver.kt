@@ -197,7 +197,10 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
     /** Hours since sensor activation (-1 = unknown). */
     fun getSensorAgeHours(): Int
 
-    /** Sensor-reported wear duration in days (-1 = unknown). */
+    /**
+     * Wear duration in days used for life and expiry (-1 = unknown).
+     * Startup `0x10` resolved against the model's official parameter rating.
+     */
     fun getSensorReportedWearDays(): Int = -1
 
     /** Whether legacy native expiry may be used when the driver has no sensor-reported wear days. */

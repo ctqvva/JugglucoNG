@@ -1902,8 +1902,35 @@ class AiDexBleManager(
     }
     @Volatile private var _resetCompensationEnabled: Boolean = false
 
-    private fun reportedWearDaysOrNull(): Int? =
-        _wearDays.takeIf { sensorReportedWearDays && it > 0 }
+    private fun persistedNativeWearDays(): Int? {
+        if (dataptr == 0L || sensorstartmsec <= 0L) return null
+        val nativeStart = runCatching { Natives.getSensorStartmsec(dataptr) }.getOrDefault(0L)
+        // Official end is nativeStart + wear. A kotlin start that has moved by a
+        // whole number of days would otherwise be stored as a different life.
+        if (nativeStart <= 0L || kotlin.math.abs(sensorstartmsec - nativeStart) >= 1_000L) return null
+        val nativeEnd = runCatching { Natives.getSensorEndTime(dataptr, true) }.getOrDefault(0L)
+        return AiDexWearProfile.persistedWearDays(nativeStart, nativeEnd)
+    }
+
+    private fun reportedWearDaysOrNull(): Int? {
+        val memoryByte = _wearDays.takeIf { sensorReportedWearDays && it > 0 }
+        return AiDexWearProfile.resolve(
+            sensorDays = memoryByte ?: persistedNativeWearDays(),
+            modelDays = AiDexWearProfile.ratedDays(_modelName),
+        )
+    }
+
+    private fun persistResolvedWearDays(source: String) {
+        val days = reportedWearDaysOrNull() ?: return
+        if (sensorstartmsec > 0L) {
+            updateSensorExpiredFromStart(System.currentTimeMillis())
+        }
+        if (dataptr == 0L) return
+        try {
+            Natives.aidexSetWearDays(dataptr, days)
+            Log.i(TAG, "aidexSetWearDays: days=$days ($source)")
+        } catch (_: Throwable) {}
+    }
 
     private fun hasCompleteStartupMetadata(): Boolean =
         _modelName.isNotBlank() &&
@@ -4441,18 +4468,15 @@ class AiDexBleManager(
                 "remaining=${remainDays?.let { String.format("%.1f days", it) } ?: "unknown"}"
         )
 
-        if (reportedWearDays != null) {
-            try {
-                Natives.aidexSetWearDays(dataptr, reportedWearDays)
-                Log.i(TAG, "aidexSetWearDays: days=$reportedWearDays (sensor-reported, from $source)")
-            } catch (_: Throwable) {}
-        }
-
         if (sensorstartmsec <= 0L || kotlin.math.abs(sensorstartmsec - startMs) > 60_000L) {
             Log.i(TAG, "Updating sensorstartmsec from $source: $sensorstartmsec → $startMs")
             sensorstartmsec = startMs
             Natives.aidexSetStartTime(dataptr, startMs)
         }
+        // Resolve again on the handler, after the start-time write. A binder-thread snapshot
+        // of the wear byte can otherwise land after 0x10 and replace a longer life with the
+        // catalog value. Posting after aidexSetStartTime keeps the two native writes ordered.
+        runOnHandler { persistResolvedWearDays("session-start $source") }
         if (lastGlucoseTimeMs < startMs) {
             armFirstValidReadingWait(startMs, "$source-authoritative-start")
         }
@@ -6245,17 +6269,11 @@ class AiDexBleManager(
         if (parsed.wearDays > 0) {
             _wearDays = parsed.wearDays
             sensorReportedWearDays = true
-            if (dataptr != 0L) {
-                try {
-                    Natives.aidexSetWearDays(dataptr, parsed.wearDays)
-                    Log.i(TAG, "aidexSetWearDays: days=${parsed.wearDays} (sensor-reported, from startup-0x10)")
-                } catch (_: Throwable) {}
-            }
-            if (sensorstartmsec > 0L) {
-                updateSensorExpiredFromStart(System.currentTimeMillis())
-            }
         }
         _modelName = parsed.modelName
+        persistResolvedWearDays(
+            "startup-0x10 raw=${if (sensorReportedWearDays) _wearDays.toString() else "none"} model=$_modelName"
+        )
         startupMetadataComplete = hasCompleteStartupMetadata()
         Log.i(
             TAG,
@@ -7909,14 +7927,12 @@ class AiDexBleManager(
                 sensorstartmsec = inferredStart
                 Log.i(TAG, "Updated sensorstartmsec from offset: ${effectiveOffsetMinutes}min → $inferredStart")
                 if (dataptr != 0L) {
-                    reportedWearDaysOrNull()?.let { wearDays ->
-                        try {
-                            Natives.aidexSetWearDays(dataptr, wearDays)
-                        } catch (_: Throwable) {}
-                    }
                     try {
                         Natives.aidexSetStartTime(dataptr, sensorstartmsec)
                     } catch (_: Throwable) {}
+                    // Resolve on the handler after the start write. Sampling the day count
+                    // here would let a catalog life land after 0x10 has stored a longer one.
+                    runOnHandler { persistResolvedWearDays("offset-start") }
                 }
             }
         }
@@ -8155,11 +8171,21 @@ class AiDexBleManager(
     }
 
     private fun applyWearProfileFromModel(modelName: String) {
-        if (sensorReportedWearDays) {
-            Log.i(TAG, "Wear profile: keeping sensor-reported days=$_wearDays for model=$modelName")
-            return
+        // DIS reads arrive on the binder thread. 0x10 is handled on the handler thread.
+        // Publishing here inline can snapshot the catalog life and write it after the
+        // sensor byte has already stored a longer one.
+        runOnHandler {
+            val resolved = reportedWearDaysOrNull()
+            if (resolved == null) {
+                Log.i(TAG, "Wear profile: model=$modelName; wear days unknown")
+                return@runOnHandler
+            }
+            Log.i(
+                TAG,
+                "Wear profile: model=$modelName days=$resolved sensorReported=$sensorReportedWearDays raw=$_wearDays"
+            )
+            persistResolvedWearDays("model=$modelName")
         }
-        Log.i(TAG, "Wear profile: model=$modelName; waiting for sensor-reported wear_days")
     }
 
     // =========================================================================
