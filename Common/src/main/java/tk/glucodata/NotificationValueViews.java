@@ -6,10 +6,11 @@ import android.view.View;
 import android.util.TypedValue;
 import android.widget.RemoteViews;
 
-/** Phone value strip. System text inherits the platform notification appearance.
+/** Phone value strip. Regular-weight system text inherits the platform notification appearance.
  * Bundled IBM Plex is rasterized only for the value glyphs: RemoteViews hosts use
  * a restricted context, where TextView intentionally cannot load app font resources.
- * Chart/status/layout remain independent, and every value retains accessible text. */
+ * Nonregular system weights also use glyph bitmaps because named spans discard numeric
+ * weights. Chart/status/layout remain independent; every value retains accessible text. */
 final class NotificationValueViews {
     private NotificationValueViews() {
     }
@@ -70,11 +71,6 @@ final class NotificationValueViews {
             // Named system families survive process boundaries; Typeface objects do not.
             styled.setSpan(new android.text.style.TypefaceSpan(family), 0, styled.length(),
                     android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            if (android.os.Build.VERSION.SDK_INT >= 31) {
-                styled.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.NORMAL,
-                        sanitizeFontWeight(fontWeight) - 400), 0, styled.length(),
-                        android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            }
         }
         return styled;
     }
@@ -101,7 +97,7 @@ final class NotificationValueViews {
 
     static void bindPreferredValueRow(Context context, RemoteViews row, CharSequence text,
             int color, float textSizeSp, boolean useSystemFont, int fontWeight) {
-        if (useSystemFont) {
+        if (useSystemFont && sanitizeFontWeight(fontWeight) == 400) {
             row.setViewVisibility(R.id.notification_value_text, View.VISIBLE);
             row.setViewVisibility(R.id.notification_value_bitmap, View.GONE);
             bindValueRow(row, styledValueText(context, text, true, fontWeight), color, textSizeSp);
@@ -119,8 +115,11 @@ final class NotificationValueViews {
             if (colors.length > 0) secondary = colors[0].getForegroundColor();
             if (colors.length > 1) tertiary = colors[1].getForegroundColor();
         }
+        android.graphics.Typeface systemFace = useSystemFont
+                ? android.graphics.Typeface.create(systemFontFamily(context), android.graphics.Typeface.NORMAL) : null;
         Bitmap value = NotificationChartDrawer.drawGlucoseText(context, text.toString(), color,
-                textPixels / (22f * metrics.density), sanitizeFontWeight(fontWeight), false, secondary, tertiary);
+                textPixels / (22f * metrics.density), sanitizeFontWeight(fontWeight), false,
+                secondary, tertiary, systemFace);
         // The painter renders at 2x density; report it so ImageView retains the SP size.
         value.setDensity(Math.round(metrics.densityDpi * 2f));
         row.setImageViewBitmap(R.id.notification_value_bitmap, value);
@@ -225,7 +224,7 @@ final class NotificationValueViews {
                         : null);
         addValueRow(parent, R.id.notification_value_container, primaryRow, 0);
         int peerIndex = 1;
-        if (peerItems != null) {
+        if (expanded && peerItems != null) {
             for (NotificationChartDrawer.ValueItem item : peerItems) {
                 if (item == null || item.text == null || item.text.isEmpty()) {
                     continue;

@@ -64,10 +64,9 @@ class NotificationValueViewsTests {
         assertEquals(regular, NotificationValueViews.rowLayoutForWeight(0))
     }
 
-    @Test fun namedOemFontAndWeightSurviveWithoutShippingATypefaceObject() {
+    @Test fun namedOemFontSurvivesWithoutShippingATypefaceObject() {
         val text = NotificationValueViews.styledSystemText("5.5", "google-sans", 300) as Spanned
         assertEquals("google-sans", text.getSpans(0, text.length, TypefaceSpan::class.java).single().family)
-        assertEquals(-100, text.getSpans(0, text.length, android.text.style.StyleSpan::class.java).single().fontWeightAdjustment)
     }
 
     @Test fun updatesReuseValueViewsAndReplaceTheirContent() {
@@ -210,7 +209,7 @@ class NotificationValueViewsTests {
         }
     }
 
-    @Test fun compactAndExpandedKeepAllValuesInOneRow() {
+    @Test fun compactPrioritizesPrimaryAndExpandedKeepsPeersInOneRow() {
         val peers = listOf(
             NotificationChartDrawer.ValueItem("102", 0xff335577.toInt(), Float.NaN),
             NotificationChartDrawer.ValueItem("98", 0xff775533.toInt(), Float.NaN))
@@ -223,7 +222,7 @@ class NotificationValueViewsTests {
             NotificationValueViews.bindStatus(app, parent, expanded, false, "Connected", 0xff222222.toInt(), 1f)
             val root = parent.apply(app, null)
             val container = root.findViewById<android.widget.LinearLayout>(R.id.notification_value_container)
-            assertEquals(3, container.childCount)
+            assertEquals(if (expanded) 3 else 1, container.childCount)
             assertEquals(View.GONE, root.findViewById<View>(R.id.notification_legacy_value_row).visibility)
             var statusView: View? = root.findViewById<TextView>(R.id.notification_native_status)
             while (statusView != null) {

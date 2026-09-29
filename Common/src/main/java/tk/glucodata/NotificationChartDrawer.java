@@ -1322,6 +1322,13 @@ public class NotificationChartDrawer {
             boolean useSystemFont,
             int secondaryColor,
             int tertiaryColor) {
+        return drawGlucoseText(context, text, color, fontSizeScale, fontWeight, useSystemFont,
+                secondaryColor, tertiaryColor, null);
+    }
+
+    static Bitmap drawGlucoseText(Context context, String text, int color, float fontSizeScale,
+            int fontWeight, boolean useSystemFont, int secondaryColor, int tertiaryColor,
+            android.graphics.Typeface systemFace) {
         float density = context.getResources().getDisplayMetrics().density * 2.0f; // 2x Resolution (Safe for Binder)
         float textSize = 22f * density * fontSizeScale;
 
@@ -1330,7 +1337,16 @@ public class NotificationChartDrawer {
         paint.setTextSize(textSize);
         paint.setTextAlign(Paint.Align.LEFT);
 
-        if (useSystemFont) {
+        if (systemFace != null) {
+            // App-side numeric weight preserves the named OEM family without sending
+            // a process-local Typeface or synthesizing bold through StyleSpan.
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                paint.setTypeface(android.graphics.Typeface.create(systemFace, fontWeight, false));
+            } else {
+                paint.setTypeface(systemFace);
+                paint.setFontVariationSettings("'wght' " + fontWeight);
+            }
+        } else if (useSystemFont) {
             String familyName = "google-sans";
             if (fontWeight >= 500) {
                 familyName = "google-sans-medium";

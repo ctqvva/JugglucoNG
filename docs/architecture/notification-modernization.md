@@ -26,8 +26,9 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
   never broadcast a new reading. Display-disabled mode retains service status only
   while the service exists; it does not implicitly stop the service.
-- Compact and expanded phone content keep primary and peer readings in one
-  horizontal line, with each reading's arrow. System-font values use native text
+- Expanded phone content keeps primary and peer readings in one horizontal line,
+  with each reading's arrow; compact content prioritizes the primary. Regular-weight
+  system-font values use native text
   and the OEM notification headline family; status uses its body family. Existing
   chart/arrow bitmaps remain bounded assets. Stable child IDs allow API 31+ hosts
   to reuse value views on updates; this does not introduce new animations.
@@ -35,7 +36,9 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   `notification_font_size` (0.6–1.5). RemoteViews hosts use a restricted context that
   cannot load bundled font resources, and Typeface objects do not cross processes.
   IBM Plex therefore uses accessible glyph-only bitmaps from the existing painter;
-  system fonts use named family spans. Remove the ineffective bundled notification
+  regular-weight system fonts use named family spans. Other system weights use
+  glyph bitmaps with the OEM face and requested numeric weight, since family spans
+  discard numeric weights. On API 26–27, numeric weight requires a variable font. Remove the ineffective bundled notification
   font resources. Expanded text honors font scaling; compact text is capped to a
   32dp text size to fit the host's 48dp budget, moving supporting status to expanded
   content when necessary. No preference migration or deletion is needed.
