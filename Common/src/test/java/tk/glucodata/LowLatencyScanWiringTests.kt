@@ -183,5 +183,16 @@ class LowLatencyScanWiringTests {
             "if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) { " +
                 "SensorBluetooth.blueone?.scanStarter(0L) }",
         ))
+        val scanEffect = section(
+            wizard,
+            "DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey)",
+            "LaunchedEffect(scanPermissionGranted",
+        )
+        assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))
+        assertTrue(wizard.contains(
+            "DisposableEffect(Unit) { onDispose { " +
+                "if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) { " +
+                "SensorBluetooth.blueone?.scanStarter(0L) } } }",
+        ))
     }
 }

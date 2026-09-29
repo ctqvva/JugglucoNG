@@ -258,6 +258,13 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
      */
     fun suppressPostUnpairBroadcastScan() {}
 
+    /**
+     * The delete-with-unbind coroutine was cancelled before the sensor was removed.
+     * Drop the suppression, and if the unpair already landed, start the one broadcast
+     * scan that suppression skipped.
+     */
+    fun releasePostUnpairBroadcastScanSuppression() {}
+
     /** Initiate re-pairing from scratch. */
     override fun rePairSensor()
 

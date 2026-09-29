@@ -390,9 +390,12 @@ class AiDexBleManagerSourcePinTests {
     fun aRemovalUnpairDoesNotStartTheBroadcastScan() {
         val ack = member("private fun handleDeleteBondResponse(")
         assertTrue(ack.contains(
-            "if (postUnpairBroadcastScanSuppressed || forgotten) { " +
-                "Log.i(TAG, \"post-unpair broadcast scan suppressed — sensor is being removed\") " +
-                "} else { handler.post { startBroadcastScan(\"post-unpair\") } }",
+            "val startPostUnpairScan = synchronized(postUnpairScanLock) { " +
+                "reconnect.isBroadcastOnlyMode = true " +
+                "!postUnpairBroadcastScanSuppressed && !forgotten } " +
+                "UiRefreshBus.requestStatusRefresh() " +
+                "if (startPostUnpairScan) { handler.post { startBroadcastScan(\"post-unpair\") } } else { " +
+                "Log.i(TAG, \"post-unpair broadcast scan suppressed — sensor is being removed\") }",
         ))
         assertTrue(member("private fun startBroadcastScan(").contains(
             "if (forgotten || postUnpairBroadcastScanSuppressed) return",
@@ -404,7 +407,26 @@ class AiDexBleManagerSourcePinTests {
         val disconnect = vm.substring(vm.indexOf("fun disconnectAiDexSensor("))
         val suppress = disconnect.indexOf("gatt.suppressPostUnpairBroadcastScan()")
         val unpair = disconnect.indexOf("gatt.unpairSensor()")
+        val terminate = disconnect.lastIndexOf("terminateSensor(serial)")
+        val release = disconnect.indexOf("if (!removed) gatt.releasePostUnpairBroadcastScanSuppression()")
         assertTrue(suppress in 0 until unpair)
+        assertTrue(terminate in unpair until release)
+        val unpairBody = member("override fun unpairSensor(): Boolean")
+        assertTrue(unpairBody.contains("AiDexRuntimePolicy.UnpairAdmission.REFUSE_RESET_IN_FLIGHT -> { clearPostUnpairSuppressionUnlessBroadcastOnly()"))
+        assertTrue(unpairBody.contains("AiDexRuntimePolicy.UnpairAdmission.REFUSE_NOT_READY -> { clearPostUnpairSuppressionUnlessBroadcastOnly()"))
+        assertTrue(unpairBody.contains("if (cmd == null) { clearPostUnpairSuppressionUnlessBroadcastOnly() return false }"))
+        assertTrue(member("private fun clearPostUnpairSuppressionUnlessBroadcastOnly()").contains(
+            "synchronized(postUnpairScanLock) { if (!reconnect.isBroadcastOnlyMode) { postUnpairBroadcastScanSuppressed = false } }",
+        ))
+        assertTrue(member("override fun releasePostUnpairBroadcastScanSuppression()").contains(
+            "val startNow = synchronized(postUnpairScanLock) { " +
+                "if (!postUnpairBroadcastScanSuppressed) return@synchronized false " +
+                "postUnpairBroadcastScanSuppressed = false " +
+                "!forgotten && reconnect.isBroadcastOnlyMode } " +
+                "if (!startNow) return handler.post { " +
+                "if (forgotten || postUnpairBroadcastScanSuppressed || !broadcastOnlyConnection) return@post " +
+                "startBroadcastScan(\"delete-unbind-cancelled\") }",
+        ))
     }
 
     @Test

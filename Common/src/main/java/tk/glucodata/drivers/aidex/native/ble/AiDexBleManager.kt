@@ -749,6 +749,12 @@ class AiDexBleManager(
      */
     @Volatile private var postUnpairBroadcastScanSuppressed = false
     /**
+     * Pairs the ACK's write of [AiDexReconnect.isBroadcastOnlyMode] with the release that reads it.
+     * The ACK runs on the handler. Release runs on the disconnect coroutine's IO thread.
+     * The field is not volatile.
+     */
+    private val postUnpairScanLock = Any()
+    /**
      * Set once [beginServiceDiscovery] has called `discoverServices()` on this link.
      *
      * Besides keeping that call idempotent, this is how [mtuCallbackTimeout] tells "onMtuChanged
@@ -7283,14 +7289,18 @@ class AiDexBleManager(
             keyExchange.reset()
             softDisconnect()
             constatstatusstr = if (bondRemoved) "Unpaired — Broadcast Only" else "Unpair incomplete — Broadcast Only"
-            // Transition to broadcast-only mode so user keeps getting data
-            reconnect.isBroadcastOnlyMode = true
+            // The ACK runs on the handler. Release reads the mode on the IO thread, so the
+            // write and that read share this lock.
             stop = false
+            val startPostUnpairScan = synchronized(postUnpairScanLock) {
+                reconnect.isBroadcastOnlyMode = true
+                !postUnpairBroadcastScanSuppressed && !forgotten
+            }
             UiRefreshBus.requestStatusRefresh()
-            if (postUnpairBroadcastScanSuppressed || forgotten) {
-                Log.i(TAG, "post-unpair broadcast scan suppressed — sensor is being removed")
-            } else {
+            if (startPostUnpairScan) {
                 handler.post { startBroadcastScan("post-unpair") }
+            } else {
+                Log.i(TAG, "post-unpair broadcast scan suppressed — sensor is being removed")
             }
         } else {
             postUnpairBroadcastScanSuppressed = false
@@ -8885,6 +8895,37 @@ class AiDexBleManager(
         postUnpairBroadcastScanSuppressed = true
     }
 
+    override fun releasePostUnpairBroadcastScanSuppression() {
+        // Under the same lock as the ACK's mode write. Clearing the flag here either happens
+        // before that read, so the ACK starts the scan, or after it, so this side sees
+        // broadcast-only and starts the scan the ACK skipped. Release runs off the handler,
+        // and the field is not volatile.
+        val startNow = synchronized(postUnpairScanLock) {
+            if (!postUnpairBroadcastScanSuppressed) return@synchronized false
+            postUnpairBroadcastScanSuppressed = false
+            !forgotten && reconnect.isBroadcastOnlyMode
+        }
+        if (!startNow) return
+        handler.post {
+            if (forgotten || postUnpairBroadcastScanSuppressed || !broadcastOnlyConnection) return@post
+            startBroadcastScan("delete-unbind-cancelled")
+        }
+    }
+
+    /**
+     * A refused unpair did not send DELETE_BOND, so no ACK will start the scan. Drop the
+     * suppression. Once a confirmed unpair has already entered broadcast-only, the ACK skipped
+     * its scan and [releasePostUnpairBroadcastScanSuppression] still owes it: clearing the flag
+     * here would make that release return without starting.
+     */
+    private fun clearPostUnpairSuppressionUnlessBroadcastOnly() {
+        synchronized(postUnpairScanLock) {
+            if (!reconnect.isBroadcastOnlyMode) {
+                postUnpairBroadcastScanSuppressed = false
+            }
+        }
+    }
+
     override fun unpairSensor(): Boolean {
         Log.i(TAG, "unpairSensor: sending deleteBond (0xF2) for $SerialNumber")
         consecutiveSetupDisconnects = 0
@@ -8923,13 +8964,13 @@ class AiDexBleManager(
                 return true
             }
             AiDexRuntimePolicy.UnpairAdmission.REFUSE_RESET_IN_FLIGHT -> {
-                postUnpairBroadcastScanSuppressed = false
+                clearPostUnpairSuppressionUnlessBroadcastOnly()
                 Log.w(TAG, "unpairSensor: a reset is in progress — refusing")
                 showTransientStatus("Reset in progress — unpair refused", POST_RESET_OUTCOME_STATUS_MS)
                 return false
             }
             AiDexRuntimePolicy.UnpairAdmission.REFUSE_NOT_READY -> {
-                postUnpairBroadcastScanSuppressed = false
+                clearPostUnpairSuppressionUnlessBroadcastOnly()
                 Log.e(TAG, "unpairSensor: no session key, no usable GATT link or CLEAR_STORAGE quiet window active — refusing unconfirmed local cleanup")
                 constatstatusstr = "Connect before unpairing — key retained"
                 UiRefreshBus.requestStatusRefresh()
@@ -8938,7 +8979,7 @@ class AiDexBleManager(
             AiDexRuntimePolicy.UnpairAdmission.ALLOW -> Unit
         }
         if (cmd == null) {
-            postUnpairBroadcastScanSuppressed = false
+            clearPostUnpairSuppressionUnlessBroadcastOnly()
             return false
         }
         enqueueGattOp(GattOp.Write(CHAR_F002, cmd, AiDexOpcodes.DELETE_BOND))

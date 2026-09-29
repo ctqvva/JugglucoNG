@@ -1526,24 +1526,32 @@ class SensorViewModel : ViewModel() {
             // terminateSensor stops at once, and that start/stop leaves setup scans empty until
             // the process is restarted.
             gatt.suppressPostUnpairBroadcastScan()
-            val started = runCatching { gatt.unpairSensor() }.getOrElse {
-                android.util.Log.e("SensorVM", "disconnectAiDexSensor unpairSensor failed: ${it.message}")
-                false
-            }
-            // Wait (bounded) for the deleteBond to actually be delivered and the driver to
-            // enter broadcast-only, so we don't kill the link mid-unpair.
-            if (started) {
-                val deadlineMs = System.currentTimeMillis() + 8_000L
-                while (System.currentTimeMillis() < deadlineMs && !gatt.broadcastOnlyConnection) {
-                    kotlinx.coroutines.delay(300L)
+            var removed = false
+            try {
+                val started = runCatching { gatt.unpairSensor() }.getOrElse {
+                    android.util.Log.e("SensorVM", "disconnectAiDexSensor unpairSensor failed: ${it.message}")
+                    false
                 }
-                android.util.Log.i(
-                    "SensorVM",
-                    "AiDex disconnect (breakPairing): unpair settled=${gatt.broadcastOnlyConnection}"
-                )
-            }
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                terminateSensor(serial)
+                // Wait (bounded) for the deleteBond to actually be delivered and the driver to
+                // enter broadcast-only, so we don't kill the link mid-unpair.
+                if (started) {
+                    val deadlineMs = System.currentTimeMillis() + 8_000L
+                    while (System.currentTimeMillis() < deadlineMs && !gatt.broadcastOnlyConnection) {
+                        kotlinx.coroutines.delay(300L)
+                    }
+                    android.util.Log.i(
+                        "SensorVM",
+                        "AiDex disconnect (breakPairing): unpair settled=${gatt.broadcastOnlyConnection}"
+                    )
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    terminateSensor(serial)
+                }
+                removed = true
+            } finally {
+                // Popping the sensors screen cancels this wait. The flag would otherwise keep
+                // this manager from ever broadcast-scanning.
+                if (!removed) gatt.releasePostUnpairBroadcastScanSuppression()
             }
         }
     }
