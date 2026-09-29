@@ -154,9 +154,34 @@ class LowLatencyScanWiringTests {
         val remove = body.indexOf("handler.removeCallbacks(freshActivationAdvertisementTimeoutRunnable)")
         val post = body.indexOf("handler.postDelayed( freshActivationAdvertisementTimeoutRunnable, " +
             "FRESH_ACTIVATION_ADVERTISEMENT_TIMEOUT_MS, )")
+        val restart = body.indexOf(
+            "val blue = SensorBluetooth.blueone if (blue != null && SensorBluetooth.scanActiveOrPending()) { " +
+                "Log.i(TAG, \"restarting managed scan for activation advertisement\") blue.stopScan(false) }",
+        )
         val scan = body.indexOf("SensorBluetooth.blueone?.scanStarter(0L)")
         // A throw out of scanStarter must not leave the wait without the timeout that abandons it.
         assertTrue(remove >= 0 && post > remove)
         assertTrue("scanStarter must follow the posted timeout", scan > post)
+        // A scan already flagged active is not delivering to a callback added after it started.
+        // scanStarter skips that case; stopping first is what lets this wait hear an advertisement.
+        assertTrue("activation wait must restart a scan that is already flagged active", restart > post && scan > restart)
+    }
+
+    @Test
+    fun ottaiSetupScanYieldsTheRadioBeforeConnect() {
+        val wizard = read("Common/src/mobile/java/tk/glucodata/ui/setup/OttaiSetupWizard.kt")
+        assertTrue(wizard.contains(
+            "if (SensorBluetooth.scanActiveOrPending()) { " +
+                "Log.i(OTTAI_SCAN_LOG, \"stopping managed scan before the setup scanner\") " +
+                "SensorBluetooth.blueone?.stopScan(false) }",
+        ))
+        val connect = wizard.indexOf("private fun connectOttaiSensor(")
+        val stop = wizard.indexOf("OttaiSetupScanHold.stopPanelScans()", connect)
+        val add = wizard.indexOf("OttaiRegistry.addSensorForUserConnect(", connect)
+        assertTrue(connect >= 0 && stop > connect && add > stop)
+        assertTrue(wizard.contains(
+            "if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) { " +
+                "SensorBluetooth.blueone?.scanStarter(0L) }",
+        ))
     }
 }

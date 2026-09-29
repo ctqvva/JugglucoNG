@@ -320,6 +320,10 @@ private fun connectOttaiSensor(
     return when (route) {
         OttaiSetupConnectRoute.STORED_MATERIALS -> {
             if (OttaiRegistry.loadMaterials(context, canonical).authKeys == null) return false
+            // The panel scanner shares Android's five startScan calls per 30s with the managed
+            // scan. Leaving it running makes scanStarter skip, and the connect screen stays on
+            // "Looking for nearby transmitters" with no advertisement reaching the new callback.
+            OttaiSetupScanHold.stopPanelScans()
             OttaiRegistry.addSensorForUserConnect(
                 context,
                 canonical,
@@ -2176,6 +2180,26 @@ private fun OttaiSensorMaterialCard(
     }
 }
 
+/** Setup-panel scanners. Stopped before the driver starts the managed scan. */
+private object OttaiSetupScanHold {
+    private val open = java.util.Collections.newSetFromMap(
+        java.util.WeakHashMap<BleDeviceScanner, Boolean>(),
+    )
+
+    fun track(scanner: BleDeviceScanner) {
+        synchronized(open) { open.add(scanner) }
+    }
+
+    fun untrack(scanner: BleDeviceScanner) {
+        synchronized(open) { open.remove(scanner) }
+    }
+
+    fun stopPanelScans() {
+        val scanners = synchronized(open) { open.toList() }
+        scanners.forEach { it.stopScan() }
+    }
+}
+
 @Composable
 private fun OttaiBleScanPanel(
     ui: WizardUiMetrics,
@@ -2237,14 +2261,19 @@ private fun OttaiBleScanPanel(
 
         scanError = null
         scanActive = true
-        // The managed scan owns the same five startScan() calls per 30s that the platform allows
-        // the whole app, and it reconnects an added sensor the instant it advertises. Both are
-        // reasons this panel can legitimately see nothing; record them so a trace can say which.
+        // One scanner for the app. A second startScan while the managed one is flagged active
+        // spends the platform quota and can be the start the platform drops, while scanStarter
+        // keeps skipping because the flag stays set. Stop the managed scan for this window.
+        if (SensorBluetooth.scanActiveOrPending()) {
+            Log.i(OTTAI_SCAN_LOG, "stopping managed scan before the setup scanner")
+            SensorBluetooth.blueone?.stopScan(false)
+        }
         Log.i(
             OTTAI_SCAN_LOG,
             "scan start filter=181f duration=${OTTAI_SCAN_DURATION_MS}ms " +
                 "managedScan=${SensorBluetooth.scanActiveOrPending()}",
         )
+        OttaiSetupScanHold.track(scanner)
         scanner.startScan(
             serviceUuids = listOf(OttaiConstants.SERVICE_CGM),
             onResult = { result ->
@@ -2293,7 +2322,16 @@ private fun OttaiBleScanPanel(
                 }
             },
         )
-        onDispose { scanner.stopScan() }
+        onDispose {
+            scanner.stopScan()
+            OttaiSetupScanHold.untrack(scanner)
+            // Connect arms the managed scan before this panel leaves the composition. Starting
+            // another one here would be the second startScan. Only fill the gap when the radio
+            // was handed back with nobody listening.
+            if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) {
+                SensorBluetooth.blueone?.scanStarter(0L)
+            }
+        }
     }
 
     LaunchedEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey) {
@@ -2301,6 +2339,9 @@ private fun OttaiBleScanPanel(
             delay(OTTAI_SCAN_DURATION_MS)
             scanActive = false
             scanner.stopScan()
+            if (SensorBluetooth.gattcallbacks.isNotEmpty() && !SensorBluetooth.scanActiveOrPending()) {
+                SensorBluetooth.blueone?.scanStarter(0L)
+            }
             Log.i(
                 OTTAI_SCAN_LOG,
                 "scan done addresses=${scanStats.size} " +

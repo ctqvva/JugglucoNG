@@ -2353,6 +2353,17 @@ class OttaiBleManager(
             freshActivationAdvertisementTimeoutRunnable,
             FRESH_ACTIVATION_ADVERTISEMENT_TIMEOUT_MS,
         )
+        // scanStarter refuses a second start while mScanning or scanstart is set, and it does
+        // not rebuild filters for a callback added after the scan began. The setup panel's own
+        // scanner leaves that flag set (and can be the scanner the platform is actually
+        // delivering to). Skipping here keeps this wait on "Looking for nearby transmitters"
+        // until the timeout, because no advertisement reaches this callback. Stop first so the
+        // start below is the one that hears them.
+        val blue = SensorBluetooth.blueone
+        if (blue != null && SensorBluetooth.scanActiveOrPending()) {
+            Log.i(TAG, "restarting managed scan for activation advertisement")
+            blue.stopScan(false)
+        }
         SensorBluetooth.blueone?.scanStarter(0L)
         if (activateRequestedFor?.let { matchesManagedSensorId(it) } == true) {
             armNfcActivationWake("setup activation is waiting for its first advertisement")
