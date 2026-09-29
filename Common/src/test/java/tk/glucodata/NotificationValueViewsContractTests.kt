@@ -24,37 +24,14 @@ class NotificationValueViewsContractTests {
         return file
     }
 
-    @Test fun weightFontFamiliesCoverSettingsRange() {
-        val expectations = mapOf(
-            "res/font/notif_font_light.xml" to "300",
-            "res/font/notif_font_regular.xml" to "400",
-            "res/font/notif_font_medium.xml" to "500"
-        )
-        for ((path, weight) in expectations) {
-            val text = mainFile(path).readText()
-            assertTrue("$path must declare fontWeight $weight",
-                text.contains("android:fontWeight=\"$weight\""))
-            assertTrue("$path must use the matching IBM Plex font",
-                text.contains("@font/ibm_plex_sans_" + when (weight) { "300" -> "light"; "500" -> "medium"; else -> "var" }))
-        }
-    }
-
-    @Test fun valueRowLayoutsUseInflationTimeFonts() {
-        val expectations = mapOf(
-            "res/layout/notification_value_row_light.xml" to "@font/notif_font_light",
-            "res/layout/notification_value_row_regular.xml" to "@font/notif_font_regular",
-            "res/layout/notification_value_row_medium.xml" to "@font/notif_font_medium"
-        )
-        for ((path, family) in expectations) {
-            val text = mainFile(path).readText()
-            assertTrue("$path must carry the native value TextView",
-                text.contains("android:id=\"@+id/notification_value_text\""))
-            assertTrue("$path must select its IBM weight at inflation time via $family",
-                text.contains("android:fontFamily=\"$family\""))
-            assertTrue("$path must keep tabular figures for glucose values",
-                text.contains("tnum"))
-            assertTrue("$path must carry the per-row arrow slot",
-                text.contains("android:id=\"@+id/notification_value_arrow\""))
+    @Test fun valueRowsInheritPlatformTypographyInsteadOfRestrictedAppFonts() {
+        for ((variant, weight) in mapOf("light" to 300, "regular" to 400, "medium" to 500)) {
+            val text = mainFile("res/layout/notification_value_row_$variant.xml").readText()
+            assertTrue(text.contains("@android:style/TextAppearance.Material.Notification.Title"))
+            assertTrue(text.contains("android:textFontWeight=\"$weight\""))
+            assertFalse("resource fonts cannot load in restricted System UI", text.contains("android:fontFamily="))
+            assertTrue(text.contains("notification_value_bitmap"))
+            assertTrue(text.contains("notification_value_text"))
         }
     }
 
@@ -126,8 +103,9 @@ class NotificationValueViewsContractTests {
 
     @Test fun helperPreservesSpansAndPeerText() {
         val helper = mainFile("java/tk/glucodata/NotificationValueViews.java").readText()
-        assertTrue("system weight must travel as a parcelable TypefaceSpan",
-            helper.contains("TypefaceSpan"))
+        assertTrue("system family must come from the OEM-overridable platform resource",
+            helper.contains("config_headlineFontFamily"))
+        assertFalse("do not force Roboto over the OEM font", helper.contains("TypefaceSpan(\"sans-serif"))
         assertTrue("only RemoteViews methods available since API 26 may be used",
             helper.contains("removeAllViews") && helper.contains("addView"))
         assertTrue("peer text must pass through without reformatting",

@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Native phone value row, light (300) IBM Plex variant. Inflated by SystemUI;
-     weight is selected at inflation time via this layout, never via a RemoteViews
-     setter (setFontVariationSettings is not remotely callable below API 35). -->
+<!-- System notification typography, weight 300; bundled fonts cannot load in the host. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -13,11 +11,21 @@
         android:id="@+id/notification_value_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/notif_font_light"
+        android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+        android:textFontWeight="300"
+        android:singleLine="true"
         android:fontFeatureSettings="tnum"
         android:includeFontPadding="false"
         android:text=""
         android:textSize="24sp" />
+
+    <ImageView
+        android:id="@+id/notification_value_bitmap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/notification_value_arrow"

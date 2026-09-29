@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Native phone value row, medium (500) IBM Plex variant. textStyle bold keeps
-     the preference visible on APIs where the variable 'wght' axis cannot be set
-     remotely; API 35+ additionally receives the exact variation string. -->
+<!-- System notification typography, weight 500; bundled fonts cannot load in the host. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -13,12 +11,22 @@
         android:id="@+id/notification_value_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/notif_font_medium"
+        android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+        android:textFontWeight="500"
+        android:singleLine="true"
         android:fontFeatureSettings="tnum"
         android:includeFontPadding="false"
         android:text=""
         android:textSize="24sp"
         android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/notification_value_bitmap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/notification_value_arrow"
