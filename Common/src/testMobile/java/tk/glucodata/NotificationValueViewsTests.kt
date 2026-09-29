@@ -70,6 +70,40 @@ class NotificationValueViewsTests {
         assertEquals(-100, text.getSpans(0, text.length, android.text.style.StyleSpan::class.java).single().fontWeightAdjustment)
     }
 
+    @Test fun updatesReuseValueViewsAndReplaceTheirContent() {
+        fun content(value: String): android.widget.RemoteViews {
+            val parent = android.widget.RemoteViews(app.packageName, R.layout.notification_material)
+            NotificationValueViews.bindNativeValueRows(app, parent, false, value,
+                0xff112233.toInt(), emptyList(), 0f, 0xff112233.toInt(), true,
+                1f, 1f, 400, true, false, false)
+            return parent
+        }
+        val root = content("5.5").apply(app, null)
+        val original = root.findViewById<TextView>(R.id.notification_value_text)
+        content("5.6").reapply(app, root)
+        val updated = root.findViewById<TextView>(R.id.notification_value_text)
+        org.junit.Assert.assertSame(original, updated)
+        assertEquals("5.6", updated.text.toString())
+    }
+
+    @Test fun systemFontReplacesInheritedRobotoSpanAcrossParceling() {
+        val original = android.text.SpannableString("5.5").also {
+            it.setSpan(TypefaceSpan("sans-serif"), 0, it.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        val row = rowFor(400)
+        NotificationValueViews.bindValueRow(row,
+            NotificationValueViews.styledSystemText(original, "google-sans", 400),
+            0xff112233.toInt(), 24f)
+        val parcel = Parcel.obtain()
+        try {
+            row.writeToParcel(parcel, 0)
+            parcel.setDataPosition(0)
+            val restored = android.widget.RemoteViews.CREATOR.createFromParcel(parcel)
+            val text = appliedTextViews(listOf(restored)).single().text as Spanned
+            assertEquals("google-sans", text.getSpans(0, text.length, TypefaceSpan::class.java).single().family)
+        } finally { parcel.recycle() }
+    }
+
     @Test fun fontScaleIsSanitizedToSliderRange() {
         assertEquals(24f, NotificationValueViews.primaryTextSizeSp(false, 1f), 0.001f)
         assertEquals(28f, NotificationValueViews.primaryTextSizeSp(true, 1f), 0.001f)

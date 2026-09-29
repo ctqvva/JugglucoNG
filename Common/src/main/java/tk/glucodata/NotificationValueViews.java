@@ -63,6 +63,9 @@ final class NotificationValueViews {
 
     static CharSequence styledSystemText(CharSequence text, String family, int fontWeight) {
         final android.text.SpannableStringBuilder styled = new android.text.SpannableStringBuilder(text);
+        for (android.text.style.TypefaceSpan old : styled.getSpans(0, styled.length(), android.text.style.TypefaceSpan.class)) {
+            styled.removeSpan(old);
+        }
         if (family != null && !family.isEmpty()) {
             // Named system families survive process boundaries; Typeface objects do not.
             styled.setSpan(new android.text.style.TypefaceSpan(family), 0, styled.length(),
@@ -142,6 +145,16 @@ final class NotificationValueViews {
     static void addValueRow(RemoteViews parent, int containerId, RemoteViews row) {
         parent.addView(containerId, row);
     }
+
+    private static void addValueRow(RemoteViews parent, int containerId, RemoteViews row, int stableId) {
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            // Let RemoteViews reapply existing rows on updates instead of inflating
+            // every value again after removeAllViews. This does not add animation.
+            parent.addStableView(containerId, row, stableId);
+        } else {
+            parent.addView(containerId, row);
+        }
+    }
     /** Compact custom content may have only 48dp of height. Expanded text keeps
      * the full preference/accessibility scale; compact prioritizes an intact value. */
     static float renderedTextSizeSp(Context context, boolean expanded, float fontScale) {
@@ -182,16 +195,17 @@ final class NotificationValueViews {
         }
         views.setViewVisibility(id, visible ? View.VISIBLE : View.GONE);
         if (visible) {
-            views.setTextViewText(id, status);
+            int bodyFamilyId = context.getResources().getIdentifier("config_bodyFontFamily", "string", "android");
+            String bodyFamily = bodyFamilyId == 0 ? systemFontFamily(context) : context.getResources().getString(bodyFamilyId);
+            views.setTextViewText(id, wearable ? status : styledSystemText(status, bodyFamily, 400));
             views.setTextColor(id, color);
         }
     }
 
     /**
-     * Binds the phone native value rows: one row for the primary value (with its own
-     * arrow) plus one smaller row per peer (with that peer's arrow), all as native
-     * text from the resolved formatter output. The legacy raster views are hidden on
-     * the phone only. Chart and arrow bitmaps are untouched by this method.
+     * Binds a horizontal phone value strip with a primary value and smaller peers,
+     * each retaining its own arrow. System text uses TextViews; IBM Plex uses
+     * accessible glyph bitmaps. All text comes from the resolved formatter output.
      */
     static void bindNativeValueRows(Context context, RemoteViews parent, boolean expanded, CharSequence valueText,
             int primaryColor, java.util.List<NotificationChartDrawer.ValueItem> peerItems, float rate,
@@ -209,7 +223,8 @@ final class NotificationValueViews {
         bindRowArrow(primaryRow,
                 showArrow ? NotificationChartDrawer.drawArrow(context, rate, isMmol, arrowColor, arrowSize)
                         : null);
-        addValueRow(parent, R.id.notification_value_container, primaryRow);
+        addValueRow(parent, R.id.notification_value_container, primaryRow, 0);
+        int peerIndex = 1;
         if (peerItems != null) {
             for (NotificationChartDrawer.ValueItem item : peerItems) {
                 if (item == null || item.text == null || item.text.isEmpty()) {
@@ -225,7 +240,7 @@ final class NotificationValueViews {
                                 ? NotificationChartDrawer.drawArrow(context, item.rate, isMmol,
                                         peerColor, arrowSize)
                                 : null);
-                addValueRow(parent, R.id.notification_value_container, peerRow);
+                addValueRow(parent, R.id.notification_value_container, peerRow, peerIndex++);
             }
         }
         parent.setViewVisibility(R.id.notification_value_container, View.VISIBLE);

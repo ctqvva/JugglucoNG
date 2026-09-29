@@ -3,7 +3,7 @@
 Status: implementation in progress. The timestamp/async-startup subset merged in
 [PR #485](https://github.com/ctqvva/JugglucoNG/pull/485) and received a brief maintainer
 device check. The follow-up implements the contained phone lifecycle changes and
-native value presentation below. It does not move the structural track in
+phone value presentation below. It does not move the structural track in
 [direction.md](direction.md). The source evidence table records the original
 review against main at 7b12a40d4, rather than claiming those defects remain unchanged.
 
@@ -26,16 +26,27 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
   never broadcast a new reading. Display-disabled mode retains service status only
   while the service exists; it does not implicitly stop the service.
-- Phone glucose text is native `TextView` content. Compact content prioritizes the
-  primary reading; expanded content stacks peer readings with their own arrows and
-  keeps the status line visible. Existing chart/arrow bitmaps remain bounded assets;
-  no frame-by-frame notification animation is introduced.
+- Compact and expanded phone content keep primary and peer readings in one
+  horizontal line, with each reading's arrow. System-font values use native text
+  and the OEM notification headline family; status uses its body family. Existing
+  chart/arrow bitmaps remain bounded assets. Stable child IDs allow API 31+ hosts
+  to reuse value views on updates; this does not introduce new animations.
 - Preserve `notification_font_family`, `notification_font_weight` (300/400/500) and
-  `notification_font_size` (0.6–1.5). IBM Plex uses static light/medium instances of
-  the existing variable font because API 26 font resources cannot select axes.
-  Expanded text honors font scaling; compact text is capped to a 32dp text size to
-  fit the host's 48dp budget, and moves supporting status to expanded content when
-  necessary. No preference migration or deletion is needed.
+  `notification_font_size` (0.6–1.5). RemoteViews hosts use a restricted context that
+  cannot load bundled font resources, and Typeface objects do not cross processes.
+  IBM Plex therefore uses accessible glyph-only bitmaps from the existing painter;
+  system fonts use named family spans. Remove the ineffective bundled notification
+  font resources. Expanded text honors font scaling; compact text is capped to a
+  32dp text size to fit the host's 48dp budget, moving supporting status to expanded
+  content when necessary. No preference migration or deletion is needed.
+
+Maintainer screenshots of the first version of this slice exposed Roboto fallback
+and unwanted stacked peer values. The correction addresses both; local RemoteViews
+checks cannot establish the final OEM shade appearance. The Pixel's framework font
+configuration was checked read-only (Google Sans headline, Google Sans Text body),
+but the corrected notification still needs a device check. Custom content does not
+receive all standard-template element transforms. A native-template motion redesign
+remains separate because retaining the compact chart constrains that choice.
 
 Local verification covers real RemoteViews application/parceling and production-body
 lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release
