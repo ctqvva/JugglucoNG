@@ -59,5 +59,9 @@ object UiRefreshBus {
     fun requestStatusRefresh() {
         _events.tryEmit(Event.StatusOnly)
         runCatching { Floating.invalidatefloat() }
+        // The phone ongoing notification reconciles through the same coalesced visual
+        // path as data changes (bounded debounce in Notify); status-only work never
+        // broadcasts, alarms, or retriggers alertwatch delivery.
+        runCatching { Notify.scheduleStatusChangedRefresh() }
     }
 }

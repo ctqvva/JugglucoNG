@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static instance of ibm_plex_sans_var (wght 500, wdth 100).
+     API 26 font resources cannot select variable axes. -->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="500"
+        android:font="@font/ibm_plex_sans_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500"
+        app:font="@font/ibm_plex_sans_medium" />
+</font-family>

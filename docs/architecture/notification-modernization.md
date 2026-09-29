@@ -1,9 +1,48 @@
 # Notification modernization proposal
 
-Status: proposed feature plan for a documentation-only PR; it does not change
-the structural track order in [direction.md](direction.md). Reviewed 2026-09-27
-against main at 7b12a40d4. This is source and issue review only: no device
-reproduction or timing measurement has been completed.
+Status: implementation in progress. The timestamp/async-startup subset merged in
+[PR #485](https://github.com/ctqvva/JugglucoNG/pull/485) and received a brief maintainer
+device check. The follow-up implements the contained phone lifecycle changes and
+native value presentation below. It does not move the structural track in
+[direction.md](direction.md). The source evidence table records the original
+review against main at 7b12a40d4, rather than claiming those defects remain unchanged.
+
+### Current implementation slice
+
+The maintainer explicitly requested continuing with lifecycle and visuals after the
+startup device check. This authorizes a bounded N1/N4 feature slice without the
+N2/N3 coordinator or shared-state extraction. No driver, storage, calibration,
+widget, Floating, broadcaster contract, alarm layout or Wear redesign is included.
+
+- Ordinary phone readings have one freshness deadline, based on the actual rendered
+  snapshot, including its fallback. At expiry, retain the last value and its units
+  with the existing translated stale label and reading-time header; remove the
+  current chart/arrow. Handler timing remains best effort during Doze.
+- Data/status requests keep the first one-second deadline while queued. Settings,
+  screen-on and time changes reconcile the presentation on the notification worker.
+  Startup, genuine publications and visual refreshes invalidate superseded work;
+  service teardown cancels only the owning service's pending work.
+- Remove `setTimeoutAfter` only from ongoing phone glucose content. Preserve alarm
+  and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
+  never broadcast a new reading. Display-disabled mode retains service status only
+  while the service exists; it does not implicitly stop the service.
+- Phone glucose text is native `TextView` content. Compact content prioritizes the
+  primary reading; expanded content stacks peer readings with their own arrows and
+  keeps the status line visible. Existing chart/arrow bitmaps remain bounded assets;
+  no frame-by-frame notification animation is introduced.
+- Preserve `notification_font_family`, `notification_font_weight` (300/400/500) and
+  `notification_font_size` (0.6–1.5). IBM Plex uses static light/medium instances of
+  the existing variable font because API 26 font resources cannot select axes.
+  Expanded text honors font scaling; compact text is capped to a 32dp text size to
+  fit the host's 48dp budget, and moves supporting status to expanded content when
+  necessary. No preference migration or deletion is needed.
+
+Local verification covers real RemoteViews application/parceling and production-body
+lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release
+builds. This follow-up still needs device checks for shade geometry, TalkBack, light/
+dark mode, large fonts, multisensor content, Doze expiry, and service replacement.
+The brief device result above applies only to PR #485. Latency targets below remain
+measurement hypotheses.
 
 ## Outcome and scope
 
@@ -13,8 +52,8 @@ compact and expanded layouts. It must work while the activity is closed and
 after process restart. Preserve ingestion, storage, calibration, units,
 sensor policy and independent glucose-alarm delivery.
 
-N0 and a trimmed N1 are the immediate reliability work. N2 through N5 remain
-deferred under D4. The primary surfaces are the dashboard adapter and ongoing
+The current slice advances N1 and the bounded N4 presentation described above.
+N2/N3 structural work and N5 remain deferred under D4. The primary surfaces are the dashboard adapter and ongoing
 phone notification. WidgetDisplaySource/ExpressiveAppWidget, Floating,
 GlucoseUpdateBroadcaster and other notification consumers remain compatibility
 surfaces; they are not implicitly migrated by N1.
@@ -186,8 +225,9 @@ phone timeout/lifetime change separately. Test stale historical snapshots at
 
 ## Deferred work under D4 and P5
 
-Structural and behavior changes must not share a PR. N2 through N5 wait for
-D4's one structural track or an explicit amendment:
+Structural and behavior changes must not share a PR. N2/N3 and N5 wait for
+D4's structural slot; the maintainer-authorized N4 subset above is a feature change
+without that structural extraction. The broader proposal remains:
 
 | Step | Deliverable | Acceptance |
 | --- | --- | --- |
