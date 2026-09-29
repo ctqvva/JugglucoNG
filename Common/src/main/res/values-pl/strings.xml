@@ -2516,7 +2516,7 @@
     <string name="sensor_handover_title">Automatyczne przełączenie czujnika</string>
     <string name="sensor_handover_desc">Aktywuj następny czujnik wcześniej; aplikacja przełączy się po wygaśnięciu obecnego</string>
     <string name="sensor_handover_old_action_title">Wygasły czujnik po przełączeniu</string>
-    <string name="sensor_handover_old_action_desc">Dezaktywuj: wygasły czujnik pozostaje na liście, dopóki go nie usuniesz. Usuń: jak w oknie usuwania, klucze parowania zostają skasowane. Historia pomiarów jest zachowana w obu przypadkach.</string>
+    <string name="sensor_handover_old_action_desc">Dezaktywuj: wygasły czujnik pozostaje na liście, dopóki go nie usuniesz. Usuń: jak w oknie usuwania, klucze parowania zostają skasowane, ale czujnik, który około godziny po wygaśnięciu nadal wysyła odczyty, zostaje jedynie dezaktywowany. Dezaktywowany czujnik, który wciąż wysyła odczyty, może dalej przesyłać dane do Nightscout (API V1) równolegle z nowym. Historia pomiarów jest zachowana w obu przypadkach.</string>
     <string name="sensor_handover_action_deactivate">Dezaktywuj</string>
     <string name="sensor_handover_action_remove">Usuń</string>
     <string name="sensor_handover_switched_text">Przełączono z %1$s na %2$s</string>

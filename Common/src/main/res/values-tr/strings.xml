@@ -2510,7 +2510,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_handover_title">Otomatik sensör devri</string>
     <string name="sensor_handover_desc">Sonraki sensörü önceden etkinleştirin; mevcut sensör bitince uygulama otomatik geçer</string>
     <string name="sensor_handover_old_action_title">Devirden sonra süresi dolan sensör</string>
-    <string name="sensor_handover_old_action_desc">Devre dışı bırak: süresi dolan sensör siz kaldırana kadar listede kalır. Kaldır: kaldırma penceresindeki gibi, eşleştirme anahtarları silinir. Ölçüm geçmişi her iki durumda da korunur.</string>
+    <string name="sensor_handover_old_action_desc">Devre dışı bırak: süresi dolan sensör siz kaldırana kadar listede kalır. Kaldır: kaldırma penceresindeki gibi, eşleştirme anahtarları silinir, ancak süresi dolduktan yaklaşık bir saat sonra hâlâ ölçüm gönderen bir sensör yalnızca devre dışı bırakılır. Ölçüm göndermeyi sürdüren devre dışı bırakılmış bir sensör, yenisinin yanında Nightscout\'a (API V1) yüklemeye devam edebilir. Ölçüm geçmişi her iki durumda da korunur.</string>
     <string name="sensor_handover_action_deactivate">Devre dışı bırak</string>
     <string name="sensor_handover_action_remove">Kaldır</string>
     <string name="sensor_handover_switched_text">%1$s yerine %2$s kullanılıyor</string>

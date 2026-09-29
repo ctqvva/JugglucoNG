@@ -2602,7 +2602,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_handover_title">Automatische Sensor-Übergabe</string>
     <string name="sensor_handover_desc">Nachfolger früh aktivieren; nach Ablauf wechselt die App automatisch</string>
     <string name="sensor_handover_old_action_title">Abgelaufener Sensor nach der Übergabe</string>
-    <string name="sensor_handover_old_action_desc">Deaktivieren: der abgelaufene Sensor bleibt in der Liste, bis Sie ihn entfernen. Entfernen: wie die Entfernen-Maske, Kopplungsschlüssel werden gelöscht. Messdaten bleiben in beiden Fällen erhalten.</string>
+    <string name="sensor_handover_old_action_desc">Deaktivieren: der abgelaufene Sensor bleibt in der Liste, bis Sie ihn entfernen. Entfernen: wie die Entfernen-Maske, Kopplungsschlüssel werden gelöscht, aber ein Sensor, der etwa eine Stunde nach Ablauf noch Werte liefert, wird nur deaktiviert. Liefert ein deaktivierter Sensor weiter Werte, werden diese möglicherweise weiterhin neben denen des neuen Sensors zu Nightscout (API V1) hochgeladen. Messdaten bleiben in beiden Fällen erhalten.</string>
     <string name="sensor_handover_action_deactivate">Deaktivieren</string>
     <string name="sensor_handover_action_remove">Entfernen</string>
     <string name="sensor_handover_switched_text">Von %1$s auf %2$s gewechselt</string>

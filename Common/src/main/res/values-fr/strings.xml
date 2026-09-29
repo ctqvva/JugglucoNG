@@ -2488,7 +2488,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Transfert automatique de capteur</string>
     <string name="sensor_handover_desc">Activez le suivant à l\'avance ; l\'app basculera automatiquement à l\'expiration</string>
     <string name="sensor_handover_old_action_title">Capteur expiré après le transfert</string>
-    <string name="sensor_handover_old_action_desc">Désactiver : le capteur expiré reste dans la liste jusqu\'à sa suppression. Supprimer : comme la boîte de suppression, les clés d\'appairage sont effacées. L\'historique des mesures est conservé dans les deux cas.</string>
+    <string name="sensor_handover_old_action_desc">Désactiver : le capteur expiré reste dans la liste jusqu\'à sa suppression. Supprimer : comme la boîte de suppression, les clés d\'appairage sont effacées, mais un capteur qui transmet encore des mesures environ une heure après son expiration est seulement désactivé. Les mesures d\'un capteur désactivé qui continue de transmettre peuvent encore être envoyées à Nightscout (API V1) en parallèle de celles du nouveau. L\'historique des mesures est conservé dans les deux cas.</string>
     <string name="sensor_handover_action_deactivate">Désactiver</string>
     <string name="sensor_handover_action_remove">Supprimer</string>
     <string name="sensor_handover_switched_text">Passage de %1$s à %2$s</string>

@@ -2549,7 +2549,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Аўтаматычная перадача сенсара</string>
     <string name="sensor_handover_desc">Актывуйце наступны сенсар загадзя; праграма пераключыцца пасля заканчэння бягучага</string>
     <string name="sensor_handover_old_action_title">Скончаны сенсар пасля перадачы</string>
-    <string name="sensor_handover_old_action_desc">Дэактываваць: скончаны сенсар застаецца ў спісе, пакуль вы яго не выдаліце. Выдаліць: як у акне выдалення, ключы спалучэння сціраюцца. Гісторыя вымярэнняў захоўваецца ў абодвух выпадках.</string>
+    <string name="sensor_handover_old_action_desc">Дэактываваць: скончаны сенсар застаецца ў спісе, пакуль вы яго не выдаліце. Выдаліць: як у акне выдалення, ключы спалучэння сціраюцца, але сенсар, які яшчэ перадае паказанні прыкладна праз гадзіну пасля заканчэння тэрміну, толькі дэактывуецца. Дэактываваны сенсар, які працягвае перадаваць паказанні, можа і далей загружаць іх у Nightscout (API V1) побач з новым. Гісторыя вымярэнняў захоўваецца ў абодвух выпадках.</string>
     <string name="sensor_handover_action_deactivate">Дэактываваць</string>
     <string name="sensor_handover_action_remove">Выдаліць</string>
     <string name="sensor_handover_switched_text">Пераключана з %1$s на %2$s</string>

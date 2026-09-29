@@ -2498,7 +2498,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">自动传感器交接</string>
     <string name="sensor_handover_desc">提前激活下一枚传感器；当前传感器到期后自动切换</string>
     <string name="sensor_handover_old_action_title">交接后的过期传感器</string>
-    <string name="sensor_handover_old_action_desc">停用:过期传感器保留在列表中,直到您将其移除。移除:与移除对话框相同,配对密钥将被删除。两种情况下测量历史均会保留。</string>
+    <string name="sensor_handover_old_action_desc">停用:过期传感器保留在列表中,直到您将其移除。移除:与移除对话框相同,配对密钥将被删除,但到期约一小时后仍在传输读数的传感器只会被停用。已停用但仍在传输读数的传感器可能会与新传感器同时继续上传到 Nightscout (API V1)。两种情况下测量历史均会保留。</string>
     <string name="sensor_handover_action_deactivate">停用</string>
     <string name="sensor_handover_action_remove">移除</string>
     <string name="sensor_handover_switched_text">已从 %1$s 切换到 %2$s</string>

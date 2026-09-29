@@ -2525,7 +2525,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_handover_title">Automatische sensoroverdracht</string>
     <string name="sensor_handover_desc">Activeer de opvolger vooraf; de app schakelt over zodra de huidige verloopt</string>
     <string name="sensor_handover_old_action_title">Verlopen sensor na de overdracht</string>
-    <string name="sensor_handover_old_action_desc">Deactiveren: de verlopen sensor blijft in de lijst totdat je hem verwijdert. Verwijderen: zoals het verwijdervenster, koppelingssleutels worden gewist. Meetgeschiedenis blijft in beide gevallen bewaard.</string>
+    <string name="sensor_handover_old_action_desc">Deactiveren: de verlopen sensor blijft in de lijst totdat je hem verwijdert. Verwijderen: zoals het verwijdervenster, koppelingssleutels worden gewist, maar een sensor die ongeveer een uur na het verlopen nog metingen levert, wordt alleen gedeactiveerd. Een gedeactiveerde sensor die metingen blijft leveren, kan naast de nieuwe sensor naar Nightscout (API V1) blijven uploaden. Meetgeschiedenis blijft in beide gevallen bewaard.</string>
     <string name="sensor_handover_action_deactivate">Deactiveren</string>
     <string name="sensor_handover_action_remove">Verwijderen</string>
     <string name="sensor_handover_switched_text">Overgeschakeld van %1$s naar %2$s</string>

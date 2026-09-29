@@ -2554,7 +2554,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Автоматична передача сенсора</string>
     <string name="sensor_handover_desc">Активуйте наступний сенсор заздалегідь; застосунок перемкнеться після завершення поточного</string>
     <string name="sensor_handover_old_action_title">Завершений сенсор після передачі</string>
-    <string name="sensor_handover_old_action_desc">Деактивувати: завершений сенсор залишається у списку, доки ви його не видалите. Видалити: як у вікні видалення, ключі сполучення стираються. Історія вимірювань зберігається в обох випадках.</string>
+    <string name="sensor_handover_old_action_desc">Деактивувати: завершений сенсор залишається у списку, доки ви його не видалите. Видалити: як у вікні видалення, ключі сполучення стираються, але сенсор, який приблизно через годину після завершення ще передає показання, лише деактивується. Деактивований сенсор, що продовжує передавати показання, може й далі завантажувати дані в Nightscout (API V1) поряд із новим. Історія вимірювань зберігається в обох випадках.</string>
     <string name="sensor_handover_action_deactivate">Деактивувати</string>
     <string name="sensor_handover_action_remove">Видалити</string>
     <string name="sensor_handover_switched_text">Перемкнено з %1$s на %2$s</string>

@@ -2482,7 +2482,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Automatiskt sensorbyte</string>
     <string name="sensor_handover_desc">Aktivera nästa sensor i förväg; appen byter när den aktuella löper ut</string>
     <string name="sensor_handover_old_action_title">Utgången sensor efter bytet</string>
-    <string name="sensor_handover_old_action_desc">Avaktivera: den utgångna sensorn ligger kvar i listan tills du tar bort den. Ta bort: som borttagningsdialogen, parningsnycklar raderas. Mäthistoriken behålls i båda fallen.</string>
+    <string name="sensor_handover_old_action_desc">Avaktivera: den utgångna sensorn ligger kvar i listan tills du tar bort den. Ta bort: som borttagningsdialogen, parningsnycklar raderas, men om en sensor fortfarande skickar avläsningar cirka en timme efter att den har löpt ut avaktiveras den bara. Avläsningar från en avaktiverad sensor som fortsätter att skicka kan fortsätta att laddas upp till Nightscout (API V1) bredvid den nya sensorns. Mäthistoriken behålls i båda fallen.</string>
     <string name="sensor_handover_action_deactivate">Avaktivera</string>
     <string name="sensor_handover_action_remove">Ta bort</string>
     <string name="sensor_handover_switched_text">Bytte från %1$s till %2$s</string>

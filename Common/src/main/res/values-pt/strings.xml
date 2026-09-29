@@ -2483,7 +2483,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Transferência automática de sensor</string>
     <string name="sensor_handover_desc">Ative o próximo sensor antes; a aplicação muda quando o atual expirar</string>
     <string name="sensor_handover_old_action_title">Sensor expirado após a transferência</string>
-    <string name="sensor_handover_old_action_desc">Desativar: o sensor expirado permanece na lista até você removê-lo. Remover: como a caixa de remoção, as chaves de pareamento são apagadas. O histórico de medições é mantido em ambos os casos.</string>
+    <string name="sensor_handover_old_action_desc">Desativar: o sensor expirado permanece na lista até você removê-lo. Remover: como a caixa de remoção, as chaves de pareamento são apagadas, mas um sensor que ainda transmite leituras cerca de uma hora após expirar é apenas desativado. Um sensor desativado que segue transmitindo pode continuar enviando dados para o Nightscout (API V1) junto com o novo. O histórico de medições é mantido em ambos os casos.</string>
     <string name="sensor_handover_action_deactivate">Desativar</string>
     <string name="sensor_handover_action_remove">Remover</string>
     <string name="sensor_handover_switched_text">Mudou de %1$s para %2$s</string>

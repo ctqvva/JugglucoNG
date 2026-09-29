@@ -2678,7 +2678,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_handover_title">Wareejin otomaatig ah oo dareeme</string>
     <string name="sensor_handover_desc">Hore u shid dareemaha xiga; abku si otomaatig ah ayuu u wareegayaa marka kan hadda jira dhaco</string>
     <string name="sensor_handover_old_action_title">Dareemaha dhacay wareejinta kadib</string>
-    <string name="sensor_handover_old_action_desc">Damin: dareemaha dhacay wuxuu ku sii jirayaa liiska ilaa aad ka saarto. Ka saarid: sida daaqadda ka-saaridda, furayaasha lammaanaha waa la tirtirayaa. Taariikhda cabbiraadda labada xaaladoodba waa la haynayaa.</string>
+    <string name="sensor_handover_old_action_desc">Damin: dareemaha dhacay wuxuu ku sii jirayaa liiska ilaa aad ka saarto. Ka saarid: sida daaqadda ka-saaridda, furayaasha lammaanaha waa la tirtirayaa, laakiin haddii dareemuhu weli akhrisyo soo dirayo qiyaastii hal saacad kadib marka muddadiisu dhammaato, waa la damiyaa oo keliya. Waxaa laga yaabaa in dareeme la damiyay oo sii soo diraya akhrisyo uu sii wado inuu u soo raro Nightscout (API V1) agta dareemaha cusub. Taariikhda cabbiraadda labada xaaladoodba waa la haynayaa.</string>
     <string name="sensor_handover_action_deactivate">Damin</string>
     <string name="sensor_handover_action_remove">Ka saar</string>
     <string name="sensor_handover_switched_text">Waxaa laga beddelay %1$s loona wareejiyay %2$s</string>

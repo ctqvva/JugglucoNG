@@ -2472,7 +2472,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Passaggio automatico del sensore</string>
     <string name="sensor_handover_desc">Attiva prima il sensore successivo; l\'app passerà automaticamente alla scadenza</string>
     <string name="sensor_handover_old_action_title">Sensore scaduto dopo il passaggio</string>
-    <string name="sensor_handover_old_action_desc">Disattiva: il sensore scaduto resta nell\'elenco finché non lo rimuovi. Rimuovi: come la finestra di rimozione, le chiavi di associazione vengono eliminate. Lo storico delle misurazioni viene comunque conservato.</string>
+    <string name="sensor_handover_old_action_desc">Disattiva: il sensore scaduto resta nell\'elenco finché non lo rimuovi. Rimuovi: come la finestra di rimozione, le chiavi di associazione vengono eliminate, ma un sensore che trasmette ancora letture circa un\'ora dopo la scadenza viene solo disattivato. Un sensore disattivato che continua a trasmettere può ancora essere caricato su Nightscout (API V1) accanto a quello nuovo. Lo storico delle misurazioni viene comunque conservato.</string>
     <string name="sensor_handover_action_deactivate">Disattiva</string>
     <string name="sensor_handover_action_remove">Rimuovi</string>
     <string name="sensor_handover_switched_text">Passato da %1$s a %2$s</string>

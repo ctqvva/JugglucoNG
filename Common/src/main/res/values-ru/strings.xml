@@ -840,6 +840,14 @@
     <string name="aidex_sensor">AiDex / LinX</string>
     <string name="aidex_sensor_desc">Настройте AiDex или LinX CGM через Bluetooth</string>
     <string name="aidex_setup_title">Настройка AiDex/LinX</string>
+    <string name="aidex_setup_confirm_pairing_title">Подтвердите сопряжение</string>
+    <string name="aidex_setup_confirm_pairing_text">Android запрашивает сопряжение с датчиком. Откройте запрос (он может прийти уведомлением) и нажмите «Сопрячь». На это есть около 30 секунд.</string>
+    <string name="aidex_setup_not_connected_title">Нет подключения</string>
+    <string name="aidex_setup_pairing_not_confirmed">Сопряжение не подтверждено. Нажмите «Повторить» и подтвердите запрос Android на сопряжение.</string>
+    <string name="aidex_setup_connect_failed">Не удалось подключиться к датчику. Держите телефон рядом с ним и нажмите «Повторить».</string>
+    <string name="aidex_setup_retry">Повторить</string>
+    <string name="aidex_setup_added_title">Датчик добавлен</string>
+    <string name="aidex_setup_kept_reconnecting">Датчик добавлен, но сейчас не подключён. Если связь не появится, нажмите «Переподключить» в карточке датчика.</string>
     <string name="alert_amount">Оповещение о количестве</string>
     <string name="alert_forecast_high">Прогноз высокого</string>
     <string name="alert_forecast_low">Прогноз низкого</string>
@@ -2251,6 +2259,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_sensor_saved">Сохранён</string>
     <string name="ottai_sensors_loading">Загрузка ваших сенсоров…</string>
     <string name="ottai_sign_out">Выйти</string>
+    <string name="ottai_account_sensors_load_fail">Не удалось загрузить сенсоры из аккаунта.</string>
+    <string name="ottai_account_sensors_retry">Повторить</string>
+    <string name="ottai_nfc_dump_armed_syai">Этому сенсору может потребоваться NFC-пробуждение перед первым подключением. Прижмите датчик плашмя к задней стороне телефона до обнаружения.</string>
+    <string name="ottai_sign_out_unbind_fail">Не удалось снять облачную привязку сенсора. Оставайтесь в аккаунте и повторите попытку или сначала удалите текущий сенсор.</string>
+    <string name="ottai_sign_out_local_anyway">Выйти только на этом устройстве</string>
     <string name="ottai_verify_code_hint">Код подтверждения</string>
     <string name="wrongcode">Неверный QR-код</string>
     <string name="ottai_settings_desc">Управление доступом к аккаунту Ottai, сохранёнными материалами и настройкой подключённого датчика Ottai.</string>
@@ -2537,7 +2550,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_title">Автоматическая передача сенсора</string>
     <string name="sensor_handover_desc">Активируйте следующий сенсор заранее; приложение переключится после завершения текущего</string>
     <string name="sensor_handover_old_action_title">Истёкший сенсор после передачи</string>
-    <string name="sensor_handover_old_action_desc">Деактивировать: истёкший сенсор остаётся в списке, пока вы его не удалите. Удалить: как в окне удаления, ключи сопряжения стираются. История измерений сохраняется в обоих случаях.</string>
+    <string name="sensor_handover_old_action_desc">Деактивировать: истёкший сенсор остаётся в списке, пока вы его не удалите. Удалить: как в окне удаления, ключи сопряжения стираются, но сенсор, который примерно через час после окончания срока всё ещё передаёт показания, не удаляется, а только деактивируется. Если деактивированный сенсор продолжает передавать показания, они могут и дальше загружаться в Nightscout (API V1) параллельно с показаниями нового сенсора. История измерений сохраняется в обоих случаях.</string>
     <string name="sensor_handover_action_deactivate">Деактивировать</string>
     <string name="sensor_handover_action_remove">Удалить</string>
     <string name="sensor_handover_switched_text">Переключено с %1$s на %2$s</string>
