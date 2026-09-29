@@ -247,6 +247,14 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
     /** Remove vendor pairing (delete bond + keys). Returns true on success. */
     override fun unpairSensor(): Boolean
 
+    /**
+     * The confirmed unpair that follows is the delete-with-unbind path. Do not open the
+     * post-unpair broadcast scan: that path starts the scan and tears the driver down in the
+     * same second, and stopping a scan before the platform finishes registering it leaves
+     * later setup scans in this process with no advertisements.
+     */
+    fun suppressPostUnpairBroadcastScan() {}
+
     /** Initiate re-pairing from scratch. */
     override fun rePairSensor()
 

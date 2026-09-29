@@ -387,6 +387,27 @@ class AiDexBleManagerSourcePinTests {
     }
 
     @Test
+    fun aRemovalUnpairDoesNotStartTheBroadcastScan() {
+        val ack = member("private fun handleDeleteBondResponse(")
+        assertTrue(ack.contains(
+            "if (postUnpairBroadcastScanSuppressed || forgotten) { " +
+                "Log.i(TAG, \"post-unpair broadcast scan suppressed — sensor is being removed\") " +
+                "} else { handler.post { startBroadcastScan(\"post-unpair\") } }",
+        ))
+        assertTrue(member("private fun startBroadcastScan(").contains(
+            "if (forgotten || postUnpairBroadcastScanSuppressed) return",
+        ))
+        val vm = flatten(stripComments(File(
+            repoRoot(),
+            "Common/src/mobile/java/tk/glucodata/ui/viewmodel/SensorViewModel.kt",
+        ).readText()))
+        val disconnect = vm.substring(vm.indexOf("fun disconnectAiDexSensor("))
+        val suppress = disconnect.indexOf("gatt.suppressPostUnpairBroadcastScan()")
+        val unpair = disconnect.indexOf("gatt.unpairSensor()")
+        assertTrue(suppress in 0 until unpair)
+    }
+
+    @Test
     fun theUnpairLatchIsConsumedThroughOneClaim() {
         assertTrue(member("private fun claimUnpairLatch()").contains("synchronized(unpairLock)"))
         val ack = member("private fun handleDeleteBondResponse(")

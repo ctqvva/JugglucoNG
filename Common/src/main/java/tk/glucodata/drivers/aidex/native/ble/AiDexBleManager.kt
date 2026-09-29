@@ -744,6 +744,11 @@ class AiDexBleManager(
     /** Set by forgetVendor(): the sensor was removed, and this instance must never reconnect or scan. */
     @Volatile private var forgotten = false
     /**
+     * Set by [suppressPostUnpairBroadcastScan] before a delete-with-unbind. The ACK must not
+     * start a broadcast scan that [forgetVendor] will stop before the platform has registered it.
+     */
+    @Volatile private var postUnpairBroadcastScanSuppressed = false
+    /**
      * Set once [beginServiceDiscovery] has called `discoverServices()` on this link.
      *
      * Besides keeping that call idempotent, this is how [mtuCallbackTimeout] tells "onMtuChanged
@@ -7264,8 +7269,13 @@ class AiDexBleManager(
             reconnect.isBroadcastOnlyMode = true
             stop = false
             UiRefreshBus.requestStatusRefresh()
-            handler.post { startBroadcastScan("post-unpair") }
+            if (postUnpairBroadcastScanSuppressed || forgotten) {
+                Log.i(TAG, "post-unpair broadcast scan suppressed — sensor is being removed")
+            } else {
+                handler.post { startBroadcastScan("post-unpair") }
+            }
         } else {
+            postUnpairBroadcastScanSuppressed = false
             isUnpaired = false
             Log.w(TAG, "DELETE_BOND was rejected or malformed; retaining PAIR credential")
             constatstatusstr = "Unpair failed — key retained"
@@ -8845,6 +8855,10 @@ class AiDexBleManager(
         return true
     }
 
+    override fun suppressPostUnpairBroadcastScan() {
+        postUnpairBroadcastScanSuppressed = true
+    }
+
     override fun unpairSensor(): Boolean {
         Log.i(TAG, "unpairSensor: sending deleteBond (0xF2) for $SerialNumber")
         consecutiveSetupDisconnects = 0
@@ -8883,11 +8897,13 @@ class AiDexBleManager(
                 return true
             }
             AiDexRuntimePolicy.UnpairAdmission.REFUSE_RESET_IN_FLIGHT -> {
+                postUnpairBroadcastScanSuppressed = false
                 Log.w(TAG, "unpairSensor: a reset is in progress — refusing")
                 showTransientStatus("Reset in progress — unpair refused", POST_RESET_OUTCOME_STATUS_MS)
                 return false
             }
             AiDexRuntimePolicy.UnpairAdmission.REFUSE_NOT_READY -> {
+                postUnpairBroadcastScanSuppressed = false
                 Log.e(TAG, "unpairSensor: no session key, no usable GATT link or CLEAR_STORAGE quiet window active — refusing unconfirmed local cleanup")
                 constatstatusstr = "Connect before unpairing — key retained"
                 UiRefreshBus.requestStatusRefresh()
@@ -8895,7 +8911,11 @@ class AiDexBleManager(
             }
             AiDexRuntimePolicy.UnpairAdmission.ALLOW -> Unit
         }
-        enqueueGattOp(GattOp.Write(CHAR_F002, cmd ?: return false, AiDexOpcodes.DELETE_BOND))
+        if (cmd == null) {
+            postUnpairBroadcastScanSuppressed = false
+            return false
+        }
+        enqueueGattOp(GattOp.Write(CHAR_F002, cmd, AiDexOpcodes.DELETE_BOND))
         constatstatusstr = "Unpairing..."
         UiRefreshBus.requestStatusRefresh()
         return true
@@ -9182,7 +9202,7 @@ class AiDexBleManager(
     @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
     private fun startBroadcastScan(reason: String, continuous: Boolean = shouldContinueBroadcastScanning()) {
-        if (forgotten) return
+        if (forgotten || postUnpairBroadcastScanSuppressed) return
         // In broadcast-only mode shouldContinueBroadcastScanning() is always true, so this loop
         // re-enters once per scan window — the one heartbeat the fallback's return deadline can
         // be checked from without a callback of its own.

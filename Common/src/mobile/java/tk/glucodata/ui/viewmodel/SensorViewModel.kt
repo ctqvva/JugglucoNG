@@ -1522,6 +1522,10 @@ class SensorViewModel : ViewModel() {
             return
         }
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Removal follows this unpair. The ACK would otherwise start a broadcast scan that
+            // terminateSensor stops at once, and that start/stop leaves setup scans empty until
+            // the process is restarted.
+            gatt.suppressPostUnpairBroadcastScan()
             val started = runCatching { gatt.unpairSensor() }.getOrElse {
                 android.util.Log.e("SensorVM", "disconnectAiDexSensor unpairSensor failed: ${it.message}")
                 false
