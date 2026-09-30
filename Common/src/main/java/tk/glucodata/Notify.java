@@ -4047,7 +4047,7 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
-        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
+        boolean showChartCollapsed = !customPhone && prefs.getBoolean("notification_chart_collapsed", false);
         final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
         showChart &= renderCharts;
         showChartCollapsed &= renderCharts;
@@ -4160,10 +4160,8 @@ public class Notify {
         RemoteViews remoteViews;
         RemoteViews remoteViewsExpanded;
         if (customPhone) {
-            remoteViews = CustomGlucoseNotification.values(Applic.app, false, valueText, primaryDisplayColor,
-                    secondaryDisplayColor, tertiaryDisplayColor, peerValueItems, rate, arrowColor,
-                    isMmol, fontSize, fontWeight, useSystemFont, showArrow, arrowSize, newStatusText, shadeNight);
-            remoteViewsExpanded = CustomGlucoseNotification.values(Applic.app, true, valueText, primaryDisplayColor,
+            remoteViews = null; // System UI builds the native compact content.
+            remoteViewsExpanded = CustomGlucoseNotification.expandedValues(Applic.app, valueText, primaryDisplayColor,
                     secondaryDisplayColor, tertiaryDisplayColor, peerValueItems, rate, arrowColor,
                     isMmol, fontSize, fontWeight, useSystemFont, showArrow, arrowSize, newStatusText, shadeNight);
         } else {
@@ -4249,7 +4247,6 @@ public class Notify {
         }
 
         if (customPhone) {
-            CustomGlucoseNotification.chart(remoteViews, showChartCollapsed ? chartBitmapCollapsed : null);
             CustomGlucoseNotification.chart(remoteViewsExpanded, showChart ? chartBitmapExpanded : null);
         } else {
             if (showChartCollapsed && chartBitmapCollapsed != null) {
@@ -4289,7 +4286,7 @@ public class Notify {
 
         if (customPhone) {
             CustomGlucoseNotification.apply(GluNotBuilder, valueText, peerValueItems, newStatusText,
-                    remoteViews, remoteViewsExpanded);
+                    remoteViewsExpanded);
         } else {
             GluNotBuilder.setStyle(new Notification.DecoratedCustomViewStyle());
             GluNotBuilder.setCustomContentView(remoteViews);
