@@ -28,9 +28,10 @@ final class CustomGlucoseNotification {
                 primary == null ? "" : primary.toString(), primaryColor, secondaryColor, tertiaryColor,
                 peers, textPixels / (22f * metrics.density), weight, systemFont,
                 rate, isMmol, safeArrowScale, showArrow, arrowColor);
-        // The painter renders at twice display density. Report that density so
-        // wrap_content preserves the requested SP size without a fixed-height crop.
+        // The painter renders at twice display density. Bound the view from those
+        // actual font metrics too: System UI's bitmap transport can reset density.
         value.setDensity(Math.round(metrics.densityDpi * 2f));
+        views.setInt(R.id.notification_glucose_image, "setMaxHeight", (value.getHeight() + 1) / 2);
         views.setImageViewBitmap(R.id.notification_glucose_image, value);
         views.setContentDescription(R.id.notification_glucose_image, valueDescription(primary, peers));
         // Keep the primary arrow in the strip too, so narrow hosts scale it with the value.

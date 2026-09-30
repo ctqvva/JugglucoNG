@@ -83,8 +83,9 @@ class CustomGlucoseNotificationTests {
         val image = root.findViewById<ImageView>(R.id.notification_glucose_image)
         assertTrue(image.width > 0 && image.width <= root.width)
         assertEquals(View.GONE, root.findViewById<ImageView>(R.id.notification_arrow).visibility)
+        val bitmap = (image.drawable as android.graphics.drawable.BitmapDrawable).bitmap
+        assertTrue("2x raster must not inflate the System UI value", image.height <= (bitmap.height + 1) / 2)
         assertTrue(image.drawable.intrinsicWidth > image.drawable.intrinsicHeight)
-
     }
 
     @Test fun expandedChartFitsEntireImageAndHidesCleanly() {
