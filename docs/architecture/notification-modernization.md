@@ -39,7 +39,9 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   The glyph strip remains a bounded bitmap with accessible formatted-value text,
   because System UI cannot load bundled app fonts or receive Typeface objects.
   Report its render density so sizing honors SP and preference scaling; cap compact
-  text at large accessibility sizes to stay inside the host height budget.
+  text at large accessibility sizes to stay inside the host height budget. System
+  font weights on API 26/27 use the available regular/medium families; exact numeric
+  light-weight selection requires API 28 or later.
 - Android provides the notification shell and expansion affordance. Custom content
   cannot promise the standard template's internal element transitions. No app-driven
   animation timer or frame-by-frame notification publishing is introduced.

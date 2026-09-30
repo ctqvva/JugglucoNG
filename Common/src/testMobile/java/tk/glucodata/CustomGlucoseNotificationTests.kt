@@ -68,7 +68,10 @@ class CustomGlucoseNotificationTests {
         })
     }
 
-    @Test fun singleSourceArrowScalesWithLongValueInNarrowHost() {
+    @Test
+    @Config(sdk = [34])
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    fun singleSourceArrowScalesWithLongValueInNarrowHost() {
         val views = CustomGlucoseNotification.values(app, true, "123 · 124 · 125",
             0xffeeeeee.toInt(), 0xffcccccc.toInt(), 0xffaaaaaa.toInt(), emptyList(), 0f,
             0xffff0000.toInt(), false, 1.5f, 400, true, true, 1f, "", true)
