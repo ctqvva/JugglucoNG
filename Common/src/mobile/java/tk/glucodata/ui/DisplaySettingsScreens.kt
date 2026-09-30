@@ -109,7 +109,6 @@ fun NotificationSettingsScreen(
     var showArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_arrow", true)) }
     var largeArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_large_trend_arrow", false)) }
     var arrowSize by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_arrow_size", 1.0f)) }
-    var collapsedChart by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
     var pauseChartScreenOff by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_pause_screen_off", false)) }
     var showTargetRange by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     var showIob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_iob", false)) }
@@ -127,7 +126,6 @@ fun NotificationSettingsScreen(
             .putBoolean("notification_show_arrow", showArrow)
             .putBoolean("notification_large_trend_arrow", largeArrow)
             .putFloat("notification_arrow_size", arrowSize)
-            .putBoolean("notification_chart_collapsed", collapsedChart)
             .putBoolean("notification_chart_pause_screen_off", pauseChartScreenOff)
             .putBoolean("notification_chart_target_range", showTargetRange)
             .putBoolean("notification_show_iob", showIob)
@@ -145,9 +143,16 @@ fun NotificationSettingsScreen(
         title = stringResource(R.string.notification_settings_title)
     ) {
         SectionLabel(
-            stringResource(R.string.typography),
+            stringResource(R.string.notification_other_display_typography),
             topPadding = 0.dp,
             modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+        )
+
+        Text(
+            stringResource(R.string.notification_native_typography_summary),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding).padding(bottom = 8.dp)
         )
 
         FlowRow(
@@ -225,7 +230,7 @@ fun NotificationSettingsScreen(
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_large_arrow_title),
-                subtitle = stringResource(R.string.notification_large_arrow_desc),
+                subtitle = stringResource(R.string.notification_other_display_large_arrow_desc),
                 checked = largeArrow,
                 onCheckedChange = { largeArrow = it; save() },
                 position = CardPosition.BOTTOM
@@ -237,14 +242,13 @@ fun NotificationSettingsScreen(
             exit = fadeOut() + shrinkVertically()
         ) {
             LegacySliderControl(
-                label = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
+                label = stringResource(R.string.notification_other_display_arrow_size_percent, (arrowSize * 100).toInt()),
                 value = arrowSize,
                 onValueChange = { arrowSize = it; save() },
                 range = 0.5f..1.5f
             )
         }
 
-        val showAnyChart = notificationChartEnabled || collapsedChart
         SectionLabel(
             stringResource(R.string.notification_charts_section),
             topPadding = 16.dp,
@@ -259,17 +263,10 @@ fun NotificationSettingsScreen(
                 subtitle = stringResource(R.string.show_chart_expanded_desc),
                 checked = notificationChartEnabled,
                 onCheckedChange = { viewModel.toggleNotificationChart(it) },
-                position = CardPosition.TOP
-            )
-            SettingsSwitchItem(
-                title = stringResource(R.string.show_chart_collapsed),
-                subtitle = stringResource(R.string.show_chart_collapsed_desc),
-                checked = collapsedChart,
-                onCheckedChange = { collapsedChart = it; save() },
-                position = if (showAnyChart) CardPosition.MIDDLE else CardPosition.BOTTOM
+                position = if (notificationChartEnabled) CardPosition.TOP else CardPosition.SINGLE
             )
             AnimatedVisibility(
-                visible = showAnyChart,
+                visible = notificationChartEnabled,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {

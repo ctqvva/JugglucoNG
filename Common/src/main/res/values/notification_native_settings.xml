@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_other_display_typography">Widget and alarm typography</string>
+    <string name="notification_native_typography_summary">Ongoing phone notifications use the system font and text size. These font controls apply to widgets and alarm displays.</string>
+    <string name="notification_other_display_large_arrow_desc">Use a longer arrow in widgets, alarm displays, and AOD. Ongoing phone notifications use a standard text arrow.</string>
+    <string name="notification_other_display_arrow_size_percent">Widget and alarm arrow size: %1$d%%</string>
+    <string name="notification_native_settings_subtitle">Expanded chart, notification details, and widget typography</string>
+    <string name="notification_chart_accessibility">Glucose history over the last three hours</string>
+</resources>
