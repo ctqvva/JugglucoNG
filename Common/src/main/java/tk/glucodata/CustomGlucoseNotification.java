@@ -10,16 +10,18 @@ import android.widget.RemoteViews;
 final class CustomGlucoseNotification {
     private CustomGlucoseNotification() { }
 
-    static RemoteViews expandedValues(Context context, CharSequence primary,
+    static RemoteViews values(Context context, boolean expanded, CharSequence primary,
             int primaryColor, int secondaryColor, int tertiaryColor,
             java.util.List<NotificationChartDrawer.ValueItem> peers, float rate, int arrowColor,
             boolean isMmol, float fontScale, int fontWeight, boolean systemFont,
             boolean showArrow, float arrowScale, CharSequence status, boolean night) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.notification_phone_expanded);
+        RemoteViews views = new RemoteViews(context.getPackageName(), expanded
+                ? R.layout.notification_phone_expanded : R.layout.notification_phone_compact);
         android.util.DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         float safeScale = Float.isFinite(fontScale) && fontScale >= 0.6f && fontScale <= 1.5f ? fontScale : 1f;
         float textPixels = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
-                28f * safeScale, metrics);
+                (expanded ? 28f : 24f) * safeScale, metrics);
+        if (!expanded) textPixels = Math.min(textPixels, 32f * metrics.density);
         int weight = fontWeight == 300 || fontWeight == 500 ? fontWeight : 400;
         float safeArrowScale = Float.isFinite(arrowScale) && arrowScale >= 0.5f && arrowScale <= 1.5f ? arrowScale : 1f;
         Bitmap value = NotificationChartDrawer.drawMultiGlucoseText(context,
@@ -35,6 +37,8 @@ final class CustomGlucoseNotification {
         // Keep the primary arrow in the strip too, so narrow hosts scale it with the value.
         views.setViewVisibility(R.id.notification_arrow, View.GONE);
         boolean hasStatus = status != null && status.length() > 0;
+        if (!expanded && textPixels + TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, metrics)
+                > 40f * metrics.density) hasStatus = false;
         views.setViewVisibility(R.id.notification_status, hasStatus ? View.VISIBLE : View.GONE);
         if (hasStatus) {
             int familyId = context.getResources().getIdentifier("config_bodyFontFamily", "string", "android");
@@ -58,12 +62,11 @@ final class CustomGlucoseNotification {
 
     static void apply(android.app.Notification.Builder builder, CharSequence primary,
             java.util.List<NotificationChartDrawer.ValueItem> peers, CharSequence status,
-            RemoteViews expanded) {
+            RemoteViews compact, RemoteViews expanded) {
         builder.setContentTitle(valueDescription(primary, peers))
                 .setContentText(status == null ? "" : status)
                 .setStyle(new android.app.Notification.DecoratedCustomViewStyle())
-                // Null compact content delegates typography and layout to System UI.
-                .setCustomContentView(null).setCustomBigContentView(expanded);
+                .setCustomContentView(compact).setCustomBigContentView(expanded);
     }
 
     static void chart(RemoteViews views, Bitmap chart) {

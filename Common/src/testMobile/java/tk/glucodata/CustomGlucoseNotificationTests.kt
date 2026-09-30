@@ -20,14 +20,14 @@ import org.robolectric.annotation.ConscryptMode
 @ConscryptMode(ConscryptMode.Mode.OFF)
 class CustomGlucoseNotificationTests {
     private val app: Application = ApplicationProvider.getApplicationContext()
-    private fun values(system: Boolean = false, scale: Float = 1f) =
-        CustomGlucoseNotification.expandedValues(app, "5,7", 0xffeeeeee.toInt(), 0xffcccccc.toInt(),
+    private fun values(expanded: Boolean, system: Boolean = false, scale: Float = 1f) =
+        CustomGlucoseNotification.values(app, expanded, "5,7", 0xffeeeeee.toInt(), 0xffcccccc.toInt(),
             0xffaaaaaa.toInt(), listOf(NotificationChartDrawer.ValueItem("5,5", 0xff81a9f6.toInt(), 0f)),
             0f, 0xffeeeeee.toInt(), true, scale, 400, system, true, 1f, "", true)
 
     @Test fun customStripSurvivesRestrictedHostWithUnitlessAccessibleValues() {
         for (system in listOf(false, true)) {
-            val views = values(system)
+            val views = values(true, system)
             val parcel = Parcel.obtain()
             try {
                 views.writeToParcel(parcel, 0)
@@ -72,7 +72,7 @@ class CustomGlucoseNotificationTests {
     @Config(sdk = [34])
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
     fun singleSourceArrowScalesWithLongValueInNarrowHost() {
-        val views = CustomGlucoseNotification.expandedValues(app, "123 · 124 · 125",
+        val views = CustomGlucoseNotification.values(app, true, "123 · 124 · 125",
             0xffeeeeee.toInt(), 0xffcccccc.toInt(), 0xffaaaaaa.toInt(), emptyList(), 0f,
             0xffff0000.toInt(), false, 1.5f, 400, true, true, 1f, "", true)
         val root = views.apply(app, null)
@@ -88,8 +88,22 @@ class CustomGlucoseNotificationTests {
         assertTrue(image.drawable.intrinsicWidth > image.drawable.intrinsicHeight)
     }
 
+    @Test fun compactPlotUsesItsHeightInsteadOfFittingAScreenWidthRaster() {
+        val views = values(false)
+        CustomGlucoseNotification.chart(views, Bitmap.createBitmap(1344, 144, Bitmap.Config.ARGB_8888))
+        val root = views.apply(app, null)
+        val density = app.resources.displayMetrics.density
+        root.measure(View.MeasureSpec.makeMeasureSpec((300 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        val chart = root.findViewById<ImageView>(R.id.notification_chart)
+        assertEquals(ImageView.ScaleType.FIT_XY, chart.scaleType)
+        assertEquals((48 * density).toInt(), chart.height)
+        assertTrue(chart.width > 0)
+    }
+
     @Test fun expandedChartFitsEntireImageAndHidesCleanly() {
-        val views = values()
+        val views = values(true)
         CustomGlucoseNotification.chart(views, Bitmap.createBitmap(400, 256, Bitmap.Config.ARGB_8888))
         val root = views.apply(app, null)
         val chart = root.findViewById<ImageView>(R.id.notification_chart)
@@ -100,24 +114,24 @@ class CustomGlucoseNotificationTests {
         assertEquals(View.GONE, root.findViewById<View>(R.id.chart_container).visibility)
     }
 
-    @Test fun preferenceSizeChangesExpandedValues() {
-        val ordinary = values(true).apply(app, null).findViewById<ImageView>(R.id.notification_glucose_image)
-        val larger = values(true, 1.5f).apply(app, null).findViewById<ImageView>(R.id.notification_glucose_image)
+    @Test fun preferenceSizeChangesExpandedValuesButCompactFitsHostHeight() {
+        val ordinary = values(true, true).apply(app, null).findViewById<ImageView>(R.id.notification_glucose_image)
+        val larger = values(true, true, 1.5f).apply(app, null).findViewById<ImageView>(R.id.notification_glucose_image)
         assertTrue(larger.drawable.intrinsicHeight > ordinary.drawable.intrinsicHeight)
+        val compact = values(false, true, 1.5f).apply(app, null)
+        val density = app.resources.displayMetrics.density
+        compact.measure(View.MeasureSpec.makeMeasureSpec((300 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        assertTrue("compact value strip must fit the 48dp host", compact.measuredHeight <= 48 * density + 1)
     }
 
-    @Test fun nativeCompactAndCustomExpandedSurviveParcelWithUnitlessReadingTime() {
+    @Test fun notificationKeepsCustomContentAndReadingTimeWithNoVisibleUnitField() {
         val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
             .setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
         CustomGlucoseNotification.apply(builder, "5,7",
-            listOf(NotificationChartDrawer.ValueItem("5,5", 0, 0f)), "", values())
-        val parcel = Parcel.obtain()
-        val notification = try {
-            builder.build().writeToParcel(parcel, 0)
-            parcel.setDataPosition(0)
-            Notification.CREATOR.createFromParcel(parcel)
-        } finally { parcel.recycle() }
-        assertNull("compact uses the native template", notification.contentView)
+            listOf(NotificationChartDrawer.ValueItem("5,5", 0, 0f)), "", values(false), values(true))
+        val notification = builder.build()
+        assertNotNull(notification.contentView)
         assertNotNull(notification.bigContentView)
         assertEquals("5,7 · 5,5", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals("", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
