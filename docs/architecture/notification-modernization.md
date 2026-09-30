@@ -26,36 +26,37 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
   never broadcast a new reading. Display-disabled mode retains service status only
   while the service exists; it does not implicitly stop the service.
-- Expanded phone content keeps primary and peer readings in one horizontal line,
-  with each reading's arrow; compact content prioritizes the primary. Regular-weight
-  system-font values use native text
-  and the OEM notification headline family; status uses its body family. Existing
-  chart/arrow bitmaps remain bounded assets. Stable child IDs allow API 31+ hosts
-  to reuse value views on updates; this does not introduce new animations.
-- Preserve `notification_font_family`, `notification_font_weight` (300/400/500) and
-  `notification_font_size` (0.6–1.5). RemoteViews hosts use a restricted context that
-  cannot load bundled font resources, and Typeface objects do not cross processes.
-  IBM Plex therefore uses accessible glyph-only bitmaps from the existing painter;
-  regular-weight system fonts use named family spans. Other system weights use
-  glyph bitmaps with the OEM face and requested numeric weight, since family spans
-  discard numeric weights. On API 26–27, numeric weight requires a variable font. Remove the ineffective bundled notification
-  font resources. Expanded text honors font scaling; compact text is capped to a
-  32dp text size to fit the host's 48dp budget, moving supporting status to expanded
-  content when necessary. No preference migration or deletion is needed.
+- Ordinary phone readings use standard Android templates. Primary and peer values
+  and their trend symbols share the title; units, optional delta/IOB/COB and sensor
+  status occupy supporting text. The existing chart is the expanded BigPictureStyle
+  image only. Without a chart, BigTextStyle retains native expandable status text.
+  No custom RemoteViews, app font spans, glyph bitmaps or compact chart are built
+  on this path. Alarm and Wear custom layouts remain independent.
+- System UI owns font family, weight, size, contrast and template transitions. This
+  follows the maintainer's explicit choice of native templates over the compact
+  sparkline after the original custom view version failed device typography checks.
+  Values are submitted as one title, not deliberately stacked rows; the OS controls
+  overflow at narrow widths and large accessibility sizes. No app-driven animation
+  timer or frame-by-frame notify loop is introduced.
+- Keep `notification_font_*`, `notification_arrow_size` and long-arrow preferences
+  stored for widgets/alarm displays and Wear consumers. The phone settings explain
+  their scope; native ongoing notifications use system typography and text arrows.
+  Remove the phone collapsed-chart toggle without deleting its stored value. The
+  expanded-chart toggle remains effective. No database or preference migration is
+  required, and switching the chart off clears the picture template on the next
+  publication.
 
-Maintainer screenshots of the first version of this slice exposed Roboto fallback
-and unwanted stacked peer values. The correction addresses both; local RemoteViews
-checks cannot establish the final OEM shade appearance. The Pixel's framework font
-configuration was checked read-only (Google Sans headline, Google Sans Text body),
-but the corrected notification still needs a device check. Custom content does not
-receive all standard-template element transforms. A native-template motion redesign
-remains separate because retaining the compact chart constrains that choice.
+Earlier custom-row fixes (OEM named font spans, IBM glyph fallbacks and stable child
+IDs) are superseded by the native-template choice. The helper and its resources are
+removed rather than retained as an unused parallel renderer. The chart itself remains
+an image, as required by BigPictureStyle; it is not an animated in-notification graph.
 
-Local verification covers real RemoteViews application/parceling and production-body
+Local verification covers native notification parceling on API 26/34 and production-body
 lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release
 builds. This follow-up still needs device checks for shade geometry, TalkBack, light/
 dark mode, large fonts, multisensor content, Doze expiry, and service replacement.
-The brief device result above applies only to PR #485. Latency targets below remain
+The brief positive device result above applies only to PR #485; screenshots of the
+first custom-view follow-up motivated this native replacement. Latency targets below remain
 measurement hypotheses.
 
 ## Outcome and scope

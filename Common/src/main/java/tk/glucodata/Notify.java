@@ -3933,6 +3933,7 @@ public class Notify {
     private GlucoseNotificationContent renderGlucoseNotification(int draw, float glvalue, String message, notGlucose glucose,
             String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot,
             boolean snapshotAlreadyResolved) {
+        final boolean nativePhone = !isWearable && GLUCOSENOTIFICATION.equals(type);
         // 1. Determine Arrow
         float rate = glucose.rate;
 
@@ -4046,7 +4047,7 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
-        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
+        boolean showChartCollapsed = !nativePhone && prefs.getBoolean("notification_chart_collapsed", false);
         final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
         showChart &= renderCharts;
         showChartCollapsed &= renderCharts;
@@ -4065,7 +4066,6 @@ public class Notify {
                     shadeNight, isMmol, primaryDisplayColor);
         }
 
-        valueText = NotificationValueViews.withLaneColors(valueText, secondaryDisplayColor, tertiaryDisplayColor);
 
         // Multi-sensor: arrows render inline next to each value inside the
         // glucose bitmap; the standalone arrow view would otherwise sit after
@@ -4101,42 +4101,9 @@ public class Notify {
 
         // Render Arrow (Color + Size from Preferences) - still bitmap for colored
         // vector
-        Bitmap arrowBitmap = (isWearable && showArrow && !inlineMultiArrows)
+        Bitmap arrowBitmap = (!nativePhone && showArrow && !inlineMultiArrows)
                 ? NotificationChartDrawer.drawArrow(Applic.app, rate, isMmol, arrowColor, arrowSize)
                 : null;
-
-        // 3a. Construct RemoteViews (Collapsed)
-        RemoteViews remoteViews = new RemoteViews(Applic.app.getPackageName(), R.layout.notification_material);
-
-        // Apply System Font Weight Mapping (Pixel-friendly)
-        android.text.SpannableStringBuilder ssb = new android.text.SpannableStringBuilder(valueText);
-        String family = "sans-serif";
-        boolean isBold = false;
-
-        // Use standard system font logic
-        if (fontWeight >= 500) {
-            family = "sans-serif-medium";
-        } else {
-            family = "sans-serif";
-        }
-
-        // Apply Font Family
-        ssb.setSpan(new android.text.style.TypefaceSpan(family), 0, ssb.length(),
-                android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-
-        // Apply Bold if needed
-        if (isBold) {
-            ssb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, ssb.length(),
-                    android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-        }
-
-        // Apply Relative Size (Scale) based on preference
-        if (fontSize != 1.0f) {
-            ssb.setSpan(new android.text.style.RelativeSizeSpan(fontSize), 0, ssb.length(),
-                    android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-        }
-
-        CharSequence finalText = ssb;
 
         String sensorStatusText = resolveNotificationStatusText(activeSensorSerial, statusText);
 
@@ -4190,80 +4157,33 @@ public class Notify {
             }
         }
 
-        // Apply Style to Status Text too
-        // The layout's ?android:attr/textColorSecondary resolves against the app
-        // theme, not the notification's, and can render near-invisible on dark
-        // shades — pick an explicit night-aware color instead.
-        final int statusTextColor = shadeNight ? 0xB3FFFFFF : 0x8A000000;
-        CharSequence styledStatus = newStatusText;
-        if (newStatusText != null && newStatusText.length() > 0) {
-            android.text.SpannableStringBuilder ssbStatus = new android.text.SpannableStringBuilder(newStatusText);
-            ssbStatus.setSpan(new android.text.style.TypefaceSpan(family), 0, ssbStatus.length(),
-                    android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            if (isBold) {
-                ssbStatus.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0,
-                        ssbStatus.length(), android.text.Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            styledStatus = ssbStatus;
-        }
-
-        // Glucose Value: phone binds native TextView rows (primary plus one row per
-        // peer, each with its own arrow); Wear keeps the rasterized bitmap below.
-        // Collapsed: primary 24sp, peers 0.72x.
-        if (!isWearable) {
-            NotificationValueViews.bindNativeValueRows(Applic.app, remoteViews, false, valueText, primaryDisplayColor, peerValueItems,
-                    rate, arrowColor, isMmol, arrowSize, fontSize, fontWeight, useSystemFont,
-                    showArrow, shadeNight);
-        } else {
-            Bitmap valueBitmap = NotificationChartDrawer.drawMultiGlucoseText(Applic.app, valueText.toString(),
-                    primaryDisplayColor, secondaryDisplayColor, tertiaryDisplayColor, peerValueItems,
-                    fontSize, fontWeight, useSystemFont,
-                    inlineMultiArrows ? rate : Float.NaN, isMmol, arrowSize);
-            remoteViews.setViewVisibility(R.id.notification_glucose, View.GONE);
-            remoteViews.setViewVisibility(R.id.notification_glucose_image, View.VISIBLE);
-            remoteViews.setImageViewBitmap(R.id.notification_glucose_image, valueBitmap);
-
-            if (showArrow && arrowBitmap != null) {
-                remoteViews.setViewVisibility(R.id.notification_arrow, View.VISIBLE);
-                remoteViews.setImageViewBitmap(R.id.notification_arrow, arrowBitmap);
-            } else {
-                remoteViews.setViewVisibility(R.id.notification_arrow, View.GONE);
+        // Only legacy alarm/Wear surfaces inflate custom content or rasterize values.
+        RemoteViews remoteViews = null;
+        RemoteViews remoteViewsExpanded = null;
+        if (!nativePhone) {
+            remoteViews = new RemoteViews(Applic.app.getPackageName(), R.layout.notification_material);
+            remoteViewsExpanded = new RemoteViews(Applic.app.getPackageName(),
+                    R.layout.notification_material_regular_expanded);
+            RemoteViews[] layouts = { remoteViews, remoteViewsExpanded };
+            for (int index = 0; index < layouts.length; index++) {
+                RemoteViews views = layouts[index];
+                Bitmap values = NotificationChartDrawer.drawMultiGlucoseText(Applic.app, valueText.toString(),
+                        primaryDisplayColor, secondaryDisplayColor, tertiaryDisplayColor, peerValueItems,
+                        fontSize * (index == 0 ? 1f : 1.166f), fontWeight, useSystemFont,
+                        inlineMultiArrows ? rate : Float.NaN, isMmol, arrowSize);
+                views.setViewVisibility(R.id.notification_glucose, View.GONE);
+                views.setViewVisibility(R.id.notification_glucose_image, View.VISIBLE);
+                views.setImageViewBitmap(R.id.notification_glucose_image, values);
+                views.setViewVisibility(R.id.notification_arrow, arrowBitmap == null ? View.GONE : View.VISIBLE);
+                if (arrowBitmap != null) views.setImageViewBitmap(R.id.notification_arrow, arrowBitmap);
+                boolean hasStatus = newStatusText != null && newStatusText.length() > 0;
+                views.setViewVisibility(R.id.notification_status, hasStatus ? View.VISIBLE : View.GONE);
+                if (hasStatus) {
+                    views.setTextViewText(R.id.notification_status, newStatusText);
+                    views.setTextColor(R.id.notification_status, shadeNight ? 0xB3FFFFFF : 0x8A000000);
+                }
             }
         }
-
-        NotificationValueViews.bindStatus(Applic.app, remoteViews, false, isWearable,
-                styledStatus, statusTextColor, fontSize);
-
-        // 3b. Construct RemoteViews (Expanded)
-        RemoteViews remoteViewsExpanded = new RemoteViews(Applic.app.getPackageName(),
-                R.layout.notification_material_regular_expanded);
-
-        // Glucose Value - Expanded: primary 28sp, peers 0.72x. Phone uses native
-        // rows; Wear keeps the rasterized bitmap.
-        if (!isWearable) {
-            NotificationValueViews.bindNativeValueRows(Applic.app, remoteViewsExpanded, true, valueText, primaryDisplayColor, peerValueItems,
-                    rate, arrowColor, isMmol, arrowSize, fontSize, fontWeight, useSystemFont,
-                    showArrow, shadeNight);
-        } else {
-            Bitmap valueBitmapExpanded = NotificationChartDrawer.drawMultiGlucoseText(Applic.app,
-                    valueText.toString(),
-                    primaryDisplayColor, secondaryDisplayColor, tertiaryDisplayColor, peerValueItems,
-                    fontSize * 1.166f, fontWeight, useSystemFont,
-                    inlineMultiArrows ? rate : Float.NaN, isMmol, arrowSize);
-            remoteViewsExpanded.setViewVisibility(R.id.notification_glucose, View.GONE);
-            remoteViewsExpanded.setViewVisibility(R.id.notification_glucose_image, View.VISIBLE);
-            remoteViewsExpanded.setImageViewBitmap(R.id.notification_glucose_image, valueBitmapExpanded);
-
-            if (showArrow && arrowBitmap != null) {
-                remoteViewsExpanded.setViewVisibility(R.id.notification_arrow, View.VISIBLE);
-                remoteViewsExpanded.setImageViewBitmap(R.id.notification_arrow, arrowBitmap);
-            } else {
-                remoteViewsExpanded.setViewVisibility(R.id.notification_arrow, View.GONE);
-            }
-        }
-
-        NotificationValueViews.bindStatus(Applic.app, remoteViewsExpanded, true, isWearable,
-                styledStatus, statusTextColor, fontSize);
 
         // Set Chart
         Bitmap chartBitmapCollapsed = null;
@@ -4323,20 +4243,22 @@ public class Notify {
                     viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
         }
 
-        if (showChartCollapsed && chartBitmapCollapsed != null) {
-            setImageViewBitmapIfPresent(remoteViews, R.id.notification_chart, chartBitmapCollapsed);
-            remoteViews.setViewVisibility(R.id.chart_container, View.VISIBLE);
-            remoteViews.setViewVisibility(R.id.notification_chart, View.VISIBLE);
-        } else {
-            remoteViews.setViewVisibility(R.id.chart_container, View.GONE);
-            remoteViews.setViewVisibility(R.id.notification_chart, View.GONE);
-        }
+        if (!nativePhone) {
+            if (showChartCollapsed && chartBitmapCollapsed != null) {
+                setImageViewBitmapIfPresent(remoteViews, R.id.notification_chart, chartBitmapCollapsed);
+                remoteViews.setViewVisibility(R.id.chart_container, View.VISIBLE);
+                remoteViews.setViewVisibility(R.id.notification_chart, View.VISIBLE);
+            } else {
+                remoteViews.setViewVisibility(R.id.chart_container, View.GONE);
+                remoteViews.setViewVisibility(R.id.notification_chart, View.GONE);
+            }
 
-        if (showChart && chartBitmapExpanded != null) {
-            setImageViewBitmapIfPresent(remoteViewsExpanded, R.id.notification_chart, chartBitmapExpanded);
-            remoteViewsExpanded.setViewVisibility(R.id.notification_chart, View.VISIBLE);
-        } else {
-            remoteViewsExpanded.setViewVisibility(R.id.notification_chart, View.GONE);
+            if (showChart && chartBitmapExpanded != null) {
+                setImageViewBitmapIfPresent(remoteViewsExpanded, R.id.notification_chart, chartBitmapExpanded);
+                remoteViewsExpanded.setViewVisibility(R.id.notification_chart, View.VISIBLE);
+            } else {
+                remoteViewsExpanded.setViewVisibility(R.id.notification_chart, View.GONE);
+            }
         }
 
         // 4. Bind to Builder
@@ -4356,7 +4278,11 @@ public class Notify {
 
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
-        if (Build.VERSION.SDK_INT >= 24) {
+        if (nativePhone) {
+            NativeGlucoseNotification.apply(GluNotBuilder, valueText, rate, peerValueItems, showArrow,
+                    app.getString(isMmol ? R.string.mmolL : R.string.mgdL), newStatusText,
+                    chartBitmapExpanded, app.getString(R.string.notification_chart_accessibility));
+        } else if (Build.VERSION.SDK_INT >= 24) {
             GluNotBuilder.setStyle(new Notification.DecoratedCustomViewStyle());
             GluNotBuilder.setCustomContentView(remoteViews);
             GluNotBuilder.setCustomBigContentView(remoteViewsExpanded);
@@ -4405,7 +4331,7 @@ public class Notify {
         if (!isWearable) {
             // Phone no-value surface is a service-only standard notification: it must
             // not resurrect raster value text. Phone reading content is produced by
-            // makearrownotification (native rows) through the restore/genuine paths.
+            // makearrownotification (system templates) through the restore/genuine paths.
             return makeRestoreStatusNotification(message);
         }
 

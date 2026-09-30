@@ -8,28 +8,7 @@
     android:paddingEnd="4dp"
     android:paddingBottom="4dp">
 
-    <!-- Native phone value rows (primary + peers). GONE by default; phone binds
-         rows here and hides the legacy raster views below. -->
     <LinearLayout
-        android:id="@+id/notification_value_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/notification_native_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:includeFontPadding="false"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/notification_legacy_value_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"

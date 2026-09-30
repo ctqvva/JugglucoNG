@@ -39,30 +39,8 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <!-- Native phone value rows (primary + peers). GONE by default so Wear and
-             legacy paths are unaffected; phone binds rows here and hides the
-             legacy raster row below. -->
-        <LinearLayout
-            android:id="@+id/notification_value_container"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/notification_native_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:includeFontPadding="false"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
         <!-- Row 1: Glucose + Arrow -->
         <LinearLayout
-            android:id="@+id/notification_legacy_value_row"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
