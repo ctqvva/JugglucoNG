@@ -1331,7 +1331,9 @@ public class NotificationChartDrawer {
         paint.setTextAlign(Paint.Align.LEFT);
 
         if (useSystemFont) {
-            int familyId = context.getResources().getIdentifier("config_headlineFontFamily", "string", "android");
+            String familyResource = android.os.Build.VERSION.SDK_INT < 28 && fontWeight >= 500
+                    ? "config_headlineFontFamilyMedium" : "config_headlineFontFamily";
+            int familyId = context.getResources().getIdentifier(familyResource, "string", "android");
             String familyName = familyId == 0 ? null : context.getResources().getString(familyId);
 
             try {
@@ -1498,15 +1500,26 @@ public class NotificationChartDrawer {
             float primaryArrowRate,
             boolean isMmol,
             float arrowSizeFactor) {
+        // Legacy callers draw the single-source arrow in a separate view.
         if (peerValues == null || peerValues.isEmpty()) {
             return drawGlucoseText(context, primaryText, primaryColor, fontSizeScale, fontWeight, useSystemFont,
                     secondaryColor, tertiaryColor);
         }
+        return drawMultiGlucoseText(context, primaryText, primaryColor, secondaryColor, tertiaryColor,
+                peerValues, fontSizeScale, fontWeight, useSystemFont, primaryArrowRate, isMmol,
+                arrowSizeFactor, !Float.isNaN(primaryArrowRate), primaryColor);
+    }
+
+    /** Custom phone strip: arrow visibility is independent of primary trend availability. */
+    public static Bitmap drawMultiGlucoseText(Context context, String primaryText, int primaryColor,
+            int secondaryColor, int tertiaryColor, List<ValueItem> peerValues, float fontSizeScale,
+            int fontWeight, boolean useSystemFont, float primaryArrowRate, boolean isMmol,
+            float arrowSizeFactor, boolean drawArrows, int primaryArrowColor) {
+        if (peerValues == null) peerValues = java.util.Collections.emptyList();
 
         float density = context.getResources().getDisplayMetrics().density;
         boolean isDark = useLightOnTransparentPalette(context);
         int baseTextColor = isDark ? Color.WHITE : Color.BLACK;
-        boolean drawArrows = !Float.isNaN(primaryArrowRate);
         float safeArrowFactor = arrowSizeFactor > 0f ? arrowSizeFactor : 1.0f;
 
         ArrayList<Bitmap> bitmaps = new ArrayList<>();
@@ -1516,11 +1529,11 @@ public class NotificationChartDrawer {
                 useSystemFont, secondaryColor, tertiaryColor);
         bitmaps.add(primaryBitmap);
         isArrow.add(false);
-        if (drawArrows) {
+        if (drawArrows && !Float.isNaN(primaryArrowRate)) {
             // drawArrow renders at 20dp * scale; size the arrow relative to the
             // value bitmap (text renders at 2x density internally).
             float arrowScale = (primaryBitmap.getHeight() * 0.56f * safeArrowFactor) / (20f * density);
-            bitmaps.add(drawArrow(context, primaryArrowRate, isMmol, primaryColor, arrowScale));
+            bitmaps.add(drawArrow(context, primaryArrowRate, isMmol, primaryArrowColor, arrowScale));
             isArrow.add(true);
         }
 

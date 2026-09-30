@@ -24,20 +24,17 @@ final class CustomGlucoseNotification {
         if (!expanded) textPixels = Math.min(textPixels, 32f * metrics.density);
         int weight = fontWeight == 300 || fontWeight == 500 ? fontWeight : 400;
         float safeArrowScale = Float.isFinite(arrowScale) && arrowScale >= 0.5f && arrowScale <= 1.5f ? arrowScale : 1f;
-        boolean inline = peers != null && !peers.isEmpty();
         Bitmap value = NotificationChartDrawer.drawMultiGlucoseText(context,
                 primary == null ? "" : primary.toString(), primaryColor, secondaryColor, tertiaryColor,
                 peers, textPixels / (22f * metrics.density), weight, systemFont,
-                showArrow && inline ? rate : Float.NaN, isMmol, safeArrowScale);
+                rate, isMmol, safeArrowScale, showArrow, arrowColor);
         // The painter renders at twice display density. Report that density so
         // wrap_content preserves the requested SP size without a fixed-height crop.
         value.setDensity(Math.round(metrics.densityDpi * 2f));
         views.setImageViewBitmap(R.id.notification_glucose_image, value);
         views.setContentDescription(R.id.notification_glucose_image, valueDescription(primary, peers));
-        Bitmap arrow = showArrow && !inline
-                ? NotificationChartDrawer.drawArrow(context, rate, isMmol, arrowColor, safeArrowScale) : null;
-        views.setViewVisibility(R.id.notification_arrow, arrow == null ? View.GONE : View.VISIBLE);
-        if (arrow != null) views.setImageViewBitmap(R.id.notification_arrow, arrow);
+        // Keep the primary arrow in the strip too, so narrow hosts scale it with the value.
+        views.setViewVisibility(R.id.notification_arrow, View.GONE);
         boolean hasStatus = status != null && status.length() > 0;
         if (!expanded && textPixels + TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, metrics)
                 > 40f * metrics.density) hasStatus = false;

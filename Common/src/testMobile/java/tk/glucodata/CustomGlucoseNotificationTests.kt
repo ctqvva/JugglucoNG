@@ -47,6 +47,43 @@ class CustomGlucoseNotificationTests {
         }
     }
 
+    @Test fun peerArrowSurvivesUnknownPrimaryAndForecastColorIsIndependent() {
+        val peers = listOf(NotificationChartDrawer.ValueItem("5,5", 0xff81a9f6.toInt(), 0f))
+        fun strip(rate: Float, enabled: Boolean, arrowColor: Int) =
+            NotificationChartDrawer.drawMultiGlucoseText(app, "5,7", 0xffffffff.toInt(),
+                0xffcccccc.toInt(), 0xffaaaaaa.toInt(), peers, 1f, 400, true, rate, true,
+                1f, enabled, arrowColor)
+        val noArrows = strip(Float.NaN, false, 0xffff0000.toInt())
+        val peerOnly = strip(Float.NaN, true, 0xffff0000.toInt())
+        assertTrue("valid peer trend is independent of unknown primary", peerOnly.width > noArrows.width)
+        val forecast = strip(0f, true, 0xffff0000.toInt())
+        val pixels = IntArray(forecast.width * forecast.height)
+        forecast.getPixels(pixels, 0, forecast.width, 0, 0, forecast.width, forecast.height)
+        assertTrue("forecast arrow keeps its independently resolved color", pixels.any {
+            android.graphics.Color.red(it) > 200 && android.graphics.Color.green(it) < 80 &&
+                android.graphics.Color.blue(it) < 80 && android.graphics.Color.alpha(it) > 100
+        })
+    }
+
+    @Test fun singleSourceArrowScalesWithLongValueInNarrowHost() {
+        val views = CustomGlucoseNotification.values(app, true, "123 · 124 · 125",
+            0xffeeeeee.toInt(), 0xffcccccc.toInt(), 0xffaaaaaa.toInt(), emptyList(), 0f,
+            0xffff0000.toInt(), false, 1.5f, 400, true, true, 1f, "", true)
+        val root = views.apply(app, null)
+        val density = app.resources.displayMetrics.density
+        root.measure(View.MeasureSpec.makeMeasureSpec((180 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        val image = root.findViewById<ImageView>(R.id.notification_glucose_image)
+        assertTrue(image.width > 0 && image.width <= root.width)
+        assertEquals(View.GONE, root.findViewById<ImageView>(R.id.notification_arrow).visibility)
+        val bitmap = (image.drawable as android.graphics.drawable.BitmapDrawable).bitmap
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        assertTrue(pixels.any { android.graphics.Color.red(it) > 200 &&
+            android.graphics.Color.green(it) < 80 && android.graphics.Color.alpha(it) > 100 })
+    }
+
     @Test fun expandedChartFitsEntireImageAndHidesCleanly() {
         val views = values(true)
         CustomGlucoseNotification.chart(views, Bitmap.createBitmap(400, 256, Bitmap.Config.ARGB_8888))
