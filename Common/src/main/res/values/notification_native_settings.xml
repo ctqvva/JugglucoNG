@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="notification_chart_accessibility">Glucose history over the last three hours</string>
+    <string name="notification_compact_system_font_summary">The compact notification uses the system font. Font, arrow appearance, and chart settings customize the expanded notification and continue to apply to widgets and other displays that share them.</string>
 </resources>

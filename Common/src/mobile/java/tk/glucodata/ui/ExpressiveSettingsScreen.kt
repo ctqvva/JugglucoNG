@@ -1206,7 +1206,6 @@ fun NotificationSettingsSheet(
     var showStatus by remember { mutableStateOf(prefs.getBoolean("notification_show_status", true)) }
     var hideStatusIcon by remember { mutableStateOf(prefs.getBoolean("notification_hide_status_icon", false)) }
     var statusIconScale by remember { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
-    var collapsedChart by remember { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
     var showTargetRange by remember { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     
     val scope = rememberCoroutineScope()
@@ -1221,7 +1220,6 @@ fun NotificationSettingsSheet(
                  .putBoolean("notification_show_status", showStatus)
                  .putBoolean("notification_hide_status_icon", hideStatusIcon)
                  .putFloat("notification_status_icon_scale", statusIconScale)
-                 .putBoolean("notification_chart_collapsed", collapsedChart)
                  .putBoolean("notification_chart_target_range", showTargetRange)
                  .apply()
         }
@@ -1248,6 +1246,12 @@ fun NotificationSettingsSheet(
 
             // === FONT SECTION ===
             SectionLabel("Font", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+            Text(
+                stringResource(R.string.notification_compact_system_font_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp)
+            )
             
             // Font Family Toggle
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -1359,15 +1363,6 @@ fun NotificationSettingsSheet(
                     subtitle = "Chart when notification is expanded",
                     checked = notificationChartEnabled,
                     onCheckedChange = { viewModel.toggleNotificationChart(it) },
-                    icon = null,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsSwitchItem(
-                    title = "Show Chart (Collapsed)",
-                    subtitle = "Compact chart in collapsed view",
-                    checked = collapsedChart,
-                    onCheckedChange = { collapsedChart = it; save() },
                     icon = null,
                     position = CardPosition.MIDDLE
                 )
