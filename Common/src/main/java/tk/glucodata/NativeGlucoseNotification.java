@@ -8,11 +8,28 @@ import android.os.Build;
 final class NativeGlucoseNotification {
     private NativeGlucoseNotification() { }
 
+    static int chartWidth(int pictureSide) { return Math.max(1, pictureSide * 9 / 10); }
+    static int chartHeight(int pictureSide) { return Math.max(1, pictureSide * 3 / 10); }
+
+    /** BigPicture uses CENTER_CROP, not FIT_CENTER. Keep all plotted content in
+     * the center of a square image, safe for host slots with width/height 1..3.
+     * The surrounding transparent pixels can be cropped without losing data.
+     * Arbitrary OEM slot shapes remain a device-validation boundary. */
+    static Bitmap frameChart(Bitmap chart, int pictureSide) {
+        Bitmap picture = Bitmap.createBitmap(pictureSide, pictureSide, Bitmap.Config.ARGB_8888);
+        picture.setDensity(chart.getDensity());
+        android.graphics.Canvas canvas = new android.graphics.Canvas(picture);
+        canvas.drawBitmap(chart, (pictureSide - chart.getWidth()) / 2f,
+                (pictureSide - chart.getHeight()) / 2f, null);
+        return picture;
+    }
+
     static String trendSymbol(float rate) {
         if (!Float.isFinite(rate)) return "";
         if (rate > 2f) return "⇈";
         if (rate < -2f) return "⇊";
-        int direction = Math.round(TrendArrowAngle.rotationDegrees(rate) / 45f);
+        float angle = TrendArrowAngle.rotationDegrees(rate);
+        int direction = Math.round(Math.abs(angle) / 45f) * (angle < 0f ? -1 : 1);
         switch (direction) {
             case -2: return "↑";
             case -1: return "↗";

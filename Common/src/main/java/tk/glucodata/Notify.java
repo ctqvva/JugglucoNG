@@ -4237,10 +4237,16 @@ public class Notify {
         }
 
         if (showChart) {
-            // Expanded chart: Use safely resolved density context (default 0 ->
-            // 256*density)
-            chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
+            // Native picture templates crop their image. Render the complete chart
+            // into a safe central region rather than losing axes at the edges.
+            int pictureSide = Math.max(1, Math.min(1024, safeContext.getResources().getDisplayMetrics().widthPixels));
+            int chartWidth = nativePhone ? NativeGlucoseNotification.chartWidth(pictureSide) : 0;
+            int chartHeight = nativePhone ? NativeGlucoseNotification.chartHeight(pictureSide) : 0;
+            chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, chartWidth, chartHeight, isMmol,
                     viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
+            if (nativePhone && chartBitmapExpanded != null) {
+                chartBitmapExpanded = NativeGlucoseNotification.frameChart(chartBitmapExpanded, pictureSide);
+            }
         }
 
         if (!nativePhone) {

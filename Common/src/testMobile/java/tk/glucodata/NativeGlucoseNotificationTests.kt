@@ -34,6 +34,10 @@ class NativeGlucoseNotificationTests {
         assertEquals("", NativeGlucoseNotification.trendSymbol(Float.POSITIVE_INFINITY))
         assertEquals("→", NativeGlucoseNotification.trendSymbol(0.5f))
         assertEquals("→", NativeGlucoseNotification.trendSymbol(-0.5f))
+        assertEquals("↗", NativeGlucoseNotification.trendSymbol(0.75f))
+        assertEquals("↘", NativeGlucoseNotification.trendSymbol(-0.75f))
+        assertEquals("↑", NativeGlucoseNotification.trendSymbol(1.5f))
+        assertEquals("↓", NativeGlucoseNotification.trendSymbol(-1.5f))
         assertEquals("↗", NativeGlucoseNotification.trendSymbol(1f))
         assertEquals("↑", NativeGlucoseNotification.trendSymbol(2f))
         assertEquals("⇈", NativeGlucoseNotification.trendSymbol(2.01f))
@@ -78,5 +82,32 @@ class NativeGlucoseNotificationTests {
             notification.extras.getString(Notification.EXTRA_TEMPLATE))
         assertNull(notification.extras.getParcelable<Bitmap>(Notification.EXTRA_PICTURE))
         assertNull(notification.contentView)
+    }
+
+    @Test fun nativePictureCropKeepsEntireChartForSupportedPhoneSlotRatios() {
+        val side = 1000
+        val chartWidth = NativeGlucoseNotification.chartWidth(side)
+        val chartHeight = NativeGlucoseNotification.chartHeight(side)
+        val chart = Bitmap.createBitmap(chartWidth, chartHeight, Bitmap.Config.ARGB_8888)
+        val picture = NativeGlucoseNotification.frameChart(chart, side)
+        assertEquals(side, picture.width)
+        assertEquals(side, picture.height)
+        val chartBounds = android.graphics.RectF((side - chartWidth) / 2f, (side - chartHeight) / 2f,
+            (side + chartWidth) / 2f, (side + chartHeight) / 2f)
+        for (ratio in listOf(1f, 1.5f, 2f, 2.5f, 3f)) {
+            val image = android.widget.ImageView(app).apply {
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                setImageBitmap(picture)
+            }
+            val width = 360
+            val height = (width / ratio).toInt()
+            image.measure(android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY))
+            image.layout(0, 0, width, height)
+            val mapped = android.graphics.RectF(chartBounds)
+            image.imageMatrix.mapRect(mapped)
+            assertTrue("chart must survive CENTER_CROP at $ratio: $mapped",
+                mapped.left >= -1 && mapped.top >= -1 && mapped.right <= width + 1 && mapped.bottom <= height + 1)
+        }
     }
 }
