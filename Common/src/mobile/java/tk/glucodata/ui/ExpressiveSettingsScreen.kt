@@ -380,7 +380,7 @@ fun ExpressiveSettingsScreen(
 
                 SettingsItem(
                     title = stringResource(R.string.notification_settings_title),
-                    subtitle = stringResource(R.string.notification_native_settings_subtitle),
+                    subtitle = stringResource(R.string.notification_settings_subtitle),
                     icon = Icons.Default.ClearAll,
                     iconTint = notifColor,
                     position = CardPosition.MIDDLE,
@@ -1206,6 +1206,7 @@ fun NotificationSettingsSheet(
     var showStatus by remember { mutableStateOf(prefs.getBoolean("notification_show_status", true)) }
     var hideStatusIcon by remember { mutableStateOf(prefs.getBoolean("notification_hide_status_icon", false)) }
     var statusIconScale by remember { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
+    var collapsedChart by remember { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
     var showTargetRange by remember { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     
     val scope = rememberCoroutineScope()
@@ -1220,6 +1221,7 @@ fun NotificationSettingsSheet(
                  .putBoolean("notification_show_status", showStatus)
                  .putBoolean("notification_hide_status_icon", hideStatusIcon)
                  .putFloat("notification_status_icon_scale", statusIconScale)
+                 .putBoolean("notification_chart_collapsed", collapsedChart)
                  .putBoolean("notification_chart_target_range", showTargetRange)
                  .apply()
         }
@@ -1245,13 +1247,7 @@ fun NotificationSettingsSheet(
 
 
             // === FONT SECTION ===
-            SectionLabel(stringResource(R.string.notification_other_display_typography), topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-            Text(
-                stringResource(R.string.notification_native_typography_summary),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp)
-            )
+            SectionLabel("Font", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
             
             // Font Family Toggle
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -1270,7 +1266,7 @@ fun NotificationSettingsSheet(
             }
             Spacer(Modifier.height(8.dp))
 
-            // Shared typography controls for widgets and alarm displays.
+            // Font weight for the custom notification value rendering.
             if (android.os.Build.VERSION.SDK_INT >= 31) {
                 Text(stringResource(R.string.font_weight_label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
                 Row(
@@ -1350,7 +1346,7 @@ fun NotificationSettingsSheet(
                     Spacer(Modifier.height(4.dp))
 
                     SliderControl(
-                        label = stringResource(R.string.notification_other_display_arrow_size_percent, (arrowSize * 100).toInt()),
+                        label = "Arrow Size: ${(arrowSize * 100).toInt()}%",
                         value = arrowSize,
                         onValueChange = { arrowSize = it; save() },
                         range = 0.5f..1.5f
@@ -1363,6 +1359,15 @@ fun NotificationSettingsSheet(
                     subtitle = "Chart when notification is expanded",
                     checked = notificationChartEnabled,
                     onCheckedChange = { viewModel.toggleNotificationChart(it) },
+                    icon = null,
+                    position = CardPosition.MIDDLE
+                )
+
+                SettingsSwitchItem(
+                    title = "Show Chart (Collapsed)",
+                    subtitle = "Compact chart in collapsed view",
+                    checked = collapsedChart,
+                    onCheckedChange = { collapsedChart = it; save() },
                     icon = null,
                     position = CardPosition.MIDDLE
                 )
