@@ -38,8 +38,10 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   loaded in the app process; the system option resolves the OEM notification family.
   The glyph strip remains a bounded bitmap with accessible formatted-value text,
   because System UI cannot load bundled app fonts or receive Typeface objects.
-  Report its render density so sizing honors SP and preference scaling; cap compact
-  text at large accessibility sizes to stay inside the host height budget. System
+  Report its render density and bound the image height from the painter's actual
+  font metrics so System UI bitmap transport cannot inflate it. Sizing honors SP
+  and preference scaling; cap compact text at large accessibility sizes to stay
+  inside the host height budget. System
   font weights on API 26/27 use the available regular/medium families; exact numeric
   light-weight selection requires API 28 or later.
 - Android provides the notification shell and expansion affordance. Custom content
@@ -53,6 +55,16 @@ removed. Required validation includes the actual device shade, IBM/system fonts,
 multisensor arrows, unitless live/stale text, optional chart modes and large-font
 behavior, alongside existing lifecycle tests. Native-template preview evidence from
 earlier iterations does not validate this renderer.
+
+The custom expanded renderer was checked on the maintainer's Pixel 8 Pro (API 37)
+using a separate preview application, the production value presenter and painter,
+its bundled IBM Plex asset, and a synthetic chart. Both IBM Plex and OEM system
+font modes showed the primary/peer hierarchy, app arrows, unitless text and full
+chart labels. The device check exposed bitmap density inflation; the presenter now
+also bounds the value image from measured font metrics. The preview application
+was removed and the installed CGM application was not replaced. Compact height and
+narrow-host scaling have local renderer coverage; real ingestion, stale transitions,
+TalkBack and Doze still require full-application device checks.
 
 ## Outcome and scope
 
