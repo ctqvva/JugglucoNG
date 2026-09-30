@@ -24,6 +24,6 @@
         android:layout_weight="1" android:layout_marginStart="8dp" android:visibility="gone">
         <ImageView android:id="@+id/notification_chart"
             android:layout_width="match_parent" android:layout_height="match_parent"
-            android:scaleType="fitCenter" android:contentDescription="@string/notification_chart_accessibility" />
+            android:scaleType="fitXY" android:contentDescription="@string/notification_chart_accessibility" />
     </FrameLayout>
 </LinearLayout>

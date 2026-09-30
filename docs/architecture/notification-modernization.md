@@ -28,8 +28,10 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   while the service exists; it does not implicitly stop the service.
 - Phone readings use DecoratedCustomViewStyle with dedicated custom compact and
   expanded layouts. A large primary value, smaller identity-tinted peers and their
-  app-rendered arrows share one horizontal strip. The chart uses FIT_CENTER and
-  receives the full image without picture-template padding. Both compact and
+  app-rendered arrows share one horizontal strip. The expanded chart uses FIT_CENTER
+  and receives the full image without picture-template padding. The compact plot
+  maps its time/glucose axes to the available 48dp-high bounds with FIT_XY; fitting
+  the screen-width compact raster by aspect ratio would flatten it into a thin strip. Both compact and
   expanded chart preferences remain available.
 - No visible glucose-unit suffix is added to live, fallback or stale phone text.
   Conversion and the configured unit remain unchanged. Stale state still retains

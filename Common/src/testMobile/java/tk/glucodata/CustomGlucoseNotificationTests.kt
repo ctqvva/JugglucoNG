@@ -88,6 +88,20 @@ class CustomGlucoseNotificationTests {
         assertTrue(image.drawable.intrinsicWidth > image.drawable.intrinsicHeight)
     }
 
+    @Test fun compactPlotUsesItsHeightInsteadOfFittingAScreenWidthRaster() {
+        val views = values(false)
+        CustomGlucoseNotification.chart(views, Bitmap.createBitmap(1344, 144, Bitmap.Config.ARGB_8888))
+        val root = views.apply(app, null)
+        val density = app.resources.displayMetrics.density
+        root.measure(View.MeasureSpec.makeMeasureSpec((300 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        val chart = root.findViewById<ImageView>(R.id.notification_chart)
+        assertEquals(ImageView.ScaleType.FIT_XY, chart.scaleType)
+        assertEquals((48 * density).toInt(), chart.height)
+        assertTrue(chart.width > 0)
+    }
+
     @Test fun expandedChartFitsEntireImageAndHidesCleanly() {
         val views = values(true)
         CustomGlucoseNotification.chart(views, Bitmap.createBitmap(400, 256, Bitmap.Config.ARGB_8888))
