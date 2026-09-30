@@ -50,9 +50,10 @@ Earlier custom-row fixes (OEM named font spans, IBM glyph fallbacks and stable c
 IDs) are superseded by the native-template choice. The helper and its resources are
 removed rather than retained as an unused parallel renderer. The chart itself remains
 an image, as required by BigPictureStyle; it is not an animated in-notification graph.
-The full plot sits in a transparent square safe area because the template uses
-CENTER_CROP. Tests cover picture slots with width/height ratios 1–3; wider or taller
-OEM slots require device validation and are not claimed to preserve every chart edge.
+Device screenshots showed that square safe-area padding wasted most of the native
+picture slot and reduced graph legibility. That padding is removed; the template
+receives the full chart image. Native picture-slot cropping must be checked on the
+actual device, and geometry-only crop tests are insufficient visual acceptance.
 
 Local verification covers native notification parceling on API 26/34 and production-body
 lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release

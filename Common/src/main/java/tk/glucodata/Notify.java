@@ -4237,16 +4237,10 @@ public class Notify {
         }
 
         if (showChart) {
-            // Native picture templates crop their image. Render the complete chart
-            // into a safe central region rather than losing axes at the edges.
-            int pictureSide = Math.max(1, Math.min(1024, safeContext.getResources().getDisplayMetrics().widthPixels));
-            int chartWidth = nativePhone ? NativeGlucoseNotification.chartWidth(pictureSide) : 0;
-            int chartHeight = nativePhone ? NativeGlucoseNotification.chartHeight(pictureSide) : 0;
-            chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, chartWidth, chartHeight, isMmol,
+            // Use the full chart image. Padding a small plot into a square expands
+            // the native picture slot while leaving most of that slot empty.
+            chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
                     viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
-            if (nativePhone && chartBitmapExpanded != null) {
-                chartBitmapExpanded = NativeGlucoseNotification.frameChart(chartBitmapExpanded, pictureSide);
-            }
         }
 
         if (!nativePhone) {
