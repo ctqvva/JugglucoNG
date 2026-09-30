@@ -83,7 +83,7 @@ serious design review. It does not add a lock-screen privacy preference.
 
 | Choice | Status and scope |
 | --- | --- |
-| Replace bitmap IBM Plex values | Conditionally supported for N4 where accessibility, scaling or rendering measurements justify it. M3 does not mandate a different font. List the effect on each `notification_font_*` preference before migration. |
+| Replace bitmap IBM Plex values | Approved for the ongoing phone surface through native Android templates. System UI now controls typography; preserve shared `notification_font_*` values for widgets/alarm displays and clarify their settings scope. |
 | Lock-screen privacy option | Rejected for this work; preserve existing visibility choices. |
 | Journal action | Deferred to a separate interaction design proposal. |
 | No-sensor notification | Tentatively supported only as required by actual service and existing display modes; never stop the service implicitly. |
