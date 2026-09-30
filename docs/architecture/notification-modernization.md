@@ -52,8 +52,12 @@ removed rather than retained as an unused parallel renderer. The chart itself re
 an image, as required by BigPictureStyle; it is not an animated in-notification graph.
 Device screenshots showed that square safe-area padding wasted most of the native
 picture slot and reduced graph legibility. That padding is removed; the template
-receives the full chart image. Native picture-slot cropping must be checked on the
-actual device, and geometry-only crop tests are insufficient visual acceptance.
+receives the full chart image with a 16dp edge inset to protect labels from rounded
+corners and modest cropping. A separate synthetic preview on the maintainer’s Pixel
+confirmed the corrected spacing and visible axis labels; the CGM app was not replaced.
+Geometry-only crop tests are insufficient visual acceptance, and this is not full
+application lifecycle/device validation. The maintainer explicitly retained native
+motion and system-sized titles after seeing both versions.
 
 Local verification covers native notification parceling on API 26/34 and production-body
 lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release

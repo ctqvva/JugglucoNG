@@ -50,7 +50,8 @@ class NativeGlucoseNotificationTests {
         }
         val builder = builder().setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
         NativeGlucoseNotification.apply(builder, input, -1f, emptyList(), true,
-            "mmol/L", "Connected", Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888), "Glucose history")
+            "mmol/L", "Connected", NativeGlucoseNotification.chartImage(
+                Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888), 16), "Glucose history")
         val parcel = Parcel.obtain()
         try {
             builder.build().writeToParcel(parcel, 0)
@@ -64,7 +65,9 @@ class NativeGlucoseNotificationTests {
             assertEquals("7,0 ↘", notification.extras.getCharSequence(Notification.EXTRA_TITLE))
             assertFalse(notification.extras.getCharSequence(Notification.EXTRA_TITLE) is Spanned)
             assertEquals("mmol/L · Connected", notification.extras.getCharSequence(Notification.EXTRA_TEXT))
-            assertNotNull(notification.extras.getParcelable<Bitmap>(Notification.EXTRA_PICTURE))
+            val picture = notification.extras.getParcelable<Bitmap>(Notification.EXTRA_PICTURE)!!
+            assertTrue("chart must remain rectangular after publication; square padding wastes the native slot",
+                picture.width.toFloat() / picture.height > 1.7f)
             assertFalse(notification.extras.getBoolean("android.showBigPictureWhenCollapsed"))
             assertEquals(123456L, notification.`when`)
             assertTrue(notification.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)

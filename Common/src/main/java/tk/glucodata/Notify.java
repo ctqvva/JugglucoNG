@@ -4241,6 +4241,10 @@ public class Notify {
             // the native picture slot while leaving most of that slot empty.
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
                     viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
+            if (nativePhone && chartBitmapExpanded != null) {
+                int inset = Math.round(16f * safeContext.getResources().getDisplayMetrics().density);
+                chartBitmapExpanded = NativeGlucoseNotification.chartImage(chartBitmapExpanded, inset);
+            }
         }
 
         if (!nativePhone) {

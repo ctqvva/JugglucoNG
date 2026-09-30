@@ -8,6 +8,18 @@ import android.os.Build;
 final class NativeGlucoseNotification {
     private NativeGlucoseNotification() { }
 
+    /** A small edge inset protects axis labels from the native picture's rounded
+     * corners and modest CENTER_CROP. Preserve the chart's rectangular shape;
+     * square framing makes the template reserve mostly empty image space. */
+    static Bitmap chartImage(Bitmap chart, int insetPixels) {
+        if (insetPixels <= 0) return chart;
+        Bitmap image = Bitmap.createBitmap(chart.getWidth() + 2 * insetPixels,
+                chart.getHeight() + 2 * insetPixels, Bitmap.Config.ARGB_8888);
+        image.setDensity(chart.getDensity());
+        new android.graphics.Canvas(image).drawBitmap(chart, insetPixels, insetPixels, null);
+        return image;
+    }
+
     static String trendSymbol(float rate) {
         if (!Float.isFinite(rate)) return "";
         if (rate > 2f) return "⇈";
