@@ -3933,7 +3933,7 @@ public class Notify {
     private GlucoseNotificationContent renderGlucoseNotification(int draw, float glvalue, String message, notGlucose glucose,
             String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot,
             boolean snapshotAlreadyResolved) {
-        final boolean nativePhone = !isWearable && GLUCOSENOTIFICATION.equals(type);
+        final boolean customPhone = !isWearable && GLUCOSENOTIFICATION.equals(type);
         // 1. Determine Arrow
         float rate = glucose.rate;
 
@@ -4047,7 +4047,7 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
-        boolean showChartCollapsed = !nativePhone && prefs.getBoolean("notification_chart_collapsed", false);
+        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
         final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
         showChart &= renderCharts;
         showChartCollapsed &= renderCharts;
@@ -4101,7 +4101,7 @@ public class Notify {
 
         // Render Arrow (Color + Size from Preferences) - still bitmap for colored
         // vector
-        Bitmap arrowBitmap = (!nativePhone && showArrow && !inlineMultiArrows)
+        Bitmap arrowBitmap = (showArrow && !inlineMultiArrows)
                 ? NotificationChartDrawer.drawArrow(Applic.app, rate, isMmol, arrowColor, arrowSize)
                 : null;
 
@@ -4157,10 +4157,16 @@ public class Notify {
             }
         }
 
-        // Only legacy alarm/Wear surfaces inflate custom content or rasterize values.
-        RemoteViews remoteViews = null;
-        RemoteViews remoteViewsExpanded = null;
-        if (!nativePhone) {
+        RemoteViews remoteViews;
+        RemoteViews remoteViewsExpanded;
+        if (customPhone) {
+            remoteViews = CustomGlucoseNotification.values(Applic.app, false, valueText, primaryDisplayColor,
+                    secondaryDisplayColor, tertiaryDisplayColor, peerValueItems, rate, arrowColor,
+                    isMmol, fontSize, fontWeight, useSystemFont, showArrow, arrowSize, newStatusText, shadeNight);
+            remoteViewsExpanded = CustomGlucoseNotification.values(Applic.app, true, valueText, primaryDisplayColor,
+                    secondaryDisplayColor, tertiaryDisplayColor, peerValueItems, rate, arrowColor,
+                    isMmol, fontSize, fontWeight, useSystemFont, showArrow, arrowSize, newStatusText, shadeNight);
+        } else {
             remoteViews = new RemoteViews(Applic.app.getPackageName(), R.layout.notification_material);
             remoteViewsExpanded = new RemoteViews(Applic.app.getPackageName(),
                     R.layout.notification_material_regular_expanded);
@@ -4237,17 +4243,15 @@ public class Notify {
         }
 
         if (showChart) {
-            // Use the full chart image. Padding a small plot into a square expands
-            // the native picture slot while leaving most of that slot empty.
+            // Custom image content uses FIT_CENTER, preserving the full chart.
             chartBitmapExpanded = NotificationChartDrawer.drawChartWithPrediction(safeContext, chartPoints, 0, 0, isMmol,
                     viewMode, showTargetRange, hasCalibration, false, activeSensorSerial, peerChartSeries, chartModel, predictionBatch);
-            if (nativePhone && chartBitmapExpanded != null) {
-                int inset = Math.round(16f * safeContext.getResources().getDisplayMetrics().density);
-                chartBitmapExpanded = NativeGlucoseNotification.chartImage(chartBitmapExpanded, inset);
-            }
         }
 
-        if (!nativePhone) {
+        if (customPhone) {
+            CustomGlucoseNotification.chart(remoteViews, showChartCollapsed ? chartBitmapCollapsed : null);
+            CustomGlucoseNotification.chart(remoteViewsExpanded, showChart ? chartBitmapExpanded : null);
+        } else {
             if (showChartCollapsed && chartBitmapCollapsed != null) {
                 setImageViewBitmapIfPresent(remoteViews, R.id.notification_chart, chartBitmapCollapsed);
                 remoteViews.setViewVisibility(R.id.chart_container, View.VISIBLE);
@@ -4272,7 +4276,8 @@ public class Notify {
         // Standard fields carry the value/status/unit fallback for TalkBack and system
         // notification surfaces that ignore the custom content.
         GluNotBuilder.setContentTitle(valueText != null && valueText.length() > 0
-                ? valueText.toString() + " " + app.getString(isMmol ? R.string.mmolL : R.string.mgdL)
+                ? (customPhone ? valueText.toString() : valueText.toString() + " "
+                        + app.getString(isMmol ? R.string.mmolL : R.string.mgdL))
                 : message);
         if (newStatusText != null && newStatusText.length() > 0) {
             GluNotBuilder.setContentText(newStatusText.toString());
@@ -4282,16 +4287,13 @@ public class Notify {
 
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
-        if (nativePhone) {
-            NativeGlucoseNotification.apply(GluNotBuilder, valueText, rate, peerValueItems, showArrow,
-                    app.getString(isMmol ? R.string.mmolL : R.string.mgdL), newStatusText,
-                    chartBitmapExpanded, app.getString(R.string.notification_chart_accessibility));
-        } else if (Build.VERSION.SDK_INT >= 24) {
+        if (customPhone) {
+            CustomGlucoseNotification.apply(GluNotBuilder, valueText, peerValueItems, newStatusText,
+                    remoteViews, remoteViewsExpanded);
+        } else {
             GluNotBuilder.setStyle(new Notification.DecoratedCustomViewStyle());
             GluNotBuilder.setCustomContentView(remoteViews);
             GluNotBuilder.setCustomBigContentView(remoteViewsExpanded);
-        } else {
-            GluNotBuilder.setContent(remoteViews);
         }
 
         // Standard priority logic
@@ -4335,7 +4337,7 @@ public class Notify {
         if (!isWearable) {
             // Phone no-value surface is a service-only standard notification: it must
             // not resurrect raster value text. Phone reading content is produced by
-            // makearrownotification (system templates) through the restore/genuine paths.
+            // makearrownotification (custom phone content) through the restore/genuine paths.
             return makeRestoreStatusNotification(message);
         }
 
@@ -4804,8 +4806,7 @@ public class Notify {
         final Notification.Builder builder = mkbuilder(GLUCOSENOTIFICATION);
         builder.setSmallIcon(R.drawable.novalue).setOnlyAlertOnce(true)
                 .setContentTitle(status)
-                .setContentText(retainedValue != null ? retainedValue.toString() + " "
-                        + app.getString(stale.isMmol() ? R.string.mmolL : R.string.mgdL) : "")
+                .setContentText(retainedValue != null ? retainedValue.toString() : "")
                 .setOngoing(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setVisibility(VISIBILITY_PUBLIC);

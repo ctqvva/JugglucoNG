@@ -15,7 +15,7 @@ N2/N3 coordinator or shared-state extraction. No driver, storage, calibration,
 widget, Floating, broadcaster contract, alarm layout or Wear redesign is included.
 
 - Ordinary phone readings have one freshness deadline, based on the actual rendered
-  snapshot, including its fallback. At expiry, retain the last value and its units
+  snapshot, including its fallback. At expiry, retain the last value without a visible unit suffix
   with the existing translated stale label and reading-time header; remove the
   current chart/arrow. Handler timing remains best effort during Doze.
 - Data/status requests keep the first one-second deadline while queued. Settings,
@@ -26,46 +26,31 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
   never broadcast a new reading. Display-disabled mode retains service status only
   while the service exists; it does not implicitly stop the service.
-- Ordinary phone readings use standard Android templates. Primary and peer values
-  and their trend symbols share the title; units, optional delta/IOB/COB and sensor
-  status occupy supporting text. The existing chart is the expanded BigPictureStyle
-  image only. Without a chart, BigTextStyle retains native expandable status text.
-  No custom RemoteViews, app font spans, glyph bitmaps or compact chart are built
-  on this path. Alarm and Wear custom layouts remain independent.
-- System UI owns font family, weight, size, contrast and template transitions. This
-  follows the maintainer's explicit choice of native templates over the compact
-  sparkline after the original custom view version failed device typography checks.
-  Values are submitted as one title, not deliberately stacked rows; the OS controls
-  overflow at narrow widths and large accessibility sizes. No app-driven animation
-  timer or frame-by-frame notify loop is introduced.
-- Keep `notification_font_*`, `notification_arrow_size` and long-arrow preferences
-  stored for widgets/alarm displays and Wear consumers. The phone settings explain
-  their scope; native ongoing notifications use system typography and text arrows.
-  Remove the phone collapsed-chart toggle without deleting its stored value. The
-  expanded-chart toggle remains effective. No database or preference migration is
-  required, and switching the chart off clears the picture template on the next
-  publication.
+- Phone readings use DecoratedCustomViewStyle with dedicated custom compact and
+  expanded layouts. A large primary value, smaller identity-tinted peers and their
+  app-rendered arrows share one horizontal strip. The chart uses FIT_CENTER and
+  receives the full image without picture-template padding. Both compact and
+  expanded chart preferences remain available.
+- No visible glucose-unit suffix is added to live, fallback or stale phone text.
+  Conversion and the configured unit remain unchanged. Stale state still retains
+  the actual value and reading timestamp, while removing current arrows/chart.
+- Font family, weight and size preferences apply to the phone again. IBM Plex is
+  loaded in the app process; the system option resolves the OEM notification family.
+  The glyph strip remains a bounded bitmap with accessible formatted-value text,
+  because System UI cannot load bundled app fonts or receive Typeface objects.
+  Report its render density so sizing honors SP and preference scaling; cap compact
+  text at large accessibility sizes to stay inside the host height budget.
+- Android provides the notification shell and expansion affordance. Custom content
+  cannot promise the standard template's internal element transitions. No app-driven
+  animation timer or frame-by-frame notification publishing is introduced.
 
-Earlier custom-row fixes (OEM named font spans, IBM glyph fallbacks and stable child
-IDs) are superseded by the native-template choice. The helper and its resources are
-removed rather than retained as an unused parallel renderer. The chart itself remains
-an image, as required by BigPictureStyle; it is not an animated in-notification graph.
-Device screenshots showed that square safe-area padding wasted most of the native
-picture slot and reduced graph legibility. That padding is removed; the template
-receives the full chart image with a 16dp edge inset to protect labels from rounded
-corners and modest cropping. A separate synthetic preview on the maintainer’s Pixel
-confirmed the corrected spacing and visible axis labels; the CGM app was not replaced.
-Geometry-only crop tests are insufficient visual acceptance, and this is not full
-application lifecycle/device validation. The maintainer explicitly retained native
-motion and system-sized titles after seeing both versions.
-
-Local verification covers native notification parceling on API 26/34 and production-body
-lifecycle tests, followed by the full phone/Wear JVM suites and arm64 debug/release
-builds. This follow-up still needs device checks for shade geometry, TalkBack, light/
-dark mode, large fonts, multisensor content, Doze expiry, and service replacement.
-The brief positive device result above applies only to PR #485; screenshots of the
-first custom-view follow-up motivated this native replacement. Latency targets below remain
-measurement hypotheses.
+The maintainer selected this custom presentation after device comparisons showed
+that native BigPictureStyle's fixed title size and text arrows did not meet the
+intended hierarchy. The native presenter and its picture-padding workaround are
+removed. Required validation includes the actual device shade, IBM/system fonts,
+multisensor arrows, unitless live/stale text, optional chart modes and large-font
+behavior, alongside existing lifecycle tests. Native-template preview evidence from
+earlier iterations does not validate this renderer.
 
 ## Outcome and scope
 
@@ -88,7 +73,7 @@ serious design review. It does not add a lock-screen privacy preference.
 
 | Choice | Status and scope |
 | --- | --- |
-| Replace bitmap IBM Plex values | Approved for the ongoing phone surface through native Android templates. System UI now controls typography; preserve shared `notification_font_*` values for widgets/alarm displays and clarify their settings scope. |
+| Replace bitmap IBM Plex values | Custom presentation is approved to retain the intended hierarchy and app arrows. Preserve `notification_font_*` preferences; glyph bitmaps remain necessary for bundled IBM Plex in System UI. |
 | Lock-screen privacy option | Rejected for this work; preserve existing visibility choices. |
 | Journal action | Deferred to a separate interaction design proposal. |
 | No-sensor notification | Tentatively supported only as required by actual service and existing display modes; never stop the service implicitly. |

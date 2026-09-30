@@ -1331,10 +1331,8 @@ public class NotificationChartDrawer {
         paint.setTextAlign(Paint.Align.LEFT);
 
         if (useSystemFont) {
-            String familyName = "google-sans";
-            if (fontWeight >= 500) {
-                familyName = "google-sans-medium";
-            }
+            int familyId = context.getResources().getIdentifier("config_headlineFontFamily", "string", "android");
+            String familyName = familyId == 0 ? null : context.getResources().getString(familyId);
 
             try {
                 android.graphics.Typeface tf = android.graphics.Typeface.create(familyName,
