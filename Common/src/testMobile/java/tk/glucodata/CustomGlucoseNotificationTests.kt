@@ -122,5 +122,14 @@ class CustomGlucoseNotificationTests {
         assertEquals("5,7 · 5,5", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals("", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         assertEquals(123456L, notification.`when`)
+        val nativeCompact = Notification.Builder.recoverBuilder(app, notification).createContentView()
+        val root = nativeCompact.apply(app, null)
+        assertNull("compact does not embed the custom value raster", root.findViewById<View>(R.id.notification_glucose_image))
+        fun texts(view: View): List<String> = when (view) {
+            is TextView -> listOf(view.text.toString())
+            is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
+            else -> emptyList()
+        }
+        assertTrue("system template renders the unitless native values", "5,7 · 5,5" in texts(root))
     }
 }

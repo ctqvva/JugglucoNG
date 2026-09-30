@@ -26,47 +26,42 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
   never broadcast a new reading. Display-disabled mode retains service status only
   while the service exists; it does not implicitly stop the service.
-- Phone readings use DecoratedCustomViewStyle with dedicated custom compact and
-  expanded layouts. A large primary value, smaller identity-tinted peers and their
-  app-rendered arrows share one horizontal strip. The expanded chart uses FIT_CENTER
-  and receives the full image without picture-template padding. The compact plot
-  maps its time/glucose axes to the available 48dp-high bounds with FIT_XY; fitting
-  the screen-width compact raster by aspect ratio would flatten it into a thin strip. Both compact and
-  expanded chart preferences remain available.
+- Ordinary phone readings use a native compact title/status row and the existing
+  custom expanded layout through DecoratedCustomViewStyle. Compact values use
+  System UI typography, without a chart or replacement text-arrow symbols. Expanded
+  content retains the large primary, smaller identity-tinted peers, app arrows and
+  FIT_CENTER chart. The expanded geometry is unchanged. The obsolete custom compact
+  layout and its chart control are removed; the saved key is preserved for legacy
+  consumers rather than migrated or deleted.
 - No visible glucose-unit suffix is added to live, fallback or stale phone text.
   Conversion and the configured unit remain unchanged. Stale state still retains
   the actual value and reading timestamp, while removing current arrows/chart.
-- Font family, weight and size preferences apply to the phone again. IBM Plex is
-  loaded in the app process; the system option resolves the OEM notification family.
+- Font family, weight and size preferences apply to the expanded phone content.
+  IBM Plex is loaded in the app process; the system option resolves the OEM
+  notification family. Compact typography follows the operating system.
   The glyph strip remains a bounded bitmap with accessible formatted-value text,
   because System UI cannot load bundled app fonts or receive Typeface objects.
   Report its render density and bound the image height from the painter's actual
   font metrics so System UI bitmap transport cannot inflate it. Sizing honors SP
-  and preference scaling; cap compact text at large accessibility sizes to stay
-  inside the host height budget. System
+  and preference scaling. System
   font weights on API 26/27 use the available regular/medium families; exact numeric
   light-weight selection requires API 28 or later.
 - Android provides the notification shell and expansion affordance. Custom content
   cannot promise the standard template's internal element transitions. No app-driven
   animation timer or frame-by-frame notification publishing is introduced.
 
-The maintainer selected this custom presentation after device comparisons showed
-that native BigPictureStyle's fixed title size and text arrows did not meet the
-intended hierarchy. The native presenter and its picture-padding workaround are
-removed. Required validation includes the actual device shade, IBM/system fonts,
-multisensor arrows, unitless live/stale text, optional chart modes and large-font
-behavior, alongside existing lifecycle tests. Native-template preview evidence from
-earlier iterations does not validate this renderer.
+The maintainer selected native compact values plus the existing custom expanded
+chart/arrows after rejecting a replacement metric layout. Native BigPictureStyle
+cannot retain the desired expanded hierarchy. MetricStyle was also checked on the
+Pixel (API 37): it renders native large metrics but ignores supplied custom chart
+content, and has no app-arrow image API. It is not used by this implementation.
 
-The custom expanded renderer was checked on the maintainer's Pixel 8 Pro (API 37)
-using a separate preview application, the production value presenter and painter,
-its bundled IBM Plex asset, and a synthetic chart. Both IBM Plex and OEM system
-font modes showed the primary/peer hierarchy, app arrows, unitless text and full
-chart labels. The device check exposed bitmap density inflation; the presenter now
-also bounds the value image from measured font metrics. The preview application
-was removed and the installed CGM application was not replaced. Compact height and
-narrow-host scaling have local renderer coverage; real ingestion, stale transitions,
-TalkBack and Doze still require full-application device checks.
+Earlier custom expanded previews checked IBM Plex and OEM system fonts using the
+production presenter/painter and a synthetic chart on the Pixel. These caught
+bitmap density inflation, now bounded from actual font metrics. Validation of the
+final split must check native compact text and the unchanged expanded hierarchy on
+the actual shade. Full-app ingestion, stale transitions, TalkBack and Doze remain
+separate device checks.
 
 ## Outcome and scope
 
@@ -260,11 +255,10 @@ without that structural extraction. The broader proposal remains:
 | N4 visual replacement | Improve compact/expanded hierarchy, native text/icons and chart accessibility after N1 is stable. Choose bitmap versus TextView per measured accessibility/performance and IBM Plex compatibility evidence; keep a bounded RemoteViews chart and useful standard notification text. | Units/locales, large fonts, TalkBack, light/dark, compact/expanded and multiple sensors. No journal action, privacy preference or frame-by-frame animation in this step. |
 | N5 alert presentation | Apply shared visual vocabulary to alarm cards and actions without changing alert lifetime, sound, DND, retries, alertwatch or Wear behavior. | Cold-start actions and alarm regressions pass; delivery remains independent. |
 
-Optional MetricStyle work is a later experiment, not an N1 dependency. The
-installed API 37 SDK contains Notification.MetricStyle (javap inspection of
-$ANDROID_HOME/platforms/android-37.0/android.jar on 2026-09-27 showed
-addMetric, setCriticalMetric and setMetrics). Runtime availability, layout,
-locale/decimal behavior and supported-device behavior remain untested.
+MetricStyle is not used: the API 37 Pixel preview confirmed large native metrics
+but ignored the custom expanded chart. Its public metric API has no image-arrow
+slot. The maintainer explicitly rejected replacing the existing arrangement with
+that metric layout.
 See the [MetricStyle reference](https://developer.android.com/reference/android/app/Notification.MetricStyle).
 Ordinary RemoteViews cannot host the Compose animation system; use System UI
 transitions and avoid frame-by-frame reposting. Live Update promotion remains
