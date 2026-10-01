@@ -5,14 +5,21 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.luminance
+import tk.glucodata.ui.LocalDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,11 +47,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -87,12 +98,10 @@ fun JournalFloatingActionMenu(
     viewportSnapshot: ChartViewportSnapshot?,
     onTypeSelected: (JournalEntryType) -> Unit,
     menuTopOffset: Dp = 86.dp,
-    menuItemSpacing: Dp = 10.dp,
+    menuItemSpacing: Dp = 6.dp,
     menuYOffset: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
-    val view = LocalView.current
-    val actionTypes = remember { journalReachActionTypes() }
     val anchorFraction = remember(selectedTimestamp, viewportSnapshot) {
         viewportSnapshot
             ?.takeIf { it.endMillis > it.startMillis }
@@ -117,7 +126,11 @@ fun JournalFloatingActionMenu(
         }
     }
     val menuProgress = menuReveal.value
-    val menuScale = 0.82f + (0.18f * menuProgress)
+    val menuScale = 0.86f + (0.14f * menuProgress)
+
+    val isDark = LocalDarkTheme.current ||
+        MaterialTheme.colorScheme.surface.luminance() < 0.5f ||
+        isSystemInDarkTheme()
 
     if (anchorFraction != null && (visible || menuProgress > 0.01f)) {
         BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -141,16 +154,16 @@ fun JournalFloatingActionMenu(
                     val resolvedAnchorFraction = anchorFraction
                     val containerWidthPx = with(density) { maxWidth.toPx() }
                     val containerHeightPx = with(density) { maxHeight.toPx() }
-                    val menuWidthPx = with(density) { 176.dp.toPx() }
-                    val edgePaddingPx = with(density) { 12.dp.toPx() }
-                    val anchorGapPx = with(density) { 14.dp.toPx() }
+                    val menuWidth = 260.dp
+                    val menuWidthPx = with(density) { menuWidth.toPx() }
+                    val menuHeight = 144.dp
+                    val menuHeightPx = with(density) { menuHeight.toPx() }
+                    val edgePaddingPx = with(density) { 10.dp.toPx() }
+                    val anchorGapPx = with(density) { 12.dp.toPx() }
                     val menuTopPx = with(density) { menuTopOffset.toPx() }
-                    val menuHeightPx = with(density) { (252.dp + (menuItemSpacing * 4)).toPx() }
                     val menuYOffsetPx = with(density) { menuYOffset.toPx() }
-                    val rowTravelPx = with(density) { 18.dp.toPx() }
-                    val itemLiftPx = with(density) { 16.dp.toPx() }
                     val anchorX = containerWidthPx * resolvedAnchorFraction
-                    val placeMenuLeft = resolvedAnchorFraction > 0.56f
+                    val placeMenuLeft = resolvedAnchorFraction > 0.52f
                     val desiredX = if (placeMenuLeft) {
                         anchorX - menuWidthPx - anchorGapPx
                     } else {
@@ -160,12 +173,15 @@ fun JournalFloatingActionMenu(
                         edgePaddingPx,
                         (containerWidthPx - menuWidthPx - edgePaddingPx).coerceAtLeast(edgePaddingPx)
                     )
-                    val clampedY = menuTopPx.coerceIn(
+                    val clampedY = (menuTopPx + menuYOffsetPx).coerceIn(
                         edgePaddingPx,
-                        (containerHeightPx - menuHeightPx).coerceAtLeast(edgePaddingPx)
+                        (containerHeightPx - menuHeightPx - edgePaddingPx).coerceAtLeast(edgePaddingPx)
                     )
 
-                    Column(
+                    JournalFloatingActionMenuCard(
+                        itemSpacing = menuItemSpacing.coerceAtMost(8.dp),
+                        onTypeSelected = onTypeSelected,
+                        isDark = isDark,
                         modifier = Modifier
                             .offset {
                                 androidx.compose.ui.unit.IntOffset(
@@ -177,29 +193,141 @@ fun JournalFloatingActionMenu(
                                 alpha = menuProgress
                                 scaleX = menuScale
                                 scaleY = menuScale
-                                translationY = menuYOffsetPx + (12.dp.toPx() * (1f - menuProgress))
+                                translationY = (8.dp.toPx() * (1f - menuProgress))
                             }
-                            .width(176.dp),
-                        horizontalAlignment = if (placeMenuLeft) Alignment.End else Alignment.Start,
-                        verticalArrangement = Arrangement.spacedBy(menuItemSpacing)
-                    ) {
-                        actionTypes.forEachIndexed { index, actionType ->
-                            val itemProgress = ((menuProgress - (index * 0.08f)) / 0.92f).coerceIn(0f, 1f)
-                            JournalActionMenuRow(
-                                actionType = actionType,
-                                placeIconAfterLabel = placeMenuLeft,
-                                itemProgress = itemProgress,
-                                rowTravelPx = rowTravelPx,
-                                itemLiftPx = itemLiftPx,
-                                onClick = {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    onTypeSelected(actionType)
-                                }
-                            )
-                        }
-                    }
+                            .width(menuWidth)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun JournalFloatingActionMenuCard(
+    itemSpacing: Dp = 6.dp,
+    onTypeSelected: (JournalEntryType) -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean = LocalDarkTheme.current || MaterialTheme.colorScheme.surface.luminance() < 0.5f || isSystemInDarkTheme()
+) {
+    val cardBackgroundColor = if (isDark) Color(0xF4141720) else Color(0xF8F8FAFC)
+    val cardBorderColor = if (isDark) Color(0x38FFFFFF) else Color(0x22000000)
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = cardBackgroundColor,
+        border = BorderStroke(1.dp, cardBorderColor),
+        shadowElevation = if (isDark) 10.dp else 6.dp,
+        tonalElevation = if (isDark) 8.dp else 3.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing)
+        ) {
+            // Riga 1: Attività (sinistra) e Cibo (destra)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing)
+            ) {
+                JournalPopupActionButton(
+                    actionType = JournalEntryType.ACTIVITY,
+                    onClick = { onTypeSelected(JournalEntryType.ACTIVITY) },
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+                JournalPopupActionButton(
+                    actionType = JournalEntryType.CARBS,
+                    onClick = { onTypeSelected(JournalEntryType.CARBS) },
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+            }
+            // Riga 2: Nota (sinistra) e Glicemia (destra)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing)
+            ) {
+                JournalPopupActionButton(
+                    actionType = JournalEntryType.NOTE,
+                    onClick = { onTypeSelected(JournalEntryType.NOTE) },
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+                JournalPopupActionButton(
+                    actionType = JournalEntryType.FINGERSTICK,
+                    onClick = { onTypeSelected(JournalEntryType.FINGERSTICK) },
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+            }
+            // Riga 3: Insulina (a tutta larghezza)
+            JournalPopupActionButton(
+                actionType = JournalEntryType.INSULIN,
+                onClick = { onTypeSelected(JournalEntryType.INSULIN) },
+                modifier = Modifier.fillMaxWidth(),
+                isDark = isDark
+            )
+        }
+    }
+}
+
+@Composable
+fun JournalPopupActionButton(
+    actionType: JournalEntryType,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean = LocalDarkTheme.current || MaterialTheme.colorScheme.surface.luminance() < 0.5f || isSystemInDarkTheme()
+) {
+    val view = LocalView.current
+    val actionTint = journalTypeColor(actionType)
+    
+    // Tema scuro: sfondo scuro a contrasto (#222633) con testo chiaro
+    // Tema chiaro: colori più tenui (tonalità sfumata) e testo nero
+    val containerColor = if (isDark) {
+        Color(0xFF222633)
+    } else {
+        androidx.compose.ui.graphics.lerp(Color(0xFFF1F4F9), actionTint, 0.12f)
+    }
+    val borderColor = if (isDark) {
+        actionTint.copy(alpha = 0.42f)
+    } else {
+        actionTint.copy(alpha = 0.35f)
+    }
+    val textColor = if (isDark) Color(0xFFF0F3F8) else Color(0xFF0F172A)
+
+    Surface(
+        onClick = {
+            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            onClick()
+        },
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        tonalElevation = if (isDark) 2.dp else 1.dp,
+        modifier = modifier.height(38.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = actionType.journalActionIcon(),
+                contentDescription = null,
+                tint = actionTint,
+                modifier = Modifier.size(21.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = actionType.journalActionLabel(),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -357,7 +485,57 @@ private fun JournalActionFab(
         Icon(
             imageVector = actionType.journalActionIcon(),
             contentDescription = label,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(26.dp)
         )
     }
 }
+
+@Preview(name = "Glucose Tap Menu - Dark", showBackground = true, backgroundColor = 0xFF121316)
+@Composable
+private fun JournalFloatingActionMenuCardPreviewDark() {
+    MaterialTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            JournalFloatingActionMenuCard(
+                onTypeSelected = {},
+                isDark = true
+            )
+        }
+    }
+}
+
+@Preview(name = "Glucose Tap Menu - Light", showBackground = true, backgroundColor = 0xFFF5F5F5)
+@Composable
+private fun JournalFloatingActionMenuCardPreviewLight() {
+    MaterialTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            JournalFloatingActionMenuCard(
+                onTypeSelected = {},
+                isDark = false
+            )
+        }
+    }
+}
+
+internal fun generateDebugSampleGlucoseHistory(unit: String): List<tk.glucodata.ui.GlucosePoint> {
+    val now = System.currentTimeMillis()
+    val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)
+    val points = mutableListOf<tk.glucodata.ui.GlucosePoint>()
+    for (i in 72 downTo 0) {
+        val t = now - i * 5 * 60 * 1000L
+        val phase = (i.toDouble() / 18.0) * Math.PI
+        val baseMg = 125.0 + 35.0 * kotlin.math.sin(phase) + 12.0 * kotlin.math.cos(phase * 2.3)
+        val value = if (isMmol) tk.glucodata.ui.util.GlucoseFormatter.mgToMmol(baseMg.toFloat()) else baseMg.toFloat()
+        val timeStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t))
+        points.add(
+            tk.glucodata.ui.GlucosePoint(
+                value = value,
+                time = timeStr,
+                timestamp = t,
+                rawValue = value
+            )
+        )
+    }
+    return points
+}
+
+

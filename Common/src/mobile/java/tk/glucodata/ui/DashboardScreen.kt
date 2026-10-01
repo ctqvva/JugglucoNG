@@ -315,7 +315,15 @@ fun DashboardScreen(
     val currentRate by viewModel.currentRate.collectAsStateWithLifecycle()
     val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val daysRemaining by viewModel.daysRemaining.collectAsStateWithLifecycle()
-    val glucoseHistory by viewModel.glucoseHistory.collectAsStateWithLifecycle()
+    val glucoseHistoryRaw by viewModel.glucoseHistory.collectAsStateWithLifecycle()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
+    val glucoseHistory = remember(glucoseHistoryRaw, unit) {
+        if (glucoseHistoryRaw.isEmpty() && tk.glucodata.BuildConfig.DEBUG) {
+            tk.glucodata.ui.journal.generateDebugSampleGlucoseHistory(unit)
+        } else {
+            glucoseHistoryRaw
+        }
+    }
     if (tk.glucodata.BuildConfig.DEBUG) {
         LaunchedEffect(glucoseHistory) {
             android.util.Log.d("DashboardHistory", "compose count=${glucoseHistory.size} latest=${glucoseHistory.lastOrNull()?.timestamp}")
@@ -337,7 +345,6 @@ fun DashboardScreen(
     // Multi-sensor mode is active whenever more than one sensor is selected —
     // stable across new readings, so per-row tinting never flashes uncolored.
     val multiSensorActive = selectedSensorIds.size > 1
-    val unit by viewModel.unit.collectAsStateWithLifecycle()
     val graphLow by viewModel.graphLow.collectAsStateWithLifecycle()
     val graphHigh by viewModel.graphHigh.collectAsStateWithLifecycle()
     val targetLow by viewModel.targetLow.collectAsStateWithLifecycle()

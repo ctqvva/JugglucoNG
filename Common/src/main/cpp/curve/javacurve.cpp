@@ -9,6 +9,7 @@
 #include <string_view>
 #include <sys/prctl.h>
 #include <vector>
+#include <dlfcn.h>
 // #include "curve.hpp"
 // #include "nanovg_gl.h"
 // #include "nanovg_gl_utils.h"
@@ -185,6 +186,14 @@ void showlimits() {
 #endif
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+  // Prevent Android Bionic fdsan abort on emulators/devices
+  {
+    typedef void (*set_fdsan_level_t)(int);
+    auto set_level = (set_fdsan_level_t)dlsym(RTLD_DEFAULT, "android_fdsan_set_error_level");
+    if (set_level) {
+      set_level(0); // ANDROID_FDSAN_ERROR_LEVEL_DISABLED
+    }
+  }
   vmptr = vm;
   JNIEnv *env = nullptr;
   LOGAR("JNI_OnLoad");

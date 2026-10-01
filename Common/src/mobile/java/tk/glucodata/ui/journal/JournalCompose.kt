@@ -109,8 +109,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -566,11 +568,21 @@ fun JournalEntrySheet(
             }
 
             item(key = "date_time") {
+                val haptics = LocalHapticFeedback.current
                 JournalDateTimeCard(
                     date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
                     time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
                     onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true }
+                    onTimeClick = { showTimePicker = true },
+                    onTimeLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        draft = draft.copy(timestamp = System.currentTimeMillis())
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.journal_quickadd_always_now_title),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 )
             }
 
@@ -887,8 +899,16 @@ fun JournalEntrySheet(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(text = stringResource(R.string.cancel))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        draft = draft.copy(timestamp = System.currentTimeMillis())
+                        showTimePicker = false
+                    }) {
+                        Text(text = stringResource(R.string.journal_quickadd_always_now_title))
+                    }
+                    TextButton(onClick = { showTimePicker = false }) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
                 }
             }
         )
@@ -2102,14 +2122,36 @@ internal fun JournalFoodCompositionDetails(
                 ) {
                     Icon(Icons.Default.Remove, contentDescription = null)
                 }
-                BasicTextField(
-                    value = portionText,
-                    onValueChange = { value ->
-                        onPortionTextChange(
-                            value
-                                .filter { it.isDigit() || it == ',' || it == '.' }
-                                .take(6)
+                var portionTfv by remember {
+                    mutableStateOf(TextFieldValue(text = portionText, selection = TextRange(0, portionText.length)))
+                }
+                var isPortionFocused by remember { mutableStateOf(false) }
+
+                LaunchedEffect(portionText) {
+                    if (portionText != portionTfv.text) {
+                        portionTfv = portionTfv.copy(
+                            text = portionText,
+                            selection = if (isPortionFocused) TextRange(0, portionText.length) else TextRange(portionText.length)
                         )
+                    }
+                }
+                LaunchedEffect(isPortionFocused) {
+                    if (isPortionFocused && portionTfv.text.isNotEmpty()) {
+                        kotlinx.coroutines.delay(50)
+                        portionTfv = portionTfv.copy(selection = TextRange(0, portionTfv.text.length))
+                    }
+                }
+
+                BasicTextField(
+                    value = portionTfv,
+                    onValueChange = { newTfv ->
+                        portionTfv = newTfv
+                        val filtered = newTfv.text
+                            .filter { it.isDigit() || it == ',' || it == '.' }
+                            .take(6)
+                        if (filtered != portionText) {
+                            onPortionTextChange(filtered)
+                        }
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2121,7 +2163,8 @@ internal fun JournalFoodCompositionDetails(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 6.dp)
+                        .onFocusChanged { isPortionFocused = it.isFocused },
                     decorationBox = { innerTextField ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2603,8 +2646,13 @@ private fun JournalPresetPill(
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
+            val pillLabel = when (preset.curveProfileId) {
+                tk.glucodata.data.journal.JournalBuiltInCurveProfile.RAPID_GENERIC.storageValue -> stringResource(R.string.journal_preset_rapid_generic)
+                tk.glucodata.data.journal.JournalBuiltInCurveProfile.LONG_BASAL_GENERIC.storageValue -> stringResource(R.string.journal_preset_long_generic)
+                else -> preset.displayName
+            }
             Text(
-                text = preset.displayName,
+                text = pillLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
@@ -2904,7 +2952,8 @@ private fun JournalDateTimeCard(
     date: String,
     time: String,
     onDateClick: () -> Unit,
-    onTimeClick: () -> Unit
+    onTimeClick: () -> Unit,
+    onTimeLongClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -2935,7 +2984,8 @@ private fun JournalDateTimeCard(
                 icon = Icons.Default.AccessTime,
                 contentDescription = stringResource(R.string.time),
                 value = time,
-                onClick = onTimeClick
+                onClick = onTimeClick,
+                onLongClick = onTimeLongClick
             )
         }
     }
@@ -2947,7 +2997,8 @@ private fun JournalDateTimeSegment(
     icon: ImageVector,
     contentDescription: String,
     value: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -2956,7 +3007,10 @@ private fun JournalDateTimeSegment(
                 this.contentDescription = "$contentDescription, $value"
                 role = Role.Button
             }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2964,7 +3018,7 @@ private fun JournalDateTimeSegment(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -3242,6 +3296,30 @@ private fun JournalStepperField(
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         onStep(delta)
     }
+
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(0, value.length)))
+    }
+    var isFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(value) {
+        if (value != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(
+                text = value,
+                selection = if (isFocused) TextRange(0, value.length) else TextRange(value.length)
+            )
+        }
+    }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused && textFieldValue.text.isNotEmpty()) {
+            kotlinx.coroutines.delay(50)
+            textFieldValue = textFieldValue.copy(
+                selection = TextRange(0, textFieldValue.text.length)
+            )
+        }
+    }
+
     Surface(
         color = if (prominent) {
             MaterialTheme.colorScheme.surfaceContainerHigh
@@ -3272,11 +3350,17 @@ private fun JournalStepperField(
             }
             if (prominent) {
                 BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
+                    value = textFieldValue,
+                    onValueChange = { newTfv ->
+                        textFieldValue = newTfv
+                        if (newTfv.text != value) {
+                            onValueChange(newTfv.text)
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 64.dp),
+                        .heightIn(min = 64.dp)
+                        .onFocusChanged { isFocused = it.isFocused },
                     textStyle = MaterialTheme.typography.displaySmall.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
@@ -3328,11 +3412,17 @@ private fun JournalStepperField(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
+                        value = textFieldValue,
+                        onValueChange = { newTfv ->
+                            textFieldValue = newTfv
+                            if (newTfv.text != value) {
+                                onValueChange(newTfv.text)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .onFocusChanged { isFocused = it.isFocused },
                         textStyle = MaterialTheme.typography.titleLarge.copy(
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold,

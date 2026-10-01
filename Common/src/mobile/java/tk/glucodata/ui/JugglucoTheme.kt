@@ -26,6 +26,8 @@ enum class ThemeMode {
     SYSTEM, LIGHT, DARK
 }
 
+val LocalDarkTheme = androidx.compose.runtime.compositionLocalOf { false }
+
 @Composable
 fun JugglucoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -101,7 +103,10 @@ fun JugglucoTheme(
             density = currentDensity.density.coerceAtMost(maxDensity),
             fontScale = currentDensity.fontScale.coerceAtMost(1.1f)
         )
-        CompositionLocalProvider(LocalDensity provides clampedDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides clampedDensity,
+            LocalDarkTheme provides darkTheme
+        ) {
             content()
         }
     }
