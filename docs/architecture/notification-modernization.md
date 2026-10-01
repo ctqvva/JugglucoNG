@@ -268,11 +268,13 @@ without that structural extraction. The broader proposal remains:
 | N4 visual replacement | Improve compact/expanded hierarchy, native text/icons and chart accessibility after N1 is stable. Choose bitmap versus TextView per measured accessibility/performance and IBM Plex compatibility evidence; keep a bounded RemoteViews chart and useful standard notification text. | Units/locales, large fonts, TalkBack, light/dark, compact/expanded and multiple sensors. No journal action, privacy preference or frame-by-frame animation in this step. |
 | N5 alert presentation | Apply shared visual vocabulary to alarm cards and actions without changing alert lifetime, sound, DND, retries, alertwatch or Wear behavior. | Cold-start actions and alarm regressions pass; delivery remains independent. |
 
-Optional MetricStyle work is a later experiment, not an N1 dependency. The
-installed API 37 SDK contains Notification.MetricStyle (javap inspection of
+MetricStyle is not selected for this implementation. The installed API 37 SDK
+contains Notification.MetricStyle (javap inspection of
 $ANDROID_HOME/platforms/android-37.0/android.jar on 2026-09-27 showed
-addMetric, setCriticalMetric and setMetrics). Runtime availability, layout,
-locale/decimal behavior and supported-device behavior remain untested.
+addMetric, setCriticalMetric and setMetrics). A separate API 37 Pixel preview
+confirmed runtime availability, but did not retain the intended custom arrows
+and chart presentation. Broader locale and supported-device behavior remain
+unvalidated; the preview does not establish compatibility for this product.
 See the [MetricStyle reference](https://developer.android.com/reference/android/app/Notification.MetricStyle).
 Ordinary RemoteViews cannot host the Compose animation system; use System UI
 transitions and avoid frame-by-frame reposting. Live Update promotion remains
