@@ -50,6 +50,14 @@ widget, Floating, broadcaster contract, alarm layout or Wear redesign is include
   cannot promise the standard template's internal element transitions. No app-driven
   animation timer or frame-by-frame notification publishing is introduced.
 
+This slice preserves the existing appearance; it is not an M3 motion redesign.
+Compact and expanded content both retain the custom presenter. A native compact
+template cannot retain the same value hierarchy and app arrows. A ViewFlipper
+incoming fade was investigated but is not shipped: fading the bitmap would hide
+the readings and arrows together, and host reapplication or delayed drawing could
+replay it without a new reading. Keeping both animation buffers current avoids
+old-value replay but does not solve those legibility and timing problems.
+
 The maintainer selected this custom presentation after device comparisons showed
 that native BigPictureStyle's fixed title size and text arrows did not meet the
 intended hierarchy. The native presenter and its picture-padding workaround are
