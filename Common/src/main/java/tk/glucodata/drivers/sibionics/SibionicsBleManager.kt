@@ -2405,12 +2405,16 @@ class SibionicsBleManager(
             latestRateMgdlPerMin.takeIf { it.isFinite() } ?: 0f,
             SerialNumber,
         )
-        val displayValue = toDisplay(reading.glucoseMgdl)
+        // Stock lanes: software calibration is applied once, downstream, as for history.
+        val displayReading = tk.glucodata.LiveReadingLanes.stock(
+            toDisplay(reading.glucoseMgdl),
+            reading.rawMgdl.takeIf { it.isFinite() && it > 0f }?.let(::toDisplay) ?: Float.NaN,
+        )
         val displayRate = if (Applic.unit == 1) latestRateMgdlPerMin / SibionicsConstants.MGDL_PER_MMOLL else latestRateMgdlPerMin
         markLocalReadingAccepted(reading.sampleMs)
         SuperGattCallback.processExternalCurrentReading(
             SerialNumber,
-            displayValue,
+            displayReading,
             displayRate.takeIf { it.isFinite() } ?: 0f,
             reading.sampleMs,
             SibionicsConstants.SENSOR_GEN,

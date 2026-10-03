@@ -70,9 +70,18 @@ internal fun buildDisplayHistoryForPrediction(
         val baseValue = if (useRaw) point.rawValue else point.value
         val sensorId = point.sensorSerial?.takeIf { it.isNotBlank() }
         // The prediction extrapolates the line the user is looking at, so it has
-        // to read the same values that line draws — a recorded one included.
+        // to read the same values that line draws — a recorded one included,
+        // but only one recorded for the lane being extrapolated. A raw-line
+        // record fed into an auto-lane prediction bends the forecast toward a
+        // line nobody drew.
         val sealed = if (useCalibration) {
             point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+                ?.takeIf {
+                    tk.glucodata.chart.HistoryChartModelBuilder.recordAppliesToLane(
+                        point.sealedDisplayViewMode ?: -1,
+                        useRaw
+                    )
+                }
         } else {
             null
         }

@@ -463,27 +463,46 @@ object ExportPackageExporter {
         val isMmol = tk.glucodata.Applic.unit == 1
         val viewModeOf = ExportCalibration.viewModeResolver()
         // Readings whose displayed value was recorded export that value rather
-        // than a fresh recomputation — see ReadingDisplay.
-        val sealedByKey: Map<Long, Float> = if (
+        // than a fresh recomputation — see ReadingDisplay. The whole record is
+        // kept (not just the number) so the lane it was shown on survives: a
+        // raw-line record must not stand in for the auto line, and emitting the
+        // record itself is what makes a wrong-lane freeze diagnosable instead
+        // of visible only through its effect on the calibrated column.
+        val sealedByKey: Map<Long, ReadingDisplay> = if (
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
         ) {
             val nowMs = System.currentTimeMillis()
             runCatching {
                 database.readingDisplayDao().getAllSince(0L)
                     .filter { it.isUsable && it.isSealedAt(nowMs) }
-                    .associate { sealedDisplayKey(it.timestamp) to it.displayMgdl }
+                    .associateBy { sealedDisplayKey(it.timestamp) }
             }.getOrDefault(emptyMap())
         } else {
             emptyMap()
         }
-        val sealedOf: (HistoryReading) -> Float? = { reading ->
+        val sealedOf: (HistoryReading) -> ReadingDisplay? = { reading ->
             sealedByKey[sealedDisplayKey(reading.timestamp)]
         }
+        val readingDisplaySummary = JSONObject()
+            .put("sealedMinutes", sealedByKey.size)
+            .put(
+                "viewModes",
+                JSONArray().also { array ->
+                    sealedByKey.values.map { it.viewMode }.distinct().sorted().forEach(array::put)
+                }
+            )
+            .put(
+                "sensorSerials",
+                JSONArray().also { array ->
+                    sealedByKey.values.map { it.sensorSerial }.distinct().sorted().forEach(array::put)
+                }
+            )
 
         return JSONObject()
             .put("rangeStartEpochMillis", if (startMillis > 0L) startMillis else JSONObject.NULL)
             .put("rangeEndEpochMillis", endMillis)
             .put("storedUnit", "mg/dL")
+            .put("readingDisplay", readingDisplaySummary)
             .put(
                 "readings",
                 JSONArray().also { array ->
@@ -790,8 +809,9 @@ object ExportPackageExporter {
     private fun HistoryReading.toJson(
         isMmol: Boolean,
         viewModeOf: (String?) -> Int,
-        sealedOf: (HistoryReading) -> Float?
+        sealedOf: (HistoryReading) -> ReadingDisplay?
     ): JSONObject {
+        val sealed = sealedOf(this)
         val calibratedMgDl = ExportCalibration.calibratedMgDl(
             autoMgDl = value,
             rawMgDl = rawValue,
@@ -799,7 +819,8 @@ object ExportPackageExporter {
             sensorId = sensorSerial,
             viewMode = viewModeOf(sensorSerial),
             isMmol = isMmol,
-            sealedMgDl = sealedOf(this)
+            sealedMgDl = sealed?.displayMgdl,
+            sealedViewMode = sealed?.viewMode
         )
         return JSONObject()
             .put("timestamp", timestamp)
@@ -807,6 +828,9 @@ object ExportPackageExporter {
             .put("valueMgDl", value.toDouble())
             .put("rawValueMgDl", rawValue.toDouble())
             .put("calibratedValueMgDl", calibratedMgDl?.toDouble() ?: JSONObject.NULL)
+            .put("sealedMgDl", sealed?.displayMgdl?.toDouble() ?: JSONObject.NULL)
+            .put("sealedViewMode", sealed?.viewMode ?: JSONObject.NULL)
+            .put("sealedSensorSerial", sealed?.sensorSerial ?: JSONObject.NULL)
             .put("rate", rate?.toDouble() ?: JSONObject.NULL)
             .put("source", source)
             .put("firstStoredAt", firstStoredAt)

@@ -3605,7 +3605,13 @@ class OttaiBleManager(
         val id = SerialNumber ?: return
         if (!reading.displayValue.isFinite() || reading.displayValue <= 0f) return
         markLocalReadingAccepted(reading.sampleMs)
-        SuperGattCallback.processExternalCurrentReading(id, reading.displayValue, 0f, reading.sampleMs, SENSOR_GEN)
+        SuperGattCallback.processExternalCurrentReading(
+            id,
+            tk.glucodata.LiveReadingLanes.stock(reading.displayValue, Float.NaN),
+            0f,
+            reading.sampleMs,
+            SENSOR_GEN,
+        )
         Log.i(TAG, "current publish sec=${reading.sampleMs / 1000L} display=%.2f mgdl=%.1f".format(reading.displayValue, reading.mgdl))
     }
 
