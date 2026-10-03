@@ -129,6 +129,40 @@ class ArchitectureGateTests {
         )
     }
 
+    /**
+     * Who may project a reading through the calibration model. The decision itself is written
+     * out in more than one place today (#523), and every extra copy is a place where the
+     * displayed value, the lane or the sensor can drift from the others.
+     *
+     * The list is the caller set as it stands, so this does not ask for a refactor first — it
+     * asks that adding one be deliberate. Shrinking it is the point: the extraction moves the
+     * surfaces onto the shared projection, and a stale line fails the build, so the list can
+     * only get shorter on purpose.
+     */
+    @Test
+    fun calibrationProjectionCallersStayAllowListed() {
+        val violating = listOf("main", "mobile", "wear").flatMap { flavor ->
+            File(moduleRoot, "src/$flavor/java").walkTopDown()
+                .filter { it.isFile && (it.name.endsWith(".kt") || it.name.endsWith(".java")) }
+                .filter { file ->
+                    file.readLines().any { line ->
+                        // A call, not the declaration, a doc line or a comment about it.
+                        !line.trimStart().startsWith("//") &&
+                            !line.trimStart().startsWith("*") &&
+                            !line.trimStart().startsWith("/*") &&
+                            !Regex("\\bfun\\s+getCalibratedValue").containsMatchIn(line) &&
+                            Regex("getCalibratedValue\\s*\\(").containsMatchIn(line)
+                    }
+                }
+                .map(::relativePath).toSet()
+        }
+        assertShrinkOnly(
+            violating.toSet(),
+            "calibration-projection-callers.txt",
+            "getCalibratedValue call sites outside the allow-list",
+        )
+    }
+
     @Test
     fun theScansActuallySeeSourceFiles() {
         // If the source-set paths stop matching, every test above would pass by finding nothing
