@@ -714,17 +714,7 @@
     
     <string name="select_sensor_type">Выберите тип сенсора</string>
     <string name="choose_theme">Выберите тему</string>
-    <string name="sibionics_sensor_picker_desc">Скан QR</string>
-    <string name="libre_sensor_picker_desc">Скан NFC</string>
-    <string name="dexcom_sensor_picker_desc">Скан QR</string>
-    <string name="accuchek_sensor_picker_desc">Матрица + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Код + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Настройка Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Настройка Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Сопряжение Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Сопряжение Bluetooth</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Подключить передатчик CGM Anytime / Yuwell по Bluetooth</string>
     <string name="anytime_setup_title">Настройка Anytime / Yuwell</string>
     <string name="anytime_searching_sensors">Поиск трансмиттеров Anytime / Yuwell…</string>
     <string name="anytime_no_sensors_hint">Держите трансмиттер рядом и убедитесь, что он включён.</string>
@@ -732,11 +722,8 @@
     <string name="anytime_selectable_unrecognized">%1$s · показано, потому что включено \"Показать все устройства\"</string>
     <string name="anytime_connecting_to">Сопряжение с %1$s…</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Сканировать QR-код</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Через NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <!-- Sibionics Setup Wizard Strings -->
     <string name="scan_transmitter_title">Сканирование Трансмиттера</string>
     <string name="scan_transmitter_desc">Выберите устройство рядом или сканируйте QR.</string>
@@ -818,7 +805,6 @@
     <string name="aaps_broadcast">Glucodata</string>
     <string name="accuchek_scan_instruction">Отсканируйте матрицу данных на датчике Accu-Chek SmartGuide.</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Сканирование матрицы данных + Bluetooth</string>
     <string name="accuchek_setup_title">Настройка Accu-Chek</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Подключено!</string>
@@ -838,7 +824,6 @@
     <string name="aidex_key_import_failed">Не удалось импортировать — неверный файл ключа AiDex.</string>
     <string name="aidex_searching_sensors">Ищем датчики...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Настройте AiDex или LinX CGM через Bluetooth</string>
     <string name="aidex_setup_title">Настройка AiDex/LinX</string>
     <string name="alert_amount">Оповещение о количестве</string>
     <string name="alert_forecast_high">Прогноз высокого</string>
@@ -870,7 +855,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Сканировать код + Bluetooth</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
     <string name="chsibionics">Sibionics Chinese</string>
     <string name="clampnow">Now clamp</string>
@@ -2169,9 +2153,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">Выбрать датчик для отображения</string>
     <string name="sensor_display_selected">Датчик выбран для отображения</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Аккаунт Ottai или файл учётных данных + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM для китайского рынка - облачный вход + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
     <string name="ottai_setup_title">Настройка Ottai</string>
     <string name="ottai_login_title">Вход в Ottai</string>
     <string name="ottai_phone_hint">Номер телефона</string>

@@ -33,6 +33,26 @@ enum class SensorType {
     OTTAI
 }
 
+/** One sensor family the user can add: shared by the picker sheet and the empty-state cards. */
+internal data class SensorTypeOption(
+    val type: SensorType,
+    val icon: ImageVector,
+    val titleRes: Int
+)
+
+internal val sensorTypeOptions = listOf(
+    SensorTypeOption(SensorType.LIBRE, Icons.Default.Nfc, R.string.libre_sensor),
+    SensorTypeOption(SensorType.SIBIONICS, Icons.Default.QrCodeScanner, R.string.sibionics_sensor),
+    SensorTypeOption(SensorType.DEXCOM, Icons.Default.QrCodeScanner, R.string.dexcom_sensor),
+    SensorTypeOption(SensorType.AIDEX, Icons.Default.Bluetooth, R.string.aidex_sensor),
+    SensorTypeOption(SensorType.ICANHEALTH, Icons.Default.Bluetooth, R.string.icanhealth_sensor),
+    SensorTypeOption(SensorType.ANYTIME, Icons.Default.Bluetooth, R.string.anytime_sensor),
+    SensorTypeOption(SensorType.MQ, Icons.Default.Bluetooth, R.string.mq_sensor),
+    SensorTypeOption(SensorType.OTTAI, Icons.Default.Bluetooth, R.string.ottai_sensor),
+    SensorTypeOption(SensorType.ACCUCHEK, Icons.Default.QrCodeScanner, R.string.accuchek_sensor),
+    SensorTypeOption(SensorType.CARESENS_AIR, Icons.Default.QrCodeScanner, R.string.caresens_air_sensor),
+)
+
 /**
  * Bottom sheet to select which type of sensor to add.
  */
@@ -42,13 +62,6 @@ fun SensorTypePicker(
     onDismiss: () -> Unit,
     onSensorSelected: (SensorType) -> Unit
 ) {
-    data class SensorTypeEntry(
-        val type: SensorType,
-        val icon: ImageVector,
-        val titleRes: Int,
-        val subtitleRes: Int
-    )
-
     val metrics = rememberAdaptiveWindowMetrics()
     val compact = metrics.isCompact
     val horizontalPadding = if (compact) 12.dp else 16.dp
@@ -59,72 +72,6 @@ fun SensorTypePicker(
     val iconInnerPadding = if (compact) 8.dp else 10.dp
     val itemMinHeight = if (compact) 56.dp else 64.dp
     val sheetMaxHeight = metrics.heightDp.dp * (if (compact) 0.82f else 0.88f)
-    val sensorEntries = remember {
-        listOf(
-
-            SensorTypeEntry(
-                type = SensorType.LIBRE,
-                icon = Icons.Default.Nfc,
-                titleRes = R.string.libre_sensor,
-                subtitleRes = R.string.libre_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.SIBIONICS,
-                icon = Icons.Default.QrCodeScanner,
-                titleRes = R.string.sibionics_sensor,
-                subtitleRes = R.string.sibionics_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.AIDEX,
-                icon = Icons.Default.Bluetooth,
-                titleRes = R.string.aidex_sensor,
-                subtitleRes = R.string.aidex_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.ICANHEALTH,
-                icon = Icons.Default.Bluetooth,
-                titleRes = R.string.icanhealth_sensor,
-                subtitleRes = R.string.icanhealth_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.ANYTIME,
-                icon = Icons.Default.Bluetooth,
-                titleRes = R.string.anytime_sensor,
-                subtitleRes = R.string.anytime_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.DEXCOM,
-                icon = Icons.Default.QrCodeScanner,
-                titleRes = R.string.dexcom_sensor,
-                subtitleRes = R.string.dexcom_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.MQ,
-                icon = Icons.Default.Bluetooth,
-                titleRes = R.string.mq_sensor,
-                subtitleRes = R.string.mq_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.OTTAI,
-                icon = Icons.Default.Bluetooth,
-                titleRes = R.string.ottai_sensor,
-                subtitleRes = R.string.ottai_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.ACCUCHEK,
-                icon = Icons.Default.QrCodeScanner,
-                titleRes = R.string.accuchek_sensor,
-                subtitleRes = R.string.accuchek_sensor_picker_desc
-            ),
-            SensorTypeEntry(
-                type = SensorType.CARESENS_AIR,
-                icon = Icons.Default.QrCodeScanner,
-                titleRes = R.string.caresens_air_sensor,
-                subtitleRes = R.string.caresens_air_sensor_picker_desc
-            ),
-        )
-    }
-
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { CompactSheetDragHandle() },
@@ -151,13 +98,12 @@ fun SensorTypePicker(
             }
 
             items(
-                items = sensorEntries,
+                items = sensorTypeOptions,
                 key = { it.type.name }
             ) { entry ->
                 SensorTypeItem(
                     icon = entry.icon,
                     title = stringResource(entry.titleRes),
-                    subtitle = stringResource(entry.subtitleRes),
                     onClick = {
                         onSensorSelected(entry.type)
                         onDismiss()
@@ -177,7 +123,6 @@ fun SensorTypePicker(
 private fun SensorTypeItem(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     onClick: () -> Unit,
     itemVerticalPadding: Dp = 12.dp,
     iconContainerSize: Dp = 48.dp,
@@ -221,13 +166,6 @@ private fun SensorTypeItem(
                     text = title,
                     style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

@@ -514,17 +514,7 @@
     <string name="status_disconnected">Desconectado</string>
     <string name="select_sensor_type">Selec. tipo de sensor</string>
     <string name="choose_theme">Escolher tema</string>
-    <string name="sibionics_sensor_picker_desc">Ler QR</string>
-    <string name="libre_sensor_picker_desc">Ler NFC</string>
-    <string name="dexcom_sensor_picker_desc">Ler QR</string>
-    <string name="accuchek_sensor_picker_desc">Matriz de dados + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Código + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Configuração Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Configuração Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Emparelhamento Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Emparelhamento Bluetooth</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Emparelhar um transmissor CGM Anytime / Yuwell via Bluetooth</string>
     <string name="anytime_setup_title">Configuração Anytime / Yuwell</string>
     <string name="anytime_searching_sensors">A procurar transmissores Anytime / Yuwell…</string>
     <string name="anytime_no_sensors_hint">Mantenha o transmissor por perto e certifique-se de que está ligado.</string>
@@ -532,11 +522,8 @@
     <string name="anytime_selectable_unrecognized">%1$s · mostrado porque \"Ver todos os dispositivos\" está ativo</string>
     <string name="anytime_connecting_to">A emparelhar %1$s…</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Digitalizar QR</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Via NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <string name="scan_transmitter_title">Digitalizar Transmissor</string>
     <string name="scan_transmitter_desc">Selecione dispositivo ou use QR.</string>
     <string name="clear_previous_state">Limpar estado anterior</string>
@@ -596,7 +583,6 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Digitalize a matriz de dados no seu sensor Accu-Chek SmartGuide</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Digitalizar matriz de dados + Bluetooth</string>
     <string name="accuchek_setup_title">Configuração Accu-Chek</string>
     <string name="active">Active</string>
     <string name="add_sensor">Add Sensor</string>
@@ -619,7 +605,6 @@
     <string name="aidex_key_import_failed">Falha na importação — ficheiro de chave AiDex inválido.</string>
     <string name="aidex_searching_sensors">Procurando sensores...</string>
     <string name="aidex_sensor">AiDex/LinX</string>
-    <string name="aidex_sensor_desc">Configurar AiDex ou LinX CGM via Bluetooth</string>
     <string name="aidex_setup_title">Configuração AiDex/LinX</string>
     <string name="alert_amount">Alerta de quantidade</string>
     <string name="alert_forecast_high">Previsão alta</string>
@@ -662,7 +647,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="can_t_use_specification">Can\'t use specification</string>
     <string name="caresens_air_scan_instruction">Digitalize o código do sensor em seu pacote CareSens Air</string>
     <string name="caresens_air_sensor">CareSens Ar</string>
-    <string name="caresens_air_sensor_desc">Digitalizar código + Bluetooth</string>
     <string name="caresens_air_setup_title">Configuração de ar CareSens</string>
     <string name="changeinsulin">"Change insulin type to "</string>
     <string name="changestartbutton">Change start</string>
@@ -2126,9 +2110,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">Selecionar sensor para exibição</string>
     <string name="sensor_display_selected">Sensor selecionado para exibição</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Conta Ottai ou ficheiro de credenciais + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM para o mercado chinês - login na nuvem + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
     <string name="ottai_setup_title">Configuração Ottai</string>
     <string name="ottai_login_title">Entrar no Ottai</string>
     <string name="ottai_phone_hint">Número de telefone</string>

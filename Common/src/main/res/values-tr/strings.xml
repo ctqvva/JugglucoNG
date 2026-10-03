@@ -666,17 +666,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="status_disconnected">Bağlantı kesildi</string>
     <string name="select_sensor_type">Sensör tipi seç</string>
     <string name="choose_theme">Tema seç</string>
-    <string name="sibionics_sensor_picker_desc">QR tara</string>
-    <string name="libre_sensor_picker_desc">NFC tara</string>
-    <string name="dexcom_sensor_picker_desc">QR tara</string>
-    <string name="accuchek_sensor_picker_desc">Veri matrisi + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Kod + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth kurulumu</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth kurulumu</string>
-    <string name="mq_sensor_picker_desc">Bluetooth eşleştirme</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth eşleştirme</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Bluetooth ile bir Anytime / Yuwell CGM vericisi eşleştirin</string>
     <string name="anytime_setup_title">Anytime / Yuwell Kurulumu</string>
     <string name="anytime_searching_sensors">Anytime / Yuwell vericileri aranıyor…</string>
     <string name="anytime_no_sensors_hint">Vericiyi yakında tutun ve açık olduğundan emin olun.</string>
@@ -684,11 +674,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="anytime_selectable_unrecognized">%1$s · \"Tüm cihazları gör\" açık olduğu için gösteriliyor</string>
     <string name="anytime_connecting_to">%1$s eşleştiriliyor…</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">QR Kodu tara</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">NFC ile</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <string name="scan_transmitter_title">Vericiyi tara</string>
     <string name="scan_transmitter_desc">Yakındaki cihazı seçin veya QR tarayın.</string>
     <string name="clear_previous_state">Önceki durumu temizle</string>
@@ -747,7 +734,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Accu-Chek SmartGuide sensörünüzdeki veri matrisini tarayın</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Veri Matrisini Tara + Bluetooth</string>
     <string name="accuchek_setup_title">Accu-Chek Kurulumu</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -769,7 +755,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="aidex_key_import_failed">İçe aktarma başarısız — geçerli bir AiDex anahtar dosyası değil.</string>
     <string name="aidex_searching_sensors">Sensörler aranıyor...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">AiDex veya LinX CGM\'yi Bluetooth aracılığıyla yapılandırma</string>
     <string name="aidex_setup_title">AiDex / LinX Kurulumu</string>
     <string name="alert_amount">Miktar uyarısı</string>
     <string name="alert_forecast_high">Yüksek tahmini</string>
@@ -803,7 +788,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">CareSens Air paketinizdeki sensör kodunu tarayın</string>
     <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Kodu tarayın + Bluetooth</string>
     <string name="caresens_air_setup_title">CareSens Hava Kurulumu</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
@@ -2153,9 +2137,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_display_select">Görüntülenecek sensörü seç</string>
     <string name="sensor_display_selected">Görüntülenecek sensör seçildi</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai hesabı veya kimlik bilgileri dosyası + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">Çin pazarı CGM - bulut oturumu + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
     <string name="ottai_setup_title">Ottai Kurulumu</string>
     <string name="ottai_login_title">Ottai’de oturum aç</string>
     <string name="ottai_phone_hint">Telefon numarası</string>

@@ -258,15 +258,6 @@ private fun ICanHealthOnboardingStep(
             manualFallbackLabel = stringResource(R.string.scan_qr_button)
         )
 
-        Spacer(Modifier.height(ui.spacerSmall))
-
-        Text(
-            text = stringResource(R.string.icanhealth_sensor_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
         Spacer(Modifier.height(ui.spacerMedium))
 
         OutlinedButton(

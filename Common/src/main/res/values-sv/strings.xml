@@ -614,17 +614,7 @@
     <string name="status_disconnected">Frånkopplad</string>
     <string name="select_sensor_type">Välj sensortyp</string>
     <string name="choose_theme">Välj tema</string>
-    <string name="sibionics_sensor_picker_desc">Skanna QR</string>
-    <string name="libre_sensor_picker_desc">Skanna NFC</string>
-    <string name="dexcom_sensor_picker_desc">Skanna QR</string>
-    <string name="accuchek_sensor_picker_desc">Datamatris + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Kod + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth-inställning</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth-inställning</string>
-    <string name="mq_sensor_picker_desc">Bluetooth-parkoppling</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth-parkoppling</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Parkoppla en Anytime / Yuwell CGM-sändare via Bluetooth</string>
     <string name="anytime_setup_title">Anytime-/Yuwell-inställning</string>
     <string name="anytime_searching_sensors">Söker efter Anytime-/Yuwell-sändare…</string>
     <string name="anytime_no_sensors_hint">Håll sändaren nära och se till att den är påslagen.</string>
@@ -632,11 +622,8 @@
     <string name="anytime_selectable_unrecognized">%1$s · visas eftersom \"Se alla enheter\" är på</string>
     <string name="anytime_connecting_to">Parkopplar %1$s…</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Skanna QR-kod</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Via NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <string name="scan_transmitter_title">Skanna sändare</string>
     <string name="scan_transmitter_desc">Välj enhet nära eller skanna QR.</string>
     <string name="clear_previous_state">Rensa föregående tillstånd</string>
@@ -695,7 +682,6 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Skanna datamatrisen på din Accu-Chek SmartGuide-sensor</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Scan Data Matrix + Bluetooth</string>
     <string name="accuchek_setup_title">Accu-Chek inställning</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -717,7 +703,6 @@
     <string name="aidex_key_import_failed">Importen misslyckades — inte en giltig AiDex-nyckelfil.</string>
     <string name="aidex_searching_sensors">Söker efter sensorer...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Konfigurera AiDex eller LinX CGM via Bluetooth</string>
     <string name="aidex_setup_title">AiDex / LinX-installation</string>
     <string name="alert_amount">Mängdlarm</string>
     <string name="alert_forecast_high">Prognos hög</string>
@@ -754,7 +739,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Skanna sensorkoden på ditt CareSens Air-paket</string>
     <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Skanna kod + Bluetooth</string>
     <string name="caresens_air_setup_title">CareSens Air Setup</string>
     <string name="chsibionics">Sibionics Chinese</string>
     <string name="clean_data_confirm">Clear App Data?</string>
@@ -2125,9 +2109,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">Välj sensor för visning</string>
     <string name="sensor_display_selected">Sensor vald för visning</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai-konto eller uppgiftsfil + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM för kinesiska marknaden - molninloggning + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
     <string name="ottai_setup_title">Ottai-inställning</string>
     <string name="ottai_login_title">Logga in på Ottai</string>
     <string name="ottai_phone_hint">Telefonnummer</string>

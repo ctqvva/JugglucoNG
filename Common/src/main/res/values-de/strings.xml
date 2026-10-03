@@ -720,17 +720,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="status_disconnected">Getrennt</string>
     <string name="select_sensor_type">Sensortyp wählen</string>
     <string name="choose_theme">Design wählen</string>
-    <string name="sibionics_sensor_picker_desc">QR-Scan</string>
-    <string name="libre_sensor_picker_desc">NFC-Scan</string>
-    <string name="dexcom_sensor_picker_desc">QR-Scan</string>
-    <string name="accuchek_sensor_picker_desc">Data-Matrix-Code + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Code + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth-Einrichtung</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth-Einrichtung</string>
-    <string name="mq_sensor_picker_desc">Bluetooth-Kopplung</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth-Kopplung</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Anytime / Yuwell CGM-Transmitter per Bluetooth koppeln</string>
     <string name="anytime_setup_title">Anytime-/Yuwell-Einrichtung</string>
     <string name="anytime_searching_sensors">Suche nach Anytime-/Yuwell-Transmittern…</string>
     <string name="anytime_no_sensors_hint">Halte den Transmitter in der Nähe und stelle sicher, dass er eingeschaltet ist.</string>
@@ -744,11 +734,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mq_selectable_unrecognized">%1$s · sichtbar, weil „Alle Geräte anzeigen“ aktiviert ist</string>
     <string name="mq_connecting_to">%1$s wird gekoppelt…</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">QR-Code scannen</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Über NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <string name="scan_transmitter_title">Sender scannen</string>
     <string name="scan_transmitter_desc">Gerät in der Nähe wählen oder QR scannen.</string>
     <string name="clear_previous_state">Vorherigen Status löschen</string>
@@ -812,7 +799,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="refreshing">Wird aktualisiert…</string>
     <string name="accuchek_scan_instruction">Scannen Sie die Datenmatrix auf Ihrem Accu-Chek SmartGuide Sensor</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Data Matrix scannen + Bluetooth</string>
     <string name="accuchek_setup_title">Accu-Chek einrichten</string>
     <string name="add_sensor">Sensor hinzufügen</string>
     <string name="advanced_title">Erweitert</string>
@@ -834,11 +820,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_key_import_failed">Import fehlgeschlagen — keine gültige AiDex-Schlüsseldatei.</string>
     <string name="aidex_searching_sensors">Suche nach Sensoren...</string>
     <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Konfigurieren Sie AiDex oder LinX CGM über Bluetooth</string>
-    <string name="icanhealth_sensor">iCan i3 / Sinocare</string>
-    <string name="icanhealth_sensor_desc">iCan i3/i6/i7-CGM über Bluetooth einrichten</string>
+    <string name="icanhealth_sensor">iCan i3 / i6</string>
     <string name="mq_sensor">MQ / Glutec</string>
-    <string name="mq_sensor_desc">Glutec-/MQ-CGM-Transmitter über Bluetooth koppeln</string>
     <string name="aidex_setup_title">AiDex / LinX einrichten</string>
     <string name="alert_amount">Mengenalarm</string>
     <string name="alert_forecast_high">Vorhersage hoch</string>
@@ -893,7 +876,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restart">Neu starten</string>
     <string name="caresens_air_scan_instruction">Scannen Sie den Sensorcode auf Ihrem CareSens Air-Paket</string>
     <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Code scannen + Bluetooth</string>
     <string name="caresens_air_setup_title">CareSens Air einrichten</string>
     <string name="chsibionics">Sibionics China</string>
     <string name="clean_data_confirm">App-Daten löschen?</string>
@@ -2328,9 +2310,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_display_select">Sensor zur Anzeige auswählen</string>
     <string name="sensor_display_selected">Sensor für Anzeige ausgewählt</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai-Konto oder Zugangsdaten-Datei + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM für den chinesischen Markt - Cloud-Anmeldung + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
     <string name="ottai_setup_title">Ottai-Einrichtung</string>
     <string name="ottai_login_title">Bei Ottai anmelden</string>
     <string name="ottai_phone_hint">Telefonnummer</string>

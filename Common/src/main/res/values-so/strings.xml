@@ -1004,36 +1004,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     
     <string name="select_sensor_type">Dooro nooca dareenka</string>
     <string name="choose_theme">Dooro mawduuc</string>
-    <string name="sibionics_sensor_picker_desc">Sawirka QR</string>
-    <string name="libre_sensor_picker_desc">Sawirka NFC</string>
-    <string name="dexcom_sensor_picker_desc">Sawirka QR</string>
-    <string name="accuchek_sensor_picker_desc">Xogta Matrix + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Codka + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Habaynta Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Habaynta Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Isku-xidhka Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Isku-xidhka Bluetooth</string>
     <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Sawir koodka QR</string>
     <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Iyadoo loo marayo NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/Hal</string>
+    <string name="dexcom_sensor">Dexcom G7 / ONE+</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Scan Data Matrix + Bluetooth</string>
     <string name="caresens_air_sensor">CareSens Hawada</string>
-    <string name="caresens_air_sensor_desc">Iskaan code + Bluetooth</string>
     <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Ku xidh AiDex ama LinX CGM adoo isticmaalaya Bluetooth</string>
-    <string name="icanhealth_sensor">iCan i3 / Sinocare</string>
-    <string name="icanhealth_sensor_desc">Ku habeyn iCan i3/i6/i7 CGM adigoo isticmaalaya Bluetooth</string>
+    <string name="icanhealth_sensor">iCan i3 / i6</string>
     <string name="mq_sensor">MQ / Glutec</string>
-    <string name="mq_sensor_desc">Ku xidh gudbiyaha Glutec/MQ CGM adoo isticmaalaya Bluetooth</string>
     <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Ku xidh gudbiyaha CGM ee Anytime / Yuwell iyada oo loo marayo Bluetooth</string>
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Koontada Ottai ama faylka aqoonsiga + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">Shiinaha-suuqa CGM - daruur gelida + Bluetooth</string>
+    <string name="ottai_sensor">Ottai</string>
 
     <!-- Ottai Setup Wizard -->
     <string name="ottai_setup_title">Dejinta Ottai</string>
