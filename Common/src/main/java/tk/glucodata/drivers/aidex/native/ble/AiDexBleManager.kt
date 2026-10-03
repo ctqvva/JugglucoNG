@@ -2569,6 +2569,10 @@ class AiDexBleManager(
     }
 
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+        if (gatt !== mBluetoothGatt) {
+            Log.w(TAG, "onCharacteristicChanged: stale callback, ignoring")
+            return
+        }
         val uuid = characteristic.uuid
         val data = characteristic.value ?: return
         if (data.isEmpty()) return
@@ -2586,6 +2590,10 @@ class AiDexBleManager(
 
     override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
         super.onCharacteristicWrite(gatt, characteristic, status)
+        if (gatt !== mBluetoothGatt) {
+            Log.w(TAG, "onCharacteristicWrite: stale callback, ignoring")
+            return
+        }
         logd(TAG) { "onCharacteristicWrite: uuid=${characteristic.uuid} status=$status" }
         if (
             pendingResetReconnect &&
@@ -2607,6 +2615,10 @@ class AiDexBleManager(
 
     override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
         super.onCharacteristicRead(gatt, characteristic, status)
+        if (gatt !== mBluetoothGatt) {
+            Log.w(TAG, "onCharacteristicRead: stale callback, ignoring")
+            return
+        }
         val uuid = characteristic.uuid
         val data = characteristic.value
 
