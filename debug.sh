@@ -1,1 +1,1 @@
-./gradlew assembleMobileLibre3SiDexGoogleDebug
+./gradlew assembleMobileDebug

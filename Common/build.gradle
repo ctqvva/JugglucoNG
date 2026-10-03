@@ -107,7 +107,8 @@ android {
                 version = "$CMAKEVERSION"
                 cppFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 cFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
-                arguments "-DJUGGLUCO_APP=TRUE -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=TRUE", "-Dlibre3=TRUE", "-DDEXCOM=TRUE"
+                // No CMakeLists reads -Dlibre3/-DDEXCOM; LIBRE3/DEXCOM reach the compiler via cppFlags/cFlags above.
+                arguments "-DJUGGLUCO_APP=TRUE -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=TRUE"
             }
         }
     }
