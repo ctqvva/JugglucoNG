@@ -151,6 +151,13 @@ fun MainScreen(
     val velocities = remember(storeSnapshot, recent, isMmol) {
         rowVelocities(storeSnapshot.points, recent, storeSnapshot.isRawMode, isMmol)
     }
+    val rowPeers = remember(storeSnapshot, recent, isMmol) {
+        readingPeers(recent, storeSnapshot.peers, isMmol)
+    }
+    val primaryIdentity = remember(storeSnapshot.sensorId, storeSnapshot.peers) {
+        if (storeSnapshot.peers.isEmpty()) null
+        else tk.glucodata.ui.WearSensorSelection.colorOf(storeSnapshot.sensorId)
+    }
     // The other shown sensors' newest readings, for the hero's peer chips.
     val peerReadings = remember(storeSnapshot, isMmol, now / TICK_MS) {
         peerReadings(storeSnapshot.peers, isMmol, now)
@@ -239,6 +246,8 @@ fun MainScreen(
                         isMmol = isMmol,
                         viewMode = viewMode,
                         velocity = velocities[point.timestamp] ?: 0f,
+                        peers = rowPeers[point.timestamp].orEmpty(),
+                        primaryColorArgb = primaryIdentity,
                         // Tapping a reading acts on that reading, as on the
                         // phone: it calibrates against it, or edits the
                         // calibration it already carries.
@@ -353,6 +362,8 @@ private fun ReadingRow(
     viewMode: Int,
     velocity: Float,
     onClick: () -> Unit,
+    peers: List<WearReadingPeer> = emptyList(),
+    primaryColorArgb: Int? = null,
     onAddJournal: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -362,7 +373,7 @@ private fun ReadingRow(
     Row(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -380,7 +391,7 @@ private fun ReadingRow(
                 if (onAddJournal != null) {
                     Box(
                         Modifier
-                            .padding(start = 6.dp)
+                            .padding(start = 4.dp)
                             .size(20.dp)
                             .clip(androidx.compose.foundation.shape.CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -409,25 +420,7 @@ private fun ReadingRow(
                 )
             }
         }
-        WearGlucoseValue(
-            point = point,
-            isMmol = isMmol,
-            viewMode = viewMode,
-            style = readingValueStyle(viewMode),
-            primaryColor = tk.glucodata.ui.WearGlucoseColors.valueColor(
-                primaryLaneValue(point, viewMode),
-                isMmol,
-                MaterialTheme.colorScheme.onSurface,
-            ),
-        )
-        // The phone puts a trend arrow on every reading row; the watch showed it
-        // on the hero alone, so a row said nothing about direction.
-        TrendArrowCanvas(
-            velocity = velocity,
-            pulseKey = null,
-            modifier = Modifier.size(14.dp).padding(start = 6.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        ReadingValues(point, viewMode, isMmol, velocity, peers, primaryColorArgb)
     }
 }
 

@@ -47,4 +47,6 @@
     <!-- Not yet confirmed by the phone: saved on the watch only (#502). -->
     <string name="wear_journal_pending">Waiting for the phone</string>
     <string name="wear_sensor_forget">Forget sensor</string>
+    <string name="wear_multi_sensor_complication">Multi-sensor values</string>
+    <string name="wear_multi_sensor_arrow_complication">Multi-sensor values + arrows</string>
 </resources>

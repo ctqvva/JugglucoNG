@@ -18,5 +18,4 @@ src/wear/java/tk/glucodata/ui/WearApp.kt
 src/wear/java/tk/glucodata/ui/screens/AlertsScreen.kt
 src/wear/java/tk/glucodata/ui/screens/CalibrationScreen.kt
 src/wear/java/tk/glucodata/ui/screens/CalibrationsScreen.kt
-src/wear/java/tk/glucodata/ui/screens/RecentReadingsScreen.kt
 src/wear/java/tk/glucodata/ui/screens/SensorScreen.kt

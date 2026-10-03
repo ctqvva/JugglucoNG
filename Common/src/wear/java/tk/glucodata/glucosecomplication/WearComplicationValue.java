@@ -328,6 +328,7 @@ static public void updateall() {
     IconArrowDataSourceService.Companion.update();
     ShortArrowValueDataSourceService.Companion.update();
     ChartDataSourceService.update();
+    MultiSensorDataSourceService.update();
     }
 
 }
