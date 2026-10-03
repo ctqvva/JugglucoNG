@@ -146,8 +146,13 @@ object InsulinPenManager {
      * while it is enabled: enabled exactly when pens are read and the background import
      * is on. Called on each change and once per start, so an upgrade or a restored
      * backup ends up matching the settings.
+     *
+     * Also pushes the foreground expectation into NfcSettingsRouting: MainActivity only
+     * arms NFC reader mode (which newer OS versions ask runtime consent for) when a
+     * Libre sensor is active, an explicit scan runs, or pens are enabled.
      */
     fun syncBackgroundReceiver(context: Context) {
+        NfcSettingsRouting.setPenReadsExpected(isEnabled())
         val wanted = isEnabled() && isBackgroundImportEnabled()
         runCatching {
             val pm = context.packageManager

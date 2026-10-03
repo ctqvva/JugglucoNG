@@ -22,6 +22,7 @@ import android.nfc.tech.NfcV
 import android.os.SystemClock
 import tk.glucodata.Applic
 import tk.glucodata.Log
+import tk.glucodata.NfcSettingsRouting
 
 object OttaiNfc {
     private const val TAG = "OttaiNfc"
@@ -60,11 +61,20 @@ object OttaiNfc {
 
     fun armForSetup() {
         dumpMode = true
+        // NfcA/MifareUltralight tags never arrive via manifest dispatch (NfcV-only
+        // filter), so expecting a tap must also arm the reader via MainActivity.
+        NfcSettingsRouting.setOttaiTapExpected(true)
+    }
+
+    fun disarmForSetup() {
+        dumpMode = false
+        NfcSettingsRouting.setOttaiTapExpected(false)
     }
 
     fun armForActivationRetry(sensorId: String) {
         activationSensorId = OttaiConstants.canonicalSensorId(sensorId)
         dumpMode = true
+        NfcSettingsRouting.setOttaiTapExpected(true)
     }
 
     fun disarmActivationRetry(sensorId: String) {
@@ -72,6 +82,7 @@ object OttaiNfc {
         if (activationSensorId.equals(canonical, ignoreCase = true)) {
             activationSensorId = null
             dumpMode = false
+            NfcSettingsRouting.setOttaiTapExpected(false)
         }
     }
 
@@ -104,6 +115,7 @@ object OttaiNfc {
             consumeTagUntilMs = SystemClock.elapsedRealtime() + CONSUMED_TAG_WINDOW_MS
             wakeHapticPending = true
             dumpMode = false
+            NfcSettingsRouting.setOttaiTapExpected(false)
             activationSensorId?.let { sensorId ->
                 activationSensorId = null
                 Applic.app?.let { OttaiNfcWakeReminder.cancel(it, sensorId) }

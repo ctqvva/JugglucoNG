@@ -110,9 +110,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
-import tk.glucodata.Natives
+import tk.glucodata.NfcSettingsRouting
 import tk.glucodata.R
-import tk.glucodata.SensorSourceResolver
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CustomAlertRepository
@@ -803,33 +802,9 @@ private fun buildCgmReadinessSnapshot(
 }
 
 private fun hasActiveLibreSensor(): Boolean {
-    return runCatching {
-        Natives.activeSensors()
-            ?.filterNotNull()
-            ?.any(::isLibreSensorId) == true
-    }.getOrDefault(false)
-}
-
-private fun isLibreSensorId(sensorId: String): Boolean {
-    val kind = runCatching {
-        SensorSourceResolver.resolveSensorKind(
-            sensorId,
-            SensorSourceResolver.SENSOR_KIND_UNKNOWN
-        )
-    }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
-    if (kind == SensorSourceResolver.SENSOR_KIND_LIBRE2 ||
-        kind == SensorSourceResolver.SENSOR_KIND_LIBRE3
-    ) {
-        return true
-    }
-    val sensorPtr = runCatching { Natives.str2sensorptr(sensorId) }.getOrDefault(0L)
-    if (sensorPtr != 0L) {
-        val nativeKind = runCatching { Natives.getSensorptrLibreVersion(sensorPtr) }
-            .getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
-        return nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE2 ||
-            nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE3
-    }
-    return false
+    // Shared with MainActivity's launch-time NFC prompt (NfcSettingsRouting): one
+    // sensor-classification rule, so the two cannot diverge.
+    return NfcSettingsRouting.isNfcNeeded()
 }
 
 @SuppressLint("MissingPermission")
