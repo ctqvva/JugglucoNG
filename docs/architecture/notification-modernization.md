@@ -1,9 +1,80 @@
 # Notification modernization proposal
 
-Status: proposed feature plan for a documentation-only PR; it does not change
-the structural track order in [direction.md](direction.md). Reviewed 2026-09-27
-against main at 7b12a40d4. This is source and issue review only: no device
-reproduction or timing measurement has been completed.
+Status: implementation in progress. The timestamp/async-startup subset merged in
+[PR #485](https://github.com/ctqvva/JugglucoNG/pull/485) and received a brief maintainer
+device check. The follow-up implements the contained phone lifecycle changes and
+phone value presentation below. It does not move the structural track in
+[direction.md](direction.md). The source evidence table records the original
+review against main at 7b12a40d4, rather than claiming those defects remain unchanged.
+
+### Current implementation slice
+
+The maintainer explicitly requested continuing with lifecycle and visuals after the
+startup device check. This authorizes a bounded N1/N4 feature slice without the
+N2/N3 coordinator or shared-state extraction. No driver, storage, calibration,
+widget, Floating, broadcaster contract, alarm layout or Wear redesign is included.
+
+- Ordinary phone readings have one freshness deadline, based on the actual rendered
+  snapshot, including its fallback. At expiry, retain the last value without a visible unit suffix
+  with the existing translated stale label and reading-time header; remove the
+  current chart/arrow. Handler timing remains best effort during Doze.
+- Data/status requests keep the first one-second deadline while queued. Settings,
+  screen-on and time changes reconcile the presentation on the notification worker.
+  Startup, genuine publications and visual refreshes invalidate superseded work;
+  service teardown cancels only the owning service's pending work.
+- Remove `setTimeoutAfter` only from ongoing phone glucose content. Preserve alarm
+  and Wear lifetime rules, and genuine `alertwatch` delivery. Visual-only updates
+  never broadcast a new reading. Display-disabled mode retains service status only
+  while the service exists; it does not implicitly stop the service.
+- Phone readings use DecoratedCustomViewStyle with dedicated custom compact and
+  expanded layouts. A large primary value, smaller identity-tinted peers and their
+  app-rendered arrows share one horizontal strip. The expanded chart uses FIT_CENTER
+  and receives the full image without picture-template padding. The compact plot
+  maps its time/glucose axes to the available 48dp-high bounds with FIT_XY; fitting
+  the screen-width compact raster by aspect ratio would flatten it into a thin strip. Both compact and
+  expanded chart preferences remain available.
+- No visible glucose-unit suffix is added to live, fallback or stale phone text.
+  Conversion and the configured unit remain unchanged. Stale state still retains
+  the actual value and reading timestamp, while removing current arrows/chart.
+- Font family, weight and size preferences apply to the phone again. IBM Plex is
+  loaded in the app process; the system option resolves the OEM notification family.
+  The glyph strip remains a bounded bitmap with accessible formatted-value text,
+  because System UI cannot load bundled app fonts or receive Typeface objects.
+  Report its render density and bound the image height from the painter's actual
+  font metrics so System UI bitmap transport cannot inflate it. Sizing honors SP
+  and preference scaling; cap compact text at large accessibility sizes to stay
+  inside the host height budget. System
+  font weights on API 26/27 use the available regular/medium families; exact numeric
+  light-weight selection requires API 28 or later.
+- Android provides the notification shell and expansion affordance. Custom content
+  cannot promise the standard template's internal element transitions. No app-driven
+  animation timer or frame-by-frame notification publishing is introduced.
+
+This slice preserves the existing appearance; it is not an M3 motion redesign.
+Compact and expanded content both retain the custom presenter. A native compact
+template cannot retain the same value hierarchy and app arrows. A ViewFlipper
+incoming fade was investigated but is not shipped: fading the bitmap would hide
+the readings and arrows together, and host reapplication or delayed drawing could
+replay it without a new reading. Keeping both animation buffers current avoids
+old-value replay but does not solve those legibility and timing problems.
+
+The maintainer selected this custom presentation after device comparisons showed
+that native BigPictureStyle's fixed title size and text arrows did not meet the
+intended hierarchy. The native presenter and its picture-padding workaround are
+removed. Required validation includes the actual device shade, IBM/system fonts,
+multisensor arrows, unitless live/stale text, optional chart modes and large-font
+behavior, alongside existing lifecycle tests. Native-template preview evidence from
+earlier iterations does not validate this renderer.
+
+The custom expanded renderer was checked on the maintainer's Pixel 8 Pro (API 37)
+using a separate preview application, the production value presenter and painter,
+its bundled IBM Plex asset, and a synthetic chart. Both IBM Plex and OEM system
+font modes showed the primary/peer hierarchy, app arrows, unitless text and full
+chart labels. The device check exposed bitmap density inflation; the presenter now
+also bounds the value image from measured font metrics. The preview application
+was removed and the installed CGM application was not replaced. Compact height and
+narrow-host scaling have local renderer coverage; real ingestion, stale transitions,
+TalkBack and Doze still require full-application device checks.
 
 ## Outcome and scope
 
@@ -13,8 +84,8 @@ compact and expanded layouts. It must work while the activity is closed and
 after process restart. Preserve ingestion, storage, calibration, units,
 sensor policy and independent glucose-alarm delivery.
 
-N0 and a trimmed N1 are the immediate reliability work. N2 through N5 remain
-deferred under D4. The primary surfaces are the dashboard adapter and ongoing
+The current slice advances N1 and the bounded N4 presentation described above.
+N2/N3 structural work and N5 remain deferred under D4. The primary surfaces are the dashboard adapter and ongoing
 phone notification. WidgetDisplaySource/ExpressiveAppWidget, Floating,
 GlucoseUpdateBroadcaster and other notification consumers remain compatibility
 surfaces; they are not implicitly migrated by N1.
@@ -26,7 +97,7 @@ serious design review. It does not add a lock-screen privacy preference.
 
 | Choice | Status and scope |
 | --- | --- |
-| Replace bitmap IBM Plex values | Conditionally supported for N4 where accessibility, scaling or rendering measurements justify it. M3 does not mandate a different font. List the effect on each `notification_font_*` preference before migration. |
+| Replace bitmap IBM Plex values | Custom presentation is approved to retain the intended hierarchy and app arrows. Preserve `notification_font_*` preferences; glyph bitmaps remain necessary for bundled IBM Plex in System UI. |
 | Lock-screen privacy option | Rejected for this work; preserve existing visibility choices. |
 | Journal action | Deferred to a separate interaction design proposal. |
 | No-sensor notification | Tentatively supported only as required by actual service and existing display modes; never stop the service implicitly. |
@@ -186,8 +257,9 @@ phone timeout/lifetime change separately. Test stale historical snapshots at
 
 ## Deferred work under D4 and P5
 
-Structural and behavior changes must not share a PR. N2 through N5 wait for
-D4's one structural track or an explicit amendment:
+Structural and behavior changes must not share a PR. N2/N3 and N5 wait for
+D4's structural slot; the maintainer-authorized N4 subset above is a feature change
+without that structural extraction. The broader proposal remains:
 
 | Step | Deliverable | Acceptance |
 | --- | --- | --- |
@@ -196,11 +268,13 @@ D4's one structural track or an explicit amendment:
 | N4 visual replacement | Improve compact/expanded hierarchy, native text/icons and chart accessibility after N1 is stable. Choose bitmap versus TextView per measured accessibility/performance and IBM Plex compatibility evidence; keep a bounded RemoteViews chart and useful standard notification text. | Units/locales, large fonts, TalkBack, light/dark, compact/expanded and multiple sensors. No journal action, privacy preference or frame-by-frame animation in this step. |
 | N5 alert presentation | Apply shared visual vocabulary to alarm cards and actions without changing alert lifetime, sound, DND, retries, alertwatch or Wear behavior. | Cold-start actions and alarm regressions pass; delivery remains independent. |
 
-Optional MetricStyle work is a later experiment, not an N1 dependency. The
-installed API 37 SDK contains Notification.MetricStyle (javap inspection of
+MetricStyle is not selected for this implementation. The installed API 37 SDK
+contains Notification.MetricStyle (javap inspection of
 $ANDROID_HOME/platforms/android-37.0/android.jar on 2026-09-27 showed
-addMetric, setCriticalMetric and setMetrics). Runtime availability, layout,
-locale/decimal behavior and supported-device behavior remain untested.
+addMetric, setCriticalMetric and setMetrics). A separate API 37 Pixel preview
+confirmed runtime availability, but did not retain the intended custom arrows
+and chart presentation. Broader locale and supported-device behavior remain
+unvalidated; the preview does not establish compatibility for this product.
 See the [MetricStyle reference](https://developer.android.com/reference/android/app/Notification.MetricStyle).
 Ordinary RemoteViews cannot host the Compose animation system; use System UI
 transitions and avoid frame-by-frame reposting. Live Update promotion remains

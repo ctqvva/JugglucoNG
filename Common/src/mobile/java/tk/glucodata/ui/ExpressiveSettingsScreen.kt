@@ -1266,7 +1266,7 @@ fun NotificationSettingsSheet(
             }
             Spacer(Modifier.height(8.dp))
 
-            // Font Weight - only on Android 12+ (API 31) where RemoteViews supports setFontVariationSettings
+            // Font weight for the custom notification value rendering.
             if (android.os.Build.VERSION.SDK_INT >= 31) {
                 Text(stringResource(R.string.font_weight_label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
                 Row(

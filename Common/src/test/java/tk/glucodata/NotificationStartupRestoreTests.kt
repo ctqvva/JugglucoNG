@@ -127,6 +127,7 @@ class NotificationStartupRestoreTests {
         nestNew("GlucosePoint", Long::class.javaPrimitiveType to time)
 
     private fun foregroundno(h: Any, svc: Any) {
+        call(h, "setCurrentService", svc)
         h.javaClass.getMethod("foregroundno", nested("Service")).invoke(h, svc)
     }
 
@@ -207,12 +208,14 @@ class NotificationStartupRestoreTests {
         val w = thread { drainOne(h) }
         poll(5000) { get(h, "renderEntered") as Boolean }
         // A genuine foreground publication lands while the restore renders.
-        fornotify(h, newNotification(h))
+        val genuine = newNotification(h)
+        fornotify(h, genuine)
         call(h, "openGate", "render")
         w.join(5000)
         assertFalse(w.isAlive)
-        // The stale restore must not overwrite it.
-        assertEquals(1, serviceCalls(svc).size)
+        // Placeholder plus genuine post; the pending restore must not post a third time.
+        assertEquals(2, serviceCalls(svc).size)
+        assertSame(genuine, lastServiceNotification(svc))
         assertEquals("genuine path fans out, restore path does not", 1, get(h, "broadcastSends") as Int)
     }
 
@@ -356,7 +359,8 @@ class NotificationStartupRestoreTests {
         val title = titleOf(status)
         assertTrue("status carries actual time: $title", title!!.startsWith("No new value since "))
         assertTrue(title.length > "No new value since ".length + 3)
-        assertFalse(boolOf(status, "showWhen"))
+        assertTrue(boolOf(status, "showWhen"))
+        assertEquals(now - 400_000L, whenOf(status))
     }
 
     @Test fun nullSnapshotWithStaleHistoryYieldsTimestampedStatus() {
@@ -416,6 +420,52 @@ class NotificationStartupRestoreTests {
         assertEquals("no status or reading post on failure", 1, serviceCalls(svc).size)
     }
 
+    private fun visualGeneration(): Long {
+        val f = compiled.getDeclaredField("foregroundVisualGeneration")
+        f.isAccessible = true
+        return f.getLong(null)
+    }
+
+    private fun deadlineDelays(h: Any): List<Long> {
+        val handler = get(h, "glucoseRefreshHandler")!!
+        val f = handler.javaClass.getField("delays")
+        f.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        return f.get(handler) as List<Long>
+    }
+
+    @Test fun freshRestoreArmsSingleDeadlineOnDisplayedReading() {
+        val h = harness()
+        val now = System.currentTimeMillis()
+        val readingTime = now - 20_000L
+        set(h, "cannedSnapshot", snapshotAt(readingTime, 132f))
+        val svc = newService(h)
+        foregroundno(h, svc)
+        assertTrue(drainOne(h))
+        // One deadline callback armed on the actual displayed reading, not a poll loop.
+        val delays = deadlineDelays(h)
+        assertEquals(1, delays.size)
+        val delay = delays[0]
+        assertTrue("deadline delay must be positive, was $delay", delay > 0L)
+        assertTrue("deadline must be timeout+1ms past the reading, was $delay",
+            delay <= 330_000L + 1L && delay >= 300_000L)
+        // The displayed snapshot is retained for later staleness fallback.
+        val retained = get(h, "lastDisplayedGlucoseSnapshot")!!
+        val time = getNested(retained, "time") as Long
+        assertEquals(readingTime, time)
+    }
+
+    @Test fun genuinePublicationBumpsVisualGeneration() {
+        val h = harness()
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 20_000L))
+        val svc = newService(h)
+        foregroundno(h, svc)
+        val afterStartup = visualGeneration()
+        fornotify(h, newNotification(h))
+        assertTrue("genuine fornotify must invalidate older visual renders",
+            visualGeneration() > afterStartup)
+    }
+
     @Test fun headerTimestampApplicationOnRealBuilderCode() {
         val h = harness()
         val builderClass = nested("Notification").declaredClasses.first { it.simpleName == "Builder" }
@@ -442,6 +492,186 @@ class NotificationStartupRestoreTests {
         assertEquals(0L, whenOf(emptyBuilt))
     }
 
+    private fun invokePrivate(h: Any, name: String, vararg args: Any?): Any? {
+        val method = compiled.declaredMethods.first { it.name == name && it.parameterCount == args.size }
+        method.isAccessible = true
+        return method.invoke(h, *args)
+    }
+
+    @Test fun visualPublicationInvalidatesPendingStartupRestore() {
+        val h = harness()
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L))
+        val service = newService(h)
+        foregroundno(h, service)
+        val visual = newNotification(h)
+        invokePrivate(h, "publishVisualNotification", visualGeneration(), service, visual, null)
+        assertTrue(drainOne(h))
+        assertSame("restore cannot overwrite the newer visual", visual, getNested(service, "last"))
+        assertEquals("visual update never rebroadcasts a reading", 0, get(h, "broadcastSends"))
+    }
+
+    private fun getNested(value: Any, name: String): Any? = value.javaClass.getField(name).also { it.isAccessible = true }.get(value)
+
+    @Test fun startupPublicationInvalidatesAlreadyRenderedVisual() {
+        val h = harness()
+        val service = newService(h)
+        foregroundno(h, service)
+        val oldGeneration = visualGeneration()
+        assertTrue(drainOne(h))
+        val restored = getNested(service, "last")
+        invokePrivate(h, "publishVisualNotification", oldGeneration, service, newNotification(h), null)
+        assertSame(restored, getNested(service, "last"))
+    }
+
+    @Test fun cancellationBelongsToCurrentServiceAndInvalidatesRunningRender() {
+        val h = harness()
+        val old = newService(h)
+        val replacement = newService(h)
+        call(h, "setCurrentService", replacement)
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        val generation = visualGeneration()
+        invokePrivate(h, "cancelOngoingNotificationRefreshes", old)
+        assertEquals(generation, visualGeneration())
+        invokePrivate(h, "cancelOngoingNotificationRefreshes", replacement)
+        assertTrue(visualGeneration() > generation)
+        invokePrivate(h, "publishVisualNotification", generation, replacement, newNotification(h), null)
+        assertNull(getNested(replacement, "last"))
+        assertEquals(0, call(h, "queuedCount"))
+    }
+
+    @Test fun overdueDataAndStatusCallbacksKeepTheirQueueSlots() {
+        val h = harness()
+        invokePrivate(h, "scheduleDataChangedNotificationRefresh")
+        invokePrivate(h, "scheduleStatusChangedNotificationRefresh")
+        set(h, "uptime", 50_000L)
+        invokePrivate(h, "scheduleDataChangedNotificationRefresh")
+        invokePrivate(h, "scheduleStatusChangedNotificationRefresh")
+        assertEquals("overdue callbacks are still owned", 2, call(h, "queuedCount"))
+    }
+
+    @Test fun failedVisualPublicationRetriesOnceWithoutMarkingSnapshotDisplayed() {
+        val h = harness()
+        val snapshot = snapshotAt(System.currentTimeMillis() - 1000L)
+        set(h, "cannedSnapshot", snapshot)
+        set(h, "failPublication", true)
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        assertTrue(drainOne(h))
+        assertNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        assertEquals(1, call(h, "queuedCount"))
+        assertTrue(drainOne(h))
+        assertEquals("persistent failure cannot spin", 0, call(h, "queuedCount"))
+        assertNull(get(h, "lastDisplayedGlucoseSnapshot"))
+    }
+
+    @Test fun missingSensorOrChangedUnitsCannotReuseRetainedReading() {
+        val h = harness()
+        val snapshot = snapshotAt(System.currentTimeMillis() - 1000L)
+        set(h, "lastDisplayedGlucoseSnapshot", snapshot)
+        assertNull(invokePrivate(h, "effectiveDisplaySnapshot", snapshot, null))
+        assertSame(snapshot, invokePrivate(h, "effectiveDisplaySnapshot", null, "sensor-1"))
+        call(h, "setMmol", true)
+        assertNull(invokePrivate(h, "effectiveDisplaySnapshot", null, "sensor-1"))
+        call(h, "setMmol", false)
+        set(h, "modeFailure", true)
+        assertNull(invokePrivate(h, "effectiveDisplaySnapshot", null, "sensor-1"))
+    }
+
+    @Test fun genuinePublicationCommitsReadingOnlyAfterSuccessAndArmsSilentExpiry() {
+        val h = harness()
+        val time = System.currentTimeMillis() - 1000L
+        val reading = nestNew("notGlucose", Long::class.javaPrimitiveType to time)
+        set(h, "cannedSnapshot", snapshotAt(time, 123f))
+        set(h, "failPublication", true)
+        try {
+            invokePrivate(h, "postForegroundGlucoseNotification", -1, 123f, "123", reading, false)
+            fail("expected publisher failure")
+        } catch (failure: java.lang.reflect.InvocationTargetException) {
+            assertTrue(failure.cause is IllegalStateException)
+        }
+        assertEquals(0L, get(h, "lastForegroundGlucoseTimeMs"))
+        assertNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        set(h, "failPublication", false)
+        assertTrue("quiet retry runs without another reading event", drainOne(h))
+        assertEquals(1, call(h, "queuedCount"))
+        assertNotNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        assertEquals("recovery is visual-only", 0, get(h, "broadcastSends"))
+    }
+
+    @Test fun noInputDeadlineReplacesCurrentPresentationWithStaleReading() {
+        val h = harness()
+        val snapshot = snapshotAt(System.currentTimeMillis() - 1000L)
+        set(h, "cannedSnapshot", snapshot)
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        assertTrue(drainOne(h))
+        assertEquals(1, call(h, "queuedCount"))
+        nestField(snapshot, "time").setLong(snapshot, System.currentTimeMillis() - 331_000L)
+        // Run the existing deadline callback after time has advanced; no new reading event.
+        assertTrue(drainOne(h))
+        assertTrue(drainOne(h))
+        val manager = get(h, "notificationManager")!!
+        val stale = getNested(manager, "last")!!
+        assertTrue((getNested(stale, "title") as String).startsWith("No new value"))
+        assertEquals(getNested(snapshot, "time"), getNested(stale, "when"))
+        assertEquals(0, get(h, "broadcastSends"))
+        assertEquals(0, call(h, "queuedCount"))
+    }
+
+    @Test fun dequeuedCallbacksCannotRescheduleAfterCurrentServiceCancellation() {
+        for (method in listOf("scheduleDataChangedNotificationRefresh", "scheduleStatusChangedNotificationRefresh", "scheduleVisualNotificationRefresh")) {
+            val h = harness()
+            val service = newService(h)
+            call(h, "setCurrentService", service)
+            invokePrivate(h, method)
+            val handler = get(h, "glucoseRefreshHandler")!!
+            val take = handler.javaClass.getDeclaredMethod("takeNext", Long::class.javaPrimitiveType).also { it.isAccessible = true }
+            val dequeued = take.invoke(handler, 1L) as Runnable
+            invokePrivate(h, "cancelOngoingNotificationRefreshes", service)
+            call(h, "setCurrentService", null)
+            val generation = visualGeneration()
+            dequeued.run()
+            assertEquals(generation, visualGeneration())
+            assertEquals(0, call(h, "queuedCount"))
+        }
+    }
+
+    @Test fun wearStoredReadingKeepsAlarmIdAndOngoingAdapter() {
+        val h = harness()
+        set(h, "isWearable", true)
+        val time = System.currentTimeMillis() - 1000L
+        val reading = nestNew("notGlucose", Long::class.javaPrimitiveType to time)
+        invokePrivate(h, "postForegroundGlucoseNotification", -1, 123f, "123", reading, true)
+        val manager = get(h, "notificationManager")!!
+        assertEquals(listOf("notify:81432"), getNested(manager, "calls"))
+        assertEquals(1, get(h, "updateCalls"))
+        assertEquals(0, call(h, "queuedCount"))
+    }
+
+    @Test fun startupPublicationFailureGetsQuietRetryWithoutNewInput() {
+        val h = harness()
+        val service = newService(h)
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L))
+        foregroundno(h, service)
+        set(h, "failPublication", true)
+        assertTrue(drainOne(h))
+        assertNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        set(h, "failPublication", false)
+        assertTrue(drainOne(h))
+        assertNotNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        assertEquals(0, get(h, "broadcastSends"))
+    }
+
+    @Test fun noSensorWithoutServiceCancelsInsteadOfPublishingPlaceholder() {
+        val h = harness()
+        set(h, "sensorSerial", null)
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L))
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        assertTrue(drainOne(h))
+        val manager = get(h, "notificationManager")!!
+        assertEquals(listOf("cancel:81431"), getNested(manager, "calls"))
+        assertNull(getNested(manager, "last"))
+        assertEquals(0, call(h, "queuedCount"))
+    }
+
     companion object {
         private val compiled: Class<*> by lazy {
             val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
@@ -452,6 +682,13 @@ class NotificationStartupRestoreTests {
             val regionEnd = source.indexOf("    // N1-STARTUP-REGION-END")
             check(regionEnd > regionStart) { "startup region end marker missing" }
             val region = source.substring(regionStart, regionEnd)
+            val refreshPolicy = File(root, "Common/src/main/java/tk/glucodata/NotificationRefreshPolicy.java")
+                .readText().substringAfter("package tk.glucodata;")
+                .replace("final class NotificationRefreshPolicy", "static final class NotificationRefreshPolicy")
+            val lifecycle = source.substring(
+                source.indexOf("    private final Runnable dataChangedGlucoseRefreshRunnable"),
+                source.indexOf("    private static final int MIN_ALERT_DURATION_SECONDS"))
+                .replace("final Notify noti", "final NotifyStartupHarness noti")
             val fnSig = "    void fornotify(Notification notif) {"
             val fnStart = source.indexOf(fnSig)
             check(fnStart >= 0) { "fornotify not found" }
@@ -471,9 +708,9 @@ class NotificationStartupRestoreTests {
                 import static java.lang.String.format;
                 import java.util.*;
                 public class NotifyStartupHarness {
-                    public boolean isWearable = false;
+                    public static boolean isWearable = false;
                     public boolean doLog = false;
-                    public String LOG_ID = "test";
+                    public static String LOG_ID = "test";
                     public static java.util.Locale usedlocale = java.util.Locale.ROOT;
                     public static String glucoseformat = "%.0f";
                     public static java.text.DateFormat timef =
@@ -486,7 +723,7 @@ class NotificationStartupRestoreTests {
                     public static final int FLAG_ONGOING_EVENT = 2;
                     public static int VISIBILITY_PUBLIC = 1;
                     public TestApp app = new TestApp();
-                    public FakeHandler glucoseRefreshHandler = new FakeHandler();
+                    public static FakeHandler glucoseRefreshHandler = new FakeHandler();
                     public FakeManager notificationManager = new FakeManager();
                     public int broadcastSends = 0;
                     public int attachCalls = 0;
@@ -510,6 +747,38 @@ class NotificationStartupRestoreTests {
                     public int renderCalls = 0;
                     public RenderCall lastRender = null;
                     public boolean startupContentCalled = false;
+                    public CurrentDisplaySource.Snapshot lastDisplayedGlucoseSnapshot = null;
+                    public int deadlineFires = 0;
+                    public static NotifyStartupHarness onenot;
+                    public static boolean showalways = true, alertwatch = false;
+                    public boolean hasvalue;
+                    public long lastForegroundGlucoseTimeMs, pendingDataRefreshAtUptimeMs, pendingStatusRefreshAtUptimeMs;
+                    public float lastForegroundGlucoseValue, lastForegroundGlucoseRate;
+                    public boolean visualRefreshPending;
+                    public long pendingVisualGeneration, publicationRetryGeneration;
+                    public Service pendingVisualService, publicationRetryService, freshnessDeadlineService;
+                    public long freshnessDeadlineGeneration;
+                    public boolean interactiveRefreshPending;
+                    public static final long DATA_CHANGED_NOTIFICATION_REFRESH_DELAY_MS = 1000L;
+                    public static final long FAILED_NOTIFICATION_RETRY_DELAY_MS = 5000L;
+                    public static final long INTERACTIVE_NOTIFICATION_REFRESH_DELAY_MS = 750L;
+                    public Runnable glucoseRefreshRunnable = () -> {};
+                    public static Runnable storedGlucoseRefresh = () -> {};
+                    public boolean failPublication, modeFailure;
+                    public long uptime = 10_000L;
+                    public static class android { public static class os { public static class SystemClock {
+                        public static long uptimeMillis() { return onenot.uptime; }
+                    } } }
+                    public int queuedCount() { return glucoseRefreshHandler.queued(); }
+                    public void setMmol(boolean value) { Applic.unit = value ? 1 : 0; }
+                    private boolean isScreenInteractive() { return true; }
+                    private String resolveNotificationSensorSerial() { return sensorSerial; }
+                    private String resolveNotificationStatusText(String serial, String fallback) { return fallback; }
+                    private CurrentDisplaySource.Snapshot resolveNotificationCurrentSnapshot() {
+                        return resolveNotificationCurrentSnapshot(sensorSerial);
+                    }
+                    $refreshPolicy
+                    $lifecycle
                     private final Object resolverLock = new Object();
                     private final Object renderLock = new Object();
                     static class R {
@@ -548,6 +817,7 @@ class NotificationStartupRestoreTests {
                         public Notification last;
                         public List<Boolean> publicationLocks = new ArrayList<>();
                         public void startForeground(int id, Notification n) {
+                            if (owner.failPublication) throw new IllegalStateException("publisher down");
                             publicationLocks.add(Thread.holdsLock(foregroundPublicationLock));
                             calls.add("fg:" + id);
                             owner.events.add("fg:" + id);
@@ -586,7 +856,13 @@ class NotificationStartupRestoreTests {
                     }
                     static class FakeHandler {
                         List<Runnable> queue = new ArrayList<>();
+                        public List<Long> delays = new ArrayList<>();
                         synchronized void post(Runnable r) { queue.add(r); notifyAll(); }
+                        synchronized void postDelayed(Runnable r, long delayMs) {
+                            delays.add(delayMs);
+                            queue.add(r);
+                            notifyAll();
+                        }
                         synchronized void removeCallbacks(Runnable r) { queue.remove(r); }
                         synchronized int queued() { return queue.size(); }
                         public synchronized Runnable takeNext(long timeoutMs) throws InterruptedException {
@@ -603,7 +879,9 @@ class NotificationStartupRestoreTests {
                         public List<String> calls = new ArrayList<>();
                         public Notification last;
                         public boolean publicationHeldLock;
+                        void cancel(int id) { calls.add("cancel:" + id); last = null; }
                         void notify(int id, Notification n) {
+                            if (onenot.failPublication) throw new IllegalStateException("publisher down");
                             publicationHeldLock = Thread.holdsLock(foregroundPublicationLock);
                             calls.add("notify:" + id); last = n;
                         }
@@ -627,12 +905,20 @@ class NotificationStartupRestoreTests {
                         static boolean started = false;
                     }
                     static class CurrentDisplaySource {
+                        static int resolveViewModeForSensor(String serial) {
+                            if (onenot.modeFailure) throw new IllegalStateException("mode unavailable");
+                            return 0;
+                        }
                         static class Snapshot {
                             public long time;
                             public float value;
                             public Snapshot(long t, float v) { time = t; value = v; }
                             public long getTimeMillis() { return time; }
                             public float getPrimaryValue() { return value; }
+                            public float getRate() { return 0f; }
+                            public boolean isMmol() { return false; }
+                            public String getSensorId() { return "sensor-1"; }
+                            public int getViewMode() { return 0; }
                         }
                     }
                     static class GlucosePoint {
@@ -651,6 +937,7 @@ class NotificationStartupRestoreTests {
                     }
                     static class notGlucose {
                         public long time;
+                        public float rate;
                         public notGlucose(long t) { time = t; }
                     }
                     static class RenderCall {
@@ -658,9 +945,15 @@ class NotificationStartupRestoreTests {
                         public long glucoseTime; public String type; public boolean once;
                     }
                     public void resetStatics() {
+                        onenot = this;
+                        glucoseRefreshHandler = new FakeHandler();
+                        showalways = true; alertwatch = false; isWearable = false; Applic.unit = 0;
                         startupPendingTicket = 0L;
                         startupPendingService = null;
                         startupTicketCounter = 0L;
+                        foregroundVisualGeneration = 0L;
+                        lastDisplayedGlucoseSnapshot = null;
+                        deadlineFires = 0;
                         broadcastSends = 0;
                         stackCalls = 0;
                         keeprunning.theservice = null;
@@ -708,8 +1001,18 @@ class NotificationStartupRestoreTests {
                         return s == null ? null : new notGlucose(s.getTimeMillis());
                     }
                     Notification makearrownotification(int kind, float value, String message,
+                            notGlucose glucose, String type, boolean once) {
+                        return makearrownotification(kind, value, message, glucose, type, once, null);
+                    }
+                    Notification makearrownotification(int kind, float value, String message,
                             notGlucose glucose, String type, boolean once,
                             CurrentDisplaySource.Snapshot startupSnapshot) {
+                        return makearrownotification(kind, value, message, glucose, type, once,
+                                startupSnapshot, startupSnapshot != null);
+                    }
+                    Notification makearrownotification(int kind, float value, String message,
+                            notGlucose glucose, String type, boolean once,
+                            CurrentDisplaySource.Snapshot startupSnapshot, boolean snapshotAlreadyResolved) {
                         final String activeSensorSerial = sensorSerial;
                         $displaySelection
                         renderedSnapshotTime = resolvedDisplay == null ? 0L : resolvedDisplay.getTimeMillis();
@@ -725,6 +1028,25 @@ class NotificationStartupRestoreTests {
                         Notification n = new Notification();
                         n.rendered = true;
                         n.title = message;
+                        return n;
+                    }
+                    static class GlucoseNotificationContent {
+                        Notification notification; CurrentDisplaySource.Snapshot snapshot;
+                        GlucoseNotificationContent(Notification n, CurrentDisplaySource.Snapshot s) { notification = n; snapshot = s; }
+                    }
+                    GlucoseNotificationContent renderGlucoseNotification(int kind, float value, String message,
+                            notGlucose glucose, String type, boolean once,
+                            CurrentDisplaySource.Snapshot snapshot, boolean alreadyResolved) {
+                        Notification n = makearrownotification(kind, value, message, glucose, type, once, snapshot, alreadyResolved);
+                        CurrentDisplaySource.Snapshot displayed = snapshot != null ? snapshot : new CurrentDisplaySource.Snapshot(glucose.time, value);
+                        return new GlucoseNotificationContent(n, displayed);
+                    }
+                    Notification makeStaleReadingNotification(CurrentDisplaySource.Snapshot snapshot) {
+                        Notification n = new Notification();
+                        n.title = staleMessage(snapshot.getTimeMillis());
+                        n.when = snapshot.getTimeMillis();
+                        n.showWhen = true;
+                        n.ongoing = true;
                         return n;
                     }
                     Notification getforgroundnotification() {
