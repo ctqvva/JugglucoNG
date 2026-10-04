@@ -24,8 +24,12 @@ class NightscoutFollowerPollReceiver : BroadcastReceiver() {
         const val ACTION_POLL = "tk.glucodata.drivers.nightscout.ACTION_FOLLOWER_POLL"
         const val EXTRA_SERIAL = "serial"
 
-        /** Long enough for a slow server, short enough that a lost release cannot drain a phone. */
-        private const val WAKELOCK_TIMEOUT_MS = 60_000L
+        /**
+         * Long enough to cover a whole refresh (entries, treatments, finger sticks and
+         * devicestatus, each with its own timeouts), short enough that a lost release cannot
+         * drain a phone. A refresh that outlasts it is covered by the backstop alarm.
+         */
+        private const val WAKELOCK_TIMEOUT_MS = 3L * 60_000L
     }
 
     override fun onReceive(context: Context, intent: Intent) {
