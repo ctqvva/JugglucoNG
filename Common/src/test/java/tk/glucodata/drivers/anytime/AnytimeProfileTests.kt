@@ -36,6 +36,25 @@ class AnytimeProfileTests {
         assertNotEquals(AnytimeConstants.Family.CT5, profile.family)
     }
 
+    @Test
+    fun snSnNameWinsOverGenericAnytimeBrandName() {
+        // Live trace juggluco-trace-20261004-194106.log: the SN91 unit renames itself
+        // "Anytime  4pro" after connecting, and the CT5 catch-all "Anytime" prefix used
+        // to shadow the specific SN91 family, looping the CT5 handshake forever.
+        val resolved = AnytimeConstants.resolveHandshakeName("Anytime  4pro", "SN9150002398")
+
+        assertEquals("SN9150002398", resolved)
+        assertEquals(AnytimeConstants.Family.CT3_ULTRASONIC, AnytimeConstants.resolveFamily(resolved).family)
+    }
+
+    @Test
+    fun genericAnytimeNameStillResolvesForRealCt5() {
+        val resolved = AnytimeConstants.resolveHandshakeName("", "Anytime  5pro", "FC:12:34:56:78:90")
+
+        assertEquals("Anytime  5pro", resolved)
+        assertEquals(AnytimeConstants.Family.CT5, AnytimeConstants.resolveFamily(resolved).family)
+    }
+
     /**
      * `EDevice` and `FAMILY_TABLE` are two hand-maintained copies of the same
      * vendor catalog. A prefix present in one and missing from the other resolves

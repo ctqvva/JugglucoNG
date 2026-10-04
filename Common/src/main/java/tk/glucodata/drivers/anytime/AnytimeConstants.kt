@@ -555,14 +555,21 @@ object AnytimeConstants {
     /**
      * Pick the handshake/family name from the candidates at connect time, in order:
      * the registry-cached name, the live advertised name, then the serial. Returns the
-     * first candidate that resolves to a known family so a generic advertisement
-     * ("CGM Sensor") can't shadow the SN##-bearing serial; falls back to the first
-     * non-blank candidate when none match.
+     * first candidate that resolves to a known, specific family so a generic advertisement
+     * ("CGM Sensor", or the CT5 brand prefix "Anytime") can't shadow the SN##-bearing
+     * serial; falls back to the first CT5 match, then the first non-blank candidate.
      */
     @JvmStatic
     fun resolveHandshakeName(vararg candidates: String?): String {
         val trimmed = candidates.map { it?.trim().orEmpty() }
-        return trimmed.firstOrNull { resolveFamily(it).family != Family.UNKNOWN }
+        // "Anytime" is the CT5 catch-all brand prefix; an Anytime unit that renames itself
+        // post-connect (e.g. a SN91 that advertises "Anytime 4pro") must not shadow the
+        // specific SN## family from another candidate.
+        val genericCt5Prefix = FAMILY_TABLE.firstOrNull { it.family == Family.CT5 }?.prefix
+        return trimmed.map { it to resolveFamily(it) }
+            .firstOrNull { it.second.family != Family.UNKNOWN && it.second.prefix != genericCt5Prefix }
+            ?.first
+            ?: trimmed.firstOrNull { resolveFamily(it).family != Family.UNKNOWN }
             ?: trimmed.firstOrNull { it.isNotBlank() }.orEmpty()
     }
 
