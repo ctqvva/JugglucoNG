@@ -573,6 +573,14 @@ object ICanHealthConstants {
     /** Known device name prefixes for iCanHealth sensors */
     val KNOWN_PREFIXES = arrayOf("iCGM-", "Sinocare CGM", "Sinocare ", "P", "LT")
 
+    /**
+     * Anytime glucose sensors advertise as `SN` + 10 digits (e.g. `SN9150002398`). That
+     * string is a valid 12-char alnum serial and would otherwise pass the broad fallback
+     * in [isLikelyPersistedSensorName], so the unfiltered iCan onboarding scan would claim
+     * the Anytime sensor and connect to it instead of the Sinocare device.
+     */
+    private val ANYTIME_SERIAL_FORM: Regex = Regex("^SN\\d{6,}$", RegexOption.IGNORE_CASE)
+
     /** Check if a BLE device name matches an iCanHealth sensor */
     @JvmStatic
     fun isICanHealthDevice(name: String?): Boolean {
@@ -580,6 +588,7 @@ object ICanHealthConstants {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return false
         if (KNOWN_PREFIXES.any { trimmed.startsWith(it) }) return true
+        if (ANYTIME_SERIAL_FORM.matches(trimmed)) return false
         return isLikelyPersistedSensorName(trimmed)
     }
 

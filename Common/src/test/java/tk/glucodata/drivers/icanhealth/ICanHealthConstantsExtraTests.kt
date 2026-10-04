@@ -98,6 +98,17 @@ class ICanHealthConstantsExtraTests {
     }
 
     @Test
+    fun anytimeSerialIsNotClaimedAsAnICanDevice() {
+        // Trace juggluco-trace-20261004-214248.log: after the iCan QR scan the unfiltered
+        // onboarding scan claimed the Anytime sensor "SN9150002398" via the broad alnum
+        // fallback and connected to D4:FE:28:EB:50:6B instead of the Sinocare device.
+        assertFalse(ICanHealthConstants.isICanHealthDevice("SN9150002398"))
+        assertTrue(ICanHealthConstants.isICanHealthDevice("Sinocare CGM"))
+        // The broad id check itself is unchanged (used for persisted sensor ids).
+        assertTrue(ICanHealthConstants.isLikelyPersistedSensorName("SN9150002398"))
+    }
+
+    @Test
     fun persistedSensorNamePatterns() {
         assertTrue(ICanHealthConstants.isLikelyPersistedSensorName("ABCDEFGHIJKL"))
         assertTrue(ICanHealthConstants.isLikelyPersistedSensorName("LT123456AB"))
