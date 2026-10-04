@@ -32,6 +32,55 @@ class OttaiLiveFreshnessTests {
         assertFalse(OttaiBleManager.isFreshLiveSample(1_782_823_566_000L, 0L))
     }
 
+    @Test
+    fun liveDuplicateOfNewestHistorySampleStillPublishesOnce() {
+        val sampleMs = 1_782_823_440_000L
+        val receivedAtMs = 1_782_823_566_000L
+
+        assertTrue(
+            OttaiBleManager.shouldPublishCurrentSample(
+                live = true,
+                receivedAtMs = receivedAtMs,
+                sampleMs = sampleMs,
+                displayedHighWaterMs = sampleMs,
+                publishedHighWaterMs = 0L,
+            ),
+        )
+        assertFalse(
+            OttaiBleManager.shouldPublishCurrentSample(
+                live = true,
+                receivedAtMs = receivedAtMs,
+                sampleMs = sampleMs,
+                displayedHighWaterMs = sampleMs,
+                publishedHighWaterMs = sampleMs,
+            ),
+        )
+    }
+
+    @Test
+    fun historyAndOlderLiveSamplesCannotPublishCurrent() {
+        val newestMs = 1_782_823_440_000L
+
+        assertFalse(
+            OttaiBleManager.shouldPublishCurrentSample(
+                live = false,
+                receivedAtMs = newestMs,
+                sampleMs = newestMs,
+                displayedHighWaterMs = 0L,
+                publishedHighWaterMs = 0L,
+            ),
+        )
+        assertFalse(
+            OttaiBleManager.shouldPublishCurrentSample(
+                live = true,
+                receivedAtMs = newestMs,
+                sampleMs = newestMs - 60_000L,
+                displayedHighWaterMs = newestMs,
+                publishedHighWaterMs = 0L,
+            ),
+        )
+    }
+
     /**
      * The 2026-08-01 room-backfill round trip: live read at 1785605688, history requested at
      * 1785605689, its payload back a second later — the re-read at 1785605690 returned the same

@@ -270,6 +270,28 @@ class OttaiBleManager(
                 abs(receivedAtMs - sampleMs) <= CURRENT_SAMPLE_FRESH_MS + CURRENT_SAMPLE_FLOOR_GRACE_MS
 
         /**
+         * Whether a decoded sample may enter the realtime publication path.
+         *
+         * History is allowed to advance the displayed high-water while a catch-up is running.
+         * It must not consume the separate publish high-water: some Ottai sensors deliver the
+         * newest record on the history characteristic immediately before the live read returns
+         * that same record. Using the display high-water alone made the live duplicate look
+         * already handled, so Room/floating glucose changed while alerts, exchange output and
+         * automatic voice never saw the reading (#540).
+         */
+        internal fun shouldPublishCurrentSample(
+            live: Boolean,
+            receivedAtMs: Long,
+            sampleMs: Long,
+            displayedHighWaterMs: Long,
+            publishedHighWaterMs: Long,
+        ): Boolean =
+            live &&
+                isFreshLiveSample(receivedAtMs, sampleMs) &&
+                sampleMs >= displayedHighWaterMs &&
+                sampleMs > publishedHighWaterMs
+
+        /**
          * Whether the one-shot live read after a history payload is worth its round-trip.
          *
          * The one-shot exists for a history burst that ends several minutes behind wall time, but
@@ -916,6 +938,8 @@ class OttaiBleManager(
     @Volatile private var lastGlucoseMmol = Float.NaN
     @Volatile private var lastGlucoseMgdl = 0f
     @Volatile private var lastRawCurrent = Float.NaN
+    private val currentPublicationLock = Any()
+    @Volatile private var lastPublishedGlucoseAtMs = 0L
     @Volatile private var lastAcceptedDataNo = -1
     @Volatile private var lastAcceptedSampleMs = 0L
     @Volatile private var lastAcceptedMmol = Float.NaN
@@ -3184,6 +3208,21 @@ class OttaiBleManager(
         }
         val previousGlucoseAtMs = lastGlucoseAtMs
         val freshLiveSample = live && isFreshLiveSample(receivedAtMs, sampleMs)
+        val publishCurrent = synchronized(currentPublicationLock) {
+            if (shouldPublishCurrentSample(
+                    live = live,
+                    receivedAtMs = receivedAtMs,
+                    sampleMs = sampleMs,
+                    displayedHighWaterMs = previousGlucoseAtMs,
+                    publishedHighWaterMs = lastPublishedGlucoseAtMs,
+                )
+            ) {
+                lastPublishedGlucoseAtMs = sampleMs
+                true
+            } else {
+                false
+            }
+        }
         val newest = sampleMs >= previousGlucoseAtMs
         if (newest && (!live || freshLiveSample)) {
             lastGlucoseAtMs = sampleMs
@@ -3200,7 +3239,7 @@ class OttaiBleManager(
             sampleMs = sampleMs,
             mgdl = mgdl,
             displayValue = if (Applic.unit == 1) mmol else mgdl,
-            publishCurrent = freshLiveSample && sampleMs > previousGlucoseAtMs,
+            publishCurrent = publishCurrent,
             persist = shouldPersist,
             dataNo = r.record.dataNo,
             temperatureC = r.record.temperatureC.toFloat(),
