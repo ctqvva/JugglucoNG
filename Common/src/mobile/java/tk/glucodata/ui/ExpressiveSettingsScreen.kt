@@ -71,6 +71,7 @@ import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
+import tk.glucodata.XdripFollowerSend
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.ScheduledBackupSettings
@@ -452,6 +453,7 @@ fun ExpressiveSettingsScreen(
             val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsState()
             val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsState()
             val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsState()
+            var xdripFollowerEnabled by remember { mutableStateOf(XdripFollowerSend.isEnabled(context)) }
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
@@ -473,6 +475,18 @@ fun ExpressiveSettingsScreen(
                     onCheckedChange = { viewModel.toggleXDripBroadcast(it) }
                 )
                 SettingsSwitchItem(
+                    title = stringResource(R.string.xdrip_follower_title),
+                    subtitle = stringResource(R.string.xdrip_follower_desc),
+                    checked = xdripFollowerEnabled,
+                    icon = Icons.AutoMirrored.Filled.Send,
+                    iconTint = exchangeColor,
+                    position = CardPosition.MIDDLE,
+                    onCheckedChange = {
+                        XdripFollowerSend.setEnabled(context, it)
+                        xdripFollowerEnabled = it
+                    }
+                )
+                SettingsSwitchItem(
                     title = stringResource(R.string.aaps_broadcast),
                     subtitle = stringResource(R.string.glucodata_subtitle),
                     checked = glucodataBroadcastEnabled,
@@ -484,7 +498,7 @@ fun ExpressiveSettingsScreen(
                 // The computed trend only ever reaches an ExchangeGlucosePayload consumer, so the
                 // row is noise until one of them is on. Stay visible while the setting itself is
                 // enabled, otherwise turning the last consumer off would strand it out of reach.
-                val anyExchangeConsumer = patchedLibreEnabled || xdripEnabled || glucodataBroadcastEnabled ||
+                val anyExchangeConsumer = patchedLibreEnabled || xdripEnabled || xdripFollowerEnabled || glucodataBroadcastEnabled ||
                         OutboundApiSettings.isEnabled() ||
                         Natives.getgadgetbridge() ||
                         Natives.getwatchdrip()

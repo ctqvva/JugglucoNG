@@ -840,7 +840,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             return;
         final boolean shouldBroadcastMinuteUpdate = tim > nexttime;
         final boolean outboundApiEnabled = OutboundApiSettings.isEnabled(app);
-        final boolean loopFeedEnabled = Natives.getxbroadcast() || (!isWearable && Natives.getlibrelinkused());
+        final boolean followerFeedEnabled = !isWearable && XdripFollowerSend.isEnabled(app);
+        final boolean loopFeedEnabled = Natives.getxbroadcast() || followerFeedEnabled || (!isWearable && Natives.getlibrelinkused());
         final boolean shouldResolveExchangePayload =
                 Natives.getJugglucobroadcast()
                 || outboundApiEnabled
@@ -906,7 +907,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             if (!isWearable) {
                 if (Natives.getlibrelinkused() && loopFeedPayload != null)
                     XInfuus.sendGlucoseBroadcast(loopFeedPayload.getSensorId(), loopFeedPayload.getPrimaryMgdl(), loopFeedPayload.getRate(), loopFeedPayload.getTimeMillis(), sensorstartmsec);
-                // SendNSClient.broadcastglucose(mgdl, rate, timmsec);
+                if (followerFeedEnabled && loopFeedPayload != null)
+                    XdripFollowerSend.broadcastGlucose(app, loopFeedPayload);
             }
             if (Natives.getxbroadcast() && loopFeedPayload != null) {
                 if (doLog)
