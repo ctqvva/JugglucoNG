@@ -222,7 +222,7 @@
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
-    <string name="xdrip_follower_desc">Send glucose to xDrip on this phone via NSClient. Select xDrip Sync Follower as its source.</string>
+    <string name="xdrip_follower_desc">Send glucose to xDrip+ on this phone</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connect_desc">Send glucose readings to Health Connect for compatible health apps</string>
     <string name="sensorpermission">Sensors permission</string>
