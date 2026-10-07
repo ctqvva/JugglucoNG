@@ -136,7 +136,14 @@ fun JournalScreen(
     onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
 ) {
     val view = LocalView.current
-    val sortedHistory = remember(glucoseHistory) { glucoseHistory.ascendingByTimestamp() }
+    val sortedHistory = remember(glucoseHistory, unit) {
+        val sorted = glucoseHistory.ascendingByTimestamp()
+        if (sorted.isEmpty() && tk.glucodata.BuildConfig.DEBUG) {
+            generateDebugSampleGlucoseHistory(unit)
+        } else {
+            sorted
+        }
+    }
     val presetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
     val foodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
     var selectedChartRange by rememberSaveable { mutableStateOf(TimeRange.H3) }
@@ -855,3 +862,4 @@ private class JournalDateSectionBuilder(
     val items: MutableList<JournalLedgerItem> = mutableListOf(),
     val keys: MutableList<String> = mutableListOf()
 )
+
