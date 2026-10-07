@@ -947,7 +947,7 @@ private fun MetricsSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showAll = !showAll }
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -986,7 +986,7 @@ private fun ReportExportConfirmation(
         shadowElevation = 8.dp
     ) {
         Row(
-            modifier = Modifier.padding(start = 16.dp, top = 10.dp, end = 10.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -1013,7 +1013,7 @@ private fun ReportExportConfirmation(
                     Box(
                         modifier = Modifier
                             .height(48.dp)
-                            .padding(horizontal = 18.dp),
+                            .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1123,14 +1123,14 @@ private fun PdfVisualStylePicker(
     val styles = remember { StatsReportExporter.PdfVisualStyle.entries.toList() }
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         styles.forEach { style ->
             val selected = style == selectedStyle
             val palette = resolvePdfStylePreviewPalette(style)
             Surface(
                 onClick = { onStyleSelected(style) },
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = if (selected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
@@ -1146,14 +1146,14 @@ private fun PdfVisualStylePicker(
                 Column(
                     modifier = Modifier
                         .widthIn(min = 146.dp)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(palette.paper)
                     ) {
                         Box(
@@ -1174,7 +1174,7 @@ private fun PdfVisualStylePicker(
                                 .align(Alignment.CenterStart)
                                 .padding(start = 16.dp)
                                 .size(width = 78.dp, height = 5.dp)
-                                .clip(RoundedCornerShape(99.dp))
+                                .clip(CircleShape)
                                 .background(palette.text.copy(alpha = 0.7f))
                         )
                         Box(
@@ -1182,7 +1182,7 @@ private fun PdfVisualStylePicker(
                                 .align(Alignment.BottomStart)
                                 .padding(start = 16.dp, bottom = 8.dp)
                                 .size(width = 52.dp, height = 4.dp)
-                                .clip(RoundedCornerShape(99.dp))
+                                .clip(CircleShape)
                                 .background(palette.text.copy(alpha = 0.45f))
                         )
                     }
@@ -1197,6 +1197,12 @@ private fun PdfVisualStylePicker(
         }
     }
 }
+/**
+ * Every Statistics card: extra-large corners on the leading-top and trailing-bottom, large on
+ * the other two. One shape, so the cards read as a set; they used four slightly different ones.
+ */
+private val StatsCardShape = RoundedCornerShape(topStart = 28.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 28.dp)
+
 @Composable
 private fun HeaderBlock(
     onShareClick: () -> Unit
@@ -1221,7 +1227,7 @@ private fun LoadingCard() {
     )
 
     Card(
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 28.dp),
+        shape = StatsCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -1258,11 +1264,11 @@ private fun RangeLoadingCard() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -1288,7 +1294,7 @@ private fun RangeLoadingCard() {
 @Composable
 private fun EmptyStateCard(title: String, subtitle: String) {
     Card(
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 28.dp),
+        shape = StatsCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -1304,7 +1310,7 @@ private fun EmptyStateCard(title: String, subtitle: String) {
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
             Text(
                 text = title,
@@ -1377,7 +1383,7 @@ private fun GlycemicOverviewCard(
             ) {
                 onBandSelected(null)
             },
-        shape = RoundedCornerShape(topStart = 34.dp, topEnd = 22.dp, bottomStart = 22.dp, bottomEnd = 34.dp),
+        shape = StatsCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -1436,7 +1442,7 @@ private fun GlycemicOverviewCard(
                 if (isCompact) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         OverviewRing(
@@ -1451,7 +1457,7 @@ private fun GlycemicOverviewCard(
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OverviewRing(
@@ -1661,9 +1667,9 @@ private fun TirCompactRow(
                 }
             )
             .clickable(onClick = onClick)
-            .padding(start = 8.dp, end = 0.dp, top = if (compactText) 3.dp else 4.dp, bottom = if (compactText) 3.dp else 4.dp),
+            .padding(start = 8.dp, end = 0.dp, top = if (compactText) 4.dp else 4.dp, bottom = if (compactText) 4.dp else 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = label,
@@ -1815,7 +1821,7 @@ private fun PatternsCard(
     }
 
     Card(
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 30.dp),
+        shape = StatsCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -1954,7 +1960,7 @@ private fun PatternsCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             HourlyExposureRibbon(
                                 hourlyStats = hourlyStats,
@@ -1982,7 +1988,7 @@ private fun PatternsCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -2076,7 +2082,7 @@ private fun AgpChart(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier
@@ -2315,8 +2321,8 @@ private fun AgpChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LegendDot(
                 color = targetBandColor,
@@ -2604,7 +2610,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
     }
 
     Card(
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 28.dp),
+        shape = StatsCardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
@@ -2612,7 +2618,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
         Column(
             modifier = Modifier
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -2670,7 +2676,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TemperatureStat(
                     label = stringResource(R.string.min),
@@ -2688,7 +2694,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -2870,7 +2876,7 @@ private fun InsightsCard(insights: List<StatsInsight>) {
         exit = fadeOut(animationSpec = tween(180)) + slideOutVertically(targetOffsetY = { it / 5 })
     ) {
         Card(
-            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 26.dp),
+            shape = StatsCardShape,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
@@ -2879,7 +2885,7 @@ private fun InsightsCard(insights: List<StatsInsight>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = stringResource(R.string.insights),
@@ -2915,7 +2921,7 @@ private fun InsightRow(insight: StatsInsight) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
         Surface(
@@ -2984,7 +2990,7 @@ private fun downsampleTemperaturePoints(
 private fun LegendDot(color: Color, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier

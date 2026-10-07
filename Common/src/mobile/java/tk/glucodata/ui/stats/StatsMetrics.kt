@@ -154,8 +154,8 @@ internal fun ScoreTile(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 6.dp else 4.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 8.dp else 4.dp)
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 val density = LocalDensity.current
@@ -255,7 +255,7 @@ internal fun ScoreTile(
                 if (statusNeedsOwnRow) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1054,7 +1054,7 @@ internal fun PinnedMetricChip(
                     Modifier
                 }
             )
-            .padding(horizontal = 10.dp * contentScale, vertical = 8.dp * contentScale),
+            .padding(horizontal = 12.dp * contentScale, vertical = 8.dp * contentScale),
         horizontalArrangement = Arrangement.spacedBy(8.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1508,7 +1508,7 @@ private fun PinnedMetricPickerSheet(
                                 .clickable(onClick = remove)
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -1558,7 +1558,7 @@ private fun PinnedMetricPickerSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatsMetric.entries.forEach { metric ->
                     val selected = metric == current
@@ -1606,9 +1606,9 @@ private fun MetricSheetRow(
             .clip(statsCardShape(20.dp, 12.dp))
             .background(container)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = spec.title,

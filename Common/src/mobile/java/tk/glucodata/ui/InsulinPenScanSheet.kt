@@ -281,7 +281,7 @@ private fun DoseRow(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         at,
                         style = MaterialTheme.typography.labelMedium,

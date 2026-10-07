@@ -896,7 +896,7 @@ fun MirrorConnectionCard(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -1021,8 +1021,8 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
     }
 
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         CloneDiagnosticRow(stringResource(R.string.mirror_route), route)
         CloneDiagnosticRow(stringResource(R.string.clone_signaling), signaling)

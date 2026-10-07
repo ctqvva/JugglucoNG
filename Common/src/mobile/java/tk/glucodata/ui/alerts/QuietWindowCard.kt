@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircleOutline
@@ -115,7 +116,7 @@ fun QuietWindowCard(
             ) {
                 Surface(
                     modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(40.dp),
+                    shape = CircleShape,
                     color = accent.copy(alpha = 0.12f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -353,7 +354,7 @@ private fun QuietWindowAdvanced() {
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                     ) {
                         Icon(Icons.Default.AddCircleOutline, contentDescription = null)
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.quiet_window_add_tile))
                     }
                 } else {

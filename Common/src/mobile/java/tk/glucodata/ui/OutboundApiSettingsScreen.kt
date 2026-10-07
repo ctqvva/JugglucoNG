@@ -254,12 +254,12 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                     FilledTonalButton(
                         onClick = { showAddSheet = true },
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
                         Text(
                             text = stringResource(R.string.outbound_api_add_destination),
-                            modifier = Modifier.padding(start = 10.dp)
+                            modifier = Modifier.padding(start = 12.dp)
                         )
                     }
                 }
@@ -367,7 +367,7 @@ private fun DestinationCard(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                         .alpha(if (destination.enabled) 1f else 0.68f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
                     DestinationEditor(
@@ -631,7 +631,7 @@ private fun DeliverySection(
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedTextField(
@@ -664,7 +664,7 @@ private fun PresetSummaryRow(
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -705,7 +705,7 @@ private fun TriggerPicker(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clickable { showSheet = true }
-            .padding(horizontal = 2.dp, vertical = 6.dp),
+            .padding(horizontal = 2.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -749,7 +749,7 @@ private fun TriggerEditorSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = stringResource(R.string.outbound_api_trigger),
@@ -924,7 +924,7 @@ internal fun ToggleRow(
                 role = Role.Switch,
                 onValueChange = onCheckedChange
             )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -960,7 +960,7 @@ internal fun NumberStepper(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -1249,7 +1249,7 @@ private fun PresetSheetRow(
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
                 modifier = Modifier.size(42.dp),
@@ -1261,7 +1261,7 @@ private fun PresetSheetRow(
                         imageVector = spec.icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

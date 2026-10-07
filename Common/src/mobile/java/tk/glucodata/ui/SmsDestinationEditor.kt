@@ -113,7 +113,7 @@ internal fun SmsDestinationEditor(
     ) {
         Text(
             text = preview.ifBlank { stringResource(R.string.sms_body_no_reading) },
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -153,9 +153,9 @@ private fun SmsNoticeCard(text: String, action: String?, onAction: () -> Unit) {
         color = MaterialTheme.colorScheme.errorContainer
     ) {
         Row(
-            modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = text,
@@ -188,7 +188,7 @@ private fun SmsContactsSection(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
             ) {
                 Text(
                     text = stringResource(R.string.sms_no_contacts),
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -228,7 +228,7 @@ private fun SmsContactsSection(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
                 Icon(Icons.Filled.PersonAdd, contentDescription = null)
                 Text(
                     text = stringResource(R.string.sms_add_contact),
-                    modifier = Modifier.padding(start = 10.dp)
+                    modifier = Modifier.padding(start = 12.dp)
                 )
             }
         }
@@ -260,7 +260,7 @@ private fun SmsContactCard(
                     .fillMaxWidth()
                     .clickable(onClick = onToggleExpanded)
                     .heightIn(min = 64.dp)
-                    .padding(start = 14.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -313,8 +313,8 @@ private fun SmsContactCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
                         value = numberText,
@@ -654,7 +654,7 @@ private fun GlucoseThresholdField(labelRes: Int, mgdl: Int, onChange: (Int) -> U
         },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         singleLine = true,
         label = { Text(stringResource(labelRes, thresholdUnitLabel())) },
         keyboardOptions = KeyboardOptions(

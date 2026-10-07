@@ -269,7 +269,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -280,12 +280,12 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         Surface(
                             color = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Bloodtype,
                                 contentDescription = null,
-                                modifier = Modifier.padding(14.dp).size(28.dp),
+                                modifier = Modifier.padding(16.dp).size(28.dp),
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -372,7 +372,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
-                    Spacer(Modifier.size(10.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text(stringResource(if (scanning) R.string.scanning_devices else R.string.finddevices))
                 }
                 if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))

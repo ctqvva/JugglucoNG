@@ -206,7 +206,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
                             modifier = Modifier.heightIn(min = 54.dp),
@@ -238,7 +238,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
 
                         Column(
                             modifier = Modifier.alpha(activeAlpha),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SourcePresetRow(
                                 preset = preset,
@@ -412,7 +412,7 @@ private fun SourceIcon(enabled: Boolean) {
                 imageVector = Icons.Filled.CloudDownload,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -429,7 +429,7 @@ private fun SourcePresetRow(
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -486,7 +486,7 @@ private fun SourcePresetPickerSheet(
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
                             modifier = Modifier.size(42.dp),
@@ -498,7 +498,7 @@ private fun SourcePresetPickerSheet(
                                     imageVector = preset.icon,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.tertiary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }

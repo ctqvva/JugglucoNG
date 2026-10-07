@@ -305,7 +305,7 @@ private fun EditorRow(
             .graphicsLayer { shadowElevation = elevation.toPx() }
             .clip(statsCardShape(20.dp, 12.dp))
             .background(container)
-            .padding(start = 6.dp, end = 6.dp),
+            .padding(start = 8.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -316,7 +316,7 @@ private fun EditorRow(
                 imageVector = Icons.Default.DragHandle,
                 contentDescription = stringResource(R.string.stats_arrange_drag),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
         Text(

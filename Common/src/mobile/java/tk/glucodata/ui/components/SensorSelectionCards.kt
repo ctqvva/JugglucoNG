@@ -143,7 +143,7 @@ private fun SensorCard(
                 )
             }
             
-            Spacer(modifier = Modifier.width(if (compact) 10.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
             
             // Text content
             Column(modifier = Modifier.weight(1f)) {
@@ -162,7 +162,7 @@ private fun SensorCard(
                 )
             }
             
-            Spacer(modifier = Modifier.width(if (compact) 6.dp else 8.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 8.dp))
             
             // Filled tonal arrow indicator (M3 Expressive)
             Surface(
@@ -270,7 +270,7 @@ fun DashboardEmptyState(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = sidePadding)
-            .padding(top = if (compact) 10.dp else 16.dp)
+            .padding(top = if (compact) 8.dp else 16.dp)
             .padding(bottom = if (compact) 104.dp else 120.dp),
         horizontalAlignment = Alignment.Start
     ) {
@@ -321,7 +321,7 @@ fun DashboardEmptyState(
             modifier = Modifier.padding(horizontal = if (compact) 4.dp else 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(if (compact) 10.dp else 12.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
     }
 }
 
@@ -337,14 +337,14 @@ fun SensorsEmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = if (compact) 10.dp else 16.dp),
+            .padding(vertical = if (compact) 8.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stringResource(R.string.no_sensors_connected),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = if (compact) 10.dp else 16.dp)
+            modifier = Modifier.padding(bottom = if (compact) 8.dp else 16.dp)
         )
         
         SensorSelectionCards(

@@ -148,7 +148,7 @@ fun WatchSettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("watch_transport_section") {
                 SectionLabel("Transport", topPadding = 0.dp)
@@ -473,7 +473,7 @@ fun WearOsConfigScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("wear_nodes") {
                 SectionLabel("Watch status", topPadding = 0.dp)
@@ -759,7 +759,7 @@ fun GarminStatusScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("garmin_status") {
                 SectionLabel("State", topPadding = 0.dp)
@@ -1172,7 +1172,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("web_master") {
                 MasterSwitchCard(
@@ -1282,7 +1282,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(Modifier.width(10.dp))
+                                Spacer(Modifier.width(8.dp))
                                 StyledSwitch(
                                     checked = sslEnabled,
                                     onCheckedChange = if (childEnabled) ({ setSslEnabled(it) }) else null,
@@ -1301,8 +1301,8 @@ fun WebServerSettingsScreen(navController: NavController) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 val installed = certificate
                                 // Loopback-only means no LAN name is in play, so
@@ -1423,7 +1423,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
                                         text = "SSL ${context.getString(R.string.port)}",
@@ -1523,7 +1523,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {

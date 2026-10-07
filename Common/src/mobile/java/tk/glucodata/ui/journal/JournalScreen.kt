@@ -328,7 +328,7 @@ fun JournalScreen(
                             text = section.label,
                             modifier = Modifier.padding(
                                 start = 16.dp,
-                                top = if (sectionIndex == 0) 12.dp else 18.dp,
+                                top = if (sectionIndex == 0) 12.dp else 16.dp,
                                 bottom = 8.dp
                             ),
                             style = MaterialTheme.typography.titleSmall,
@@ -439,7 +439,7 @@ private fun JournalHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 22.dp),
+            .padding(bottom = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -589,14 +589,14 @@ private fun JournalMetricsPanel(
             activeInsulin?.let { summary ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = journalTypeSelectedContainerColor(
                         JournalEntryType.INSULIN,
                         MaterialTheme.colorScheme.surfaceContainerHighest
                     ).copy(alpha = 0.68f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
@@ -685,7 +685,7 @@ private fun JournalMetricCard(
         onClick = onClick ?: {},
         enabled = onClick != null,
         modifier = modifier.heightIn(min = 74.dp),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = journalTypeSelectedContainerColor(
             type,
             MaterialTheme.colorScheme.surfaceContainerHighest
@@ -694,9 +694,9 @@ private fun JournalMetricCard(
         shadowElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Surface(
                 modifier = Modifier.size(34.dp),
