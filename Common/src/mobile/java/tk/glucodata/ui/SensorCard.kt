@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.labelMediumEmphasized
+import tk.glucodata.ui.theme.labelLargeEmphasized
+import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -637,9 +641,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.unbind_sensor),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                        style = MaterialTheme.typography.titleMediumEmphasized,)
                                     Text(
                                         text = stringResource(R.string.unbind_sensor_desc),
                                         style = MaterialTheme.typography.bodySmall,
@@ -934,9 +936,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.reset_correction_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.reset_correction_desc),
@@ -972,9 +972,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.bias_correction),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
                             Text(
                                 if (sensor.resetCompensationActive && sensor.resetCompensationStatus.isNotEmpty())
                                     sensor.resetCompensationStatus
@@ -1029,8 +1027,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.hardware_reset),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
@@ -1092,9 +1089,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.auto_calibration_mode),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Bit 0 is calibration; bits 1-3 are the model. The model mask
@@ -1156,8 +1151,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(titleRes),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                     )
                                     Text(
                                         stringResource(subtitleRes),
@@ -1206,8 +1200,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
                                 )
                                 Text(
                                     stringResource(
@@ -1438,8 +1431,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_bootstrap_dialog_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1518,8 +1510,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_manual_calibration_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -2350,9 +2341,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.auto_calibration_mode),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                                 Text(
                                     calSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -2675,8 +2664,7 @@ fun SensorCard(
                                         ) {
                                             Text(
                                                 text = stringResource(R.string.auto_reset_days, daysValue),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.labelLargeEmphasized,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
@@ -2806,8 +2794,7 @@ fun SensorCard(
                         Column(modifier = Modifier.animateContentSize()) {
                             Text(
                                 text = stringResource(R.string.previous_calibrations),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMediumEmphasized,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )

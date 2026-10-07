@@ -63,6 +63,11 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.theme.titleSmallEmphasized
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.titleLargeEmphasized
+import tk.glucodata.ui.theme.labelLargeEmphasized
+import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
@@ -695,9 +700,7 @@ private fun MasterCalibrationCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.enable_calibration),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        style = MaterialTheme.typography.titleMediumEmphasized,)
                     Text(
                         text = if (isEnabled) stringResource(R.string.enabled_status) else stringResource(R.string.disabled_status),
                         style = MaterialTheme.typography.bodyMedium,
@@ -902,9 +905,7 @@ private fun CalibrationAlgorithmCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.calibration_algorithm),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        style = MaterialTheme.typography.titleMediumEmphasized,)
                     Text(
                         text = selectedAlgorithm.title,
                         style = MaterialTheme.typography.bodyMedium,
@@ -1011,9 +1012,7 @@ private fun CalibrationWeightControl(
     ) {
         Text(
             text = stringResource(R.string.calibration_weight_title),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold
-        )
+            style = MaterialTheme.typography.titleSmallEmphasized,)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1137,8 +1136,7 @@ private fun DiagnosticValuePill(
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelLargeEmphasized,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -1367,10 +1365,8 @@ private fun CalibrationItemContent(
                     if (!showOnlyCalibrated) {
                         Text(
                             text = String.format(Locale.getDefault(), sFmt, primaryValue),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = if (cal.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                            style = MaterialTheme.typography.titleLargeEmphasized,
+                            color = if (cal.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "→",
@@ -1381,10 +1377,8 @@ private fun CalibrationItemContent(
                     }
                     Text(
                         text = String.format(Locale.getDefault(), sFmt, cal.userValue),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = if (cal.isEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,
-                        fontWeight = FontWeight.Bold
-                    )
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        color = if (cal.isEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,)
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -1589,9 +1583,7 @@ private fun CalibrationImportExportBottomSheet(
         ) {
             Text(
                 text = stringResource(R.string.calibration_import_export_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.headlineSmallEmphasized,)
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -1677,8 +1669,7 @@ private fun CalibrationTransferAction(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color = if (isDestructive) contentColor else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -1719,9 +1710,7 @@ private fun ClearOptionsBottomSheet(
         ) {
             Text(
                 text = stringResource(R.string.clear_calibrations_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.headlineSmallEmphasized,)
             
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -1754,9 +1743,7 @@ private fun ClearOptionsBottomSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.clear_disabled_only),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
                             Text(
                                 stringResource(R.string.disabled_calibrations_count, disabledCount),
                                 style = MaterialTheme.typography.bodySmall,
@@ -1789,8 +1776,7 @@ private fun ClearOptionsBottomSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             stringResource(R.string.clear),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.titleMediumEmphasized,
                             color = MaterialTheme.colorScheme.error
                         )
                         Text(

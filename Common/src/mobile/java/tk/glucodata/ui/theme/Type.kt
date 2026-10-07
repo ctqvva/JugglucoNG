@@ -146,25 +146,39 @@ const val LabelSmall_Space  = 0.5
 // ============================================================================
 
 /**
- * Creates a distinct FontFamily for a specific style configuration.
- * Note: 'opsz' removed as IBM Plex Sans relies on standard scaling.
+ * One FontFamily per width, holding a real instance of the variable font at every weight the
+ * app asks for.
+ *
+ * Each style used to get a family with a single Font pinned to its own weight. Compose picks a
+ * font by `fontWeight`, so any `fontWeight =` override on top of a style then found no match:
+ * Medium quietly rendered as the style's own weight, and SemiBold/Bold fell back to a
+ * synthesised faux-bold of it. With every weight registered, an override selects the matching
+ * instance of the variable font instead.
  */
-private fun ibmPlexSans(weight: Int, width: Float): FontFamily {
-    return try {
-        FontFamily(
-            Font(
-                MainFontFile,
-                variationSettings = FontVariation.Settings(
-                    FontVariation.weight(weight),
-                    FontVariation.width(width)
-                )
+private val PlexWeights = intArrayOf(100, 200, 300, 400, 500, 600, 700)
+
+private val plexFamilies = HashMap<Float, FontFamily>()
+
+private fun ibmPlexSans(width: Float): FontFamily =
+    plexFamilies.getOrPut(width) {
+        try {
+            FontFamily(
+                PlexWeights.map { w ->
+                    Font(
+                        MainFontFile,
+                        weight = FontWeight(w),
+                        variationSettings = FontVariation.Settings(
+                            FontVariation.weight(w),
+                            FontVariation.width(width)
+                        )
+                    )
+                }
             )
-        )
-    } catch (th: Throwable) {
-        android.util.Log.w("AppTypography", "Variable font fallback activated", th)
-        FontFamily(Font(MainFontFile))
+        } catch (th: Throwable) {
+            android.util.Log.w("AppTypography", "Variable font fallback activated", th)
+            FontFamily(Font(MainFontFile))
+        }
     }
-}
 
 // ============================================================================
 //  TYPOGRAPHY DEFINITION
@@ -172,105 +186,105 @@ private fun ibmPlexSans(weight: Int, width: Float): FontFamily {
 
 val AppTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = ibmPlexSans(DisplayLarge_Weight, DisplayLarge_Width),
+        fontFamily = ibmPlexSans(DisplayLarge_Width),
         fontWeight = FontWeight(DisplayLarge_Weight),
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = DisplayLarge_Space.sp
     ),
     displayMedium = TextStyle(
-        fontFamily = ibmPlexSans(DisplayMedium_Weight, DisplayMedium_Width),
+        fontFamily = ibmPlexSans(DisplayMedium_Width),
         fontWeight = FontWeight(DisplayMedium_Weight),
         fontSize = 45.sp,
         lineHeight = 52.sp,
         letterSpacing = DisplayMedium_Space.sp
     ),
     displaySmall = TextStyle(
-        fontFamily = ibmPlexSans(DisplaySmall_Weight, DisplaySmall_Width),
+        fontFamily = ibmPlexSans(DisplaySmall_Width),
         fontWeight = FontWeight(DisplaySmall_Weight),
         fontSize = 36.sp,
         lineHeight = 44.sp,
         letterSpacing = DisplaySmall_Space.sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = ibmPlexSans(HeadlineLarge_Weight, HeadlineLarge_Width),
+        fontFamily = ibmPlexSans(HeadlineLarge_Width),
         fontWeight = FontWeight(HeadlineLarge_Weight),
         fontSize = 32.sp,
         lineHeight = 40.sp,
         letterSpacing = HeadlineLarge_Space.sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = ibmPlexSans(HeadlineMedium_Weight, HeadlineMedium_Width),
+        fontFamily = ibmPlexSans(HeadlineMedium_Width),
         fontWeight = FontWeight(HeadlineMedium_Weight),
         fontSize = 28.sp,
         lineHeight = 36.sp,
         letterSpacing = HeadlineMedium_Space.sp
     ),
     headlineSmall = TextStyle(
-        fontFamily = ibmPlexSans(HeadlineSmall_Weight, HeadlineSmall_Width),
+        fontFamily = ibmPlexSans(HeadlineSmall_Width),
         fontWeight = FontWeight(HeadlineSmall_Weight),
         fontSize = 24.sp,
         lineHeight = 32.sp,
         letterSpacing = HeadlineSmall_Space.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = ibmPlexSans(TitleLarge_Weight, TitleLarge_Width),
+        fontFamily = ibmPlexSans(TitleLarge_Width),
         fontWeight = FontWeight(TitleLarge_Weight),
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = TitleLarge_Space.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = ibmPlexSans(TitleMedium_Weight, TitleMedium_Width),
+        fontFamily = ibmPlexSans(TitleMedium_Width),
         fontWeight = FontWeight(TitleMedium_Weight),
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = TitleMedium_Space.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = ibmPlexSans(TitleSmall_Weight, TitleSmall_Width),
+        fontFamily = ibmPlexSans(TitleSmall_Width),
         fontWeight = FontWeight(TitleSmall_Weight),
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = TitleSmall_Space.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = ibmPlexSans(BodyLarge_Weight, BodyLarge_Width),
+        fontFamily = ibmPlexSans(BodyLarge_Width),
         fontWeight = FontWeight(BodyLarge_Weight),
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = BodyLarge_Space.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = ibmPlexSans(BodyMedium_Weight, BodyMedium_Width),
+        fontFamily = ibmPlexSans(BodyMedium_Width),
         fontWeight = FontWeight(BodyMedium_Weight),
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = BodyMedium_Space.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = ibmPlexSans(BodySmall_Weight, BodySmall_Width),
+        fontFamily = ibmPlexSans(BodySmall_Width),
         fontWeight = FontWeight(BodySmall_Weight),
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = BodySmall_Space.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = ibmPlexSans(LabelLarge_Weight, LabelLarge_Width),
+        fontFamily = ibmPlexSans(LabelLarge_Width),
         fontWeight = FontWeight(LabelLarge_Weight),
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = LabelLarge_Space.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = ibmPlexSans(LabelMedium_Weight, LabelMedium_Width),
+        fontFamily = ibmPlexSans(LabelMedium_Width),
         fontWeight = FontWeight(LabelMedium_Weight),
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = LabelMedium_Space.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = ibmPlexSans(LabelSmall_Weight, LabelSmall_Width),
+        fontFamily = ibmPlexSans(LabelSmall_Width),
         fontWeight = FontWeight(LabelSmall_Weight),
         fontSize = 11.sp,
         lineHeight = 16.sp,
@@ -299,3 +313,26 @@ val Typography.labelLargeExpressive: TextStyle
         fontWeight = FontWeight.Medium,
         letterSpacing = 0.5.sp
     )
+
+// M3 Expressive "emphasized" styles: the same size one weight step up, for the title of a card
+// or a value that has to stand out from the row around it. material3 1.4 keeps its own
+// *Emphasized styles internal, so these mirror its names. Use these instead of adding a
+// `fontWeight =` to a style at the call site, which is how titleMedium came to be drawn at four
+// different weights across the app.
+val Typography.headlineSmallEmphasized: TextStyle
+    get() = headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+
+val Typography.titleLargeEmphasized: TextStyle
+    get() = titleLarge.copy(fontWeight = FontWeight.SemiBold)
+
+val Typography.titleMediumEmphasized: TextStyle
+    get() = titleMedium.copy(fontWeight = FontWeight.SemiBold)
+
+val Typography.titleSmallEmphasized: TextStyle
+    get() = titleSmall.copy(fontWeight = FontWeight.SemiBold)
+
+val Typography.labelLargeEmphasized: TextStyle
+    get() = labelLarge.copy(fontWeight = FontWeight.SemiBold)
+
+val Typography.labelMediumEmphasized: TextStyle
+    get() = labelMedium.copy(fontWeight = FontWeight.SemiBold)

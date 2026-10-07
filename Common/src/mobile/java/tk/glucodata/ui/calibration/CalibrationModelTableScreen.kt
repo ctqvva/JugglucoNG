@@ -61,6 +61,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.titleLargeEmphasized
+import tk.glucodata.ui.theme.labelMediumEmphasized
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
@@ -346,9 +349,7 @@ private fun CalibrationModelSummaryCard(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = stringResource(R.string.calibration_model_summary_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleMediumEmphasized,)
             Text(
                 text = summarySubtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -435,9 +436,7 @@ private fun CalibrationMetricTile(
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleLargeEmphasized,)
         }
     }
 }
@@ -876,8 +875,7 @@ private fun CalibrationLegendItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -953,8 +951,7 @@ private fun SelectedCalibrationTooltip(
         ) {
             Text(
                 text = "$sourceLabel ${formatCalibrationValue(row.sourceValue, isMmol)} \u2192 ${formatCalibrationValue(row.referenceValue, isMmol)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

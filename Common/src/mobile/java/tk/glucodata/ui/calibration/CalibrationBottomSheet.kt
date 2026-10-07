@@ -59,6 +59,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.labelMediumEmphasized
 import tk.glucodata.GlucosePoint
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
@@ -346,9 +348,7 @@ fun CalibrationBottomSheet(
 //                                Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     text = if (isNow) stringResource(R.string.now) else dateFormatter.format(Date(selectedTimestamp)),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                             }
                         }
 
@@ -469,10 +469,8 @@ fun CalibrationBottomSheet(
                     val statusText = if (isStable) stringResource(R.string.conditions_optimal) else stringResource(R.string.wait_15m_unstable)
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = statusColor,
-                        fontWeight = FontWeight.Bold
-                    )
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = statusColor,)
                 }
             }
             Spacer(modifier = Modifier.height(actionsTopSpacing))
@@ -674,8 +672,8 @@ private fun CalibrationHistoryList(
 //                        Row(verticalAlignment = Alignment.CenterVertically) {
 //                            Text(
 //                                text = "${String.format(Locale.getDefault(), sFmt, sVal)} → ${String.format(Locale.getDefault(), sFmt, cal.userValue)}",
-//                                style = MaterialTheme.typography.titleMedium,
-//                                fontWeight = FontWeight.SemiBold
+//                                style = MaterialTheme.typography.titleMediumEmphasized,
+//
 //                            )
 //                            if (!cal.isEnabled) {
 //                                Spacer(modifier = Modifier.width(8.dp))

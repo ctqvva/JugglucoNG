@@ -78,6 +78,7 @@ import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
+import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
@@ -524,9 +525,7 @@ private fun TalkerSummaryCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.talker),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        style = MaterialTheme.typography.titleLargeEmphasized,)
                     Text(
                         text = headline,
                         style = MaterialTheme.typography.bodyMedium,

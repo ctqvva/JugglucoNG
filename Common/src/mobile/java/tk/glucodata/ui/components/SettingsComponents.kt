@@ -31,6 +31,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 
 @Composable
@@ -449,9 +450,7 @@ fun MasterSwitchCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.titleMediumEmphasized,)
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
@@ -608,8 +607,7 @@ fun DangerItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color = contentColor
                 )
                 Text(

@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
@@ -290,8 +291,7 @@ fun LibreSetupWizard(
                         ) {
                             Text(
                                 text = stringResource(R.string.libre_setup_step_scan),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.headlineSmallEmphasized,
                                 textAlign = TextAlign.Center
                             )
 
@@ -367,9 +367,7 @@ fun LibreSetupWizard(
                     ) {
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                            style = MaterialTheme.typography.headlineSmallEmphasized,)
 
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview_desc),

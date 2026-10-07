@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
+import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.GlucoseMeterManager
 import tk.glucodata.GlucoseMeterSnapshot
 import tk.glucodata.Log
@@ -291,8 +292,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 stringResource(R.string.glucose_meters_desc),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                             )
                             Text(
                                 stringResource(R.string.glucose_meters_journal_desc),

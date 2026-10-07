@@ -51,6 +51,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.theme.titleSmallEmphasized
 import tk.glucodata.BuildConfig
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives
@@ -467,8 +468,7 @@ private fun HowToReportCard(onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.debug_howto_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {

@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import tk.glucodata.ui.theme.titleSmallEmphasized
+import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
@@ -149,9 +151,7 @@ private fun SensorCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.titleMediumEmphasized,)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
@@ -221,9 +221,7 @@ fun ImportHistoryCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.import_history),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
+                    style = MaterialTheme.typography.titleSmallEmphasized,)
                 Text(
                     text = stringResource(R.string.import_history_desc),
                     style = MaterialTheme.typography.bodySmall,
