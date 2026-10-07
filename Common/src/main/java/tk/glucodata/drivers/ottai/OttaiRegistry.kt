@@ -410,6 +410,7 @@ object OttaiRegistry {
                 // default, which reads as EXPIRED partway through a working sensor.
                 OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX,
                 OttaiConstants.PREF_DEVICE_VERSION_PREFIX, OttaiConstants.PREF_LAST_DATA_NO_PREFIX,
+                OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX,
                 OttaiConstants.PREF_DEVICE_ID_PREFIX, OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX,
                 OttaiConstants.PREF_CONTINUITY_BASELINE_PREFIX,
                 OttaiConstants.PREF_HISTORY_HOLES_PREFIX,
@@ -595,6 +596,25 @@ object OttaiRegistry {
     @JvmStatic fun saveLastDataNo(c: Context, id: String, dataNo: Int) {
         prefs(c).edit().putInt(OttaiConstants.PREF_LAST_DATA_NO_PREFIX + OttaiConstants.canonicalSensorId(id), dataNo).apply()
     }
+
+    @JvmStatic fun loadLastPublishedGlucoseAtMs(c: Context, id: String): Long =
+        prefs(c).getLong(
+            OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX + OttaiConstants.canonicalSensorId(id),
+            0L,
+        )
+
+    /**
+     * Commit the realtime claim before handing it to alert/voice/exchange consumers. Manager
+     * recreation can follow a sensor handoff immediately, and an asynchronous preference write
+     * would reopen the duplicate window this high-water closes.
+     */
+    @JvmStatic fun saveLastPublishedGlucoseAtMs(c: Context, id: String, sampleMs: Long): Boolean =
+        prefs(c).edit()
+            .putLong(
+                OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX + OttaiConstants.canonicalSensorId(id),
+                sampleMs,
+            )
+            .commit()
 
     /**
      * The sensor's learned BLE record layout, 0 when nothing has proved one yet.

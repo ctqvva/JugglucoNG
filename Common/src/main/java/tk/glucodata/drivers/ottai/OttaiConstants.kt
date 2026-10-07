@@ -370,6 +370,10 @@ object OttaiConstants {
     const val PREF_RETAIN_TIME_PREFIX = "ottai_retain_time_"      // retainTime ms (destruction value)
     const val PREF_DEVICE_VERSION_PREFIX = "ottai_device_version_"
     const val PREF_LAST_DATA_NO_PREFIX = "ottai_last_datano_"
+    // Realtime delivery high-water. Unlike Room's newest timestamp, this records only a sample
+    // that actually claimed the alert/voice/exchange path, so history imports cannot suppress a
+    // later live delivery after the manager is recreated.
+    const val PREF_LAST_PUBLISHED_GLUCOSE_PREFIX = "ottai_last_published_glucose_"
     // BLE record layout (8 or 9) once a payload big enough to prove it has been seen. Held
     // per sensor so a short live notify, which cannot tell the two apart, never re-decides it.
     const val PREF_RECORD_SIZE_PREFIX = "ottai_record_size_"
