@@ -229,12 +229,7 @@ private fun SensorIdentityControl(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        val leadShape = RoundedCornerShape(
-            topStart = 22.dp,
-            bottomStart = 22.dp,
-            topEnd = 6.dp,
-            bottomEnd = 6.dp,
-        )
+        val leadShape = ConnectedButtonShapes.Leading
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -289,14 +284,7 @@ private fun SensorIdentityControl(
             modifier = Modifier
                 .width(40.dp)
                 .fillMaxHeight()
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 6.dp,
-                        bottomStart = 6.dp,
-                        topEnd = 22.dp,
-                        bottomEnd = 22.dp,
-                    )
-                )
+                .clip(ConnectedButtonShapes.Trailing)
                 .background(color.copy(alpha = 0.12f))
                 .clickable(onClick = onPickColor),
             contentAlignment = Alignment.Center,
