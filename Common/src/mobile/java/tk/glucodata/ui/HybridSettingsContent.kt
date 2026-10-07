@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.CloneIceNetworkConfig
 import tk.glucodata.R
 import tk.glucodata.ui.components.*
+import tk.glucodata.ui.components.AppTopBar
 
 internal data class TurnEndpoint(
     val host: String,
@@ -143,13 +143,9 @@ internal fun HybridSettingsContent(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.clone_network_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.navigate_back))
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.clone_network_title),
+                onNavigateBack = onBack,
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
                         Icon(Icons.Default.HelpOutline, stringResource(R.string.help))

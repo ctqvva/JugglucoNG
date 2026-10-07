@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BluetoothSearching
@@ -63,7 +62,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -94,6 +92,7 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.webserver.WebServerCertificate
 import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
@@ -133,18 +132,14 @@ fun WatchSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.watches)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.watches),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
                         Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -462,18 +457,14 @@ fun WearOsConfigScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text("WearOS config") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = "WearOS config",
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -752,18 +743,14 @@ fun GarminStatusScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text("Garmin status") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = "Garmin status",
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { refreshSnapshot() }) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -1169,18 +1156,14 @@ fun WebServerSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.webserver)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.webserver),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
                         Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
                     }
-                }
+                },
             )
         }
     ) { padding ->

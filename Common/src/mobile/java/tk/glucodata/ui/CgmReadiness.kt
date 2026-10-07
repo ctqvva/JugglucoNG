@@ -51,7 +51,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.BatterySaver
@@ -85,8 +84,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -118,6 +115,7 @@ import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.alerts.FullScreenIntentReadiness
 import tk.glucodata.data.settings.FloatingSettingsRepository
+import tk.glucodata.ui.components.AppTopBar
 
 private const val CGM_READINESS_PREFS = "cgm_readiness"
 private const val DISMISS_SENSORS = "dismiss_sensors_signature"
@@ -194,16 +192,9 @@ fun CgmReadinessScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.cgm_readiness_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.cgm_readiness_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { refreshTick++ }) {
                         Icon(
@@ -212,7 +203,6 @@ fun CgmReadinessScreen(navController: NavController) {
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->

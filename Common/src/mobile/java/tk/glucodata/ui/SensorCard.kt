@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -3252,7 +3251,7 @@ private fun AiDexPairSplitButton(
 
     val container = if (paired) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
     val onContainer = if (paired) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
-    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(isSystemInDarkTheme()))
+    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(tk.glucodata.ui.isAppInDarkTheme()))
     val keyTint by animateColorAsState(
         targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.error,
         label = "aidexKeyTint"

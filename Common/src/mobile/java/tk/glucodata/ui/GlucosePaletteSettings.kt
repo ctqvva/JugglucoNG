@@ -122,7 +122,7 @@ fun GlucoseBandColorButton(
 ) {
     val context = LocalContext.current
     val revision = GlucosePaletteState.revision
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     var showDialog by remember { mutableStateOf(false) }
     val color = remember(revision, isDark, band) { effectiveBandColor(band, isDark) }
 
@@ -161,7 +161,7 @@ fun GlucoseTargetBackgroundColorButton(
 ) {
     val context = LocalContext.current
     val revision = GlucosePaletteState.revision
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     var showDialog by remember { mutableStateOf(false) }
     val color = remember(revision, isDark) {
         GlucoseRangeColors.targetBackground(isDark)

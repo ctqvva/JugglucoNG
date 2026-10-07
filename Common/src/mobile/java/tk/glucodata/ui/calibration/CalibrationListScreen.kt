@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -64,6 +63,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.HistoryRepository
@@ -273,7 +273,7 @@ fun CalibrationListScreen(
                             isSelectionMode = false
                             selectedIds = emptySet()
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = null)
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     },
                     actions = {
@@ -293,18 +293,9 @@ fun CalibrationListScreen(
                     )
                 )
             } else {
-                TopAppBar(
-                    title = { 
-                        Text(
-                            stringResource(R.string.calibration_with_mode, modeTitle),
-                            fontWeight = FontWeight.SemiBold
-                        ) 
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.navigateUp() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                        }
-                    },
+                AppTopBar(
+                    title = stringResource(R.string.calibration_with_mode, modeTitle),
+                    onNavigateBack = { navController.navigateUp() },
                     actions = {
                         IconButton(onClick = onOpenModelTable) {
                             Icon(
