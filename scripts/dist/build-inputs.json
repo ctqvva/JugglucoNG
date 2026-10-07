@@ -1,10 +1,15 @@
 {
   "schema": 1,
   "source": {
-    "url": "https://github.com/ctqvva/JugglucoNG/releases/download/1.2.2-Alpha/JugglucoNG-1.2.2-Alpha.apk",
-    "sha256": "ec2d0acfe564c24623ab2e22b83a76864210c39e19e0c9ca0bd0026622abac00"
+    "url": "https://github.com/ctqvva/JugglucoNG/releases/download/1.2.3-Alpha/JugglucoNG-1.2.3-Alpha.apk",
+    "sha256": "6374954ca6c9c7681434343220437437a8378748c303975af92c46c7d74b74b1"
   },
   "files": [
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libCALCULATION.so",
+      "size": 656872,
+      "sha256": "0bc4e28b98b8ba4e9ea47db0f4cf413febf596eb94bfe87162432031cd02d4cf"
+    },
     {
       "path": "Common/src/main/jniLibs/arm64-v8a/libalgorithm-jni.so",
       "size": 1591056,
@@ -79,6 +84,11 @@
       "path": "Common/src/main/jniLibs/arm64-v8a/libscannative.so",
       "size": 2603456,
       "sha256": "94a581aae902ab314e6b63fcd91cbe855befa5e9e7c2fe6ea3cf7737d356e1f0"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libCALCULATION.so",
+      "size": 460157,
+      "sha256": "d3d7f162b38e4d0bbe635abc25998ed92d2afc8b5cfae5f3b51df94ba2d613e9"
     },
     {
       "path": "Common/src/main/jniLibs/armeabi-v7a/libalgorithm-jni.so",

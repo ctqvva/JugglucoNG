@@ -61,11 +61,11 @@ def verified_assets():
     return directory
 
 
-def publish_assets(tag, sha, title, prerelease=False, notes_file=None):
+def publish_assets(tag, sha, title, prerelease=False, notes_file=None, directory=None):
     repo = os.environ['GITHUB_REPOSITORY']
     if repo != REPO:
         raise ValueError('Release repository mismatch')
-    directory = dist.ROOT / 'build/dist/all'
+    directory = directory if directory is not None else dist.ROOT / 'build/dist/all'
     # Reserve the exact SHA atomically; an existing/racing tag fails closed.
     subprocess.run(['gh', 'api', '--method', 'POST', f'repos/{repo}/git/refs', '--input', '-'],
                    input=json.dumps({'ref': 'refs/tags/' + tag, 'sha': sha}), text=True, cwd=dist.ROOT, check=True)

@@ -86,14 +86,12 @@ def verify(source, expected, target):
     dist.ROOT = source
     if dist.abis() != dist.ARM_ABIS:
         raise ValueError('Remote PR APKs require both ARM ABIs')
-    out = source / 'build/dist' / target
-    dist.verify_set(out, target, expected_certificate=cert)
+    out = dist.stage_test_assets(source / 'build/dist' / target, target, expected['source_sha'],
+                                 pr_number=expected['pr_number'], expected_certificate=cert)
     info = dict(expected, target=target, controller_sha=os.environ['GITHUB_SHA'],
                 certificate_sha256=cert, abis=dist.ARM_ABIS, source_kind='owner-approved-pr-head',
                 run_url=f'https://github.com/{REPOSITORY}/actions/runs/{os.environ["GITHUB_RUN_ID"]}')
-    info['apks'] = [{'file': p.name, 'size': p.stat().st_size, 'sha256': dist.digest(p.read_bytes())}
-                    for p in sorted(out.glob('*.apk'))]
-    (out / 'build-info.json').write_text(json.dumps(info, indent=2) + '\n')
+    dist.write_build_info(out, info)
 
 
 def main():

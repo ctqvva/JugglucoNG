@@ -626,29 +626,12 @@
     <string name="status_disconnected">已断开</string>
     <string name="select_sensor_type">选择传感器类型</string>
     <string name="choose_theme">选择主题</string>
-    <string name="sibionics_sensor_picker_desc">扫码</string>
-    <string name="libre_sensor_picker_desc">NFC 扫描</string>
-    <string name="dexcom_sensor_picker_desc">扫码</string>
-    <string name="accuchek_sensor_picker_desc">数据矩阵 + 蓝牙</string>
-    <string name="caresens_air_sensor_picker_desc">代码 + 蓝牙</string>
-    <string name="aidex_sensor_picker_desc">蓝牙设置</string>
-    <string name="icanhealth_sensor_picker_desc">蓝牙设置</string>
-    <string name="mq_sensor_picker_desc">蓝牙配对</string>
-    <string name="anytime_sensor_picker_desc">蓝牙配对</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">通过蓝牙配对 Anytime / Yuwell CGM 发射器</string>
     <string name="anytime_setup_title">Anytime / Yuwell 设置</string>
     <string name="anytime_searching_sensors">正在搜索 Anytime / Yuwell 发射器…</string>
     <string name="anytime_no_sensors_hint">请将发射器放在附近，并确保已开机。</string>
     <string name="anytime_detected_label">%1$s · Anytime / Yuwell 发射器</string>
     <string name="anytime_selectable_unrecognized">%1$s · 因已开启“查看所有设备”而显示</string>
     <string name="anytime_connecting_to">正在配对 %1$s…</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">扫描二维码</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">通过 NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
     <string name="scan_transmitter_title">扫描发射器</string>
     <string name="scan_transmitter_desc">选择附近设备或扫描二维码。</string>
     <string name="clear_previous_state">清除先前状态</string>
@@ -706,8 +689,6 @@
     <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">扫描 Accu-Chek SmartGuide 传感器上的数据矩阵</string>
-    <string name="accuchek_sensor">Accu-Chek 智能指南</string>
-    <string name="accuchek_sensor_desc">扫描数据矩阵+蓝牙</string>
     <string name="accuchek_setup_title">Accu-Chek 设置</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -728,8 +709,6 @@
     <string name="aidex_key_fetch_requires_sign_in">请登录以下载此传感器的密钥。</string>
     <string name="aidex_key_import_failed">导入失败——不是有效的 AiDex 密钥文件。</string>
     <string name="aidex_searching_sensors">正在搜索传感器...</string>
-    <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">通过蓝牙配置 AiDex 或 LinX CGM</string>
     <string name="aidex_setup_title">AiDex / LinX 设置</string>
     <string name="alert_amount">数量提醒</string>
     <string name="alert_forecast_high">预测高</string>
@@ -765,10 +744,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">扫描 CareSens Air 包装上的传感器代码</string>
-    <string name="caresens_air_sensor">康森空气</string>
-    <string name="caresens_air_sensor_desc">扫码+蓝牙</string>
     <string name="caresens_air_setup_title">CareSens 空气设置</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
@@ -801,7 +778,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics EU</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
     <string name="exchangedata">交换数据</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
@@ -956,7 +933,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensornotstreamed">Nothing yet</string>
     <string name="sensors_title">Sensors</string>
     <string name="sensorstreamed"></string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">稳定性</string>
@@ -2141,9 +2118,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">选择要显示的传感器</string>
     <string name="sensor_display_selected">已选择显示传感器</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai 账户或凭据文件 + 蓝牙</string>
-    <string name="ottai_sensor_picker_desc">中国市场 CGM - 云端登录 + 蓝牙</string>
     <string name="ottai_setup_title">Ottai 设置</string>
     <string name="ottai_login_title">登录 Ottai</string>
     <string name="ottai_phone_hint">手机号</string>

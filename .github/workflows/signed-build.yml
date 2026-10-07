@@ -6,6 +6,9 @@ on:
       target:
         type: string
         required: true
+      test_artifacts:
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -56,10 +59,25 @@ jobs:
           unset KEYSTORE_BASE64
           export ORG_GRADLE_PROJECT_thekeyfile="$signing_dir/production.keystore"
           scripts/build-dist.sh "$TARGET" --no-daemon --no-configuration-cache --max-workers=2
+      - name: Stage named main test APKs
+        if: inputs.test_artifacts
+        env:
+          TARGET: ${{ inputs.target }}
+        run: python3 scripts/dist/dist.py test-stage --dir "build/dist/$TARGET" --target "$TARGET" --sha "$GITHUB_SHA"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: '!inputs.test_artifacts'
         with:
           name: distribution-${{ inputs.target }}-${{ github.sha }}
           path: build/dist/${{ inputs.target }}/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: inputs.test_artifacts
+        with:
+          name: distribution-main-${{ inputs.target }}-${{ github.sha }}
+          path: |
+            build/dist/test/${{ inputs.target }}/*.apk
+            build/dist/test/${{ inputs.target }}/build-info.json
           if-no-files-found: error
           retention-days: 7
       - name: Download instructions

@@ -626,29 +626,12 @@
     <string name="status_disconnected">Відключено</string>
     <string name="select_sensor_type">Виберіть тип сенсора</string>
     <string name="choose_theme">Виберіть тему</string>
-    <string name="sibionics_sensor_picker_desc">Скан QR</string>
-    <string name="libre_sensor_picker_desc">Скан NFC</string>
-    <string name="dexcom_sensor_picker_desc">Скан QR</string>
-    <string name="accuchek_sensor_picker_desc">Матриця + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Код + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Налаштування Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Налаштування Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Сполучення Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Сполучення Bluetooth</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Підключити передавач CGM Anytime / Yuwell через Bluetooth</string>
     <string name="anytime_setup_title">Налаштування Anytime / Yuwell</string>
     <string name="anytime_searching_sensors">Пошук передавачів Anytime / Yuwell…</string>
     <string name="anytime_no_sensors_hint">Тримайте передавач поруч і переконайтеся, що він увімкнений.</string>
     <string name="anytime_detected_label">%1$s · передавач Anytime / Yuwell</string>
     <string name="anytime_selectable_unrecognized">%1$s · показано, бо ввімкнено \"Показати всі пристрої\"</string>
     <string name="anytime_connecting_to">Сполучення з %1$s…</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Скан. QR-код</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Через NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
     <string name="scan_transmitter_title">Скан. трансмітер</string>
     <string name="scan_transmitter_desc">Оберіть пристрій або скануйте QR.</string>
     <string name="clear_previous_state">Очистити попер. стан</string>
@@ -706,8 +689,6 @@
     <string name="aaps_broadcast">Glucodata broadcast</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Відскануйте матрицю даних на датчику Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Scan Data Matrix + Bluetooth</string>
     <string name="accuchek_setup_title">Налаштування Accu-Chek</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -728,8 +709,6 @@
     <string name="aidex_key_fetch_requires_sign_in">Увійдіть, щоб завантажити ключ цього сенсора.</string>
     <string name="aidex_key_import_failed">Не вдалося імпортувати — недійсний файл ключа AiDex.</string>
     <string name="aidex_searching_sensors">Пошук датчиків...</string>
-    <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Налаштуйте AiDex або LinX CGM через Bluetooth</string>
     <string name="aidex_setup_title">Налаштування AiDex / LinX</string>
     <string name="alert_amount">Оповіщення про кількість</string>
     <string name="alert_forecast_high">Прогноз високого</string>
@@ -765,10 +744,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Відскануйте код датчика на упаковці CareSens Air</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Сканувати код + Bluetooth</string>
     <string name="caresens_air_setup_title">Налаштування CareSens Air</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
@@ -801,7 +778,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics EU</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
     <string name="exchangedata">Для обміну даними</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
@@ -955,7 +932,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensornotstreamed">Nothing yet</string>
     <string name="sensors_title">Sensors</string>
     <string name="sensorstreamed"></string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">Стабільність</string>
@@ -2198,9 +2175,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">Вибрати датчик для відображення</string>
     <string name="sensor_display_selected">Датчик вибрано для відображення</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Акаунт Ottai або файл облікових даних + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM для китайського ринку - хмарний вхід + Bluetooth</string>
     <string name="ottai_setup_title">Налаштування Ottai</string>
     <string name="ottai_login_title">Увійти в Ottai</string>
     <string name="ottai_phone_hint">Номер телефону</string>

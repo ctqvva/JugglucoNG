@@ -21,7 +21,7 @@ object AiDexSerialIdentity {
         RegexOption.IGNORE_CASE,
     )
     private val familyPrefixed = Regex(
-        "(?:^|\\s)(?:AIDEX|LINX|LUMI|VISTA)\\s*[-_]?\\s*" +
+        "(?:^|\\s)(?:AIDEX|LINX|LUMI|VISTA|SMART)\\s*[-_]?\\s*" +
             "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
         RegexOption.IGNORE_CASE,
     )

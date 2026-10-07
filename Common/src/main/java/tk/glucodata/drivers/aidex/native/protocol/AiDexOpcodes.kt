@@ -171,7 +171,7 @@ object AiDexOpcodes {
     const val COMPANY_ID: Int = 0x0059
 
     /** Known AiDex device name prefixes */
-    val KNOWN_NAME_PREFIXES: List<String> = listOf("AiDex", "AiDEX", "AIDEX", "Linx", "LINX", "CGM")
+    val KNOWN_NAME_PREFIXES: List<String> = listOf("AiDex", "AiDEX", "AIDEX", "Linx", "LINX", "CGM", "Smart-")
 
     /** Check if a device name looks like an AiDex sensor */
     fun isAiDexDevice(name: String?): Boolean {

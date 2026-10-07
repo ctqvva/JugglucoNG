@@ -140,18 +140,24 @@ class ApprovedCheckout(unittest.TestCase):
     def test_independent_verifier_receives_controller_pin_and_writes_provenance(self):
         out = self.source / 'build/dist/phone'
         out.mkdir(parents=True)
-        (out / 'phone.apk').write_bytes(b'fixture')
+        (out / 'JugglucoNG-1.2.3-Alpha.apk').write_bytes(b'fixture')
         expected = dict(EXPECTED, source_sha=self.sha)
         with patch.dict(os.environ, {'GITHUB_SHA': SHA, 'GITHUB_RUN_ID': '123'}), \
              patch.object(pr_build.dist, 'ROOT', self.control), \
+             patch.object(pr_build.dist, 'version', return_value=('1.2.3-Alpha', 1023)), \
              patch.object(pr_build.dist, 'verify_set') as verify:
             pr_build.verify(self.source, expected, 'phone')
             verify.assert_called_once_with(out, 'phone', expected_certificate=self.cert)
         import json
-        info = json.loads((out / 'build-info.json').read_text())
+        staged = self.source / 'build/dist/test/phone'
+        info = json.loads((staged / 'build-info.json').read_text())
         self.assertEqual(info['source_sha'], self.sha)
         self.assertEqual(info['certificate_sha256'], self.cert)
+        self.assertEqual(info['controller_sha'], SHA)
+        self.assertEqual(info['apks'][0]['file'], f'JugglucoNG-test-pr547-{self.sha[:12]}-phone.apk')
         self.assertEqual(info['apks'][0]['sha256'], pr_build.dist.digest(b'fixture'))
+        self.assertEqual((staged / info['apks'][0]['file']).read_bytes(), b'fixture')
+        self.assertEqual((out / 'JugglucoNG-1.2.3-Alpha.apk').read_bytes(), b'fixture')
 
 
 if __name__ == '__main__':

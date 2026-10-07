@@ -378,10 +378,10 @@
     <string name="humaninsulin">Human Insulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Биш</string>
-    <string name="eusibionics">Sibionics EU</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="hematonix">Hematonix</string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="datapresent">"Өгөгдөл байгаа: "</string>
     <string name="overwrite">Дээр нь бичих үү?</string>
     <string name="autoqr">Авто QR</string>
@@ -927,24 +927,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
     <string name="select_sensor_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="choose_theme">Загвар сонгох</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">QR код уншуулах</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">NFC-ээр</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Дата матриц + Bluetooth</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Код уншуулах + Bluetooth</string>
-    <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">AiDex эсвэл LinX CGM-ийг Bluetooth-ээр тохируулах</string>
-    <string name="icanhealth_sensor">iCan i3 / Sinocare</string>
-    <string name="icanhealth_sensor_desc">iCan i3/i6/i7 CGM-ийг Bluetooth-ээр тохируулах</string>
-    <string name="mq_sensor">MQ / Glutec</string>
-    <string name="mq_sensor_desc">Glutec / MQ CGM дамжуулагчийг Bluetooth-ээр хослуулах</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Anytime / Yuwell CGM дамжуулагчийг Bluetooth-ээр холбох</string>
     <!-- Anytime/Yuwell Setup Wizard Strings -->
     <string name="anytime_setup_title">Anytime / Yuwell тохиргоо</string>
     <string name="anytime_searching_sensors">Anytime / Yuwell дамжуулагч хайж байна…</string>
@@ -2142,9 +2124,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_display_select">Дэлгэцэд харуулах мэдрэгчийг сонгох</string>
     <string name="sensor_display_selected">Дэлгэцэд харуулах мэдрэгч сонгогдсон</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai данс эсвэл нэвтрэх мэдээллийн файл + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">Хятадын зах зээлийн CGM - cloud нэвтрэлт + Bluetooth</string>
     <string name="ottai_setup_title">Ottai тохиргоо</string>
     <string name="ottai_login_title">Ottai-д нэвтрэх</string>
     <string name="ottai_phone_hint">Утасны дугаар</string>
@@ -2234,15 +2213,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_smoothing_exchange_only_title">Зөвхөн солилцооны гаралтыг жигдрүүлэх</string>
     <string name="data_smoothing_exchange_only_desc">Жигдрүүлэлт болон илгээх интервалыг зөвхөн дамжуулалт ба гадагш API өгөгдөлд хэрэглэнэ; график, одоогийн глюкоз, виджет болон дохио өөрчлөгдөхгүй</string>
     <string name="status_invalid_glucose_from_sensor">Сенсороос ирсэн глюкозын утга буруу</string>
-    <string name="sibionics_sensor_picker_desc">QR скан</string>
-    <string name="libre_sensor_picker_desc">NFC скан</string>
-    <string name="dexcom_sensor_picker_desc">QR скан</string>
-    <string name="accuchek_sensor_picker_desc">Data Matrix + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Код + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth тохиргоо</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth тохиргоо</string>
-    <string name="mq_sensor_picker_desc">Bluetooth холболт</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth холболт</string>
     <string name="ottai_settings_desc">Холбогдсон Ottai мэдрэгчийн Ottai дансны хандалт, хадгалсан материал болон тохиргоог удирдана.</string>
     <string name="ottai_account_sensors_title">Ottai дансны мэдрэгчүүд</string>
     <string name="ottai_account_sensors_desc">Cloud ID-г бөглөхийн тулд хадгалсан эсвэл дансны мэдрэгчийг сонгоно уу. Connect товч дарсны дараа л холболт эхэлнэ.</string>

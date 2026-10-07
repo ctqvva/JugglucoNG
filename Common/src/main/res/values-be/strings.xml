@@ -604,29 +604,12 @@
     <string name="status_disconnected">Адключана</string>
     <string name="select_sensor_type">Абярыце тып сэнсара</string>
     <string name="choose_theme">Абярыце тэму</string>
-    <string name="sibionics_sensor_picker_desc">Скан QR</string>
-    <string name="libre_sensor_picker_desc">Скан NFC</string>
-    <string name="dexcom_sensor_picker_desc">Скан QR</string>
-    <string name="accuchek_sensor_picker_desc">Матрыца + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Код + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Налада Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Налада Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Спалучэнне Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Спалучэнне Bluetooth</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Спалучыць перадатчык CGM Anytime / Yuwell праз Bluetooth</string>
     <string name="anytime_setup_title">Наладка Anytime / Yuwell</string>
     <string name="anytime_searching_sensors">Пошук трансмітараў Anytime / Yuwell…</string>
     <string name="anytime_no_sensors_hint">Трымайце трансмітар побач і пераканайцеся, што ён уключаны.</string>
     <string name="anytime_detected_label">%1$s · перадатчык Anytime / Yuwell</string>
     <string name="anytime_selectable_unrecognized">%1$s · паказана, бо ўключана \"Паказаць усе прылады\"</string>
     <string name="anytime_connecting_to">Спалучэнне з %1$s…</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Скан. QR-код</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Праз NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
     <string name="scan_transmitter_title">Скан. трансмітар</string>
     <string name="scan_transmitter_desc">Абярыце прыладу або скануйце QR.</string>
     <string name="clear_previous_state">Ачысціць папяр. стан</string>
@@ -684,8 +667,6 @@
     <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Адсканіруйце матрыцу дадзеных на датчыку Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Матрыца дадзеных сканавання + Bluetooth</string>
     <string name="accuchek_setup_title">Налада Accu-Chek</string>
     <string name="add_connection">Add Connection</string>
     <string name="add_sensor">Add Sensor</string>
@@ -707,8 +688,6 @@
     <string name="aidex_key_fetch_requires_sign_in">Увайдзіце, каб спампаваць ключ гэтага датчыка.</string>
     <string name="aidex_key_import_failed">Імпарт не ўдаўся — файл ключа AiDex несапраўдны.</string>
     <string name="aidex_searching_sensors">Пошук датчыкаў...</string>
-    <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Наладзьце AiDex або LinX CGM праз Bluetooth</string>
     <string name="aidex_setup_title">Налада AiDex / LinX</string>
     <string name="alert_amount">Апавяшчэнне аб колькасці</string>
     <string name="alert_forecast_high">Прагноз высокага</string>
@@ -744,10 +723,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Адсканіруйце код датчыка на ўпакоўцы CareSens Air</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Сканіраванне кода + Bluetooth</string>
     <string name="caresens_air_setup_title">Налада CareSens Air</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clear">Clear</string>
@@ -783,7 +760,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics EU</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
@@ -940,7 +917,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensors_title">Sensors</string>
     <string name="sensorstreamed"></string>
     <string name="show_password">Паказаць пароль</string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">Стабільнасць</string>
@@ -2193,9 +2170,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_display_select">Выбраць датчык для паказу</string>
     <string name="sensor_display_selected">Датчык абраны для паказу</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Акаўнт Ottai або файл уліковых даных + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM для кітайскага рынку - воблачны ўваход + Bluetooth</string>
     <string name="ottai_setup_title">Наладжванне Ottai</string>
     <string name="ottai_login_title">Увайсці ў Ottai</string>
     <string name="ottai_phone_hint">Нумар тэлефона</string>

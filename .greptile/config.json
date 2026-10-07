@@ -1,0 +1,123 @@
+{
+  "strictness": 2,
+  "commentTypes": [
+    "logic",
+    "syntax"
+  ],
+  "ignorePatterns": "Common/src/main/cpp/libjuice/**\nCommon/src/main/cpp/LibAscon/**\nCommon/src/main/cpp/bcrypt/**\nCommon/src/main/cpp/curve/nanovg/**\nCommon/schemas/**\nupstream_strings.xml\ndocs/test-coverage-map.md\n**/*.so\n**/*.png\n**/*.webp\n**/*.bak",
+  "instructions": "JugglucoNG is an Android CGM app (Java, Kotlin, and C++ over JNI) with a phone and a Wear OS flavour. People dose insulin and react to alarms from its numbers, so report concrete defects the PR introduces or makes reachable: wrong, stale or doubly calibrated readings, dropped or withheld readings, lost history, driver loops and stalls, crashes, broken builds and security problems. Do not comment on formatting, naming, logging style or missing tests on their own. The finding criteria, repository background and known false positives are in .greptile/rules.md.",
+  "rules": [
+    {
+      "id": "calibrate-exactly-once",
+      "rule": "A glucose value is calibrated exactly once. The BLE path can hand on a value it already calibrated: LiveReadingLanes.stock lanes are before this app's calibration and get calibrated once downstream, a LiveReadingLanes.resolved value is final. Both are in display units. Flag a changed path that calibrates a value that may already be calibrated, or that feeds an uncalibrated or raw lane to alerts, notifications, widgets or exchange outputs where siblings use the calibrated value. This caused false HIGH alarms in #431 and false LOW alarms on raw-primary AiDEX.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "units-and-clocks",
+      "rule": "Check units and clocks at each boundary the change touches, against the callee's actual contract rather than the variable name. Glucose moves between mg/dL and the user's display unit (mg/dL or mmol/L); ExchangeGlucosePayload carries both (primaryDisplayValue and primaryMgdl). Time is mixed seconds and milliseconds (SuperGattCallback.emitExchangeOutputs takes both `tim` in seconds and `timmsec` in milliseconds), and sensor counters are often minutes since sensor start. Flag a conversion applied twice or skipped, a threshold compared in the wrong unit, seconds passed where milliseconds are expected or the reverse, and a sensor clock mixed with the phone clock.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/**",
+        "Common/src/main/cpp/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "readings-not-withheld",
+      "rule": "A change that suppresses, delays, hides or marks as expired a glucose reading, or changes alert thresholds, alert delivery, calibration defaults or sensor reset/restart timing, is a user-visible product decision that the maintainer signs off. A driver must not stop publishing glucose because of its own inference. If the PR description does not state such a change, raise it as a finding naming the behaviour that changes. If the description already states it, do not repeat it; review whether the code does what the description says.",
+      "severity": "medium"
+    },
+    {
+      "id": "driver-history-progress",
+      "rule": "In driver history, replay and reconnect code, a stored record cursor or index must not move backwards over data already stored, a replay or reconnect must terminate (what ends the loop on the second pass with the same address, cursor or sensor id?), and a record must not be written under the wrong sensor or a shifted timestamp. Replay may legitimately revisit older data; the defect is lost, duplicated or corrupted records, or no forward progress.",
+      "scope": [
+        "Common/src/main/java/tk/glucodata/drivers/**",
+        "Common/src/main/cpp/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "ble-lifecycle",
+      "rule": "BLE scan, connect, bond and retry paths must be bounded by a deadline or backoff, must stop retrying an address that turned out to be the wrong device (a missing expected service or characteristic is a rejection, not a reason to reconnect), and must close GATT handles on every disconnect and error path. A late callback from a timed-out or replaced GATT operation must not complete, clear or advance a newer operation. GATT callbacks must not block, and state they share with other threads needs a consistent lock.",
+      "scope": [
+        "Common/src/main/java/tk/glucodata/drivers/**",
+        "Common/src/**/java/tk/glucodata/*Gatt*",
+        "Common/src/main/java/tk/glucodata/SensorBluetooth.java"
+      ],
+      "severity": "medium"
+    },
+    {
+      "id": "exchange-output-contract",
+      "rule": "Feeds sent from SuperGattCallback.emitExchangeOutputs (Juggluco, outbound API, xDrip/xInfuus loop feed, WearInt, Gadgetbridge) are each gated by their own destination in ExchangeOutputPolicy and send fields of one ExchangeGlucosePayload. A new or changed feed on that path must not reuse another destination's gate, must not recompute or recalibrate the payload value, and must not invent fields it has no data for. Broadcasts of glucose go to explicit packages via setPackage, as every existing sender does, never as an implicit broadcast. Feeds outside this path, such as Nightscout upload, have their own contracts; do not require them to use this one.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Exchange*",
+        "Common/src/**/java/tk/glucodata/Send*.java",
+        "Common/src/**/java/tk/glucodata/XInfuus.java",
+        "Common/src/**/java/tk/glucodata/JugglucoSend.java",
+        "Common/src/**/java/tk/glucodata/OutboundApi*",
+        "Common/src/**/java/tk/glucodata/SuperGattCallback.java",
+        "Common/src/**/java/tk/glucodata/WearInt*",
+        "Common/src/**/java/tk/glucodata/Gadgetbridge*",
+        "Common/src/**/java/tk/glucodata/watchdrip.java"
+      ],
+      "severity": "medium"
+    },
+    {
+      "id": "shared-code-both-flavours",
+      "rule": "Common/src/main is compiled into both the phone and the Wear OS flavour. It must not name a class that exists only in src/mobile or src/wear; phone-only behaviour is guarded by Applic.isWearable or reached through an interface the variant registers in Application.onCreate. A new Class.forName lookup from src/main fails ArchitectureGateTests (shrink-only allow-list); an existing reflective target that is renamed or moved needs its keep rule in Common/proguard-rules.my, or it breaks only in minified release builds. The watch has its own CMake configuration, so native changes can break assembleWearDebug while the phone build passes. Flag changes that break either flavour or the minified build.",
+      "scope": [
+        "Common/src/main/**",
+        "Common/proguard-rules.my",
+        "Common/build.gradle"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "jni-boundary",
+      "rule": "A Java native method and its C++ implementation (a Java_tk_glucodata_* export or a RegisterNatives table entry) must agree on class, name, parameter types and return type; a mismatch compiles and fails at the first call. Check changed JNI code for local references leaked in loops, unchecked null jstring/jarray, Java objects kept across calls or threads without a global reference, and callbacks into Java whose method signature no longer matches.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/Natives.java",
+        "Common/src/main/cpp/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "room-schema-upgrade",
+      "rule": "A change to a Room @Entity, its columns or indices, or the database version needs a Migration from every version users can be on; without one the app crashes on upgrade. fallbackToDestructiveMigration is forbidden (it wipes the user's glucose history; ArchitectureGateTests keeps it at zero uses). A change to a DAO query alone does not need a migration. Flag history database access on the main thread.",
+      "scope": [
+        "Common/src/**/java/tk/glucodata/data/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "secrets-and-health-data",
+      "rule": "Credentials, API secrets, auth tokens, sensor keys and account ids must not be logged, written to exports or backups, or sent over cleartext HTTP. Glucose leaves the device only through a destination the user enabled. An exported component that receives intents must require a permission or validate what it receives. A new permission or endpoint is not a defect on its own; trace it to an actual exposure.",
+      "severity": "high"
+    },
+    {
+      "id": "release-trust-boundary",
+      "rule": "Build, signing, release and in-app update code is a trust boundary. Flag a change that downloads or executes unpinned inputs, skips APK signature or checksum verification, exposes signing secrets to untrusted code (for example pull_request_target with a checkout of PR code), or widens who can trigger a signed build.",
+      "scope": [
+        ".github/**",
+        "scripts/**",
+        "build.gradle",
+        "Common/build.gradle",
+        "gradle.properties",
+        "Common/src/mobile/java/tk/glucodata/update/**"
+      ],
+      "severity": "high"
+    },
+    {
+      "id": "strings-every-locale",
+      "rule": "A new or reworded user-visible string in a values/strings.xml must also be added, translated, to every values-* locale file beside it in the same source set (Common/src/main has 14 locales, src/wear has 7, src/mobile has values-de). Flag a missing locale entry or a copy left in English; do not review translation quality. User-visible text in UI code comes from string resources, not literals.",
+      "scope": [
+        "Common/src/**/res/values*/strings.xml",
+        "Common/src/mobile/java/tk/glucodata/ui/**",
+        "Common/src/wear/java/**"
+      ],
+      "severity": "low"
+    }
+  ]
+}

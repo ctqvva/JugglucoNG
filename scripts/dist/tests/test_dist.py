@@ -32,6 +32,97 @@ class Requests(unittest.TestCase):
         self.assertIsNone(request.requested_target('workflow_dispatch', {'inputs': {'target': 'untrusted'}}))
 
 
+class TestApkStaging(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.sha = '123456789abc' + 'd' * 28
+        patcher = patch.object(dist, 'version', return_value=('1.2.3-Alpha', 1023))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def fixture(self, target):
+        directory = self.root / 'build/dist' / target
+        directory.mkdir(parents=True, exist_ok=True)
+        for flavor, build_type in dist.TARGETS[target]:
+            (directory / dist.filename(flavor, build_type)).write_bytes(f'{flavor}:{build_type}'.encode())
+        return directory
+
+    def test_all_targets_and_sources_preserve_each_variant_and_bytes(self):
+        for target in dist.TARGETS:
+            directory = self.fixture(target)
+            original = {p.name: p.read_bytes() for p in directory.glob('*.apk')}
+            for pr_number in [None, '547']:
+                with self.subTest(target=target, pr_number=pr_number), patch.object(dist, 'verify_apk') as verify:
+                    out = dist.stage_test_assets(directory, target, self.sha, pr_number, expected_certificate='trusted pin')
+                    self.assertEqual(verify.call_count, len(dist.TARGETS[target]))
+                    self.assertTrue(all(call.args[3] == 'trusted pin' for call in verify.call_args_list))
+                    source = 'main' if pr_number is None else 'pr547'
+                    expected = {}
+                    for flavor, build_type in dist.TARGETS[target]:
+                        variant = ('phone' if flavor == 'mobile' else 'wear') + ('-dub' if build_type == 'releasedub' else '')
+                        expected[f'JugglucoNG-test-{source}-123456789abc-{variant}.apk'] = f'{flavor}:{build_type}'.encode()
+                    self.assertEqual({p.name: p.read_bytes() for p in out.iterdir()}, expected)
+                    self.assertEqual({p.name: p.read_bytes() for p in directory.iterdir()}, original)
+
+    def test_new_snapshot_replaces_old_files_and_metadata(self):
+        directory = self.fixture('phone')
+        with patch.object(dist, 'verify_apk'):
+            out = dist.stage_test_assets(directory, 'phone', self.sha, '547')
+            dist.write_build_info(out, {'source_sha': self.sha})
+            dist.stage_test_assets(directory, 'phone', 'e' * 40, '547')
+        self.assertEqual([p.name for p in out.iterdir()], ['JugglucoNG-test-pr547-eeeeeeeeeeee-phone.apk'])
+
+    def test_bad_identity_rejected_before_verification_or_writes(self):
+        directory = self.fixture('phone')
+        for sha, number, target in [(None, None, 'phone'), ('main', None, 'phone'),
+                                    ('a' * 39, None, 'phone'), ('A' * 40, None, 'phone'),
+                                    (self.sha, '0', 'phone'), (self.sha, '../547', 'phone'),
+                                    (self.sha, None, '../phone')]:
+            with self.subTest(sha=sha, number=number, target=target), patch.object(dist, 'verify_set') as verify:
+                with self.assertRaises(ValueError):
+                    dist.stage_test_assets(directory, target, sha, number)
+                verify.assert_not_called()
+        self.assertFalse((directory.parent / 'test').exists())
+
+    def test_incomplete_or_unverified_set_never_staged(self):
+        directory = self.fixture('phone')
+        with self.assertRaisesRegex(ValueError, 'set mismatch'):
+            dist.stage_test_assets(directory, 'all', self.sha)
+        with patch.object(dist, 'verify_apk', side_effect=ValueError('certificate mismatch')):
+            with self.assertRaisesRegex(ValueError, 'certificate mismatch'):
+                dist.stage_test_assets(directory, 'phone', self.sha)
+        self.assertFalse((directory.parent / 'test').exists())
+
+    def test_copy_corruption_cannot_replace_previous_staged_set(self):
+        directory = self.fixture('phone')
+        with patch.object(dist, 'verify_apk'):
+            out = dist.stage_test_assets(directory, 'phone', self.sha)
+            before = {p.name: p.read_bytes() for p in out.iterdir()}
+            with patch.object(dist.shutil, 'copyfile', side_effect=lambda src, dest: dest.write_bytes(b'corrupt')):
+                with self.assertRaisesRegex(ValueError, 'bytes changed'):
+                    dist.stage_test_assets(directory, 'phone', 'e' * 40)
+            self.assertEqual({p.name: p.read_bytes() for p in out.iterdir()}, before)
+
+    def test_main_cli_metadata_matches_uploaded_names_and_hashes(self):
+        directory = self.fixture('all')
+        with patch.object(dist, 'verify_apk'), \
+             patch.dict('os.environ', {'GITHUB_REPOSITORY': 'ctqvva/JugglucoNG', 'GITHUB_RUN_ID': '123'}), \
+             patch('sys.argv', ['dist.py', 'test-stage', '--dir', str(directory), '--target', 'all', '--sha', self.sha]):
+            dist.main()
+        out = directory.parent / 'test/all'
+        info = json.loads((out / 'build-info.json').read_text())
+        self.assertEqual(info['source_sha'], self.sha)
+        self.assertEqual(info['source_kind'], 'trusted-main')
+        self.assertEqual(info['run_url'], 'https://github.com/ctqvva/JugglucoNG/actions/runs/123')
+        self.assertEqual(len(info['apks']), 4)
+        for item in info['apks']:
+            apk = out / item['file']
+            self.assertEqual(item['sha256'], dist.digest(apk.read_bytes()))
+            self.assertEqual(item['size'], apk.stat().st_size)
+
+
 class InputRestore(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

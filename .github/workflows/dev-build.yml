@@ -54,6 +54,7 @@ jobs:
     secrets: inherit
     with:
       target: ${{ needs.request.outputs.target }}
+      test_artifacts: true
   approve-pr:
     needs: request
     if: needs.request.outputs.accepted == 'true' && needs.request.outputs.pr_number != ''
@@ -164,10 +165,39 @@ jobs:
         with:
           name: distribution-pr${{ needs.request.outputs.pr_number }}-${{ needs.request.outputs.target }}-${{ needs.request.outputs.source_sha }}
           path: |
-            source/build/dist/${{ needs.request.outputs.target }}/*.apk
-            source/build/dist/${{ needs.request.outputs.target }}/build-info.json
+            source/build/dist/test/${{ needs.request.outputs.target }}/*.apk
+            source/build/dist/test/${{ needs.request.outputs.target }}/build-info.json
           if-no-files-found: error
           retention-days: 7
       - name: Download instructions
         run: |
           echo "Verified production-signed **$TARGET** APKs of PR **#$PR_NUMBER**, exact head **$SOURCE_SHA**, are in this run's Artifacts section (7 days). They update the matching existing app; they do not install beside it. Native sensor behavior still needs device testing." >> "$GITHUB_STEP_SUMMARY"
+  post-build:
+    needs: [request, build, build-pr]
+    # One alternative build is skipped. Explicit always() lets the successful
+    # alternative post; rejected/failed/cancelled requests never get a ready link.
+    if: >-
+      always() && github.repository == 'ctqvva/JugglucoNG' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'issue_comment' &&
+      needs.request.outputs.accepted == 'true' &&
+      (needs.build.result == 'success' || needs.build-pr.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      # Timeline comments on PRs also need this scope for the Actions App token.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reply with verified build download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ needs.request.outputs.target }}
+          SOURCE_SHA: ${{ needs.request.outputs.source_sha }}
+          HEAD_REPO: ${{ needs.request.outputs.head_repo }}
+        run: python3 scripts/dist/post-build.py
