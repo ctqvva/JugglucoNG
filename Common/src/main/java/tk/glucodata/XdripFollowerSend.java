@@ -38,9 +38,7 @@ public final class XdripFollowerSend {
         JSONObject sgv = new JSONObject()
                 .put("mills", timeMillis)
                 .put("mgdl", mgdl)
-                .put("direction", trendName.isEmpty() ? "NOT_COMPUTABLE" : trendName)
-                .put("filtered", mgdl * 1000L)
-                .put("unfiltered", mgdl * 1000L);
+                .put("direction", trendName.isEmpty() ? "NOT_COMPUTABLE" : trendName);
         Intent intent = new Intent(ACTION);
         intent.setPackage(XDRIP_PACKAGE);
         intent.putExtra("sgv", sgv.toString());

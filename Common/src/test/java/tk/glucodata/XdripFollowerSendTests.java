@@ -1,6 +1,7 @@
 package tk.glucodata;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -30,6 +31,8 @@ public class XdripFollowerSendTests {
         assertEquals(101, sgv.getInt("mgdl"));
         assertEquals(timeMillis, sgv.getLong("mills"));
         assertEquals("Flat", sgv.getString("direction"));
+        assertFalse(sgv.has("filtered"));
+        assertFalse(sgv.has("unfiltered"));
     }
 
     @Test
