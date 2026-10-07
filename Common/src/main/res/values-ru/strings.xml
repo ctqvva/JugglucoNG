@@ -363,7 +363,7 @@
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
     <string name="ble_error_history">История ошибок BLE</string>
-    <string name="log_enabled_waiting">Лог включен. Ожидание записей...</string>
+    <string name="log_enabled_waiting">Лог включен. Ожидание записей…</string>
     <string name="log_unchecked">Лог выключен. Включите для начала.</string>
     <string name="error_reading_file">"Ошибка чтения файла: "</string>
     <string name="error_saving_file">"Ошибка сохранения файла: "</string>
@@ -676,7 +676,7 @@
     <string name="import_data_settings_desc">Восстановить CSV истории или экспорт JugglucoNG</string>
     <string name="settings_import_confirm_title">Импортировать настройки?</string>
     <string name="settings_import_confirm_message">Это заменит настройки приложения, учетные данные, ключи устройств и конфигурацию mirror, затем перезапустит приложение.</string>
-    <string name="settings_import_successful">Настройки импортированы. Перезапуск...</string>
+    <string name="settings_import_successful">Настройки импортированы. Перезапуск…</string>
     <string name="danger_zone">Опасная зона</string>
     <string name="clear_history">Очистить историю</string>
     <string name="clear_history_desc_short">Удалить все показания</string>
@@ -694,7 +694,7 @@
     <string name="scan_libre_sensor">Сканировать сенсор Libre</string>
     <string name="libre_nfc_instruction">Приложите телефон к сенсору для сканирования</string>
     <string name="about_text">GPL-3.0 • Форк Juggluco</string>
-    <string name="refreshing">Обновление...</string>
+    <string name="refreshing">Обновление…</string>
     <!-- Missing UI Translations -->
     <string name="auto_calibration_mode">Алгоритм датчика</string>
     <string name="sibionics_custom_algorithm">Адаптивная модель датчика (экспериментальная)</string>
@@ -726,10 +726,10 @@
     <string name="scan_transmitter_title">Сканирование Трансмиттера</string>
     <string name="scan_transmitter_desc">Выберите устройство рядом или сканируйте QR.</string>
     <string name="clear_previous_state">Очистить пред. статус</string>
-    <string name="scanning_devices">Поиск устройств...</string>
+    <string name="scanning_devices">Поиск устройств…</string>
     <string name="search_bluetooth">Поиск Bluetooth</string>
     <string name="found_devices_title">Найденные устройства:</string>
-    <string name="looking_for_transmitters">Поиск трансмиттеров поблизости...</string>
+    <string name="looking_for_transmitters">Поиск трансмиттеров поблизости…</string>
     <string name="or_scan_qr">Или сканируйте QR</string>
     <string name="scan_transmitter_button">Сканировать Трансмиттер</string>
     <!-- Libre Setup Wizard Step Strings -->
@@ -805,7 +805,7 @@
     <string name="accuchek_setup_title">Настройка Accu-Chek</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Подключено!</string>
-    <string name="aidex_connecting_to">Подключение к %1$s...</string>
+    <string name="aidex_connecting_to">Подключение к %1$s…</string>
     <string name="aidex_parse_error">AiDex: не удалось проанализировать серийный номер датчика из «%1$s».</string>
     <string name="aidex_key_management_title">Ключи и аккаунт</string>
     <string name="aidex_key_management_desc">Сначала выполняется локальное сопряжение. Добавляйте ключ конкретного датчика только после сообщения, что ключ отсутствует.</string>
@@ -819,7 +819,7 @@
     <string name="aidex_key_fetch_action">Получить ключ из аккаунта</string>
     <string name="aidex_key_fetch_requires_sign_in">Войдите, чтобы загрузить ключ этого датчика.</string>
     <string name="aidex_key_import_failed">Не удалось импортировать — неверный файл ключа AiDex.</string>
-    <string name="aidex_searching_sensors">Ищем датчики...</string>
+    <string name="aidex_searching_sensors">Ищем датчики…</string>
     <string name="aidex_setup_title">Настройка AiDex/LinX</string>
     <string name="alert_amount">Оповещение о количестве</string>
     <string name="alert_forecast_high">Прогноз высокого</string>
@@ -859,7 +859,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="complications">Complications</string>
     <string name="confidence">Надёжность</string>
     <string name="connected">Connected!</string>
-    <string name="connecting_to_sensor">Подключение к датчику...</string>
+    <string name="connecting_to_sensor">Подключение к датчику…</string>
     <string name="connecting_to_sensor_wait">Пожалуйста, подождите, пока мы установим соединение.</string>
     <string name="daily_trends">Тренды по дням</string>
     <string name="days_to_export">Days to export</string>
@@ -904,7 +904,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="last">"Last: "</string>
     <string name="libresetalllabels">First specify for each label what should be done with it.</string>
     <string name="lispro">Insulin Lispro/Humalog</string>
-    <string name="loading_data">Загрузка...</string>
+    <string name="loading_data">Загрузка…</string>
     <string name="logging">Logging</string>
     <string name="lossofsignal">Loss of signal</string>
     <string name="low_range">Низкий</string>
@@ -1200,7 +1200,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="addconnection">Добавить соединение</string>
     <string name="adjust_sensor_readings">Отрегулируйте показания датчика</string>
     <string name="advancedAlarmshelp">Расширенная справка по сигналам тревоги</string>
-    <string name="aidex_probe_scanning">Сканирование устройств AiDex...</string>
+    <string name="aidex_probe_scanning">Сканирование устройств AiDex…</string>
     <string name="alarmhelp">Помощь по тревоге</string>
     <string name="alert_name_example">например Феномен рассвета</string>
     <string name="all_calibrations_cleared">Все калибровки удалены</string>
@@ -1329,9 +1329,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_use_v3_api_desc">Для загрузки глюкозы нужны api:entries:create и api:entries:update.</string>
     <string name="nightscout_follow_desc">Создать виртуальный датчик только для чтения из этого URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Сначала введите URL Nightscout</string>
-    <string name="nightscout_test_testing">Проверка...</string>
+    <string name="nightscout_test_testing">Проверка…</string>
     <string name="nightscout_refresh_token">Обновить токен</string>
-    <string name="nightscout_token_refreshing">Обновление токена...</string>
+    <string name="nightscout_token_refreshing">Обновление токена…</string>
     <string name="nightscout_token_ok">Токен действителен до %1$s - разрешения: %2$s</string>
     <string name="nightscout_token_error">Не удалось обновить токен - %1$s</string>
     <string name="nightscout_test_error">Ошибка - %1$s</string>
@@ -1359,9 +1359,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_applied_reading">Применено #%1$d</string>
     <string name="anytime_calibration_pending_record">Ожидает следующее измерение</string>
     <string name="anytime_calibration_algorithm_output">Результат: %1$s</string>
-    <string name="reinit_progress">Повторная инициализация...</string>
+    <string name="reinit_progress">Повторная инициализация…</string>
     <string name="reminders">Напомнить</string>
-    <string name="requesting_account_id">Запрос идентификатора аккаунта...</string>
+    <string name="requesting_account_id">Запрос идентификатора аккаунта…</string>
     <string name="resend_data_reset">Повторная отправка данных (сброс)</string>
     <string name="resend_triggered">Повторная отправка активирована</string>
     <string name="reset_correction_desc">Управление коррекцией смещения инициализации и аппаратным сбросом</string>
@@ -1377,7 +1377,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="select_all">Выбрать все</string>
     <string name="send_receive">Отправить/получить</string>
     <string name="send_to_colon">Отправить по адресу:</string>
-    <string name="sending_now">Отправка...</string>
+    <string name="sending_now">Отправка…</string>
     <string name="sensor_age">Возраст датчика</string>
     <string name="sensor_expired_text">Срок действия датчика истек</string>
     <string name="sensor_life">Осталось</string>
@@ -1392,7 +1392,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stathelp">Справка по статистике</string>
     <string name="staticnum">Статикнум</string>
     <string name="stop">Стоп</string>
-    <string name="syncing">Синхронизация...</string>
+    <string name="syncing">Синхронизация…</string>
     <string name="talkhelp">Обсуждение помощи</string>
     <string name="test_alert">Тестовое оповещение</string>
     <string name="text_alignment">Выравнивание текста</string>
@@ -2144,7 +2144,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Токен Telegram-бота</string>
     <string name="api_source_telegram_chat_ids">Разрешённые chat ID</string>
     <string name="api_source_telegram_note">Telegram хранит обновления бота до 24 часов. Укажите один или несколько chat ID/имён пользователей, сообщения которых можно импортировать.</string>
-    <string name="status_waiting_for_data">Подключено, ожидание данных...</string>
+    <string name="status_waiting_for_data">Подключено, ожидание данных…</string>
     <string name="status_raw_values_received">Подключено, получены сырые значения</string>
     <string name="status_invalid_glucose_from_sensor">Некорректная глюкоза от сенсора</string>
     <string name="sensor_display_select">Выбрать датчик для отображения</string>
@@ -2155,9 +2155,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_phone_hint">Номер телефона</string>
     <string name="ottai_send_code">Отправить код</string>
     <string name="ottai_code_hint">SMS-код</string>
-    <string name="ottai_code_sent">Код отправлен - введите его ниже (ref ...%1$s)</string>
+    <string name="ottai_code_sent">Код отправлен - введите его ниже (ref …%1$s)</string>
     <string name="ottai_login_button">Войти</string>
-    <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
+    <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Вход выполнен</string>
     <string name="ottai_session_invalid">Облачная сессия больше не действительна – войдите снова</string>
     <string name="ottai_account_id">Аккаунт: %1$s</string>
@@ -2929,4 +2929,57 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">%d записей</item>
         <item quantity="other">%d записи</item>
     </plurals>
+    <string name="watch_transport_section">Транспорт</string>
+    <string name="watch_wearos_enable_desc">Включить передачу сообщений Wear OS</string>
+    <string name="watch_gms_unavailable">Сервисы Google Play недоступны</string>
+    <string name="watch_gms_unavailable_device">Сервисы Google Play недоступны на этом устройстве</string>
+    <string name="watch_wearos_config_desc">Устройство Wear OS и маршрутизация</string>
+    <string name="watch_kerfstok_bridge">Транспортный мост Kerfstok</string>
+    <string name="watch_garmin_status_desc">Состояние подключения и сопряжение</string>
+    <string name="watch_garmin_enable_hint">Включите Kerfstok, чтобы видеть состояние</string>
+    <string name="watch_help_wearos">Включите Wear OS, чтобы использовать передачу сообщений на часы в этом приложении.</string>
+    <string name="watch_help_config">В разделе «Настройка» выберите часы и задайте прямую маршрутизацию датчика.</string>
+    <string name="watch_help_garmin">Garmin Connect IQ работает через Kerfstok и имеет отдельное управление состоянием.</string>
+    <string name="never">Никогда</string>
+    <string name="wearos_config_title">Настройка Wear OS</string>
+    <string name="watch_status_section">Состояние часов</string>
+    <string name="watch_none_found">Часы Wear OS не найдены</string>
+    <string name="watch_none_found_hint">Откройте Juggluco на часах, затем нажмите «Обновить»</string>
+    <string name="watch_routing_section">Маршрутизация</string>
+    <string name="watch_enter_amounts">Вводить количества на часах</string>
+    <string name="watch_enter_amounts_on">Записи с часов сохраняются и синхронизируются с телефоном.</string>
+    <string name="watch_enter_amounts_off">Количества можно вводить только на телефоне.</string>
+    <string name="actions_section">Действия</string>
+    <string name="watch_none_selected">Часы не выбраны</string>
+    <string name="watch_sync_now">Синхронизировать</string>
+    <string name="watch_restart_app">Перезапустить приложение на часах</string>
+    <string name="watch_send_defaults">Отправить стандартные настройки</string>
+    <string name="garmin_status_title">Состояние Garmin</string>
+    <string name="garmin_state_section">Состояние</string>
+    <string name="garmin_sdk_ready">SDK готов</string>
+    <string name="answer_yes">Да</string>
+    <string name="answer_no">Нет</string>
+    <string name="garmin_registered">Зарегистрирован</string>
+    <string name="garmin_last_send">Последняя отправка</string>
+    <string name="garmin_last_received">Последнее получение</string>
+    <string name="garmin_queued_messages">Сообщения в очереди</string>
+    <string name="garmin_queue_waiting">Ожидает</string>
+    <string name="garmin_queue_empty">Пусто</string>
+    <string name="kerfstok_watch_ui">Интерфейс часов Kerfstok</string>
+    <string name="webserver_running">Веб-сервер работает</string>
+    <string name="webserver_paused">Веб-сервер приостановлен</string>
+    <string name="webserver_local_only_desc">Ограничить сервер localhost</string>
+    <string name="webserver_wifi_unavailable">IP Wi-Fi недоступен, используется адрес loopback.</string>
+    <string name="webserver_loopback">Loopback: %1$s</string>
+    <string name="webserver_endpoint_current">Текущее</string>
+    <string name="webserver_endpoint_entries">Записи</string>
+    <string name="webserver_endpoint_report">Отчёт</string>
+    <string name="webserver_help_endpoints">Совместимые с Nightscout адреса обслуживаются прямо с этого телефона.</string>
+    <string name="webserver_help_paths">Базовый URL открывает пути api/v1/entries/current, api/v1/entries и x/report.</string>
+    <string name="webserver_help_local">«Только локально» — для проверки на том же устройстве. Для LAN отключите.</string>
+    <string name="webserver_help_ssl">С SSL приложение создаёт собственный сертификат. Если у вас есть сертификат от УЦ, импортируйте его.</string>
+    <string name="qr_code">QR-код</string>
+    <string name="chart_jump_to_date">Перейти к дате</string>
+    <string name="chart_back_to_now">Вернуться к текущему</string>
+    <string name="talker_media_sound">Медиа</string>
 </resources>

@@ -145,7 +145,7 @@ enum class GmiBand {
     WELL_ABOVE_TARGET;
 
     companion object {
-        /** The consensus target for most adults on therapy; `R.string.gmi_target_value` prints it. */
+        /** The consensus target for most adults on therapy; the GMI tile prints it, locale-formatted. */
         const val TARGET_PERCENT = 7.0f
 
         /** Half a point over target is a miss worth flagging, not yet the worst band. */

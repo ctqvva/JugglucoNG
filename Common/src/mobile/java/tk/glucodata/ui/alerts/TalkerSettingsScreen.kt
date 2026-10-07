@@ -343,7 +343,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 }
 
                 SettingsSwitchItem(
-                    title = "Media",
+                    title = stringResource(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
                     icon = Icons.Default.MusicNote,

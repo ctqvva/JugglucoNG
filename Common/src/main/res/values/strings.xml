@@ -118,7 +118,7 @@
  <string name="reinit">Reinit</string>
  <string name="watchappinstalled">Watch app installed on watch</string>
  <string name="error">Error</string>
- <string name="additem">Add Item</string>
+ <string name="additem">Add item</string>
  <string name="round">"Round "</string>
  <string name="repeat">Repeat</string>
  <string name="ingredient">Ingredient: </string>
@@ -265,9 +265,9 @@
 <string name="withoutsaving">Leave without saving?</string>
 <string name="active">Active</string>
 <string name="usessl">Use SSL</string>
-<string name="fullchain">Full Chain</string>
+<string name="fullchain">Full chain</string>
 
-	<string name="privatekey">Private Key</string>
+	<string name="privatekey">Private key</string>
 <string name="localonly">Local only</string>
 <string name="toolongsecret">: api_secret too long. max=</string>
 <string name="invalidport">" invalid port number"</string>
@@ -296,7 +296,7 @@
  <string name="talker">Voice</string>
  <string name="secondsbetween">Seconds between</string>
  <string name="test">Test</string>
- <string name="streamhistory">Bluetooth History</string>
+ <string name="streamhistory">Bluetooth history</string>
  <string name="libreisviewed">Spy views</string>
  <string name="novalue">No value</string>
  <string name="tts_missed_readings">Missed readings</string>
@@ -492,7 +492,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
 <string name="QRmirror">Mirror via QR</string>
     <string name="turnservers">TURN Servers</string>
-    <string name="turnserver">TURN Server</string>
+    <string name="turnserver">TURN server</string>
     <string name="hybrid_configuration">Hybrid configuration</string>
     <string name="hybrid_configuration_summary">Local discovery, rendezvous, STUN and TURN</string>
     <string name="clone_ice_services">ICE services</string>
@@ -537,19 +537,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_age_days_compact">%1$dd</string>
     <string name="sensor_reading_age_seconds">%1$ds</string>
     <string name="sensor_reading_age_minutes">%1$dm</string>
-    <string name="select_unit">Select Unit</string>
+    <string name="select_unit">Select unit</string>
     <string name="select_theme">Select Theme</string>
-    <string name="select_language">Select Language</string>
+    <string name="select_language">Select language</string>
     <string name="system_default">System Default</string>
     <string name="scanner_label">Scanner</string>
 
     <!-- Debug Settings Strings -->
-    <string name="debug_logs_title">Debug Logs</string>
+    <string name="debug_logs_title">Debug logs</string>
     <string name="clear">Clear</string>
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
     <string name="ble_error_history">BLE error history</string>
-    <string name="log_enabled_waiting">Log enabled. Waiting for entries...</string>
+    <string name="log_enabled_waiting">Log enabled. Waiting for entries…</string>
     <string name="log_unchecked">Log unchecked. Enable to start.</string>
     <string name="error_reading_file">"Error reading file: "</string>
     <string name="error_saving_file">"Error saving file: "</string>
@@ -587,7 +587,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
     <string name="ice">ICE</string>
-    <string name="ice_label">ICE Label</string>
+    <string name="ice_label">ICE label</string>
     <string name="hostname_ip">Hostname / IP</string>
     <string name="test_ip">Test IP</string>
     <string name="test_label">Test Label</string>
@@ -599,7 +599,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="hide_password">Hide password</string>
 
     <string name="turn_server">TURN server</string>
-    <string name="add_connection">Add Connection</string>
+    <string name="add_connection">Add connection</string>
     <string name="help">Help</string>
     <string name="send_to">Send to</string>
     <string name="receive_from">Receive from</string>
@@ -619,12 +619,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_state">Status</string>
     <string name="no_sensors_found">No sensors found</string>
     <string name="wear_libre_nfc_caveat">Libre sensors are activated with the phone\'s NFC first. After activation, this watch can take over.</string>
-    <string name="add_sensor">Add Sensor</string>
+    <string name="add_sensor">Add sensor</string>
     <string name="sensors_title">Sensors</string>
     <string name="add_sensor_title">Add Sensor</string>
     
     <!-- Sensor Screen Strings -->
-    <string name="calibration_algorithm">Calibration Algorithm</string>
+    <string name="calibration_algorithm">Calibration algorithm</string>
     <string name="restart_autocal_title">Restart auto-calibration?</string>
     <string name="restart_autocal_desc">Clear all in-app auto-calibration data, restart algorithm and reconnect?</string>
     <string name="restart">Restart</string>
@@ -649,29 +649,29 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <!-- Settings Strings -->
     <string name="theme_title">Theme</string>
-    <string name="theme_system">System Default</string>
+    <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     
     <string name="advanced_title">Advanced</string>
-    <string name="debug_logs">Debug Logs</string>
-    <string name="nightscout_config">Nightscout Config</string>
+    <string name="debug_logs">Debug logs</string>
+    <string name="nightscout_config">Nightscout config</string>
     
     <!-- LibreView Settings -->
     <string name="libreview_config">LibreView</string>
     <string name="libreview_desc">Sync with Abbott LibreView</string>
-    <string name="libreview_settings_title">LibreView Settings</string>
+    <string name="libreview_settings_title">LibreView settings</string>
     <string name="libreview_email">Email</string>
     <string name="libreview_password">Password</string>
     <string name="libreview_active">Send to LibreView</string>
     <string name="libreview_active_desc">Enable LibreView upload</string>
-    <string name="libreview_current">Show Current Glucose</string>
+    <string name="libreview_current">Show current glucose</string>
     <string name="libreview_is_viewed">Mark as Viewed</string>
     <string name="libreview_send_numbers">Send Insulin/Carbs</string>
-    <string name="libreview_send_now">Send Now</string>
-    <string name="libreview_resend">Resend Data</string>
+    <string name="libreview_send_now">Send now</string>
+    <string name="libreview_resend">Resend data</string>
     <string name="libreview_account_id">Account ID</string>
-    <string name="libreview_get_account_id">Get Account ID</string>
+    <string name="libreview_get_account_id">Get account ID</string>
     <string name="libreview_status">Status</string>
     <string name="libreview_russia">Russia region</string>
     
@@ -718,35 +718,35 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_connection_log">Connection log</string>
     <string name="sensor_address">Address</string>
     <string name="sensor_started">Started</string>
-    <string name="sensor_ends_officially">Ends Officially</string>
-    <string name="sensor_expected_end">Expected End</string>
+    <string name="sensor_ends_officially">Ends officially</string>
+    <string name="sensor_expected_end">Expected end</string>
     <string name="sensor_battery_voltage">Battery</string>
     <string name="auto_reset_title">Auto reset</string>
     <string name="auto_reset_days">%1$d days</string>
     <string name="auto_reset_never">Never</string>
     
     <!-- Sensor Onboarding Strings -->
-    <string name="no_sensor_title">No Sensor Connected</string>
+    <string name="no_sensor_title">No sensor connected</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
 
     
     <!-- Sibionics Setup Wizard -->
-    <string name="sibionics_setup_title">Sibionics Setup</string>
-    <string name="scan_sensor_qr">Scan Sensor QR Code</string>
+    <string name="sibionics_setup_title">Sibionics setup</string>
+    <string name="scan_sensor_qr">Scan sensor QR code</string>
     <string name="scan_sensor_qr_desc">Scan the data matrix on the sensor packaging</string>
     <string name="select_sibionics_type">Choose a Sibionics sensor</string>
     <string name="scan_transmitter">Scan Transmitter</string>
 
-    <string name="connecting">Connecting...</string>
+    <string name="connecting">Connecting…</string>
     <string name="setup_complete">Setup Complete</string>
     
     <!-- Libre Setup Wizard -->
-    <string name="libre_setup_title">Libre Setup</string>
+    <string name="libre_setup_title">Libre setup</string>
     <string name="libre_nfc_instruction">Hold your phone near the sensor to scan</string>
-    <string name="scan_libre_sensor">Scan Libre Sensor</string>
-    <string name="libre_setup_step_libreview">LibreView Account</string>
+    <string name="scan_libre_sensor">Scan Libre sensor</string>
+    <string name="libre_setup_step_libreview">LibreView account</string>
     <string name="libre_setup_step_libreview_desc">LibreView upload is optional, but Libre 3 sensors require the Account ID to work</string>
-    <string name="libre_setup_step_scan">Scan Sensor</string>
+    <string name="libre_setup_step_scan">Scan sensor</string>
     <string name="libre_setup_skip">Skip</string>
     <string name="libre_setup_next">Next</string>
     <string name="libre_setup_done">Done</string>
@@ -768,7 +768,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_setup_account_id_timeout">Timed out. Check credentials and try again.</string>
     
     <!-- Dexcom Setup Wizard -->
-    <string name="dexcom_setup_title">Dexcom Setup</string>
+    <string name="dexcom_setup_title">Dexcom setup</string>
     <string name="dexcom_scan_instruction">Scan the data matrix on your Dexcom sensor</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_pairing_code_label">4-digit pairing code</string>
@@ -780,7 +780,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_accuchek">Scan Accu-Chek</string>
 
     <!-- CareSens Air Setup Wizard -->
-    <string name="caresens_air_setup_title">CareSens Air Setup</string>
+    <string name="caresens_air_setup_title">CareSens Air setup</string>
     <string name="caresens_air_scan_instruction">Scan the sensor code on your CareSens Air package</string>
     <string name="scan_caresens_air">Scan CareSens Air</string>
 
@@ -793,8 +793,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notifications">Alerts and notifications</string>
 
     <!-- Expressive Settings Strings -->
-    <string name="data_management">Data Management</string>
-    <string name="export_data">Export Data</string>
+    <string name="data_management">Data management</string>
+    <string name="export_data">Export data</string>
     <string name="export_data_desc">Save history to CSV/TSV</string>
     <string name="export_settings">Export Settings</string>
     <string name="export_settings_desc">Save all app settings, credentials, and device keys</string>
@@ -848,16 +848,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="export_range_90_days">90 days</string>
     <string name="export_range_365_days">365 days</string>
     <string name="export_range_all">All history</string>
-    <string name="export_save_to_files">Save to Files</string>
+    <string name="export_save_to_files">Save to files</string>
     <string name="export_share_to_cloud">Share to cloud app</string>
     <string name="export_nothing_selected">Choose at least one export item</string>
-    <string name="import_data">Import Data</string>
+    <string name="import_data">Import data</string>
     <string name="import_data_desc">Load backup or Libreview file</string>
     <string name="import_data_settings">Import Data/Settings</string>
     <string name="import_data_settings_desc">Restore a history CSV or JugglucoNG export</string>
     <string name="settings_import_confirm_title">Import settings?</string>
     <string name="settings_import_confirm_message">This replaces app settings, credentials, device keys, and mirror configuration, then restarts the app.</string>
-    <string name="settings_import_successful">Settings imported. Restarting...</string>
+    <string name="settings_import_successful">Settings imported. Restarting…</string>
     <string name="days_to_export">Days to export</string>
     <string name="quick_range">Quick range</string>
     <string name="add_patient_info">Add patient information</string>
@@ -868,13 +868,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="patient_dob_label">Date of birth</string>
     <string name="patient_clinician_label">Care team</string>
     
-    <string name="danger_zone">Danger Zone</string>
-    <string name="clear_history">Clear History</string>
+    <string name="danger_zone">Danger zone</string>
+    <string name="clear_history">Clear history</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
     <string name="clear_history_desc_short">Remove all glucose readings from database</string>
-    <string name="clear_app_data">Clear App Data</string>
+    <string name="clear_app_data">Clear app data</string>
     <string name="clear_app_data_desc">Remove history and cache, keep settings</string>
-    <string name="factory_reset">Factory Reset</string>
+    <string name="factory_reset">Factory reset</string>
     <string name="factory_reset_desc">Remove everything, return to first-run state</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
     <string name="factory_reset_confirm">Factory Reset?</string>
@@ -913,8 +913,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="unit_mg">mg/dL</string>
     <string name="unit_mmol">mmol/L</string>
-    <string name="alert_mode">Alert Mode</string>
-    <string name="sound_vibrate">Sound &amp; Vibrate</string>
+    <string name="alert_mode">Alert mode</string>
+    <string name="sound_vibrate">Sound &amp; vibrate</string>
     <string name="vibrate_only">Vibrate</string>
 
     <!-- Alert Types (Clean, no 'Glucose' suffix) -->
@@ -957,22 +957,22 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alert_amount">Amount Alert</string>
 
     <!-- Hardcoded Strings Extracted -->
-    <string name="import_history">Import History</string>
+    <string name="import_history">Import history</string>
     <string name="import_history_desc">Import glucose data from a JugglucoNG export or CSV file</string>
     <string name="get_started_desc">Get started by adding your sensor</string>
     <string name="select_sensor">Select Sensor Type</string>
     <string name="or_divider">"  or  "</string>
     <string name="no_sensors_connected">No sensors connected</string>
     
-    <string name="enter_sensor_codes">Enter Sensor Codes</string>
+    <string name="enter_sensor_codes">Enter sensor codes</string>
     <string name="enter_sensor_label_desc">Enter the codes printed on the sensor label</string>
     <string name="batch_code_label">Batch Code (10)</string>
     <string name="batch_code_supporting">First code on label (8-16 chars), e.g. %1$s</string>
-    <string name="serial_number_label">Serial Number</string>
+    <string name="serial_number_label">Serial number</string>
     <string name="serial_number_supporting">Second code (10-20 chars), e.g. %1$s</string>
     <string name="confirm">Confirm</string>
     
-    <string name="enter_transmitter_code">Enter Transmitter Code</string>
+    <string name="enter_transmitter_code">Enter transmitter code</string>
     <string name="enter_transmitter_desc">Enter the transmitter ID from the label</string>
     <string name="transmitter_id_label">Transmitter ID</string>
     <string name="transmitter_id_supporting">8-12 characters from transmitter label</string>
@@ -980,10 +980,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_sensor_title">Scan QR Code</string>
     <string name="scan_sensor_instruction">Scan the QR code on your generic Sibionics sensor box.</string>
     <string name="scan_sensor_instruction_sibionics2">Scan the connection code on the Sibionics 2 transmitter, or pick the transmitter from Bluetooth below.</string>
-    <string name="scan_qr_button">Scan QR Code</string>
+    <string name="scan_qr_button">Scan QR code</string>
     <string name="select_gallery_button">Select from Gallery</string>
     <string name="skip_fake_sensor">Skip (Use Fake Sensor)</string>
-    <string name="enter_code_manually">Enter Code Manually</string>
+    <string name="enter_code_manually">Enter code manually</string>
     
     <string name="choose_sibionics_variant">Select the model shown on its packaging.</string>
     <string name="continue_action">Continue</string>
@@ -1008,7 +1008,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="text_file">Readable Text (.txt)</string>
     <string name="text_desc">Best for sharing/printing</string>
     <string name="export_button">Export</string>
-    <string name="export_history_title">Export History</string>
+    <string name="export_history_title">Export history</string>
     <string name="export_history_sub">Save glucose readings to CSV or text file</string>
     <string name="import_history_title">Import History</string>
     <string name="import_history_sub">Restore glucose readings from a JugglucoNG export or CSV file</string>
@@ -1035,9 +1035,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cannot_be_undone_critical">THIS CANNOT BE UNDONE!</string>
     <string name="reset_everything_button">RESET EVERYTHING</string>
     
-    <string name="alert_sound">Alert Sound</string>
+    <string name="alert_sound">Alert sound</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
-    <string name="refreshing">Refreshing...</string>
+    <string name="refreshing">Refreshing…</string>
     <!-- Missing UI Strings -->
     <string name="auto_calibration_mode">Sensor algorithm</string>
     <string name="sibionics_custom_algorithm">Adaptive sensor model (experimental)</string>
@@ -1056,7 +1056,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_connection_failed">Connection failed</string>
     <string name="status_connected">Connected</string>
     <string name="status_disconnected">Disconnected</string>
-    <string name="status_waiting_for_data">Connected, waiting for data...</string>
+    <string name="status_waiting_for_data">Connected, waiting for data…</string>
     <string name="status_raw_values_received">Connected, raw values received</string>
     <string name="status_invalid_glucose_from_sensor">Invalid glucose from sensor</string>
     
@@ -1084,14 +1084,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_sensor_desc" translatable="false">RGMS-30, V3</string>
 
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_setup_title">Ottai Setup</string>
+    <string name="ottai_setup_title">Ottai setup</string>
     <string name="ottai_login_title">Sign in to Ottai</string>
     <string name="ottai_phone_hint">Phone number</string>
     <string name="ottai_send_code">Send code</string>
     <string name="ottai_code_hint">SMS code</string>
-    <string name="ottai_code_sent">Code sent - enter it below (ref ...%1$s)</string>
+    <string name="ottai_code_sent">Code sent - enter it below (ref …%1$s)</string>
     <string name="ottai_login_button">Sign in</string>
-    <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
+    <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Signed in</string>
     <string name="ottai_session_invalid">Your cloud session is no longer valid — sign in again</string>
     <string name="ottai_account_id">Account: %1$s</string>
@@ -1213,21 +1213,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mq_selectable_unrecognized">%1$s · shown because \"See all devices\" is on</string>
     <string name="mq_connecting_to">Pairing %1$s…</string>
     <!-- Sibionics Setup Wizard Strings -->
-    <string name="scan_transmitter_title">Scan Transmitter</string>
+    <string name="scan_transmitter_title">Scan transmitter</string>
     <string name="scan_transmitter_desc">Select a nearby device or scan the QR code.</string>
     <string name="clear_previous_state">Clear previous state</string>
-    <string name="scanning_devices">Scanning for devices...</string>
+    <string name="scanning_devices">Scanning for devices…</string>
     <string name="search_bluetooth">Search Bluetooth</string>
     <string name="found_devices_title">Found Devices:</string>
-    <string name="looking_for_transmitters">Looking for nearby transmitters...</string>
+    <string name="looking_for_transmitters">Looking for nearby transmitters…</string>
     <string name="or_scan_qr">Or scan QR code</string>
-    <string name="scan_transmitter_button">Scan Transmitter</string>
-    <string name="connecting_to_sensor">Connecting to sensor...</string>
+    <string name="scan_transmitter_button">Scan transmitter</string>
+    <string name="connecting_to_sensor">Connecting to sensor…</string>
     <string name="connecting_to_sensor_wait">Please wait while we establish a connection.</string>
 
     <!-- AiDex Setup Wizard Strings -->
     <string name="aidex_setup_title">AiDex / LinX Setup</string>
-    <string name="aidex_searching_sensors">Searching for sensors...</string>
+    <string name="aidex_searching_sensors">Searching for sensors…</string>
     <string name="aidex_parse_error">AiDex: couldn\'t parse sensor serial from "%1$s"</string>
     <string name="aidex_key_management_title">Keys &amp; account</string>
     <string name="aidex_key_management_desc">Local pairing is tried first. Add a sensor-specific key only after the sensor reports that one is missing.</string>
@@ -1241,7 +1241,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_key_fetch_action">Get key from account</string>
     <string name="aidex_key_fetch_requires_sign_in">Sign in to download this sensor\'s key.</string>
     <string name="aidex_key_import_failed">Import failed — not a valid AiDex key file.</string>
-    <string name="aidex_connecting_to">Connecting to %1$s...</string>
+    <string name="aidex_connecting_to">Connecting to %1$s…</string>
     <string name="aidex_connected">Connected!</string>
     <string name="finish_setup">Finish</string>
     <string name="show_sensors_only">Show sensors only</string>
@@ -1253,14 +1253,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Statistics Screen Strings -->
     <string name="statistics_title">Statistics</string>
     <string name="statistics_subtitle">Your glucose analytics</string>
-    <string name="time_in_range">Time in Range</string>
+    <string name="time_in_range">Time in range</string>
     <string name="average_glucose">Average</string>
     <string name="a1c_gmi_label">A1C (GMI)</string>
-    <string name="in_range">In Range</string>
+    <string name="in_range">In range</string>
     <string name="low_range">Low</string>
     <string name="high_range">High</string>
-    <string name="very_low">Very Low</string>
-    <string name="very_high">Very High</string>
+    <string name="very_low">Very low</string>
+    <string name="very_high">Very high</string>
     <string name="variability_score">Variability Score</string>
     <string name="cv_percentage">CV: %1$d%%</string>
     <string name="standard_deviation">Standard Deviation: %1$s %2$s</string>
@@ -1271,8 +1271,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="std_dev_description">Standard deviation: typical distance of readings from your average glucose.</string>
     <string name="gmi_target">Target</string>
     <string name="gmi_target_value">&lt;7.0%</string>
-    <string name="hourly_patterns">Hourly Patterns</string>
-    <string name="daily_trends">Daily Trends</string>
+    <string name="hourly_patterns">Hourly patterns</string>
+    <string name="daily_trends">Daily trends</string>
     <string name="insights">Insights</string>
     <string name="detailed_statistics">Detailed Statistics</string>
     <string name="readings">Readings</string>
@@ -1281,7 +1281,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max_glucose">Max</string>
     <string name="range">Range</string>
     <string name="start_tracking">Start tracking your glucose to see statistics</string>
-    <string name="loading_data">Loading...</string>
+    <string name="loading_data">Loading…</string>
     
     <!-- Variability Labels -->
     <string name="variability_excellent">Excellent</string>
@@ -1312,14 +1312,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="psg_title">Personal Glycemic State</string>
     <string name="psg_description">Personal Glycemic State: your typical glucose baseline in this range, with confidence and trend context.</string>
     <string name="iqr_description">Interquartile range: the spread of the middle 50% of glucose readings (P25-P75). Lower values mean a tighter, steadier glucose range.</string>
-    <string name="gvi_excellent">Excellent Stability</string>
-    <string name="gvi_good">Good Stability</string>
-    <string name="gvi_moderate">Moderate Variability</string>
-    <string name="gvi_poor">High Variability</string>
-    <string name="psg_stable">Stable Baseline</string>
-    <string name="psg_elevated">Elevated Baseline</string>
-    <string name="psg_low">Low Baseline</string>
-    <string name="psg_unstable">Unstable Pattern</string>
+    <string name="gvi_excellent">Excellent stability</string>
+    <string name="gvi_good">Good stability</string>
+    <string name="gvi_moderate">Moderate variability</string>
+    <string name="gvi_poor">High variability</string>
+    <string name="psg_stable">Stable baseline</string>
+    <string name="psg_elevated">Elevated baseline</string>
+    <string name="psg_low">Low baseline</string>
+    <string name="psg_unstable">Unstable pattern</string>
     
     <!-- Time Range Labels -->
     <string name="range_1d">1D</string>
@@ -1366,17 +1366,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="detailed_stats">Detailed Statistics</string>
 
     <!-- Alert settings localization keys -->
-    <string name="active_time_range_title">Active Time Range</string>
-    <string name="add_high_alert">Add High Alert</string>
-    <string name="add_low_alert">Add Low Alert</string>
+    <string name="active_time_range_title">Active time range</string>
+    <string name="add_high_alert">Add high alert</string>
+    <string name="add_low_alert">Add low alert</string>
     <string name="alert_active_from_to">Alerts active from %1$s to %2$s</string>
     <string name="alert_active_from_to_next_day">Alerts active from %1$s to %2$s (next day)</string>
     <string name="alert_after">Alert after</string>
     <string name="alert_name">Alert name</string>
-    <string name="app_default_sound">App Default Sound</string>
-    <string name="custom_high">Custom High</string>
-    <string name="custom_low">Custom Low</string>
-    <string name="custom_sound_selected">Custom Sound Selected</string>
+    <string name="app_default_sound">App default sound</string>
+    <string name="custom_high">Custom high</string>
+    <string name="custom_low">Custom low</string>
+    <string name="custom_sound_selected">Custom sound selected</string>
     <string name="default_snooze">Default snooze</string>
     <string name="alert_reset_defaults">Reset to defaults</string>
     <string name="delete_custom_alert">Delete custom alert</string>
@@ -1386,19 +1386,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sound_delay_label">Sound delay</string>
     <string name="sound_delay_hypo_warning">Caution: this delays the audible alarm for a low-glucose alert.</string>
     <string name="end">End</string>
-    <string name="high_alert">High Alert</string>
-    <string name="high_alerts">High Alerts</string>
+    <string name="high_alert">High alert</string>
+    <string name="high_alerts">High alerts</string>
     <string name="high_alerts_title">High alerts</string>
     <string name="look_ahead">Look ahead</string>
-    <string name="low_alert">Low Alert</string>
-    <string name="low_alerts">Low Alerts</string>
+    <string name="low_alert">Low alert</string>
+    <string name="low_alerts">Low alerts</string>
     <string name="low_alerts_title">Low alerts</string>
     <string name="max_retries">Max retries</string>
     <string name="minutes_short_format">%1$d min</string>
     <string name="only_alert_during_hours">Only alert during selected hours</string>
     <string name="other_alerts">Sensor and connection</string>
     <string name="predictive_alerts">Trends and forecasts</string>
-    <string name="preemptive_snooze">Preemptive Snooze</string>
+    <string name="preemptive_snooze">Preemptive snooze</string>
     <string name="preemptive_snooze_desc">Snooze alerts before they trigger</string>
     <string name="notification_dismiss_action_dismiss">Dismiss</string>
     <string name="notification_dismiss_action_snooze">Snooze</string>
@@ -1413,7 +1413,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="retry_summary_forever">Every %1$d min • forever</string>
     <string name="select_time_for_label">Select time for %1$s</string>
     <string name="snooze">Snooze</string>
-    <string name="system_default_sound">System Default Sound</string>
+    <string name="system_default_sound">System default sound</string>
     <string name="tap_to_change">Tap to change</string>
     <string name="threshold_label">Threshold</string>
     <string name="persistent_high_fall_suppress_label">Mute while falling</string>
@@ -1443,7 +1443,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="addconnection">Addconnection</string>
     <string name="adjust_sensor_readings">Adjust sensor readings</string>
     <string name="advancedAlarmshelp">Advanced Alarms Help</string>
-    <string name="aidex_probe_scanning">Scanning for AiDex devices...</string>
+    <string name="aidex_probe_scanning">Scanning for AiDex devices…</string>
     <string name="alarmhelp">Alarm Help</string>
     <string name="alert_name_example">e.g. Dawn Phenomenon</string>
     <string name="all_calibrations_cleared">All calibrations cleared</string>
@@ -1473,7 +1473,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_noisy_status">Calibration unavailable; signal noise is too high</string>
     <string name="calibrate_sensor_desc">Enter a blood glucose value in %1$s to calibrate the sensor</string>
     <string name="calibrate_sensor_timing_note">Avoid calibrating within 2 hours after meals or insulin.</string>
-    <string name="calibrate_sensor_title">Calibrate Sensor</string>
+    <string name="calibrate_sensor_title">Calibrate sensor</string>
     <string name="calibration_deleted">Calibration deleted</string>
     <string name="calibration_profile_exported">Calibration profile exported</string>
     <string name="calibration_with_mode">Calibration (%1$s)</string>
@@ -1563,7 +1563,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dynamic_island_desc">Dock to camera cutout</string>
     <string name="dynamic_island_mode">Dynamic Island mode</string>
     <string name="edit_alert">Edit alert</string>
-    <string name="edit_calibration_title">Edit Calibration</string>
+    <string name="edit_calibration_title">Edit calibration</string>
     <string name="edit_connection">Edit connection</string>
     <string name="enable_bluetooth_first">Enable Bluetooth first</string>
     <string name="enable_calibration">Enable calibration</string>
@@ -1572,11 +1572,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="end_time_with_value">End: %1$s</string>
     <string name="exchangehelp">Exchange Help</string>
     <string name="experimental">Experimental</string>
-    <string name="export_complete_csv">Export Complete CSV</string>
+    <string name="export_complete_csv">Export complete CSV</string>
     <string name="export_failed">Export failed</string>
     <string name="export_failed_with_error">Export failed: %1$s</string>
     <string name="export_profile">Export profile</string>
-    <string name="export_readable_report">Export Readable Report</string>
+    <string name="export_readable_report">Export readable report</string>
     <string name="report_style_title">Report visual style</string>
     <string name="report_style_current">Current</string>
     <string name="report_style_minimal_swiss">Minimal Swiss</string>
@@ -1674,7 +1674,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_receive_amounts_desc">Import Nightscout insulin/carbs into journal. The access token needs the api:treatments:read permission.</string>
     <string name="nightscout_upload_iob">Send IOB to Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout then shows this value instead of its own calculation from its profile. eIOB and COB are sent along in a separate field. The access token needs api:devicestatus:create.</string>
-    <string name="nightscout_settings_title">Nightscout Settings</string>
+    <string name="nightscout_settings_title">Nightscout settings</string>
     <string name="nightscout_sync_actions_title">Sync actions</string>
     <string name="nightscout_url_label">Nightscout URL</string>
     <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
@@ -1690,9 +1690,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_test_connection">Test connection</string>
     <string name="nightscout_test_ok">Connected - HTTP %1$d</string>
     <string name="nightscout_test_error">Failed - %1$s</string>
-    <string name="nightscout_test_testing">Testing...</string>
+    <string name="nightscout_test_testing">Testing…</string>
     <string name="nightscout_refresh_token">Refresh token</string>
-    <string name="nightscout_token_refreshing">Refreshing token...</string>
+    <string name="nightscout_token_refreshing">Refreshing token…</string>
     <string name="nightscout_token_ok">Token valid until %1$s - permissions: %2$s</string>
     <string name="nightscout_token_error">Token refresh failed - %1$s</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
@@ -1715,9 +1715,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="anytime_calibration_applied_reading">Applied #%1$d</string>
     <string name="anytime_calibration_pending_record">Pending next reading</string>
     <string name="anytime_calibration_algorithm_output">Output: %1$s</string>
-    <string name="reinit_progress">Re-initializing...</string>
+    <string name="reinit_progress">Re-initializing…</string>
     <string name="reminders">Reminders</string>
-    <string name="requesting_account_id">Requesting account ID...</string>
+    <string name="requesting_account_id">Requesting account ID…</string>
     <string name="resend_data_reset">Resend Data (Reset)</string>
     <string name="resend_triggered">Resend triggered</string>
     <string name="reset_correction_desc">Manage initialization bias correction and hardware reset</string>
@@ -1736,10 +1736,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="selected_count">Selected (%1$d)</string>
     <string name="send_receive">Send / receive</string>
     <string name="send_to_colon">Send to:</string>
-    <string name="sending_now">Sending...</string>
+    <string name="sending_now">Sending…</string>
     <string name="sensor_age">Sensor age</string>
     <string name="sensor_expired_text">Sensor expired</string>
-    <string name="sensor_life">Sensor life</string>
+    <string name="sensor_life">Remaining</string>
     <string name="sensorhelp">Sensor Help</string>
     <string name="sensormirror">Sensormirror</string>
     <string name="setlibrenumtype">Setlibrenumtype</string>
@@ -1754,8 +1754,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stathelp">Stat Help</string>
     <string name="staticnum">Staticnum</string>
     <string name="stop">Stop</string>
-    <string name="syncing">Syncing...</string>
-    <string name="talkhelp">Talk Help</string>
+    <string name="syncing">Syncing…</string>
+    <string name="talkhelp">Talk help</string>
     <string name="test_alert">Test alert</string>
     <string name="text_alignment">Text alignment</string>
     <string name="this_action_can_be_undone">This action can be undone.</string>
@@ -2402,8 +2402,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="cgm_readiness_fix_action">Fix</string>
     <string name="cgm_readiness_allow_action">Allow</string>
     <string name="cgm_readiness_enable_bluetooth_action">Turn on Bluetooth</string>
-    <string name="cgm_readiness_open_location_action">Open Location</string>
-    <string name="cgm_readiness_open_notifications_action">Open Notifications</string>
+    <string name="cgm_readiness_open_location_action">Open location</string>
+    <string name="cgm_readiness_open_notifications_action">Open notifications</string>
     <string name="cgm_readiness_open_alarm_action">Open Alarm access</string>
     <string name="cgm_readiness_open_full_screen_action">Allow full-screen alarms</string>
     <string name="cgm_readiness_open_battery_action">Open Battery settings</string>
@@ -2468,10 +2468,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_nearby_message">Found at %1$s:%2$d.\nThis will receive glucose data from %3$s.</string>
     <string name="mirror_connection_data_missing">Connection data missing</string>
     <string name="mirror_reconnect_all">Reconnect all</string>
-    <string name="mirror_quick_pair">Quick Pair</string>
-    <string name="mirror_share_my_qr">Share Local QR</string>
+    <string name="mirror_quick_pair">Quick pair</string>
+    <string name="mirror_share_my_qr">Share local QR</string>
     <string name="mirror_share_my_qr_desc">Same local network only</string>
-    <string name="mirror_share_relay_qr">Share Hybrid QR</string>
+    <string name="mirror_share_relay_qr">Share hybrid QR</string>
     <string name="mirror_share_relay_qr_desc">Tries direct first, then TURN if needed</string>
     <string name="mirror_scan_qr_desc">Scan another device QR to connect</string>
     <string name="mirror_broadcast_network">Broadcast on Network</string>
@@ -2480,8 +2480,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_turn_server_desc">TURN relay for remote connections</string>
     <string name="mirror_connections">Connections</string>
     <string name="mirror_clone_master">Clone</string>
-    <string name="mirror_default_local_label">Local Clone</string>
-    <string name="mirror_default_hybrid_label">Hybrid Clone</string>
+    <string name="mirror_default_local_label">Local clone</string>
+    <string name="mirror_default_hybrid_label">Hybrid clone</string>
     <string name="mirror_clone_master_desc">Enable all saved Clone connections</string>
     <string name="clone_history_recovery">History recovery</string>
     <string name="clone_history_direction_send">Send to receiver</string>
@@ -2530,7 +2530,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_no_connections">No connections. Use Quick Pair or tap + to add.</string>
     <string name="mirror_delete_connection_title">Delete connection?</string>
     <string name="mirror_delete_connection_message">%1$s will be removed permanently.</string>
-    <string name="mirror_connection_type">Connection Type</string>
+    <string name="mirror_connection_type">Connection type</string>
     <string name="mirror_type_local">Local</string>
     <string name="mirror_type_direct_ip">Direct</string>
     <string name="mirror_type_local_hint">Same Wi-Fi. IP auto-detected.</string>
@@ -2539,7 +2539,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_details">Details</string>
     <string name="mirror_auto_detect_ip">Auto-detect IP</string>
     <string name="mirror_auto_detect_ip_desc">Use local network discovery for this connection</string>
-    <string name="mirror_ip_address">IP Address</string>
+    <string name="mirror_ip_address">IP address</string>
     <string name="mirror_ip_address_desc">Manual local IP for this device</string>
     <string name="mirror_ice_label_desc">Email or identifier - must match on both devices</string>
     <string name="mirror_hostname_ip_address">Hostname / IP Address</string>
@@ -2555,9 +2555,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_direction_active_hint">Only connect outbound to the other device.</string>
     <string name="mirror_direction_both_hint">Both listen and connect outbound.</string>
     <string name="mirror_role">Role</string>
-    <string name="mirror_receive_data">Receive Data</string>
+    <string name="mirror_receive_data">Receive data</string>
     <string name="mirror_receive_data_desc">This device receives glucose data</string>
-    <string name="mirror_send_data">Send Data</string>
+    <string name="mirror_send_data">Send data</string>
     <string name="mirror_send_data_desc">This device sends glucose data</string>
     <string name="mirror_security">Security</string>
     <string name="mirror_password_desc">Must match on both devices</string>
@@ -2569,7 +2569,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="volume_profile_ascending">Ascending</string>
     <string name="volume_profile_vibrate_only">Vibrate only</string>
     <string name="volume_profile_silent">Silent</string>
-    <string name="restart_app">Restart App</string>
+    <string name="restart_app">Restart app</string>
     <string name="restart_app_desc">Force restart the application</string>
     <string name="haptics">Haptics</string>
     <string name="sound_duration">Sound duration</string>
@@ -2688,7 +2688,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Telegram bot token</string>
     <string name="api_source_telegram_chat_ids">Allowed chat IDs</string>
     <string name="api_source_telegram_note">Telegram keeps bot updates for up to 24 hours. Enter one or more chat IDs/usernames whose bot messages may be imported.</string>
-    <string name="voice_schedule_title">Speak Schedule</string>
+    <string name="voice_schedule_title">Speak schedule</string>
     <string name="voice_schedule_desc">Only speak readings during this time window</string>
     <string name="voice_schedule_from">From</string>
     <string name="voice_schedule_until">Until</string>
@@ -3130,4 +3130,57 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">%d entry</item>
         <item quantity="other">%d entries</item>
     </plurals>
+    <string name="watch_transport_section">Transport</string>
+    <string name="watch_wearos_enable_desc">Enable Wear OS message transport</string>
+    <string name="watch_gms_unavailable">Google Play Services unavailable</string>
+    <string name="watch_gms_unavailable_device">Google Play Services unavailable on this device</string>
+    <string name="watch_wearos_config_desc">Wear OS device and routing settings</string>
+    <string name="watch_kerfstok_bridge">Kerfstok transport bridge</string>
+    <string name="watch_garmin_status_desc">Connection status and pairing</string>
+    <string name="watch_garmin_enable_hint">Enable Kerfstok to view status</string>
+    <string name="watch_help_wearos">Enable Wear OS to use watch message transport in this app.</string>
+    <string name="watch_help_config">Use Config to pick a watch node and set direct sensor routing.</string>
+    <string name="watch_help_garmin">Garmin Connect IQ works through Kerfstok and has separate status controls.</string>
+    <string name="never">Never</string>
+    <string name="wearos_config_title">Wear OS config</string>
+    <string name="watch_status_section">Watch status</string>
+    <string name="watch_none_found">No Wear OS watches found</string>
+    <string name="watch_none_found_hint">Open Juggluco on the watch, then tap refresh</string>
+    <string name="watch_routing_section">Routing</string>
+    <string name="watch_enter_amounts">Enter amounts on watch</string>
+    <string name="watch_enter_amounts_on">Entries made on the watch are stored and synced to the phone.</string>
+    <string name="watch_enter_amounts_off">Amounts can only be entered on the phone.</string>
+    <string name="actions_section">Actions</string>
+    <string name="watch_none_selected">No watch selected</string>
+    <string name="watch_sync_now">Sync now</string>
+    <string name="watch_restart_app">Restart watch app</string>
+    <string name="watch_send_defaults">Send defaults</string>
+    <string name="garmin_status_title">Garmin status</string>
+    <string name="garmin_state_section">State</string>
+    <string name="garmin_sdk_ready">SDK ready</string>
+    <string name="answer_yes">Yes</string>
+    <string name="answer_no">No</string>
+    <string name="garmin_registered">Registered</string>
+    <string name="garmin_last_send">Last send</string>
+    <string name="garmin_last_received">Last received</string>
+    <string name="garmin_queued_messages">Queued messages</string>
+    <string name="garmin_queue_waiting">Waiting</string>
+    <string name="garmin_queue_empty">Empty</string>
+    <string name="kerfstok_watch_ui">Kerfstok watch UI</string>
+    <string name="webserver_running">Web server is running</string>
+    <string name="webserver_paused">Web server is paused</string>
+    <string name="webserver_local_only_desc">Restrict server to localhost</string>
+    <string name="webserver_wifi_unavailable">Wi-Fi IP unavailable, using loopback URL.</string>
+    <string name="webserver_loopback">Loopback: %1$s</string>
+    <string name="webserver_endpoint_current">Current</string>
+    <string name="webserver_endpoint_entries">Entries</string>
+    <string name="webserver_endpoint_report">Report</string>
+    <string name="webserver_help_endpoints">Nightscout-compatible endpoints are served directly from this phone.</string>
+    <string name="webserver_help_paths">Base URL exposes api/v1/entries/current, api/v1/entries, and x/report paths.</string>
+    <string name="webserver_help_local">Use Local only for same-device loopback testing. Disable it for LAN.</string>
+    <string name="webserver_help_ssl">With Use SSL on, the app writes its own certificate. Import one instead if you have a CA-issued certificate.</string>
+    <string name="qr_code">QR code</string>
+    <string name="chart_jump_to_date">Jump to date</string>
+    <string name="chart_back_to_now">Back to now</string>
+    <string name="talker_media_sound">Media</string>
 </resources>

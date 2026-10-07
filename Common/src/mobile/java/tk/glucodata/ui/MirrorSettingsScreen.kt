@@ -178,7 +178,7 @@ fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     bitmap?.let {
         androidx.compose.foundation.Image(
             bitmap = it.asImageBitmap(),
-            contentDescription = "QR Code",
+            contentDescription = stringResource(R.string.qr_code),
             modifier = modifier,
             filterQuality = FilterQuality.None
         )

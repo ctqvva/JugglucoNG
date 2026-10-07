@@ -519,7 +519,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="trace_log">Trace.log</string>
     <string name="logcat">Logcat</string>
     <string name="ble_error_history">BLE алдааны түүх</string>
-    <string name="log_enabled_waiting">Лог идэвхжсэн. Бичилтүүдийг хүлээж байна...</string>
+    <string name="log_enabled_waiting">Лог идэвхжсэн. Бичилтүүдийг хүлээж байна…</string>
     <string name="log_unchecked">Лог сонгогдоогүй. Эхлүүлэхийн тулд идэвхжүүлнэ үү.</string>
     <string name="error_reading_file">"Файлыг уншихад алдаа гарлаа: "</string>
     <string name="error_saving_file">"Файлыг хадгалахад алдаа гарлаа: "</string>
@@ -668,7 +668,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="scan_sensor_qr_desc">Мэдрэгчийн баглаа боодол дээрх дата матрицыг уншуулна уу</string>
     <string name="select_sibionics_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="scan_transmitter">Дамжуулагчийг уншуулах</string>
-    <string name="connecting">Холбогдож байна...</string>
+    <string name="connecting">Холбогдож байна…</string>
     <string name="setup_complete">Тохиргоо дууслаа</string>
     <!-- Libre Setup Wizard -->
     <string name="libre_setup_title">Libre тохиргоо</string>
@@ -768,7 +768,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="import_data_settings_desc">Түүхийн CSV эсвэл JugglucoNG экспортыг сэргээх</string>
     <string name="settings_import_confirm_title">Тохиргоог импортлох уу?</string>
     <string name="settings_import_confirm_message">Энэ нь апп-ийн тохиргоо, нэвтрэх мэдээлэл, төхөөрөмжийн түлхүүрүүд болон mirror тохиргоог сольж, апп-ийг дахин эхлүүлнэ.</string>
-    <string name="settings_import_successful">Тохиргоо импортлогдлоо. Дахин эхлүүлж байна...</string>
+    <string name="settings_import_successful">Тохиргоо импортлогдлоо. Дахин эхлүүлж байна…</string>
     <string name="days_to_export">Экспортлох хоног</string>
     <string name="quick_range">Хурдан хүрээ</string>
     <string name="add_patient_info">Өвчтөний мэдээлэл нэмэх</string>
@@ -909,7 +909,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="reset_everything_button">БҮХ ЗҮЙЛИЙГ ДАХИН ТОХИРУУЛАХ</string>
     <string name="alert_sound">Дохионы дуу</string>
     <string name="about_text">GPL-3.0 • Juggluco-ийн салаа (Fork)</string>
-    <string name="refreshing">Шинэчилж байна...</string>
+    <string name="refreshing">Шинэчилж байна…</string>
     <!-- Missing UI Strings -->
     <string name="auto_calibration_mode">Мэдрэгчийн алгоритм</string>
     <string name="sibionics_custom_algorithm">Дасан зохицох мэдрэгчийн загвар (туршилтын)</string>
@@ -927,7 +927,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="status_connection_failed">Холболт амжилтгүй</string>
     <string name="status_connected">Холбогдсон</string>
     <string name="status_disconnected">Салсан</string>
-    <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна...</string>
+    <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна…</string>
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
     <string name="select_sensor_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="choose_theme">Загвар сонгох</string>
@@ -949,17 +949,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="scan_transmitter_title">Дамжуулагчийг уншуулах</string>
     <string name="scan_transmitter_desc">Ойролцоох төхөөрөмжийг сонгох эсвэл QR кодыг уншуулна уу.</string>
     <string name="clear_previous_state">Өмнөх төлөвийг цэвэрлэх</string>
-    <string name="scanning_devices">Төхөөрөмжүүдийг хайж байна...</string>
+    <string name="scanning_devices">Төхөөрөмжүүдийг хайж байна…</string>
     <string name="search_bluetooth">Bluetooth хайлт</string>
     <string name="found_devices_title">Олдсон төхөөрөмжүүд:</string>
-    <string name="looking_for_transmitters">Ойролцоох дамжуулагчдыг хайж байна...</string>
+    <string name="looking_for_transmitters">Ойролцоох дамжуулагчдыг хайж байна…</string>
     <string name="or_scan_qr">Эсвэл QR кодыг уншуулна уу</string>
     <string name="scan_transmitter_button">Дамжуулагчийг уншуулах</string>
-    <string name="connecting_to_sensor">Мэдрэгчид холбогдож байна...</string>
+    <string name="connecting_to_sensor">Мэдрэгчид холбогдож байна…</string>
     <string name="connecting_to_sensor_wait">Холболт үүсэх хооронд хүлээнэ үү.</string>
     <!-- AiDex Setup Wizard Strings -->
     <string name="aidex_setup_title">AiDex / LinX тохиргоо</string>
-    <string name="aidex_searching_sensors">Мэдрэгч хайж байна...</string>
+    <string name="aidex_searching_sensors">Мэдрэгч хайж байна…</string>
     <string name="aidex_parse_error">AiDex: \"%1$s\"-ээс мэдрэгчийн серийн дугаарыг салгаж чадсангүй</string>
     <string name="aidex_key_management_title">Түлхүүр ба бүртгэл</string>
     <string name="aidex_key_management_desc">Эхлээд дотоод хослолтыг оролдоно. Мэдрэгч түлхүүр дутуу гэж мэдээлсний дараа л тухайн мэдрэгчийн түлхүүрийг нэмнэ үү.</string>
@@ -973,7 +973,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="aidex_key_fetch_action">Бүртгэлээс түлхүүр авах</string>
     <string name="aidex_key_fetch_requires_sign_in">Энэ мэдрэгчийн түлхүүрийг татахын тулд нэвтэрнэ үү.</string>
     <string name="aidex_key_import_failed">Импорт амжилтгүй — хүчинтэй AiDex түлхүүрийн файл биш.</string>
-    <string name="aidex_connecting_to">%1$s-д холбогдож байна...</string>
+    <string name="aidex_connecting_to">%1$s-д холбогдож байна…</string>
     <string name="aidex_connected">Холбогдлоо!</string>
     <string name="finish_setup">Дуусгах</string>
     <string name="show_sensors_only">Зөвхөн мэдрэгчийг харуулах</string>
@@ -1012,7 +1012,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="max_glucose">Хамгийн их</string>
     <string name="range">Хүрээ</string>
     <string name="start_tracking">Статистикаа харахын тулд глюкозоо хянаж эхэлнэ үү</string>
-    <string name="loading_data">Ачаалж байна...</string>
+    <string name="loading_data">Ачаалж байна…</string>
     <!-- Variability Labels -->
     <string name="variability_excellent">Маш сайн</string>
     <string name="variability_very_good">Маш сайн</string>
@@ -1158,7 +1158,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="addconnection">Холболт нэмэх</string>
     <string name="adjust_sensor_readings">Мэдрэгчийн уншилтыг тохируулах</string>
     <string name="advancedAlarmshelp">Нарийвчилсан дохионы тусламж</string>
-    <string name="aidex_probe_scanning">Scanning for AiDex devices...</string>
+    <string name="aidex_probe_scanning">Scanning for AiDex devices…</string>
     <string name="alarmhelp">Дохионы тусламж</string>
     <string name="alert_name_example">жишээ нь: Dawn Phenomenon</string>
     <string name="all_calibrations_cleared">Бүх каллибрациудыг цэвэрлэлээ</string>
@@ -1346,9 +1346,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="anytime_calibration_applied_reading">Хэрэглэсэн #%1$d</string>
     <string name="anytime_calibration_pending_record">Дараагийн уншилтыг хүлээж байна</string>
     <string name="anytime_calibration_algorithm_output">Гаралт: %1$s</string>
-    <string name="reinit_progress">Re-initializing...</string>
+    <string name="reinit_progress">Re-initializing…</string>
     <string name="reminders">Сануулга</string>
-    <string name="requesting_account_id">Requesting account ID...</string>
+    <string name="requesting_account_id">Requesting account ID…</string>
     <string name="resend_data_reset">Resend Data (Reset)</string>
     <string name="resend_triggered">Resend triggered</string>
     <string name="reset_correction_desc">Manage initialization bias correction and hardware reset</string>
@@ -1367,10 +1367,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="selected_count">Сонгосон (%1$d)</string>
     <string name="send_receive">Илгээх / хүлээж авах</string>
     <string name="send_to_colon">Send to:</string>
-    <string name="sending_now">Илгээж байна...</string>
+    <string name="sending_now">Илгээж байна…</string>
     <string name="sensor_age">Мэдрэгчийн хугацаа</string>
     <string name="sensor_expired_text">Мэдрэгчийн хугацаа дууссан</string>
-    <string name="sensor_life">Sensor life</string>
+    <string name="sensor_life">Үлдсэн</string>
     <string name="sensorhelp">Sensor Help</string>
     <string name="sensormirror">Sensormirror</string>
     <string name="setlibrenumtype">Setlibrenumtype</string>
@@ -1383,7 +1383,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stathelp">Stat Help</string>
     <string name="staticnum">Staticnum</string>
     <string name="stop">Stop</string>
-    <string name="syncing">Syncing...</string>
+    <string name="syncing">Syncing…</string>
     <string name="talkhelp">Talk Help</string>
     <string name="test_alert">Test alert</string>
     <string name="text_alignment">Text alignment</string>
@@ -2133,9 +2133,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_phone_hint">Утасны дугаар</string>
     <string name="ottai_send_code">Код илгээх</string>
     <string name="ottai_code_hint">SMS код</string>
-    <string name="ottai_code_sent">Код илгээгдлээ - доор оруулна уу (ref ...%1$s)</string>
+    <string name="ottai_code_sent">Код илгээгдлээ - доор оруулна уу (ref …%1$s)</string>
     <string name="ottai_login_button">Нэвтрэх</string>
-    <string name="ottai_login_request_suffix">\nreq=...%1$s</string>
+    <string name="ottai_login_request_suffix">\nreq=…%1$s</string>
     <string name="ottai_already_signed_in">Нэвтэрсэн</string>
     <string name="ottai_session_invalid">Таны клауд сесс хүчингүй болсон – дахин нэвтэрнэ үү</string>
     <string name="ottai_account_id">Бүртгэл: %1$s</string>
@@ -2316,9 +2316,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
     <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох. Хандалтын токенд api:treatments:read зөвшөөрөл шаардлагатай.</string>
-    <string name="nightscout_test_testing">Шалгаж байна...</string>
+    <string name="nightscout_test_testing">Шалгаж байна…</string>
     <string name="nightscout_refresh_token">Токен шинэчлэх</string>
-    <string name="nightscout_token_refreshing">Токен шинэчилж байна...</string>
+    <string name="nightscout_token_refreshing">Токен шинэчилж байна…</string>
     <string name="nightscout_token_ok">Токен %1$s хүртэл хүчинтэй - эрхүүд: %2$s</string>
     <string name="nightscout_token_error">Токен шинэчлэх амжилтгүй боллоо - %1$s</string>
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
@@ -2979,4 +2979,57 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
         <item quantity="one">%d бичлэг</item>
         <item quantity="other">%d бичлэг</item>
     </plurals>
+    <string name="watch_transport_section">Дамжуулалт</string>
+    <string name="watch_wearos_enable_desc">Wear OS мессеж дамжуулалтыг идэвхжүүлэх</string>
+    <string name="watch_gms_unavailable">Google Play үйлчилгээ байхгүй</string>
+    <string name="watch_gms_unavailable_device">Энэ төхөөрөмж дээр Google Play үйлчилгээ байхгүй</string>
+    <string name="watch_wearos_config_desc">Wear OS төхөөрөмж ба чиглүүлэлт</string>
+    <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
+    <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
+    <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>
+    <string name="watch_help_wearos">Энэ апп-д цагны мессеж дамжуулалт ашиглахын тулд Wear OS-ийг идэвхжүүлнэ үү.</string>
+    <string name="watch_help_config">Тохиргоо хэсгээс цагаа сонгож, мэдрэгчийн шууд чиглүүлэлтийг тохируулна уу.</string>
+    <string name="watch_help_garmin">Garmin Connect IQ нь Kerfstok-оор ажилладаг бөгөөд тусдаа төлөвийн удирдлагатай.</string>
+    <string name="never">Хэзээ ч үгүй</string>
+    <string name="wearos_config_title">Wear OS тохиргоо</string>
+    <string name="watch_status_section">Цагны төлөв</string>
+    <string name="watch_none_found">Wear OS цаг олдсонгүй</string>
+    <string name="watch_none_found_hint">Цаг дээр Juggluco-г нээгээд шинэчлэх товчийг дарна уу</string>
+    <string name="watch_routing_section">Чиглүүлэлт</string>
+    <string name="watch_enter_amounts">Хэмжээг цаг дээр оруулах</string>
+    <string name="watch_enter_amounts_on">Цаг дээр оруулсан бичлэгүүд хадгалагдаж утастай синк хийгдэнэ.</string>
+    <string name="watch_enter_amounts_off">Хэмжээг зөвхөн утсан дээр оруулах боломжтой.</string>
+    <string name="actions_section">Үйлдлүүд</string>
+    <string name="watch_none_selected">Цаг сонгоогүй байна</string>
+    <string name="watch_sync_now">Одоо синк хийх</string>
+    <string name="watch_restart_app">Цагны апп-ыг дахин эхлүүлэх</string>
+    <string name="watch_send_defaults">Үндсэн тохиргоог илгээх</string>
+    <string name="garmin_status_title">Garmin төлөв</string>
+    <string name="garmin_state_section">Төлөв</string>
+    <string name="garmin_sdk_ready">SDK бэлэн</string>
+    <string name="answer_yes">Тийм</string>
+    <string name="answer_no">Үгүй</string>
+    <string name="garmin_registered">Бүртгэгдсэн</string>
+    <string name="garmin_last_send">Сүүлд илгээсэн</string>
+    <string name="garmin_last_received">Сүүлд хүлээн авсан</string>
+    <string name="garmin_queued_messages">Дараалалд буй мессеж</string>
+    <string name="garmin_queue_waiting">Хүлээж байна</string>
+    <string name="garmin_queue_empty">Хоосон</string>
+    <string name="kerfstok_watch_ui">Kerfstok цагны интерфейс</string>
+    <string name="webserver_running">Веб сервер ажиллаж байна</string>
+    <string name="webserver_paused">Веб сервер түр зогссон</string>
+    <string name="webserver_local_only_desc">Серверийг localhost-оор хязгаарлах</string>
+    <string name="webserver_wifi_unavailable">Wi-Fi IP байхгүй тул loopback URL ашиглаж байна.</string>
+    <string name="webserver_loopback">Loopback: %1$s</string>
+    <string name="webserver_endpoint_current">Одоогийн</string>
+    <string name="webserver_endpoint_entries">Бичлэгүүд</string>
+    <string name="webserver_endpoint_report">Тайлан</string>
+    <string name="webserver_help_endpoints">Nightscout-тай нийцтэй хаягууд энэ утаснаас шууд үйлчилнэ.</string>
+    <string name="webserver_help_paths">Үндсэн URL нь api/v1/entries/current, api/v1/entries, x/report замуудыг нээнэ.</string>
+    <string name="webserver_help_local">Зөвхөн дотоод горимыг нэг төхөөрөмж дээр турших үед ашиглана. LAN-д унтраана уу.</string>
+    <string name="webserver_help_ssl">SSL идэвхтэй үед апп өөрийн гэрчилгээг үүсгэнэ. Хэрэв танд CA-гийн гэрчилгээ байвал түүнийг импортлоно уу.</string>
+    <string name="qr_code">QR код</string>
+    <string name="chart_jump_to_date">Огноо руу очих</string>
+    <string name="chart_back_to_now">Одоо руу буцах</string>
+    <string name="talker_media_sound">Медиа</string>
 </resources>
