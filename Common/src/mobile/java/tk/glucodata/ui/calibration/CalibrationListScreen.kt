@@ -63,6 +63,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.AppTopBar
@@ -1461,12 +1462,7 @@ private fun FloatingActionToolbar(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp),
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    bottomStart = 16.dp, 
-                    topEnd = 4.dp,
-                    bottomEnd = 4.dp
-                ),
+                shape = ConnectedButtonShapes.Leading,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1486,12 +1482,7 @@ private fun FloatingActionToolbar(
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp),
-            shape = RoundedCornerShape(
-                topStart = 4.dp,
-                bottomStart = 4.dp,
-                topEnd = 28.dp,
-                bottomEnd = 28.dp
-            ),
+            shape = ConnectedButtonShapes.Trailing,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
+import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -1330,7 +1331,6 @@ fun SensorCard(
                 Button(
                     onClick = { showSibionicsCalSheet = false },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
                 ) { Text(stringResource(R.string.close)) }
             }
         }
@@ -2387,7 +2387,6 @@ fun SensorCard(
                     onClick = { showSensorCalibrateDialog = true },
                     enabled = canCalibrate,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -2537,7 +2536,6 @@ fun SensorCard(
                     // correction is running, so it can still be switched off.
                     if (sensor.supportsHardwareReset || sensor.resetCompensationActive) FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
-                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
                                 MaterialTheme.colorScheme.tertiaryContainer
@@ -2593,7 +2591,6 @@ fun SensorCard(
                 FilledTonalButton(
                     onClick = { showUnifiedResetDialog = true },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -2718,7 +2715,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -2737,7 +2733,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2762,7 +2757,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -2928,7 +2922,6 @@ fun SensorCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        shape = RoundedCornerShape(28.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -2964,7 +2957,6 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -2989,7 +2981,6 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -3014,7 +3005,6 @@ fun SensorCard(
                         enabled = hasExportableCredentials,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -3044,7 +3034,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -3112,12 +3101,7 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 12.dp,
-                                bottomStart = 12.dp,
-                                topEnd = 4.dp,
-                                bottomEnd = 4.dp
-                            ),
+                            shape = ConnectedButtonShapes.Leading,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -3139,12 +3123,7 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showTerminateDialog = true },
                             modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                bottomStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
+                            shape = ConnectedButtonShapes.Trailing,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -3175,8 +3154,8 @@ fun SensorCard(
  * M3 Expressive split button, built by hand: `material3` 1.4.0 ships only the
  * `SplitButtonSmallTokens`, not the composable. Values follow those tokens — 40dp tall, 2dp
  * between the halves, 4dp inner corners that swell to 12dp while the trailing half is pressed,
- * a 22dp trailing glyph with 13dp either side. The outer corners stay at the 12dp this row
- * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
+ * a 22dp trailing glyph with 13dp either side, full pill outer corners like every other
+ * button on the card.
  *
  * Both halves share one container, as a split button does; the trailing key glyph alone
  * carries state — the app's in-range green while a verified key is held (tap: back it up),
@@ -3190,7 +3169,7 @@ private fun AiDexPairSplitButton(
     onKeyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val outer = 12.dp
+    val outer = ButtonDefaults.MinHeight / 2
     val innerRest = 4.dp
     val innerPressed = 12.dp
     val keyInteraction = remember { MutableInteractionSource() }

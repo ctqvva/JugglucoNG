@@ -378,7 +378,6 @@ private fun JournalActionButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.height(if (prominent) 48.dp else 36.dp),
-        shape = RoundedCornerShape(if (prominent) 28.dp else 20.dp),
         colors = if (prominent) {
             ButtonDefaults.filledTonalButtonColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1308,7 +1307,6 @@ private fun JournalFoodSheet(
                         FilledTonalButton(
                             onClick = { draft = draft.copy(isArchived = !draft.isArchived) },
                             modifier = Modifier.height(40.dp),
-                            shape = RoundedCornerShape(20.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,
@@ -1690,7 +1688,6 @@ private fun JournalInsulinPresetSheet(
                         FilledTonalButton(
                             onClick = { toggleArchivedAndPersist() },
                             modifier = Modifier.height(40.dp),
-                            shape = RoundedCornerShape(20.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,

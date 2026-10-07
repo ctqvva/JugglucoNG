@@ -591,7 +591,6 @@ fun AddCustomAlertButton(text: String, onClick: () -> Unit) {
     FilledTonalButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(50), // Fully rounded
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )

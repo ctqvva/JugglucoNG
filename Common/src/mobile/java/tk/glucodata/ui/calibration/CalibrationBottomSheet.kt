@@ -538,7 +538,6 @@ fun CalibrationBottomSheet(
                         }
                     },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(if (editingEntity != null) stringResource(R.string.update) else stringResource(R.string.save))
                 }

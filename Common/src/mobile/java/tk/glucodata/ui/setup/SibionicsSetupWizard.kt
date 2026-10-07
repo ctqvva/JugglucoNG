@@ -941,7 +941,6 @@ fun SelectTypeStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(buttonHeight),
-            shape = MaterialTheme.shapes.large
         ) {
             Text(
                 text = stringResource(R.string.continue_action),
