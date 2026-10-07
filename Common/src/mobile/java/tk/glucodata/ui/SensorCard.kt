@@ -3,6 +3,7 @@
 package tk.glucodata.ui
 
 import android.text.format.DateUtils
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -1674,10 +1675,10 @@ fun SensorCard(
     val isLocallyStreaming = sensor.streaming
     val isLocallyEnabled = isSensorLocallyEnabled(sensor.streaming, sensor.paused)
     val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
-    val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
     val latestPersistedReading by remember(sensor.serial) {
         HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
-    }.collectAsState(initial = null)
+    }.collectAsStateWithLifecycle(initialValue = null)
     val currentSnapshot = remember(
         refreshRevision,
         sensor.serial,

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -176,16 +177,16 @@ fun JournalSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val journalNavigationTabEnabled by viewModel.journalNavigationTabEnabled.collectAsState()
-    val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
-    val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
-    val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsState()
-    val journalDashboardQuickAddButton by viewModel.journalDashboardQuickAddButton.collectAsState()
-    val journalHealthConnectActivityEnabled by viewModel.journalHealthConnectActivityEnabled.collectAsState()
-    val aapsJournalImportEnabled by viewModel.aapsJournalImportEnabled.collectAsState()
-    val allPresets by viewModel.journalInsulinPresets.collectAsState()
-    val allFoods by viewModel.journalFoods.collectAsState()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val journalNavigationTabEnabled by viewModel.journalNavigationTabEnabled.collectAsStateWithLifecycle()
+    val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
+    val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
+    val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsStateWithLifecycle()
+    val journalDashboardQuickAddButton by viewModel.journalDashboardQuickAddButton.collectAsStateWithLifecycle()
+    val journalHealthConnectActivityEnabled by viewModel.journalHealthConnectActivityEnabled.collectAsStateWithLifecycle()
+    val aapsJournalImportEnabled by viewModel.aapsJournalImportEnabled.collectAsStateWithLifecycle()
+    val allPresets by viewModel.journalInsulinPresets.collectAsStateWithLifecycle()
+    val allFoods by viewModel.journalFoods.collectAsStateWithLifecycle()
     val activePresets = remember(allPresets) { allPresets.filter { !it.isArchived } }
     val activeFoods = remember(allFoods) { allFoods.filter { !it.isArchived } }
 
@@ -592,9 +593,9 @@ fun JournalFoodLibraryScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val allFoods by viewModel.journalFoods.collectAsState()
-    val foodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
-    val foodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
+    val allFoods by viewModel.journalFoods.collectAsStateWithLifecycle()
+    val foodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
+    val foodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var legacyFoods by remember { mutableStateOf(emptyList<JournalFood>()) }
     var expandedImportFoodId by remember { mutableStateOf<Long?>(null) }
@@ -787,7 +788,7 @@ fun JournalInsulinLibraryScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val allPresets by viewModel.journalInsulinPresets.collectAsState()
+    val allPresets by viewModel.journalInsulinPresets.collectAsStateWithLifecycle()
     val activePresets = remember(allPresets) { allPresets.filter { !it.isArchived } }
     val archivedPresets = remember(allPresets) { allPresets.filter { it.isArchived } }
     var editingPreset by remember { mutableStateOf<JournalInsulinPreset?>(null) }

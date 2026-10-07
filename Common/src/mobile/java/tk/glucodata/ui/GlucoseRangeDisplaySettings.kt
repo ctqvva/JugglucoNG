@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -57,14 +58,14 @@ import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 @Composable
 fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
-    val unit by viewModel.unit.collectAsState()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
     val isMmol = GlucoseFormatter.isMmol(unit)
-    val chartLowValue by viewModel.graphLow.collectAsState()
-    val chartHighValue by viewModel.graphHigh.collectAsState()
-    val targetLowValue by viewModel.targetLow.collectAsState()
-    val targetHighValue by viewModel.targetHigh.collectAsState()
-    val veryLowValue by viewModel.veryLowThreshold.collectAsState()
-    val veryHighValue by viewModel.veryHighThreshold.collectAsState()
+    val chartLowValue by viewModel.graphLow.collectAsStateWithLifecycle()
+    val chartHighValue by viewModel.graphHigh.collectAsStateWithLifecycle()
+    val targetLowValue by viewModel.targetLow.collectAsStateWithLifecycle()
+    val targetHighValue by viewModel.targetHigh.collectAsStateWithLifecycle()
+    val veryLowValue by viewModel.veryLowThreshold.collectAsStateWithLifecycle()
+    val veryHighValue by viewModel.veryHighThreshold.collectAsStateWithLifecycle()
 
     val valueStep = if (isMmol) 0.1f else 1f
     val targetLowBounds = if (isMmol) 2.0f..8.0f else 40f..140f

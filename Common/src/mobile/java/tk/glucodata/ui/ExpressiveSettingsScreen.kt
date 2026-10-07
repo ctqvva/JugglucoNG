@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -104,7 +105,7 @@ fun ExpressiveSettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsState()
+    val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsStateWithLifecycle()
     val showMqAccount = remember(context, sensorStatusRevision) {
         tk.glucodata.drivers.mq.MQRegistry.persistedRecords(context).isNotEmpty()
     }
@@ -122,22 +123,22 @@ fun ExpressiveSettingsScreen(
     }
 
     // States
-    val unit by viewModel.unit.collectAsState()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)
-    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsState()
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
-    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
-    val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsState()
+    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
+    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
+    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
+    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
+    val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsStateWithLifecycle()
     var healthConnectEnabled by rememberSaveable { mutableStateOf(Natives.gethealthConnect()) }
-    val viewMode by viewModel.viewMode.collectAsState()
-    val sensorName by viewModel.sensorName.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
+    val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val isRawCalibrationMode = viewMode == 1 || viewMode == 3
-    val calibrationRevision by CalibrationManager.revision.collectAsState()
+    val calibrationRevision by CalibrationManager.revision.collectAsStateWithLifecycle()
     val calibrationEnabled = remember(isRawCalibrationMode, sensorName, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawCalibrationMode, sensorName)
     }
@@ -146,12 +147,12 @@ fun ExpressiveSettingsScreen(
     // Rows that carry a master switch read the same state their own screen reads. The
     // system-granted ones can change while this screen is in the background, so they are
     // re-read on resume rather than only at first composition.
-    val floatingOverlayEnabled by viewModel.floatingRepository.isEnabled.collectAsState(initial = false)
+    val floatingOverlayEnabled by viewModel.floatingRepository.isEnabled.collectAsStateWithLifecycle(initialValue = false)
     var floatingOverlayAllowed by remember {
         mutableStateOf(android.provider.Settings.canDrawOverlays(context))
     }
     var aodServiceEnabled by remember { mutableStateOf(isAodAccessibilityEnabled(context)) }
-    val insulinPensEnabled by tk.glucodata.InsulinPenManager.enabled.collectAsState()
+    val insulinPensEnabled by tk.glucodata.InsulinPenManager.enabled.collectAsStateWithLifecycle()
     var webServerActive by remember { mutableStateOf(Natives.getusexdripwebserver()) }
     var nightscoutActive by remember { mutableStateOf(isNightscoutActive(context)) }
 
@@ -171,12 +172,12 @@ fun ExpressiveSettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val hasLowAlarm by viewModel.hasLowAlarm.collectAsState()
-    val lowAlarmValue by viewModel.lowAlarmThreshold.collectAsState()
-    val lowAlarmSoundMode by viewModel.lowAlarmSoundMode.collectAsState()
-    val hasHighAlarm by viewModel.hasHighAlarm.collectAsState()
-    val highAlarmValue by viewModel.highAlarmThreshold.collectAsState()
-    val highAlarmSoundMode by viewModel.highAlarmSoundMode.collectAsState()
+    val hasLowAlarm by viewModel.hasLowAlarm.collectAsStateWithLifecycle()
+    val lowAlarmValue by viewModel.lowAlarmThreshold.collectAsStateWithLifecycle()
+    val lowAlarmSoundMode by viewModel.lowAlarmSoundMode.collectAsStateWithLifecycle()
+    val hasHighAlarm by viewModel.hasHighAlarm.collectAsStateWithLifecycle()
+    val highAlarmValue by viewModel.highAlarmThreshold.collectAsStateWithLifecycle()
+    val highAlarmSoundMode by viewModel.highAlarmSoundMode.collectAsStateWithLifecycle()
 
     // Dialog states
     var showUnitDialog by remember { mutableStateOf(false) }
@@ -446,10 +447,10 @@ fun ExpressiveSettingsScreen(
         item(key = "exchange_group") {
             // Theme: Tertiary (Apps/Services)
             val exchangeColor = MaterialTheme.colorScheme.tertiary
-            val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsState()
-            val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsState()
-            val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsState()
-            val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsState()
+            val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
+            val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+            val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
+            val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
@@ -794,7 +795,7 @@ fun ExpressiveSettingsScreen(
                 // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
                 // current behaviour so the common question is answered in place.
                 val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
-                    .freezeDisplayedValues.collectAsState()
+                    .freezeDisplayedValues.collectAsStateWithLifecycle()
                 SettingsSwitchItem(
                     title = stringResource(R.string.freeze_displayed_values),
                     subtitle = stringResource(
@@ -1037,12 +1038,12 @@ fun PredictiveSimulationSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
-    val notificationChartPredictionEnabled by viewModel.predictiveSimulationNotificationChartEnabled.collectAsState()
-    val trendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsState()
-    val modelProfile by viewModel.predictionModelProfile.collectAsState()
-    val horizonMinutes by viewModel.predictionHorizonMinutes.collectAsState()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
+    val notificationChartPredictionEnabled by viewModel.predictiveSimulationNotificationChartEnabled.collectAsStateWithLifecycle()
+    val trendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsStateWithLifecycle()
+    val modelProfile by viewModel.predictionModelProfile.collectAsStateWithLifecycle()
+    val horizonMinutes by viewModel.predictionHorizonMinutes.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -1194,7 +1195,7 @@ fun NotificationSettingsSheet(
     viewModel: DashboardViewModel
 ) {
     val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
+    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
     
     // Font Settings
     var fontSize by remember { mutableFloatStateOf(prefs.getFloat("notification_font_size", 1.0f)) }

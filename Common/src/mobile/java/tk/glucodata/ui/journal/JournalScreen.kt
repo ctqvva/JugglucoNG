@@ -3,6 +3,7 @@
 package tk.glucodata.ui.journal
 
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -500,7 +501,7 @@ private fun JournalMetricsPanel(
     // Mirrors the dashboard chip and every outbound surface. A received or
     // cleared Clone snapshot updates immediately; the ticker retires stale
     // remote state on its own.
-    val iobRefreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val iobRefreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
     val remoteInsulin = remember(nowMillis, iobRefreshRevision) {
         RemoteIobSnapshot.fresh(nowMillis)
     }

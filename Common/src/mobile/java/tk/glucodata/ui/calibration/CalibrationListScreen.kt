@@ -2,6 +2,7 @@ package tk.glucodata.ui.calibration
 
 import android.content.Context
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
@@ -122,7 +123,7 @@ fun CalibrationListScreen(
     // Collect Data
     val allCalibrations by CalibrationManager
         .getCalibrationsFlow()
-        .collectAsState(initial = CalibrationManager.getCachedCalibrations())
+        .collectAsStateWithLifecycle(initialValue = CalibrationManager.getCachedCalibrations())
     val currentSensor = SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId
     
     // Filter by mode and current sensor
@@ -137,24 +138,24 @@ fun CalibrationListScreen(
         .toList()
 
     // Toggle State
-    val calibrationRevision by CalibrationManager.revision.collectAsState()
+    val calibrationRevision by CalibrationManager.revision.collectAsStateWithLifecycle()
     val isCalibrationEnabled = remember(isRawMode, currentSensor, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawMode, currentSensor)
     }
-    val algorithmForRaw by CalibrationManager.algorithmForRaw.collectAsState()
-    val algorithmForAuto by CalibrationManager.algorithmForAuto.collectAsState()
+    val algorithmForRaw by CalibrationManager.algorithmForRaw.collectAsStateWithLifecycle()
+    val algorithmForAuto by CalibrationManager.algorithmForAuto.collectAsStateWithLifecycle()
     val selectedAlgorithm = if (isRawMode) algorithmForRaw else algorithmForAuto
-    val diagnosticsForRaw by CalibrationManager.diagnosticsForRaw.collectAsState()
-    val diagnosticsForAuto by CalibrationManager.diagnosticsForAuto.collectAsState()
+    val diagnosticsForRaw by CalibrationManager.diagnosticsForRaw.collectAsStateWithLifecycle()
+    val diagnosticsForAuto by CalibrationManager.diagnosticsForAuto.collectAsStateWithLifecycle()
     val diagnostics = if (isRawMode) diagnosticsForRaw else diagnosticsForAuto
-    val hideInitialWhenCalibrated by CalibrationManager.hideInitialWhenCalibrated.collectAsState()
-    val applyToPast by CalibrationManager.applyToPast.collectAsState()
-    val lockPastHistory by CalibrationManager.lockPastHistory.collectAsState()
-    val keepDisabledHistory by CalibrationManager.keepDisabledHistory.collectAsState()
-    val overwriteSensorValues by CalibrationManager.overwriteSensorValues.collectAsState()
-    val visualContinuity by CalibrationManager.visualContinuity.collectAsState()
-    val calibrateFromJournal by CalibrationManager.calibrateFromJournal.collectAsState()
-    val weightMode by CalibrationManager.weightMode.collectAsState()
+    val hideInitialWhenCalibrated by CalibrationManager.hideInitialWhenCalibrated.collectAsStateWithLifecycle()
+    val applyToPast by CalibrationManager.applyToPast.collectAsStateWithLifecycle()
+    val lockPastHistory by CalibrationManager.lockPastHistory.collectAsStateWithLifecycle()
+    val keepDisabledHistory by CalibrationManager.keepDisabledHistory.collectAsStateWithLifecycle()
+    val overwriteSensorValues by CalibrationManager.overwriteSensorValues.collectAsStateWithLifecycle()
+    val visualContinuity by CalibrationManager.visualContinuity.collectAsStateWithLifecycle()
+    val calibrateFromJournal by CalibrationManager.calibrateFromJournal.collectAsStateWithLifecycle()
+    val weightMode by CalibrationManager.weightMode.collectAsStateWithLifecycle()
 
     val dateFormatter = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
     val scope = rememberCoroutineScope()

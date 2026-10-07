@@ -41,6 +41,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -53,7 +58,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.ColorUtils
 import kotlinx.coroutines.delay
 import tk.glucodata.R
 import tk.glucodata.GlucoseReadingSource
@@ -134,52 +138,18 @@ fun ReadingRow(
     val stockColor = MaterialTheme.colorScheme.surfaceContainerLow
     val staleColor = MaterialTheme.colorScheme.surfaceContainerHighest // Slightly darker/different
 
-    val ageState = remember(point.timestamp) { mutableStateOf(System.currentTimeMillis() - point.timestamp) }
-    // Timer to update age for the active item
+    // The newest row eases from the accent colour to the stock row colour over its first minute
+    // and darkens once the reading is overdue. The age ticks once a second, so it is read only
+    // in the draw phase below: a tick redraws this row's background and divider, and never
+    // recomposes the row.
+    val ageState = remember(point.timestamp) { mutableLongStateOf(System.currentTimeMillis() - point.timestamp) }
     if (isActive) {
         LaunchedEffect(point.timestamp) {
             while (true) {
-                ageState.value = System.currentTimeMillis() - point.timestamp
-                delay(1000) // Update every second
+                ageState.longValue = System.currentTimeMillis() - point.timestamp
+                delay(1000)
             }
         }
-    }
-
-    val containerColor = if (isActive) {
-        val age = ageState.value
-        when {
-            age < 60_000 -> {
-                // Phase 1: Fade to Stock
-                val progress = age / 60_000f
-                Color(
-                    ColorUtils.blendARGB(
-                        activeColor.toArgb(),
-                        stockColor.toArgb(),
-                        progress.coerceIn(0f, 1f)
-                    )
-                )
-            }
-            age < 90_000 -> {
-                // Phase 2: Stock (Stable)
-                stockColor
-            }
-            else -> {
-                 // Phase 3: Stale (Darken slowly)
-                 // "slowly start getting different darker shade"
-                 // Let's cap the darkening at 100% after another 60s (just to have a bound)
-                 val staleProgress = ((age - 90_000) / 60_000f).coerceIn(0f, 1f)
-                 Color(
-                    ColorUtils.blendARGB(
-                        stockColor.toArgb(),
-                        staleColor.toArgb(),
-                        staleProgress
-                    )
-                )
-            }
-        }
-    } else {
-        // History: Always Stock
-        stockColor
     }
 
     // Shape:
@@ -192,30 +162,6 @@ fun ReadingRow(
         isGroupStart -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
         isGroupEnd -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
         else -> RectangleShape
-    }
-
-    // Divider Alpha Logic
-    val baseDividerAlpha = 0.1f // User Request: "perhaps make it 0.1f"
-    val dividerAlpha = if (isActive) {
-        val age = ageState.value
-        when {
-            age < 60_000 -> {
-                // Fresh: Color is Distinct -> Stock. Divider: Hidden -> Visible.
-                val progress = age / 60_000f
-                baseDividerAlpha * progress.coerceIn(0f, 1f)
-            }
-            age < 90_000 -> {
-                // Normal: Color is Stock. Divider: Visible.
-                baseDividerAlpha
-            }
-            else -> {
-                // Stale: Color is Stock -> Distinct. Divider: Visible -> Hidden.
-                val staleProgress = ((age - 90_000) / 60_000f).coerceIn(0f, 1f)
-                baseDividerAlpha * (1f - staleProgress)
-            }
-        }
-    } else {
-        baseDividerAlpha
     }
 
     // --- ADVANCED TREND ENGINE ---
@@ -242,6 +188,18 @@ fun ReadingRow(
         modifier = modifier
             .fillMaxWidth()
             .then(
+                if (isActive) {
+                    Modifier.drawBehind {
+                        drawOutline(
+                            outline = shape.createOutline(size, layoutDirection, this),
+                            color = activeRowColor(ageState.longValue, activeColor, stockColor, staleColor)
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            )
+            .then(
                 when {
                     onDeleteReading != null && hasValueClick -> Modifier.combinedClickable(
                         onClick = handlePrimaryValueClick,
@@ -256,7 +214,7 @@ fun ReadingRow(
                 }
             ),
         shape = shape,
-        color = containerColor,
+        color = if (isActive) Color.Transparent else stockColor,
         // User Request: Kill shadows (0dp)
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
@@ -683,10 +641,16 @@ fun ReadingRow(
             }
 
             if (index < totalCount - 1) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = dividerHorizontalInset),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = dividerAlpha),
-                    thickness = 1.dp
+                val dividerColor = MaterialTheme.colorScheme.outlineVariant
+                Spacer(
+                    modifier = Modifier
+                        .padding(horizontal = dividerHorizontalInset)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .drawBehind {
+                            val alpha = if (isActive) activeRowDividerAlpha(ageState.longValue) else ROW_DIVIDER_ALPHA
+                            drawRect(dividerColor.copy(alpha = alpha))
+                        }
                 )
             }
         }
@@ -901,4 +865,23 @@ internal fun rowTrendResult(
 ): tk.glucodata.logic.TrendEngine.TrendResult {
     val rate = deltaRateMgdlPerMinute?.takeIf { it.isFinite() } ?: return regressed
     return regressed.copy(state = tk.glucodata.logic.TrendEngine.stateFor(rate), velocity = rate)
+}
+
+private const val ROW_DIVIDER_ALPHA = 0.1f
+private const val ACTIVE_ROW_SETTLE_MS = 60_000L
+private const val ACTIVE_ROW_STALE_AFTER_MS = 90_000L
+private const val ACTIVE_ROW_STALE_SPAN_MS = 60_000L
+
+/** Newest row: accent to stock over its first minute, stock until 90s, then toward the stale shade. */
+internal fun activeRowColor(ageMs: Long, active: Color, stock: Color, stale: Color): Color = when {
+    ageMs < ACTIVE_ROW_SETTLE_MS -> lerp(active, stock, (ageMs / ACTIVE_ROW_SETTLE_MS.toFloat()).coerceIn(0f, 1f))
+    ageMs < ACTIVE_ROW_STALE_AFTER_MS -> stock
+    else -> lerp(stock, stale, ((ageMs - ACTIVE_ROW_STALE_AFTER_MS) / ACTIVE_ROW_STALE_SPAN_MS.toFloat()).coerceIn(0f, 1f))
+}
+
+/** The newest row's divider follows its colour: hidden while accented, back once settled, gone again when stale. */
+internal fun activeRowDividerAlpha(ageMs: Long): Float = when {
+    ageMs < ACTIVE_ROW_SETTLE_MS -> ROW_DIVIDER_ALPHA * (ageMs / ACTIVE_ROW_SETTLE_MS.toFloat()).coerceIn(0f, 1f)
+    ageMs < ACTIVE_ROW_STALE_AFTER_MS -> ROW_DIVIDER_ALPHA
+    else -> ROW_DIVIDER_ALPHA * (1f - ((ageMs - ACTIVE_ROW_STALE_AFTER_MS) / ACTIVE_ROW_STALE_SPAN_MS.toFloat()).coerceIn(0f, 1f))
 }

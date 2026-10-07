@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,10 +57,10 @@ fun DataSmoothingSettingsScreen(
     viewModel: DashboardViewModel
 ) {
     val context = LocalContext.current
-    val smoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
+    val smoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
+    val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
 
     val isEnabled = smoothingMinutes > 0
     val options = remember { DataSmoothing.enabledMinutesOptions().toList() }
