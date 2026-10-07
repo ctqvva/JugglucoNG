@@ -107,6 +107,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorSourceResolver
@@ -663,16 +664,7 @@ private fun StatusIconSurface(
     icon: ImageVector,
     color: Color
 ) {
-    Surface(
-        modifier = Modifier.size(44.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.12f),
-        contentColor = color
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-        }
-    }
+    IconTile(icon = icon, tint = color)
 }
 
 @Composable

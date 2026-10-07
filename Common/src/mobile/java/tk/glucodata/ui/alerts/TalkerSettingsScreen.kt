@@ -78,6 +78,7 @@ import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
@@ -618,15 +619,7 @@ private fun NumericInputCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = iconTint.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = iconTint)
-                }
-            }
+            IconTile(icon = icon, tint = iconTint)
 
             Spacer(Modifier.size(12.dp))
 
@@ -671,15 +664,7 @@ private fun SliderCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = iconTint.copy(alpha = 0.12f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = iconTint)
-                    }
-                }
+                IconTile(icon = icon, tint = iconTint)
 
                 Spacer(Modifier.size(12.dp))
 

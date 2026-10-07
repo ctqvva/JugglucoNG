@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
@@ -512,16 +513,7 @@ internal fun AppUpdateCard(
 /** Same tile as a settings row's icon: 40 dp, 12 dp radius, 12 % tint, 24 dp glyph. */
 @Composable
 private fun AppUpdateIconTile(icon: ImageVector, color: Color) {
-    Surface(
-        modifier = Modifier.size(40.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.12f),
-        contentColor = color
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-        }
-    }
+    IconTile(icon = icon, tint = color)
 }
 
 @Composable

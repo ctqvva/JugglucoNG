@@ -82,20 +82,7 @@ fun ExpandableSettingsCard(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = tint.copy(alpha = 0.12f)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                IconTile(icon = icon, tint = tint)
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = title, style = MaterialTheme.typography.titleMedium)
@@ -169,20 +156,7 @@ fun DisclosingSwitchCard(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = tint.copy(alpha = 0.12f)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                IconTile(icon = icon, tint = tint)
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = title, style = MaterialTheme.typography.titleMedium)
@@ -303,27 +277,15 @@ fun SettingsItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
+                // An untinted row keeps a bare glyph on the card colour: the tile's wash is
+                // what says "this row belongs to a coloured group".
                 val tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
-                // If tint is present, use tonal background. Else match surface.
-                val background = if(iconTint != null) iconTint.copy(alpha = 0.12f) else Color.Transparent
-
-                Surface(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .padding(end = 0.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = background
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                         Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
+                IconTile(
+                    icon = icon,
+                    tint = tint,
+                    containerColor = if (iconTint != null) tint.copy(alpha = IconTileDefaults.ContainerAlpha) else Color.Transparent,
+                )
+                Spacer(Modifier.width(IconTileDefaults.Gap))
             }
 
             Column(modifier = Modifier.weight(1f)) {
@@ -472,26 +434,17 @@ fun MasterSwitchCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = if (checked) {
-                    iconTint.copy(alpha = 0.15f)
+            IconTile(
+                icon = icon,
+                tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
+                containerColor = if (checked) {
+                    iconTint.copy(alpha = IconTileDefaults.ContainerAlpha)
                 } else {
                     MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+                },
+            )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(IconTileDefaults.Gap))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -650,20 +603,7 @@ fun DangerItem(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = iconBgColor
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon,
-                        null,
-                        tint = contentColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+            IconTile(icon = icon, tint = contentColor, containerColor = iconBgColor)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

@@ -111,29 +111,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
-@Composable
-fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall, // Smaller label
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium, // Larger value for scannability
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
@@ -2300,35 +2277,7 @@ fun SensorCard(
 
                 }
             }
-//
-//            Card(
-//                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), // Secondary Container
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(12.dp),
-//                    verticalArrangement = Arrangement.spacedBy(4.dp)
-//                ) {
-//                    if (sensor.connectionStatus.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
-//                    }
-//                    InfoRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-//
-//                    InfoRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.starttime))
-//                    if (sensor.officialEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
-//                    }
-//                    if (sensor.expectedEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
-//                    }
-//                    // InfoRow("Streaming", if (sensor.streaming) "Enabled" else "Disabled")
-//                }
-//            }
-
-            Spacer(modifier = Modifier.height(16.dp)) // More breathing room (M3 Expressive)
-//            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-//            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
             if (sensor.isSibionics || sensor.supportsDisplayModes) {
