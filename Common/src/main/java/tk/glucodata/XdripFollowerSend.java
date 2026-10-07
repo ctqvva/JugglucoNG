@@ -28,19 +28,23 @@ public final class XdripFollowerSend {
     static void broadcastGlucose(Context context, ExchangeGlucosePayload payload) {
         if (payload == null || payload.primaryMgdl <= 0 || payload.timeMillis <= 0) return;
         try {
-            JSONObject sgv = new JSONObject()
-                    .put("mills", payload.timeMillis)
-                    .put("mgdl", payload.primaryMgdl)
-                    .put("direction", payload.trendName.isEmpty() ? "NOT_COMPUTABLE" : payload.trendName)
-                    .put("filtered", payload.primaryMgdl * 1000L)
-                    .put("unfiltered", payload.primaryMgdl * 1000L);
-            Intent intent = new Intent(ACTION);
-            intent.setPackage(XDRIP_PACKAGE);
-            intent.putExtra("sgv", sgv.toString());
-            intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-            context.sendBroadcast(intent);
+            context.sendBroadcast(createIntent(payload.primaryMgdl, payload.timeMillis, payload.trendName));
         } catch (JSONException error) {
             Log.e("XdripFollowerSend", "Cannot encode SGV: " + error);
         }
+    }
+
+    static Intent createIntent(int mgdl, long timeMillis, String trendName) throws JSONException {
+        JSONObject sgv = new JSONObject()
+                .put("mills", timeMillis)
+                .put("mgdl", mgdl)
+                .put("direction", trendName.isEmpty() ? "NOT_COMPUTABLE" : trendName)
+                .put("filtered", mgdl * 1000L)
+                .put("unfiltered", mgdl * 1000L);
+        Intent intent = new Intent(ACTION);
+        intent.setPackage(XDRIP_PACKAGE);
+        intent.putExtra("sgv", sgv.toString());
+        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        return intent;
     }
 }
