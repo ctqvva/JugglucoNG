@@ -31,6 +31,55 @@ class AiDexManagedSensorIdentityAdapterTests {
     }
 
     @Test
+    fun smartAdvertisement_usesRealSerialForCanonicalAndProtocolIdentity() {
+        for (name in listOf("Smart-22222BZTJ3", "SMART-22222BZTJ3", " smart-22222bztj3 ")) {
+            assertEquals("X-22222BZTJ3", AiDexSerialIdentity.canonicalFromAdvertisement(name))
+            assertEquals("22222BZTJ3", AiDexSerialIdentity.bareSerial(name))
+        }
+    }
+
+    @Test
+    fun smartAdvertisement_rejectsMalformedSerialsAndUnknownWordPrefixes() {
+        for (name in listOf(
+            "Smart-1234567",
+            "Smart-123456789012345",
+            "Smart-22222BZTJ3!",
+            "Smart-22222BZTJ3-extra",
+            "Smartwatch-22222BZTJ3",
+            "Unknown-22222BZTJ3",
+        )) {
+            assertNull(name, AiDexSerialIdentity.canonicalFromAdvertisement(name))
+        }
+    }
+
+    @Test
+    fun smartMacFallback_recoversProtocolSerialWithoutRenamingStoredIdentity() {
+        val storedSensorId = AiDexSerialIdentity.fallbackCanonicalFromAddress("6C:A0:42:3B:65:E2")
+        assertEquals("X-6CA0423B65E2", storedSensorId)
+        assertEquals(
+            "22222BZTJ3",
+            AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                storedSensorId = storedSensorId,
+                address = "6C:A0:42:3B:65:E2",
+                advertisedName = "Smart-22222BZTJ3",
+            )
+        )
+    }
+
+    @Test
+    fun smartMacFallback_doesNotOverrideRealSerialOrDifferentAddress() {
+        for (storedSensorId in listOf("X-2222267V4E", "X-6CA0423B65E3")) {
+            assertNull(
+                AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+                    storedSensorId = storedSensorId,
+                    address = "6C:A0:42:3B:65:E2",
+                    advertisedName = "Smart-22222BZTJ3",
+                )
+            )
+        }
+    }
+
+    @Test
     fun macFallback_usesAdvertisedSerialForProtocolOnlyWhenIdentityMatchesAddress() {
         assertEquals(
             "22222FZXKT",

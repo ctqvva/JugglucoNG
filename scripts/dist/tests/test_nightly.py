@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -105,14 +106,18 @@ class Publication(unittest.TestCase):
         def publish_assets(actual_tag, sha, title, **kwargs):
             self.assertEqual((actual_tag, sha, title), (tag, SHA, 'Nightly 2026-10-05'))
             self.assertTrue(kwargs['prerelease'])
+            self.assertEqual(kwargs['directory'], Path('nightly-assets'))
             seen['notes'] = kwargs['notes_file'].read_text()
         helper.publish_assets.side_effect = publish_assets
         with self.env(), patch.object(nightly, 'releases', return_value=[]), \
              patch.object(nightly, 'decision', return_value=(True, tag, None, 'new')), \
-             patch.object(nightly, 'publication_helper', return_value=helper), patch.object(nightly, 'prune') as prune:
+             patch.object(nightly, 'publication_helper', return_value=helper), \
+             patch.object(nightly, 'stage_assets', return_value=Path('nightly-assets')) as stage, \
+             patch.object(nightly, 'prune') as prune:
             nightly.publish(tag)
         helper.tracked_source.assert_called_once_with(SHA)
         helper.verified_assets.assert_called_once()
+        stage.assert_called_once_with(helper.verified_assets.return_value, unittest.mock.ANY, tag)
         self.assertIn('Experimental nightly', seen['notes'])
         self.assertIn('Do not rely on this build for treatment decisions or critical alarms', seen['notes'])
         self.assertIn(SHA, seen['notes'])
@@ -133,7 +138,7 @@ class Publication(unittest.TestCase):
             nightly.publish(tag)
         helper.publish_assets.assert_not_called()
 
-    def test_keep_seven_deletes_only_owned_published_nightlies_and_protects_pinned_baseline(self):
+    def test_keep_three_deletes_only_owned_published_nightlies_and_protects_pinned_baseline(self):
         items = [release(day=date(2026, 10, d)) for d in range(1, 11)]
         items += [release(tag_name='1.2.3-Alpha'), release(body='other automation'), release(draft=True)]
         pinned = f'https://github.com/{nightly.REPO}/releases/download/{items[0]["tag_name"]}/source.apk'
@@ -142,8 +147,80 @@ class Publication(unittest.TestCase):
              patch.object(nightly.subprocess, 'run') as run:
             nightly.prune(items)
         deleted = [call.args[0][3] for call in run.call_args_list]
-        self.assertEqual(set(deleted), {items[1]['tag_name'], items[2]['tag_name']})
+        self.assertEqual(set(deleted), {items[i]['tag_name'] for i in range(1, 7)})
         self.assertTrue(all('--cleanup-tag' in call.args[0] for call in run.call_args_list))
+
+
+class AssetNaming(unittest.TestCase):
+    def test_each_snapshot_and_variant_has_a_distinct_filename(self):
+        tag = nightly.nightly_tag(SHA, DAY)
+        expected = {f'JugglucoNG-nightly-2026-10-05-aaaaaaaaaaaa-{variant}.apk'
+                    for variant in ['phone', 'phone-dub', 'wear', 'wear-dub']}
+        self.assertEqual(set(nightly.asset_names(tag).values()), expected)
+        other = nightly.asset_names(nightly.nightly_tag(OLD_SHA, DAY))
+        self.assertFalse(expected.intersection(other.values()))
+        for invalid in ['1.2.3-Alpha', 'nightly-2026-02-30-aaaaaaaaaaaa', '../assets']:
+            with self.assertRaises(ValueError):
+                nightly.asset_names(invalid)
+
+    def test_named_nightlies_and_legacy_names_both_remain_valid_baselines(self):
+        named = release(SHA, DAY)
+        for asset, name in zip(named['assets'][:4], nightly.asset_names(named['tag_name']).values()):
+            asset['name'] = name
+        with patch.object(nightly, 'api', return_value={'object': {'sha': SHA, 'type': 'commit'}}):
+            self.assertEqual(nightly.source_sha(named), SHA)
+            self.assertEqual(nightly.source_sha(release(SHA, DAY)), SHA)
+            named['assets'][0]['name'] = named['assets'][0]['name'].replace('2026-10-05', '2026-10-06')
+            with self.assertRaises(ValueError):
+                nightly.source_sha(named)
+
+    def source(self, root):
+        source = root / 'canonical'
+        source.mkdir()
+        for flavor, build in nightly.dist.TARGETS['all']:
+            (source / nightly.dist.filename(flavor, build)).write_bytes(f'signed-{flavor}-{build}'.encode())
+        artifacts = []
+        for flavor, build in nightly.dist.TARGETS['phone-all']:
+            apk = source / nightly.dist.filename(flavor, build)
+            artifacts.append({'file': apk.name, 'size': apk.stat().st_size,
+                              'sha256': nightly.dist.digest(apk.read_bytes()),
+                              'applicationId': 'tk.glucodata.ng' + ('.dub' if build == 'releasedub' else '')})
+        manifest = {'schema': 1, 'versionName': '1.2.3-Alpha', 'versionCode': 1023, 'minSdk': 26,
+                    'artifacts': sorted(artifacts, key=lambda a: a['file'])}
+        (source / 'update-manifest.json').write_text(json.dumps(manifest))
+        return source, manifest
+
+    def test_staging_preserves_apk_bytes_hashes_and_internal_versions_and_rewrites_manifest(self):
+        tag = nightly.nightly_tag(SHA, DAY)
+        with tempfile.TemporaryDirectory() as tmp:
+            source, original = self.source(Path(tmp))
+            with patch.object(nightly.dist, 'manifest', return_value=original):
+                out = nightly.stage_assets(source, Path(tmp) / 'published', tag)
+            names = nightly.asset_names(tag)
+            self.assertEqual({p.name for p in out.iterdir()}, set(names.values()) | {'update-manifest.json'})
+            for old, new in names.items():
+                self.assertEqual((source / old).read_bytes(), (out / new).read_bytes())
+            manifest = json.loads((out / 'update-manifest.json').read_text())
+            for key in ['schema', 'versionName', 'versionCode', 'minSdk']:
+                self.assertEqual(manifest[key], original[key])
+            for entry in manifest['artifacts']:
+                apk = out / entry['file']
+                self.assertEqual(entry['size'], apk.stat().st_size)
+                self.assertEqual(entry['sha256'], nightly.dist.digest(apk.read_bytes()))
+            self.assertEqual(json.loads((source / 'update-manifest.json').read_text()), original)
+
+    def test_unverified_manifest_or_extra_input_cannot_be_staged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source, original = self.source(Path(tmp))
+            destination = Path(tmp) / 'published'
+            with patch.object(nightly.dist, 'manifest', return_value=dict(original, versionCode=9999)):
+                with self.assertRaisesRegex(ValueError, 'manifest differs'):
+                    nightly.stage_assets(source, destination, nightly.nightly_tag(SHA, DAY))
+            self.assertFalse(destination.exists())
+            (source / 'unexpected.apk').write_bytes(b'extra')
+            with self.assertRaisesRegex(ValueError, 'asset set mismatch'):
+                nightly.stage_assets(source, destination, nightly.nightly_tag(SHA, DAY))
+            self.assertFalse(destination.exists())
 
 
 class RegularReleaseCompatibility(unittest.TestCase):

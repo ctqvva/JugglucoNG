@@ -49,7 +49,7 @@ object SibionicsConstants {
         EU(
             id = "eu",
             legacySubtype = 0,
-            displayLabel = "Sibionics EU",
+            displayLabel = "Sibionics GS1 (EU)",
             appId = "com.sisensing.sijoy",
             registrationKeyHex = "56CE249349040C94F8B4B2375A8752D5CBE7A17814B502D9132489C0BFDFC99F0CAC670E8CBB085AF1C780B3D282E3",
             fallbackShortCode = "YMWD016F",
@@ -65,7 +65,7 @@ object SibionicsConstants {
         CHINESE(
             id = "chinese",
             legacySubtype = 2,
-            displayLabel = "Sibionics Chinese",
+            displayLabel = "Sibionics GS1 (CN)",
             appId = "com.sisensing.sisensingcgm",
             registrationKeyHex = "4E8E1CAF43051F97EEC9C1475A8752D5C387D17A65B002D9132489C0BFDFC99F0CAC670E8CBB1150E6D581B7D08FC03404052C57AD58",
             fallbackShortCode = "GEPD802J",

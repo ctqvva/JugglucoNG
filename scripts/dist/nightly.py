@@ -7,13 +7,14 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 
 import dist
 
 REPO = 'ctqvva/JugglucoNG'
-KEEP = 7
+KEEP = 3
 TAG_PATTERN = r'nightly-(\d{4}-\d{2}-\d{2})-([0-9a-f]{12})'
 MARKER_PATTERN = r'<!-- juggluco-nightly:([0-9a-f]{40}) -->'
 
@@ -51,14 +52,50 @@ def published_nightlies(items):
                   key=lambda r: r['published_at'], reverse=True)
 
 
+def asset_names(tag):
+    match = re.fullmatch(TAG_PATTERN, tag)
+    if not match:
+        raise ValueError('Invalid nightly asset tag')
+    date.fromisoformat(match[1])
+    return {dist.filename(flavor, build_type):
+            f"JugglucoNG-{tag}-{'phone' if flavor == 'mobile' else 'wear'}"
+            f"{'-dub' if build_type == 'releasedub' else ''}.apk"
+            for flavor, build_type in dist.TARGETS['all']}
+
+
+def stage_assets(source, destination, tag):
+    """Rename verified copies for publication; never modify signed APK bytes."""
+    names = asset_names(tag)
+    if {p.name for p in source.iterdir()} != set(names) | {'update-manifest.json'}:
+        raise ValueError('Nightly source asset set mismatch')
+    manifest = json.loads((source / 'update-manifest.json').read_text())
+    if manifest != dist.manifest(source):
+        raise ValueError('Nightly source manifest differs from verified APKs')
+    destination.mkdir()
+    for old, new in names.items():
+        original, copied = source / old, destination / new
+        shutil.copyfile(original, copied)
+        if dist.digest(original.read_bytes()) != dist.digest(copied.read_bytes()):
+            raise ValueError('Nightly APK bytes changed while staging')
+    for artifact in manifest['artifacts']:
+        artifact['file'] = names[artifact['file']]
+    manifest['artifacts'].sort(key=lambda artifact: artifact['file'])
+    (destination / 'update-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    return destination
+
+
 def source_sha(release):
     names = {a['name'] for a in release.get('assets', [])}
-    primary = [n for n in names if re.fullmatch(r'JugglucoNG-\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?\.apk', n)
-               and not n.endswith(('-wear.apk', '-dub.apk'))]
-    if len(primary) != 1:
-        raise ValueError('Published nightly lacks the canonical primary APK')
-    stem = primary[0][:-4]
-    expected = {stem + suffix + '.apk' for suffix in ['', '-dub', '-wear', '-wear-dub']} | {'update-manifest.json'}
+    expected = set(asset_names(release['tag_name']).values()) | {'update-manifest.json'}
+    if names != expected:
+        # Existing published nightlies used version-based names. Keep their
+        # provenance/change baseline and retention valid across this migration.
+        primary = [n for n in names if re.fullmatch(r'JugglucoNG-\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?\.apk', n)
+                   and not n.endswith(('-wear.apk', '-dub.apk'))]
+        if len(primary) != 1:
+            raise ValueError('Published nightly lacks its complete APK set')
+        stem = primary[0][:-4]
+        expected = {stem + suffix + '.apk' for suffix in ['', '-dub', '-wear', '-wear-dub']} | {'update-manifest.json'}
     if names != expected or any(a['size'] <= 0 or a['state'] != 'uploaded' for a in release['assets']):
         raise ValueError('Published nightly has an incomplete asset set')
     # Resolve the immutable tag, never the mutable target_commitish 'main'.
@@ -124,11 +161,12 @@ Nightly **{day} (UTC)**, source [{sha}](https://github.com/{REPO}/commit/{sha}).
 
 These production-signed APKs replace the matching existing installation and keep its data.
 Back up settings/data before testing. Choose phone, phone-dub, wear or wear-dub as appropriate.
+APK filenames identify the nightly date, source commit and variant.
 The internal app version remains **{version}** (phone versionCode **{code}**); successive
 nightlies may show the same version. Android can reject installing over a higher versionCode.
 
 All four APKs and update-manifest.json are verified together. This prerelease never becomes
-GitHub's latest release and is excluded from the normal in-app updater. The seven most
+GitHub's latest release and is excluded from the normal in-app updater. The {KEEP} most
 recent published nightlies are retained; regular releases are retained unchanged.
 '''
 
@@ -164,11 +202,12 @@ def publish(tag):
     # Use exactly the same verified manifest/draft/upload publisher as releases.
     publisher = publication_helper()
     publisher.tracked_source(sha)
-    publisher.verified_assets()
+    source = publisher.verified_assets()
     with tempfile.TemporaryDirectory(prefix='juggluco-nightly-notes-') as tmp:
+        directory = stage_assets(source, Path(tmp) / 'assets', tag)
         body = Path(tmp) / 'notes.md'
         body.write_text(notes(sha, tag, previous))
-        publisher.publish_assets(tag, sha, f'Nightly {match[1]}', prerelease=True, notes_file=body)
+        publisher.publish_assets(tag, sha, f'Nightly {match[1]}', prerelease=True, notes_file=body, directory=directory)
     prune(releases())
 
 

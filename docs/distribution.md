@@ -107,8 +107,14 @@ job uses the existing four environment secrets and canonical `build-dist.sh`/
 Gradle signing. A trusted-main verifier independently checks the production pin,
 package/version, both ARM ABIs and inventoried JNI bytes before artifact upload.
 
-Artifacts are named `distribution-pr547-phone-<full-head-SHA>` and contain APKs
-plus `build-info.json` with source/controller commits and APK checksums. These
+Artifacts are named `distribution-pr547-phone-<full-head-SHA>` for PRs and
+`distribution-main-phone-<full-source-SHA>` for main. The actual APK files are
+`JugglucoNG-test-pr547-<12-character-head-SHA>-phone.apk` or
+`JugglucoNG-test-main-<12-character-source-SHA>-phone.apk`; other variants end in
+`phone-dub`, `wear`, or `wear-dub`. Each archive includes `build-info.json` with
+the full source commit, named APKs and their checksums; PR metadata also records
+the trusted controller commit and signing certificate. Renaming copies preserves
+the signed APK bytes and canonical local/release build outputs. These
 APKs **update the matching existing installation**, retaining its data; a
 normal-phone APK cannot update a dub installation. Android can reject a downgrade
 if the tester already has a higher versionCode; update the PR's version normally
@@ -119,6 +125,16 @@ Download the ZIP from the run's **Artifacts** section (7-day retention), or use
 `gh run download <run-id>`. Agents acting through the owner's GitHub credentials
 can use the CLI command. Workflow dispatch requires repository write access,
 which is why the comment command exists for JetFoxy. No PAT or GitHub App is needed.
+
+After a successful comment-requested build, GitHub Actions automatically replies
+on the requesting PR/issue with a direct artifact ZIP link, its expiry, the exact
+source commit and a test-build warning. Download requires GitHub sign-in. A rerun
+updates the same bot reply; failed/rejected builds never post a ready link.
+Workflow dispatch continues to use the run's Artifacts section. The reply job runs
+only trusted main code, has `issues: write` and `pull-requests: write` for issue/PR
+replies plus `actions: read`, and has no signing secrets or `contents: write`.
+The Actions App token needs the PR scope even though timeline comments use the
+`issues/.../comments` API. Signing jobs retain read-only repository permissions.
 
 ## Automated nightlies
 
@@ -135,8 +151,12 @@ production-signed APKs plus `update-manifest.json`, and posts a prerelease title
 **Nightly YYYY-MM-DD**. Dates are UTC; tags are
 `nightly-YYYY-MM-DD-<12-character-main-SHA>` so different snapshots on one date
 do not overwrite each other. Notes start with an experimental/testing warning,
-identify the exact source and link changes since the previous nightly. Internal
-APK names/version codes remain canonical; successive nightlies can show the same
+identify the exact source and link changes since the previous nightly. APK files
+are named `JugglucoNG-nightly-YYYY-MM-DD-<12-character-main-SHA>-phone.apk`,
+with `phone-dub`, `wear` and `wear-dub` for the other variants. The manifest's
+file entries use these published names. Verified APK bytes/signatures are unchanged;
+regular-release filenames keep their version-based names. Internal
+APK version names/codes remain canonical; successive nightlies can show the same
 app version. They update the matching existing app, so back up settings/data
 before testing. They do not become GitHub's latest release or enter the normal
 in-app updater, which excludes prereleases.
@@ -147,7 +167,7 @@ regular release, publication has no approval gate: requesting unattended nightli
 authorizes publication of these trusted main snapshots. PR signing still requires
 its separate owner gate. No new secrets are needed.
 
-The **seven most recent published nightlies** are retained. Cleanup deletes only
+The **three most recent published nightlies** are retained. Cleanup deletes only
 this automation's marked, dated prereleases and their tags; it preserves regular
 releases, unrelated prereleases, drafts, and any pinned vendor baseline. Retention
 also runs on skipped-build days so failed cleanup can recover. This keeps normal
@@ -206,16 +226,17 @@ These are the exact ignored inputs consumed by `build-dist.sh all` to reproduce
 its existing JNI payload, including legacy libraries that may no longer have an
 active sensor caller. This change does not remove or reinterpret those libraries.
 
-Every file matches byte-for-byte the corresponding entry in **all four** existing
-1.2.2-Alpha APKs. Restoration downloads the already-public primary phone APK,
-checks its pinned SHA-256 (`ec2d0acfe564c24623ab2e22b83a76864210c39e19e0c9ca0bd0026622abac00`),
+Those initial files matched byte-for-byte the corresponding entries in **all four**
+1.2.2-Alpha APKs. The current baseline is the published **1.2.3-Alpha** primary phone
+APK, adding `libCALCULATION.so` for both ARM ABIs: **34 files / 44,216,417 bytes**.
+Restoration downloads that APK and checks its whole-file SHA-256 from the inventory,
 then extracts only explicitly named library entries and checks size/hash again.
 No dynamic library from dependency AARs or locally compiled `libg.so`/`libnative.so`
 is extracted. `--apk <downloaded-source.apk>` supports offline restoration.
 An existing different local file is never overwritten.
 
-No private assets repo, download token, secret archive or new proprietary upload
-is needed. Keep that historical release asset available: a missing or changed
+No private assets repo, download token, secret archive or standalone binary upload
+is needed. Keep the pinned release asset available: a missing or changed
 source fails closed. Use the lifecycle commands below when legitimate input versions change; do not
 edit hashes by hand or silently follow the latest release. File hashes
 are public metadata, not binary contents or credentials.
@@ -229,10 +250,11 @@ part of the distribution. The redundant `src/libre3/jniLibs` source is inactive;
 Sibionics vendor exclusion patterns contribute no files in the active inventory.
 Public native source/submodule and Maven dependencies supply all other inputs.
 
-**Licensing is unresolved:** the checkout does not provide redistribution grants
-or exact source-app provenance for these vendor inputs. Existing public APKs prove
-availability and byte identity, not permission. The licensing flag deliberately
-requires the owner to resolve that decision before new APK distribution.
+The owner has enabled the redistribution approval flag and, on 2026-10-07,
+explicitly confirmed redistribution rights for the two `libCALCULATION.so` copies
+supplied from Juggluco 11.3.0-log. This records the owner's authorization; existing
+public APKs and checksums alone do not establish licensing rights. Review rights
+and provenance again when adding or replacing vendor inputs.
 
 Two other ignored local inputs exist: `net/ICE/turnservers.local.hpp` and
 `twilio.local.hpp`. They are optional credential overrides, **not required build
@@ -301,3 +323,70 @@ Restoration never deletes or overwrites different local binaries. For a checkout
 left at an older library set, deliberately apply the vendor edit there or use a
 fresh checkout before restoring. Keep removal entries until the file is explicitly
 re-added by the updater; they prevent stale packaging even after rebasing.
+
+### Example: CareSens Air (`libCALCULATION.so`, PR #542)
+
+The vendor-only bootstrap below is now complete: the owner-authorized copies are
+inside the published 1.2.3-Alpha prerelease and pinned in the inventory. Fresh
+checkouts can run `scripts/restore-build-inputs.sh` normally. Rebase the driver PR
+onto this baseline, request `/build-dist phone` on that PR and approve its exact
+head to test it before merging the driver. The baseline release itself contains
+the libraries but does **not** include the Air driver. The following describes
+the procedure used to establish it, and applies to the next new library/hash.
+
+Rebase the driver PR onto current main first so it contains the current canonical
+build scripts. In that checkout, restore the existing inputs **before** adding
+the new library:
+
+```sh
+scripts/restore-build-inputs.sh
+# Obtain approved/provenance-checked copies for both ABIs and place them at:
+# Common/src/main/jniLibs/arm64-v8a/libCALCULATION.so
+# Common/src/main/jniLibs/armeabi-v7a/libCALCULATION.so
+scripts/update-build-inputs.sh
+git diff -- scripts/dist/build-inputs.json
+git add scripts/dist/build-inputs.json
+git commit -m 'Inventory CareSens Air vendor algorithms'
+scripts/build-dist.sh phone --no-daemon --no-configuration-cache
+```
+
+The script records both files' exact sizes/hashes automatically. Since 1.2.2's
+pinned APK does not supply them, it also records `bootstrapRequired: true`.
+This is expected. Local builds work with these exact ignored files; share only
+the verified `build/dist/phone/*.apk` with the tester once redistribution of the
+new algorithm **inside that APK** is authorized. Do not upload the standalone
+libraries or use `git add -f`. This PR requires both ARM binaries; a missing Air
+algorithm can still compile and pair but cannot produce glucose. Verify the
+vendor ABI/exported algorithm against the driver and perform real-sensor tests.
+
+**`/build-dist phone` cannot fetch new bytes from your laptop.** For this bootstrap
+state, it fails at restoration rather than shipping an APK without the algorithm.
+An Actions artifact is not a vendor baseline, and requesting a signed build is
+not a grant of redistribution rights. The existing licensing flag does not
+establish rights for this newly added library.
+
+After testing, merge the inventory/driver/version changes. At clean current remote
+main with the ignored libraries still present, run `scripts/release-local.sh` as
+above. Use `--prerelease` if the first published baseline should remain a testing
+release. Then run `scripts/update-build-inputs.sh --baseline <published-version>`
+and commit/merge that metadata PR. Actions can now reproduce the same libraries
+from the pinned published phone APK, including subsequent approved PR test builds.
+A bootstrap prerelease already reserves its version tag; promote that existing
+release in GitHub when ready, or bump the version for a later normal release.
+
+If you need **Actions testing before merging the Air driver**, put just the
+generated inventory and version bump in a separate owner-reviewed PR to main.
+Publish its local bootstrap prerelease with the new ignored libraries, then merge
+the new-baseline metadata PR. This makes the library available reproducibly
+without activating the driver. Rebase #542 onto that main and request
+`/build-dist phone` there; the usual exact-head owner approval then builds the
+unmerged driver with the new library. No temporary binary upload mechanism is
+needed. Local testing above is the shorter path when cloud testing is unnecessary.
+
+For a **replacement**, overwrite the ignored file(s) and run the same inventory,
+local-test and bootstrap/rebaseline sequence. For a **removal**, delete the file(s),
+update the driver as needed and run the updater: it records `removedFiles` and
+rejects stale APKs that still contain them. Removal alone normally keeps Actions
+working against the old baseline, because all remaining bytes are still present
+there. Never regenerate from a partially restored checkout: absent libraries
+would look like intentional removals.

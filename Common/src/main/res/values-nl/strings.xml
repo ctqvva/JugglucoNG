@@ -706,29 +706,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="status_disconnected">Verbroken</string>
     <string name="select_sensor_type">Selecteer sensortype</string>
     <string name="choose_theme">Thema kiezen</string>
-    <string name="sibionics_sensor_picker_desc">QR-scan</string>
-    <string name="libre_sensor_picker_desc">NFC-scan</string>
-    <string name="dexcom_sensor_picker_desc">QR-scan</string>
-    <string name="accuchek_sensor_picker_desc">Datamatrix + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Code + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth-instelling</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth-instelling</string>
-    <string name="mq_sensor_picker_desc">Bluetooth-koppeling</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth-koppeling</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Koppel een Anytime / Yuwell CGM-zender via Bluetooth</string>
     <string name="anytime_setup_title">Anytime / Yuwell instellen</string>
     <string name="anytime_searching_sensors">Zoeken naar Anytime-/Yuwell-zenders…</string>
     <string name="anytime_no_sensors_hint">Houd de zender dichtbij en zorg dat hij aanstaat.</string>
     <string name="anytime_detected_label">%1$s · Anytime / Yuwell-zender</string>
     <string name="anytime_selectable_unrecognized">%1$s · getoond omdat \"Alle apparaten bekijken\" aanstaat</string>
     <string name="anytime_connecting_to">%1$s koppelen…</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Scan QR-code</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Via NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
     <string name="scan_transmitter_title">Scan zender</string>
     <string name="scan_transmitter_desc">Selecteer apparaat in de buurt of scan QR.</string>
     <string name="clear_previous_state">Wis vorige status</string>
@@ -787,8 +770,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scan de datamatrix op uw Accu-Chek SmartGuide-sensor</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Scandatamatrix + Bluetooth</string>
     <string name="accuchek_setup_title">Accu-Chek-installatie</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -809,8 +790,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aidex_key_fetch_requires_sign_in">Meld je aan om de sleutel van deze sensor te downloaden.</string>
     <string name="aidex_key_import_failed">Importeren mislukt — geen geldig AiDex-sleutelbestand.</string>
     <string name="aidex_searching_sensors">Sensoren zoeken...</string>
-    <string name="aidex_sensor">Aidex / LinX</string>
-    <string name="aidex_sensor_desc">Configureer AiDex of LinX CGM via Bluetooth</string>
     <string name="aidex_setup_title">AiDex / LinX-installatie</string>
     <string name="alert_amount">Hoeveelheidsalarm</string>
     <string name="alert_forecast_high">Voorspeld hoog</string>
@@ -836,10 +815,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="avg">Gem</string>
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="caresens_air_scan_instruction">Scan de sensorcode op uw CareSens Air-pakket</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Scancode + Bluetooth</string>
     <string name="caresens_air_setup_title">CareSens Air-installatie</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
@@ -868,7 +845,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="disconnect_sensor_failed">De sensor kon niet worden verwijderd en is nog actief. Probeer het opnieuw.</string>
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
-    <string name="eusibionics">Sibionics EU</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
     <string name="factory_reset_confirm">Factory Reset?</string>
@@ -988,7 +965,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_expected_end">Expected End</string>
     <string name="sensor_started">Started</string>
     <string name="sensors_title">Sensors</string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="stability">Stabiliteit</string>
     <string name="start_tracking">Begin met het bijhouden van uw glucose om statistieken te bekijken</string>
@@ -2168,9 +2145,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_display_select">Sensor voor weergave selecteren</string>
     <string name="sensor_display_selected">Sensor voor weergave geselecteerd</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai-account of aanmeldgegevensbestand + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM voor de Chinese markt - cloudaanmelding + Bluetooth</string>
     <string name="ottai_setup_title">Ottai instellen</string>
     <string name="ottai_login_title">Aanmelden bij Ottai</string>
     <string name="ottai_phone_hint">Telefoonnummer</string>

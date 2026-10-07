@@ -398,10 +398,10 @@
     <string name="humaninsulin">Human Insulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Not</string>
-    <string name="eusibionics">Sibionics EU</string>
-    <string name="chsibionics">Sibionics Chinese</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="hematonix">Hematonix</string>
-    <string name="sibionics2">Sibionics 2 Split</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="datapresent">"Data present: "</string>
     <string name="overwrite">Overwrite?</string>
@@ -1060,36 +1060,26 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="select_sensor_type">Select sensor type</string>
     <string name="choose_theme">Choose theme</string>
-    <string name="sibionics_sensor_picker_desc">QR scan</string>
-    <string name="libre_sensor_picker_desc">NFC scan</string>
-    <string name="dexcom_sensor_picker_desc">QR scan</string>
-    <string name="accuchek_sensor_picker_desc">Data Matrix + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Code + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth setup</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth setup</string>
-    <string name="mq_sensor_picker_desc">Bluetooth pairing</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth pairing</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Scan QR code</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Via NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Scan Data Matrix + Bluetooth</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Scan code + Bluetooth</string>
-    <string name="aidex_sensor">AiDex / LinX</string>
-    <string name="aidex_sensor_desc">Configure AiDex or LinX CGM via Bluetooth</string>
-    <string name="icanhealth_sensor">iCan i3 / Sinocare</string>
-    <string name="icanhealth_sensor_desc">Configure iCan i3/i6/i7 CGM via Bluetooth</string>
-    <string name="mq_sensor">MQ / Glutec</string>
-    <string name="mq_sensor_desc">Pair a Glutec / MQ CGM transmitter via Bluetooth</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Pair an Anytime / Yuwell CGM transmitter via Bluetooth</string>
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Ottai account or credentials file + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">Chinese-market CGM - cloud sign-in + Bluetooth</string>
+    <string name="libre_sensor" translatable="false">FreeStyle Libre</string>
+    <string name="libre_sensor_desc" translatable="false">2, 2 Plus, 3, 3 Plus</string>
+    <string name="dexcom_sensor" translatable="false">Dexcom</string>
+    <string name="dexcom_sensor_desc" translatable="false">G7, ONE+</string>
+    <string name="sibionics_sensor" translatable="false">Sibionics</string>
+    <string name="sibionics_sensor_desc" translatable="false">GS1, Sibionics 2, Hematonix</string>
+    <string name="aidex_sensor" translatable="false">AiDEX / LinX</string>
+    <string name="aidex_sensor_desc" translatable="false">X, Vista, Smart, Lumi</string>
+    <string name="ottai_sensor" translatable="false">Ottai / Syai</string>
+    <string name="ottai_sensor_desc" translatable="false">M8, X1</string>
+    <string name="icanhealth_sensor" translatable="false">Sinocare iCan</string>
+    <string name="icanhealth_sensor_desc" translatable="false">i3, i6</string>
+    <string name="anytime_sensor" translatable="false">Yuwell Anytime</string>
+    <string name="anytime_sensor_desc" translatable="false">CT3, CT4, CT5</string>
+    <string name="accuchek_sensor" translatable="false">Accu-Chek</string>
+    <string name="accuchek_sensor_desc" translatable="false">SmartGuide</string>
+    <string name="caresens_air_sensor" translatable="false">CareSens</string>
+    <string name="caresens_air_sensor_desc" translatable="false">Air</string>
+    <string name="mq_sensor" translatable="false">MQ / Glutec</string>
+    <string name="mq_sensor_desc" translatable="false">RGMS-30, V3</string>
 
     <!-- Ottai Setup Wizard -->
     <string name="ottai_setup_title">Ottai Setup</string>

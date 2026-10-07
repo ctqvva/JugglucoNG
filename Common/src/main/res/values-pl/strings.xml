@@ -378,10 +378,10 @@
     <string name="humaninsulin">Insulina ludzka /Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
 
-    <string name="eusibionics">Sibionics Europa - com.sisensing.sijoy</string>
-    <string name="chsibionics">Sibionics Chiny - com.sisensing.sisensingcgm</string>
+    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="chsibionics">Sibionics GS1 (CN)</string>
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
-    <string name="sibionics2">Sibionics2 - com.sisensing.eco</string>
+    <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
     <string name="datapresent">&quot;Dane obecne: &quot;</string>
     <string name="overwrite">Nadpisać?</string>
@@ -689,29 +689,12 @@
     <string name="status_disconnected">Rozłączono</string>
     <string name="select_sensor_type">Wybierz typ sensora</string>
     <string name="choose_theme">Wybierz motyw</string>
-    <string name="sibionics_sensor_picker_desc">Skan QR</string>
-    <string name="libre_sensor_picker_desc">Skan NFC</string>
-    <string name="dexcom_sensor_picker_desc">Skan QR</string>
-    <string name="accuchek_sensor_picker_desc">Matryca + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Kod + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Konfiguracja Bluetooth</string>
-    <string name="icanhealth_sensor_picker_desc">Konfiguracja Bluetooth</string>
-    <string name="mq_sensor_picker_desc">Parowanie Bluetooth</string>
-    <string name="anytime_sensor_picker_desc">Parowanie Bluetooth</string>
-    <string name="anytime_sensor">Anytime / Yuwell</string>
-    <string name="anytime_sensor_desc">Sparuj nadajnik CGM Anytime / Yuwell przez Bluetooth</string>
     <string name="anytime_setup_title">Konfiguracja Anytime / Yuwell</string>
     <string name="anytime_searching_sensors">Szukanie nadajników Anytime / Yuwell…</string>
     <string name="anytime_no_sensors_hint">Trzymaj nadajnik blisko i upewnij się, że jest włączony.</string>
     <string name="anytime_detected_label">%1$s · nadajnik Anytime / Yuwell</string>
     <string name="anytime_selectable_unrecognized">%1$s · pokazano, bo opcja \"Zobacz wszystkie urządzenia\" jest włączona</string>
     <string name="anytime_connecting_to">Parowanie %1$s…</string>
-    <string name="sibionics_sensor">Sibionics</string>
-    <string name="sibionics_sensor_desc">Skanuj kod QR</string>
-    <string name="libre_sensor">Libre 2/3</string>
-    <string name="libre_sensor_desc">Przez NFC</string>
-    <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
     <string name="scan_transmitter_title">Skanuj transmiter</string>
     <string name="scan_transmitter_desc">Wybierz urządzenie lub skanuj QR.</string>
     <string name="clear_previous_state">Wyczyść poprzedni stan</string>
@@ -769,8 +752,6 @@
     <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Zeskanuj matrycę danych na czujniku Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
-    <string name="accuchek_sensor_desc">Skanuj matrycę danych + Bluetooth</string>
     <string name="accuchek_setup_title">Konfiguracja Accu-Chek</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
@@ -790,8 +771,6 @@
     <string name="aidex_key_fetch_requires_sign_in">Zaloguj się, aby pobrać klucz tego czujnika.</string>
     <string name="aidex_key_import_failed">Import nie powiódł się — nieprawidłowy plik klucza AiDex.</string>
     <string name="aidex_searching_sensors">Wyszukiwanie czujników...</string>
-    <string name="aidex_sensor">AiDex/LinX</string>
-    <string name="aidex_sensor_desc">Skonfiguruj AiDex lub LinX CGM przez Bluetooth</string>
     <string name="aidex_setup_title">Konfiguracja AiDex/LinX</string>
     <string name="alert_amount">Alarm ilości</string>
     <string name="alert_forecast_high">Prognozowany wysoki</string>
@@ -823,8 +802,6 @@
     <string name="calibration_algorithm">Calibration Algorithm</string>
     <string name="calibrations">Kalibracje</string>
     <string name="caresens_air_scan_instruction">Zeskanuj kod czujnika na opakowaniu CareSens Air</string>
-    <string name="caresens_air_sensor">CareSens Air</string>
-    <string name="caresens_air_sensor_desc">Zeskanuj kod + Bluetooth</string>
     <string name="caresens_air_setup_title">Konfiguracja powietrza CareSens</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
@@ -2160,9 +2137,6 @@
     <string name="sensor_display_select">Wybierz czujnik do wyświetlania</string>
     <string name="sensor_display_selected">Czujnik wybrany do wyświetlania</string>
     <!-- Ottai Setup Wizard -->
-    <string name="ottai_sensor">Ottai CGM</string>
-    <string name="ottai_sensor_desc">Konto Ottai albo plik danych logowania + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">CGM na rynek chiński - logowanie w chmurze + Bluetooth</string>
     <string name="ottai_setup_title">Konfiguracja Ottai</string>
     <string name="ottai_login_title">Zaloguj do Ottai</string>
     <string name="ottai_phone_hint">Numer telefonu</string>

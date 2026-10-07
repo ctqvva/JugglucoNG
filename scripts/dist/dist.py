@@ -223,6 +223,38 @@ def stage(target):
         print(p.relative_to(ROOT))
 
 
+def stage_test_assets(directory, target, sha, pr_number=None, expected_certificate=None):
+    """Copy verified APKs with snapshot names, retaining canonical build outputs."""
+    if not isinstance(sha, str) or not re.fullmatch(r'[0-9a-f]{40}', sha):
+        raise ValueError('Test APKs require a full source SHA')
+    if pr_number is not None and not re.fullmatch(r'[1-9][0-9]*', str(pr_number)):
+        raise ValueError('Invalid test APK PR number')
+    if target not in TARGETS:
+        raise ValueError('Invalid test APK target')
+    verify_set(directory, target, expected_certificate=expected_certificate)
+    source = 'main' if pr_number is None else f'pr{pr_number}'
+    out = directory.parent / 'test' / target
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=out.parent) as tmp:
+        for flavor, build_type in TARGETS[target]:
+            variant = ('phone' if flavor == 'mobile' else 'wear') + ('-dub' if build_type == 'releasedub' else '')
+            original = directory / filename(flavor, build_type)
+            copied = Path(tmp) / f'JugglucoNG-test-{source}-{sha[:12]}-{variant}.apk'
+            shutil.copyfile(original, copied)
+            if digest(original.read_bytes()) != digest(copied.read_bytes()):
+                raise ValueError('Test APK bytes changed while staging')
+        if out.exists():
+            shutil.rmtree(out)
+        shutil.move(tmp, out)
+    return out
+
+
+def write_build_info(directory, info):
+    info = dict(info, apks=[{'file': p.name, 'size': p.stat().st_size, 'sha256': digest(p.read_bytes())}
+                           for p in sorted(directory.glob('*.apk'))])
+    (directory / 'build-info.json').write_text(json.dumps(info, indent=2) + '\n')
+
+
 def manifest(directory):
     name, code = version()
     artifacts = []
@@ -238,11 +270,12 @@ def manifest(directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['tasks', 'check-inputs', 'restore', 'stage', 'verify', 'manifest', 'version', 'release-check'])
+    parser.add_argument('command', choices=['tasks', 'check-inputs', 'restore', 'stage', 'test-stage', 'verify', 'manifest', 'version', 'release-check'])
     parser.add_argument('--target', choices=TARGETS, default='all')
     parser.add_argument('--dir', type=Path, default=ROOT / 'build/dist/all')
     parser.add_argument('--apk', type=Path)
     parser.add_argument('--tag')
+    parser.add_argument('--sha')
     args = parser.parse_args()
     if args.command == 'tasks':
         for f, b in TARGETS[args.target]:
@@ -253,6 +286,10 @@ def main():
         restore(args.apk)
     elif args.command == 'stage':
         stage(args.target)
+    elif args.command == 'test-stage':
+        out = stage_test_assets(args.dir, args.target, args.sha)
+        write_build_info(out, {'source_sha': args.sha, 'source_kind': 'trusted-main', 'target': args.target,
+                              'run_url': f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'})
     elif args.command == 'verify':
         verify_set(args.dir, args.target)
     elif args.command == 'manifest':
