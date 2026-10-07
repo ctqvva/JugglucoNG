@@ -1020,6 +1020,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wifi">Wifi</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Glucosewaarden naar xDrip+ op deze telefoon sturen</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connect_desc">Glucosemetingen naar Health Connect sturen voor compatibele gezondheidsapps</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>

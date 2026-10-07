@@ -219,6 +219,8 @@
     <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
     <string name="xdrip_compatible_title">xDrip baahinta</string>
     <string name="xdrip_compatible_desc">AAPS waafaqsan</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">U dir akhriska gulukoosta xDrip+ ee taleefankan</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connect_desc">U dir akhrinta gulukooska Health Connect si ay u isticmaalaan abka caafimaadka ee la jaanqaadi kara</string>
     <string name="sensorpermission">Oggolaanshaha dareemayaasha</string>

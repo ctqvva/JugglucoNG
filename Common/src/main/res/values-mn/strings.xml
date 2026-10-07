@@ -214,6 +214,8 @@
     <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
     <string name="xdrip_compatible_title">xDrip broadcast</string>
     <string name="xdrip_compatible_desc">AAPS compatible</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Энэ утсан дээрх xDrip+ рүү глюкозын утгыг илгээх</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connect_desc">Тохирох эрүүл мэндийн аппуудад зориулж глюкозын хэмжилтийг Health Connect руу илгээх</string>
     <string name="sensorpermission">Мэдрэгчийн зөвшөөрөл</string>

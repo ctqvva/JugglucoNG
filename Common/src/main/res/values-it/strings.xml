@@ -966,6 +966,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="writedown">Write down!</string>
     <string name="wrongformat">"Wrong format "</string>
     <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Invia i valori di glucosio a xDrip+ su questo telefono</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connect_desc">Invia le letture della glicemia a Health Connect per le app di salute compatibili</string>
     <string name="xdrip_compatible_title">xDrip-compatible</string>
