@@ -125,6 +125,7 @@ import tk.glucodata.R;
 import tk.glucodata.SetColorsScreenAccess;
 import tk.glucodata.Specific;
 import tk.glucodata.SuperGattCallback;
+import tk.glucodata.XdripFollowerSend;
 
 import java.text.DecimalFormat;
 import java.util.Locale;
@@ -1530,6 +1531,11 @@ static private void exchanges(MainActivity context, View parent) {
         var uploader = getbutton(context, R.string.uploader);
         uploader.setOnClickListener(v -> tk.glucodata.NightPost.config(context, thelayout[0]));
         final CheckBox librelinkbroadcast = new CheckBox(context);
+        final CheckBox xdripFollower = new CheckBox(context);
+        xdripFollower.setText(R.string.xdrip_follower_title);
+        xdripFollower.setChecked(XdripFollowerSend.isEnabled(context));
+        xdripFollower.setOnCheckedChangeListener((buttonView, isChecked) ->
+                XdripFollowerSend.setEnabled(context, isChecked));
         final CheckBox libreview = new CheckBox(context);
         final var healthconnect = (isWearable || Build.VERSION.SDK_INT < 28) ? null : getcheckbox(context, "Health Connect", Natives.gethealthConnect());
         final boolean wasxdrip = Natives.getuselibreview();
@@ -1596,7 +1602,7 @@ static private void exchanges(MainActivity context, View parent) {
         lay = new Layout(context, (l, w, h) -> {
             int[] ret = {w, h};
             return ret;
-        }, new View[]{librelinkbroadcast, xdripbroadcast}, new View[]{jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
+        }, new View[]{librelinkbroadcast, xdripbroadcast}, new View[]{xdripFollower, jugglucobroadcast}, new View[]{webserver, uploader, libreview}, (Build.VERSION.SDK_INT >= 28) ? new View[]{healthconnect,exportview,mirrorview} :new View[]{exportview,mirrorview},
                 new View[]{help,meters, ok});
 
     final   int pad=(int)(tk.glucodata.GlucoseCurve.metrics.density*10.0);
