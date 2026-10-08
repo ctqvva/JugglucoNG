@@ -1681,7 +1681,7 @@ public class SensorBluetooth {
      * Rebuilds the callback roster after a sensor was removed from native storage but its
      * callback is still registered. Rate limited, as it runs on the reading path.
      *
-     * @return true when the roster changed
+     * @return the result of {@link #updateDevices()}; callers must not read it as "roster changed"
      */
     public static boolean reconcileGhostMainSensor() {
         final long now = System.currentTimeMillis();
