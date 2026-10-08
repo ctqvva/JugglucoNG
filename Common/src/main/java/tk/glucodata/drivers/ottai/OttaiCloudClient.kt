@@ -775,9 +775,82 @@ object OttaiCloudClient {
         val deviceVersion: String,
         val bindTime: Long,
         val unbindTime: Long,
+        /** Current-binding lookup overrides historical timestamps when available. */
+        val boundToAccount: Boolean? = null,
     ) {
         /** Still bound (vs. a previously-used sensor that was unbound). */
-        val isActive: Boolean get() = unbindTime <= 0L
+        val isActive: Boolean get() = boundToAccount ?: (unbindTime <= 0L)
+    }
+
+    data class AccountDevicesResult(val devices: List<DeviceSummary>?, val failure: CloudFailure? = null)
+
+    /** Read-only account snapshot: history alone does not identify the current binding. */
+    fun accountDevices(ctx: Context): AccountDevicesResult {
+        val apiBase = base(ctx)
+        val requestHeaders = headers(ctx, now(), apiBase)
+        val history = httpGetWithResult(
+            apiBase + OttaiConstants.EP_DEVICE_LIST,
+            mapOf("pageSize" to "80", "pageNumber" to "1"),
+            requestHeaders,
+        )
+        if (history.failure?.isTokenInvalid == true) return AccountDevicesResult(null, history.failure)
+        val binding = httpGetWithResult(
+            apiBase + OttaiConstants.EP_GET_BIND_DEVICE,
+            emptyMap(),
+            requestHeaders,
+        )
+        val result = accountDevicesResult(history, binding)
+        Log.i(
+            TAG,
+            "account binding current=${result.devices?.firstOrNull { it.isActive }?.mac ?: "none"} " +
+                "rows=${result.devices?.size ?: 0} checked=${result.failure == null}",
+        )
+        if (result.failure != null) {
+            val data = binding.body?.optJSONObject("data") ?: binding.body?.optJSONObject("result")
+            val fields = data?.keys()?.asSequence()?.take(12)?.joinToString(",").orEmpty()
+            Log.w(TAG, "account binding lookup failed: ${result.failure.text} dataFields=$fields")
+        }
+        return result
+    }
+
+    internal fun accountDevicesResult(
+        history: CloudRequestResult,
+        binding: CloudRequestResult,
+    ): AccountDevicesResult {
+        history.failure?.takeIf { it.isTokenInvalid }?.let { return AccountDevicesResult(null, it) }
+        binding.failure?.let { return AccountDevicesResult(null, it) }
+        val body = binding.body ?: return AccountDevicesResult(null, CloudFailure("Empty account binding response"))
+        val data = body.optJSONObject("data") ?: body.optJSONObject("result")
+        val vo = data?.optJSONObject("cgmDeviceRespVO") ?: data
+        val mac = OttaiConstants.canonicalSensorId(vo?.optString("mac").orEmptyIfNull())
+        val historyDevices = if (history.failure == null) history.body?.let(::parseDeviceSummaries).orEmpty() else emptyList()
+        if (!OttaiConstants.looksLikeMac(mac)) {
+            // Explicit null/empty data means no binding. An unfamiliar non-empty response must
+            // not be presented as proof that a sensor is unbound.
+            val explicitlyEmpty = if (data != null) data.length() == 0 else
+                (body.has("data") && body.isNull("data")) || (body.has("result") && body.isNull("result"))
+            if (!explicitlyEmpty) {
+                return AccountDevicesResult(null, CloudFailure("Account binding response has no valid sensor MAC"))
+            }
+            if (history.failure != null) return AccountDevicesResult(null, history.failure)
+            return AccountDevicesResult(historyDevices.map { it.copy(boundToAccount = false) })
+        }
+        val previous = historyDevices.firstOrNull { OttaiConstants.canonicalSensorId(it.mac) == mac }
+        val current = DeviceSummary(
+            mac = mac,
+            serialNo = vo?.optString("serialNo").orEmptyIfNull().ifBlank { previous?.serialNo.orEmpty() },
+            deviceType = vo?.optString("deviceType").orEmptyIfNull().ifBlank { "cgm" },
+            deviceVersion = vo?.optString("deviceVersion").orEmptyIfNull().ifBlank { previous?.deviceVersion.orEmpty() },
+            bindTime = data?.optLongLoose("bindTime")?.takeIf { it > 0L }
+                ?: vo?.optLongLoose("bindTime")?.takeIf { it > 0L } ?: previous?.bindTime ?: 0L,
+            unbindTime = 0L,
+            boundToAccount = true,
+        )
+        return AccountDevicesResult(
+            listOf(current) + historyDevices
+                .filter { OttaiConstants.canonicalSensorId(it.mac) != mac }
+                .map { it.copy(boundToAccount = false) },
+        )
     }
 
     /**
@@ -792,6 +865,10 @@ object OttaiCloudClient {
             mapOf("pageSize" to pageSize.toString(), "pageNumber" to pageNumber.toString()),
             headers(ctx, ts, base(ctx)),
         ) ?: return emptyList()
+        return parseDeviceSummaries(resp)
+    }
+
+    internal fun parseDeviceSummaries(resp: JSONObject): List<DeviceSummary> {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return emptyList()
         val items = data.optJSONArray("items")
             ?: data.optJSONArray("list")
@@ -1180,12 +1257,15 @@ object OttaiCloudClient {
             (if (isSyai(webBase)) mapOf("deviceId" to WEB_DEVICE_ID) else emptyMap()) +
             ("Authorization" to "Bearer $accessToken")
 
-    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? {
+    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? =
+        httpGetWithResult(base, query, headers).body
+
+    private fun httpGetWithResult(base: String, query: Map<String, String>, headers: Map<String, String>): CloudRequestResult {
         val qs = query.entries.joinToString("&") {
             "${enc(it.key)}=${enc(it.value)}"
         }
         val url = if (qs.isEmpty()) base else "$base?$qs"
-        return request("GET", url, null, headers)
+        return requestWithResult("GET", url, null, headers)
     }
 
     private fun httpPostJson(url: String, body: String, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? =

@@ -503,6 +503,7 @@ fun OttaiSetupWizard(
     // The account's sensors (current + past); null = not loaded yet, empty = none.
     var devices by remember { mutableStateOf<List<OttaiCloudClient.DeviceSummary>?>(null) }
     var devicesLoading by remember { mutableStateOf(false) }
+    var accountDevicesFailure by remember { mutableStateOf<OttaiCloudClient.CloudFailure?>(null) }
     var cloudBindingCheckingId by remember { mutableStateOf("") }
     var cloudBindingCheckedId by remember { mutableStateOf("") }
     var cloudBindingFailedId by remember { mutableStateOf("") }
@@ -521,6 +522,7 @@ fun OttaiSetupWizard(
         signedIn = false
         step = ottaiSetupStepAfterSessionInvalidation(step)
         devices = null
+        accountDevicesFailure = null
         cloudBindingCheckingId = ""
         cloudBindingCheckedId = ""
         cloudBindingFailedId = ""
@@ -529,19 +531,18 @@ fun OttaiSetupWizard(
 
     val refreshAccountDevices: (String) -> Unit = refreshAccountDevices@{ sensorId ->
         val canonical = OttaiConstants.canonicalSensorId(sensorId)
-        if (!signedIn || !OttaiConstants.looksLikeMac(canonical)) return@refreshAccountDevices
-        if (devicesLoading && cloudBindingCheckingId == canonical) return@refreshAccountDevices
+        if (!signedIn || busy || devicesLoading) return@refreshAccountDevices
         cloudBindingCheckingId = canonical
         cloudBindingCheckedId = ""
         cloudBindingFailedId = ""
-        if (devicesLoading) return@refreshAccountDevices
+        accountDevicesFailure = null
         devicesLoading = true
         scope.launch {
             val (list, failure) = withContext(Dispatchers.IO) {
-                val value = runCatching { OttaiCloudClient.listDevices(context) }
+                val value = runCatching { OttaiCloudClient.accountDevices(context) }
                     .onFailure { Log.w(tag, "refresh account sensors: ${it.message}") }
                     .getOrNull()
-                value to OttaiCloudClient.lastFailure
+                value?.devices to value?.failure
             }
             if (list != null && failure == null) {
                 devices = list
@@ -555,6 +556,8 @@ fun OttaiSetupWizard(
                 Log.w(tag, "cloud binding refresh sensor=$canonical rejected: session invalid")
                 invalidateSession()
             } else {
+                devices = null
+                accountDevicesFailure = failure ?: OttaiCloudClient.CloudFailure("")
                 cloudBindingFailedId = canonical
                 Log.w(tag, "cloud binding refresh failed sensor=$canonical ${failure?.text.orEmpty()}")
             }
@@ -567,32 +570,9 @@ fun OttaiSetupWizard(
     LaunchedEffect(signedIn, step) {
         if (signedIn && (step == OttaiSetupStep.SENSOR || step == OttaiSetupStep.ACCOUNT_SENSORS) &&
             devices == null && !devicesLoading) {
-            devicesLoading = true
-            val (list, failure) = withContext(Dispatchers.IO) {
-                val value = runCatching { OttaiCloudClient.listDevices(context) }
-                    .onFailure { Log.w(tag, "listDevices: ${it.message}") }.getOrNull()
-                value to OttaiCloudClient.lastFailure
-            }
-            if (list != null && failure == null) {
-                devices = list
-                val pendingId = cloudBindingCheckingId
-                if (OttaiConstants.looksLikeMac(pendingId)) {
-                    cloudBindingCheckedId = pendingId
-                    cloudBindingCheckingId = ""
-                    Log.i(
-                        tag,
-                        "cloud binding refresh sensor=$pendingId rows=${list.size} " +
-                            "active=${ottaiActiveCloudUnbindTarget(pendingId, list) != null}",
-                    )
-                }
-            } else if (failure?.isTokenInvalid == true) {
-                Log.w(tag, "listDevices rejected: session invalid")
-                invalidateSession()
-            } else if (OttaiConstants.looksLikeMac(cloudBindingCheckingId)) {
-                cloudBindingFailedId = cloudBindingCheckingId
-                cloudBindingCheckingId = ""
-            }
-            devicesLoading = false
+            // The load belongs to the wizard, so opening the picker cannot cancel it and leave
+            // devicesLoading stuck while the two account queries are still in flight.
+            refreshAccountDevices(cloudId)
         }
     }
     // Refresh the locally-saved list whenever we land on the sensor step (e.g. after import).
@@ -817,14 +797,14 @@ fun OttaiSetupWizard(
                                 val unboundAt = System.currentTimeMillis()
                                 devices = devices?.map { device ->
                                     if (OttaiConstants.canonicalSensorId(device.mac) == targetId) {
-                                        device.copy(unbindTime = unboundAt)
+                                        device.copy(unbindTime = unboundAt, boundToAccount = false)
                                     } else {
                                         device
                                     }
                                 }
                                 selectedAccountDevice = selectedAccountDevice?.let { selected ->
                                     if (OttaiConstants.canonicalSensorId(selected.mac) == targetId) {
-                                        selected.copy(unbindTime = unboundAt)
+                                        selected.copy(unbindTime = unboundAt, boundToAccount = false)
                                     } else {
                                         selected
                                     }
@@ -1025,11 +1005,12 @@ fun OttaiSetupWizard(
                                 cloudBindingCheckingId = canonical
                                 cloudBindingCheckedId = ""
                                 cloudBindingFailedId = ""
+                                accountDevicesFailure = null
                                 val (refreshedDevices, bindingFailure) = withContext(Dispatchers.IO) {
-                                    val value = runCatching { OttaiCloudClient.listDevices(context) }
+                                    val value = runCatching { OttaiCloudClient.accountDevices(context) }
                                         .onFailure { Log.w(tag, "refresh account sensors: ${it.message}") }
                                         .getOrNull()
-                                    value to OttaiCloudClient.lastFailure
+                                    value?.devices to value?.failure
                                 }
                                 if (refreshedDevices != null && bindingFailure == null) {
                                     devices = refreshedDevices
@@ -1040,6 +1021,8 @@ fun OttaiSetupWizard(
                                             "active=${ottaiActiveCloudUnbindTarget(canonical, refreshedDevices) != null}",
                                     )
                                 } else {
+                                    devices = null
+                                    accountDevicesFailure = bindingFailure ?: OttaiCloudClient.CloudFailure("")
                                     cloudBindingFailedId = canonical
                                     Log.w(
                                         tag,
@@ -1645,6 +1628,24 @@ fun OttaiSetupWizard(
                     )
                     if (status.isNotBlank()) Text(status)
                     if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (signedIn) {
+                        OutlinedButton(
+                            onClick = { refreshAccountDevices(cloudId) },
+                            enabled = !busy && !devicesLoading && !materialLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.Cloud, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.refresh))
+                        }
+                        accountDevicesFailure?.let { failure ->
+                            Text(
+                                stringResource(R.string.ottai_cloud_binding_error) +
+                                    failure.text.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty(),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                     val savedIds = savedSensors.map { OttaiConstants.canonicalSensorId(it.sensorId) }.toSet()
                     if (savedSensors.isNotEmpty()) {
                         Text(stringResource(R.string.ottai_saved_credentials_title), style = MaterialTheme.typography.titleMedium)
@@ -1715,7 +1716,7 @@ fun OttaiSetupWizard(
                                 )
                                 HorizontalDivider()
                             }
-                        if (!devicesLoading && (devices ?: emptyList()).isEmpty()) {
+                        if (!devicesLoading && accountDevicesFailure == null && devices?.isEmpty() == true) {
                             Text(
                                 stringResource(R.string.ottai_no_account_sensors),
                                 modifier = Modifier.padding(16.dp),
