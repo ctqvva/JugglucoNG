@@ -537,8 +537,11 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (reading.isResolved()) {
             glucoseValue = reading.getResolvedValue();
         } else {
+            // These are the known incoming lanes. Room may still contain only the
+            // previous minute while the driver's asynchronous write is pending.
             final var display = CurrentDisplaySource.resolveIncomingReading(reading, rate, timmsec,
-                    resolvedSensorSerial, sensorgen);
+                    resolvedSensorSerial, sensorgen, 0, "external-current",
+                    DisplayTrendSource.TREND_WINDOW_MS, true);
             if (display != null) {
                 glucoseValue = display.getPrimaryValue();
             } else {
