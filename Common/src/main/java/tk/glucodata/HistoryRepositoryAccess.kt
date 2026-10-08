@@ -89,11 +89,11 @@ object HistoryRepositoryAccess {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-        completion: Runnable,
+        completion: HistoryOperationCompletion,
     ) {
         val registered = bridge
         if (registered == null) {
-            completion.run()
+            completion.complete(false)
             return
         }
         runCatching {
@@ -106,7 +106,7 @@ object HistoryRepositoryAccess {
             )
         }.onFailure {
             Log.stack(TAG, "storeHistoryBatchWithCompletionAsync failed", it)
-            completion.run()
+            completion.complete(false)
         }
     }
 
@@ -178,16 +178,32 @@ object HistoryRepositoryAccess {
             .getOrNull() ?: 0
 
     @JvmStatic
-    fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable) {
+    fun replaceProvisionalHistoryAsync(
+        sensorSerial: String,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ) {
         val registered = bridge
         if (registered == null) {
-            completion.run()
+            completion.complete(false)
             return
         }
-        runCatching { registered.deleteReadingAsync(sensorSerial, timestamp, completion) }
+        runCatching {
+            registered.replaceProvisionalHistoryAsync(
+                sensorSerial,
+                provisionalTimestamps,
+                correctedTimestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                completion,
+            )
+        }
             .onFailure {
-                Log.stack(TAG, "deleteReadingAsync failed", it)
-                completion.run()
+                Log.stack(TAG, "replaceProvisionalHistoryAsync failed", it)
+                completion.complete(false)
             }
     }
 

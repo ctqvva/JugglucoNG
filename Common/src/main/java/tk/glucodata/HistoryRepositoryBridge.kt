@@ -1,5 +1,9 @@
 package tk.glucodata
 
+fun interface HistoryOperationCompletion {
+    fun complete(success: Boolean)
+}
+
 /**
  * The mobile-only Room history repository, as the shared code needs it
  * (plan P1/Q1).
@@ -41,7 +45,7 @@ interface HistoryRepositoryBridge {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-        completion: Runnable,
+        completion: HistoryOperationCompletion,
     )
 
     fun storeHistoryBatchBlocking(
@@ -74,7 +78,14 @@ interface HistoryRepositoryBridge {
 
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int
 
-    fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable)
+    fun replaceProvisionalHistoryAsync(
+        sensorSerial: String,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    )
 
     /**
      * Who is the main sensor, minute by minute, since [startTimeMs] — from the

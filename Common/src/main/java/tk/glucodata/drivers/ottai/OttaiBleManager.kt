@@ -33,6 +33,7 @@ import kotlin.math.abs
 import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.HistoryRepositoryAccess
+import tk.glucodata.HistoryOperationCompletion
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.LiveReadingLanes
 import tk.glucodata.Log
@@ -54,6 +55,54 @@ internal data class OttaiCurrentReadingDecision(
     val replacesProvisionalTail: Boolean,
     val provisionalTimestampToReplaceMs: Long,
 )
+
+internal data class OttaiProvisionalHistoryPoint(
+    val dataNo: Int,
+    val timestampMs: Long,
+    val mgdl: Float,
+)
+
+internal data class OttaiProvisionalHistoryRepair(
+    val provisionalTimestamps: LongArray,
+    val correctedTimestamps: LongArray,
+    val valuesMgdl: FloatArray,
+    val rawValuesMgdl: FloatArray,
+)
+
+internal fun buildOttaiProvisionalHistoryRepair(
+    provisional: Collection<OttaiProvisionalHistoryPoint>,
+    correctedDataNo: Int,
+    provisionalTimestampMs: Long,
+    correctedTimestampMs: Long,
+    correctedMgdl: Float,
+    intervalMs: Long = 60_000L,
+): OttaiProvisionalHistoryRepair? {
+    if (correctedDataNo < 0 || provisionalTimestampMs <= 0L || correctedTimestampMs <= 0L ||
+        !correctedMgdl.isFinite() || correctedMgdl <= 0f || intervalMs <= 0L
+    ) return null
+
+    val byDataNo = LinkedHashMap<Int, OttaiProvisionalHistoryPoint>()
+    provisional.filter { it.dataNo >= 0 && it.timestampMs > 0L && it.mgdl.isFinite() && it.mgdl > 0f }
+        .forEach { byDataNo[it.dataNo] = it }
+    // The live record is authoritative for both its old provisional slot and its corrected value.
+    byDataNo[correctedDataNo] = OttaiProvisionalHistoryPoint(
+        correctedDataNo,
+        provisionalTimestampMs,
+        correctedMgdl,
+    )
+    val points = byDataNo.values.sortedBy { it.dataNo }
+    if (points.isEmpty()) return null
+    val corrected = LongArray(points.size) { index ->
+        correctedTimestampMs + (points[index].dataNo - correctedDataNo).toLong() * intervalMs
+    }
+    if (corrected.any { it <= 0L }) return null
+    return OttaiProvisionalHistoryRepair(
+        provisionalTimestamps = LongArray(points.size) { points[it].timestampMs },
+        correctedTimestamps = corrected,
+        valuesMgdl = FloatArray(points.size) { points[it].mgdl },
+        rawValuesMgdl = FloatArray(points.size),
+    )
+}
 
 /** Stateful display/publication transition used by the manager and path-level tests. */
 internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) {
@@ -87,7 +136,7 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
         val replacesProvisionalTail = freshLive &&
             displayedFromHistory &&
             dataNo >= 0 &&
-            dataNo == displayedDataNo &&
+            dataNo >= displayedDataNo &&
             previousDisplayed > 0L &&
             sampleMs < previousDisplayed
         val publishCurrent = freshLive &&
@@ -153,6 +202,7 @@ class OttaiBleManager(
         // back as; see fastReArmBounced.
         private const val GATT_ERROR_STATUS = 133
         private const val FAST_REARM_BOUNCE_WINDOW_MS = 2_000L
+        private const val MAX_PROVISIONAL_REPAIR_ATTEMPTS = 3
         private const val MTU = 247
         private const val MTU_SETTLE_BEFORE_DISCOVERY_MS = 1_250L
         private const val MTU_CALLBACK_FALLBACK_MS = 2_500L
@@ -712,6 +762,7 @@ class OttaiBleManager(
         val publishCurrent: Boolean,
         val persist: Boolean,
         val replacesProvisionalTail: Boolean,
+        val correctsProvisionalHistory: Boolean,
         val provisionalTimestampToReplaceMs: Long,
         val dataNo: Int,
         val temperatureC: Float,
@@ -3251,6 +3302,9 @@ class OttaiBleManager(
         }
         repairAheadLastDataNoIfNeeded(r.record.dataNo, live)
         val advancesDataNo = r.record.dataNo > lastDataNo
+        val provisionalStartBeforeLive = streamStartTimeMs.takeIf {
+            live && it > 0L && !streamStartReliable
+        } ?: 0L
         val sampleMs = resolveSampleTimeMs(r, live, receivedAtMs)
         if (sampleMs <= 0L) {
             Log.w(TAG, "no active-time anchor — skipping emit dataNo=${r.record.dataNo}")
@@ -3281,8 +3335,19 @@ class OttaiBleManager(
                 lastRawCurrent = r.record.rawCurrent.toFloat()
             },
         )
-        if (currentDecision.replacesProvisionalTail) {
+        val provisionalAnchorShifted = provisionalStartBeforeLive > 0L &&
+            streamStartReliable &&
+            streamStartTimeMs != provisionalStartBeforeLive
+        val correctsProvisionalHistory = currentDecision.replacesProvisionalTail || provisionalAnchorShifted
+        if (correctsProvisionalHistory) {
             provisionalCorrectionInFlight = true
+        }
+        val provisionalTimestampToReplaceMs = if (
+            correctsProvisionalHistory && provisionalStartBeforeLive > 0L
+        ) {
+            provisionalStartBeforeLive + r.record.dataNo.toLong() * RECORD_INTERVAL_MS
+        } else {
+            currentDecision.provisionalTimestampToReplaceMs
         }
         rememberAcceptedReading(r, mmol, sampleMs)
         if (advancesDataNo) noteSeenDataNo(r.record.dataNo)
@@ -3293,9 +3358,10 @@ class OttaiBleManager(
             mgdl = mgdl,
             displayValue = if (Applic.unit == 1) mmol else mgdl,
             publishCurrent = currentDecision.publishCurrent,
-            persist = currentDecision.persistReading,
+            persist = currentDecision.persistReading || (freshLiveSample && provisionalAnchorShifted),
             replacesProvisionalTail = currentDecision.replacesProvisionalTail,
-            provisionalTimestampToReplaceMs = currentDecision.provisionalTimestampToReplaceMs,
+            correctsProvisionalHistory = correctsProvisionalHistory,
+            provisionalTimestampToReplaceMs = provisionalTimestampToReplaceMs,
             dataNo = r.record.dataNo,
             temperatureC = r.record.temperatureC.toFloat(),
         )
@@ -3568,14 +3634,13 @@ class OttaiBleManager(
         storeTemperatures(id, readings)
         val toPersist = readings.filter { it.persist }
         if (toPersist.isEmpty()) return
-        if (live) {
-            toPersist.lastOrNull { it.replacesProvisionalTail }?.let { corrected ->
-                val provisionalMs = corrected.provisionalTimestampToReplaceMs
-                HistorySyncAccess.deleteReadingAsync(id, provisionalMs, Runnable {
-                    requestNativeReconcileAfterRoomWrite(id, correctionFinished = true)
-                })
-                Log.w(TAG, "scheduled provisional history replacement dataNo=${corrected.dataNo} " +
-                    "old=${provisionalMs / 1000L} corrected=${corrected.sampleMs / 1000L}")
+        val correction = toPersist.lastOrNull { live && it.correctsProvisionalHistory }
+        if (correction != null) {
+            if (HistoryRepositoryAccess.isRegistered()) {
+                queueProvisionalHistoryCorrection(id, correction)
+            } else {
+                // Wear has no Room bridge; there is no provisional row to repair there.
+                provisionalCorrectionInFlight = false
             }
         }
         // Tell the watch's ownership claim that this process decoded a live
@@ -3586,21 +3651,24 @@ class OttaiBleManager(
             toPersist.maxByOrNull { it.sampleMs }
                 ?.let { markLocalReadingAccepted(it.sampleMs) }
         }
-        if (live && toPersist.size == 1) {
+        if (live && toPersist.size == 1 && correction == null) {
             val reading = toPersist.single()
             HistorySyncAccess.storeCurrentReadingAsync(reading.sampleMs, reading.mgdl, 0f, 0f, id)
-        } else {
+        } else if (!live) {
             val timestamps = LongArray(toPersist.size) { index -> toPersist[index].sampleMs }
             val values = FloatArray(toPersist.size) { index -> toPersist[index].mgdl }
             // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
             val rawValues = FloatArray(toPersist.size) { 0f }
-            if (!live && nativePresenceStartTimeMs() <= 0L) {
+            if (nativePresenceStartTimeMs() <= 0L && HistoryRepositoryAccess.isRegistered()) {
+                noteProvisionalHistoryWriteStarted(toPersist)
                 HistorySyncAccess.storeSensorHistoryBatchWithCompletionAsync(
                     id,
                     timestamps,
                     values,
                     rawValues,
-                    Runnable { requestNativeReconcileAfterRoomWrite(id) },
+                    HistoryOperationCompletion { stored ->
+                        onProvisionalHistoryWriteFinished(id, stored)
+                    },
                 )
             } else {
                 HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
@@ -3662,6 +3730,8 @@ class OttaiBleManager(
                 // this is the first safe moment to close whatever native is missing.
                 if (!provisionalCorrectionInFlight) {
                     handler.post { reconcileNativeFromRoom(id) }
+                } else {
+                    handler.post { retryProvisionalHistoryRepair(id) }
                 }
             }
         }.onFailure { Log.stack(TAG, "mirrorLiveReadingIntoNative", it) }
@@ -3671,12 +3741,109 @@ class OttaiBleManager(
     @Volatile private var nativeReconciledFor: String? = null
     @Volatile private var provisionalCorrectionInFlight = false
 
+    private val provisionalHistoryLock = Any()
+    private val provisionalHistoryByDataNo = LinkedHashMap<Int, OttaiProvisionalHistoryPoint>()
+    private var provisionalHistoryWritesInFlight = 0
+    private var pendingProvisionalCorrection: EmittedReading? = null
+    private var provisionalRepairScheduled = false
+    private var provisionalRepairAttempts = 0
+
+    private fun noteProvisionalHistoryWriteStarted(readings: List<EmittedReading>) {
+        synchronized(provisionalHistoryLock) {
+            readings.forEach { reading ->
+                provisionalHistoryByDataNo[reading.dataNo] = OttaiProvisionalHistoryPoint(
+                    reading.dataNo,
+                    reading.sampleMs,
+                    reading.mgdl,
+                )
+            }
+            provisionalHistoryWritesInFlight++
+        }
+    }
+
+    private fun onProvisionalHistoryWriteFinished(id: String, stored: Boolean) {
+        handler.post {
+            val repair = synchronized(provisionalHistoryLock) {
+                if (provisionalHistoryWritesInFlight > 0) provisionalHistoryWritesInFlight--
+                takeProvisionalHistoryRepairLocked()
+            }
+            if (!stored) Log.e(TAG, "provisional Room history write failed for $id")
+            if (repair != null) {
+                startProvisionalHistoryRepair(id, repair)
+            } else if (stored && !provisionalCorrectionInFlight) {
+                requestNativeReconcileAfterRoomWrite(id)
+            }
+        }
+    }
+
+    private fun queueProvisionalHistoryCorrection(id: String, corrected: EmittedReading) {
+        val repair = synchronized(provisionalHistoryLock) {
+            if (pendingProvisionalCorrection == null) provisionalRepairAttempts = 0
+            pendingProvisionalCorrection = corrected
+            takeProvisionalHistoryRepairLocked()
+        }
+        if (repair != null) startProvisionalHistoryRepair(id, repair)
+    }
+
+    private fun takeProvisionalHistoryRepairLocked(): OttaiProvisionalHistoryRepair? {
+        if (provisionalHistoryWritesInFlight > 0 || provisionalRepairScheduled) return null
+        val corrected = pendingProvisionalCorrection ?: return null
+        val repair = buildOttaiProvisionalHistoryRepair(
+            provisional = provisionalHistoryByDataNo.values,
+            correctedDataNo = corrected.dataNo,
+            provisionalTimestampMs = corrected.provisionalTimestampToReplaceMs,
+            correctedTimestampMs = corrected.sampleMs,
+            correctedMgdl = corrected.mgdl,
+            intervalMs = RECORD_INTERVAL_MS,
+        ) ?: return null
+        provisionalRepairScheduled = true
+        provisionalRepairAttempts++
+        return repair
+    }
+
+    private fun startProvisionalHistoryRepair(id: String, repair: OttaiProvisionalHistoryRepair) {
+        Log.w(TAG, "retiming ${repair.correctedTimestamps.size} provisional history readings for $id")
+        HistorySyncAccess.replaceProvisionalHistoryAsync(
+            id,
+            repair.provisionalTimestamps,
+            repair.correctedTimestamps,
+            repair.valuesMgdl,
+            repair.rawValuesMgdl,
+            HistoryOperationCompletion { stored ->
+                handler.post {
+                    val retrySoon = synchronized(provisionalHistoryLock) {
+                        provisionalRepairScheduled = false
+                        if (stored) {
+                            provisionalHistoryByDataNo.clear()
+                            pendingProvisionalCorrection = null
+                            provisionalRepairAttempts = 0
+                            provisionalCorrectionInFlight = false
+                        }
+                        !stored && provisionalRepairAttempts < MAX_PROVISIONAL_REPAIR_ATTEMPTS
+                    }
+                    if (stored) {
+                        requestNativeReconcileAfterRoomWrite(id)
+                    } else {
+                        Log.e(TAG, "provisional history retime failed for $id")
+                        if (retrySoon) {
+                            handler.postDelayed({ retryProvisionalHistoryRepair(id) }, 1_000L)
+                        }
+                    }
+                }
+            },
+        )
+    }
+
+    private fun retryProvisionalHistoryRepair(id: String) {
+        if (SerialNumber != id) return
+        val repair = synchronized(provisionalHistoryLock) { takeProvisionalHistoryRepairLocked() }
+        if (repair != null) startProvisionalHistoryRepair(id, repair)
+    }
+
     private fun requestNativeReconcileAfterRoomWrite(
         id: String,
-        correctionFinished: Boolean = false,
     ) {
         handler.post {
-            if (correctionFinished) provisionalCorrectionInFlight = false
             if (SerialNumber != id || provisionalCorrectionInFlight) return@post
             nativeReconciledFor = null
             reconcileNativeFromRoom(id)

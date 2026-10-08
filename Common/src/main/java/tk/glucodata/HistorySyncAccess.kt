@@ -325,11 +325,12 @@ object HistorySyncAccess {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-        completion: Runnable,
+        completion: HistoryOperationCompletion,
     ): Boolean {
         if (sensorSerial.isNullOrBlank() || timestamps.isEmpty()) {
-            completion.run()
-            return timestamps.isEmpty() && !sensorSerial.isNullOrBlank()
+            val valid = timestamps.isEmpty() && !sensorSerial.isNullOrBlank()
+            completion.complete(valid)
+            return valid
         }
         HistoryRepositoryAccess.storeHistoryBatchWithCompletionAsync(
             sensorSerial,
@@ -399,12 +400,26 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
-    fun deleteReadingAsync(sensorSerial: String?, timestamp: Long, completion: Runnable): Boolean {
-        if (sensorSerial.isNullOrBlank() || timestamp <= 0L) {
-            completion.run()
+    fun replaceProvisionalHistoryAsync(
+        sensorSerial: String?,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank() || provisionalTimestamps.isEmpty()) {
+            completion.complete(false)
             return false
         }
-        HistoryRepositoryAccess.deleteReadingAsync(sensorSerial, timestamp, completion)
+        HistoryRepositoryAccess.replaceProvisionalHistoryAsync(
+            sensorSerial,
+            provisionalTimestamps,
+            correctedTimestamps,
+            valuesMgdl,
+            rawValuesMgdl,
+            completion,
+        )
         return true
     }
 }

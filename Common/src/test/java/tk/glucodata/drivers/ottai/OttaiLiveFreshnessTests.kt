@@ -93,6 +93,31 @@ class OttaiLiveFreshnessTests {
     }
 
     @Test
+    fun newerLiveRecordCanReplaceALaterProvisionalHistoryTail() {
+        val provisionalTailMs = 1_782_823_500_000L
+        val correctedLiveMs = 1_782_823_440_000L
+        val state = OttaiCurrentReadingState()
+
+        state.accept(
+            live = false,
+            receivedAtMs = provisionalTailMs,
+            sampleMs = provisionalTailMs,
+            dataNo = 41,
+        )
+        val live = state.accept(
+            live = true,
+            receivedAtMs = correctedLiveMs,
+            sampleMs = correctedLiveMs,
+            dataNo = 42,
+        )
+
+        assertTrue(live.displayAdvanced)
+        assertTrue(live.publishCurrent)
+        assertTrue(live.persistReading)
+        assertTrue(live.replacesProvisionalTail)
+    }
+
+    @Test
     fun restoredPublicationHighWaterSuppressesEqualLiveReplay() {
         val publishedMs = 1_782_823_440_000L
         val persistedClaims = mutableListOf<Long>()
