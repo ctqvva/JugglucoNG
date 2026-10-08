@@ -63,9 +63,9 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
     }
 
     /**
-     * History is deliberately ineligible but does not consume a later live claim. Publication
-     * ordering is independent of the displayed timestamp: a provisional activation anchor can
-     * date history after the same record once a live frame establishes the reliable anchor.
+     * History is deliberately ineligible but does not consume a later live claim: the newest
+     * record often arrives on the history characteristic just before the live read returns the
+     * same record, and gating publication on the displayed high-water silenced it (#540).
      */
     @Synchronized
     fun accept(
@@ -3235,11 +3235,7 @@ class OttaiBleManager(
             receivedAtMs = receivedAtMs,
             sampleMs = sampleMs,
             persist = { claimedMs ->
-                Applic.app?.let { context ->
-                    if (!OttaiRegistry.saveLastPublishedGlucoseAtMs(context, SerialNumber.orEmpty(), claimedMs)) {
-                        Log.e(TAG, "failed to persist current publication claim sec=${claimedMs / 1000L}")
-                    }
-                }
+                Applic.app?.let { OttaiRegistry.saveLastPublishedGlucoseAtMs(it, SerialNumber.orEmpty(), claimedMs) }
             },
             onDisplayAdvance = {
                 lastGlucoseAtMs = sampleMs
