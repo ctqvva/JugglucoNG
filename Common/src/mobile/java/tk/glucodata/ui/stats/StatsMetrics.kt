@@ -142,7 +142,7 @@ internal fun ScoreTile(
         .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
     Box(
         modifier = modifier
             .animateContentSize()
@@ -248,7 +248,6 @@ internal fun ScoreTile(
                             Text(
                                 text = value,
                                 style = valueStyle,
-                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 8.dp),
                                 maxLines = 1,
@@ -278,7 +277,6 @@ internal fun ScoreTile(
                             Text(
                                 text = value,
                                 style = valueStyle,
-                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 12.dp),
                                 maxLines = 1,
@@ -323,7 +321,6 @@ internal fun ScoreTile(
                         Text(
                             text = value,
                             style = valueStyle,
-                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(start = 12.dp),
                             maxLines = 1,
@@ -440,7 +437,7 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
     return remember(contentWidth, title, value, expandable, density, textMeasurer, titleStyle, valueStyle) {
         titleOverflows(
             title = title,
@@ -469,7 +466,7 @@ internal fun rememberScoreTileNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
     return remember(contentWidth, value, status, density, textMeasurer, statusStyle, valueStyle) {
         val widthPx = with(density) { maxOf(contentWidth, 0.dp).roundToPx() }
         val titleGapPx = with(density) { 12.dp.roundToPx() }

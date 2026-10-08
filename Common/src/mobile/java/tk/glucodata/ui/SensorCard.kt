@@ -137,9 +137,11 @@ private fun BadgeLabel(
     val base = MaterialTheme.typography.labelSmall
     val density = LocalDensity.current
     val maxWidthPx = with(density) { maxWidth.roundToPx() }
-    val style = remember(text, sizes, maxWidthPx, base) {
+    // The weight is part of the measured style: drawn heavier than measured, the label
+    // overflows the tile it was sized to fit.
+    val style = remember(text, sizes, maxWidthPx, base, weight) {
         val candidates = sizes.map {
-            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp)
+            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp, fontWeight = weight)
         }
         candidates.firstOrNull { candidate ->
             measurer.measure(text, candidate, softWrap = false).size.width <= maxWidthPx
@@ -148,7 +150,6 @@ private fun BadgeLabel(
     Text(
         text = text,
         style = style,
-        fontWeight = weight,
         color = color,
         maxLines = 1,
         softWrap = false,
