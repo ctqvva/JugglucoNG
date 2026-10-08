@@ -2926,6 +2926,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="watch_gms_unavailable">Google Play-services niet beschikbaar</string>
     <string name="watch_gms_unavailable_device">Google Play-services zijn niet beschikbaar op dit apparaat</string>
     <string name="watch_wearos_config_desc">Wear OS-apparaat en routering</string>
+    <string name="watch_wearos_config_disabled">Schakel Wear OS in om routering te configureren</string>
     <string name="watch_kerfstok_bridge">Kerfstok-transportbrug</string>
     <string name="watch_garmin_status_desc">Verbindingsstatus en koppelen</string>
     <string name="watch_garmin_enable_hint">Schakel Kerfstok in om de status te zien</string>

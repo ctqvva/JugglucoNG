@@ -1418,7 +1418,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="report_page1_title">JugglucoNG CGM Clinical Report</string>
     <string name="report_page1_subtitle">Range %1$s · Readings %2$d · Window %3$s to %4$s</string>
     <string name="report_estimated_a1c">Estimated A1C</string>
-    <string name="report_below_target">Below target</string>
+    <string name="report_below_target">Зорилтоос доогуур</string>
     <string name="report_above_target">Above target</string>
     <string name="report_data_density">Data density</string>
     <string name="report_capture_cadence">%1$s of 5-min cadence</string>
@@ -2984,6 +2984,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="watch_gms_unavailable">Google Play үйлчилгээ байхгүй</string>
     <string name="watch_gms_unavailable_device">Энэ төхөөрөмж дээр Google Play үйлчилгээ байхгүй</string>
     <string name="watch_wearos_config_desc">Wear OS төхөөрөмж ба чиглүүлэлт</string>
+    <string name="watch_wearos_config_disabled">Чиглүүлэлтийг тохируулахын тулд Wear OS-г идэвхжүүлнэ үү</string>
     <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
     <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
     <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>

@@ -3068,6 +3068,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="watch_gms_unavailable">Adeegyada Google Play lama heli karo</string>
     <string name="watch_gms_unavailable_device">Adeegyada Google Play laguma heli karo qalabkan</string>
     <string name="watch_wearos_config_desc">Qalabka Wear OS iyo hagidda</string>
+    <string name="watch_wearos_config_disabled">Daar Wear OS si aad u dejiso jihaynta</string>
     <string name="watch_kerfstok_bridge">Buundada gudbinta Kerfstok</string>
     <string name="watch_garmin_status_desc">Xaaladda xiriirka iyo isku xidhka</string>
     <string name="watch_garmin_enable_hint">Daar Kerfstok si aad u aragto xaaladda</string>

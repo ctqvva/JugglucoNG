@@ -2898,6 +2898,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_gms_unavailable">Google Play 服务不可用</string>
     <string name="watch_gms_unavailable_device">此设备上 Google Play 服务不可用</string>
     <string name="watch_wearos_config_desc">Wear OS 设备和路由设置</string>
+    <string name="watch_wearos_config_disabled">启用 Wear OS 以配置路由</string>
     <string name="watch_kerfstok_bridge">Kerfstok 传输桥</string>
     <string name="watch_garmin_status_desc">连接状态和配对</string>
     <string name="watch_garmin_enable_hint">启用 Kerfstok 以查看状态</string>

@@ -2934,6 +2934,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_gms_unavailable">Сервисы Google Play недоступны</string>
     <string name="watch_gms_unavailable_device">Сервисы Google Play недоступны на этом устройстве</string>
     <string name="watch_wearos_config_desc">Устройство Wear OS и маршрутизация</string>
+    <string name="watch_wearos_config_disabled">Включите Wear OS, чтобы настроить маршрутизацию</string>
     <string name="watch_kerfstok_bridge">Транспортный мост Kerfstok</string>
     <string name="watch_garmin_status_desc">Состояние подключения и сопряжение</string>
     <string name="watch_garmin_enable_hint">Включите Kerfstok, чтобы видеть состояние</string>

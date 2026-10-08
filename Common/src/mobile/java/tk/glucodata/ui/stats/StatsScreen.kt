@@ -1598,7 +1598,7 @@ private fun OverviewRing(
                 style = MaterialTheme.typography.headlineLarge
             )
             Text(
-                text = "TIR",
+                text = stringResource(R.string.tir),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2328,8 +2328,8 @@ private fun AgpChart(
                 color = targetBandColor,
                 label = "${stringResource(R.string.in_range)} ${formatMgDl(targets.lowMgDl, unit)}–${formatMgDl(targets.highMgDl, unit)}"
             )
-            LegendDot(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), label = "P10–90")
-            LegendDot(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), label = "IQR")
+            LegendDot(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), label = stringResource(R.string.report_p10_p90))
+            LegendDot(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), label = stringResource(R.string.report_iqr_short))
             LegendDot(color = MaterialTheme.colorScheme.primary, label = stringResource(R.string.median))
             LegendDot(color = selectorColor, label = stringResource(R.string.stats_selected))
         }
@@ -2578,9 +2578,9 @@ private fun DailyTrendSparkline(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            LegendDot(color = tirHeatColor(85f), label = "≥70%")
-            LegendDot(color = tirHeatColor(60f), label = "50-69%")
-            LegendDot(color = tirHeatColor(30f), label = "<50%")
+            LegendDot(color = tirHeatColor(85f), label = "≥${formatLocalePercent(70f)}")
+            LegendDot(color = tirHeatColor(60f), label = "${formatLocalePercent(50f)}–${formatLocalePercent(69f)}")
+            LegendDot(color = tirHeatColor(30f), label = "<${formatLocalePercent(50f)}")
         }
 
         Spacer(modifier = Modifier.height(2.dp))

@@ -2911,6 +2911,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="watch_gms_unavailable">Google Play Hizmetleri kullanılamıyor</string>
     <string name="watch_gms_unavailable_device">Google Play Hizmetleri bu cihazda kullanılamıyor</string>
     <string name="watch_wearos_config_desc">Wear OS cihazı ve yönlendirme</string>
+    <string name="watch_wearos_config_disabled">Yönlendirmeyi yapılandırmak için Wear OS\'u etkinleştirin</string>
     <string name="watch_kerfstok_bridge">Kerfstok aktarım köprüsü</string>
     <string name="watch_garmin_status_desc">Bağlantı durumu ve eşleme</string>
     <string name="watch_garmin_enable_hint">Durumu görmek için Kerfstok’u etkinleştirin</string>

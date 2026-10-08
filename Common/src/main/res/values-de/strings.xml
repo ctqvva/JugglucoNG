@@ -2999,6 +2999,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="watch_gms_unavailable">Google-Play-Dienste nicht verfügbar</string>
     <string name="watch_gms_unavailable_device">Google-Play-Dienste sind auf diesem Gerät nicht verfügbar</string>
     <string name="watch_wearos_config_desc">Wear-OS-Gerät und Routing</string>
+    <string name="watch_wearos_config_disabled">Wear OS aktivieren, um das Routing zu konfigurieren</string>
     <string name="watch_kerfstok_bridge">Kerfstok-Übertragungsbrücke</string>
     <string name="watch_garmin_status_desc">Verbindungsstatus und Kopplung</string>
     <string name="watch_garmin_enable_hint">Kerfstok aktivieren, um den Status zu sehen</string>

@@ -93,6 +93,7 @@ import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import java.text.NumberFormat
 import java.util.Locale
 
 /**
@@ -491,6 +492,16 @@ internal fun rememberScoreTileNeedsOwnRow(
  * someone reading mmol/L — including the bounds quoted in the explanations, which come
  * from the user's own targets rather than fixed constants.
  */
+/**
+ * [percent] (0–100) in the locale's percent pattern: "7.0%" in English, "7,0 %" in German,
+ * "%7,0" in Turkish. A literal "%" after the number is wrong in those.
+ */
+internal fun formatLocalePercent(percent: Float, fractionDigits: Int = 0): String =
+    NumberFormat.getPercentInstance(Locale.getDefault()).apply {
+        minimumFractionDigits = fractionDigits
+        maximumFractionDigits = fractionDigits
+    }.format(percent / 100.0)
+
 @Composable
 internal fun metricSpec(
     metric: StatsMetric,
@@ -561,7 +572,7 @@ internal fun metricSpec(
             spec(
                 value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
                 status = if (band == GmiBand.AT_TARGET) targetWord else highWord,
-                meta = "$targetWord ${String.format(Locale.getDefault(), "<%.1f%%", GmiBand.TARGET_PERCENT)}",
+                meta = "$targetWord <${formatLocalePercent(GmiBand.TARGET_PERCENT, fractionDigits = 1)}",
                 tone = when (band) {
                     GmiBand.AT_TARGET -> TirInRangeColor
                     GmiBand.ABOVE_TARGET -> TirHighColor

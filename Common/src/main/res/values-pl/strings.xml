@@ -2925,6 +2925,7 @@
     <string name="watch_gms_unavailable">Usługi Google Play niedostępne</string>
     <string name="watch_gms_unavailable_device">Usługi Google Play są niedostępne na tym urządzeniu</string>
     <string name="watch_wearos_config_desc">Urządzenie Wear OS i routing</string>
+    <string name="watch_wearos_config_disabled">Włącz Wear OS, aby skonfigurować routing</string>
     <string name="watch_kerfstok_bridge">Most transportowy Kerfstok</string>
     <string name="watch_garmin_status_desc">Stan połączenia i parowanie</string>
     <string name="watch_garmin_enable_hint">Włącz Kerfstok, aby zobaczyć stan</string>

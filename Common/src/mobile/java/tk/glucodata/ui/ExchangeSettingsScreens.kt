@@ -239,7 +239,7 @@ fun WatchSettingsScreen(navController: NavController) {
                         subtitle = if (wearConfigEnabled) {
                             stringResource(R.string.watch_wearos_config_desc)
                         } else {
-                            "Enable WearOS to configure routes"
+                            stringResource(R.string.watch_wearos_config_disabled)
                         },
                         icon = Icons.Filled.Settings,
                         iconTint = MaterialTheme.colorScheme.primary,
