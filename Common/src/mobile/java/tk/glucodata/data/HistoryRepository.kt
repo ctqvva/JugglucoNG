@@ -2138,15 +2138,15 @@ class HistoryRepository(context: Context = Applic.app) {
      * would be the same backdating a background pass does, triggered by a scroll
      * instead. Enforcing that is the caller's job — see [PresentedMinuteRecorder].
      *
-      * A minute older than the grace window freezes on first presentation:
-      * nothing was on screen for it before, so the first time it is shown is the
-      * only honest answer, and it must not move afterwards. A minute still inside
-      * the window is revised, because it is still settling — but only within the
-      * record's own lane (see [ReadingDisplayDao.reviseIfUnsealed]): a view-mode
-      * toggle resubmits the same minutes in the other lane's numbers, and
-      * letting that land would freeze wrong-lane values one toggle at a time.
-      * Which of the two happens is decided by the database rather than here — see
-      * [ReadingDisplayDao.reviseIfUnsealed].
+     * A minute older than the grace window freezes on first presentation:
+     * nothing was on screen for it before, so the first time it is shown is the
+     * only honest answer, and it must not move afterwards. A minute still inside
+     * the window is revised, because it is still settling — but only within the
+     * record's own lane (see [ReadingDisplayDao.reviseIfUnsealed]): a view-mode
+     * toggle resubmits the same minutes in the other lane's numbers, and
+     * letting that land would freeze wrong-lane values one toggle at a time.
+     * Which of the two happens is decided by the database rather than here — see
+     * [ReadingDisplayDao.reviseIfUnsealed].
      *
      * @return newly inserted minutes, or null if disabled or the transaction failed.
      */

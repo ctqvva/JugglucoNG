@@ -63,7 +63,7 @@ interface ReadingDisplayDao {
         WHERE timestamp = :timestamp AND timestamp > :sealHorizon
           AND ((viewMode & 1) = (:viewMode & 1))
           AND (displayMgdl != :displayMgdl OR sensorSerial != :sensorSerial
-                OR viewMode != :viewMode OR calibrationFingerprint != :calibrationFingerprint)
+               OR viewMode != :viewMode OR calibrationFingerprint != :calibrationFingerprint)
         """
     )
     suspend fun reviseIfUnsealed(

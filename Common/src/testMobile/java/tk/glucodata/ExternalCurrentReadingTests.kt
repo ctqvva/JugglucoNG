@@ -92,4 +92,65 @@ class ExternalCurrentReadingTests {
             Applic.app = previousApp
         }
     }
+
+    /**
+     * #479, trace 2026-09-30: an AiDEX reconnect bridge handed over 239 mg/dL as if it were
+     * already resolved, so a user calibrated to ~10.5 mmol/L got a VERY_HIGH alert for 13.3.
+     * A stock bridge value has to leave the publisher calibrated, like the readings around it;
+     * a resolved value must not be calibrated a second time (#431).
+     */
+    @Test
+    fun stockBridgeReadingIsCalibratedBeforeItReachesAlerts() {
+        val previousApp = Applic.app
+        val previousUnit = Applic.unit
+        val previousAlarms = SuperGattCallback.glucosealarms
+        val bridgeField = HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }
+        val previousBridge = bridgeField.get(null)
+        Applic.app = ApplicationProvider.getApplicationContext<TestApplication>()
+        Applic.unit = 0
+        SuperGattCallback.glucosealarms = object : GlucoseAlarmHandler {
+            override fun handlealarm() = Unit
+            override fun setLossAlarm() = Unit
+            override fun setagealarm(numsec: Long, showtime: Long) = Unit
+        }
+        val serial = "X-bridge-test"
+        val time = System.currentTimeMillis()
+        HistoryRepositoryAccess.register(Proxy.newProxyInstance(HistoryRepositoryBridge::class.java.classLoader,
+            arrayOf(HistoryRepositoryBridge::class.java)) { _, method, _ ->
+            when (method.name) {
+                "getHistoryForNotificationForSensor" -> listOf(GlucosePoint(time - 60_000L, 237f, 0f))
+                else -> error("Unexpected repository operation: ${method.name}")
+            }
+        } as HistoryRepositoryBridge)
+        CalibrationAccess.register(object : CalibrationProvider {
+            override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?) = true
+            override fun getCalibratedValue(
+                value: Float,
+                timestamp: Long,
+                isRawMode: Boolean,
+                emitDiagnostics: Boolean,
+                sensorId: String?,
+            ) = value - 48f
+        })
+        try {
+            ManagedSensorViewModeStore.write(Applic.app, serial, 0)
+
+            PublicationSink.value = Float.NaN
+            SuperGattCallback.processExternalCurrentReading(
+                serial, LiveReadingLanes.stock(239f, Float.NaN), 0f, time, 0)
+            assertEquals("stock bridge value", 191f, PublicationSink.value, 0.001f)
+
+            PublicationSink.value = Float.NaN
+            SuperGattCallback.processExternalCurrentReading(
+                serial, LiveReadingLanes.resolved(191f), 0f, time, 0)
+            assertEquals("resolved value", 191f, PublicationSink.value, 0.001f)
+        } finally {
+            CalibrationAccess.unregisterForTests()
+            ManagedSensorViewModeStore.clear(Applic.app, serial)
+            bridgeField.set(null, previousBridge)
+            SuperGattCallback.glucosealarms = previousAlarms
+            Applic.unit = previousUnit
+            Applic.app = previousApp
+        }
+    }
 }
