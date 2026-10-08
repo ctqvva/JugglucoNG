@@ -202,7 +202,8 @@ class OttaiBleManager(
         // back as; see fastReArmBounced.
         private const val GATT_ERROR_STATUS = 133
         private const val FAST_REARM_BOUNCE_WINDOW_MS = 2_000L
-        private const val MAX_PROVISIONAL_REPAIR_ATTEMPTS = 3
+        private const val FAST_PROVISIONAL_REPAIR_ATTEMPTS = 3
+        private const val PROVISIONAL_REPAIR_RETRY_MS = 30_000L
         private const val MTU = 247
         private const val MTU_SETTLE_BEFORE_DISCOVERY_MS = 1_250L
         private const val MTU_CALLBACK_FALLBACK_MS = 2_500L
@@ -3747,6 +3748,7 @@ class OttaiBleManager(
     private var pendingProvisionalCorrection: EmittedReading? = null
     private var provisionalRepairScheduled = false
     private var provisionalRepairAttempts = 0
+    private var provisionalRepairRetry: Runnable? = null
 
     private fun noteProvisionalHistoryWriteStarted(readings: List<EmittedReading>) {
         synchronized(provisionalHistoryLock) {
@@ -3796,8 +3798,10 @@ class OttaiBleManager(
             correctedMgdl = corrected.mgdl,
             intervalMs = RECORD_INTERVAL_MS,
         ) ?: return null
+        provisionalRepairRetry?.let { handler.removeCallbacks(it) }
+        provisionalRepairRetry = null
         provisionalRepairScheduled = true
-        provisionalRepairAttempts++
+        provisionalRepairAttempts = (provisionalRepairAttempts + 1).coerceAtMost(FAST_PROVISIONAL_REPAIR_ATTEMPTS)
         return repair
     }
 
@@ -3811,7 +3815,8 @@ class OttaiBleManager(
             repair.rawValuesMgdl,
             HistoryOperationCompletion { stored ->
                 handler.post {
-                    val retrySoon = synchronized(provisionalHistoryLock) {
+                    if (stop || SerialNumber != id) return@post
+                    val retryDelayMs = synchronized(provisionalHistoryLock) {
                         provisionalRepairScheduled = false
                         if (stored) {
                             provisionalHistoryByDataNo.clear()
@@ -3819,15 +3824,19 @@ class OttaiBleManager(
                             provisionalRepairAttempts = 0
                             provisionalCorrectionInFlight = false
                         }
-                        !stored && provisionalRepairAttempts < MAX_PROVISIONAL_REPAIR_ATTEMPTS
+                        if (provisionalRepairAttempts < FAST_PROVISIONAL_REPAIR_ATTEMPTS) 1_000L
+                        else PROVISIONAL_REPAIR_RETRY_MS
                     }
                     if (stored) {
                         requestNativeReconcileAfterRoomWrite(id)
                     } else {
                         Log.e(TAG, "provisional history retime failed for $id")
-                        if (retrySoon) {
-                            handler.postDelayed({ retryProvisionalHistoryRepair(id) }, 1_000L)
-                        }
+                        // Keep the correction barrier until Room is repaired, but never rely
+                        // on another BLE frame to recover. After the fast retries, keep one
+                        // slow retry pending even when the sensor has stopped sending data.
+                        val retry = Runnable { retryProvisionalHistoryRepair(id) }
+                        provisionalRepairRetry = retry
+                        handler.postDelayed(retry, retryDelayMs)
                     }
                 }
             },
@@ -3835,7 +3844,7 @@ class OttaiBleManager(
     }
 
     private fun retryProvisionalHistoryRepair(id: String) {
-        if (SerialNumber != id) return
+        if (stop || SerialNumber != id) return
         val repair = synchronized(provisionalHistoryLock) { takeProvisionalHistoryRepairLocked() }
         if (repair != null) startProvisionalHistoryRepair(id, repair)
     }
