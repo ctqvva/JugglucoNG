@@ -101,8 +101,8 @@ import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
 
-// SENSOR is the main setup surface. ACCOUNT_SENSORS is pick-only: a row fills the
-// cloud-id field instead of silently connecting.
+// SENSOR is the main setup surface. Account rows fill the cloud-id field; their separate
+// unbind action only releases the cloud binding and never selects/connects the sensor.
 private enum class OttaiSetupStep { SENSOR, ACCOUNT_SENSORS, REGISTER, CONNECTING, SUCCESS }
 
 /**
@@ -800,12 +800,13 @@ fun OttaiSetupWizard(
                         scope.launch {
                             // Deliberately cloud-only. Do not call OttaiRegistry.removeSensor,
                             // SensorBluetooth, or any BLE/native path from this action.
-                            val released = withContext(Dispatchers.IO) {
-                                runCatching {
+                            val (released, failure) = withContext(Dispatchers.IO) {
+                                val result = runCatching {
                                     OttaiCloudClient.unbind(context.applicationContext, targetId)
                                 }.onFailure {
                                     Log.w(tag, "cloud-only unbind $targetId: ${it.message}")
                                 }.getOrDefault(false)
+                                result to OttaiCloudClient.lastFailure
                             }
                             busy = false
                             if (released) {
@@ -825,8 +826,11 @@ fun OttaiSetupWizard(
                                     }
                                 }
                                 status = context.getString(R.string.ottai_cloud_unbind_success)
+                            } else if (failure?.isTokenInvalid == true) {
+                                invalidateSession()
                             } else {
-                                status = context.getString(R.string.ottai_cloud_unbind_failed)
+                                status = context.getString(R.string.ottai_cloud_unbind_failed) +
+                                    failure?.text?.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
                             }
                         }
                     },
@@ -1635,15 +1639,21 @@ fun OttaiSetupWizard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    val savedIds = savedSensors.map { it.sensorId }.toSet()
+                    if (status.isNotBlank()) Text(status)
+                    if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    val savedIds = savedSensors.map { OttaiConstants.canonicalSensorId(it.sensorId) }.toSet()
                     if (savedSensors.isNotEmpty()) {
                         Text(stringResource(R.string.ottai_saved_credentials_title), style = MaterialTheme.typography.titleMedium)
                         savedSensors.forEach { rec ->
+                            val unbindTarget = if (signedIn && !devicesLoading) {
+                                ottaiActiveCloudUnbindTarget(rec.sensorId, devices)
+                            } else null
                             OttaiSensorRow(
                                 title = rec.displayName.ifBlank { OttaiConstants.macWithColons(rec.sensorId) },
                                 subtitle = stringResource(R.string.ottai_sensor_saved) + " · " + rec.sensorId,
                                 active = true,
-                                enabled = !busy,
+                                enabled = !busy && !materialLoading,
+                                onUnbind = unbindTarget?.let { target -> { pendingCloudUnbind = target } },
                                 onClick = {
                                     cloudId = rec.sensorId
                                     if (signedIn) refreshAccountDevices(rec.sensorId)
@@ -1678,7 +1688,12 @@ fun OttaiSetupWizard(
                                         if (d.isActive) R.string.ottai_sensor_active else R.string.ottai_sensor_past,
                                     ) + " · " + cid,
                                     active = d.isActive,
-                                    enabled = !busy,
+                                    enabled = !busy && !materialLoading,
+                                    onUnbind = if (!devicesLoading) {
+                                        ottaiActiveCloudUnbindTarget(cid, devices)?.let { target ->
+                                            { pendingCloudUnbind = target }
+                                        }
+                                    } else null,
                                     onClick = {
                                         cloudId = cid
                                         cloudBindingCheckingId = ""
@@ -1786,20 +1801,36 @@ private fun OttaiSensorRow(
     subtitle: String,
     active: Boolean,
     enabled: Boolean,
+    onUnbind: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = {
-            Icon(
-                Icons.Default.Bluetooth,
-                contentDescription = null,
-                tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-    )
+    Column {
+        ListItem(
+            headlineContent = { Text(title) },
+            supportingContent = { Text(subtitle) },
+            leadingContent = {
+                Icon(
+                    Icons.Default.Bluetooth,
+                    contentDescription = null,
+                    tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+        )
+        if (onUnbind != null) {
+            // A sibling action keeps unbinding independent of selection/material fetching.
+            OutlinedButton(
+                onClick = onUnbind,
+                enabled = enabled,
+                modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp, vertical = 8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Icon(Icons.Default.LinkOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.unbind_sensor))
+            }
+        }
+    }
 }
 
 @Composable

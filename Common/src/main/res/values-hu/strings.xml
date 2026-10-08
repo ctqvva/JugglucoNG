@@ -1006,7 +1006,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_connect_saved">Csatlakozás</string>
     <string name="ottai_login_fail">Sikertelen bejelentkezés — ellenőrizze a telefonszámot/kódot</string>
     <string name="ottai_connect_saved_fail">Ehhez a felhős azonosítóhoz nincs fiók vagy mentett adat</string>
-    <string name="ottai_cloud_already_binding">Az Ottai-fiókhoz még egy másik szenzor van hozzárendelve. Szüntesse meg a hozzárendelést az Ottai alkalmazásban, vagy távolítsa el itt a szenzort a felszabadításához, majd próbálja újra.</string>
+    <string name="ottai_cloud_already_binding">Az Ottai-fiókhoz még egy másik szenzor van hozzárendelve. Nyissa meg az «Az Ottai-fiók szenzorai» részt, szüntesse meg a hozzárendelést, majd próbálja újra.</string>
     <string name="ottai_cloud_unbind_hint">Csak a felhős fiókot érintő művelet. A JugglucoNG nem csatlakozik a kiválasztott szenzorhoz, és nem állítja le, távolítja el vagy módosítja azt.</string>
     <string name="ottai_cloud_unbind_title">Szenzor hozzárendelésének végleges megszüntetése?</string>
     <string name="ottai_cloud_unbind_message">%1$s véglegesen eltávolításra kerül ebből az Ottai-fiókból. A fiók többé nem tudja lekérni a hitelesítő adatait, és a szenzor nem fog működni a hivatalos Ottai alkalmazásban. A JugglucoNG-ben már mentett hitelesítő adatok és szenzorállapot nem változnak. Ez nem vonható vissza.</string>

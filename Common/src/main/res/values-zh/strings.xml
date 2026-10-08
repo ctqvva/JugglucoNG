@@ -2486,7 +2486,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob">将 IOB 发送到 Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout 将显示此值，而不是按配置自行计算。eIOB 和 COB 还会通过单独字段发送。访问令牌需要 api:devicestatus:create 权限。</string>
     <string name="journal_iob_source_remote">来自上传设备的数值（Nightscout）</string>
-    <string name="ottai_cloud_already_binding">Ottai 账户仍绑定着另一个传感器。请在 Ottai 应用中解除绑定，或在此删除该传感器以释放绑定，然后重试。</string>
+    <string name="ottai_cloud_already_binding">Ottai 账户仍绑定着另一个传感器。请打开“Ottai 账户传感器”并解除其绑定，然后重试。</string>
     <string name="ottai_cloud_unbind_hint">此操作仅更改云端账户。JugglucoNG 不会连接、停止、删除或修改所选传感器。</string>
     <string name="ottai_cloud_unbind_title">永久解除此传感器的绑定？</string>
     <string name="ottai_cloud_unbind_message">%1$s 将从此 Ottai 账户中永久移除。此账户将无法再获取其凭据，该传感器也将无法再用于官方 Ottai 应用。JugglucoNG 中已保存的凭据和传感器状态不会改变。此操作无法撤销。</string>
