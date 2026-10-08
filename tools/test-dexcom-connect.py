@@ -29,7 +29,8 @@ methods = '\n'.join(method(s) for s in [
     'static private PendingIntent mkintents(', 'static  PendingIntent  setalarm(',
     'private void cancelalarm(',
     'public synchronized void onDescriptorWrite(', 'public synchronized void onServicesDiscovered(',
-    'public synchronized void onCharacteristicChanged(',
+    'public synchronized void onCharacteristicChanged(' if 'public synchronized void onCharacteristicChanged(' in source
+    else 'public void onCharacteristicChanged(',
     'private static PowerManager.WakeLock getwakelock(', 'private void getlock(',
     'private synchronized void releaselock(' if 'private synchronized void releaselock(' in source
     else 'private void releaselock(',
@@ -38,6 +39,7 @@ fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):sou
 body = r'''
 package tk.glucodata;
 import java.util.*;
+import java.util.concurrent.*;
 class SuperGattCallback {
     static boolean defaultAuto, alarmClock, doLog=false, isWearable=false;
     static final String LOG_ID="test", ALARM_SERVICE="alarm", POWER_SERVICE="power";
@@ -68,7 +70,20 @@ class SuperGattCallback {
     void tryer(Runnable r){r.run();}void enableIndication(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void askbackfill(){}void write(int which,byte[] value){}void requestAuth(){}void docmd0(BluetoothGatt g){}
     void enableGattDescriptor(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
-    void getcert(byte[] v){payloadCalls++;}void authenticate(byte[] v){payloadCalls++;}void getdata(byte[] v){payloadCalls++;}
+    void getcert(byte[] v){payloadCalls++;}void authenticate(byte[] v){payloadCalls++;}void getdata(byte[] v){
+        payloadCalls++;
+        if(publicationEntered!=null){
+            if(!Thread.holdsLock(this))throw new AssertionError("native processing lost callback monitor");
+            publicationEntered.countDown();
+            try{if(!publicationContinue.await(2,TimeUnit.SECONDS))throw new AssertionError("publication gate timed out");}
+            catch(InterruptedException e){throw new AssertionError(e);}
+            synchronized(SensorBluetooth.gattcallbacks){
+                if(dataptr==0)throw new AssertionError("native pointer freed during reading");
+            }
+        }
+    }
+    static CountDownLatch publicationEntered,publicationContinue;
+    synchronized void free(){setPause(true);close();dataptr=0;}
     boolean acceptConnectionAttemptCallback(BluetoothGatt g,int state){return g==mBluetoothGatt&&!stop;}
     void noteFirstGattCallback(String s,BluetoothGatt g){}
     void disconnect(){disconnects++;} void resetconnect(){}
@@ -132,6 +147,7 @@ class Applic extends Context {
 }
 class SensorBluetooth {
     static SensorBluetooth blueone=new SensorBluetooth();
+    static final ArrayList<SuperGattCallback> gattcallbacks=new ArrayList<>();
     void connectToActiveDevice(SuperGattCallback cb,long delay){cb.connectDevice(delay);}
 }
 public class DexGattCallback extends SuperGattCallback {
@@ -145,7 +161,36 @@ public class DexGattCallback extends SuperGattCallback {
         defaultAuto=false;alarmClock=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
         DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
-    public static void main(String[] args){
+    static void publicationAndTeardownFinish(boolean remove) throws Exception {
+        final DexGattCallback cb=fresh();
+        final BluetoothGatt current=cb.mBluetoothGatt;
+        publicationEntered=new CountDownLatch(1);publicationContinue=new CountDownLatch(1);
+        final CountDownLatch teardownStarted=new CountDownLatch(1),finished=new CountDownLatch(2);
+        final List<Throwable> errors=Collections.synchronizedList(new ArrayList<>());
+        Thread reading=new Thread(()->{
+            try{cb.onCharacteristicChanged(current,cb.charact[0],new byte[]{0x4e});}
+            catch(Throwable e){errors.add(e);}finally{finished.countDown();}
+        });
+        Thread teardown=new Thread(()->{
+            teardownStarted.countDown();
+            try{synchronized(SensorBluetooth.gattcallbacks){if(remove)cb.free();else cb.setPause(true);}}
+            catch(Throwable e){errors.add(e);}finally{finished.countDown();}
+        });
+        reading.setDaemon(true);teardown.setDaemon(true);
+        reading.start();check(publicationEntered.await(2,TimeUnit.SECONDS),"reading did not reach publication");
+        teardown.start();check(teardownStarted.await(2,TimeUnit.SECONDS),"teardown did not start");
+        long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+        while(teardown.getState()!=Thread.State.BLOCKED&&System.nanoTime()<deadline)Thread.sleep(1);
+        check(teardown.getState()==Thread.State.BLOCKED,"teardown did not contend with reading");
+        publicationContinue.countDown();
+        check(finished.await(2,TimeUnit.SECONDS),"reading/teardown lock inversion deadlocked");
+        check(errors.isEmpty(),"concurrent reading failure: "+errors);
+        check(cb.payloadCalls==1&&cb.stop,"reading or teardown lost");
+        cb.onCharacteristicChanged(current,cb.charact[0],new byte[]{0x4e});
+        check(cb.payloadCalls==1,"paused/removed callback published again");
+        publicationEntered=null;publicationContinue=null;
+    }
+    public static void main(String[] args) throws Exception {
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
         check(cb.mActiveDeviceAddress.equals(Natives.stored),"process startup lost saved address");
         check(!cb.useAutoConnect()&&cb.connectionAttemptTimeoutMillis()==45000,"initial direct attempt policy");
@@ -203,6 +248,7 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();cb.close();cb.bonded();Applic.runUi();check(cb.dataCommands==0,"bonded without GATT tried command");
         cb=fresh();cb.mActiveBluetoothDevice=null;cb.bonded();check(Applic.ui.isEmpty(),"bonded without device queued discovery");
         cb=fresh();current=cb.mBluetoothGatt;current.discoveryResult=false;cb.bonded();Applic.runUi();check(cb.disconnects==1,"current discovery failure lost recovery");
+        publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);
         System.out.println("PASS: Dexcom timeout fallback, persisted identity/mode, stale callbacks, wakeup scheduling and ownership guards");
     }
 }
