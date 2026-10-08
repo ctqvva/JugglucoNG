@@ -24,7 +24,7 @@ methods = '\n'.join(method(s) for s in [
     'public DexGattCallback(', 'private void preferBackgroundConnect(',
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
     'protected void onConnectionAttemptTimeout(', 'public synchronized boolean connectDevice(',
-    'public synchronized void setPause(',
+    'public synchronized void setPause(', 'public synchronized void bonded(',
     'public synchronized void onConnectionStateChange(', 'public synchronized void close(',
     'static private PendingIntent mkintents(', 'static  PendingIntent  setalarm(',
     'private void cancelalarm(',
@@ -49,8 +49,9 @@ class SuperGattCallback {
     BluetoothGattCharacteristic[] charact={new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic()};
     String SerialNumber, mActiveDeviceAddress, handshake;
     long[] constatchange={0,0}, wrotepass={0,0};
-    BluetoothGatt mBluetoothGatt;
-    int directCalls, closes, rescans;
+    BluetoothGatt mBluetoothGatt;BluetoothDevice mActiveBluetoothDevice=new BluetoothDevice();
+    int directCalls, closes, rescans, disconnects, dataCommands;
+    static Applic app=Applic.app;
     long executorDelay=-1;
     SuperGattCallback(String serial,long ptr,int gen){SerialNumber=serial;dataptr=ptr;mActiveDeviceAddress=Natives.getDeviceAddress(ptr,true);}
     protected boolean useAutoConnect(){return defaultAuto;}
@@ -70,7 +71,8 @@ class SuperGattCallback {
     void getcert(byte[] v){payloadCalls++;}void authenticate(byte[] v){payloadCalls++;}void getdata(byte[] v){payloadCalls++;}
     boolean acceptConnectionAttemptCallback(BluetoothGatt g,int state){return g==mBluetoothGatt&&!stop;}
     void noteFirstGattCallback(String s,BluetoothGatt g){}
-    void disconnect(){} void resetconnect(){}
+    void disconnect(){disconnects++;} void resetconnect(){}
+    void bonded(){}void getdatacmd(){dataCommands++;}void disablenotification(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void searchforDeviceAddress(){rescans++;mActiveDeviceAddress=null;}
     void unbond(){} void setConStatus(int status){}
     static boolean dexKnownSensor(long p){return true;} static boolean getalarmclock(){return alarmClock;}
@@ -78,16 +80,20 @@ class SuperGattCallback {
 }
 class BluetoothProfile {static final int STATE_CONNECTED=2,STATE_DISCONNECTED=0;}
 class BluetoothDevice {static final int BOND_BONDING=11;int getBondState(){return 12;}}
-class BluetoothGatt {static final int GATT_CONNECTION_TIMEOUT=147,GATT_SUCCESS=0;BluetoothDevice getDevice(){return new BluetoothDevice();}boolean discoverServices(){return true;}}
+class BluetoothGatt {static final int GATT_CONNECTION_TIMEOUT=147,GATT_SUCCESS=0;BluetoothDevice getDevice(){return new BluetoothDevice();}int discoveries;boolean discoveryResult=true;boolean discoverServices(){if(!Thread.holdsLock(PowerManager.owner))throw new AssertionError("discovery outside callback monitor");discoveries++;return discoveryResult;}}
 class BluetoothGattCharacteristic {static final int WRITE_TYPE_DEFAULT=2;void setWriteType(int t){}UUID getUuid(){return UUID.randomUUID();}}
 class BluetoothGattDescriptor {BluetoothGattCharacteristic characteristic;BluetoothGattDescriptor(BluetoothGattCharacteristic c){characteristic=c;}BluetoothGattCharacteristic getCharacteristic(){return characteristic;}byte[] getValue(){return new byte[]{0};}UUID getUuid(){return UUID.randomUUID();}}
-class Build {static class VERSION {static int SDK_INT=36;}static class VERSION_CODES {static int M=23;}}
+class Build {static class VERSION {static int SDK_INT=36;}static class VERSION_CODES {static int M=23,P=28;}}
 class android {static class os {static class Build extends tk.glucodata.Build {}}}
 class CloneSensorRegistry {static boolean clone;static boolean isCloneSensor(String s){return clone;}}
 class SensorOwnershipRuntime {static boolean blocked;static boolean blocksLocalConnection(String s){return blocked;}}
 class Natives {static String stored="F0:00:00:00:00:01";static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}static long lastglucosetime(){return System.currentTimeMillis();}static boolean isAuthenticated(long p){return true;}static void dexbackfill(long p,byte[] v){}}
 class Log {static void i(String a,String b){}static void d(String a,String b){}static void e(String a,String b){}static void stack(String a,String b,Throwable t){}static void showbytes(String s,byte[] v){}}
-class Context {static final int MODE_PRIVATE=0;Object getSystemService(String s){return s.equals("power")?Applic.power:Applic.alarms;}}
+class Uri {static Uri parse(String s){return new Uri();}}
+class R {static class raw {static int bonded=1;}}
+class Ringtone {void setLooping(boolean b){}void play(){}}
+class RingtoneManager {static Ringtone getRingtone(Context c,Uri u){return new Ringtone();}}
+class Context {String getPackageName(){return "test";}static final int MODE_PRIVATE=0;Object getSystemService(String s){return s.equals("power")?Applic.power:Applic.alarms;}}
 class PowerManager {
     static final int PARTIAL_WAKE_LOCK=1;
     static Object owner;static int releases;
@@ -120,6 +126,8 @@ class Prefs {
 class Applic extends Context {
     static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
     static PowerManager power=new PowerManager();
+    static List<Runnable> ui=new ArrayList<>();static void RunOnUiThread(Runnable r){ui.add(r);}
+    static void runUi(){for(Runnable r:new ArrayList<>(ui))r.run();ui.clear();}
     Prefs getSharedPreferences(String s,int mode){return prefs;}static void wakemirrors(){}
 }
 class SensorBluetooth {
@@ -133,7 +141,7 @@ public class DexGattCallback extends SuperGattCallback {
     static void check(boolean b,String message){if(!b)throw new AssertionError(message);}
     static DexGattCallback fresh(){
         Applic.prefs=new Prefs();Applic.alarms=new AlarmManager();
-        Applic.power=new PowerManager();PowerManager.releases=0;
+        Applic.power=new PowerManager();PowerManager.releases=0;Applic.ui.clear();
         defaultAuto=false;alarmClock=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
         DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
@@ -185,6 +193,16 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();cb.onConnectionStateChange(cb.mBluetoothGatt,0,2);firstLock=cb.wakelock;cb.setPause(true);
         check(!firstLock.held&&cb.wakelock==null,"pause leaked wake lock");
         cb.close();check(PowerManager.releases==1,"close after pause released twice");
+        cb=fresh();current=cb.mBluetoothGatt;cb.bonded();check(cb.dataCommands==1&&current.discoveries==0,"bonded discovery not queued");
+        Applic.runUi();check(current.discoveries==1,"current bonded discovery skipped");
+        cb=fresh();first=cb.mBluetoothGatt;cb.bonded();cb.close();Applic.runUi();
+        check(first.discoveries==0&&cb.disconnects==0,"queued discovery used closed GATT");
+        cb=fresh();first=cb.mBluetoothGatt;cb.bonded();cb.close();cb.connectDevice(0);current=cb.mBluetoothGatt;Applic.runUi();
+        check(first.discoveries==0&&current.discoveries==0&&cb.disconnects==0,"queued discovery used replacement GATT");
+        cb=fresh();current=cb.mBluetoothGatt;cb.bonded();cb.setPause(true);Applic.runUi();check(current.discoveries==0,"queued discovery ignored pause");
+        cb=fresh();cb.close();cb.bonded();Applic.runUi();check(cb.dataCommands==0,"bonded without GATT tried command");
+        cb=fresh();cb.mActiveBluetoothDevice=null;cb.bonded();check(Applic.ui.isEmpty(),"bonded without device queued discovery");
+        cb=fresh();current=cb.mBluetoothGatt;current.discoveryResult=false;cb.bonded();Applic.runUi();check(cb.disconnects==1,"current discovery failure lost recovery");
         System.out.println("PASS: Dexcom timeout fallback, persisted identity/mode, stale callbacks, wakeup scheduling and ownership guards");
     }
 }

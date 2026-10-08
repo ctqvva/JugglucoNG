@@ -36,6 +36,22 @@ class DexcomManualPairingTests {
     }
 
     @Test
+    fun `lifetime selection preserves manual identity and legacy default`() {
+        val old = DexcomManualPairing.createScanPayload("0012", "M00000KF12OI")!!
+        val ten = DexcomManualPairing.createScanPayload("0012", "M00000KF12OI", 10)!!
+        val fifteen = DexcomManualPairing.createScanPayload("0012", "M00000KF12OI", 15)!!
+        assertEquals(old, ten)
+        assertEquals("00000000000000000", ten.substring(31, 48))
+        assertEquals("15000000000000000", fifteen.substring(31, 48))
+        assertEquals(55, fifteen.length)
+        assertEquals(ten.substring(19, 31) + ten.takeLast(4),
+            fifteen.substring(19, 31) + fifteen.takeLast(4))
+        listOf(0, 12, 16).forEach {
+            assertNull(DexcomManualPairing.createScanPayload("0012", "M00000KF12OI", it))
+        }
+    }
+
+    @Test
     fun `new sensor identities use random input rather than wall clock time`() {
         val first = DexcomManualPairing.createScanPayload(
             "1234",

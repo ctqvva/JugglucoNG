@@ -52,7 +52,6 @@ Composed(19,19,0,11,[
 // drivers built without the Dexcom flavour can share it.
 int rate2changeindex(float rate) { return ratetolegacytrendindex(rate); }
 
-constexpr const int dexmaxtime = 907500; //  907385
 constexpr const int DEXSECONDS = 5 * 60;
 
 extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
@@ -131,6 +130,7 @@ struct glucoseinput {
 #endif
     const auto wastime = nowsec - age;
 
+    const int dexmaxtime = sens->getDexMaxSecs();
     if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
         secsSinceStart >= sens->getWarmupSEC() &&
         index < sens->maxstreampos()) {
@@ -155,7 +155,7 @@ struct glucoseinput {
       }
     } else {
       if (secsSinceStart > dexmaxtime &&
-          sens->getinfo()->lastLifeCountReceived < maxdexcount) {
+          sens->getinfo()->lastLifeCountReceived < sens->getmaxdexcount()) {
         LOGGER("over endtime and only %d received\n",
                sens->getinfo()->lastLifeCountReceived);
         sensor *sensor = sensors->getsensor(sensorindex);
@@ -285,8 +285,9 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
     return mkbackfillcmd(envin, start, end);
   } else {
     auto now = time(nullptr);
+    const int dexmaxtime = sens->getDexMaxSecs();
     if ((now - starttime) > dexmaxtime) {
-      if (was < maxdexcount) {
+      if (was < sens->getmaxdexcount()) {
         int start;
         if (was > 0) {
           time_t starts = sens->getstream(was)->gettime() + 60;

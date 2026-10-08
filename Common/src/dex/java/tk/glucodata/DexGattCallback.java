@@ -943,7 +943,9 @@ private    void getdata(byte[] value) {
     }
 
     @Override
-    public void bonded() {
+    public synchronized void bonded() {
+        final BluetoothGatt expectedGatt = mBluetoothGatt;
+        if (stop || expectedGatt == null || mActiveBluetoothDevice == null) return;
         final var bondstate = mActiveBluetoothDevice.getBondState();
         switch(bondstate) {
             case BluetoothDevice.BOND_BONDING: {
@@ -986,9 +988,12 @@ private    void getdata(byte[] value) {
                 getdatacmd();
                 if(!has_service) {
                     Applic.RunOnUiThread(() -> {
-                        if (!mBluetoothGatt.discoverServices()) {
-                            Log.e(LOG_ID, "bonded(): bluetoothGatt.discoverServices()  failed");
-                            disconnect();
+                        synchronized (DexGattCallback.this) {
+                            if (stop || expectedGatt != mBluetoothGatt) return;
+                            if (!expectedGatt.discoverServices()) {
+                                Log.e(LOG_ID, "bonded(): bluetoothGatt.discoverServices()  failed");
+                                disconnect();
+                            }
                         }
                         });
                     }
