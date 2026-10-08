@@ -307,6 +307,21 @@ class HistoryRepository(context: Context = Applic.app) {
                 HistoryRepository().deleteReadingsForSensorAfter(resolvedSerial, timestampExclusive)
             }
         }
+
+        @JvmStatic
+        fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable) {
+            if (sensorSerial.isBlank() || timestamp <= 0L) {
+                completion.run()
+                return
+            }
+            historyBatchScope.launch {
+                try {
+                    HistoryRepository().deleteReading(timestamp, sensorSerial)
+                } finally {
+                    completion.run()
+                }
+            }
+        }
         
         /**
          * Blocking version for Notify.java that returns tk.glucodata.GlucosePoint.
@@ -509,6 +524,34 @@ class HistoryRepository(context: Context = Applic.app) {
             rawValues,
             GlucoseReadingSource.SENSOR,
         )
+
+        /**
+         * Store one history payload without the coalescing delay and signal only after its Room
+         * transaction has finished. Drivers use this when a follow-up native reconciliation must
+         * observe the rows just accepted from BLE.
+         */
+        @JvmStatic
+        fun storeHistoryBatchWithCompletionAsync(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            completion: Runnable,
+        ) {
+            historyBatchScope.launch {
+                try {
+                    storeHistoryBatchWithSourceBlocking(
+                        sensorSerial,
+                        timestamps,
+                        values,
+                        rawValues,
+                        GlucoseReadingSource.SENSOR,
+                    )
+                } finally {
+                    completion.run()
+                }
+            }
+        }
 
         @JvmStatic
         fun storeHistoryBatchWithSourceAsync(

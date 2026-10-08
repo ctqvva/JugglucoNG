@@ -84,6 +84,33 @@ object HistoryRepositoryAccess {
     }
 
     @JvmStatic
+    fun storeHistoryBatchWithCompletionAsync(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: Runnable,
+    ) {
+        val registered = bridge
+        if (registered == null) {
+            completion.run()
+            return
+        }
+        runCatching {
+            registered.storeHistoryBatchWithCompletionAsync(
+                sensorSerial,
+                timestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                completion,
+            )
+        }.onFailure {
+            Log.stack(TAG, "storeHistoryBatchWithCompletionAsync failed", it)
+            completion.run()
+        }
+    }
+
+    @JvmStatic
     fun storeHistoryBatchBlocking(
         sensorSerial: String,
         timestamps: LongArray,
@@ -149,6 +176,20 @@ object HistoryRepositoryAccess {
         runCatching { bridge?.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive) }
             .onFailure { Log.stack(TAG, "deleteReadingsForSensorAfterBlocking failed", it) }
             .getOrNull() ?: 0
+
+    @JvmStatic
+    fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable) {
+        val registered = bridge
+        if (registered == null) {
+            completion.run()
+            return
+        }
+        runCatching { registered.deleteReadingAsync(sensorSerial, timestamp, completion) }
+            .onFailure {
+                Log.stack(TAG, "deleteReadingAsync failed", it)
+                completion.run()
+            }
+    }
 
     @JvmStatic
     fun getMainSensorOwnership(startTimeMs: Long): tk.glucodata.chart.MainSensorOwnership =

@@ -46,6 +46,20 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         rawValuesMgdl: FloatArray,
     ) = HistoryRepository.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
 
+    override fun storeHistoryBatchWithCompletionAsync(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: Runnable,
+    ) = HistoryRepository.storeHistoryBatchWithCompletionAsync(
+        sensorSerial,
+        timestamps,
+        valuesMgdl,
+        rawValuesMgdl,
+        completion,
+    )
+
     override fun storeHistoryBatchBlocking(
         sensorSerial: String,
         timestamps: LongArray,
@@ -80,6 +94,9 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         sensorSerial: String,
         timestampExclusive: Long,
     ): Int = HistoryRepository.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive)
+
+    override fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable) =
+        HistoryRepository.deleteReadingAsync(sensorSerial, timestamp, completion)
 
     override fun getMainSensorOwnershipForNotification(startTimeMs: Long): MainSensorOwnership =
         HistoryRepository.getMainSensorOwnershipForNotification(startTimeMs)

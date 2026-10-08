@@ -52,6 +52,7 @@ internal data class OttaiCurrentReadingDecision(
     val publishCurrent: Boolean,
     val persistReading: Boolean,
     val replacesProvisionalTail: Boolean,
+    val provisionalTimestampToReplaceMs: Long,
 )
 
 /** Stateful display/publication transition used by the manager and path-level tests. */
@@ -110,6 +111,7 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
             publishCurrent,
             persistReading,
             replacesProvisionalTail,
+            previousDisplayed.takeIf { replacesProvisionalTail } ?: 0L,
         )
     }
 
@@ -710,6 +712,7 @@ class OttaiBleManager(
         val publishCurrent: Boolean,
         val persist: Boolean,
         val replacesProvisionalTail: Boolean,
+        val provisionalTimestampToReplaceMs: Long,
         val dataNo: Int,
         val temperatureC: Float,
     )
@@ -3278,6 +3281,9 @@ class OttaiBleManager(
                 lastRawCurrent = r.record.rawCurrent.toFloat()
             },
         )
+        if (currentDecision.replacesProvisionalTail) {
+            provisionalCorrectionInFlight = true
+        }
         rememberAcceptedReading(r, mmol, sampleMs)
         if (advancesDataNo) noteSeenDataNo(r.record.dataNo)
         Log.i(TAG, "BG dataNo=${r.record.dataNo} mmol=%.2f mgdl=%.0f raw=%d T=%.1f".format(
@@ -3289,6 +3295,7 @@ class OttaiBleManager(
             publishCurrent = currentDecision.publishCurrent,
             persist = currentDecision.persistReading,
             replacesProvisionalTail = currentDecision.replacesProvisionalTail,
+            provisionalTimestampToReplaceMs = currentDecision.provisionalTimestampToReplaceMs,
             dataNo = r.record.dataNo,
             temperatureC = r.record.temperatureC.toFloat(),
         )
@@ -3563,12 +3570,12 @@ class OttaiBleManager(
         if (toPersist.isEmpty()) return
         if (live) {
             toPersist.lastOrNull { it.replacesProvisionalTail }?.let { corrected ->
-                val removed = HistorySyncAccess.deleteReadingsForSensorAfter(id, corrected.sampleMs)
-                Log.w(
-                    TAG,
-                    "replaced provisional history tail dataNo=${corrected.dataNo} " +
-                        "time=${corrected.sampleMs / 1000L} removed=$removed",
-                )
+                val provisionalMs = corrected.provisionalTimestampToReplaceMs
+                HistorySyncAccess.deleteReadingAsync(id, provisionalMs, Runnable {
+                    requestNativeReconcileAfterRoomWrite(id, correctionFinished = true)
+                })
+                Log.w(TAG, "scheduled provisional history replacement dataNo=${corrected.dataNo} " +
+                    "old=${provisionalMs / 1000L} corrected=${corrected.sampleMs / 1000L}")
             }
         }
         // Tell the watch's ownership claim that this process decoded a live
@@ -3587,7 +3594,17 @@ class OttaiBleManager(
             val values = FloatArray(toPersist.size) { index -> toPersist[index].mgdl }
             // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
             val rawValues = FloatArray(toPersist.size) { 0f }
-            HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+            if (!live && nativePresenceStartTimeMs() <= 0L) {
+                HistorySyncAccess.storeSensorHistoryBatchWithCompletionAsync(
+                    id,
+                    timestamps,
+                    values,
+                    rawValues,
+                    Runnable { requestNativeReconcileAfterRoomWrite(id) },
+                )
+            } else {
+                HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+            }
             mirrorHistoryIntoNative(id, toPersist)
         }
         if (live) readings.lastOrNull { it.publishCurrent }?.let {
@@ -3643,13 +3660,28 @@ class OttaiBleManager(
                 Natives.wakebackup()
                 // The shell is sized and the start is known by the time a live write lands, so
                 // this is the first safe moment to close whatever native is missing.
-                handler.post { reconcileNativeFromRoom(id) }
+                if (!provisionalCorrectionInFlight) {
+                    handler.post { reconcileNativeFromRoom(id) }
+                }
             }
         }.onFailure { Log.stack(TAG, "mirrorLiveReadingIntoNative", it) }
     }
 
     // Once per sensor per process. See reconcileNativeFromRoom.
     @Volatile private var nativeReconciledFor: String? = null
+    @Volatile private var provisionalCorrectionInFlight = false
+
+    private fun requestNativeReconcileAfterRoomWrite(
+        id: String,
+        correctionFinished: Boolean = false,
+    ) {
+        handler.post {
+            if (correctionFinished) provisionalCorrectionInFlight = false
+            if (SerialNumber != id || provisionalCorrectionInFlight) return@post
+            nativeReconciledFor = null
+            reconcileNativeFromRoom(id)
+        }
+    }
 
     /**
      * Fill native poll storage from Room.
@@ -3667,6 +3699,7 @@ class OttaiBleManager(
      * missing costs some writes and produces no resend.
      */
     private fun reconcileNativeFromRoom(id: String) {
+        if (provisionalCorrectionInFlight) return
         if (nativeReconciledFor == id) return
         val startMs = nativePresenceStartTimeMs()
         if (startMs <= 0L) return

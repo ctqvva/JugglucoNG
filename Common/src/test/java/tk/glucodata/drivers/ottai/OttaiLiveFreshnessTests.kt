@@ -59,6 +59,7 @@ class OttaiLiveFreshnessTests {
         assertTrue(firstLive.publishCurrent)
         assertTrue(firstLive.persistReading)
         assertTrue(firstLive.replacesProvisionalTail)
+        assertEquals(provisionalHistoryMs, firstLive.provisionalTimestampToReplaceMs)
         state.completePublication(reliableLiveMs, delivered = true)
         assertFalse(
             state.accept(
@@ -88,6 +89,7 @@ class OttaiLiveFreshnessTests {
         assertFalse(olderDifferentRecord.displayAdvanced)
         assertFalse(olderDifferentRecord.persistReading)
         assertFalse(olderDifferentRecord.replacesProvisionalTail)
+        assertEquals(0L, olderDifferentRecord.provisionalTimestampToReplaceMs)
     }
 
     @Test

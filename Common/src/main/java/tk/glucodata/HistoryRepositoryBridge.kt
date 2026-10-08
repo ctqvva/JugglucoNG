@@ -36,6 +36,14 @@ interface HistoryRepositoryBridge {
         rawValuesMgdl: FloatArray,
     )
 
+    fun storeHistoryBatchWithCompletionAsync(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: Runnable,
+    )
+
     fun storeHistoryBatchBlocking(
         sensorSerial: String,
         timestamps: LongArray,
@@ -65,6 +73,8 @@ interface HistoryRepositoryBridge {
     ): LongArray?
 
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int
+
+    fun deleteReadingAsync(sensorSerial: String, timestamp: Long, completion: Runnable)
 
     /**
      * Who is the main sensor, minute by minute, since [startTimeMs] — from the

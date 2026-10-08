@@ -320,6 +320,28 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
+    fun storeSensorHistoryBatchWithCompletionAsync(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: Runnable,
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank() || timestamps.isEmpty()) {
+            completion.run()
+            return timestamps.isEmpty() && !sensorSerial.isNullOrBlank()
+        }
+        HistoryRepositoryAccess.storeHistoryBatchWithCompletionAsync(
+            sensorSerial,
+            timestamps,
+            valuesMgdl,
+            rawValuesMgdl,
+            completion,
+        )
+        return true
+    }
+
+    @JvmStatic
     fun storeSensorHistoryBatchBlocking(
         sensorSerial: String?,
         timestamps: LongArray,
@@ -374,5 +396,15 @@ object HistorySyncAccess {
     fun deleteReadingsForSensorAfter(sensorSerial: String?, timestampExclusive: Long): Int {
         if (sensorSerial.isNullOrBlank() || timestampExclusive <= 0L) return 0
         return HistoryRepositoryAccess.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive)
+    }
+
+    @JvmStatic
+    fun deleteReadingAsync(sensorSerial: String?, timestamp: Long, completion: Runnable): Boolean {
+        if (sensorSerial.isNullOrBlank() || timestamp <= 0L) {
+            completion.run()
+            return false
+        }
+        HistoryRepositoryAccess.deleteReadingAsync(sensorSerial, timestamp, completion)
+        return true
     }
 }
