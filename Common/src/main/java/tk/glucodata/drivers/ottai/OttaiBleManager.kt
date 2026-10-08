@@ -46,6 +46,51 @@ import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorUiFamily
 
+internal data class OttaiCurrentReadingDecision(
+    val previousDisplayedHighWaterMs: Long,
+    val displayAdvanced: Boolean,
+    val publishCurrent: Boolean,
+)
+
+/** Stateful display/publication transition used by the manager and path-level tests. */
+internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) {
+    private var displayedHighWaterMs = 0L
+    private var publishedHighWaterMs = initialPublishedHighWaterMs.coerceAtLeast(0L)
+
+    @Synchronized
+    fun restorePublishedHighWater(highWaterMs: Long) {
+        publishedHighWaterMs = highWaterMs.coerceAtLeast(0L)
+    }
+
+    /**
+     * History is deliberately ineligible but does not consume a later live claim: the newest
+     * record often arrives on the history characteristic just before the live read returns the
+     * same record, and gating publication on the displayed high-water silenced it (#540).
+     */
+    @Synchronized
+    fun accept(
+        live: Boolean,
+        receivedAtMs: Long,
+        sampleMs: Long,
+        persist: (Long) -> Unit = {},
+        onDisplayAdvance: () -> Unit = {},
+    ): OttaiCurrentReadingDecision {
+        val previousDisplayed = displayedHighWaterMs
+        val freshLive = live && OttaiBleManager.isFreshLiveSample(receivedAtMs, sampleMs)
+        val publishCurrent = freshLive && sampleMs > publishedHighWaterMs
+        if (publishCurrent) {
+            persist(sampleMs)
+            publishedHighWaterMs = sampleMs
+        }
+        val displayAdvanced = sampleMs >= previousDisplayed && (!live || freshLive)
+        if (displayAdvanced) {
+            onDisplayAdvance()
+            displayedHighWaterMs = sampleMs
+        }
+        return OttaiCurrentReadingDecision(previousDisplayed, displayAdvanced, publishCurrent)
+    }
+}
+
 @SuppressLint("MissingPermission")
 class OttaiBleManager(
     serial: String,
@@ -916,6 +961,7 @@ class OttaiBleManager(
     @Volatile private var lastGlucoseMmol = Float.NaN
     @Volatile private var lastGlucoseMgdl = 0f
     @Volatile private var lastRawCurrent = Float.NaN
+    private val currentReadingState = OttaiCurrentReadingState()
     @Volatile private var lastAcceptedDataNo = -1
     @Volatile private var lastAcceptedSampleMs = 0L
     @Volatile private var lastAcceptedMmol = Float.NaN
@@ -1101,6 +1147,7 @@ class OttaiBleManager(
         authKeys = materials.authKeys
         activatedMaxActiveMs = OttaiRegistry.loadAcceptedMaxActive(context, id)
         lastDataNo = OttaiRegistry.loadLastDataNo(context, id)
+        currentReadingState.restorePublishedHighWater(OttaiRegistry.loadLastPublishedGlucoseAtMs(context, id))
         learnedRecordSize = OttaiRegistry.loadRecordSize(context, id)
         synchronized(historyHolesLock) {
             historyHoles.clear()
@@ -3182,25 +3229,32 @@ class OttaiBleManager(
             noteContinuityRejection(r.record.dataNo, sampleMs)
             return rejectReading(r, mmol, live, reason)
         }
-        val previousGlucoseAtMs = lastGlucoseAtMs
         val freshLiveSample = live && isFreshLiveSample(receivedAtMs, sampleMs)
-        val newest = sampleMs >= previousGlucoseAtMs
-        if (newest && (!live || freshLiveSample)) {
-            lastGlucoseAtMs = sampleMs
-            lastGlucoseMmol = mmol
-            lastGlucoseMgdl = mgdl
-            lastRawCurrent = r.record.rawCurrent.toFloat()
-        }
+        val currentDecision = currentReadingState.accept(
+            live = live,
+            receivedAtMs = receivedAtMs,
+            sampleMs = sampleMs,
+            persist = { claimedMs ->
+                Applic.app?.let { OttaiRegistry.saveLastPublishedGlucoseAtMs(it, SerialNumber.orEmpty(), claimedMs) }
+            },
+            onDisplayAdvance = {
+                lastGlucoseAtMs = sampleMs
+                lastGlucoseMmol = mmol
+                lastGlucoseMgdl = mgdl
+                lastRawCurrent = r.record.rawCurrent.toFloat()
+            },
+        )
         rememberAcceptedReading(r, mmol, sampleMs)
         if (advancesDataNo) noteSeenDataNo(r.record.dataNo)
         Log.i(TAG, "BG dataNo=${r.record.dataNo} mmol=%.2f mgdl=%.0f raw=%d T=%.1f".format(
             mmol, mgdl, r.record.rawCurrent, r.record.temperatureC))
-        val shouldPersist = !live || (freshLiveSample && sampleMs > previousGlucoseAtMs)
+        val shouldPersist = !live ||
+            (freshLiveSample && sampleMs > currentDecision.previousDisplayedHighWaterMs)
         return EmittedReading(
             sampleMs = sampleMs,
             mgdl = mgdl,
             displayValue = if (Applic.unit == 1) mmol else mgdl,
-            publishCurrent = freshLiveSample && sampleMs > previousGlucoseAtMs,
+            publishCurrent = currentDecision.publishCurrent,
             persist = shouldPersist,
             dataNo = r.record.dataNo,
             temperatureC = r.record.temperatureC.toFloat(),

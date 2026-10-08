@@ -410,6 +410,7 @@ object OttaiRegistry {
                 // default, which reads as EXPIRED partway through a working sensor.
                 OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX,
                 OttaiConstants.PREF_DEVICE_VERSION_PREFIX, OttaiConstants.PREF_LAST_DATA_NO_PREFIX,
+                OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX,
                 OttaiConstants.PREF_DEVICE_ID_PREFIX, OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX,
                 OttaiConstants.PREF_CONTINUITY_BASELINE_PREFIX,
                 OttaiConstants.PREF_HISTORY_HOLES_PREFIX,
@@ -594,6 +595,25 @@ object OttaiRegistry {
         prefs(c).getInt(OttaiConstants.PREF_LAST_DATA_NO_PREFIX + OttaiConstants.canonicalSensorId(id), -1)
     @JvmStatic fun saveLastDataNo(c: Context, id: String, dataNo: Int) {
         prefs(c).edit().putInt(OttaiConstants.PREF_LAST_DATA_NO_PREFIX + OttaiConstants.canonicalSensorId(id), dataNo).apply()
+    }
+
+    @JvmStatic fun loadLastPublishedGlucoseAtMs(c: Context, id: String): Long =
+        prefs(c).getLong(
+            OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX + OttaiConstants.canonicalSensorId(id),
+            0L,
+        )
+
+    /**
+     * apply(), not commit(): this runs on the GATT callback, and a manager recreated in the same
+     * process reads the in-memory value as soon as apply returns.
+     */
+    @JvmStatic fun saveLastPublishedGlucoseAtMs(c: Context, id: String, sampleMs: Long) {
+        prefs(c).edit()
+            .putLong(
+                OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX + OttaiConstants.canonicalSensorId(id),
+                sampleMs,
+            )
+            .apply()
     }
 
     /**
