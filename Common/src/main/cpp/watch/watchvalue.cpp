@@ -34,6 +34,7 @@
 #define LOGSTRINGTAG(...)
 extern Sensoren *sensors;
 extern std::vector<int> usedsensors;
+extern std::vector<int> usedsensorssnapshot();
 const int maxwatchage=maxbluetoothage;
 extern bool networkpresent;
 
@@ -138,9 +139,7 @@ int getglucosestr(double nonconvert,char *glucosestr,int maxglucosestr,int gluco
 
 extern float threshold(float drate);
 extern double     calibrateNow(const SensorGlucoseData *sens,const ScanData &value);
-extern "C" JNIEXPORT jobject  JNICALL   fromjava(lastglucose)(JNIEnv *env, jclass cl) {
-//    const uint32_t nu=time(nullptr);
-    const auto [hist,index]=getlaststream(maxwatchage);
+static jobject lastGlucoseForHistory(JNIEnv *env, const SensorGlucoseData *hist, int index) {
     if(!hist)  {
         LOGSTRINGTAG("getlaststream(maxwatchage)=null\n");
         return nullptr;
@@ -184,6 +183,34 @@ extern "C" JNIEXPORT jobject  JNICALL   fromjava(lastglucose)(JNIEnv *env, jclas
     const float rateofchange=( nonconvert<glucoselowest||nonconvert>hist->getmaxmgdL())?NAN:threshold(poll->ch);
     return env->NewObject(item,iconstruct,tim,env->NewStringUTF(buf),env->NewStringUTF(sensorid),rateofchange,index,sensorgen2,poll->tr);
        }
+
+extern "C" JNIEXPORT jobject JNICALL fromjava(lastglucose)(JNIEnv *env, jclass cl) {
+    const auto [hist,index]=getlaststream(maxwatchage);
+    return lastGlucoseForHistory(env, hist, index);
+}
+
+extern "C" JNIEXPORT jobject JNICALL fromjava(lastglucoseForSensor)(
+    JNIEnv *env, jclass cl, jstring sensorName) {
+    if (!sensorName || !sensors) return nullptr;
+    const char *name = env->GetStringUTFChars(sensorName, nullptr);
+    if (!name) return nullptr;
+    int sensorIndex = sensors->sensorindex(name);
+    if (sensorIndex < 0) sensorIndex = sensors->sensorindexshort(name);
+    env->ReleaseStringUTFChars(sensorName, name);
+    if (sensorIndex < 0) return nullptr;
+
+    // Preserve the legacy display index without using global current-value selection.
+    const auto active = usedsensorssnapshot();
+    int position = -1;
+    for (int i = 0; i < active.size(); ++i) {
+        if (active[i] == sensorIndex) {
+            position = i;
+            break;
+        }
+    }
+    if (active.size() > 1) ++position;
+    return lastGlucoseForHistory(env, sensors->getSensorData(sensorIndex), position);
+}
 
 
 
