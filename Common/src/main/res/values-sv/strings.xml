@@ -2470,7 +2470,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob">Skicka IOB till Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout visar då detta värde i stället för sin egen profilbaserade beräkning. eIOB och COB skickas dessutom i ett separat fält. Åtkomsttoken behöver api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Värden från den uppladdande enheten (Nightscout)</string>
-    <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Koppla bort den i Ottai-appen eller ta bort sensorn här för att frigöra kopplingen och försök sedan igen.</string>
+    <string name="ottai_cloud_already_binding">En annan sensor är fortfarande kopplad till Ottai-kontot. Öppna ”Ottai-kontosensorer” och koppla bort den, och försök sedan igen.</string>
     <string name="ottai_cloud_unbind_hint">Endast en åtgärd för molnkontot. JugglucoNG ansluter inte till, stoppar, tar bort eller ändrar den valda sensorn.</string>
     <string name="ottai_cloud_unbind_title">Koppla bort sensorn permanent?</string>
     <string name="ottai_cloud_unbind_message">%1$s tas bort permanent från detta Ottai-konto. Kontot kan därefter inte längre hämta dess autentiseringsuppgifter och sensorn fungerar inte längre i den officiella Ottai-appen. Autentiseringsuppgifter och sensorstatus som redan sparats i JugglucoNG ändras inte. Detta kan inte ångras.</string>

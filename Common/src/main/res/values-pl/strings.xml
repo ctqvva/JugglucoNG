@@ -2504,7 +2504,7 @@
     <string name="nightscout_upload_iob">Wysyłaj IOB do Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout wyświetli tę wartość zamiast własnego obliczenia na podstawie profilu. eIOB i COB są dodatkowo wysyłane w osobnym polu. Token dostępu wymaga uprawnienia api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Wartości z urządzenia wysyłającego dane (Nightscout)</string>
-    <string name="ottai_cloud_already_binding">Z kontem Ottai nadal jest powiązany inny sensor. Odłącz go w aplikacji Ottai albo usuń ten sensor tutaj, aby zwolnić powiązanie, a następnie spróbuj ponownie.</string>
+    <string name="ottai_cloud_already_binding">Z kontem Ottai nadal jest powiązany inny sensor. Otwórz „Sensory konta Ottai” i odłącz go, a następnie spróbuj ponownie.</string>
     <string name="ottai_cloud_unbind_hint">Ta czynność dotyczy tylko konta w chmurze. JugglucoNG nie połączy się z wybranym sensorem ani go nie zatrzyma, nie usunie i nie zmodyfikuje.</string>
     <string name="ottai_cloud_unbind_title">Trwale odłączyć ten sensor?</string>
     <string name="ottai_cloud_unbind_message">%1$s zostanie trwale usunięty z tego konta Ottai. Konto nie będzie już mogło pobrać jego danych uwierzytelniających, a sensor przestanie działać w oficjalnej aplikacji Ottai. Dane i stan sensora zapisane w JugglucoNG nie zostaną zmienione. Tej czynności nie można cofnąć.</string>

@@ -2661,7 +2661,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_upload_iob">U dir IOB Nightscout</string>
     <string name="nightscout_upload_iob_desc">Nightscout wuxuu markaas muujinayaa qiimahan halkii uu ka isticmaali lahaa xisaabtiisa ku salaysan borofaylka. eIOB iyo COB sidoo kale waxaa lagu diraa meel gaar ah. Token-ka gelitaanka wuxuu u baahan yahay api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Qiimayaasha qalabka xogta diraya (Nightscout)</string>
-    <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Ka fur app-ka Ottai ama halkan ka saar dareemahaas si xiriirka loo sii daayo, dabadeed mar kale isku day.</string>
+    <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Fur «Dareemayaasha xisaabta Ottai» oo ka fur dareemaha, dabadeed mar kale isku day.</string>
     <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. JugglucoNG kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
     <string name="ottai_cloud_unbind_title">Dareemahan si joogto ah ma looga furaa?</string>
     <string name="ottai_cloud_unbind_message">%1$s si joogto ah ayaa looga saari doonaa koontadan Ottai. Koontadu mar dambe ma heli karto aqoonsiyadiisa, dareemuhuna kama shaqayn doono app-ka rasmiga ah ee Ottai. Aqoonsiyada iyo xaaladda dareemaha ee hore loogu kaydiyay JugglucoNG lama beddeli doono. Tallaabadan dib looma celin karo.</string>

@@ -3,9 +3,34 @@ package tk.glucodata.ui.setup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.json.JSONObject
 import tk.glucodata.drivers.ottai.OttaiCloudClient
 
 class OttaiSetupFlowTests {
+    @Test
+    fun `expired account session returns account list to sign in`() {
+        assertEquals(
+            OttaiSetupStep.SENSOR,
+            ottaiSetupStepAfterSessionInvalidation(OttaiSetupStep.ACCOUNT_SENSORS),
+        )
+    }
+
+    @Test
+    fun `late account refresh rejection preserves connection completion steps`() {
+        // The saved-sensor refresh began in the picker, but can return after Connect has
+        // advanced. Decide from the step at rejection time so its completion effect survives.
+        listOf(OttaiSetupStep.CONNECTING, OttaiSetupStep.SUCCESS).forEach { currentStep ->
+            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
+        }
+    }
+
+    @Test
+    fun `session rejection leaves sensor and registration pages in place`() {
+        listOf(OttaiSetupStep.SENSOR, OttaiSetupStep.REGISTER).forEach { currentStep ->
+            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
+        }
+    }
+
     @Test
     fun `saved materials connect through normal managed flow`() {
         assertEquals(
@@ -50,6 +75,26 @@ class OttaiSetupFlowTests {
         assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = true, signedIn = false))
         assertEquals(true, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = true))
         assertEquals(false, ottaiSetupSelectionFetchesCredentials(hasAuthKeys = false, signedIn = false))
+    }
+
+    @Test
+    fun `current binding absent from history is offered for unbind while replacement stays selected`() {
+        val snapshot = OttaiCloudClient.accountDevicesResult(
+            OttaiCloudClient.CloudRequestResult(JSONObject("""{"data":{"items":[]}}"""), null),
+            OttaiCloudClient.CloudRequestResult(
+                JSONObject("""{"data":{"cgmDeviceRespVO":{"mac":"70D07E2552DB"}}}"""), null,
+            ),
+        )
+        assertEquals("70D07E2552DB", ottaiActiveCloudUnbindTarget("70D07E2552DB", snapshot.devices)?.mac)
+        assertNull(ottaiActiveCloudUnbindTarget("6CA04230E260", snapshot.devices))
+    }
+
+    @Test
+    fun `successful unbind clears authoritative binding as well as historical timestamp`() {
+        val bound = device("70D07E2552DB", unbindTime = 123L).copy(boundToAccount = true)
+        assertEquals(bound, ottaiActiveCloudUnbindTarget(bound.mac, listOf(bound)))
+        val released = bound.copy(unbindTime = 456L, boundToAccount = false)
+        assertNull(ottaiActiveCloudUnbindTarget(bound.mac, listOf(released)))
     }
 
     @Test

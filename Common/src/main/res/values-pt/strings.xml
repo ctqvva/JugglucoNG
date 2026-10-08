@@ -2471,7 +2471,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_iob">Enviar IOB para o Nightscout</string>
     <string name="nightscout_upload_iob_desc">O Nightscout passa a mostrar este valor em vez do cálculo próprio baseado no perfil. eIOB e COB também são enviados num campo separado. O token de acesso precisa de api:devicestatus:create.</string>
     <string name="journal_iob_source_remote">Valores do dispositivo que envia os dados (Nightscout)</string>
-    <string name="ottai_cloud_already_binding">Ainda existe outro sensor associado à conta Ottai. Desassocie-o na aplicação Ottai ou remova esse sensor aqui para libertar a associação e tente novamente.</string>
+    <string name="ottai_cloud_already_binding">Ainda existe outro sensor associado à conta Ottai. Abra «Sensores da conta Ottai» e desassocie-o, depois tente novamente.</string>
     <string name="ottai_cloud_unbind_hint">Ação apenas na conta da nuvem. O JugglucoNG não se ligará ao sensor selecionado nem o parará, removerá ou modificará.</string>
     <string name="ottai_cloud_unbind_title">Desassociar permanentemente este sensor?</string>
     <string name="ottai_cloud_unbind_message">%1$s será removido permanentemente desta conta Ottai. A conta deixará de poder obter as suas credenciais e o sensor deixará de funcionar na aplicação Ottai oficial. As credenciais e o estado do sensor já guardados no JugglucoNG não serão alterados. Esta ação não pode ser anulada.</string>
