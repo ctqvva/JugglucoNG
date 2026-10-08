@@ -1761,6 +1761,23 @@ class HistoryRepository(context: Context = Applic.app) {
         freezeEnabled: Boolean = false,
         nowMs: Long = System.currentTimeMillis()
     ): GlucosePoint {
+        // The lane tag travels with the value: StatsViewModel resolves each
+        // point's lane from its sensor's view mode and applies the record only
+        // where the lanes agree (recordAppliesToLane). A bare value without its
+        // lane cannot be gated, which is how raw-line records ended up in auto
+        // statistics.
+        val sealed = if (!freezeEnabled) {
+            null
+        } else {
+            display[displayKey(reading.timestamp)]
+                ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                // The minute's record whoever showed it — but not a stale
+                // one of this reading's own sensor; see recordStillDescribes.
+                ?.takeIf { record ->
+                    !SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||
+                        recordStillDescribes(reading, record)
+                }
+        }
         return GlucosePoint(
             value = reading.value,
             time = "",
@@ -1769,19 +1786,8 @@ class HistoryRepository(context: Context = Applic.app) {
             rate = reading.rate,
             sensorSerial = reading.sensorSerial,
             source = reading.source,
-            sealedDisplayValue = if (!freezeEnabled) {
-                null
-            } else {
-                display[displayKey(reading.timestamp)]
-                    ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
-                    // The minute's record whoever showed it — but not a stale
-                    // one of this reading's own sensor; see recordStillDescribes.
-                    ?.takeIf { record ->
-                        !SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||
-                            recordStillDescribes(reading, record)
-                    }
-                    ?.displayMgdl
-            },
+            sealedDisplayValue = sealed?.displayMgdl,
+            sealedDisplayViewMode = sealed?.viewMode,
         )
     }
 
@@ -2135,8 +2141,11 @@ class HistoryRepository(context: Context = Applic.app) {
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
-     * the window is revised, because it is still settling. Which of the two
-     * happens is decided by the database rather than here — see
+     * the window is revised, because it is still settling — but only within the
+     * record's own lane (see [ReadingDisplayDao.reviseIfUnsealed]): a view-mode
+     * toggle resubmits the same minutes in the other lane's numbers, and
+     * letting that land would freeze wrong-lane values one toggle at a time.
+     * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
      * @return newly inserted minutes, or null if disabled or the transaction failed.

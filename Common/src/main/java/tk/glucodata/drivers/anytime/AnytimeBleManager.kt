@@ -4864,7 +4864,9 @@ class AnytimeBleManager(
             val fallbackDisplayValue = displayFallbackValue(result)
             if (!fallbackDisplayValue.isFinite() || fallbackDisplayValue <= 0f) return
             if (!allowDirectFallback && !hasStoredDisplayPoint(sampleMs)) return
-            val displayValue = CurrentDisplaySource.resolveIncomingReading(
+            // Resolved when the display pipeline answered; otherwise the stock value,
+            // which the publish path gets one more chance to calibrate.
+            val displayReading = CurrentDisplaySource.resolveIncomingReading(
                 liveNumericValue = fallbackDisplayValue,
                 rate = 0f,
                 targetTimeMillis = sampleMs,
@@ -4873,12 +4875,14 @@ class AnytimeBleManager(
                 source = "callback",
             )?.primaryValue
                 ?.takeIf { it.isFinite() && it > 0f }
-                ?: fallbackDisplayValue.takeIf { allowDirectFallback }
+                ?.let { tk.glucodata.LiveReadingLanes.resolved(it) }
+                ?: tk.glucodata.LiveReadingLanes.stock(fallbackDisplayValue, Float.NaN)
+                    .takeIf { allowDirectFallback }
                 ?: return
             markLocalReadingAccepted(sampleMs)
             SuperGattCallback.processExternalCurrentReading(
                 SerialNumber,
-                displayValue,
+                displayReading,
                 0f,
                 sampleMs,
                 SENSOR_GEN,
