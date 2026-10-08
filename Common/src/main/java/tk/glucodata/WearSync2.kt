@@ -433,7 +433,14 @@ object WearSync2 {
         }
     }
 
-    /** Ingest a chunk into native storage. */
+    private fun isLibre2NativeSensor(serial: String): Boolean {
+        // Managed direct-stream shells can also report kind 2 by elimination.
+        if (SensorIdentity.usesNativeDirectStreamShell(serial)) return false
+        val snapshot = Natives.getSensorUiSnapshot(serial) ?: return false
+        return snapshot.size >= 6 && snapshot[0] == 2L && snapshot[5] == 0L
+    }
+
+    /** Ingest a chunk into this device's history storage. */
     @JvmStatic
     fun onChunk(data: ByteArray?) {
         executor.execute {
@@ -465,6 +472,11 @@ object WearSync2 {
                     if (doLog) Log.i(LOG_ID, "ignored chunk for $serial: this device is reading it")
                     return@execute
                 }
+                // Libre 2's Abbott BLE IDs are not elapsed minutes. Importing
+                // minute-derived IDs into its phone polls advances the live BLE
+                // cursor and rejects real readings when ownership returns.
+                // The phone keeps synced data in Room; Wear needs native history.
+                val mirrorNative = Applic.isWearable || !isLibre2NativeSensor(serial)
                 var written = 0
                 var earliest = 0L
                 val stamps = LongArray(count)
@@ -482,7 +494,9 @@ object WearSync2 {
                         // Native scale contract (g.cpp addGlucoseStreamInternal):
                         // glucose param = mgdl/10 (native ×10), raw param = plain
                         // mgdl. Triples carry mgdl*10.
-                        Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
+                        if (mirrorNative) {
+                            Natives.ensureSensorShell(serial, (t - 3600L).coerceAtLeast(1L))
+                        }
                     }
                     val rawMgdl = if (raw10 > 0) raw10 / 10f else 0f
                     nativeSecs[written] = t
@@ -492,7 +506,7 @@ object WearSync2 {
                     raws[written] = rawMgdl
                     written++
                 }
-                if (written > 0) {
+                if (written > 0 && mirrorNative) {
                     // One JNI call for the chunk. Per reading, the native side
                     // re-seeded direct-stream state (stat + read + alloc), logged a
                     // line and rewound the stream cursor every time; a large chunk
