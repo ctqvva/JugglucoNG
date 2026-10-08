@@ -1303,8 +1303,10 @@ private fun DashboardHeroValueCluster(
             maxLines = 1
         ).size.width
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
+            // Same gaps as the InlinePair row below; a mismatch leaves the pair unscaled
+            // while it is still too wide, and the secondary value clips.
             primaryWidthPx +
-                with(density) { 6.dp.roundToPx() } +
+                with(density) { 8.dp.roundToPx() } +
                 dotWidthPx +
                 with(density) { 4.dp.roundToPx() } +
                 textMeasurer.measure(
