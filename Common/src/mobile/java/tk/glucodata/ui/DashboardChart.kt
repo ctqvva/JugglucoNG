@@ -494,7 +494,7 @@ private fun PreviewWindowNavigator(
 
     Surface(
         modifier = modifier.zIndex(2f),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = surfaceColor,
         tonalElevation = 2.dp,
         shadowElevation = 0.dp
@@ -507,7 +507,7 @@ private fun PreviewWindowNavigator(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 if (renderData.isEmpty()) return@Canvas
 
@@ -4447,7 +4447,7 @@ fun InteractiveGlucoseChart(
                             )
                             val peerDvs = getDisplayValues(peer.point, peer.viewMode, unit, peer.calibratedValue)
                             Text(
-                                modifier = Modifier.padding(top = 3.dp),
+                                modifier = Modifier.padding(top = 4.dp),
                                 text = buildGlucoseString(
                                     peerDvs,
                                     peerTextColor,
@@ -4653,9 +4653,9 @@ fun InteractiveGlucoseChart(
                         .height(24.dp)
                         .background(
                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                            RoundedCornerShape(6.dp)
+                            RoundedCornerShape(4.dp)
                         )
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

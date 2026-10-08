@@ -4,8 +4,8 @@
   "font_weight_override": 75,
   "hand_built_top_bar": 1,
   "hex_color": 175,
-  "offgrid_spacing": 45,
-  "offscale_radius": 29,
+  "offgrid_spacing": 13,
+  "offscale_radius": 12,
   "system_dark_theme": 1,
   "text_literal": 7
 }
