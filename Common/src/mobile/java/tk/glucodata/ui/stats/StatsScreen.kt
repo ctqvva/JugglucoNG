@@ -144,6 +144,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -1404,8 +1405,16 @@ private fun GlycemicOverviewCard(
                 // 360 dp phone into the stacked layout with 150 dp of width to spare,
                 // which is the ring taking a whole row on someone else's device while it
                 // looked fine on a Pixel.
-                val minRowsWidth = 180.dp
-                val ringSpacing = 10.dp
+                val compactText = maxWidth < 372.dp
+                val columns = rememberTirColumnWidths(rows.map { it.rangeLabel }, compactText)
+                // What the widest row actually needs at the current text size: label, range
+                // and percent columns, the two 8dp gaps and the row's 8dp start padding.
+                val widestLabel = rememberTirLabelWidth(rows.map { it.label }, compactText)
+                val minRowsWidth = maxOf(
+                    180.dp,
+                    widestLabel + columns.range + columns.percent + 8.dp * 3
+                )
+                val ringSpacing = 8.dp
                 val ringMin = 88.dp
                 val ringMax = 176.dp
                 val isCompact = maxWidth < ringMin + ringSpacing + minRowsWidth
@@ -1417,7 +1426,6 @@ private fun GlycemicOverviewCard(
                         // Never at the rows' expense.
                         .coerceAtMost(maxWidth - ringSpacing - minRowsWidth)
                 }
-                val compactText = maxWidth < 372.dp
                 val tirRows: @Composable () -> Unit = {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -1431,6 +1439,7 @@ private fun GlycemicOverviewCard(
                                 color = row.color,
                                 selected = selectedBand == row.band,
                                 compactText = compactText,
+                                columns = columns,
                                 onClick = {
                                     onBandSelected(if (selectedBand == row.band) null else row.band)
                                 }
@@ -1628,6 +1637,56 @@ private fun OverviewRing(
     }
 }
 
+internal data class TirColumnWidths(val range: Dp, val percent: Dp)
+
+@Composable
+private fun tirRangeStyle(compactText: Boolean) = (
+    if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
+).copy(fontFeatureSettings = "tnum")
+
+@Composable
+private fun tirPercentStyle(compactText: Boolean) = (
+    if (compactText) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
+).copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+
+/**
+ * The band rows' range and percentage columns, sized to the widest label they will hold so
+ * all five rows line up. They used to be fixed dp widths, which held at the default text
+ * size and cut "9.0–11.0" to "9.0–1…" as soon as the text grew.
+ */
+@Composable
+private fun tirLabelStyle(compactText: Boolean) =
+    if (compactText) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+
+@Composable
+private fun rememberTirLabelWidth(labels: List<String>, compactText: Boolean): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = tirLabelStyle(compactText)
+    return remember(labels, density, style) {
+        labels.maxOfOrNull { label ->
+            with(density) { measurer.measure(label, style, maxLines = 1, softWrap = false).size.width.toDp() }
+        } ?: 0.dp
+    }
+}
+
+@Composable
+private fun rememberTirColumnWidths(rangeLabels: List<String>, compactText: Boolean): TirColumnWidths {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val rangeStyle = tirRangeStyle(compactText)
+    val percentStyle = tirPercentStyle(compactText)
+    return remember(rangeLabels, compactText, density, rangeStyle, percentStyle) {
+        fun widthOf(text: String, style: TextStyle): Dp = with(density) {
+            measurer.measure(text, style, maxLines = 1, softWrap = false).size.width.toDp()
+        }
+        TirColumnWidths(
+            range = rangeLabels.maxOfOrNull { widthOf(it, rangeStyle) } ?: 0.dp,
+            percent = widthOf(String.format(Locale.getDefault(), "%.1f%%", 100f), percentStyle),
+        )
+    }
+}
+
 @Composable
 private fun TirCompactRow(
     label: String,
@@ -1636,25 +1695,14 @@ private fun TirCompactRow(
     color: Color,
     selected: Boolean,
     compactText: Boolean,
+    columns: TirColumnWidths,
     onClick: () -> Unit
 ) {
-    val rangeColumnWidth = if (compactText) 62.dp else 74.dp
-    val percentColumnWidth = if (compactText) 50.dp else 56.dp
-    val labelStyle = if (compactText) {
-        MaterialTheme.typography.bodySmall
-    } else {
-        MaterialTheme.typography.bodyMedium
-    }
-    val rangeStyle = if (compactText) {
-        MaterialTheme.typography.labelSmall
-    } else {
-        MaterialTheme.typography.labelMedium
-    }
-    val percentStyle = if (compactText) {
-        MaterialTheme.typography.labelMedium
-    } else {
-        MaterialTheme.typography.labelLarge
-    }
+    val rangeColumnWidth = columns.range
+    val percentColumnWidth = columns.percent
+    val labelStyle = tirLabelStyle(compactText)
+    val rangeStyle = tirRangeStyle(compactText)
+    val percentStyle = tirPercentStyle(compactText)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1682,7 +1730,7 @@ private fun TirCompactRow(
         )
         Text(
             text = rangeLabel,
-            style = rangeStyle.copy(fontFeatureSettings = "tnum"),
+            style = rangeStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.width(rangeColumnWidth),
             maxLines = 1,
@@ -1692,10 +1740,7 @@ private fun TirCompactRow(
         )
         Text(
             text = String.format(Locale.getDefault(), "%.1f%%", percent),
-            style = percentStyle.copy(
-                fontFeatureSettings = "tnum",
-                fontWeight = FontWeight.SemiBold
-            ),
+            style = percentStyle,
             color = color.copy(alpha = 0.82f),
             modifier = Modifier.width(percentColumnWidth),
             maxLines = 1,
