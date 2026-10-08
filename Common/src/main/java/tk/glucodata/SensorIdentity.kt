@@ -262,6 +262,23 @@ object SensorIdentity {
         ) ?: resolveMainSensor()
     }
 
+    /**
+     * True when [mainSensor] is no longer one of the native sensors, i.e. only a stale
+     * Bluetooth callback still names it. A removed sensor that keeps the main role
+     * silences notifications for every sensor that is actually streaming.
+     */
+    @JvmStatic
+    fun isGhostMainSensor(mainSensor: String?): Boolean {
+        if (mainSensor.isNullOrBlank()) {
+            return false
+        }
+        val native = runCatching { Natives.activeSensors() }.getOrNull() ?: return false
+        if (native.isEmpty()) {
+            return false
+        }
+        return native.none { matches(it, mainSensor) }
+    }
+
     private fun availableSensorCandidates(): Array<String?>? {
         val resolved = LinkedHashSet<String?>()
 

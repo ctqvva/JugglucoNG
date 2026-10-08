@@ -113,4 +113,37 @@ class ICanHealthTimelinePolicyTests {
         sequenceUnitMs = sequenceUnitMs,
         toleranceMs = toleranceMs,
     )
+
+    @Test
+    fun newestLiveReadingOneHourBehindClockIsStale() {
+        val now = 1_791_470_457_000L
+        assertTrue(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_596_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun newestLiveReadingWithinLagWindowIsKept() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 180_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun delayedOlderSequenceIsNeverTreatedAsStale() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17060, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_600_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
 }

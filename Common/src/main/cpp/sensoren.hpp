@@ -308,6 +308,18 @@ private:
            sens.present == 0;
   }
 
+  // True when the slot is populated but its per-sensor directory is gone. A
+  // mapping opened before the removal keeps hist[ind] looking healthy, so
+  // getSensorData() never reaches its self-heal; callers that list active
+  // sensors use this to stop treating such a ghost as a live sensor.
+  bool sensorDirectoryMissing(const int ind) const {
+    if (!populatedSensorSlot(ind))
+      return false;
+    pathconcat sdir(inbasedir, sensorlist()[ind].fullname());
+    struct stat dirstat;
+    return stat(sdir.data(), &dirstat) != 0;
+  }
+
   bool trimTrailingEmptySensorSlots(const char *reason) {
     int32_t &lastref = infoblockptr()->last;
     const int32_t oldlast = lastref;

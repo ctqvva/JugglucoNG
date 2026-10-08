@@ -84,6 +84,7 @@ class ICanHealthBleManager(
         // Live timestamps are allowed to sit a hair ahead of the clock we compare them against;
         // the anchor is sampled a few milliseconds after `now` on a busy handler thread.
         private const val MAX_LIVE_TIMESTAMP_FUTURE_SKEW_MS = 5_000L
+        private const val MAX_LIVE_TIMESTAMP_LAG_MS = 10 * 60 * 1000L
         private const val RECENT_GLUCOSE_WINDOW_SIZE = 24
         private const val NATIVE_MIRROR_STREAM_WINDOW_SEC = 15L * 24L * 60L * 60L
         private const val HISTORY_SYNC_STATUS_STEP = 500
@@ -2022,6 +2023,24 @@ class ICanHealthBleManager(
         )
         if (resolved != null) {
             if (resolved <= fallbackNowMs) {
+                if (ICanHealthConstants.isStaleLiveTimestamp(
+                        sequenceNumber = sequenceNumber,
+                        currentSequenceNumber = currentSequenceNumber,
+                        resolvedMs = resolved,
+                        nowMs = fallbackNowMs,
+                        maxLagMs = MAX_LIVE_TIMESTAMP_LAG_MS,
+                    )) {
+                    // A live measurement was taken moments ago. A candidate far behind the wall
+                    // clock means the persisted covered edge is skewed, and every later reading
+                    // would be extrapolated from it and stored just as late.
+                    Log.w(
+                        TAG,
+                        "Live seq=$sequenceNumber resolved to $resolved, ${(fallbackNowMs - resolved) / 60000L}min " +
+                            "behind now=$fallbackNowMs; stamping it now and dropping the persisted covered edge"
+                    )
+                    invalidatePersistedCoveredEdge("live timestamp lags the wall clock")
+                    return fallbackNowMs
+                }
                 return resolved
             }
             // The anchor is read a moment after `now`, so a candidate can land a few milliseconds

@@ -690,6 +690,18 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             // If we can't determine main sensor, default to allowing (safety)
             isMainSensor = true;
         }
+        if (!isMainSensor && SensorIdentity.isGhostMainSensor(resolvedMainName)
+                && SensorBluetooth.reconcileGhostMainSensor()) {
+            // The main sensor was removed but its callback lingered. The roster has been
+            // rebuilt, so the sensor that is actually streaming may now be main.
+            try {
+                resolvedMainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
+                isMainSensor = resolvedMainName == null || resolvedMainName.isEmpty()
+                        || SensorIdentity.matches(SerialNumber, resolvedMainName);
+            } catch (Throwable t) {
+                isMainSensor = true;
+            }
+        }
         if (!isMainSensor) {
             if (doLog) {
                 // Reuse the resolution above. Re-calling resolveLiveMainSensor here

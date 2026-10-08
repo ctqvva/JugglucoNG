@@ -407,6 +407,21 @@ object ICanHealthConstants {
     }
 
     /**
+     * True when a measurement that has just arrived resolved to a time far behind the wall clock.
+     * Only the newest sequence qualifies: a lower one may be a legitimately delayed record.
+     */
+    internal fun isStaleLiveTimestamp(
+        sequenceNumber: Int,
+        currentSequenceNumber: Int,
+        resolvedMs: Long,
+        nowMs: Long,
+        maxLagMs: Long,
+    ): Boolean {
+        val isNewestSequence = currentSequenceNumber < 0 || sequenceNumber >= currentSequenceNumber
+        return isNewestSequence && nowMs - resolvedMs > maxLagMs
+    }
+
+    /**
      * True while a parsed session start still explains the sensor's own sequence counter.
      *
      * The counter ticks once a minute from session start, so `sessionStart + sequence` must land

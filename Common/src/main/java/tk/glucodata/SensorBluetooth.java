@@ -1674,6 +1674,26 @@ public class SensorBluetooth {
         return false;
     }
 
+    private static final long GHOST_RECONCILE_MIN_INTERVAL_MS = 60_000L;
+    private static long lastGhostReconcileMs = 0L;
+
+    /**
+     * Rebuilds the callback roster after a sensor was removed from native storage but its
+     * callback is still registered. Rate limited, as it runs on the reading path.
+     *
+     * @return true when the roster changed
+     */
+    public static boolean reconcileGhostMainSensor() {
+        final long now = System.currentTimeMillis();
+        synchronized (SensorBluetooth.class) {
+            if (now - lastGhostReconcileMs < GHOST_RECONCILE_MIN_INTERVAL_MS) {
+                return false;
+            }
+            lastGhostReconcileMs = now;
+        }
+        return updateDevices();
+    }
+
     boolean checkandconnect(SuperGattCallback cb, long delay) {
         if (doLog) {
             Log.i(LOG_ID, "checkandconnect(" + cb.SerialNumber + "," + delay + ")");
