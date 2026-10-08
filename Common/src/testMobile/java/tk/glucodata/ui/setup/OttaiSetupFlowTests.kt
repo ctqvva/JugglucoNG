@@ -7,6 +7,30 @@ import tk.glucodata.drivers.ottai.OttaiCloudClient
 
 class OttaiSetupFlowTests {
     @Test
+    fun `expired account session returns account list to sign in`() {
+        assertEquals(
+            OttaiSetupStep.SENSOR,
+            ottaiSetupStepAfterSessionInvalidation(OttaiSetupStep.ACCOUNT_SENSORS),
+        )
+    }
+
+    @Test
+    fun `late account refresh rejection preserves connection completion steps`() {
+        // The saved-sensor refresh began in the picker, but can return after Connect has
+        // advanced. Decide from the step at rejection time so its completion effect survives.
+        listOf(OttaiSetupStep.CONNECTING, OttaiSetupStep.SUCCESS).forEach { currentStep ->
+            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
+        }
+    }
+
+    @Test
+    fun `session rejection leaves sensor and registration pages in place`() {
+        listOf(OttaiSetupStep.SENSOR, OttaiSetupStep.REGISTER).forEach { currentStep ->
+            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
+        }
+    }
+
+    @Test
     fun `saved materials connect through normal managed flow`() {
         assertEquals(
             OttaiSetupConnectRoute.STORED_MATERIALS,

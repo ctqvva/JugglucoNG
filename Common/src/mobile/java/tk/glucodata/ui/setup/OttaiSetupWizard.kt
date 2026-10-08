@@ -103,7 +103,11 @@ import java.util.UUID
 
 // SENSOR is the main setup surface. Account rows fill the cloud-id field; their separate
 // unbind action only releases the cloud binding and never selects/connects the sensor.
-private enum class OttaiSetupStep { SENSOR, ACCOUNT_SENSORS, REGISTER, CONNECTING, SUCCESS }
+internal enum class OttaiSetupStep { SENSOR, ACCOUNT_SENSORS, REGISTER, CONNECTING, SUCCESS }
+
+/** A late cloud rejection must not dispose an active connection's completion check. */
+internal fun ottaiSetupStepAfterSessionInvalidation(step: OttaiSetupStep): OttaiSetupStep =
+    if (step == OttaiSetupStep.ACCOUNT_SENSORS) OttaiSetupStep.SENSOR else step
 
 /**
  * Cloud account region. CN is the original phone+SMS app (api.ottai.com); Global (Ottai
@@ -515,7 +519,7 @@ fun OttaiSetupWizard(
     val invalidateSession: () -> Unit = {
         OttaiCloudClient.clearSession(context)
         signedIn = false
-        step = OttaiSetupStep.SENSOR
+        step = ottaiSetupStepAfterSessionInvalidation(step)
         devices = null
         cloudBindingCheckingId = ""
         cloudBindingCheckedId = ""
