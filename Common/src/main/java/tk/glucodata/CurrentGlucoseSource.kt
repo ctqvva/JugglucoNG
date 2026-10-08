@@ -69,7 +69,7 @@ object CurrentGlucoseSource {
         return resolveForOwnership(
             isCloneSensor = CloneSensorRegistry.isCloneSensor(targetSensor),
             targetSensorId = targetSensor,
-            readNative = { getFromNative(now, maxAgeMillis) },
+            readNative = { getFromNative(now, maxAgeMillis, targetSensor) },
             readLocal = { getFromLocalOrNative(now, maxAgeMillis, targetSensor, preferredSensorId) }
         )
     }
@@ -198,8 +198,20 @@ object CurrentGlucoseSource {
         )
     }
 
-    private fun getFromNative(now: Long, maxAgeMillis: Long): Snapshot? {
-        val latest = Natives.lastglucose() ?: return null
+    private fun getFromNative(now: Long, maxAgeMillis: Long, targetSensor: String? = null): Snapshot? {
+        if (targetSensor != null) {
+            for (nativeName in SensorIdentity.resolveNativeHistorySensorNames(targetSensor)) {
+                val snapshot = nativeSnapshot(Natives.lastglucoseForSensor(nativeName), now, maxAgeMillis)
+                    ?: continue
+                if (SensorIdentity.matches(snapshot.sensorId, targetSensor)) return snapshot
+            }
+            return null
+        }
+        return nativeSnapshot(Natives.lastglucose(), now, maxAgeMillis)
+    }
+
+    private fun nativeSnapshot(latest: strGlucose?, now: Long, maxAgeMillis: Long): Snapshot? {
+        latest ?: return null
         val numericValue = GlucoseValueParser.parseFirst(latest.value)
             ?.takeIf { it.isFinite() && it > 0.1f }
             ?: return null
