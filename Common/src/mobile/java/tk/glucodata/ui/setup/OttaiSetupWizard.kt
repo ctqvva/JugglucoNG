@@ -515,6 +515,7 @@ fun OttaiSetupWizard(
     val invalidateSession: () -> Unit = {
         OttaiCloudClient.clearSession(context)
         signedIn = false
+        step = OttaiSetupStep.SENSOR
         devices = null
         cloudBindingCheckingId = ""
         cloudBindingCheckedId = ""
@@ -801,12 +802,11 @@ fun OttaiSetupWizard(
                             // Deliberately cloud-only. Do not call OttaiRegistry.removeSensor,
                             // SensorBluetooth, or any BLE/native path from this action.
                             val (released, failure) = withContext(Dispatchers.IO) {
-                                val result = runCatching {
-                                    OttaiCloudClient.unbind(context.applicationContext, targetId)
+                                runCatching {
+                                    OttaiCloudClient.unbindWithResult(context.applicationContext, targetId)
                                 }.onFailure {
                                     Log.w(tag, "cloud-only unbind $targetId: ${it.message}")
-                                }.getOrDefault(false)
-                                result to OttaiCloudClient.lastFailure
+                                }.getOrDefault(OttaiCloudClient.UnbindResult(false))
                             }
                             busy = false
                             if (released) {
