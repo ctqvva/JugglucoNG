@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <unistd.h>
 using namespace std;
 #define LOGGER(...) ((void)0)
 #define LOGAR(...) ((void)0)
@@ -37,7 +38,6 @@ struct Info {
 };
 map<string,Info> disk;
 int mkdir(const char*,int){return 0;}
-constexpr int F_OK=0;
 int access(const char* path,int){return disk.contains(path)?0:-1;}
 void writeall(const char* path,const void* info,size_t){disk[path]=*static_cast<const Info*>(info);}
 template<class T> struct Readall {
