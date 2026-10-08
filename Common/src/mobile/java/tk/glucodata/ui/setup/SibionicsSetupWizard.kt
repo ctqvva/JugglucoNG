@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
-import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.runtime.*

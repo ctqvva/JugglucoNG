@@ -35,8 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.theme.displayLargeExpressive
 import tk.glucodata.ui.theme.labelSmallPrim
 import tk.glucodata.ui.theme.labelLargeExpressive

@@ -107,8 +107,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Natives
 import tk.glucodata.R

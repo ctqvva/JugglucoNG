@@ -29,8 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import tk.glucodata.ui.theme.titleSmallEmphasized
-import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 

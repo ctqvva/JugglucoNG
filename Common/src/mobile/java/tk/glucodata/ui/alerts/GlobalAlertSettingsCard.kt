@@ -46,7 +46,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.BuildConfig
 import tk.glucodata.R

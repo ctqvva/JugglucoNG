@@ -184,7 +184,7 @@ private fun ibmPlexSans(width: Float): FontFamily =
 //  TYPOGRAPHY DEFINITION
 // ============================================================================
 
-val AppTypography = Typography(
+private val BaseTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = ibmPlexSans(DisplayLarge_Width),
         fontWeight = FontWeight(DisplayLarge_Weight),
@@ -314,25 +314,45 @@ val Typography.labelLargeExpressive: TextStyle
         letterSpacing = 0.5.sp
     )
 
-// M3 Expressive "emphasized" styles: the same size one weight step up, for the title of a card
-// or a value that has to stand out from the row around it. material3 1.4 keeps its own
-// *Emphasized styles internal, so these mirror its names. Use these instead of adding a
-// `fontWeight =` to a style at the call site, which is how titleMedium came to be drawn at four
-// different weights across the app.
-val Typography.headlineSmallEmphasized: TextStyle
-    get() = headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+/**
+ * One weight step up for the emphasized styles: Medium for the display styles, which are already
+ * large enough to carry it, SemiBold for everything else. material3 1.5 reads these from the
+ * Typography (titleMediumEmphasized and friends); left unset they fall back to the library's
+ * baseline styles in its default font, not IBM Plex.
+ */
+private fun TextStyle.emphasized(): TextStyle =
+    copy(fontWeight = if ((fontSize.value) >= 36f) FontWeight.Medium else FontWeight.SemiBold)
 
-val Typography.titleLargeEmphasized: TextStyle
-    get() = titleLarge.copy(fontWeight = FontWeight.SemiBold)
-
-val Typography.titleMediumEmphasized: TextStyle
-    get() = titleMedium.copy(fontWeight = FontWeight.SemiBold)
-
-val Typography.titleSmallEmphasized: TextStyle
-    get() = titleSmall.copy(fontWeight = FontWeight.SemiBold)
-
-val Typography.labelLargeEmphasized: TextStyle
-    get() = labelLarge.copy(fontWeight = FontWeight.SemiBold)
-
-val Typography.labelMediumEmphasized: TextStyle
-    get() = labelMedium.copy(fontWeight = FontWeight.SemiBold)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+val AppTypography = Typography(
+    displayLarge = BaseTypography.displayLarge,
+    displayLargeEmphasized = BaseTypography.displayLarge.emphasized(),
+    displayMedium = BaseTypography.displayMedium,
+    displayMediumEmphasized = BaseTypography.displayMedium.emphasized(),
+    displaySmall = BaseTypography.displaySmall,
+    displaySmallEmphasized = BaseTypography.displaySmall.emphasized(),
+    headlineLarge = BaseTypography.headlineLarge,
+    headlineLargeEmphasized = BaseTypography.headlineLarge.emphasized(),
+    headlineMedium = BaseTypography.headlineMedium,
+    headlineMediumEmphasized = BaseTypography.headlineMedium.emphasized(),
+    headlineSmall = BaseTypography.headlineSmall,
+    headlineSmallEmphasized = BaseTypography.headlineSmall.emphasized(),
+    titleLarge = BaseTypography.titleLarge,
+    titleLargeEmphasized = BaseTypography.titleLarge.emphasized(),
+    titleMedium = BaseTypography.titleMedium,
+    titleMediumEmphasized = BaseTypography.titleMedium.emphasized(),
+    titleSmall = BaseTypography.titleSmall,
+    titleSmallEmphasized = BaseTypography.titleSmall.emphasized(),
+    bodyLarge = BaseTypography.bodyLarge,
+    bodyLargeEmphasized = BaseTypography.bodyLarge.emphasized(),
+    bodyMedium = BaseTypography.bodyMedium,
+    bodyMediumEmphasized = BaseTypography.bodyMedium.emphasized(),
+    bodySmall = BaseTypography.bodySmall,
+    bodySmallEmphasized = BaseTypography.bodySmall.emphasized(),
+    labelLarge = BaseTypography.labelLarge,
+    labelLargeEmphasized = BaseTypography.labelLarge.emphasized(),
+    labelMedium = BaseTypography.labelMedium,
+    labelMediumEmphasized = BaseTypography.labelMedium.emphasized(),
+    labelSmall = BaseTypography.labelSmall,
+    labelSmallEmphasized = BaseTypography.labelSmall.emphasized()
+)

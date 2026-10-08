@@ -78,7 +78,6 @@ import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
-import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives

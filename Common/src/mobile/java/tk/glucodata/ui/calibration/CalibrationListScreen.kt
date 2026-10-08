@@ -64,11 +64,6 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import tk.glucodata.ui.theme.titleSmallEmphasized
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.titleLargeEmphasized
-import tk.glucodata.ui.theme.labelLargeEmphasized
-import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults

@@ -43,8 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
