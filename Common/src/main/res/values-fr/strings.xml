@@ -2879,4 +2879,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Serveurs et recherche locale</string>
     <string name="clone_connections_empty">Aucun appareil associé.</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d entrée</item>
+        <item quantity="other">%d entrées</item>
+    </plurals>
 </resources>

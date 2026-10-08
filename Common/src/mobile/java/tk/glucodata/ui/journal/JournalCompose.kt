@@ -3472,14 +3472,8 @@ private fun journalMarkerDetail(
     unit: String
 ): String {
     return when (entry.type) {
-        JournalEntryType.INSULIN -> {
-            val amount = entry.amount?.let(::formatFloatForEditor).orEmpty()
-            amount.takeIf { it.isNotBlank() }?.let { Applic.app.getString(R.string.unit_insulin_value, it) }.orEmpty()
-        }
-
-        JournalEntryType.CARBS -> {
-            val amount = entry.amount?.let(::formatFloatForEditor).orEmpty()
-            amount.takeIf { it.isNotBlank() }?.let { Applic.app.getString(R.string.unit_carbs_value, it) }.orEmpty()
+        JournalEntryType.INSULIN, JournalEntryType.CARBS -> {
+            entry.amount?.let { journalMarkerAmountText(entry.type, it) }.orEmpty()
         }
 
         JournalEntryType.FINGERSTICK -> {
@@ -3494,6 +3488,13 @@ private fun journalMarkerDetail(
             (entry.note ?: entry.title).take(10)
         }
     }
+}
+
+/** An insulin or carbs amount as its chart chip shows it, such as "2 U"; null for other types. */
+internal fun journalMarkerAmountText(type: JournalEntryType, amount: Float): String? = when (type) {
+    JournalEntryType.INSULIN -> Applic.app.getString(R.string.unit_insulin_value, formatFloatForEditor(amount))
+    JournalEntryType.CARBS -> Applic.app.getString(R.string.unit_carbs_value, formatFloatForEditor(amount))
+    else -> null
 }
 
 private fun formatGlucoseForEditor(glucoseMgDl: Float, unit: String): String {

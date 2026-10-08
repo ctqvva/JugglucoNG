@@ -2901,4 +2901,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_connections_empty">Henüz eşleştirilmiş cihaz yok.</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d kayıt</item>
+        <item quantity="other">%d kayıt</item>
+    </plurals>
 </resources>

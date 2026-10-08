@@ -2946,4 +2946,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Серверы і лакальны пошук</string>
     <string name="clone_connections_empty">Падключаных прылад пакуль няма.</string>
     <string name="clone_background_desc">Павялічвае расход батарэі</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d запіс</item>
+        <item quantity="few">%d запісы</item>
+        <item quantity="many">%d запісаў</item>
+        <item quantity="other">%d запісу</item>
+    </plurals>
 </resources>

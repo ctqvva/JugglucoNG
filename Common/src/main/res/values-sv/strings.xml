@@ -2873,4 +2873,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_network_summary">Servrar och lokal sökning</string>
     <string name="clone_connections_empty">Inga parkopplade enheter ännu.</string>
     <string name="clone_background_desc">Ökar batteriförbrukningen</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d post</item>
+        <item quantity="other">%d poster</item>
+    </plurals>
 </resources>

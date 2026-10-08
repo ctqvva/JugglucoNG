@@ -2913,4 +2913,11 @@
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_connections_empty">Brak sparowanych urządzeń.</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d wpis</item>
+        <item quantity="few">%d wpisy</item>
+        <item quantity="many">%d wpisów</item>
+        <item quantity="other">%d wpisu</item>
+    </plurals>
 </resources>

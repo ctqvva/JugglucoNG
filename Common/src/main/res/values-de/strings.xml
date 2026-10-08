@@ -2989,4 +2989,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_connections_empty">Noch keine gekoppelten Geräte.</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
+    <string name="journal_chart_marker_count">×%1$d</string>
+    <plurals name="journal_chart_marker_count_description">
+        <item quantity="one">%d Eintrag</item>
+        <item quantity="other">%d Einträge</item>
+    </plurals>
 </resources>
