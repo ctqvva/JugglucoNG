@@ -50,14 +50,15 @@ struct Stream {uint32_t timestamp;uint32_t gettime(){return timestamp;}};
 struct SensorGlucoseData {
     Info metadata;
     string sensordir;
-    bool haserror=false,sensorerror=false;
+    bool haserror=false,sensorerror=false,missingInfo=false;
     uint32_t sensorErrorTime=0;
     int saved=0,lastSaved=-1,broadcast=10000;
     array<Stream,4896> stream{};
     static constexpr const char* infopdat="info.dat";
     explicit SensorGlucoseData(string path="sensor1234"):sensordir(std::move(path)){}
-    Info* getinfo(){return &metadata;}const Info* getinfo()const{return &metadata;}
-    bool isDexcom()const{return metadata.dexcom;}
+    Info* getinfo(){return missingInfo?nullptr:&metadata;}
+    const Info* getinfo()const{return missingInfo?nullptr:&metadata;}
+    bool isDexcom()const{return getinfo()->dexcom;}
     bool isSibionics()const{return metadata.sibionics;}
     bool isSibionics1()const{return false;}
     bool isLibre2()const{return false;}bool isLibre3()const{return false;}bool isAiDex()const{return false;}
@@ -244,6 +245,9 @@ int main(){
     }
     SensorGlucoseData corrupt;corrupt.metadata.siIdlen=255;corrupt.initialHistoryBytes();
     assert(corrupt.getDexWearMinutes()==14400);
+    SensorGlucoseData missing;missing.missingInfo=true;
+    assert(missing.initialHistoryBytes()==0&&missing.haserror);
+    assert(missing.pollStorageSize()==24*24*60);
     assert(!SensorGlucoseData::mkdatabaseDex("bad",string(69,'a'),1700000001));
     assert(!SensorGlucoseData::mkdatabaseDex("bad",manual(),1700000001,12));
     cout<<"PASS: Dexcom GS1/manual identities, model-aware reuse, legacy migration, storage, live cutoff and backfill\n";

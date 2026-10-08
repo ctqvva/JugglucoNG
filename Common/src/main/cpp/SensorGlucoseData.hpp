@@ -760,9 +760,10 @@ public:
     // Managed Sibionics shells also need to reach their day-22 reset without
     // changing the native shell's lifecycle metadata.
     const bool sibionics = (info && info->sibionics) || managedSibionics;
+    const bool dexcomSensor = info && info->dexcom;
     const size_t defaultRecords =
         sibionics ? static_cast<size_t>(maxminutes)
-                  : isDexcom() ? static_cast<size_t>(dexcom::maximumStorageDays * 24 * 12)
+                  : dexcomSensor ? static_cast<size_t>(dexcom::maximumStorageDays * 24 * 12)
                   : static_cast<size_t>(std::max(maxstreampos(), 0));
     // A sensor that negotiates a life longer than its shell geometry — Ottai's
     // 15-day rating extending to 28/30 — outgrows the poll map mid-wear:
@@ -774,7 +775,7 @@ public:
     // is only ever recomputed in the constructor, where extending the file is
     // safe and repairPollMetadata() preserves the records already written.
     const size_t wearRecords =
-        (!sibionics && !isDexcom() && info && info->wearduration2)
+        (!sibionics && !dexcomSensor && info && info->wearduration2)
             ? (static_cast<size_t>(info->wearduration2) *
                static_cast<size_t>(std::max(streamperhour(), 1))) /
                   60u
