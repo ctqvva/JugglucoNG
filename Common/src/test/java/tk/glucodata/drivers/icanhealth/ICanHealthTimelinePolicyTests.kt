@@ -146,4 +146,25 @@ class ICanHealthTimelinePolicyTests {
             )
         )
     }
+
+    @Test
+    fun edgeAnHourBehindTheCounterReadIsDivergent() {
+        val observed = 1_791_470_432_000L
+        assertTrue(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 3_631_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun edgeNearTheCounterReadIsNotDivergent() {
+        val observed = 1_791_470_432_000L
+        assertFalse(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 60_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun missingCounterObservationIsNeverDivergent() {
+        assertFalse(ICanHealthConstants.isAnchorDivergentFromObservedSequence(1L, 0L, 600_000L))
+    }
 }

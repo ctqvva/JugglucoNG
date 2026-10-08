@@ -407,6 +407,21 @@ object ICanHealthConstants {
     }
 
     /**
+     * True when an edge-derived time for the sensor's current sequence disagrees with the moment
+     * that sequence was actually read. No observation yet means nothing to compare against.
+     */
+    internal fun isAnchorDivergentFromObservedSequence(
+        anchorMs: Long,
+        sequenceObservedAtMs: Long,
+        toleranceMs: Long,
+    ): Boolean {
+        if (sequenceObservedAtMs <= 0L) {
+            return false
+        }
+        return abs(anchorMs - sequenceObservedAtMs) > toleranceMs.coerceAtLeast(0L)
+    }
+
+    /**
      * True when a measurement that has just arrived resolved to a time far behind the wall clock.
      * Only the newest sequence qualifies: a lower one may be a legitimately delayed record.
      */
