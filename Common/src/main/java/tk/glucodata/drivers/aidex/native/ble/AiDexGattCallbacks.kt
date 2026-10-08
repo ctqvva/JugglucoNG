@@ -13,6 +13,7 @@ internal class AiDexGattCallbacks<G : Any>(
 
     private class Operation<G>(val gatt: G, val characteristic: UUID, val kind: Kind)
     private var active: Operation<G>? = null
+    private var timedOutGatt: G? = null
 
     fun runIfCurrent(gatt: G, action: () -> Unit): Boolean = synchronized(lock) {
         if (currentGatt() !== gatt) return@synchronized false
@@ -20,8 +21,23 @@ internal class AiDexGattCallbacks<G : Any>(
         true
     }
 
-    fun beginOperation(gatt: G, characteristic: UUID, kind: Kind) = synchronized(lock) {
-        active = if (currentGatt() === gatt) Operation(gatt, characteristic, kind) else null
+    fun canStartOperation(gatt: G): Boolean = synchronized(lock) {
+        currentGatt() === gatt && timedOutGatt !== gatt
+    }
+
+    fun beginOperation(gatt: G, characteristic: UUID, kind: Kind): Boolean = synchronized(lock) {
+        if (!canStartOperation(gatt)) return@synchronized false
+        active = Operation(gatt, characteristic, kind)
+        true
+    }
+
+    /** Android callbacks have no request ID. After timeout, this link cannot safely be reused. */
+    fun timeoutOperation(): Boolean = synchronized(lock) {
+        val expected = active ?: return@synchronized false
+        if (currentGatt() !== expected.gatt) return@synchronized false
+        timedOutGatt = expected.gatt
+        active = null
+        true
     }
 
     fun clearOperation() = synchronized(lock) {
@@ -31,7 +47,7 @@ internal class AiDexGattCallbacks<G : Any>(
     fun completeOperation(gatt: G, characteristic: UUID, kind: Kind) {
         val expected = synchronized(lock) {
             active?.takeIf {
-                currentGatt() === gatt && it.gatt === gatt &&
+                canStartOperation(gatt) && it.gatt === gatt &&
                     it.characteristic == characteristic && it.kind == kind
             }
         } ?: return

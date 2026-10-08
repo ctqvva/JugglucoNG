@@ -144,4 +144,47 @@ class AiDexGattCallbacksTests {
         assertEquals(1, f.completions)
         assertFalse(f.watchdogArmed)
     }
+
+    @Test
+    fun aTimedOutLinkCannotRetryOrAdvanceForALateReadOrWriteCallback() {
+        for (kind in Kind.entries) {
+            val f = Fixture()
+            val gatt = f.current!!
+            assertTrue(f.callbacks.beginOperation(gatt, characteristic, kind))
+
+            assertTrue(f.callbacks.timeoutOperation())
+            f.callbacks.clearOperation() // Connection cleanup must not make this link reusable.
+            assertFalse(f.callbacks.canStartOperation(gatt))
+            assertFalse(f.callbacks.beginOperation(gatt, characteristic, kind)) // Same-command retry.
+            assertFalse(f.callbacks.beginOperation(gatt, UUID.randomUUID(), kind)) // Next command.
+            f.callbacks.completeOperation(gatt, characteristic, kind) // Original, late callback.
+            f.drain()
+
+            assertEquals(0, f.completions)
+            assertTrue(f.watchdogArmed)
+        }
+    }
+
+    @Test
+    fun timeoutInvalidatesAPostedCompletionAndOnlyAFreshTransportCanResume() {
+        for (kind in Kind.entries) {
+            val f = Fixture()
+            val retired = f.current!!
+            f.callbacks.beginOperation(retired, characteristic, kind)
+            f.callbacks.completeOperation(retired, characteristic, kind)
+            assertTrue(f.callbacks.timeoutOperation())
+
+            f.current = Link()
+            assertTrue(f.callbacks.beginOperation(f.current!!, characteristic, kind))
+            f.callbacks.completeOperation(retired, characteristic, kind)
+            f.drain()
+            assertEquals(0, f.completions)
+            assertTrue(f.watchdogArmed)
+
+            f.callbacks.completeOperation(f.current!!, characteristic, kind)
+            f.drain()
+            assertEquals(1, f.completions)
+            assertFalse(f.watchdogArmed)
+        }
+    }
 }
