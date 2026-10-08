@@ -30,6 +30,9 @@ methods = '\n'.join(method(s) for s in [
     'private void cancelalarm(',
     'public synchronized void onDescriptorWrite(', 'public synchronized void onServicesDiscovered(',
     'public synchronized void onCharacteristicChanged(',
+    'private static PowerManager.WakeLock getwakelock(', 'private void getlock(',
+    'private synchronized void releaselock(' if 'private synchronized void releaselock(' in source
+    else 'private void releaselock(',
 ])
 fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):source.index('    public DexGattCallback(')]
 body = r'''
@@ -37,7 +40,7 @@ package tk.glucodata;
 import java.util.*;
 class SuperGattCallback {
     static boolean defaultAuto, alarmClock, doLog=false, isWearable=false;
-    static final String LOG_ID="test", ALARM_SERVICE="alarm";
+    static final String LOG_ID="test", ALARM_SERVICE="alarm", POWER_SERVICE="power";
     static final int BOND_NONE=10, BOND_BONDED=12;
     boolean stop, removedBond, connected, bonded, justdata, lastDataInvalidDuringWarmup, backfilled, has_service;
     long dataptr, showtime, foundtime, datatime, lastWarmupRetryAt;
@@ -47,7 +50,7 @@ class SuperGattCallback {
     String SerialNumber, mActiveDeviceAddress, handshake;
     long[] constatchange={0,0}, wrotepass={0,0};
     BluetoothGatt mBluetoothGatt;
-    int directCalls, closes, rescans, locks, releases;
+    int directCalls, closes, rescans;
     long executorDelay=-1;
     SuperGattCallback(String serial,long ptr,int gen){SerialNumber=serial;dataptr=ptr;mActiveDeviceAddress=Natives.getDeviceAddress(ptr,true);}
     protected boolean useAutoConnect(){return defaultAuto;}
@@ -66,8 +69,8 @@ class SuperGattCallback {
     void enableGattDescriptor(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
     void getcert(byte[] v){payloadCalls++;}void authenticate(byte[] v){payloadCalls++;}void getdata(byte[] v){payloadCalls++;}
     boolean acceptConnectionAttemptCallback(BluetoothGatt g,int state){return g==mBluetoothGatt&&!stop;}
-    void noteFirstGattCallback(String s,BluetoothGatt g){} void getlock(){locks++;}
-    void releaselock(){releases++;} void disconnect(){} void resetconnect(){}
+    void noteFirstGattCallback(String s,BluetoothGatt g){}
+    void disconnect(){} void resetconnect(){}
     void searchforDeviceAddress(){rescans++;mActiveDeviceAddress=null;}
     void unbond(){} void setConStatus(int status){}
     static boolean dexKnownSensor(long p){return true;} static boolean getalarmclock(){return alarmClock;}
@@ -84,7 +87,22 @@ class CloneSensorRegistry {static boolean clone;static boolean isCloneSensor(Str
 class SensorOwnershipRuntime {static boolean blocked;static boolean blocksLocalConnection(String s){return blocked;}}
 class Natives {static String stored="F0:00:00:00:00:01";static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}static long lastglucosetime(){return System.currentTimeMillis();}static boolean isAuthenticated(long p){return true;}static void dexbackfill(long p,byte[] v){}}
 class Log {static void i(String a,String b){}static void d(String a,String b){}static void e(String a,String b){}static void stack(String a,String b,Throwable t){}static void showbytes(String s,byte[] v){}}
-class Context {static final int MODE_PRIVATE=0;Object getSystemService(String s){return Applic.alarms;}}
+class Context {static final int MODE_PRIVATE=0;Object getSystemService(String s){return s.equals("power")?Applic.power:Applic.alarms;}}
+class PowerManager {
+    static final int PARTIAL_WAKE_LOCK=1;
+    static Object owner;static int releases;
+    List<WakeLock> created=new ArrayList<>();
+    WakeLock newWakeLock(int level,String tag){WakeLock w=new WakeLock();created.add(w);return w;}
+    static class WakeLock {
+        boolean held;
+        void acquire(){held=true;}
+        void release(){
+            if(!Thread.holdsLock(owner))throw new AssertionError("wake lock released outside callback monitor");
+            if(!held)throw new AssertionError("wake lock released twice");
+            held=false;releases++;
+        }
+    }
+}
 class Intent {String action;Intent(Context c,Class<?> cls){}void setAction(String s){action=s;}}
 class ConnectReceiver {}
 class PendingIntent {static final int FLAG_IMMUTABLE=1;String serial;PendingIntent(String s){serial=s;}}
@@ -101,6 +119,7 @@ class Prefs {
 }
 class Applic extends Context {
     static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
+    static PowerManager power=new PowerManager();
     Prefs getSharedPreferences(String s,int mode){return prefs;}static void wakemirrors(){}
 }
 class SensorBluetooth {
@@ -109,12 +128,14 @@ class SensorBluetooth {
 }
 public class DexGattCallback extends SuperGattCallback {
     PendingIntent onalarm;static int alarmrequest=14;
+    private PowerManager.WakeLock wakelock;
 '''+fields+methods+r'''
     static void check(boolean b,String message){if(!b)throw new AssertionError(message);}
     static DexGattCallback fresh(){
         Applic.prefs=new Prefs();Applic.alarms=new AlarmManager();
+        Applic.power=new PowerManager();PowerManager.releases=0;
         defaultAuto=false;alarmClock=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
-        DexGattCallback cb=new DexGattCallback("sensor-A",1);cb.connectDevice(0);return cb;
+        DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
     public static void main(String[] args){
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
@@ -125,9 +146,9 @@ public class DexGattCallback extends SuperGattCallback {
         check(cb.rescans==0&&cb.mActiveDeviceAddress.equals(Natives.stored),"timeout discarded identity");
         check(new DexGattCallback("sensor-A",1).useAutoConnect(),"process restart forgot mode");
         check(!new DexGattCallback("sensor-B",2).useAutoConnect(),"mode leaked across sensors");
-        BluetoothGatt current=cb.mBluetoothGatt;int calls=cb.directCalls, releases=cb.releases;
+        BluetoothGatt current=cb.mBluetoothGatt;int calls=cb.directCalls, releases=PowerManager.releases;
         cb.onConnectionStateChange(first,147,0);cb.onConnectionStateChange(first,0,2);
-        check(cb.mBluetoothGatt==current&&cb.directCalls==calls&&cb.releases==releases,"retired callback changed live attempt");
+        check(cb.mBluetoothGatt==current&&cb.directCalls==calls&&PowerManager.releases==releases,"retired callback changed live attempt");
         cb.onServicesDiscovered(first,0);cb.onDescriptorWrite(first,new BluetoothGattDescriptor(cb.charact[3]),0);cb.onCharacteristicChanged(first,cb.charact[0],new byte[0]);
         check(cb.payloadCalls==0&&!cb.has_service,"retired payload callback mutated new session");
         cb.onServicesDiscovered(current,0);cb.onCharacteristicChanged(current,cb.charact[0],new byte[0]);check(cb.payloadCalls==2,"current payload callback rejected");
@@ -153,6 +174,17 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();CloneSensorRegistry.clone=true;check(!cb.connectDevice(300000),"clone sensor scheduled alarm");
         cb=fresh();SensorOwnershipRuntime.blocked=true;check(!cb.connectDevice(300000),"released sensor scheduled alarm");
         cb=fresh();defaultAuto=true;check(cb.useAutoConnect()&&cb.connectionAttemptTimeoutMillis()==0,"application background setting ignored");
+        cb=fresh();first=cb.mBluetoothGatt;cb.onConnectionStateChange(first,0,2);
+        PowerManager.WakeLock firstLock=cb.wakelock;check(firstLock.held,"connection did not acquire wake lock");
+        cb.close();check(!firstLock.held&&cb.wakelock==null&&PowerManager.releases==1,"Bluetooth-off close leaked wake lock");
+        cb.close();check(PowerManager.releases==1,"repeated close released wake lock twice");
+        cb.connectDevice(0);current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        PowerManager.WakeLock nextLock=cb.wakelock;
+        cb.onConnectionStateChange(first,0,0);check(nextLock.held&&cb.wakelock==nextLock,"retired disconnect released replacement wake lock");
+        cb.onConnectionStateChange(current,19,0);check(!nextLock.held&&PowerManager.releases==2,"normal disconnect leaked/double-released wake lock");
+        cb=fresh();cb.onConnectionStateChange(cb.mBluetoothGatt,0,2);firstLock=cb.wakelock;cb.setPause(true);
+        check(!firstLock.held&&cb.wakelock==null,"pause leaked wake lock");
+        cb.close();check(PowerManager.releases==1,"close after pause released twice");
         System.out.println("PASS: Dexcom timeout fallback, persisted identity/mode, stale callbacks, wakeup scheduling and ownership guards");
     }
 }

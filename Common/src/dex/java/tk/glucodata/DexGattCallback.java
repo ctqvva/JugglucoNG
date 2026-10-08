@@ -180,7 +180,7 @@ private void getlock() {
     wakelock.acquire();
     {if(doLog) {Log.i(LOG_ID,"getlock");};};
     }
-private void releaselock() {
+private synchronized void releaselock() {
     var lock=wakelock;
     if(lock!=null) {
         wakelock=null;
@@ -1078,6 +1078,8 @@ private void resetconnect() {
    }
 @Override
 public synchronized void close() {
+   // Retired GATT callbacks are ignored, so teardown owns releasing this lock.
+   releaselock();
    connectedAttempt = null;
    resetconnect();
    super.close();
