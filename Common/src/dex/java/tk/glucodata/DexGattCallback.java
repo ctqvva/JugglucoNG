@@ -303,9 +303,10 @@ private boolean connected=false;
               if(!stop) {
                   // A live link dropping before the first reading does not by
                   // itself mean pairing failed. Keep the bond for the next slot;
-                  // retain bounded recovery after repeated empty data sessions.
+                  // retain bounded recovery after repeated empty sessions,
+                  // including authentication failures before the data phase.
                   if(reachedSensor) {
-                      if(!removedBond && phase==GetData && datatime==0
+                      if(!removedBond && datatime==0
                               && triedinvain>(isWearable?1:4)) {
                           {if(doLog) {Log.i(LOG_ID,"tried too often "+triedinvain);};};
                           unbond();

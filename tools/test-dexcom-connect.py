@@ -268,6 +268,18 @@ public class DexGattCallback extends SuperGattCallback {
             }
             check(cb.removedBond&&cb.triedinvain==-10,"bond recovery did not reset retry state");
         }
+        for(boolean wear:new boolean[]{false,true}) {
+            DexGattCallback cb=fresh();cb.known=true;isWearable=wear;
+            int sessions=wear?3:6;
+            for(int i=1;i<=sessions;i++) {
+                BluetoothGatt gatt=cb.mBluetoothGatt;
+                cb.onConnectionStateChange(gatt,0,2);cb.phase=ChallengeReply;
+                cb.onCharacteristicChanged(gatt,cb.charact[1],new byte[]{0x05,0,3});
+                check(Natives.resets==i&&cb.disconnects==i,"bond rejection did not reset keys/disconnect");
+                cb.onConnectionStateChange(gatt,19,0);
+                check(cb.unbondCalls==(i==sessions?1:0),"repeated pre-data bond failures did not recover within bounds");
+            }
+        }
         DexGattCallback cb=fresh();cb.datatime=System.currentTimeMillis();cb.triedinvain=100;Natives.lastGlucose=0;
         emptySession(cb);check(cb.unbondCalls==0&&cb.triedinvain==100,"sensor with readings lost its bond");
         cb=fresh();cb.known=false;cb.triedinvain=5;
