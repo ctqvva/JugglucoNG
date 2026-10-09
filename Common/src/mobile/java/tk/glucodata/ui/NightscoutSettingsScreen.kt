@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -554,7 +555,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { persistSettings(connectFollower = isActive && mode == NightscoutModePreference.Mode.FOLLOW) }),
                             trailingIcon = {
-                                IconButton(onClick = { showSecret = !showSecret }) {
+                                IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
                                     Icon(
                                         imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                         contentDescription = null
@@ -575,7 +576,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             enabled = isActive && testState !is TestState.Testing,
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 56.dp)
+                                .heightIn(min = 56.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (testState is TestState.Testing) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -592,7 +595,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             enabled = isActive && tokenState !is TokenState.Refreshing,
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 56.dp)
+                                .heightIn(min = 56.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (tokenState is TokenState.Refreshing) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -837,7 +842,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-                        )
+                        ),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Send, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -856,7 +863,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         enabled = isActive,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 56.dp)
+                            .heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

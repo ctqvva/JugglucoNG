@@ -238,13 +238,15 @@ fun ManualSensorEntryDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(batch + serial) },
-                enabled = batchValid && serialValid
+                enabled = batchValid && serialValid,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -290,13 +292,15 @@ fun ManualTransmitterEntryDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(code) },
-                enabled = isValid
+                enabled = isValid,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -708,7 +712,9 @@ fun ScanSensorStep(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(buttonHeight)
+                        .height(buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     if (bleProbeScanning) {
                         CircularProgressIndicator(
@@ -773,6 +779,8 @@ fun ScanSensorStep(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(buttonHeight),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Default.Bluetooth, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -795,7 +803,9 @@ fun ScanSensorStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -806,7 +816,9 @@ fun ScanSensorStep(
 
             TextButton(
                 onClick = { showManualEntry = true },
-                        modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
 
             ) {
                 Text(stringResource(R.string.enter_code_manually))
@@ -941,6 +953,8 @@ fun SelectTypeStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
         ) {
             Text(
                 text = stringResource(R.string.continue_action),
@@ -954,6 +968,8 @@ fun SelectTypeStep(
         TextButton(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding,
 
             ) {
             Text(stringResource(R.string.cancel))
@@ -1045,7 +1061,9 @@ fun ScanTransmitterStep(
 
             OutlinedButton(
                 onClick = { isScanning = !isScanning },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isScanning) {
                     CircularProgressIndicator(
@@ -1140,7 +1158,9 @@ fun ScanTransmitterStep(
     
             Button(
                 onClick = onScanClick,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -1156,7 +1176,9 @@ fun ScanTransmitterStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -1167,7 +1189,9 @@ fun ScanTransmitterStep(
             
             TextButton(
                 onClick = { showManualEntry = true },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                  Text(stringResource(R.string.enter_code_manually))
             }

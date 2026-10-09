@@ -221,7 +221,9 @@ private fun MirrorQrDialog(
                     QRCodeImage(content, bitmapSize, Modifier.size(qrSize))
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.End)
+                        modifier = Modifier.align(Alignment.End),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
                     ) {
                         Text(stringResource(R.string.close))
                     }
@@ -566,9 +568,11 @@ fun MirrorSettingsScreen(navController: NavController) {
                 Button(onClick = {
                     if (injectMirrorJson(scannedQrPayload!!, context)) triggerRefresh++
                     scannedQrPayload = null
-                }) { Text(stringResource(R.string.mirror_connect_action)) }
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.mirror_connect_action)) }
             },
-            dismissButton = { OutlinedButton(onClick = { scannedQrPayload = null }) { Text(stringResource(R.string.cancel)) } }
+            dismissButton = { OutlinedButton(onClick = { scannedQrPayload = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
         )
     }
 
@@ -588,9 +592,11 @@ fun MirrorSettingsScreen(navController: NavController) {
                         Toast.makeText(context, context.getString(R.string.mirror_connection_data_missing), Toast.LENGTH_SHORT).show()
                     }
                     pendingNearby = null
-                }) { Text(stringResource(R.string.mirror_connect_action)) }
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.mirror_connect_action)) }
             },
-            dismissButton = { OutlinedButton(onClick = { pendingNearby = null }) { Text(stringResource(R.string.cancel)) } }
+            dismissButton = { OutlinedButton(onClick = { pendingNearby = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
         )
     }
 
@@ -741,7 +747,7 @@ fun MirrorSettingsScreen(navController: NavController) {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 SectionLabel(stringResource(R.string.mirror_connections), topPadding = 0.dp)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { editSheetPos = -1 }) {
+                IconButton(onClick = { editSheetPos = -1 }, shapes = IconButtonDefaults.shapes()) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_connection), tint = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -882,10 +888,12 @@ fun MirrorConnectionCard(
                 Button(
                     onClick = { onDelete(); showDeleteConfirm = false },
                     enabled = controlsEnabled,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) } }
+            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
         )
     }
 
@@ -941,6 +949,8 @@ fun MirrorConnectionCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
                         ) {
                             Text(stringResource(R.string.clone_history_recovery))
                         }
@@ -952,14 +962,16 @@ fun MirrorConnectionCard(
                         TextButton(
                             onClick = { showDeleteConfirm = true },
                             enabled = controlsEnabled,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
                         ) {
                             Text(stringResource(R.string.delete))
                         }
-                        TextButton(onClick = onToggle, enabled = controlsEnabled) {
+                        TextButton(onClick = onToggle, enabled = controlsEnabled, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                             Text(if (mirror.isDeactivated) stringResource(R.string.enable) else stringResource(R.string.disable))
                         }
-                        TextButton(onClick = { qrContent = Natives.getbackJson(mirror.index) }) {
+                        TextButton(onClick = { qrContent = Natives.getbackJson(mirror.index) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                             Text(stringResource(R.string.qr))
                         }
                         val testHost = mirror.names?.firstOrNull()?.takeIf { it.isNotBlank() }
@@ -980,7 +992,9 @@ fun MirrorConnectionCard(
                                         ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
                                         else -> MaterialTheme.colorScheme.primary
                                     }
-                                )
+                                ),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding
                             ) {
                                 if (cardTestState == ConnTestState.TESTING) {
                                     CircularProgressIndicator(
@@ -993,7 +1007,7 @@ fun MirrorConnectionCard(
                                 Text(stringResource(R.string.test))
                             }
                         }
-                        TextButton(onClick = onEdit, enabled = controlsEnabled) {
+                        TextButton(onClick = onEdit, enabled = controlsEnabled, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                             Text(stringResource(R.string.edit))
                         }
                     }
@@ -1379,7 +1393,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }, shapes = IconButtonDefaults.shapes()) {
                         Icon(if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = null)
                     }
                 }
@@ -1406,7 +1420,9 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             }
                         },
                         enabled = testState != ConnTestState.TESTING,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         if (testState == ConnTestState.TESTING) {
                             CircularProgressIndicator(
@@ -1451,10 +1467,12 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) { Text(stringResource(R.string.delete)) }
                 }
-                Button(onClick = { if (save()) onDismiss() }, modifier = Modifier.weight(1f)) {
+                Button(onClick = { if (save()) onDismiss() }, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Text(stringResource(R.string.save))
                 }
             }

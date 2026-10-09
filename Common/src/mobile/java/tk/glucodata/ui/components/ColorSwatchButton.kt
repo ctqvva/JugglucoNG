@@ -23,7 +23,8 @@ fun ColorSwatchButton(
         modifier = modifier.size(56.dp),
         colors = IconButtonDefaults.filledTonalIconButtonColors(
             containerColor = containerColor
-        )
+        ),
+        shapes = IconButtonDefaults.shapes()
     ) {
         Surface(
             modifier = Modifier.size(22.dp),

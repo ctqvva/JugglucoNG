@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
@@ -544,7 +545,7 @@ fun JournalEntrySheet(
 //                        )
                     }
                     existingEntry?.id?.let { entryId ->
-                        IconButton(onClick = { onDelete?.invoke(entryId) }) {
+                        IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.delete),
@@ -838,12 +839,14 @@ fun JournalEntrySheet(
                         draft = draft.copy(timestamp = mergeJournalDate(draft.timestamp, selected))
                     }
                     showDatePicker = false
-                }) {
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
+                TextButton(onClick = { showDatePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.cancel))
                 }
             }
@@ -881,12 +884,14 @@ fun JournalEntrySheet(
                         )
                     )
                     showTimePicker = false
-                }) {
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
+                TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.cancel))
                 }
             }
@@ -1428,7 +1433,9 @@ private fun JournalDoseAssistCard(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     }
-                )
+                ),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(
                     imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.Restaurant,
@@ -1726,7 +1733,8 @@ private fun JournalFoodLibrarySelector(
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     query = ""
                                 },
-                                modifier = Modifier.size(42.dp)
+                                modifier = Modifier.size(42.dp),
+                                shapes = IconButtonDefaults.shapes()
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -1851,7 +1859,8 @@ private fun JournalFoodLibrarySelector(
                                                 expandedFoodId = null
                                             }
                                         },
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(40.dp),
+                                        shapes = IconButtonDefaults.shapes()
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Add,
@@ -1938,7 +1947,8 @@ private fun JournalSelectedFoodChip(
             }
             IconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(34.dp),
+                shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(
                     imageVector = Icons.Default.Remove,
@@ -2090,7 +2100,8 @@ internal fun JournalFoodCompositionDetails(
             ) {
                 FilledTonalIconButton(
                     onClick = { updatePortion(portionGrams - 10f) },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(44.dp),
+                    shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(Icons.Default.Remove, contentDescription = null)
                 }
@@ -2134,7 +2145,8 @@ internal fun JournalFoodCompositionDetails(
                 )
                 FilledTonalIconButton(
                     onClick = { updatePortion(portionGrams + 10f) },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(44.dp),
+                    shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                 }
@@ -2148,7 +2160,9 @@ internal fun JournalFoodCompositionDetails(
             ) {
                 TextButton(
                     onClick = saveToLibrary,
-                    colors = ButtonDefaults.textButtonColors(contentColor = color)
+                    colors = ButtonDefaults.textButtonColors(contentColor = color),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,

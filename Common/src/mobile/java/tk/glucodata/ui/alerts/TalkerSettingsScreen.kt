@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import android.media.AudioAttributes
 import androidx.compose.foundation.layout.Arrangement
@@ -326,7 +328,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                                         previewingVoiceIndex = index
                                         Talker.previewVoice(index)
                                     }
-                                }) {
+                                },
+                                shapes = IconButtonDefaults.shapes()) {
                                     Icon(
                                         if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = null
@@ -470,7 +473,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     Talker.testCurrentValue(activity)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
@@ -743,12 +747,12 @@ private fun ScheduleTimePickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onConfirm(state.hour, state.minute) }) {
+            TextButton(onClick = { onConfirm(state.hour, state.minute) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

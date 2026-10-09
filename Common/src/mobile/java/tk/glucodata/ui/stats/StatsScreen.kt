@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui.stats
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -830,7 +832,7 @@ private fun ArrangeSheet(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Button(onClick = onDismiss) {
+                Button(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
@@ -1185,7 +1187,7 @@ private fun HeaderBlock(
     onShareClick: () -> Unit
 ) {
     TabScreenHeader(title = stringResource(R.string.statistics_title)) {
-        IconButton(onClick = onShareClick) {
+        IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
             Icon(
                 imageVector = Icons.Filled.Share,
                 contentDescription = stringResource(R.string.export),

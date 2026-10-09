@@ -387,7 +387,8 @@ private fun JournalActionButton(
         } else {
             ButtonDefaults.filledTonalButtonColors()
         },
-        contentPadding = PaddingValues(horizontal = if (prominent) 16.dp else 16.dp)
+        contentPadding = PaddingValues(horizontal = if (prominent) 16.dp else 16.dp),
+        shapes = ButtonDefaults.shapes()
     ) {
         Icon(
             imageVector = icon,
@@ -1120,7 +1121,8 @@ private fun JournalFoodImportRow(
                             }
                         )
                     },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(44.dp),
+                    shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -1208,7 +1210,8 @@ private fun JournalFoodLibrarySearchField(
             if (onClose != null) {
                 IconButton(
                     onClick = onClose,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(42.dp),
+                    shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -1308,7 +1311,8 @@ private fun JournalFoodSheet(
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,
                                 contentColor = contentColor
-                            )
+                            ),
+                            shapes = ButtonDefaults.shapes()
                         ) {
                             Icon(
                                 imageVector = if (archived) Icons.Default.CheckCircle else Icons.Default.Block,
@@ -1401,14 +1405,18 @@ private fun JournalFoodSheet(
                     Button(
                         onClick = { saveDraft() },
                         enabled = canSave,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = stringResource(R.string.save))
                     }
                     onDelete?.let {
                         OutlinedButton(
                             onClick = it,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(
                                 text = stringResource(R.string.delete),
@@ -1505,7 +1513,8 @@ private fun JournalFoodEditorField(
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                ),
+                shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(
                     imageVector = Icons.Default.Remove,
@@ -1562,7 +1571,8 @@ private fun JournalFoodEditorField(
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = accentColor.copy(alpha = 0.18f),
                     contentColor = accentColor
-                )
+                ),
+                shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -1686,7 +1696,8 @@ private fun JournalInsulinPresetSheet(
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,
                                 contentColor = contentColor
-                            )
+                            ),
+                            shapes = ButtonDefaults.shapes()
                         ) {
                             Icon(
                                 imageVector = if (archived) Icons.Default.CheckCircle else Icons.Default.Block,
@@ -1744,7 +1755,8 @@ private fun JournalInsulinPresetSheet(
                             modifier = Modifier.size(56.dp),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
+                            ),
+                            shapes = IconButtonDefaults.shapes()
                         ) {
                             Surface(
                                 modifier = Modifier.size(20.dp),
@@ -1913,7 +1925,8 @@ private fun JournalInsulinPresetSheet(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                 modifier = Modifier
                                     .height(32.dp)
-                                    .widthIn(max = 132.dp)
+                                    .widthIn(max = 132.dp),
+                                    shapes = ButtonDefaults.shapes()
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Restore,
@@ -2032,7 +2045,9 @@ private fun JournalInsulinPresetSheet(
                             )
                             selectedPointIndex = insertedIndex
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -2045,7 +2060,9 @@ private fun JournalInsulinPresetSheet(
                     Button(
                         onClick = { saveDraft() },
                         enabled = canSave && hasChanges,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = stringResource(R.string.save))
                     }
@@ -2053,7 +2070,9 @@ private fun JournalInsulinPresetSheet(
                         onDelete?.let {
                             OutlinedButton(
                                 onClick = it,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) {
                                 Text(
                                     text = stringResource(R.string.delete),
@@ -2201,7 +2220,7 @@ private fun SelectedCurvePointEditor(
                 modifier = Modifier.weight(1f)
             )
             if (canDelete) {
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = stringResource(R.string.delete)

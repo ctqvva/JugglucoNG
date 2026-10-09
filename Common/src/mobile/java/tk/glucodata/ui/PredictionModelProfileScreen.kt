@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -158,7 +160,9 @@ fun PredictionModelProfileScreen(
                                 initialMinute = profile.suggestedSplitMinute()
                             )
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = null)
                         Text(
@@ -197,13 +201,15 @@ fun PredictionModelProfileScreen(
                     onClick = {
                         viewModel.removePredictionModelBlock(startMinute)
                         pendingDeleteStart = null
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteStart = null }) {
+                TextButton(onClick = { pendingDeleteStart = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -303,7 +309,7 @@ private fun PredictionModelBlockCard(
                     modifier = Modifier.weight(1f)
                 )
                 if (canEditStart) {
-                    IconButton(onClick = onEditStart) {
+                    IconButton(onClick = onEditStart, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = stringResource(R.string.predictive_edit_period_start)
@@ -311,7 +317,7 @@ private fun PredictionModelBlockCard(
                     }
                 }
                 if (canDelete) {
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = stringResource(R.string.delete),
@@ -398,13 +404,15 @@ private fun ProfileTimePickerDialog(
         confirmButton = {
             TextButton(
                 enabled = selectionAvailable,
-                onClick = { onConfirm(selectedMinute) }
+                onClick = { onConfirm(selectedMinute) },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.ok))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }

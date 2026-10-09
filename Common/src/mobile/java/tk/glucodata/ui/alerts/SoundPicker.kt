@@ -1,5 +1,7 @@
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -293,7 +295,9 @@ fun SoundPicker(
             TextButton(onClick = {
                 stopSound()
                 onDismiss()
-            }) {
+            },
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -321,7 +325,7 @@ private fun SoundRow(
             modifier = Modifier.weight(1f).padding(start = 8.dp),
             style = MaterialTheme.typography.bodyLarge
         )
-        IconButton(onClick = onPlay) {
+        IconButton(onClick = onPlay, shapes = IconButtonDefaults.shapes()) {
             Icon(
                 imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
                 contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)

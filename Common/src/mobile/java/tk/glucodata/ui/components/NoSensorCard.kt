@@ -91,7 +91,9 @@ fun NoSensorCard(
                 // CTA Button
                 Button(
                     onClick = onAddSensor,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,

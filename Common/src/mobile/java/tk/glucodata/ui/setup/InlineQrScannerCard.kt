@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -432,7 +434,8 @@ fun InlineQrScannerCard(
                             } catch (throwable: Throwable) {
                                 scannerError = throwable.message ?: throwable.javaClass.simpleName
                             }
-                        }
+                        },
+                        shapes = IconButtonDefaults.shapes()
                     ) {
                         Icon(
                             imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
@@ -461,7 +464,8 @@ fun InlineQrScannerCard(
                         previewView = null
                         previewInstanceNonce++
                         onManualFallback()
-                    }) {
+                    },
+                    shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             imageVector = Icons.Filled.OpenInFull,
                             contentDescription = stringResource(R.string.scan_qr_button),
@@ -497,12 +501,12 @@ fun InlineQrScannerCard(
                         )
                     }
 
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                         Text(stringResource(R.string.permission))
                     }
 
                     if (onManualFallback != null) {
-                        OutlinedButton(onClick = onManualFallback) {
+                        OutlinedButton(onClick = onManualFallback, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                             Text(manualFallbackLabel ?: stringResource(R.string.scanname))
                         }
                     }

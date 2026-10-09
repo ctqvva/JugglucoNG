@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.ButtonDefaults
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
@@ -4784,7 +4785,8 @@ fun InteractiveGlucoseChart(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     ),
-                    modifier = Modifier.size(48.dp) // Slightly larger than standard 40dp for touch target
+                    modifier = Modifier.size(48.dp), // Slightly larger than standard 40dp for touch target
+                    shapes = IconButtonDefaults.shapes()
                 ) {
                     Icon(
                         imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.LastPage,
@@ -5146,13 +5148,15 @@ fun InteractiveGlucoseChart(
                             centerTime = selectedDate + (12 * 60 * 60 * 1000) // Center on noon of selected day
                         }
                         showDatePicker = false
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Text(stringResource(R.string.go))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
+                TextButton(onClick = { showDatePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }

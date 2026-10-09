@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.IconButtonDefaults
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -468,7 +469,7 @@ internal fun AppUpdateCard(
                         modifier = Modifier.weight(1f)
                     )
                     if (onDismiss != null) {
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp), shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 Icons.Filled.Close,
                                 contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
@@ -519,7 +520,9 @@ private fun AppUpdateIconTile(icon: ImageVector, color: Color) {
 internal fun AppUpdateFilledAction(label: String, accent: Color, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = accent)
+        colors = ButtonDefaults.buttonColors(containerColor = accent),
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.ContentPadding
     ) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -527,7 +530,7 @@ internal fun AppUpdateFilledAction(label: String, accent: Color, onClick: () -> 
 
 @Composable
 internal fun AppUpdateTextAction(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) {
+    TextButton(onClick = onClick, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.material3.IconButtonDefaults
 import android.view.HapticFeedbackConstants
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
@@ -455,14 +456,14 @@ private fun JournalHeader(
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     imageVector = Icons.Default.Restaurant,
                     contentDescription = stringResource(R.string.journal_food_library),
                     tint = journalTypeColor(JournalEntryType.CARBS)
                 )
             }
-            IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     imageVector = Icons.Default.Vaccines,
                     contentDescription = stringResource(R.string.journal_insulin_library),

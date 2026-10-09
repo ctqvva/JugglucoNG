@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import android.text.format.Formatter
 import androidx.compose.foundation.clickable
@@ -169,11 +170,13 @@ internal fun CloneHistoryRecoverySheet(
                     onClick = {
                         showFullHistoryConfirmation = false
                         startSelectedRecovery()
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) { Text(stringResource(R.string.clone_history_send_action)) }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showFullHistoryConfirmation = false }) {
+                OutlinedButton(onClick = { showFullHistoryConfirmation = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -242,6 +245,8 @@ internal fun CloneHistoryRecoverySheet(
                         },
                         enabled = !actionRunning,
                         modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         if (actionRunning) {
                             CircularProgressIndicator(
@@ -481,16 +486,18 @@ private fun CloneHistoryRecoveryProgress(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
         ) {
-            OutlinedButton(onClick = onStartAnother, enabled = !actionRunning) {
+            OutlinedButton(onClick = onStartAnother, enabled = !actionRunning, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                 Text(stringResource(R.string.clone_history_start_another))
             }
-            Button(onClick = onDone) { Text(stringResource(R.string.clone_history_done)) }
+            Button(onClick = onDone, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.clone_history_done)) }
         }
         CloneOutgoingPhase.CANCELLED,
         CloneOutgoingPhase.FAILED -> Button(
             onClick = onStartAnother,
             enabled = !actionRunning,
             modifier = Modifier.fillMaxWidth(),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
         ) { Text(stringResource(R.string.clone_history_try_again)) }
         else -> {
             val cancellable = state.jobId != null && state.phase in setOf(
@@ -507,6 +514,8 @@ private fun CloneHistoryRecoveryProgress(
                     onClick = onCancel,
                     enabled = !actionRunning,
                     modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) { Text(stringResource(R.string.clone_history_cancel_transfer)) }
             }
         }

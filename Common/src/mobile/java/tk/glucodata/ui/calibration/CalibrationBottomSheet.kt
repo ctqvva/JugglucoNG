@@ -294,7 +294,8 @@ fun CalibrationBottomSheet(
                                 else
                                     MaterialTheme.colorScheme.tertiary
                             ),
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(48.dp),
+                            shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(
                                 if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
@@ -313,7 +314,8 @@ fun CalibrationBottomSheet(
                                 }
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(48.dp),
+                            shapes = IconButtonDefaults.shapes()
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null)
                         }
@@ -358,7 +360,8 @@ fun CalibrationBottomSheet(
                                 FilledTonalButton(
                                     onClick = { selectedTimestamp = System.currentTimeMillis() },
                                     contentPadding = PaddingValues(horizontal = 16.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    modifier = Modifier.height(32.dp),
+                                    shapes = ButtonDefaults.shapes()
                                 ) {
                                     Text(stringResource(R.string.now))
                                 }
@@ -536,6 +539,8 @@ fun CalibrationBottomSheet(
                         }
                     },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Text(if (editingEntity != null) stringResource(R.string.update) else stringResource(R.string.save))
                 }
@@ -709,7 +714,9 @@ private fun CalibrationHistoryList(
         if (calibrations.size > 0) {
             TextButton(
                 onClick = onSeeAll,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -824,7 +831,8 @@ private fun CalibrationHeroSection(
                     onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 },
-                modifier = Modifier.size(valueButtonSize)
+                modifier = Modifier.size(valueButtonSize),
+                shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(valueIconSize))
             }
@@ -898,7 +906,8 @@ private fun CalibrationHeroSection(
                     onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 },
-                modifier = Modifier.size(valueButtonSize)
+                modifier = Modifier.size(valueButtonSize),
+                shapes = IconButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(valueIconSize))
             }

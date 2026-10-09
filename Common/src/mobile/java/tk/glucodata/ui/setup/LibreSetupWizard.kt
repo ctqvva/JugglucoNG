@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -229,7 +231,9 @@ fun LibreSetupWizard(
                     if (currentStep == 1) {
                         TextButton(
                             onClick = ::leaveLibreViewStep,
-                            enabled = !isSendingNow && !isFetchingAccountId && !isResendingData
+                            enabled = !isSendingNow && !isFetchingAccountId && !isResendingData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
                         ) {
                             Text(stringResource(R.string.libre_setup_done))
                         }
@@ -314,7 +318,9 @@ fun LibreSetupWizard(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ui.buttonHeight)
+                                .height(ui.buttonHeight),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Icon(Icons.Default.Nfc, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -457,7 +463,9 @@ fun LibreSetupWizard(
                                     OutlinedButton(
                                         onClick = { saveManualAccountId() },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = !isBusy
+                                        enabled = !isBusy,
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) {
                                         Text(saveText)
                                     }
@@ -487,7 +495,7 @@ fun LibreSetupWizard(
                                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     val image = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                    IconButton(onClick = { showPassword = !showPassword }) {
+                                    IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
                                         Icon(
                                             imageVector = image,
                                             contentDescription = if (showPassword) {
@@ -529,7 +537,9 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = canSendData
+                            enabled = canSendData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isSendingNow) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -570,7 +580,9 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = canSendData
+                            enabled = canSendData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isResendingData) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -615,7 +627,9 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = hasCredentials && !isBusy
+                            enabled = hasCredentials && !isBusy,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isFetchingAccountId) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

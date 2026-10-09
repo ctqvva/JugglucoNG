@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -196,12 +198,14 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         meters = GlucoseMeterManager.configuredMeters()
                         pendingForget = null
                     },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
                     Text(stringResource(R.string.glucose_meter_forget))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingForget = null }) {
+                TextButton(onClick = { pendingForget = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -240,12 +244,14 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         pendingSatellite = null
                     },
                     enabled = GlucoseMeterManager.isSatelliteCodeValid(satelliteCode),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
                     Text(stringResource(R.string.pair))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingSatellite = null }) {
+                TextButton(onClick = { pendingSatellite = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -344,7 +350,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                             },
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = { pendingForget = meter }) {
+                        IconButton(onClick = { pendingForget = meter }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 Icons.Filled.Delete,
                                 contentDescription = stringResource(R.string.glucose_meter_forget),
@@ -370,6 +376,8 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     },
                     enabled = !scanning,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
                     Spacer(Modifier.size(8.dp))

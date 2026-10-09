@@ -277,7 +277,8 @@ fun CalibrationListScreen(
                         IconButton(onClick = { 
                             isSelectionMode = false
                             selectedIds = emptySet()
-                        }) {
+                        },
+                        shapes = IconButtonDefaults.shapes()) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     },
@@ -289,7 +290,9 @@ fun CalibrationListScreen(
                             } else {
                                 calibrations.map { it.id }.toSet()
                             }
-                        }) {
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding) {
                             Text(if (selectedIds.size == calibrations.size) stringResource(R.string.deselect_all) else stringResource(R.string.select_all))
                         }
                     },
@@ -302,13 +305,13 @@ fun CalibrationListScreen(
                     title = stringResource(R.string.calibration_with_mode, modeTitle),
                     onNavigateBack = { navController.navigateUp() },
                     actions = {
-                        IconButton(onClick = onOpenModelTable) {
+                        IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 imageVector = Icons.Default.Analytics,
                                 contentDescription = stringResource(R.string.calibration_model_table_action)
                             )
                         }
-                        IconButton(onClick = { showImportExportSheet = true }) {
+                        IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 imageVector = Icons.Default.ImportExport,
                                 contentDescription = stringResource(R.string.calibration_import_export_action)
@@ -554,11 +557,13 @@ fun CalibrationListScreen(
                                     isSelectionMode = false
                                     selectedIds = emptySet()
                                 }
-                            }
+                            },
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
                         ) { Text(stringResource(R.string.delete)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showBulkDeleteConfirmation = false }) { Text(stringResource(R.string.cancel)) }
+                        TextButton(onClick = { showBulkDeleteConfirmation = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
                     }
                 )
             }
@@ -1515,7 +1520,8 @@ private fun SelectionModeToolbar(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1530,7 +1536,8 @@ private fun SelectionModeToolbar(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1545,7 +1552,8 @@ private fun SelectionModeToolbar(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                 ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1622,7 +1630,9 @@ private fun CalibrationImportExportBottomSheet(
 
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.cancel))
             }
@@ -1790,7 +1800,9 @@ private fun ClearOptionsBottomSheet(
             // Cancel
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.cancel))
             }
