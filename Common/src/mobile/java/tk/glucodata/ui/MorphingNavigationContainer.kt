@@ -35,19 +35,20 @@ internal fun MorphingNavigationContainer(
 ) {
     Box(
         Modifier
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .padding(horizontal = 8.dp)
-            .padding(top = 8.dp, bottom = 4.dp)
+            .padding(top = 8.dp, bottom = 8.dp)
     ) {
         Surface(
             shape = RoundedCornerShape(radii.topStart.dp, radii.topEnd.dp, radii.bottomEnd.dp, radii.bottomStart.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
-            // The gesture/button inset belongs inside this panel, as in the reference.
-            // Item bounds stay fixed while only the outline changes.
+            // Keep the entire panel above the system gesture/button area, with content
+            // visible in the 8dp gap. Only the outline changes; item bounds stay fixed.
             ShortNavigationBar(
                 modifier = Modifier.padding(top = 8.dp),
                 containerColor = Color.Transparent,
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 arrangement = ShortNavigationBarArrangement.EqualWeight,
                 content = content
             )
