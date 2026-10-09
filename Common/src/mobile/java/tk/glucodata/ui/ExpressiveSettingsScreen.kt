@@ -279,7 +279,7 @@ fun ExpressiveSettingsScreen(
             val glucoseColor = MaterialTheme.colorScheme.primary
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 8.dp)
             ) {
                 SettingsItem(
                     title = stringResource(R.string.unit),
@@ -867,7 +867,7 @@ fun ExpressiveSettingsScreen(
             ) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.about_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                     style = MaterialTheme.typography.labelMedium,
@@ -1058,7 +1058,7 @@ fun PredictiveSimulationSettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "master") {
                 MasterSwitchCard(
@@ -1141,7 +1141,7 @@ private fun PredictiveSimulationSettingsCard(
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             content = content
         )
     }

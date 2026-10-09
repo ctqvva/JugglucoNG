@@ -561,7 +561,7 @@ fun DashboardCombinedHeader(
                 // Single-sensor padding defines the target card height. Multi mode
                 // uses a smaller inner padding so the scaled value + chip cluster
                 // fills the SAME pinned height (heroContentMinHeight) below.
-                val singleVerticalPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 10.dp else 12.dp
+                val singleVerticalPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 8.dp else 12.dp
                 val resolvedVerticalPadding = if (isMultiHero) 4.dp else singleVerticalPadding
                 // Full (single-sensor) value style. The card height is pinned to
                 // the MEASURED height of this style (incl. font padding) + padding,
@@ -980,7 +980,7 @@ fun DashboardCombinedHeader(
                                 val selectedSensorColors = remember(activeSensors) {
                                     tk.glucodata.SensorVisuals.distinctColorArgbMap(activeSensors)
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 activeSensors.forEach { serial ->
                                      Box(
                                          modifier = Modifier
@@ -1179,7 +1179,7 @@ private fun DashboardHeroPeerStrip(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val selectedColors = remember(selectedSensorIds, peerReadings) {
@@ -1303,8 +1303,10 @@ private fun DashboardHeroValueCluster(
             maxLines = 1
         ).size.width
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
+            // Same gaps as the InlinePair row below; a mismatch leaves the pair unscaled
+            // while it is still too wide, and the secondary value clips.
             primaryWidthPx +
-                with(density) { 6.dp.roundToPx() } +
+                with(density) { 8.dp.roundToPx() } +
                 dotWidthPx +
                 with(density) { 4.dp.roundToPx() } +
                 textMeasurer.measure(
@@ -1366,7 +1368,7 @@ private fun DashboardHeroValueCluster(
                         style = scaledPrimaryStyle,
                         color = primaryColor
                     )
-                    Spacer(modifier = Modifier.width(6.dp * pairScale))
+                    Spacer(modifier = Modifier.width(8.dp * pairScale))
                     Text(
                         text = "·",
                         style = scaledDotStyle,
@@ -1626,7 +1628,7 @@ fun RecentReadingsCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onViewHistory() }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1635,7 +1637,7 @@ fun RecentReadingsCard(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = footerLabel,
                             style = MaterialTheme.typography.labelLarge,
@@ -2197,7 +2199,7 @@ fun SignalQualityIndicator(
                 .modifierRotate(shakeRotation)
         )
         
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         
         // Raw noise value (xDrip-style, 1 decimal)
         Text(

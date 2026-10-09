@@ -82,7 +82,7 @@ fun PredictionModelProfileScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "dose_target") {
                 DoseTargetCard(
@@ -105,7 +105,7 @@ fun PredictionModelProfileScreen(
                         text = stringResource(R.string.predictive_model_profile_explanation),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
             }
@@ -243,7 +243,7 @@ private fun DoseTargetCard(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             PredictiveSimulationParameterRow(
                 title = stringResource(R.string.predictive_dose_target),
                 valueLabel = targetValue,
@@ -290,7 +290,7 @@ private fun PredictionModelBlockCard(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically

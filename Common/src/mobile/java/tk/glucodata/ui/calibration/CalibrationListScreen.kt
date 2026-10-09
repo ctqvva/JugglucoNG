@@ -823,7 +823,7 @@ private fun MasterToggleRow(
             .heightIn(min = 64.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.62f }
             .clickable(enabled = enabled) { onToggle(!checked) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -889,7 +889,7 @@ private fun CalibrationAlgorithmCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { expanded = !expanded }
-                    .padding(horizontal = 14.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
@@ -902,7 +902,7 @@ private fun CalibrationAlgorithmCard(
                             imageVector = Icons.Default.Tune,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -926,7 +926,7 @@ private fun CalibrationAlgorithmCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .graphicsLayer { rotationZ = chevronRotation }
                 )
             }
@@ -947,7 +947,7 @@ private fun CalibrationAlgorithmCard(
                                 .fillMaxWidth()
                                 .background(if (isSelected) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSecondary)
                                 .clickable { onSelectAlgorithm(algorithm) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -1015,7 +1015,7 @@ private fun CalibrationWeightControl(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer { alpha = if (enabled) 1f else 0.62f }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
@@ -1064,11 +1064,11 @@ private fun CalibrationDiagnosticsPanel(
     }
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = diagnostics.note,
                 style = MaterialTheme.typography.bodySmall,
@@ -1136,7 +1136,7 @@ private fun DiagnosticValuePill(
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
@@ -1421,7 +1421,7 @@ private fun CalibrationItemContent(
                         Box(
                             modifier = Modifier
                                 .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 stringResource(R.string.calibration_from_journal_badge),
@@ -1436,7 +1436,7 @@ private fun CalibrationItemContent(
                         Box(
                             modifier = Modifier
                                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 stringResource(R.string.disabled_status), 
@@ -1546,7 +1546,7 @@ private fun SelectionModeToolbar(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.disable), style = MaterialTheme.typography.labelLarge)
             }
             
@@ -1561,7 +1561,7 @@ private fun SelectionModeToolbar(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.enable), style = MaterialTheme.typography.labelLarge)
             }
             
@@ -1576,7 +1576,7 @@ private fun SelectionModeToolbar(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge)
             }
         }
@@ -1597,7 +1597,7 @@ private fun CalibrationImportExportBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1699,7 +1699,7 @@ private fun CalibrationTransferAction(
                         imageVector = icon,
                         contentDescription = null,
                         tint = contentColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

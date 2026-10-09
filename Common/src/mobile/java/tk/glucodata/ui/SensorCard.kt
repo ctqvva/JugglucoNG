@@ -276,7 +276,7 @@ private fun SensorIdentityControl(
                         Modifier
                     }
                 )
-                .padding(start = 10.dp, end = 10.dp),
+                .padding(start = 12.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (selectable) {
@@ -383,13 +383,15 @@ private fun SensorCurrentValueChip(
 ) {
     Surface(
         modifier = modifier.widthIn(max = 220.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 1.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -417,7 +419,7 @@ private fun SensorCurrentValueChip(
                 iconTint = accentColor.copy(alpha = 0.82f),
                 textColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
-//            Spacer(modifier = Modifier.width(6.dp))
+//            Spacer(modifier = Modifier.width(8.dp))
 //            Icon(
 //                imageVector = getTrendIcon(snapshot.rate),
 //                contentDescription = null,
@@ -1153,9 +1155,9 @@ fun SensorCard(
                     algorithmOptions.forEachIndexed { index, (modelBase, titleRes, subtitleRes) ->
                         val selected = algorithmFeatures and 14 == modelBase
                         val shape = when (index) {
-                            0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-                            algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
-                            else -> RoundedCornerShape(6.dp)
+                            0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                            algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                            else -> RoundedCornerShape(4.dp)
                         }
                         Surface(
                             shape = shape,
@@ -1347,11 +1349,11 @@ fun SensorCard(
 //                    style = MaterialTheme.typography.titleMedium,
 //                    color = MaterialTheme.colorScheme.primary,
 //                )
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = { showSibionicsCalSheet = false },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                 ) { Text(stringResource(R.string.close)) }
             }
         }
@@ -1369,7 +1371,7 @@ fun SensorCard(
                 val unitLabel = if (isMmol) "mmol/L" else "mg/dL"
                 Column {
                     Text(stringResource(R.string.calibrate_sensor_desc, unitLabel))
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.calibrate_sensor_timing_note),
                         style = MaterialTheme.typography.bodySmall,
@@ -1933,7 +1935,7 @@ fun SensorCard(
                                         if (isLocallyEnabled) R.string.sensor_pause_streaming
                                         else R.string.sensor_resume_streaming
                                     ),
-                                    modifier = Modifier.size(26.dp),
+                                    modifier = Modifier.size(24.dp),
                                     tint = if (isLocallyEnabled) {
                                         MaterialTheme.colorScheme.onSurface
                                     } else {
@@ -2730,7 +2732,7 @@ fun SensorCard(
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
                                         }
                                         IconButton(
@@ -3305,7 +3307,7 @@ private fun AiDexPairSplitButton(
                 contentDescription = stringResource(
                     if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
                 ),
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }

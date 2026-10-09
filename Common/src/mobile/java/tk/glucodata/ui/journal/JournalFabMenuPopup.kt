@@ -37,7 +37,7 @@ internal fun JournalFabMenuPopup(
         ) {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .graphicsLayer {
                         alpha = menuProgress.coerceIn(0f, 1f)

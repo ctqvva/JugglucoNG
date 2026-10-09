@@ -327,7 +327,7 @@ fun ReadingRow(
                         color = timeColor
                     )
                     if (cloneTransport != null) {
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         CloneSourceMark(
                             transport = cloneTransport,
                             showLabel = false,
@@ -335,12 +335,12 @@ fun ReadingRow(
                             iconSize = 13.dp,
                         )
                     } else if (isNightscoutSource) {
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.CloudDownload,
                             contentDescription = stringResource(R.string.journal_source_nightscout),
                             tint = timeColor,
-                            modifier = Modifier.size(13.dp),
+                            modifier = Modifier.size(14.dp),
                         )
                     }
                 }
@@ -526,7 +526,7 @@ fun ReadingRow(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(13.dp),
+                                modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.54f + (0.34f * leadingActionEmphasis.coerceIn(0f, 1f))
                                 )
@@ -623,7 +623,7 @@ fun ReadingRow(
                             if (journalChipExpanded) {
                                 FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     journalEntries.forEach { entry ->

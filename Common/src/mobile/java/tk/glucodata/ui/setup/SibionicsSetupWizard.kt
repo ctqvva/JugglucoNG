@@ -544,7 +544,7 @@ fun ScanSensorStep(
 ) {
     val contentPadding = if (compact) 12.dp else 16.dp
     val sectionGap = if (compact) 8.dp else 12.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     var showManualEntry by remember { mutableStateOf(false) }
     var handledScan by remember { mutableStateOf(false) }
     var scanRejection by remember { mutableStateOf<String?>(null) }
@@ -692,12 +692,12 @@ fun ScanSensorStep(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                modifier = Modifier.padding(top = if (compact) 10.dp else 12.dp, bottom = if (compact) 16.dp else 20.dp)
+                modifier = Modifier.padding(top = if (compact) 8.dp else 12.dp, bottom = if (compact) 16.dp else 20.dp)
             )
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 8.dp),
             ) {
                 OutlinedButton(
                     onClick = {
@@ -759,7 +759,7 @@ fun ScanSensorStep(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(if (compact) 14.dp else 16.dp))
+                            .clip(RoundedCornerShape(if (compact) 12.dp else 16.dp))
                             .clickable {
                                 selectedBleAddress = if (selected) null else item.address
                             },
@@ -829,13 +829,13 @@ fun SelectTypeStep(
     val verticalPadding = if (compact) 12.dp else 16.dp
     val listGap = if (compact) 12.dp else 16.dp
     val cardPadding = if (compact) 16.dp else 20.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
-        Spacer(modifier = Modifier.height(if (compact) 12.dp else 18.dp))
+        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         Text(
             text = stringResource(R.string.select_sibionics_type),
             style = MaterialTheme.typography.headlineSmall,
@@ -847,7 +847,7 @@ fun SelectTypeStep(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(if (compact) 10.dp else 12.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
         tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
 
@@ -888,7 +888,7 @@ fun SelectTypeStep(
                         animationSpec = androidx.compose.animation.core.tween(180),
                         label = "checkAlpha"
                     )
-                    val cardShape = RoundedCornerShape(if (compact) 18.dp else 20.dp)
+                    val cardShape = RoundedCornerShape(if (compact) 16.dp else 20.dp)
                 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -976,7 +976,7 @@ fun ScanTransmitterStep(
     var foundDevices by remember { mutableStateOf(setOf<String>()) }
     var showManualEntry by remember { mutableStateOf(false) }
     val contentPadding = if (compact) 12.dp else 16.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -1041,7 +1041,7 @@ fun ScanTransmitterStep(
                 style = MaterialTheme.typography.bodyMedium,
                  textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = if (compact) 14.dp else 18.dp)
+                modifier = Modifier.padding(bottom = if (compact) 12.dp else 16.dp)
             )
 
             OutlinedButton(
@@ -1148,7 +1148,7 @@ fun ScanTransmitterStep(
                 Text(stringResource(R.string.scan_transmitter_button))
             }
             
-            Spacer(Modifier.height(if (compact) 6.dp else 8.dp))
+            Spacer(Modifier.height(if (compact) 8.dp else 8.dp))
 
             // Add Gallery Button (Transmitter)
             OutlinedButton(
@@ -1164,7 +1164,7 @@ fun ScanTransmitterStep(
                 Text(stringResource(R.string.select_gallery_button))
             }
 
-            Spacer(Modifier.height(if (compact) 6.dp else 8.dp))
+            Spacer(Modifier.height(if (compact) 8.dp else 8.dp))
             
             TextButton(
                 onClick = { showManualEntry = true },

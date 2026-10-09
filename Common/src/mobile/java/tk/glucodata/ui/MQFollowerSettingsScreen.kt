@@ -397,7 +397,7 @@ private fun NotSignedInCard() {
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = stringResource(R.string.mq_account_status_missing),
@@ -450,7 +450,7 @@ private fun IncomingRequestCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = request.name?.takeIf { it.isNotBlank() } ?: request.phone,

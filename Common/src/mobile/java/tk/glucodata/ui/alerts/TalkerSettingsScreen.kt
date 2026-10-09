@@ -469,7 +469,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     Talker.testCurrentValue(activity)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
@@ -497,8 +497,8 @@ private fun TalkerSummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -518,7 +518,7 @@ private fun TalkerSummaryCard(
                     }
                 }
 
-                Spacer(Modifier.size(14.dp))
+                Spacer(Modifier.size(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -632,7 +632,7 @@ private fun NumericInputCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -693,7 +693,7 @@ private fun SliderCard(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Slider(
                 value = sliderValue,
                 onValueChange = onValueChange,

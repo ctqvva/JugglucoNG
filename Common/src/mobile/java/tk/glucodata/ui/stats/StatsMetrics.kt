@@ -109,6 +109,13 @@ internal data class MetricSpec(
     val infoText: String? = null
 )
 
+/**
+ * A tile's side padding. [MetricRow] decides how both tiles of a row lay out from their
+ * content width before they exist, so it must subtract exactly this; a mismatch makes it
+ * think a title fits beside its value when it does not, and the title ellipsizes to "…".
+ */
+private val ScoreTileHorizontalPadding = 16.dp
+
 @Composable
 internal fun ScoreTile(
     title: String,
@@ -154,8 +161,8 @@ internal fun ScoreTile(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 6.dp else 4.dp)
+                .padding(horizontal = ScoreTileHorizontalPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 8.dp else 4.dp)
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 val density = LocalDensity.current
@@ -255,7 +262,7 @@ internal fun ScoreTile(
                 if (statusNeedsOwnRow) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -895,9 +902,9 @@ private fun MetricRow(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val tileContentWidth = if (rightSpec == null) {
-            maxWidth - 28.dp
+            maxWidth - ScoreTileHorizontalPadding * 2
         } else {
-            ((maxWidth - spacing) / 2f) - 28.dp
+            ((maxWidth - spacing) / 2f) - ScoreTileHorizontalPadding * 2
         }
         val useOwnStatusRow =
             rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status) ||
@@ -1054,7 +1061,7 @@ internal fun PinnedMetricChip(
                     Modifier
                 }
             )
-            .padding(horizontal = 10.dp * contentScale, vertical = 8.dp * contentScale),
+            .padding(horizontal = 8.dp * contentScale, vertical = 8.dp * contentScale),
         horizontalArrangement = Arrangement.spacedBy(8.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1287,13 +1294,15 @@ internal fun PinnedStatsStrip(
             }
 
             val compactWindowCellWidth = (
-                textWidth(windowLabel, MaterialTheme.typography.labelMedium) + 31.dp
+                // The window pill's chrome: 2 x 8dp padding, the 1dp gap and the 14dp arrow.
+                // Measured in the style the pill draws its label in.
+                textWidth(windowLabel, pinnedWindowLabelStyle()) + 31.dp
             ).coerceAtLeast(62.dp)
             val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
                 maxOf(
                     textWidth(spec.title, MaterialTheme.typography.labelSmall),
                     textWidth(spec.value, MaterialTheme.typography.titleMedium)
-                ) + 28.dp
+                ) + 24.dp
             }?.coerceIn(96.dp, 124.dp) ?: 96.dp
             val baseGap = 8.dp
             val useEstablishedPhoneLayout = shouldUseEstablishedPinnedStatsPhoneLayout(
@@ -1508,7 +1517,7 @@ private fun PinnedMetricPickerSheet(
                                 .clickable(onClick = remove)
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -1558,7 +1567,7 @@ private fun PinnedMetricPickerSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatsMetric.entries.forEach { metric ->
                     val selected = metric == current
@@ -1606,9 +1615,9 @@ private fun MetricSheetRow(
             .clip(statsCardShape(20.dp, 12.dp))
             .background(container)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = spec.title,
@@ -1651,6 +1660,13 @@ private fun MetricSheetRow(
     }
 }
 
+/** The window pill's label. [PinnedStatsStrip] measures with it to size the pill. */
+@Composable
+private fun pinnedWindowLabelStyle(): TextStyle = MaterialTheme.typography.labelMedium.copy(
+    fontFeatureSettings = "tnum",
+    fontWeight = FontWeight.SemiBold
+)
+
 @Composable
 private fun PinnedWindowPill(
     label: String,
@@ -1692,10 +1708,7 @@ private fun PinnedWindowPill(
         ) { text ->
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
-                ).scalePinnedStyle(contentScale),
+                style = pinnedWindowLabelStyle().scalePinnedStyle(contentScale),
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 softWrap = false

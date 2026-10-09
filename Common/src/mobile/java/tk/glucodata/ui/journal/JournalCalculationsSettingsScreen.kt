@@ -94,7 +94,7 @@ fun JournalCalculationsSettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "model") {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -211,7 +211,7 @@ fun JournalCalculationsSettingsScreen(
             onDismissRequest = { showBodyWeightDialog = false },
             title = { Text(stringResource(R.string.journal_body_weight_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = stringResource(R.string.journal_body_weight_desc),
                         style = MaterialTheme.typography.bodyMedium

@@ -528,11 +528,11 @@ private fun AccountStatusCard(
     }.joinToString(" · ")
 
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = visuals.container),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -541,7 +541,7 @@ private fun AccountStatusCard(
                 tint = visuals.content,
                 modifier = Modifier.size(28.dp),
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -616,7 +616,7 @@ private fun CollapsibleCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggle() }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {

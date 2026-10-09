@@ -181,7 +181,7 @@ fun StatsRangeSelectorControl(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (hasData && readingCount > 0) {
@@ -207,7 +207,7 @@ fun StatsRangeSelectorControl(
             Surface(
                 modifier = Modifier.heightIn(min = 36.dp),
                 onClick = onCustomRangeClick,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 color = if (selectedRange == null) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
@@ -223,7 +223,7 @@ fun StatsRangeSelectorControl(
                     modifier = Modifier
                         .animateContentSize()
                         .heightIn(min = 36.dp)
-                        .padding(horizontal = 10.dp),
+                        .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

@@ -382,7 +382,7 @@ private fun CloneHistoryModeOption(
         else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = onClick, enabled = enabled)
@@ -409,7 +409,7 @@ private fun CloneHistoryCategoryRow(
     Row(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) {
             onCheckedChange(!checked)
-        }.padding(vertical = 6.dp),
+        }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
@@ -442,7 +442,7 @@ private fun CloneHistoryRecoveryProgress(
     }
 
     Text(phaseText, style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(8.dp))
     if (progress != null && state.phase in setOf(CloneOutgoingPhase.PUTTING_PACKAGE, CloneOutgoingPhase.GETTING_PACKAGE)) {
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
     } else if (!state.phase.isTerminal) {

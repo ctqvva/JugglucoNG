@@ -375,7 +375,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         color = if (ready) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f)
         } else {
@@ -384,14 +384,14 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
         border = BorderStroke(1.dp, color.copy(alpha = 0.24f))
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatusIconSurface(
                 icon = if (ready) Icons.Filled.CheckCircle else Icons.Filled.Security,
                 color = color
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (ready) {
@@ -480,7 +480,7 @@ private fun CgmReadinessSummaryCard(
                         )
 //                        CgmReadinessCountChip(snapshot = snapshot, items = items)
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = summaryText ?: stringResource(R.string.cgm_readiness_summary_body, attentionCount),
                         style = MaterialTheme.typography.bodyMedium,
@@ -503,7 +503,7 @@ private fun CgmReadinessSummaryCard(
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -532,7 +532,7 @@ private fun CgmReadinessDetailRow(
     val color = item.status.statusColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, color.copy(alpha = 0.18f))
     ) {
@@ -541,7 +541,7 @@ private fun CgmReadinessDetailRow(
             verticalAlignment = Alignment.Top
         ) {
             StatusIconSurface(icon = item.icon, color = color)
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -592,7 +592,7 @@ private fun CgmReadinessCompactIssue(item: CgmReadinessItem) {
                 color = item.status.statusColor()
             ) {}
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = stringResource(item.titleRes),
             style = MaterialTheme.typography.bodyMedium,
@@ -624,14 +624,14 @@ private fun CgmReadinessCountChip(
         else -> MaterialTheme.colorScheme.secondary
     }
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = color.copy(alpha = 0.12f),
         contentColor = color
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
 }
@@ -643,7 +643,7 @@ private fun CgmStatusChip(
 ) {
     val color = status.statusColor()
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = color.copy(alpha = if (status == CgmReadinessStatus.Ready) 0.14f else 0.12f),
         contentColor = color
     ) {
@@ -651,8 +651,8 @@ private fun CgmStatusChip(
             text = stringResource(status.labelRes()),
             style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(
-                horizontal = if (compact) 8.dp else 10.dp,
-                vertical = if (compact) 4.dp else 5.dp
+                horizontal = if (compact) 8.dp else 12.dp,
+                vertical = if (compact) 4.dp else 4.dp
             )
         )
     }
@@ -665,7 +665,7 @@ private fun StatusIconSurface(
 ) {
     Surface(
         modifier = Modifier.size(44.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = color.copy(alpha = 0.12f),
         contentColor = color
     ) {

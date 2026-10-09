@@ -375,7 +375,7 @@ private fun HowToScanCard() {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -386,12 +386,12 @@ private fun HowToScanCard() {
             Surface(
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
             ) {
                 Icon(
                     Icons.Default.Nfc,
                     contentDescription = null,
-                    modifier = Modifier.padding(14.dp).size(28.dp),
+                    modifier = Modifier.padding(16.dp).size(28.dp),
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

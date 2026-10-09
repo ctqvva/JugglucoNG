@@ -167,7 +167,7 @@ fun AppUpdatesScreen(navController: NavController) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 8.dp, start = 16.dp, end = 16.dp)
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -242,11 +242,11 @@ private fun CheckForUpdatesButton(
     val content: @Composable RowScope.() -> Unit = {
         if (checking) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_state_checking))
         } else {
             Icon(Icons.Filled.Refresh, contentDescription = null)
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.app_updates_action_check))
         }
     }

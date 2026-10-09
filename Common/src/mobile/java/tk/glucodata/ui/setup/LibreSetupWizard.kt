@@ -265,7 +265,7 @@ fun LibreSetupWizard(
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
                                 .size(if (ui.compact) 88.dp else 104.dp),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Row(
@@ -538,7 +538,7 @@ fun LibreSetupWizard(
                                 Spacer(modifier = Modifier.width(8.dp))
                             } else {
                                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(stringResource(R.string.save))
                         }
@@ -740,7 +740,7 @@ private fun LibreSetupAdvancedSection(
                                 }
                             )
                             .clickable { onModeSelected(mode) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
