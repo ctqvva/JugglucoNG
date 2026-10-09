@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.theme.MainFontFile
@@ -55,6 +57,9 @@ import tk.glucodata.Natives
 import tk.glucodata.Notify
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.MultiSensorSelection
+import tk.glucodata.ui.PeerCurrentReading
+import tk.glucodata.ui.SecondarySensorDisplay
 
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 @Composable
@@ -96,15 +101,32 @@ fun FloatingGlucoseOverlay(
     val currentSnapshot = remember(refreshRevision, currentSensorId, glucosePoint?.timestamp, history.size) {
         CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, currentSensorId)
     }
+    val selectionRevision by MultiSensorSelection.revision.collectAsState()
+    val peerReadings by produceState<List<PeerCurrentReading>>(
+        initialValue = emptyList(),
+        key1 = showSecondary,
+        key2 = currentSnapshot,
+        key3 = Triple(refreshRevision, selectionRevision, currentSensorId)
+    ) {
+        // Clear the old selection while resolving, including when the main sensor changes.
+        value = emptyList()
+        if (showSecondary && currentSnapshot?.secondaryStr.isNullOrBlank()) {
+            value = withContext(Dispatchers.IO) {
+                SecondarySensorDisplay.resolvePeers(SecondarySensorDisplay.selectedPeers(currentSensorId))
+            }
+        }
+    }
 
     // The overlay only recomposes on new data, so once readings stop nothing would
     // ever notice the last one aging out. Re-read the clock until it crosses the
     // same timeout the widget and dashboard use, then show the no-data state.
     val latestReadingMillis = maxOf(currentSnapshot?.timeMillis ?: 0L, glucosePoint?.timestamp ?: 0L)
-    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis) {
+    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, peerReadings) {
         while (true) {
             value = System.currentTimeMillis()
-            val wait = nextOverlayFreshnessCheckDelay(latestReadingMillis, value) ?: break
+            // A peer can expire before the main reading, without another sensor update.
+            val wait = (listOf(latestReadingMillis) + peerReadings.map { it.timeMillis })
+                .mapNotNull { nextOverlayFreshnessCheckDelay(it, value) }.minOrNull() ?: break
             delay(wait)
         }
     }
@@ -279,6 +301,9 @@ fun FloatingGlucoseOverlay(
                 } else null
                 getDisplayValues(point, viewMode, unit, calibratedValue)
             }
+            val secondaryText = dvs.secondaryStr ?: SecondarySensorDisplay.fallback(
+                dvs, currentSensorId, peerReadings, freshnessNow
+            )?.primaryStr
 
             if (isDynamicIsland && isVerticalIsland) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -293,10 +318,10 @@ fun FloatingGlucoseOverlay(
                         useOutline = useSubtleOutline,
                         textAlign = TextAlign.Center
                     )
-                    if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
+                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
                         Spacer(Modifier.height(sideSecondarySpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = secondaryText,
                             fontSize = sideSecondaryFontSize,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
@@ -321,10 +346,10 @@ fun FloatingGlucoseOverlay(
                         useOutline = useSubtleOutline,
                         textAlign = TextAlign.End
                     )
-                    if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
+                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
                         Spacer(Modifier.width(inlineSpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = secondaryText,
                             fontSize = fontSize * 0.7f,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
