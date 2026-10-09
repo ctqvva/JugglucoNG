@@ -1,18 +1,23 @@
 # Morphing navigation experiment
 
-The portrait experiment in PR #608 uses a broad tonal panel inspired by the transport-app reference: 8dp side margins, 32dp top and 12dp bottom resting corners, neutral labels, and a colored selected indicator. The system navigation inset is inside the panel, which extends to the bottom edge. Its outline follows the hero's directional corner mapping and spring with smaller changes; item positions stay fixed. Flat and Unknown classifications select the resting outline even when the measured velocity is nonzero.
+The portrait experiment in PR #608 uses a tonal panel with 8dp side margins and a 4dp gap underneath, exposing the scrolling page as in the transport-app reference. The gesture inset is inside the panel. Resting corners are 32dp at the top and 20dp at the bottom; labels and selected indicator stay fixed.
 
-The main tab lists draw behind the panel instead of ending above a full-width Scaffold backing. Their scroll-end padding includes the measured panel height; FABs, export confirmation, and dashboard snackbars retain clearance. Dashboard chart expansion still uses the unobscured viewport height. Nested detail screens retain their reserved viewport. The theme owns the transparent system navigation window; the panel no longer competes with it through a separate window-color effect.
+The primary hero, sensor card, and navigation read one shared `DashboardTrendMorph` holder. `TrendCornerMotion` owns four animated directional weights and one spring configuration. The bar reads those animated weights directly instead of starting independent radius animations. Hero target ranges are preserved. The bar scales changes visibly, up to 16dp from rest (16–48dp top and 4–36dp bottom), with bounds applied to spring overshoot. Flat and Unknown select the resting motion, even with nonzero measured velocity. At an ordinary +/-0.8mg/dL/min slope, the right-corner offsets differ by at least 16dp; the regression test prevents reverting to barely visible 1–2dp changes.
+
+The main tab lists draw behind the panel. Their scroll-end padding includes the measured panel height; FABs, export confirmation, and dashboard snackbars retain clearance. Dashboard chart expansion uses the unobscured viewport height. Nested detail screens retain their reserved viewport. The theme alone owns the transparent system navigation window.
 
 ## Native rendering evidence
 
-These screenshots were captured on the Android 16 / API 36.1 Medium Phone emulator (1080 × 2400, 420dpi), using a separate application ID, `tk.glucodata.navigationpreview`. The isolated renderer compiled the exact production `OverlayNavigationScaffold.kt`, `MorphingNavigationContainer.kt`, `TrendMorph.kt`, `TabIcon.kt`, label helper, and IBM Plex typography. It used Material 3 from the app's Compose BOM and the platform dynamic dark color scheme. Colored fixture rows expose the content underneath the panel's rounded corners; they contain no CGM data. These replace the earlier panel-only renders, which did not exercise the parent-layout backing.
+The captures use the Android 16 / API 36.1 Medium Phone emulator (1080 x 2400, 420dpi) and the separate application ID `tk.glucodata.navigationpreview`. The isolated renderer compiles the exact production `OverlayNavigationScaffold.kt`, `MorphingNavigationContainer.kt`, `TrendCornerMotion.kt`, `TrendMorph.kt`, `TabIcon.kt`, label helper, and IBM Plex typography. It uses the app's Material 3 version and platform dynamic dark colors.
 
-- [Stable, four destinations, 1.0x labels](stable-emulator.png).
-- [Rising at 1.5 mg/dL/min, five destinations, 1.3x labels](rising-five-tabs-emulator.png).
-- [Falling at -1.5 mg/dL/min, five destinations, 1.3x labels](falling-five-tabs-emulator.png).
+The top shape probe uses the production hero corner targets. Both it and the production navigation container read the same production motion holder. The fixture cycles simulated slopes 0, +1.2, -1.2, and 0 to show the transition; it contains no CGM data. Colored rows expose the content under the panel and its bottom gap. This verifies the shared shape/animation functions and parent layout, rather than presenting a fabricated CGM screen.
+
+- [Native shared-motion recording](shared-morph-emulator.mp4).
+- [Stable shape, five destinations, 1.0x labels](stable-emulator.png).
+- [Rising shape, five destinations, 1.3x labels](rising-five-tabs-emulator.png).
+- [Falling shape, five destinations, 1.3x labels](falling-five-tabs-emulator.png).
 - [Last fixture row scrolled clear of the panel](scroll-end-emulator.png).
 
-The captures verify the native parent layout, content underlay, panel outline, label layout, gesture inset, and list-end clearance in isolation. They do not verify the full CGM app, live glucose updates, animation performance, older Android system-bar behavior, or three-button navigation. The connected Android 10 phone rejected preview installation with `INSTALL_FAILED_USER_RESTRICTED`; its CGM package was not replaced.
+The evidence checks shared corner motion, the native parent layout, visible content below the panel, label layout, gesture inset, and list-end clearance in isolation. Full-app live-data behavior, frame-time performance, older Android system-bar behavior, and three-button navigation remain unverified. The connected Android 10 phone rejected preview installation; its CGM package was not replaced.
 
-Local validation also passed mobile debug compilation, 24 focused JVM tests (12 trend/morph, 5 dashboard history, 7 architecture gates), UI guardrails, and `git diff --check` using Java 21 and an isolated offline Gradle cache.
+Local validation passed mobile debug compilation, 26 focused JVM tests (14 trend/morph, 5 dashboard history, 7 architecture gates), UI guardrails, and `git diff --check`, using Java 21 and an isolated offline Gradle cache.
