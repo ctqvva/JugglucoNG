@@ -240,3 +240,16 @@ not go up. When you remove debt, lower the baseline in the same change:
 python3 scripts/ui-guardrails.py             # check
 python3 scripts/ui-guardrails.py --update    # after reducing a count
 ```
+
+A count is debt, so the script leaves out what isn't: commented-out code, colours defined in
+`lightColorScheme()`/`darkColorScheme()` or a `*Palette.kt` file, and the floating overlay's
+`collectAsState()`/`isSystemInDarkTheme()` (a service window over other apps). Anything else
+that breaks a rule on purpose says why, on the line or the line above:
+
+```kotlin
+// ui-guardrails: allow text_literal - a version number, the same in every language
+```
+
+or around a block with `// ui-guardrails: allow-begin <rule>[, <rule>] - <reason>` …
+`// ui-guardrails: allow-end`. Allowed hits are counted as `allowed_exceptions` and ratcheted
+too, so a new exception shows up in the baseline diff and gets reviewed.

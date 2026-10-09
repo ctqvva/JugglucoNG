@@ -2974,4 +2974,7 @@
     <string name="chart_jump_to_date">Przejdź do daty</string>
     <string name="chart_back_to_now">Wróć do teraz</string>
     <string name="talker_media_sound">Multimedia</string>
+    <string name="ssl_port">Port SSL</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Przesunięcie: %1$s</string>
 </resources>

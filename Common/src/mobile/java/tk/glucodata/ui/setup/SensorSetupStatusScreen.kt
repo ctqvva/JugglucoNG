@@ -150,6 +150,7 @@ private fun SensorSetupStatusScreen(
         SensorSetupStatusTone.Connecting -> MaterialTheme.colorScheme.primary
         SensorSetupStatusTone.Success -> MaterialTheme.colorScheme.tertiary
     }
+    // ui-guardrails: allow offscale_radius - a deliberately uneven organic shape, not a corner radius
     val heroShape = RoundedCornerShape(
         topStart = if (ui.compact) 30.dp else 36.dp,
         topEnd = if (ui.compact) 22.dp else 28.dp,

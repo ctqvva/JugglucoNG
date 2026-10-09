@@ -2640,6 +2640,7 @@ fun JournalInlineChip(
             Dp.Unspecified
         }
     ) {
+        // ui-guardrails: allow-begin offgrid_spacing, offscale_radius - journal chip metrics as tuned in #572; the chart's chip layout measures them
         Surface(
             modifier = modifier.widthIn(max = if (expanded) 320.dp else 180.dp),
             onClick = onClick,
@@ -2720,6 +2721,7 @@ fun JournalInlineChip(
                             .padding(top = if (expanded) 3.dp else 0.dp)
                             .size(if (expanded) 14.dp else 12.dp)
                     )
+                // ui-guardrails: allow-end
                 }
             }
         }
@@ -2834,6 +2836,7 @@ private fun JournalEntryChip(
     onClick: () -> Unit
 ) {
     val tint = insulinPreset?.let { Color(it.accentColor) } ?: journalTypeColor(entry.type)
+    // ui-guardrails: allow-begin offgrid_spacing, offscale_radius - journal chip metrics as tuned in #572; the chart's chip layout measures them
     Surface(
         onClick = onClick,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -2861,6 +2864,7 @@ private fun JournalEntryChip(
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // ui-guardrails: allow-end
                 Text(
                     text = if (entry.type == JournalEntryType.INSULIN) {
                         insulinPreset?.displayName ?: entry.title

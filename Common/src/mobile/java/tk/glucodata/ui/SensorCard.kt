@@ -2459,12 +2459,12 @@ fun SensorCard(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         Text(
-                                            text = "CF: ${"%.2f".format(cal.cf)}",
+                                            text = stringResource(R.string.calibration_cf_value, "%.2f".format(cal.cf)),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = "Offset: ${"%.2f".format(cal.offset)}",
+                                            text = stringResource(R.string.calibration_offset_value, "%.2f".format(cal.offset)),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )

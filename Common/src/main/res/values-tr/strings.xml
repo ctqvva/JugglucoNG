@@ -2960,4 +2960,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="chart_jump_to_date">Tarihe git</string>
     <string name="chart_back_to_now">Şimdiye dön</string>
     <string name="talker_media_sound">Medya</string>
+    <string name="ssl_port">SSL portu</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Ofset: %1$s</string>
 </resources>

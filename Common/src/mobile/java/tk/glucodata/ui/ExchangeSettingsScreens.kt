@@ -1428,7 +1428,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "SSL ${context.getString(R.string.port)}",
+                                        text = stringResource(R.string.ssl_port),
                                         style = MaterialTheme.typography.labelLarge,
                                         modifier = Modifier.weight(1f)
                                     )

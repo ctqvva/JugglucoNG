@@ -2947,4 +2947,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="chart_jump_to_date">跳转到日期</string>
     <string name="chart_back_to_now">回到现在</string>
     <string name="talker_media_sound">媒体</string>
+    <string name="ssl_port">SSL 端口</string>
+    <string name="calibration_cf_value">CF：%1$s</string>
+    <string name="calibration_offset_value">偏移量：%1$s</string>
 </resources>

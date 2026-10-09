@@ -3117,4 +3117,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="chart_jump_to_date">U bood taariikhda</string>
     <string name="chart_back_to_now">Ku noqo hadda</string>
     <string name="talker_media_sound">Warbaahinta</string>
+    <string name="ssl_port">Dekedda SSL</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Deminta: %1$s</string>
 </resources>

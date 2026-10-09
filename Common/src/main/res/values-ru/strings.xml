@@ -2983,4 +2983,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="chart_jump_to_date">Перейти к дате</string>
     <string name="chart_back_to_now">Вернуться к текущему</string>
     <string name="talker_media_sound">Медиа</string>
+    <string name="ssl_port">Порт SSL</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Смещение: %1$s</string>
 </resources>

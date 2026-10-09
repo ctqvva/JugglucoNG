@@ -278,6 +278,7 @@ fun ManualTransmitterEntryDialog(
                     value = code,
                     onValueChange = { code = it.uppercase().filter { c -> c.isLetterOrDigit() } },
                     label = { Text(stringResource(R.string.transmitter_id_label)) },
+                    // ui-guardrails: allow text_literal - an example transmitter ID
                     placeholder = { Text("TW6CCWHS9L7D", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
                     supportingText = { Text(stringResource(R.string.transmitter_id_supporting)) },
                     singleLine = true,
