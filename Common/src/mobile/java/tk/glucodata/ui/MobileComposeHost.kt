@@ -19,6 +19,7 @@ object MobileComposeHost : ComposeHost {
         // Hide the native legacy view (histogram/nanovg) to prevent double-rendering,
         // GPU overdraw, and visual glitches (bleeding through navbar).
         legacyView?.visibility = View.GONE
+        activity.window.decorView.optOutOfForceDark()
 
         activity.setContent {
             val prefs = activity.getSharedPreferences(activity.packageName + "_preferences", Context.MODE_PRIVATE)

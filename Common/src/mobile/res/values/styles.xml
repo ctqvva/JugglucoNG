@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
     <!-- Material 3 Color Palette -->
     <item name="colorPrimary">@color/dark_blue</item>
@@ -11,6 +11,10 @@
     <item name="windowNoTitle">true</item>
     <item name="android:windowContentOverlay">@null</item>
     <item name="android:fontFamily">@font/ibm_plex_sans_var</item>
+    <!-- Compose draws its own light and dark schemes. A device-wide force dark (MIUI's dark
+         mode for apps, the Override force-dark developer option) would invert them a second
+         time: dark labels on light pills come out light on light. -->
+    <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     <item name="android:textViewStyle">@style/MyTextViewStyle</item>
      <item name="android:textAppearanceButton">@style/textAppearanceButton</item>
       <!-- <item name="android:spinnerStyle">@android:style/Widget.Holo.Spinner</item> -->
