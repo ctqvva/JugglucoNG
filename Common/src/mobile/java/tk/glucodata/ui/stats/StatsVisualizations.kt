@@ -448,8 +448,7 @@ internal fun CalendarHeatGrid(
                             Text(
                                 text = date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFeatureSettings = "tnum",
-                                    fontWeight = FontWeight.Medium
+                                    fontFeatureSettings = "tnum"
                                 ),
                                 color = if (day != null) {
                                     Color.Black.copy(alpha = 0.55f)
@@ -590,9 +589,8 @@ internal fun TirDistributionRow(
         }
         Text(
             text = valueLabel,
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            style = MaterialTheme.typography.labelLargeEmphasized.copy(fontFeatureSettings = "tnum"),
             color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.width(58.dp),
             textAlign = TextAlign.End,
             maxLines = 1

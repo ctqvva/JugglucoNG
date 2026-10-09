@@ -58,7 +58,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.work.WorkInfo
@@ -1056,8 +1055,7 @@ private fun BackupRetentionRow(
             )
             Text(
                 text = options[index.toInt().coerceIn(options.indices)].toString(),
-                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleLargeEmphasized.copy(fontFeatureSettings = "tnum")
             )
         }
         Slider(

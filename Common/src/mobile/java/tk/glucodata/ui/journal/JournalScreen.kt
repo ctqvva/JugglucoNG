@@ -46,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -725,8 +724,7 @@ private fun JournalMetricCard(
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

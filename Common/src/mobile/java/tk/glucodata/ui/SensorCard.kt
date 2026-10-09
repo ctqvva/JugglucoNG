@@ -364,8 +364,7 @@ private fun SensorCurrentValueChip(
         ) {
             Text(
                 text = snapshot.primaryStr,
-                style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum"),
                 maxLines = 1,
                 softWrap = false,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis

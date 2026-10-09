@@ -271,8 +271,7 @@ private fun RiskIndexRow(
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum")
                 )
             }
         }
@@ -339,7 +338,7 @@ internal fun EpisodesCard(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = stringResource(R.string.episodes_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
                 Text(
                     text = stringResource(R.string.episodes_subtitle),
@@ -431,9 +430,8 @@ private fun EpisodeTile(
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = summary.count.toString(),
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.headlineMediumEmphasized.copy(
+                    fontFeatureSettings = "tnum"
                 )
             )
             if (summary.severeCount > 0) {
@@ -494,7 +492,6 @@ private fun EpisodeStatLine(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
@@ -529,9 +526,8 @@ private fun EpisodeRow(episode: GlucoseEpisode, unit: GlucoseUnit) {
         )
         Text(
             text = formatMgDl(episode.extremeMgDl, unit),
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            color = tone,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.labelLargeEmphasized.copy(fontFeatureSettings = "tnum"),
+            color = tone
         )
         Text(
             text = durationText(episode.durationMinutes),
@@ -574,7 +570,7 @@ internal fun DayByDayCard(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.stats_day_by_day),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         text = stringResource(R.string.stats_day_by_day_hint),
@@ -668,14 +664,13 @@ internal fun DayDetailSheet(
             ) {
                 Text(
                     text = titleFormatter.format(day.date),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = String.format(Locale.getDefault(), "%.0f%%", day.tir.inRangePercent),
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFeatureSettings = "tnum",
-                        fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.headlineSmallEmphasized.copy(
+                        fontFeatureSettings = "tnum"
                     ),
                     color = tirHeatColor(day.tir.inRangePercent)
                 )
@@ -809,9 +804,8 @@ private fun DaySheetStat(label: String, value: String, modifier: Modifier = Modi
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFeatureSettings = "tnum",
-                fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                fontFeatureSettings = "tnum"
             ),
             maxLines = 1
         )

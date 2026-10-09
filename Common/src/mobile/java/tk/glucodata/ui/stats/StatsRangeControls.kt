@@ -42,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -144,7 +143,6 @@ fun StatsDateRangePickerHeadline(
             text = headline,
             modifier = modifier.padding(start = 24.dp, end = 24.dp, bottom = 2.dp),
             style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Medium,
                 lineHeight = 24.sp
             ),
             maxLines = 1,
@@ -341,7 +339,7 @@ fun StatsDateRangeSheet(
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
                     text = stringResource(R.string.stats_custom_range_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
                 Text(
                     text = if (dayCount > 0) {

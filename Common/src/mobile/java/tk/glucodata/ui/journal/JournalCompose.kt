@@ -514,8 +514,7 @@ fun JournalEntrySheet(
                                     else -> draft.type.labelRes()
                                 }
                             ),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.headlineSmallEmphasized
                         )
                         existingEntry?.source?.presentation()?.let { source ->
                             // The icon on the row only explains itself for NFC; here the
@@ -1338,8 +1337,7 @@ private fun JournalDoseAssistCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.journal_dose_math_title),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
@@ -1358,8 +1356,7 @@ private fun JournalDoseAssistCard(
                             R.string.journal_dose_suggested_insulin,
                             suggestion?.totalInsulinUnits?.let(::formatInsulinDose) ?: "—"
                         ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = if (suggestion != null) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
@@ -1402,8 +1399,7 @@ private fun JournalDoseAssistCard(
                             R.string.journal_dose_covers_carbs,
                             coveredCarbsSuggestion?.let(::formatCarbDose) ?: "—"
                         ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = if (coveredCarbsSuggestion != null) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
@@ -1646,8 +1642,7 @@ private fun JournalFoodLibrarySelector(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = visibleItems.singleOrNull()?.displayName ?: stringResource(R.string.journal_add_food),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1929,8 +1924,7 @@ private fun JournalSelectedFoodChip(
             Column(modifier = Modifier.widthIn(max = 180.dp)) {
                 Text(
                     text = item.displayName,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -2000,8 +1994,7 @@ private fun JournalFoodPickerRow(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2071,8 +2064,7 @@ internal fun JournalFoodCompositionDetails(
                     )
                     Text(
                         text = formatFoodComponentValue(component.rawValue),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
                         textAlign = TextAlign.End,
                         modifier = Modifier.widthIn(min = 46.dp)
                     )
@@ -2114,9 +2106,8 @@ internal fun JournalFoodCompositionDetails(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                    textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     ),
                     modifier = Modifier
@@ -3315,8 +3306,7 @@ private fun JournalStepperField(
                             suffix?.let {
                                 Text(
                                     text = it,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleLargeEmphasized,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -3337,9 +3327,8 @@ private fun JournalStepperField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
+                        textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
                             color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
                         ),
                         singleLine = true,
@@ -3369,9 +3358,8 @@ private fun JournalStepperField(
                                         if (value.isBlank()) {
                                             Text(
                                                 text = "0",
-                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                style = MaterialTheme.typography.titleLargeEmphasized.copy(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
-                                                    fontWeight = FontWeight.SemiBold,
                                                     textAlign = TextAlign.Center
                                                 )
                                             )

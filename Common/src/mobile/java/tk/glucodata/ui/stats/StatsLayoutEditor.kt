@@ -63,7 +63,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -334,9 +333,8 @@ private fun EditorRow(
         if (value != null && tone != null) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleSmallEmphasized.copy(
+                    fontFeatureSettings = "tnum"
                 ),
                 color = tone.copy(alpha = if (hidden) 0.45f else 1f),
                 maxLines = 1,

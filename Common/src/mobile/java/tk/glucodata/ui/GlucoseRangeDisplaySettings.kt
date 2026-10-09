@@ -43,7 +43,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -319,10 +318,9 @@ private fun GlucoseRangeSliderRow(
                 )
                 Text(
                     text = formatRangeValue(value, isMmol),
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    style = MaterialTheme.typography.titleLargeEmphasized.copy(
                         fontFeatureSettings = "tnum"
-                    ),
-                    fontWeight = FontWeight.SemiBold
+                    )
                 )
             }
             Slider(

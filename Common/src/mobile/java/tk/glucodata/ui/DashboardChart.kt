@@ -4116,8 +4116,7 @@ fun InteractiveGlucoseChart(
                             if (isActiveInsulinExpanded) {
                                 Text(
                                     text = stringResource(R.string.dashboard_iob_full, iobValue),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
+                                    style = MaterialTheme.typography.labelLargeEmphasized
                                 )
                                 if (showEiob && eiobValue != null) {
                                     Text(
@@ -4133,8 +4132,7 @@ fun InteractiveGlucoseChart(
                                 ) {
                                     Text(
                                         text = stringResource(R.string.dashboard_iob_short, iobValue),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
                                         maxLines = 1
                                     )
                                     if (showEiob && eiobValue != null) {
@@ -4156,8 +4154,7 @@ fun InteractiveGlucoseChart(
                                 } else {
                                     stringResource(R.string.journal_cob_value, carbsValue)
                                 },
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
+                                style = MaterialTheme.typography.labelLargeEmphasized
                             )
                         }
                         // The hint, or — collapsed and with nothing to suggest — how long the
