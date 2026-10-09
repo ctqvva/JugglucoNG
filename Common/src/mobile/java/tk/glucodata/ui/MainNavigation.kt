@@ -670,8 +670,11 @@ private fun AdaptiveNavigationLabel(text: String) {
     }
 
     // ShortNavigationBar queries intrinsic sizes; a BoxWithConstraints label cannot provide them.
+    // Its top-icon items only add vertical padding. Reserve a horizontal label gutter
+    // before auto-sizing without shrinking the item's full-width touch target.
     Text(
         text = text,
+        modifier = Modifier.padding(horizontal = 8.dp),
         style = regularStyle,
         autoSize = autoSize,
         maxLines = 1,
