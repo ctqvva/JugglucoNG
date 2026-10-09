@@ -1,6 +1,6 @@
 # Morphing navigation experiment
 
-The portrait experiment in PR #608 uses a tonal panel with 8dp side margins and a 4dp gap underneath, exposing the scrolling page as in the transport-app reference. The gesture inset is inside the panel. Resting corners are 32dp at the top and 20dp at the bottom; labels and selected indicator stay fixed.
+The portrait experiment in PR #608 uses a tonal panel with 8dp side margins and an 8dp gap above the system navigation area. The gesture/button inset is outside the panel, so its entire bottom edge stays above the system gesture line. The scrolling page remains visible behind the side gutters and bottom gap. Resting corners are 32dp at the top and 20dp at the bottom; labels and selected indicator stay fixed.
 
 The primary hero, sensor card, and navigation read one shared `DashboardTrendMorph` holder. `TrendCornerMotion` owns four animated directional weights and one spring configuration. The bar reads those animated weights directly instead of starting independent radius animations. Hero target ranges are preserved. The bar scales changes visibly, up to 16dp from rest (16–48dp top and 4–36dp bottom), with bounds applied to spring overshoot. Flat and Unknown select the resting motion, even with nonzero measured velocity. At an ordinary +/-0.8mg/dL/min slope, the right-corner offsets differ by at least 16dp; the regression test prevents reverting to barely visible 1–2dp changes.
 
@@ -18,6 +18,6 @@ The top shape probe uses the production hero corner targets. Both it and the pro
 - [Falling shape, five destinations, 1.3x labels](falling-five-tabs-emulator.png).
 - [Last fixture row scrolled clear of the panel](scroll-end-emulator.png).
 
-The evidence checks shared corner motion, the native parent layout, visible content below the panel, label layout, gesture inset, and list-end clearance in isolation. Full-app live-data behavior, frame-time performance, older Android system-bar behavior, and three-button navigation remain unverified. The connected Android 10 phone rejected preview installation; its CGM package was not replaced.
+The evidence checks shared corner motion, the native parent layout, visible content below the panel, label layout, clearance above the gesture area, and list-end clearance in isolation. Full-app live-data behavior, frame-time performance, older Android system-bar behavior, and three-button navigation remain unverified. The connected Android 10 phone rejected preview installation; its CGM package was not replaced.
 
-Local validation passed mobile debug compilation, 26 focused JVM tests (14 trend/morph, 5 dashboard history, 7 architecture gates), UI guardrails, and `git diff --check`, using Java 21 and an isolated offline Gradle cache.
+The above-gesture placement passed mobile debug compilation, UI guardrails, and `git diff --check`. The shared-motion implementation also passed 26 focused JVM tests (14 trend/morph, 5 dashboard history, 7 architecture gates), using Java 21 and an isolated offline Gradle cache.
