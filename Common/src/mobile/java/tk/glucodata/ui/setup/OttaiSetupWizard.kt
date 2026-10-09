@@ -4,8 +4,11 @@
 // collects account/materials, scans QR/NFC when useful, and starts the managed
 // sensor connection; first-use activation is handled during connect.
 
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LoadingIndicator
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -949,7 +952,7 @@ fun OttaiSetupWizard(
                             regPassword.isNotBlank() && profileName.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.ottai_register_button)) }
-                    if (busy) CircularProgressIndicator()
+                    if (busy) LoadingIndicator()
                     if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.error)
                 }
 
@@ -1524,7 +1527,7 @@ fun OttaiSetupWizard(
                             Text(stringResource(connectTitleRes))
                         }
                         HorizontalDivider()
-                        if (busy) CircularProgressIndicator()
+                        if (busy) LoadingIndicator()
                         if (status.isNotBlank()) Text(status)
 
                         if (signedIn) {
@@ -1675,7 +1678,7 @@ fun OttaiSetupWizard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            CircularProgressIndicator()
+                            LoadingIndicator()
                             Text(stringResource(R.string.ottai_sensors_loading), style = MaterialTheme.typography.bodyMedium)
                         }
                         (devices ?: emptyList())
@@ -1878,7 +1881,7 @@ private fun OttaiSensorMaterialCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                     Text(
                         stringResource(R.string.ottai_materials_loading),
                         style = MaterialTheme.typography.bodyMedium,

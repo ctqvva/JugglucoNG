@@ -62,8 +62,9 @@ Corner radii come from the M3 Expressive scale: **4, 8, 12, 16, 20, 28, 32, full
 | full | Buttons, chips, pills, circular indicators (`CircleShape`) |
 
 - **Buttons are pills.** A standalone button keeps the default shape; don't pass `shape =`.
-- **Connected buttons** (Reconnect | Disconnect, a split button) use `ConnectedButtonShapes`:
-  pill ends outside, 4dp where the halves meet.
+- **Connected buttons** (Reconnect | Disconnect) use `ConnectedButtonShapes`: pill ends
+  outside, 4dp where the halves meet. A split button is material3's `SplitButtonLayout`, and
+  a group of choices is `ConnectedButtonGroup`; both bring their own shapes and press morph.
 - **Statistics cards** use the one leaf shape, `StatsCardShape` (28 / 16).
 - **The dashboard hero** morphs its corners with the trend direction. That is the app's
   signature shape and the one deliberate exception to the scale.
@@ -140,10 +141,17 @@ Reach for these before building a surface by hand.
 | A destructive row | `DangerItem` | same |
 | Group label | `SectionLabel` (24 above, 8 below) | same |
 | Leading icon of a row/card | `IconTile` | `components/IconTile.kt` |
-| 2–5 exclusive choices | `ConnectedButtonGroup` | `util/ConnectedButtonGroup.kt` |
+| 2–5 exclusive choices | `ConnectedButtonGroup` (material3 `ToggleButton`s, connected shapes) | `util/ConnectedButtonGroup.kt` |
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
+| An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |
+| A short wait with no progress to show | `LoadingIndicator` | material3 |
 | Switch | `StyledSwitch` | `components/StyledSwitch.kt` |
 | Sheet | `StableModalBottomSheet` | `components/StableModalBottomSheet.kt` |
+
+Waiting: `LoadingIndicator` for a few seconds with nothing to count (a network check, a list
+loading). Work that can run longer or knows its progress keeps a progress indicator. A spinner
+inside a button stays a small `CircularProgressIndicator`; the loading indicator's shapes don't
+read at 18dp.
 
 ### Row, card, dialog or sheet
 
