@@ -230,6 +230,9 @@ interface JournalDao {
     @Query("SELECT nsRemoteId FROM journal_entries WHERE nsUploadedAt IS NOT NULL AND nsRemoteId IS NOT NULL")
     suspend fun getOwnUploadedNightscoutRemoteIds(): List<String>
 
+    @Query("SELECT * FROM journal_entries WHERE entryType = :entryType AND source IN (:sources) AND sourceRecordId IS NOT NULL")
+    suspend fun getImportedEntriesOfType(entryType: String, sources: List<String>): List<JournalEntryEntity>
+
     @Query(
         """
         SELECT * FROM journal_entries
