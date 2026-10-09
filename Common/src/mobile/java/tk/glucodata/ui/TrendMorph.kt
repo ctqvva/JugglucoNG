@@ -2,7 +2,6 @@ package tk.glucodata.ui
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.ui.unit.Dp
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -13,7 +12,7 @@ internal data class TrendCornerWeights(
     val bottomStart: Float
 )
 
-internal data class NavigationCornerRadii(
+internal data class TrendCornerRadii(
     val topStart: Float,
     val topEnd: Float,
     val bottomEnd: Float,
@@ -47,21 +46,37 @@ internal fun trendCornerWeightsFromVelocity(velocity: Float): TrendCornerWeights
     )
 }
 
-internal fun trendCornerAnimationSpec() = spring<Dp>(
+internal fun trendCornerAnimationSpec() = spring<Float>(
     dampingRatio = Spring.DampingRatioLowBouncy,
-    stiffness = Spring.StiffnessLow
+    stiffness = Spring.StiffnessLow,
+    visibilityThreshold = 0.001f
 )
 
+/** Primary hero targets; navigation uses these same animated directional weights. */
+internal fun heroCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii {
+    fun radius(weight: Float, min: Float, max: Float) = min + (max - min) * weight.coerceIn(0f, 1f)
+    return TrendCornerRadii(
+        radius(weights.topStart, 22f, 52f),
+        radius(weights.topEnd, 8f, 24f),
+        radius(weights.bottomEnd, 8f, 24f),
+        radius(weights.bottomStart, 22f, 46f)
+    )
+}
+
 /** Reference panel: broad top corners, tighter bottom corners; symmetric at rest. */
-internal fun navigationCornerRadii(velocity: Float): NavigationCornerRadii {
-    val weights = trendCornerWeightsFromVelocity(velocity)
+internal fun navigationCornerRadii(velocity: Float): TrendCornerRadii =
+    navigationCornerRadiiFromWeights(trendCornerWeightsFromVelocity(velocity))
+
+internal fun navigationCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii {
     val resting = trendCornerWeightsFromVelocity(0f)
     fun radius(weight: Float, rest: Float, base: Float) =
-        (base + (weight - rest) * 8f).coerceIn(base - 8f, base + 8f)
-    return NavigationCornerRadii(
+        // A normal 0.8mg/dL/min trend must be visible, not a 1–2dp outline wobble.
+        // Clamp the animated output too: the shared spatial spring can overshoot.
+        (base + (weight - rest) * 48f).coerceIn(base - 16f, base + 16f)
+    return TrendCornerRadii(
         topStart = radius(weights.topStart, resting.topStart, 32f),
         topEnd = radius(weights.topEnd, resting.topEnd, 32f),
-        bottomEnd = radius(weights.bottomEnd, resting.bottomEnd, 12f),
-        bottomStart = radius(weights.bottomStart, resting.bottomStart, 12f)
+        bottomEnd = radius(weights.bottomEnd, resting.bottomEnd, 20f),
+        bottomStart = radius(weights.bottomStart, resting.bottomStart, 20f)
     )
 }

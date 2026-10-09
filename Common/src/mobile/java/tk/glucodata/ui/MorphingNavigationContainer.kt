@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -15,7 +14,6 @@ import androidx.compose.material3.ShortNavigationBarArrangement
 import androidx.compose.material3.ShortNavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -32,23 +30,17 @@ internal fun morphingNavigationItemColors() = ShortNavigationBarItemDefaults.col
 
 @Composable
 internal fun MorphingNavigationContainer(
-    radii: NavigationCornerRadii,
+    radii: TrendCornerRadii,
     content: @Composable () -> Unit
 ) {
-    val animationSpec = trendCornerAnimationSpec()
-    val topStart by animateDpAsState(radii.topStart.dp, animationSpec, label = "NavigationTopStart")
-    val topEnd by animateDpAsState(radii.topEnd.dp, animationSpec, label = "NavigationTopEnd")
-    val bottomEnd by animateDpAsState(radii.bottomEnd.dp, animationSpec, label = "NavigationBottomEnd")
-    val bottomStart by animateDpAsState(radii.bottomStart.dp, animationSpec, label = "NavigationBottomStart")
-
     Box(
         Modifier
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
             .padding(horizontal = 8.dp)
-            .padding(top = 8.dp)
+            .padding(top = 8.dp, bottom = 4.dp)
     ) {
         Surface(
-            shape = RoundedCornerShape(topStart, topEnd, bottomEnd, bottomStart),
+            shape = RoundedCornerShape(radii.topStart.dp, radii.topEnd.dp, radii.bottomEnd.dp, radii.bottomStart.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             // The gesture/button inset belongs inside this panel, as in the reference.

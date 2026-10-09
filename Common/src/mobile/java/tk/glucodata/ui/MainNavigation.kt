@@ -810,84 +810,86 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
     // above a bar — meant every rotation disposed the open screen and rebuilt it from scratch.
     // The rail or the bar comes and goes around it; the NavHost keeps its slot.
-    OverlayNavigationScaffold(
-        overlaysContent = !isLandscape && currentRoute in setOf("dashboard", "stats", "sensors", "settings", "journal"),
-        bottomBar = {
-            if (!isLandscape) {
-                MorphingNavigationBar(dashboardViewModel) {
-                    navItems.forEach { item ->
-                        val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        ShortNavigationBarItem(
-                            iconPosition = NavigationItemIconPosition.Top,
-                            colors = morphingNavigationItemColors(),
-                            icon = {
-                                TabIcon(
-                                    isSelected = isSelected,
-                                    selectedIcon = item.selectedIcon,
-                                    unselectedIcon = item.unselectedIcon,
-                                    description = item.label,
-                                    isDashboard = item.route == "dashboard",
-                                    isStatistics = item.route == "stats"
-                                )
-                            },
-                            label = {
-                                FontScaleCap { AdaptiveNavigationLabel(item.label) }
-                            },
-                            selected = isSelected,
-                            onClick = { onNavigate(item.route) }
-                        )
+    DashboardTrendMorphProvider(dashboardViewModel) {
+        OverlayNavigationScaffold(
+            overlaysContent = !isLandscape && currentRoute in setOf("dashboard", "stats", "sensors", "settings", "journal"),
+            bottomBar = {
+                if (!isLandscape) {
+                    MorphingNavigationBar {
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            ShortNavigationBarItem(
+                                iconPosition = NavigationItemIconPosition.Top,
+                                colors = morphingNavigationItemColors(),
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = {
+                                    FontScaleCap { AdaptiveNavigationLabel(item.label) }
+                                },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
+                            )
+                        }
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        Row(modifier = Modifier.fillMaxSize()) {
-            if (isLandscape) {
-                NavigationRail {
-                    // Centred, for the thumb on a phone held sideways.
-                    Spacer(modifier = Modifier.weight(1f))
-                    navItems.forEach { item ->
-                        val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        NavigationRailItem(
-                            icon = {
-                                TabIcon(
-                                    isSelected = isSelected,
-                                    selectedIcon = item.selectedIcon,
-                                    unselectedIcon = item.unselectedIcon,
-                                    description = item.label,
-                                    isDashboard = item.route == "dashboard",
-                                    isStatistics = item.route == "stats"
-                                )
-                            },
-                            label = { FontScaleCap { Text(item.label) } },
-                            selected = isSelected,
-                            onClick = { onNavigate(item.route) }
-                        )
+        ) { innerPadding ->
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (isLandscape) {
+                    NavigationRail {
+                        // Centred, for the thumb on a phone held sideways.
+                        Spacer(modifier = Modifier.weight(1f))
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            NavigationRailItem(
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = { FontScaleCap { Text(item.label) } },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
                     }
-                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
-            NavHost(
-                navController = navController,
-                startDestination = "dashboard",
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(innerPadding)
-                    .consumeWindowInsets(innerPadding),
-                // A short fade between destinations. NavHost's own default is a 700ms
-                // crossfade; landscape used to have none at all and portrait this one.
-                enterTransition = { fadeIn(animationSpec = tween(200)) },
-                exitTransition = { fadeOut(animationSpec = tween(200)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(200)) },
-                popExitTransition = { fadeOut(animationSpec = tween(200)) }
-            ) {
-                appDestinations(
+                NavHost(
                     navController = navController,
-                    dashboardViewModel = dashboardViewModel,
-                    themeMode = themeMode,
-                    onThemeChanged = onThemeChanged,
-                    onTriggerCalibration = onTriggerCalibration,
-                )
+                    startDestination = "dashboard",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding),
+                    // A short fade between destinations. NavHost's own default is a 700ms
+                    // crossfade; landscape used to have none at all and portrait this one.
+                    enterTransition = { fadeIn(animationSpec = tween(200)) },
+                    exitTransition = { fadeOut(animationSpec = tween(200)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                ) {
+                    appDestinations(
+                        navController = navController,
+                        dashboardViewModel = dashboardViewModel,
+                        themeMode = themeMode,
+                        onThemeChanged = onThemeChanged,
+                        onTriggerCalibration = onTriggerCalibration,
+                    )
+                }
             }
         }
     }

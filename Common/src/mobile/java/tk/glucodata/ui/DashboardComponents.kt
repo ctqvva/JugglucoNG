@@ -243,7 +243,9 @@ fun DashboardCombinedHeader(
     val sensorContentColor = if (isExpiring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
     // Advanced Trend
-    val trendResult = rememberDashboardTrend(history, latestPoint, currentSnapshot, viewMode, isMmol)
+    val sharedMorph = LocalDashboardTrendMorph.current
+    val trendResult = sharedMorph?.trend?.value
+        ?: rememberDashboardTrend(history, latestPoint, currentSnapshot, viewMode, isMmol)
     // "Δ" readout: the measured change over the last ~5 minutes — a raw
     // number to sanity-check the estimated arrow against. Same computation as
     // the per-row deltas in the readings list, anchored at the newest point.
@@ -259,50 +261,17 @@ fun DashboardCombinedHeader(
     }
     val adaptiveMetrics = rememberAdaptiveWindowMetrics()
     val isLandscape = adaptiveMetrics.isLandscape
-    val cornerWeights = remember(trendResult.velocity) { trendCornerWeightsFromVelocity(trendResult.velocity) }
-    val cornerAnimSpec = trendCornerAnimationSpec()
-
-    val heroTopStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topStart, 22.dp, 52.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroTopStartRadius"
-    )
-    val heroTopEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topEnd, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroTopEndRadius"
-    )
-    val heroBottomEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomEnd, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroBottomEndRadius"
-    )
-    val heroBottomStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomStart, 22.dp, 46.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroBottomStartRadius"
-    )
-
-    val sensorTopStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topStart, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorTopStartRadius"
-    )
-    val sensorTopEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topEnd, 20.dp, 46.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorTopEndRadius"
-    )
-    val sensorBottomEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomEnd, 22.dp, 52.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorBottomEndRadius"
-    )
-    val sensorBottomStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomStart, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorBottomStartRadius"
-    )
+    val cornerMotion = sharedMorph?.corners ?: rememberTrendCornerMotion(trendShapeVelocity(trendResult))
+    val cornerWeights = cornerMotion.weights
+    val heroCorners = heroCornerRadiiFromWeights(cornerWeights)
+    val heroTopStart = heroCorners.topStart.dp
+    val heroTopEnd = heroCorners.topEnd.dp
+    val heroBottomEnd = heroCorners.bottomEnd.dp
+    val heroBottomStart = heroCorners.bottomStart.dp
+    val sensorTopStart = directionalRadius(cornerWeights.topStart, 8.dp, 24.dp)
+    val sensorTopEnd = directionalRadius(cornerWeights.topEnd, 20.dp, 46.dp)
+    val sensorBottomEnd = directionalRadius(cornerWeights.bottomEnd, 22.dp, 52.dp)
+    val sensorBottomStart = directionalRadius(cornerWeights.bottomStart, 8.dp, 24.dp)
 
     // 1. Resolve Values using shared logic (with calibration if active)
     val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)

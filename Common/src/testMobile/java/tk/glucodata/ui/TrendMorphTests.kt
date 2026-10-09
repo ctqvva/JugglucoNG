@@ -9,7 +9,7 @@ import tk.glucodata.logic.TrendEngine
 class TrendMorphTests {
     private val now = 1_700_000_000_000L
 
-    private fun corners(radii: NavigationCornerRadii) = listOf(
+    private fun corners(radii: TrendCornerRadii) = listOf(
         radii.topStart, radii.topEnd, radii.bottomEnd, radii.bottomStart
     )
 
@@ -27,7 +27,7 @@ class TrendMorphTests {
         val radii = navigationCornerRadii(0f)
         assertEquals(32f, radii.topStart, 0f)
         assertEquals(radii.topStart, radii.topEnd, 0f)
-        assertEquals(12f, radii.bottomStart, 0f)
+        assertEquals(20f, radii.bottomStart, 0f)
         assertEquals(radii.bottomStart, radii.bottomEnd, 0f)
     }
 
@@ -63,12 +63,32 @@ class TrendMorphTests {
     fun risingAndFallingReverseTheVerticalAsymmetry() {
         val rising = navigationCornerRadii(1.5f)
         val falling = navigationCornerRadii(-1.5f)
-        assertTrue(rising.topEnd - 32f < rising.bottomEnd - 12f)
-        assertTrue(falling.topEnd - 32f > falling.bottomEnd - 12f)
-        assertEquals(rising.topStart - 32f, falling.bottomStart - 12f, 0.001f)
-        assertEquals(rising.topEnd - 32f, falling.bottomEnd - 12f, 0.001f)
-        assertEquals(rising.bottomEnd - 12f, falling.topEnd - 32f, 0.001f)
-        assertEquals(rising.bottomStart - 12f, falling.topStart - 32f, 0.001f)
+        assertTrue(rising.topEnd - 32f < rising.bottomEnd - 20f)
+        assertTrue(falling.topEnd - 32f > falling.bottomEnd - 20f)
+        assertEquals(rising.topStart - 32f, falling.bottomStart - 20f, 0.001f)
+        assertEquals(rising.topEnd - 32f, falling.bottomEnd - 20f, 0.001f)
+        assertEquals(rising.bottomEnd - 20f, falling.topEnd - 32f, 0.001f)
+        assertEquals(rising.bottomStart - 20f, falling.topStart - 32f, 0.001f)
+    }
+
+    @Test
+    fun ordinaryRisingAndFallingTrendsProduceVisibleCornerChanges() {
+        for (velocity in listOf(-0.8f, 0.8f)) {
+            val weights = trendCornerWeightsFromVelocity(velocity)
+            val radii = navigationCornerRadii(velocity)
+            val topChange = radii.topEnd - 32f
+            val bottomChange = radii.bottomEnd - 20f
+            // The previous 8x scale only changed these corners by about 1–2dp.
+            assertTrue(kotlin.math.abs(topChange - bottomChange) >= 16f)
+            assertTrue((topChange - bottomChange) * (weights.topEnd - weights.bottomEnd) > 0f)
+        }
+    }
+
+    @Test
+    fun springOvershootCannotProduceInvalidNavigationCorners() {
+        val radii = navigationCornerRadiiFromWeights(TrendCornerWeights(-0.2f, 1.2f, -0.2f, 1.2f))
+        listOf(radii.topStart, radii.topEnd).forEach { assertTrue(it in 16f..48f) }
+        listOf(radii.bottomStart, radii.bottomEnd).forEach { assertTrue(it in 4f..36f) }
     }
 
     @Test
@@ -76,8 +96,8 @@ class TrendMorphTests {
         listOf(-Float.MAX_VALUE, -100f, -3.6f, -1f, 0f, 1f, 3.6f, 100f, Float.MAX_VALUE)
             .forEach { velocity ->
                 val radii = navigationCornerRadii(velocity)
-                listOf(radii.topStart, radii.topEnd).forEach { assertTrue(it in 24f..40f) }
-                listOf(radii.bottomStart, radii.bottomEnd).forEach { assertTrue(it in 4f..20f) }
+                listOf(radii.topStart, radii.topEnd).forEach { assertTrue(it in 16f..48f) }
+                listOf(radii.bottomStart, radii.bottomEnd).forEach { assertTrue(it in 4f..36f) }
             }
     }
 
