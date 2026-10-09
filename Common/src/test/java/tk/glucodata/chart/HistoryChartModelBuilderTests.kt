@@ -169,6 +169,43 @@ class HistoryChartModelBuilderTests {
     }
 
     @Test
+    fun hiddenSourceStaysHiddenWhenCalibratedSensorBecomesAPeer() {
+        // Ottai auto and AiDex raw are single-lane modes. The hide preference
+        // must survive switching either calibrated sensor behind an uncalibrated one.
+        for (mode in listOf(0, 1)) {
+            val calibrated = series("calibrated", true,
+                point(NOW, 5f, "calibrated"), point(NOW + MINUTE, 5f, "calibrated")
+            ).copy(viewMode = mode, hasCalibration = true)
+            val uncalibrated = series("other", false,
+                point(NOW, 8f, "other"), point(NOW + MINUTE, 8f, "other")
+            )
+            val calibration = HistoryChartModelBuilder.Calibration { value, _, _, sensor ->
+                if (sensor == "calibrated") value + 1f else null
+            }
+            for (calibratedIsPrimary in listOf(true, false)) {
+                for (hideSource in listOf(true, false)) {
+                    val model = HistoryChartModelBuilder.build(
+                        listOf(calibrated.copy(isPrimary = calibratedIsPrimary),
+                            uncalibrated.copy(isPrimary = !calibratedIsPrimary)),
+                        MainSensorOwnership.NONE, calibration,
+                        hasCalibration = calibratedIsPrimary,
+                        hideInitialWhenCalibrated = hideSource,
+                    )
+                    val trace = model.series.single { it.sensorId == "calibrated" }
+                    assertEquals(listOf(6f, 6f), trace.runs.flatMap { it.points }.map { it.value })
+                    assertEquals(if (hideSource) 0 else 1, trace.secondaryLanes.size)
+                    if (!hideSource) {
+                        assertEquals(listOf(5f, 5f), trace.secondaryLanes.single().runs.flatMap { it.points }.map { it.value })
+                    }
+                    val other = model.series.single { it.sensorId == "other" }
+                    assertTrue(other.secondaryLanes.isEmpty())
+                    assertEquals(listOf(8f, 8f), other.runs.flatMap { it.points }.map { it.value })
+                }
+            }
+        }
+    }
+
+    @Test
     fun aGapBreaksTheRunWithoutSharingAPoint() {
         val a = series(
             "A", primary = true,
