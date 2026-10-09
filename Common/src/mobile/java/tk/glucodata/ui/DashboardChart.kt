@@ -6,6 +6,7 @@ import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.os.Vibrator
 import android.os.VibrationEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -47,7 +48,6 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -465,7 +465,7 @@ private fun PreviewWindowNavigator(
     val previewStart = previewCenterTime - previewHalfDuration
     val previewEnd = previewCenterTime + previewHalfDuration
     val secondaryLineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-    val isDark = isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     val paletteRevision = GlucosePaletteState.revision
     val targetBandColor = remember(isDark, paletteRevision) {
         Color(GlucoseRangeColors.targetBackground(isDark)).copy(alpha = 0.12f)
@@ -494,7 +494,7 @@ private fun PreviewWindowNavigator(
 
     Surface(
         modifier = modifier.zIndex(2f),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = surfaceColor,
         tonalElevation = 2.dp,
         shadowElevation = 0.dp
@@ -507,7 +507,7 @@ private fun PreviewWindowNavigator(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 if (renderData.isEmpty()) return@Canvas
 
@@ -899,7 +899,7 @@ fun InteractiveGlucoseChart(
     onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
 ) {
     // --- THEME & PAINTS ---
-    val isDark = isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     // Observe the glucose palette so target band / band tints recompute live
     // when the user switches presets or edits a band colour (no restart).
     val glucosePaletteRevision = GlucosePaletteState.revision
@@ -917,6 +917,11 @@ fun InteractiveGlucoseChart(
 //    val targetBandColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     val hoverLineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
     val minMaxLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+    // Axis labels were android.graphics.Color.GRAY and the min/max labels DKGRAY, which is
+    // near-invisible on a dark surface. Theme roles instead: quiet for the axis, full
+    // contrast for the min/max values that are actually being called out.
+    val axisTextColorArgb = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+    val indicatorTextColorArgb = MaterialTheme.colorScheme.onSurface.toArgb()
     val safeExpandedProgress = expandedProgress.coerceIn(0f, 1f)
     val chartUnderlayBottomDp = expandedUnderlayBottom * safeExpandedProgress
     val chartUnderlayBottomPx = with(LocalDensity.current) { chartUnderlayBottomDp.toPx() }
@@ -1015,18 +1020,21 @@ fun InteractiveGlucoseChart(
     }
 
     // Paints
-    val axisTextPaint = remember(graphFont) {
+    // In sp, so the axis follows the system font size like every other label (it was a fixed
+    // 10dp); 11sp is the smallest step of the M3 type scale.
+    val axisLabelTextPx = with(LocalDensity.current) { 11.sp.toPx() }
+    val axisTextPaint = remember(graphFont, axisLabelTextPx) {
         android.graphics.Paint().apply {
             color = android.graphics.Color.GRAY
-            textSize = 10f * density
+            textSize = axisLabelTextPx
             textAlign = android.graphics.Paint.Align.LEFT
             typeface = graphFont
         }
     }
-    val xTextPaint = remember(graphFont) {
+    val xTextPaint = remember(graphFont, axisLabelTextPx) {
         android.graphics.Paint().apply {
             color = android.graphics.Color.GRAY
-            textSize = 10f * density
+            textSize = axisLabelTextPx
             textAlign = android.graphics.Paint.Align.CENTER
             typeface = graphFont
         }
@@ -1048,7 +1056,7 @@ fun InteractiveGlucoseChart(
     // low/high banding by default.
     val primaryPickedColor = tk.glucodata.SensorVisuals.colorOverrideArgb(primarySerial)
         ?.let { Color(it) }
-    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
+    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsStateWithLifecycle()
     val isRawModeChart = viewMode == 1 || viewMode == 3
     // A fact, not a decision: whether a calibration applies to the primary lane.
     val hasCalibration = remember(calibrationRevision, isRawModeChart, primarySerial) {
@@ -2390,7 +2398,7 @@ fun InteractiveGlucoseChart(
             // Multi-sensor: the primary trace carries a subtle identity tint so
             // it pairs with its (tinted) values, like the peer traces do.
             val primaryLineTintFraction = if (peerChartSeries.isNotEmpty()) 0.22f else 0f
-            val appRangeDark = isSystemInDarkTheme()
+            val appRangeDark = tk.glucodata.ui.isAppInDarkTheme()
             val gradientBrush = remember(
                 limitYVeryHigh,
                 limitYHigh,
@@ -2600,6 +2608,39 @@ fun InteractiveGlucoseChart(
                     return (normalized * cYRange) + cYMin
                 }
 
+                // Min/max of the visible series, found before the axis is drawn: the min/max
+                // labels sit in the axis label column, and an axis label at nearly the same
+                // height ("3,8" over "4") has to step aside rather than print underneath.
+                var minPoint: GlucosePoint? = null
+                var maxPoint: GlucosePoint? = null
+                var minVal = Float.MAX_VALUE
+                var maxVal = Float.MIN_VALUE
+                if (endIdx > startIdx) {
+                    // Single fast pass for min/max
+                    for (i in startIdx until endIdx) {
+                        val p = renderData[i]
+                        // Determine value based on mode commonality
+                        // If showing Raw (Mode 1) or Raw-Primary (Mode 3), prioritize Raw
+                        val useRaw = viewMode == 1 || viewMode == 3
+                        val v = if (hideInitialWhenCalibrated) {
+                            chartModel.primary?.valueAt(p.timestamp) ?: Float.NaN
+                        } else {
+                            if (useRaw) p.rawValue else p.value
+                        }
+
+                        if (v.isNaN() || v < 0.1f) continue
+
+                        if (v < minVal) { minVal = v; minPoint = p }
+                        if (v > maxVal) { maxVal = v; maxPoint = p }
+                    }
+                }
+                val hasMaxIndicator = maxPoint != null
+                val hasMinIndicator = minPoint != null && minVal != maxVal
+                val indicatorLabelYs = buildList {
+                    if (hasMaxIndicator) add(valToY(maxVal))
+                    if (hasMinIndicator) add(valToY(minVal))
+                }
+
                 // --- 1. DRAW Y-AXIS GRID ---
                 val yStep = if (cYRange < 25) 2f else 50f
                 var yVal = (kotlin.math.ceil(cYMin / yStep) * yStep).toInt() // integer steps
@@ -2610,7 +2651,13 @@ fun InteractiveGlucoseChart(
                         drawLine(gridColor, Offset(0f, y), Offset(width, y), 1f)
                         // Text - Vertically centered with grid line, 4dp left padding
                         val labelText = yVal.toString()
+                        axisTextPaint.color = axisTextColorArgb
                         axisTextPaint.getTextBounds(labelText, 0, labelText.length, axisLabelBounds)
+                        val labelClearance = axisLabelBounds.height() + 8f * density
+                        if (indicatorLabelYs.any { abs(it - y) < labelClearance }) {
+                            yVal += yStep.toInt()
+                            continue
+                        }
                         val centeredY = y + (axisLabelBounds.height() / 2f)
                         val labelPadding = 16f * density
                         val textWidth = axisTextPaint.measureText(labelText)
@@ -2636,6 +2683,7 @@ fun InteractiveGlucoseChart(
                 }
 
                 // --- 2. DRAW X-AXIS GRID ---
+                xTextPaint.color = axisTextColorArgb
                 // Intervals: 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 24h
                 // Pick interval keeping labels ~120px apart
                 val pxPerMs = width / animDur
@@ -2669,10 +2717,13 @@ fun InteractiveGlucoseChart(
                                     reusableDate.time = tGrid
                                     formatDate.format(reusableDate)
                                 }
-                                drawContext.canvas.nativeCanvas.drawText(
-                                    dateLabel, x, contentHeight - labelsLiftPx - 25f,
-                                    xTextPaint.apply { typeface = graphFontBold }
-                                )
+                                xTextPaint.typeface = graphFontBold
+                                val halfDateLabel = xTextPaint.measureText(dateLabel) / 2f
+                                if (x - halfDateLabel >= 0f && x + halfDateLabel <= width) {
+                                    drawContext.canvas.nativeCanvas.drawText(
+                                        dateLabel, x, contentHeight - labelsLiftPx - 25f, xTextPaint
+                                    )
+                                }
                                 xTextPaint.typeface = graphFont
                             } else {
                                 // Time Line
@@ -2682,7 +2733,12 @@ fun InteractiveGlucoseChart(
                                     val mm = if (m < 10) "0$m" else m.toString()
                                     "$hh:$mm"
                                 }
-                                drawContext.canvas.nativeCanvas.drawText(timeLabel, x, contentHeight - labelsLiftPx - 28f, xTextPaint)
+                                // A label centred on a line near either edge would be cut in half
+                                // (":15", "19:"); keep the line, drop the half-label.
+                                val halfLabel = xTextPaint.measureText(timeLabel) / 2f
+                                if (x - halfLabel >= 0f && x + halfLabel <= width) {
+                                    drawContext.canvas.nativeCanvas.drawText(timeLabel, x, contentHeight - labelsLiftPx - 28f, xTextPaint)
+                                }
                             }
                         }
                         tGrid += gridInterval
@@ -3100,29 +3156,6 @@ fun InteractiveGlucoseChart(
 
                 // --- 4. MIN/MAX INDICATORS (Restored & Optimized) ---
                 if (endIdx > startIdx) {
-                    var minPoint = renderData[startIdx]
-                    var maxPoint = renderData[startIdx]
-                    var minVal = Float.MAX_VALUE
-                    var maxVal = Float.MIN_VALUE
-
-                    // Single fast pass for min/max
-                    for (i in startIdx until endIdx) {
-                        val p = renderData[i]
-                        // Determine value based on mode commonality
-                        // If showing Raw (Mode 1) or Raw-Primary (Mode 3), prioritize Raw
-                        val useRaw = viewMode == 1 || viewMode == 3
-                        val v = if (hideInitialWhenCalibrated) {
-                            chartModel.primary?.valueAt(p.timestamp) ?: Float.NaN
-                        } else {
-                            if (useRaw) p.rawValue else p.value
-                        }
-
-                        if (v.isNaN() || v < 0.1f) continue
-
-                        if (v < minVal) { minVal = v; minPoint = p }
-                        if (v > maxVal) { maxVal = v; maxPoint = p }
-                    }
-
                     // Helper to draw
                     fun drawIndicator(point: GlucosePoint, valToDraw: Float) {
                         val y = valToY(valToDraw)
@@ -3139,7 +3172,7 @@ fun InteractiveGlucoseChart(
 
                             drawContext.canvas.nativeCanvas.drawText(
                                 label, indicatorPadding, centeredY,
-                                axisTextPaint.apply { color = android.graphics.Color.DKGRAY } // Dark Gray for visibility
+                                axisTextPaint.apply { color = indicatorTextColorArgb }
                             )
                             // Guide line - starts after text
                             val lineStartX = indicatorPadding + textWidth + 8f * density
@@ -3151,12 +3184,12 @@ fun InteractiveGlucoseChart(
                                 pathEffect = dashEffect
                             )
                             // Restore paint color (axisTextPaint is shared)
-                            axisTextPaint.color = android.graphics.Color.GRAY
+                            axisTextPaint.color = axisTextColorArgb
                         }
                     }
 
-                    if (maxVal > Float.MIN_VALUE) drawIndicator(maxPoint, maxVal)
-                    if (minVal < Float.MAX_VALUE && minVal != maxVal) drawIndicator(minPoint, minVal)
+                    maxPoint?.let { drawIndicator(it, maxVal) }
+                    if (hasMinIndicator) minPoint?.let { drawIndicator(it, minVal) }
                 }
 
                 // --- 5. TARGET RANGE ---
@@ -4414,7 +4447,7 @@ fun InteractiveGlucoseChart(
                             )
                             val peerDvs = getDisplayValues(peer.point, peer.viewMode, unit, peer.calibratedValue)
                             Text(
-                                modifier = Modifier.padding(top = 3.dp),
+                                modifier = Modifier.padding(top = 4.dp),
                                 text = buildGlucoseString(
                                     peerDvs,
                                     peerTextColor,
@@ -4620,9 +4653,9 @@ fun InteractiveGlucoseChart(
                         .height(24.dp)
                         .background(
                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                            RoundedCornerShape(6.dp)
+                            RoundedCornerShape(4.dp)
                         )
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -4928,7 +4961,7 @@ fun InteractiveGlucoseChart(
                 ) {
                     Icon(
                         imageVector = androidx.compose.material.icons.Icons.Filled.DateRange,
-                        contentDescription = "Jump to Date",
+                        contentDescription = stringResource(R.string.chart_jump_to_date),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.requiredSize(scaled(baseOuterIconSize))
                     )
@@ -5085,7 +5118,7 @@ fun InteractiveGlucoseChart(
                         ) {
                             Icon(
                                 imageVector = if (isScrolledRight) Icons.Filled.FirstPage else Icons.AutoMirrored.Filled.LastPage,
-                                contentDescription = "Back to Now",
+                                contentDescription = stringResource(R.string.chart_back_to_now),
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.requiredSize(scaled(baseBackIconSize))
                             )

@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,22 +13,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +42,7 @@ import androidx.navigation.NavController
 import kotlin.math.roundToInt
 import tk.glucodata.DataSmoothing
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
@@ -58,10 +55,10 @@ fun DataSmoothingSettingsScreen(
     viewModel: DashboardViewModel
 ) {
     val context = LocalContext.current
-    val smoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
+    val smoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
+    val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
 
     val isEnabled = smoothingMinutes > 0
     val options = remember { DataSmoothing.enabledMinutesOptions().toList() }
@@ -99,19 +96,9 @@ fun DataSmoothingSettingsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.graph_smoothing_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent
-                )
+            AppTopBar(
+                title = stringResource(R.string.graph_smoothing_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -146,7 +133,7 @@ fun DataSmoothingSettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 18.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Row(
@@ -160,9 +147,7 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.data_smoothing_window_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
 
                             Text(
                                 text = if (exchangeOnly) {
@@ -176,7 +161,7 @@ fun DataSmoothingSettingsScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (isEnabled) {
                                 MaterialTheme.colorScheme.surfaceContainerHighest
                             } else {
@@ -185,8 +170,7 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = selectedLabel,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelLargeEmphasized,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
                         }

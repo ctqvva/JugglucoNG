@@ -1,9 +1,9 @@
 package tk.glucodata.ui.calibration
 
 import android.graphics.Paint
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
@@ -27,17 +27,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -131,14 +128,14 @@ fun CalibrationModelTableScreen(
     val currentSensor = SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId
     val allCalibrations by CalibrationManager
         .getCalibrationsFlow()
-        .collectAsState(initial = CalibrationManager.getCachedCalibrations())
-    val calibrationRevision by CalibrationManager.revision.collectAsState()
-    val algorithmForRaw by CalibrationManager.algorithmForRaw.collectAsState()
-    val algorithmForAuto by CalibrationManager.algorithmForAuto.collectAsState()
-    val applyToPast by CalibrationManager.applyToPast.collectAsState()
-    val lockPastHistory by CalibrationManager.lockPastHistory.collectAsState()
-    val keepDisabledHistory by CalibrationManager.keepDisabledHistory.collectAsState()
-    val weightMode by CalibrationManager.weightMode.collectAsState()
+        .collectAsStateWithLifecycle(initialValue = CalibrationManager.getCachedCalibrations())
+    val calibrationRevision by CalibrationManager.revision.collectAsStateWithLifecycle()
+    val algorithmForRaw by CalibrationManager.algorithmForRaw.collectAsStateWithLifecycle()
+    val algorithmForAuto by CalibrationManager.algorithmForAuto.collectAsStateWithLifecycle()
+    val applyToPast by CalibrationManager.applyToPast.collectAsStateWithLifecycle()
+    val lockPastHistory by CalibrationManager.lockPastHistory.collectAsStateWithLifecycle()
+    val keepDisabledHistory by CalibrationManager.keepDisabledHistory.collectAsStateWithLifecycle()
+    val weightMode by CalibrationManager.weightMode.collectAsStateWithLifecycle()
 
     val isCalibrationEnabled = remember(isRawMode, currentSensor, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawMode, currentSensor)
@@ -174,36 +171,14 @@ fun CalibrationModelTableScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.calibration_model_table_title),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.calibration_model_table_subtitle,
-                                modeTitle,
-                                selectedAlgorithm.title
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+            AppTopBar(
+                title = stringResource(R.string.calibration_model_table_title),
+                subtitle = stringResource(
+                    R.string.calibration_model_table_subtitle,
+                    modeTitle,
+                    selectedAlgorithm.title
+                ),
+                onNavigateBack = { navController.navigateUp() },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -372,9 +347,7 @@ private fun CalibrationModelSummaryCard(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = stringResource(R.string.calibration_model_summary_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleMediumEmphasized,)
             Text(
                 text = summarySubtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -449,8 +422,8 @@ private fun CalibrationMetricTile(
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = label,
@@ -461,9 +434,7 @@ private fun CalibrationMetricTile(
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleLargeEmphasized,)
         }
     }
 }
@@ -477,7 +448,7 @@ private fun CalibrationModelChart(
     dateFormatter: SimpleDateFormat,
     onEdit: (CalibrationEntity) -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = tk.glucodata.ui.isAppInDarkTheme()
     val activeColor = if (isDarkTheme) Color(0xFFDFFF78) else Color(0xFF496900)
     val disabledColor = if (isDarkTheme) Color(0xFF8B8A83) else Color(0xFF77746D)
     val fitColor = if (isDarkTheme) Color(0xFF77C8FF) else Color(0xFF00649F)
@@ -540,7 +511,7 @@ private fun CalibrationModelChart(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
 
         BoxWithConstraints(
@@ -840,7 +811,7 @@ private fun CalibrationModelLegend(
     disabledColor: Color,
     fitColor: Color
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CalibrationLegendItem(
                 color = activeColor,
@@ -890,7 +861,7 @@ private fun CalibrationLegendItem(
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.54f)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CalibrationLegendSwatch(
@@ -902,8 +873,7 @@ private fun CalibrationLegendItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -968,19 +938,18 @@ private fun SelectedCalibrationTooltip(
     Surface(
         onClick = { onEdit(row.calibration) },
         modifier = modifier.width(176.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
 //        tonalElevation = 2.dp,
 //        shadowElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = "$sourceLabel ${formatCalibrationValue(row.sourceValue, isMmol)} \u2192 ${formatCalibrationValue(row.referenceValue, isMmol)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

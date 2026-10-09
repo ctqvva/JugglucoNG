@@ -1,5 +1,6 @@
 package tk.glucodata.ui.journal
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
@@ -25,16 +25,12 @@ import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +47,7 @@ import tk.glucodata.R
 import tk.glucodata.data.journal.JournalHumanProfile
 import tk.glucodata.data.prediction.StateDoseHintCalculator
 import tk.glucodata.ui.PredictiveSimulationParameterRow
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
@@ -71,33 +68,25 @@ fun JournalCalculationsSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val predictionModelProfile by viewModel.predictionModelProfile.collectAsState()
-    val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
-    val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsState()
-    val journalBodyWeightKg by viewModel.journalBodyWeightKg.collectAsState()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val predictionModelProfile by viewModel.predictionModelProfile.collectAsStateWithLifecycle()
+    val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsStateWithLifecycle()
+    val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsStateWithLifecycle()
+    val journalBodyWeightKg by viewModel.journalBodyWeightKg.collectAsStateWithLifecycle()
     var showBodyWeightDialog by rememberSaveable { mutableStateOf(false) }
     var bodyWeightText by rememberSaveable(journalBodyWeightKg) {
         mutableStateOf(journalBodyWeightKg?.let { String.format(java.util.Locale.US, "%.1f", it) }.orEmpty())
     }
-    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsState()
-    val stateDoseHintCorrectInRange by viewModel.stateDoseHintCorrectInRange.collectAsState()
-    val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsState()
+    val stateDoseHintEnabled by viewModel.stateDoseHintEnabled.collectAsStateWithLifecycle()
+    val stateDoseHintCorrectInRange by viewModel.stateDoseHintCorrectInRange.collectAsStateWithLifecycle()
+    val stateDoseHintHorizonMinutes by viewModel.stateDoseHintHorizonMinutes.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.journal_calculations_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.journal_calculations_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -106,7 +95,7 @@ fun JournalCalculationsSettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "model") {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -223,7 +212,7 @@ fun JournalCalculationsSettingsScreen(
             onDismissRequest = { showBodyWeightDialog = false },
             title = { Text(stringResource(R.string.journal_body_weight_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = stringResource(R.string.journal_body_weight_desc),
                         style = MaterialTheme.typography.bodyMedium

@@ -17,13 +17,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Delete
@@ -39,7 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +63,7 @@ import tk.glucodata.GlucoseMeterManager
 import tk.glucodata.GlucoseMeterSnapshot
 import tk.glucodata.Log
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
@@ -255,13 +255,9 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.meterlist)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.meterlist),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -274,7 +270,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -285,19 +281,18 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         Surface(
                             color = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Bloodtype,
                                 contentDescription = null,
-                                modifier = Modifier.padding(14.dp).size(28.dp),
+                                modifier = Modifier.padding(16.dp).size(28.dp),
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 stringResource(R.string.glucose_meters_desc),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                             )
                             Text(
                                 stringResource(R.string.glucose_meters_journal_desc),
@@ -374,10 +369,10 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                         else permissionLauncher.launch(missing.toTypedArray())
                     },
                     enabled = !scanning,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
-                    Spacer(Modifier.size(10.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text(stringResource(if (scanning) R.string.scanning_devices else R.string.finddevices))
                 }
                 if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))

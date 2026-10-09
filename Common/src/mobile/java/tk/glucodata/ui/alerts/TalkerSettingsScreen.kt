@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Message
@@ -54,8 +53,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,11 +78,13 @@ import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
@@ -224,17 +223,9 @@ fun TalkerSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.talker)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.talker),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -351,7 +342,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 }
 
                 SettingsSwitchItem(
-                    title = "Media",
+                    title = stringResource(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
                     icon = Icons.Default.MusicNote,
@@ -479,7 +470,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     Talker.testCurrentValue(activity)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
@@ -507,8 +498,8 @@ private fun TalkerSummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -528,14 +519,12 @@ private fun TalkerSummaryCard(
                     }
                 }
 
-                Spacer(Modifier.size(14.dp))
+                Spacer(Modifier.size(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.talker),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        style = MaterialTheme.typography.titleLargeEmphasized,)
                     Text(
                         text = headline,
                         style = MaterialTheme.typography.bodyMedium,
@@ -628,21 +617,13 @@ private fun NumericInputCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = iconTint.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = iconTint)
-                }
-            }
+            IconTile(icon = icon, tint = iconTint)
 
             Spacer(Modifier.size(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -681,15 +662,7 @@ private fun SliderCard(
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = iconTint.copy(alpha = 0.12f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = iconTint)
-                    }
-                }
+                IconTile(icon = icon, tint = iconTint)
 
                 Spacer(Modifier.size(12.dp))
 
@@ -703,7 +676,7 @@ private fun SliderCard(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Slider(
                 value = sliderValue,
                 onValueChange = onValueChange,

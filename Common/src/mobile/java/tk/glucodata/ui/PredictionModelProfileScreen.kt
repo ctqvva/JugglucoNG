@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -30,8 +30,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -50,6 +48,7 @@ import tk.glucodata.R
 import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelBlock
 import tk.glucodata.data.prediction.PredictionModelProfile
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
@@ -63,9 +62,9 @@ fun PredictionModelProfileScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val profile by viewModel.predictionModelProfile.collectAsState()
-    val unit by viewModel.unit.collectAsState()
-    val doseTargetMgDl by viewModel.predictionDoseTargetMgDl.collectAsState()
+    val profile by viewModel.predictionModelProfile.collectAsStateWithLifecycle()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
+    val doseTargetMgDl by viewModel.predictionDoseTargetMgDl.collectAsStateWithLifecycle()
     val isMmol = GlucoseFormatter.isMmol(unit)
     var timePickerRequest by remember { mutableStateOf<ProfileTimePickerRequest?>(null) }
     var pendingDeleteStart by remember { mutableStateOf<Int?>(null) }
@@ -73,17 +72,9 @@ fun PredictionModelProfileScreen(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.predictive_model_tuning)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.predictive_model_tuning),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -92,7 +83,7 @@ fun PredictionModelProfileScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "dose_target") {
                 DoseTargetCard(
@@ -115,7 +106,7 @@ fun PredictionModelProfileScreen(
                         text = stringResource(R.string.predictive_model_profile_explanation),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
             }
@@ -253,7 +244,7 @@ private fun DoseTargetCard(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             PredictiveSimulationParameterRow(
                 title = stringResource(R.string.predictive_dose_target),
                 valueLabel = targetValue,
@@ -300,15 +291,14 @@ private fun PredictionModelBlockCard(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "${formatMinuteOfDay(block.startMinuteOfDay)} – ${formatMinuteOfDay(endMinute)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )

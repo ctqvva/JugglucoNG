@@ -113,4 +113,58 @@ class ICanHealthTimelinePolicyTests {
         sequenceUnitMs = sequenceUnitMs,
         toleranceMs = toleranceMs,
     )
+
+    @Test
+    fun newestLiveReadingOneHourBehindClockIsStale() {
+        val now = 1_791_470_457_000L
+        assertTrue(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_596_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun newestLiveReadingWithinLagWindowIsKept() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 180_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun delayedOlderSequenceIsNeverTreatedAsStale() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17060, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_600_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun edgeAnHourBehindTheCounterReadIsDivergent() {
+        val observed = 1_791_470_432_000L
+        assertTrue(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 3_631_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun edgeNearTheCounterReadIsNotDivergent() {
+        val observed = 1_791_470_432_000L
+        assertFalse(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 60_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun missingCounterObservationIsNeverDivergent() {
+        assertFalse(ICanHealthConstants.isAnchorDivergentFromObservedSequence(1L, 0L, 600_000L))
+    }
 }

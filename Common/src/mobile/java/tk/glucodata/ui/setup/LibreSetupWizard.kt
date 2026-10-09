@@ -24,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ExpandMore
@@ -52,7 +51,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -74,9 +72,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsItem
@@ -219,15 +219,12 @@ fun LibreSetupWizard(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.libre_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = {
+            AppTopBar(
+                title = stringResource(R.string.libre_setup_title),
+                onNavigateBack = {
                         if (currentStep > 0) currentStep-- else onDismiss()
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                },
+                    },
+                navigationContentDescription = stringResource(R.string.cancel),
                 actions = {
                     if (currentStep == 1) {
                         TextButton(
@@ -237,7 +234,7 @@ fun LibreSetupWizard(
                             Text(stringResource(R.string.libre_setup_done))
                         }
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -269,7 +266,7 @@ fun LibreSetupWizard(
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
                                 .size(if (ui.compact) 88.dp else 104.dp),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Row(
@@ -293,8 +290,7 @@ fun LibreSetupWizard(
                         ) {
                             Text(
                                 text = stringResource(R.string.libre_setup_step_scan),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.headlineSmallEmphasized,
                                 textAlign = TextAlign.Center
                             )
 
@@ -370,9 +366,7 @@ fun LibreSetupWizard(
                     ) {
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                            style = MaterialTheme.typography.headlineSmallEmphasized,)
 
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview_desc),
@@ -542,7 +536,7 @@ fun LibreSetupWizard(
                                 Spacer(modifier = Modifier.width(8.dp))
                             } else {
                                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(stringResource(R.string.save))
                         }
@@ -671,20 +665,7 @@ private fun LibreSetupAdvancedSection(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+            IconTile(icon = Icons.Default.Tune, tint = MaterialTheme.colorScheme.secondary)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -744,7 +725,7 @@ private fun LibreSetupAdvancedSection(
                                 }
                             )
                             .clickable { onModeSelected(mode) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(

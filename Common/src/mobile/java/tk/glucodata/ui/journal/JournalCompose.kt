@@ -327,8 +327,8 @@ fun JournalQuickDock(
 
         if (visibleEntries.isNotEmpty()) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 visibleEntries.forEach { entry ->
                     JournalEntryChip(
@@ -489,7 +489,7 @@ fun JournalEntrySheet(
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         contentKey = draft.type,
     ) {
         LazyColumn(
@@ -522,7 +522,7 @@ fun JournalEntrySheet(
                             // origin is spelled out.
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
                                     imageVector = source.icon,
@@ -787,7 +787,7 @@ fun JournalEntrySheet(
                         noteFieldExpanded -> 3
                         else -> 1
                     },
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -820,7 +820,7 @@ fun JournalEntrySheet(
                         imageVector = journalTypeIcon(draft.type),
                         contentDescription = null
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.save))
                 }
             }
@@ -1329,11 +1329,11 @@ private fun JournalDoseAssistCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.68f),
-        shape = RoundedCornerShape(22.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -1632,7 +1632,7 @@ private fun JournalFoodLibrarySelector(
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         expanded = true
                     }
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -1642,7 +1642,7 @@ private fun JournalFoodLibrarySelector(
                         ?: MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
                 )
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = visibleItems.singleOrNull()?.displayName ?: stringResource(R.string.journal_add_food),
@@ -1673,7 +1673,7 @@ private fun JournalFoodLibrarySelector(
             }
         } else {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Surface(
@@ -1685,7 +1685,7 @@ private fun JournalFoodLibrarySelector(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 62.dp)
-                            .padding(start = 14.dp, end = 4.dp),
+                            .padding(start = 16.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -1747,8 +1747,8 @@ private fun JournalFoodLibrarySelector(
                                 query = ""
                                 expanded = false
                             },
-                            shape = RoundedCornerShape(22.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.close),
@@ -1791,7 +1791,7 @@ private fun JournalFoodLibrarySelector(
                         shrinkTowards = Alignment.Top
                     ) + fadeOut()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         filteredFoods.forEach { food ->
                             val rowExpanded = expandedFoodId == food.id
                             val rowPortionGrams = parseFoodPortionGrams(expandedPortionText)
@@ -1914,10 +1914,10 @@ private fun JournalSelectedFoodChip(
     val color = Color(item.accentColor)
     Surface(
         color = color.copy(alpha = 0.18f),
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -1969,7 +1969,7 @@ private fun JournalFoodPickerRow(
     detailsContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(16.dp)
     Surface(
         color = if (selected) color.copy(alpha = 0.18f) else unselectedContainerColor,
         shape = shape
@@ -1988,7 +1988,7 @@ private fun JournalFoodPickerRow(
                         stiffness = Spring.StiffnessMediumLow
                     )
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -1996,7 +1996,7 @@ private fun JournalFoodPickerRow(
                         .size(10.dp)
                         .background(color, CircleShape)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -2026,7 +2026,7 @@ private fun JournalFoodPickerRow(
                     shrinkTowards = Alignment.Top
                 ) + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(top = 10.dp)) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
                     detailsContent?.invoke()
                 }
             }
@@ -2088,11 +2088,11 @@ internal fun JournalFoodCompositionDetails(
         }
         Surface(
             color = color.copy(alpha = 0.10f),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(6.dp),
+                modifier = Modifier.padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2121,7 +2121,7 @@ internal fun JournalFoodCompositionDetails(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 8.dp),
                     decorationBox = { innerTextField ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2164,7 +2164,7 @@ internal fun JournalFoodCompositionDetails(
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.journal_food_save_to_library))
                 }
             }
@@ -2261,10 +2261,10 @@ private fun JournalFoodPill(
     Surface(
         onClick = onClick,
         color = if (selected) color.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -2307,7 +2307,7 @@ private fun JournalMacroFields(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         JournalStepperField(
             value = proteinText,
@@ -2336,7 +2336,7 @@ private fun JournalDoseMetric(label: String) {
             text = label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
     }
 }
@@ -2404,13 +2404,13 @@ private fun JournalActionRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         actions.forEach { action ->
             FilledTonalButton(
                 onClick = { onAction(action) },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -3248,22 +3248,22 @@ private fun JournalStepperField(
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
-        shape = RoundedCornerShape(if (prominent) 28.dp else 22.dp)
+        shape = RoundedCornerShape(if (prominent) 28.dp else 20.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = if (prominent) 10.dp else 12.dp,
-                    vertical = if (prominent) 9.dp else 12.dp
+                    horizontal = if (prominent) 12.dp else 12.dp,
+                    vertical = if (prominent) 8.dp else 12.dp
                 ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilledTonalIconButton(
                 onClick = { stepWithFeedback(-1) },
                 modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 18.dp else 14.dp)
+                shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Remove,
@@ -3293,7 +3293,7 @@ private fun JournalStepperField(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(horizontal = 6.dp),
+                                    .padding(horizontal = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (value.isEmpty()) {
@@ -3391,7 +3391,7 @@ private fun JournalStepperField(
             FilledTonalIconButton(
                 onClick = { stepWithFeedback(1) },
                 modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 18.dp else 14.dp)
+                shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,

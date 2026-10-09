@@ -66,8 +66,8 @@ fun SensorTypePicker(
     val metrics = rememberAdaptiveWindowMetrics()
     val compact = metrics.isCompact
     val horizontalPadding = if (compact) 12.dp else 16.dp
-    val bottomPadding = if (compact) 18.dp else 28.dp
-    val itemSpacing = if (compact) 6.dp else 8.dp
+    val bottomPadding = if (compact) 16.dp else 28.dp
+    val itemSpacing = 8.dp
     val itemVerticalPadding = if (compact) 8.dp else 10.dp
     val iconContainerSize = if (compact) 36.dp else 42.dp
     val iconInnerPadding = if (compact) 8.dp else 10.dp
@@ -144,7 +144,7 @@ private fun SensorTypeItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = itemVerticalPadding),
+                .padding(horizontal = if (compact) 12.dp else 12.dp, vertical = itemVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -162,7 +162,7 @@ private fun SensorTypeItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(if (compact) 10.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(

@@ -5,6 +5,7 @@ package tk.glucodata.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +18,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BluetoothSearching
@@ -63,7 +64,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -94,6 +94,7 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.webserver.WebServerCertificate
 import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
@@ -133,18 +134,14 @@ fun WatchSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.watches)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.watches),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
                         Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -153,10 +150,10 @@ fun WatchSettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("watch_transport_section") {
-                SectionLabel("Transport", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.watch_transport_section), topPadding = 0.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
                         title = "Watchdrip",
@@ -217,7 +214,7 @@ fun WatchSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
                         title = "WearOS",
-                        subtitle = if (gmsAvailable) "Enable Wear OS message transport" else "Google Play Services unavailable",
+                        subtitle = if (gmsAvailable) stringResource(R.string.watch_wearos_enable_desc) else stringResource(R.string.watch_gms_unavailable),
                         checked = wearOsEnabled,
                         icon = Icons.Filled.Watch,
                         iconTint = MaterialTheme.colorScheme.primary,
@@ -226,7 +223,7 @@ fun WatchSettingsScreen(navController: NavController) {
                             if (!gmsAvailable && enabled) {
                                 Toast.makeText(
                                     context,
-                                    "Google Play Services unavailable on this device",
+                                    context.getString(R.string.watch_gms_unavailable_device),
                                     Toast.LENGTH_LONG
                                 ).show()
                                 return@SettingsSwitchItem
@@ -241,9 +238,9 @@ fun WatchSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.config),
                         subtitle = if (wearConfigEnabled) {
-                            "WearOS device and routing settings"
+                            stringResource(R.string.watch_wearos_config_desc)
                         } else {
-                            "Enable WearOS to configure routes"
+                            stringResource(R.string.watch_wearos_config_disabled)
                         },
                         icon = Icons.Filled.Settings,
                         iconTint = MaterialTheme.colorScheme.primary,
@@ -263,7 +260,7 @@ fun WatchSettingsScreen(navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
                         title = "Garmin Connect IQ",
-                        subtitle = "Kerfstok transport bridge",
+                        subtitle = stringResource(R.string.watch_kerfstok_bridge),
                         checked = kerfstokEnabled,
                         icon = Icons.Filled.CheckCircle,
                         iconTint = MaterialTheme.colorScheme.secondary,
@@ -279,9 +276,9 @@ fun WatchSettingsScreen(navController: NavController) {
                     SettingsItem(
                         title = stringResource(R.string.status),
                         subtitle = if (garminStatusEnabled) {
-                            "Connection status and pairing"
+                            stringResource(R.string.watch_garmin_status_desc)
                         } else {
-                            "Enable Kerfstok to view status"
+                            stringResource(R.string.watch_garmin_enable_hint)
                         },
                         icon = Icons.Filled.Link,
                         iconTint = MaterialTheme.colorScheme.secondary,
@@ -302,9 +299,9 @@ fun WatchSettingsScreen(navController: NavController) {
         InAppHelpDialog(
             title = stringResource(R.string.watches),
             lines = listOf(
-                "Enable WearOS to use watch message transport in this app.",
-                "Use Config to pick a watch node and set direct sensor routing.",
-                "Garmin Connect IQ works through Kerfstok and has separate status controls."
+                stringResource(R.string.watch_help_wearos),
+                stringResource(R.string.watch_help_config),
+                stringResource(R.string.watch_help_garmin)
             ),
             onDismiss = { showHelp = false }
         )
@@ -326,7 +323,7 @@ fun WearOsConfigScreen(navController: NavController) {
     var autoSwitch by rememberSaveable { mutableStateOf(AutoSensorSwitch.isEnabled()) }
     var refreshingNodes by remember { mutableStateOf(false) }
     var syncStatus by remember { mutableStateOf(WatchInterop.getWearSyncStatus()) }
-    val claimRevision by WearSensorClaimStatus.revision.collectAsState()
+    val claimRevision by WearSensorClaimStatus.revision.collectAsStateWithLifecycle()
 
     fun applyNodes(latest: List<WatchInterop.WearNodeInfo>) {
         nodes = latest
@@ -454,7 +451,7 @@ fun WearOsConfigScreen(navController: NavController) {
         }
     }
     fun timeStatus(timeMs: Long): String = if (timeMs <= 0L) {
-        "Never"
+        context.getString(R.string.never)
     } else {
         DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timeMs))
     }
@@ -462,18 +459,14 @@ fun WearOsConfigScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text("WearOS config") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.wearos_config_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -482,14 +475,14 @@ fun WearOsConfigScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("wear_nodes") {
-                SectionLabel("Watch status", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.watch_status_section), topPadding = 0.dp)
                 if (nodes.isEmpty()) {
                     SettingsItem(
-                        title = "No Wear OS watches found",
-                        subtitle = "Tap refresh after opening Juggluco on the watch",
+                        title = stringResource(R.string.watch_none_found),
+                        subtitle = stringResource(R.string.watch_none_found_hint),
                         icon = Icons.Filled.BluetoothSearching,
                         iconTint = MaterialTheme.colorScheme.tertiary
                     )
@@ -552,7 +545,7 @@ fun WearOsConfigScreen(navController: NavController) {
             }
 
             item("wear_routing") {
-                SectionLabel("Routing", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.watch_routing_section), topPadding = 0.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     // Say which phase the handoff is in, so a switch that is on
                     // while the phone still owns Bluetooth reads as "waiting",
@@ -619,11 +612,11 @@ fun WearOsConfigScreen(navController: NavController) {
                         }
                     )
                     SettingsItem(
-                        title = "Enter amounts on watch",
+                        title = stringResource(R.string.watch_enter_amounts),
                         subtitle = if (enterOnWatch) {
-                            "Entries made on the watch are stored and synced to the phone."
+                            stringResource(R.string.watch_enter_amounts_on)
                         } else {
-                            "Amounts can only be entered on the phone."
+                            stringResource(R.string.watch_enter_amounts_off)
                         },
                         icon = Icons.Filled.Edit,
                         iconTint = MaterialTheme.colorScheme.primary,
@@ -649,12 +642,12 @@ fun WearOsConfigScreen(navController: NavController) {
             }
 
             item("wear_actions") {
-                SectionLabel("Actions", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.actions_section), topPadding = 0.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(
                         onClick = {
                             if (selected == null) {
-                                Toast.makeText(context, "No watch selected", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.watch_none_selected), Toast.LENGTH_SHORT).show()
                             } else {
                                 scope.launch {
                                     val routingOk = withContext(Dispatchers.IO) {
@@ -675,12 +668,12 @@ fun WearOsConfigScreen(navController: NavController) {
                     ) {
                         Icon(Icons.Filled.Sync, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Sync now")
+                        Text(stringResource(R.string.watch_sync_now))
                     }
                     OutlinedButton(
                         onClick = {
                             if (selected == null) {
-                                Toast.makeText(context, "No watch selected", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.watch_none_selected), Toast.LENGTH_SHORT).show()
                             } else {
                                 scope.launch {
                                     val ok = withContext(Dispatchers.IO) {
@@ -699,12 +692,12 @@ fun WearOsConfigScreen(navController: NavController) {
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Restart watch app")
+                        Text(stringResource(R.string.watch_restart_app))
                     }
                     OutlinedButton(
                         onClick = {
                             if (selected == null) {
-                                Toast.makeText(context, "No watch selected", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.watch_none_selected), Toast.LENGTH_SHORT).show()
                             } else {
                                 scope.launch {
                                     val ok = withContext(Dispatchers.IO) {
@@ -723,7 +716,7 @@ fun WearOsConfigScreen(navController: NavController) {
                     ) {
                         Icon(Icons.Filled.Settings, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Send defaults")
+                        Text(stringResource(R.string.watch_send_defaults))
                     }
                     TextButton(
                         onClick = { uriHandler.openUri("https://www.juggluco.nl/JugglucoWearOS/intro/index.html") },
@@ -752,18 +745,14 @@ fun GarminStatusScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text("Garmin status") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.garmin_status_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { refreshSnapshot() }) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -772,42 +761,42 @@ fun GarminStatusScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("garmin_status") {
-                SectionLabel("State", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.garmin_state_section), topPadding = 0.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsItem(
-                        title = "SDK ready",
-                        subtitle = if (snapshot.sdkReady) "Yes" else "No",
+                        title = stringResource(R.string.garmin_sdk_ready),
+                        subtitle = if (snapshot.sdkReady) stringResource(R.string.answer_yes) else stringResource(R.string.answer_no),
                         icon = Icons.Filled.CheckCircle,
                         iconTint = if (snapshot.sdkReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         position = CardPosition.TOP
                     )
                     SettingsItem(
-                        title = "Registered",
-                        subtitle = if (snapshot.registered) "Yes" else "No",
+                        title = stringResource(R.string.garmin_registered),
+                        subtitle = if (snapshot.registered) stringResource(R.string.answer_yes) else stringResource(R.string.answer_no),
                         icon = Icons.Filled.Link,
                         iconTint = if (snapshot.registered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         position = CardPosition.MIDDLE
                     )
                     SettingsItem(
-                        title = "Last send",
-                        subtitle = "${formatEpoch(snapshot.sendTimeMs)} • ${snapshot.sendStatus}",
+                        title = stringResource(R.string.garmin_last_send),
+                        subtitle = "${formatEpoch(snapshot.sendTimeMs, stringResource(R.string.never))} · ${snapshot.sendStatus}",
                         icon = Icons.Filled.Sync,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.MIDDLE
                     )
                     SettingsItem(
-                        title = "Last received",
-                        subtitle = formatEpoch(snapshot.receivedTimeMs),
+                        title = stringResource(R.string.garmin_last_received),
+                        subtitle = formatEpoch(snapshot.receivedTimeMs, stringResource(R.string.never)),
                         icon = Icons.Filled.CheckCircle,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.MIDDLE
                     )
                     SettingsItem(
-                        title = "Queued messages",
-                        subtitle = if (snapshot.waitingQueue) "Waiting" else "Empty",
+                        title = stringResource(R.string.garmin_queued_messages),
+                        subtitle = if (snapshot.waitingQueue) stringResource(R.string.garmin_queue_waiting) else stringResource(R.string.garmin_queue_empty),
                         icon = Icons.Filled.Hub,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = CardPosition.BOTTOM
@@ -816,7 +805,7 @@ fun GarminStatusScreen(navController: NavController) {
             }
 
             item("garmin_actions") {
-                SectionLabel("Actions", topPadding = 0.dp)
+                SectionLabel(stringResource(R.string.actions_section), topPadding = 0.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -868,7 +857,7 @@ fun GarminStatusScreen(navController: NavController) {
                     }
                     SettingsSwitchItem(
                         title = stringResource(R.string.darkmode),
-                        subtitle = "Kerfstok watch UI",
+                        subtitle = stringResource(R.string.kerfstok_watch_ui),
                         checked = kerfstokDark,
                         icon = Icons.Filled.Shield,
                         iconTint = MaterialTheme.colorScheme.primary,
@@ -1169,18 +1158,14 @@ fun WebServerSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.webserver)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.webserver),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
                         Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -1189,12 +1174,12 @@ fun WebServerSettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("web_master") {
                 MasterSwitchCard(
                     title = stringResource(R.string.active),
-                    subtitle = if (active) "Web server is running" else "Web server is paused",
+                    subtitle = if (active) stringResource(R.string.webserver_running) else stringResource(R.string.webserver_paused),
                     checked = active,
                     onCheckedChange = {
                         active = it
@@ -1247,7 +1232,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                 ) {
                     SettingsSwitchItem(
                         title = stringResource(R.string.localonly),
-                        subtitle = "Restrict server to localhost",
+                        subtitle = stringResource(R.string.webserver_local_only_desc),
                         checked = localOnly,
                         icon = Icons.Filled.Devices,
                         iconTint = MaterialTheme.colorScheme.secondary,
@@ -1280,7 +1265,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 ),
                                 modifier = Modifier
                                     .width(96.dp)
-                                    .height(52.dp)
+                                    .heightIn(min = 52.dp)
                             )
                         }
                     )
@@ -1299,7 +1284,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(Modifier.width(10.dp))
+                                Spacer(Modifier.width(8.dp))
                                 StyledSwitch(
                                     checked = sslEnabled,
                                     onCheckedChange = if (childEnabled) ({ setSslEnabled(it) }) else null,
@@ -1318,8 +1303,8 @@ fun WebServerSettingsScreen(navController: NavController) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 val installed = certificate
                                 // Loopback-only means no LAN name is in play, so
@@ -1440,7 +1425,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
                                         text = "SSL ${context.getString(R.string.port)}",
@@ -1461,7 +1446,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                         ),
                                         modifier = Modifier
                                             .width(96.dp)
-                                            .height(52.dp)
+                                            .heightIn(min = 52.dp)
                                     )
                                 }
                             }
@@ -1512,7 +1497,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 enabled = childEnabled,
                                 modifier = Modifier
                                     .width(82.dp)
-                                    .height(50.dp),
+                                    .heightIn(min = 52.dp),
                                 singleLine = true,
                                 textStyle = MaterialTheme.typography.bodyMedium,
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -1540,7 +1525,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -1552,13 +1537,13 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 )
                                 if (!localOnly && lanBaseUrl == null) {
                                     Text(
-                                        text = "Wi-Fi IP unavailable, using loopback URL.",
+                                        text = stringResource(R.string.webserver_wifi_unavailable),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 } else if (!localOnly) {
                                     Text(
-                                        text = "Loopback: $localBaseUrl",
+                                        text = stringResource(R.string.webserver_loopback, localBaseUrl),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1577,17 +1562,17 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 onClick = { openUrl(currentUrl) },
                                 enabled = childEnabled,
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Current") }
+                            ) { Text(stringResource(R.string.webserver_endpoint_current)) }
                             OutlinedButton(
                                 onClick = { openUrl(entriesUrl) },
                                 enabled = childEnabled,
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Entries") }
+                            ) { Text(stringResource(R.string.webserver_endpoint_entries)) }
                             OutlinedButton(
                                 onClick = { openUrl(reportUrl) },
                                 enabled = childEnabled,
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Report") }
+                            ) { Text(stringResource(R.string.webserver_endpoint_report)) }
                         }
                     }
                 }
@@ -1676,10 +1661,10 @@ fun WebServerSettingsScreen(navController: NavController) {
             title = { Text(stringResource(R.string.webserver)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Nightscout-compatible endpoints are served directly from this phone.")
-                    Text("Base URL exposes api/v1/entries/current, api/v1/entries, and x/report paths.")
-                    Text("Use Local only for same-device loopback testing. Disable it for LAN.")
-                    Text("Enable Use SSL and the app writes its own certificate. Import one instead if you have a CA-issued certificate.")
+                    Text(stringResource(R.string.webserver_help_endpoints))
+                    Text(stringResource(R.string.webserver_help_paths))
+                    Text(stringResource(R.string.webserver_help_local))
+                    Text(stringResource(R.string.webserver_help_ssl))
                 }
             },
             confirmButton = {
@@ -1752,11 +1737,11 @@ private fun formatExpiryDate(epochMs: Long): String {
     }
 }
 
-private fun formatEpoch(epochMs: Long): String {
-    if (epochMs <= 0L) return "Never"
+private fun formatEpoch(epochMs: Long, never: String): String {
+    if (epochMs <= 0L) return never
     return try {
         DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(epochMs))
     } catch (_: Throwable) {
-        "Never"
+        never
     }
 }

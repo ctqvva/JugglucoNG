@@ -312,7 +312,7 @@ private fun JournalActionMenuRow(
                 indication = null,
                 onClick = onClick
             ),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (!placeIconAfterLabel) {
@@ -322,7 +322,7 @@ private fun JournalActionMenuRow(
         // must be clipped to the pill, otherwise it paints a square.
         Surface(
             onClick = onClick,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(16.dp),
             color = labelContainerColor,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
@@ -357,7 +357,7 @@ private fun JournalActionFab(
         Icon(
             imageVector = actionType.journalActionIcon(),
             contentDescription = label,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(24.dp)
         )
     }
 }

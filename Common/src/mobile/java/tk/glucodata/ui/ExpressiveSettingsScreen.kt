@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -50,6 +50,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import tk.glucodata.ui.components.TabScreenDefaults
+import tk.glucodata.ui.components.TabScreenHeader
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.util.fullRestart
 import tk.glucodata.ui.util.hardRestart
@@ -102,7 +105,7 @@ fun ExpressiveSettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsState()
+    val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsStateWithLifecycle()
     val showMqAccount = remember(context, sensorStatusRevision) {
         tk.glucodata.drivers.mq.MQRegistry.persistedRecords(context).isNotEmpty()
     }
@@ -120,22 +123,22 @@ fun ExpressiveSettingsScreen(
     }
 
     // States
-    val unit by viewModel.unit.collectAsState()
+    val unit by viewModel.unit.collectAsStateWithLifecycle()
     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)
-    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsState()
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
-    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
-    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
-    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
-    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
-    val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsState()
+    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
+    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
+    val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
+    val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
+    val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
+    val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsStateWithLifecycle()
     var healthConnectEnabled by rememberSaveable { mutableStateOf(Natives.gethealthConnect()) }
-    val viewMode by viewModel.viewMode.collectAsState()
-    val sensorName by viewModel.sensorName.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
+    val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val isRawCalibrationMode = viewMode == 1 || viewMode == 3
-    val calibrationRevision by CalibrationManager.revision.collectAsState()
+    val calibrationRevision by CalibrationManager.revision.collectAsStateWithLifecycle()
     val calibrationEnabled = remember(isRawCalibrationMode, sensorName, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawCalibrationMode, sensorName)
     }
@@ -144,12 +147,12 @@ fun ExpressiveSettingsScreen(
     // Rows that carry a master switch read the same state their own screen reads. The
     // system-granted ones can change while this screen is in the background, so they are
     // re-read on resume rather than only at first composition.
-    val floatingOverlayEnabled by viewModel.floatingRepository.isEnabled.collectAsState(initial = false)
+    val floatingOverlayEnabled by viewModel.floatingRepository.isEnabled.collectAsStateWithLifecycle(initialValue = false)
     var floatingOverlayAllowed by remember {
         mutableStateOf(android.provider.Settings.canDrawOverlays(context))
     }
     var aodServiceEnabled by remember { mutableStateOf(isAodAccessibilityEnabled(context)) }
-    val insulinPensEnabled by tk.glucodata.InsulinPenManager.enabled.collectAsState()
+    val insulinPensEnabled by tk.glucodata.InsulinPenManager.enabled.collectAsStateWithLifecycle()
     var webServerActive by remember { mutableStateOf(Natives.getusexdripwebserver()) }
     var nightscoutActive by remember { mutableStateOf(isNightscoutActive(context)) }
 
@@ -169,12 +172,12 @@ fun ExpressiveSettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val hasLowAlarm by viewModel.hasLowAlarm.collectAsState()
-    val lowAlarmValue by viewModel.lowAlarmThreshold.collectAsState()
-    val lowAlarmSoundMode by viewModel.lowAlarmSoundMode.collectAsState()
-    val hasHighAlarm by viewModel.hasHighAlarm.collectAsState()
-    val highAlarmValue by viewModel.highAlarmThreshold.collectAsState()
-    val highAlarmSoundMode by viewModel.highAlarmSoundMode.collectAsState()
+    val hasLowAlarm by viewModel.hasLowAlarm.collectAsStateWithLifecycle()
+    val lowAlarmValue by viewModel.lowAlarmThreshold.collectAsStateWithLifecycle()
+    val lowAlarmSoundMode by viewModel.lowAlarmSoundMode.collectAsStateWithLifecycle()
+    val hasHighAlarm by viewModel.hasHighAlarm.collectAsStateWithLifecycle()
+    val highAlarmValue by viewModel.highAlarmThreshold.collectAsStateWithLifecycle()
+    val highAlarmSoundMode by viewModel.highAlarmSoundMode.collectAsStateWithLifecycle()
 
     // Dialog states
     var showUnitDialog by remember { mutableStateOf(false) }
@@ -244,15 +247,10 @@ fun ExpressiveSettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(), // Add status bar padding
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp)
+        contentPadding = TabScreenDefaults.contentPadding()
     ) {
-        // Title
         item(key = "title") {
-            Text(
-                text = stringResource(R.string.settings),
-                style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.padding(start = 16.dp, bottom = 24.dp)
-            )
+            TabScreenHeader(title = stringResource(R.string.settings))
         }
 
         item(key = "general_group") {
@@ -282,7 +280,7 @@ fun ExpressiveSettingsScreen(
             val glucoseColor = MaterialTheme.colorScheme.primary
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 8.dp)
             ) {
                 SettingsItem(
                     title = stringResource(R.string.unit),
@@ -304,7 +302,7 @@ fun ExpressiveSettingsScreen(
 
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.manual_calibration),
-                    subtitle = "$calibrationModeLabel - ${
+                    subtitle = "$calibrationModeLabel · ${
                         stringResource(
                             if (calibrationEnabled) R.string.enabled_status else R.string.disabled_status
                         )
@@ -449,10 +447,10 @@ fun ExpressiveSettingsScreen(
         item(key = "exchange_group") {
             // Theme: Tertiary (Apps/Services)
             val exchangeColor = MaterialTheme.colorScheme.tertiary
-            val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsState()
-            val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsState()
-            val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsState()
-            val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsState()
+            val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
+            val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+            val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
+            val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsSwitchItem(
@@ -797,7 +795,7 @@ fun ExpressiveSettingsScreen(
                 // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
                 // current behaviour so the common question is answered in place.
                 val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
-                    .freezeDisplayedValues.collectAsState()
+                    .freezeDisplayedValues.collectAsStateWithLifecycle()
                 SettingsSwitchItem(
                     title = stringResource(R.string.freeze_displayed_values),
                     subtitle = stringResource(
@@ -870,7 +868,7 @@ fun ExpressiveSettingsScreen(
             ) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.about_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                     style = MaterialTheme.typography.labelMedium,
@@ -1040,27 +1038,19 @@ fun PredictiveSimulationSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val journalEnabled by viewModel.journalEnabled.collectAsState()
-    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsState()
-    val notificationChartPredictionEnabled by viewModel.predictiveSimulationNotificationChartEnabled.collectAsState()
-    val trendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsState()
-    val modelProfile by viewModel.predictionModelProfile.collectAsState()
-    val horizonMinutes by viewModel.predictionHorizonMinutes.collectAsState()
+    val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
+    val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
+    val notificationChartPredictionEnabled by viewModel.predictiveSimulationNotificationChartEnabled.collectAsStateWithLifecycle()
+    val trendMomentumEnabled by viewModel.predictionTrendMomentumEnabled.collectAsStateWithLifecycle()
+    val modelProfile by viewModel.predictionModelProfile.collectAsStateWithLifecycle()
+    val horizonMinutes by viewModel.predictionHorizonMinutes.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.predictive_simulation_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.predictive_simulation_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -1069,7 +1059,7 @@ fun PredictiveSimulationSettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "master") {
                 MasterSwitchCard(
@@ -1152,7 +1142,7 @@ private fun PredictiveSimulationSettingsCard(
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             content = content
         )
     }
@@ -1197,444 +1187,6 @@ internal fun PredictiveSimulationParameterRow(
     }
 }
 
-@Composable
-fun NotificationSettingsSheet(
-    onDismiss: () -> Unit,
-    sheetState: SheetState,
-    context: android.content.Context,
-    viewModel: DashboardViewModel
-) {
-    val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
-    
-    // Font Settings
-    var fontSize by remember { mutableFloatStateOf(prefs.getFloat("notification_font_size", 1.0f)) }
-    var fontType by remember { mutableIntStateOf(prefs.getInt("notification_font_family", 0)) }
-    var fontWeight by remember { mutableIntStateOf(prefs.getInt("notification_font_weight", 400)) }
-    
-    // Arrow Settings
-    var showArrow by remember { mutableStateOf(prefs.getBoolean("notification_show_arrow", true)) }
-    var arrowSize by remember { mutableFloatStateOf(prefs.getFloat("notification_arrow_size", 1.0f)) }
-    
-    // Visibility Toggles
-    var showStatus by remember { mutableStateOf(prefs.getBoolean("notification_show_status", true)) }
-    var hideStatusIcon by remember { mutableStateOf(prefs.getBoolean("notification_hide_status_icon", false)) }
-    var statusIconScale by remember { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
-    var collapsedChart by remember { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
-    var showTargetRange by remember { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
-    
-    val scope = rememberCoroutineScope()
-    fun save() {
-        scope.launch {
-            prefs.edit()
-                 .putFloat("notification_font_size", fontSize)
-                 .putInt("notification_font_family", fontType)
-                 .putInt("notification_font_weight", fontWeight)
-                 .putBoolean("notification_show_arrow", showArrow)
-                 .putFloat("notification_arrow_size", arrowSize)
-                 .putBoolean("notification_show_status", showStatus)
-                 .putBoolean("notification_hide_status_icon", hideStatusIcon)
-                 .putFloat("notification_status_icon_scale", statusIconScale)
-                 .putBoolean("notification_chart_collapsed", collapsedChart)
-                 .putBoolean("notification_chart_target_range", showTargetRange)
-                 .apply()
-            viewModel.refreshNotificationSurfaces()
-        }
-    }
-
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { CompactSheetDragHandle() },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState(50))
-        ) {
-            Text(
-                "Notification Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
-
-
-
-            // === FONT SECTION ===
-            SectionLabel("Font", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 24.dp)) {
-                FilterChip(
-                    selected = fontType == 0,
-                    onClick = { fontType = 0; save() },
-                    label = { Text(stringResource(R.string.font_app_plex)) }
-                )
-                FilterChip(
-                    selected = fontType == 1,
-                    onClick = { fontType = 1; save() },
-                    label = { Text(stringResource(R.string.font_system_google_sans)) }
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-
-            // Font weight for the custom notification value rendering.
-            if (android.os.Build.VERSION.SDK_INT >= 31) {
-                Text(stringResource(R.string.font_weight_label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp,  vertical = 0.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Simplified Options: Regular (400) and Medium (500)
-                    FilterChip(
-                        selected = fontWeight == 300,
-                        onClick = { fontWeight = 300; save() },
-                        label = { Text(stringResource(R.string.theme_light)) }
-//                        leadingIcon = { if(fontWeight == 300) Icon(Icons.Filled.Check, null) }
-                    )
-                    FilterChip(
-                        selected = fontWeight == 400,
-                        onClick = { fontWeight = 400; save() },
-                        label = { Text(stringResource(R.string.regular)) }
-//                        leadingIcon = { if(fontWeight == 400) Icon(Icons.Filled.Check, null) }
-                    )
-                    FilterChip(
-                        selected = fontWeight == 500,
-                        onClick = { fontWeight = 500; save() },
-                        label = { Text(stringResource(R.string.medium)) }
-//                        leadingIcon = { if(fontWeight == 500) Icon(Icons.Filled.Check, null) }
-                    )
-                }
-            }
-//            Spacer(Modifier.height(16.dp))
-
-//            SectionLabel("Size", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-            Spacer(Modifier.height(4.dp))
-
-            SliderControl(
-                label = "Font Size: ${(fontSize * 100).toInt()}%",
-                value = fontSize,
-                onValueChange = { fontSize = it; save() },
-                range = 0.6f..1.5f
-            )
-            Spacer(Modifier.height(4.dp))
-
-            SliderControl(
-                label = "Status Bar Icon Size: ${(statusIconScale * 100).toInt()}%",
-                value = statusIconScale,
-                onValueChange = { statusIconScale = it; save() },
-                range = 0.0f..1.25f
-//                    steps = 50
-            )
-        }
-//        Spacer(Modifier.height(8.dp))
-           // === ARROW SECTION ===
-//            Spacer(Modifier.height(8.dp))
-//            SectionLabel("Trend Arrow", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-            // === VISIBILITY SECTION ===
-//            Spacer(Modifier.height(16.dp))
-//            SectionLabel("Elements", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-//            SettingsSwitchItem(
-//                title = "Show Status Text",
-//                subtitle = "Sensor connection status",
-//                checked = showStatus,
-//                onCheckedChange = { showStatus = it; save() },
-//                icon = null,
-//                position = CardPosition.TOP
-//            Column(
-//                    Modifier.fillMaxWidth().padding(horizontal = 24.dp,  vertical = 0.dp)
-//                ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.padding(horizontal = 24.dp)) {
-                SettingsSwitchItem(
-                    title = "Show Trend Arrow",
-                    checked = showArrow,
-                    onCheckedChange = { showArrow = it; save() },
-                    icon = null,
-                    position = CardPosition.TOP
-                )
-
-                if (showArrow) {
-                    Spacer(Modifier.height(4.dp))
-
-                    SliderControl(
-                        label = "Arrow Size: ${(arrowSize * 100).toInt()}%",
-                        value = arrowSize,
-                        onValueChange = { arrowSize = it; save() },
-                        range = 0.5f..1.5f
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                }
-                SettingsSwitchItem(
-                    title = "Show Chart (Expanded)",
-                    subtitle = "Chart when notification is expanded",
-                    checked = notificationChartEnabled,
-                    onCheckedChange = { viewModel.toggleNotificationChart(it) },
-                    icon = null,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsSwitchItem(
-                    title = "Show Chart (Collapsed)",
-                    subtitle = "Compact chart in collapsed view",
-                    checked = collapsedChart,
-                    onCheckedChange = { collapsedChart = it; save() },
-                    icon = null,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsSwitchItem(
-                    title = "Show Target Range",
-                    subtitle = "Highlight target glucose range on chart",
-                    checked = showTargetRange,
-                    onCheckedChange = { showTargetRange = it; save() },
-                    icon = null,
-                    position = CardPosition.BOTTOM
-                )
-                //            SettingsSwitchItem(
-//                title = "Hide Status Bar Icon",
-//                subtitle = "Use transparent icon (minimize clutter)",
-//                checked = hideStatusIcon,
-//                onCheckedChange = { hideStatusIcon = it; save() },
-//                icon = null,
-//                position = CardPosition.MIDDLE
-//            )
-                //            if (!hideStatusIcon) {
-
-//            }
-//            Spacer(Modifier.height(16.dp))
-
-            }
-        }
-    }
-
-
-@Composable
-fun AODSettingsSheet(onDismiss: () -> Unit, sheetState: SheetState, context: android.content.Context) {
-    val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
-    
-    var opacity by remember { mutableFloatStateOf(prefs.getFloat("aod_opacity", 1.0f)) }
-    var textScale by remember { mutableFloatStateOf(prefs.getFloat("aod_text_scale", 1.5f)) }
-    var chartScale by remember { mutableFloatStateOf(prefs.getFloat("aod_chart_scale", 1.5f)) }
-    var showChart by remember { mutableStateOf(prefs.getBoolean("aod_show_chart", true)) }
-    var showArrow by remember { mutableStateOf(prefs.getBoolean("aod_show_arrow", true)) }
-    var arrowScale by remember { mutableFloatStateOf(prefs.getFloat("aod_arrow_scale", 1.0f)) }
-    
-    // Position: Multi-select stored as Set<String>
-    var positions by remember { 
-        mutableStateOf(prefs.getStringSet("aod_positions", setOf("TOP")) ?: setOf("TOP")) 
-    }
-
-    // Alignment: Single select (LEFT, CENTER, RIGHT)
-    var alignment by remember { mutableStateOf(prefs.getString("aod_alignment", "CENTER") ?: "CENTER") }
-
-    // FONT VISUALS
-    var fontSource by remember { mutableStateOf(prefs.getString("aod_font_source", "APP") ?: "APP") }
-    var fontWeight by remember { mutableIntStateOf(prefs.getInt("aod_font_weight", 400)) }
-
-    // Auto-save logic scope
-    val scope = rememberCoroutineScope()
-    fun save() {
-        scope.launch {
-            prefs.edit()
-                 .putFloat("aod_opacity", opacity)
-                 .putFloat("aod_text_scale", textScale)
-                 .putFloat("aod_chart_scale", chartScale)
-                 .putBoolean("aod_show_chart", showChart)
-                 .putBoolean("aod_show_arrow", showArrow)
-                 .putFloat("aod_arrow_scale", arrowScale)
-                 .putStringSet("aod_positions", positions)
-                 .putString("aod_alignment", alignment)
-                 .putString("aod_font_source", fontSource)
-                 .putInt("aod_font_weight", fontWeight)
-                 .apply()
-        }
-    }
-
-    StableModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { CompactSheetDragHandle() },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                "AOD Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
-
-            // Enable Button
-            SettingsItem(
-                title = "Enable Overlay service",
-                subtitle = "Opens Accessibility Settings",
-                icon = Icons.Default.SettingsAccessibility,
-                position = CardPosition.SINGLE,
-                onClick = {
-                    val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            // === VISUALS SECTION ===
-            Text(stringResource(R.string.visuals), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-
-            // FONT SOURCE
-            Text(stringResource(R.string.font_source), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                 FilterChip(
-                     selected = fontSource == "APP",
-                     onClick = { fontSource = "APP"; save() },
-                     label = { Text(stringResource(R.string.font_app_plex)) }
-                 )
-                 FilterChip(
-                     selected = fontSource == "SYSTEM",
-                     onClick = { fontSource = "SYSTEM"; save() },
-                     label = { Text(stringResource(R.string.font_system_google_sans)) }
-                 )
-            }
-
-            // FONT WEIGHT
-            Text(stringResource(R.string.font_weight_label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                 FilterChip(
-                     selected = fontWeight == 300,
-                     onClick = { fontWeight = 300; save() },
-                     label = { Text(stringResource(R.string.theme_light)) }
-                 )
-                 FilterChip(
-                     selected = fontWeight == 400,
-                     onClick = { fontWeight = 400; save() },
-                     label = { Text(stringResource(R.string.regular)) }
-                 )
-                 FilterChip(
-                     selected = fontWeight == 500,
-                     onClick = { fontWeight = 500; save() },
-                     label = { Text(stringResource(R.string.medium)) }
-                 )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            
-            Spacer(Modifier.height(16.dp))
-            SectionLabel("Layout", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-
-            // Multi-Position Selection
-            Text(stringResource(R.string.active_positions_randomized), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                 listOf("TOP", "CENTER", "BOTTOM").forEach { pos ->
-                     FilterChip(
-                         selected = positions.contains(pos),
-                         onClick = { 
-                             val newSet = positions.toMutableSet()
-                             if (newSet.contains(pos)) {
-                                 if (newSet.size > 1) newSet.remove(pos) // Prevent empty set
-                             } else {
-                                 newSet.add(pos)
-                             }
-                             positions = newSet
-                             save()
-                         },
-                         label = { Text(pos) },
-                         leadingIcon = if (positions.contains(pos)) {
-                             { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                         } else null
-                     )
-                 }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Alignment Selection
-            Text(stringResource(R.string.text_alignment), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                 listOf("LEFT", "CENTER", "RIGHT").forEach { align ->
-                     FilterChip(
-                         selected = alignment == align,
-                         onClick = { alignment = align; save() },
-                         label = { Text(align) },
-                         leadingIcon = null // Radio behavior essentially
-                     )
-                 }
-            }
-            
-            Spacer(Modifier.height(24.dp))
-            SectionLabel("Appearance", topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-
-            // Toggles Group
-            SettingsSwitchItem(
-                title = "Show Chart",
-                checked = showChart,
-                onCheckedChange = { showChart = it; save() },
-                icon = null,
-                position = CardPosition.TOP
-            )
-            SettingsSwitchItem(
-                title = "Show Trend Arrow",
-                checked = showArrow,
-                onCheckedChange = { showArrow = it; save() },
-                icon = null,
-                position = CardPosition.BOTTOM
-            )
-
-            // Opacity
-            SliderControl(
-                label = "Opacity: ${(opacity * 100).toInt()}%",
-                value = opacity,
-                onValueChange = { opacity = it; save() },
-                range = 0.1f..1.0f
-            )
-
-            // Text Scale
-            SliderControl(
-                label = "Text Size: ${(textScale * 100).toInt()}%",
-                value = textScale,
-                onValueChange = { textScale = it; save() },
-                range = 0.5f..3.0f
-            )
-
-            // Chart Scale
-            if (showChart) {
-                SliderControl(
-                    label = "Chart Size: ${(chartScale * 100).toInt()}%",
-                    value = chartScale,
-                    onValueChange = { chartScale = it; save() },
-                    range = 0.5f..2.0f
-                )
-            }
-
-            // Arrow Scale
-            if (showArrow) {
-                SliderControl(
-                    label = "Arrow Size: ${(arrowScale * 100).toInt()}%",
-                    value = arrowScale,
-                    onValueChange = { arrowScale = it; save() },
-                    range = 0.5f..2.0f
-                )
-            }
-        }
-    }
-}
 // Components moved to tk.glucodata.ui.components.SettingsComponents.kt
 
 // ============================================================================
