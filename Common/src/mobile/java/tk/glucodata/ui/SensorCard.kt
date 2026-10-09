@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.*
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
@@ -23,8 +25,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -3151,15 +3151,10 @@ fun SensorCard(
 }
 
 /**
- * M3 Expressive split button, built by hand: `material3` 1.4.0 ships only the
- * `SplitButtonSmallTokens`, not the composable. Values follow those tokens — 40dp tall, 2dp
- * between the halves, 4dp inner corners that swell to 12dp while the trailing half is pressed,
- * a 22dp trailing glyph with 13dp either side, full pill outer corners like every other
- * button on the card.
- *
- * Both halves share one container, as a split button does; the trailing key glyph alone
- * carries state — the app's in-range green while a verified key is held (tap: back it up),
- * error while none is (tap: restore one from a backup file).
+ * The pair/unpair split button. Both halves share one container, as a split button does; the
+ * trailing key glyph alone carries state: the app's in-range green while a verified key is held
+ * (tap: back it up), error while none is (tap: restore one from a backup file). The trailing
+ * half is an action of its own, not a menu, so it uses the plain-click [SplitButtonDefaults.TrailingButton].
  */
 @Composable
 private fun AiDexPairSplitButton(
@@ -3169,16 +3164,6 @@ private fun AiDexPairSplitButton(
     onKeyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val outer = ButtonDefaults.MinHeight / 2
-    val innerRest = 4.dp
-    val innerPressed = 12.dp
-    val keyInteraction = remember { MutableInteractionSource() }
-    val keyPressed by keyInteraction.collectIsPressedAsState()
-    val inner by animateDpAsState(
-        targetValue = if (keyPressed) innerPressed else innerRest,
-        label = "aidexSplitInnerCorner"
-    )
-
     val container = if (paired) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
     val onContainer = if (paired) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
     val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(tk.glucodata.ui.isAppInDarkTheme()))
@@ -3186,57 +3171,45 @@ private fun AiDexPairSplitButton(
         targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.error,
         label = "aidexKeyTint"
     )
+    val height = SplitButtonDefaults.SmallContainerHeight
 
-    Row(
-        modifier = modifier.height(ButtonDefaults.MinHeight),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FilledTonalButton(
-            onClick = onLeadingClick,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-            shape = RoundedCornerShape(
-                topStart = outer,
-                bottomStart = outer,
-                topEnd = inner,
-                bottomEnd = inner,
-            ),
-            contentPadding = PaddingValues(start = 16.dp, end = 12.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = container,
-                contentColor = onContainer,
-            ),
-        ) {
-            Icon(
-                imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(if (paired) R.string.unpair else R.string.pair), maxLines = 1)
-        }
-        FilledTonalIconButton(
-            onClick = onKeyClick,
-            interactionSource = keyInteraction,
-            modifier = Modifier.width(48.dp).fillMaxHeight(),
-            shape = RoundedCornerShape(
-                topStart = inner,
-                bottomStart = inner,
-                topEnd = outer,
-                bottomEnd = outer,
-            ),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = container,
-                contentColor = keyTint,
-            ),
-        ) {
-            Icon(
-                imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
-                contentDescription = stringResource(
-                    if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
+    SplitButtonLayout(
+        modifier = modifier,
+        leadingButton = {
+            SplitButtonDefaults.TonalLeadingButton(
+                onClick = onLeadingClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = container,
+                    contentColor = onContainer,
                 ),
-                modifier = Modifier.size(24.dp),
-            )
-        }
-    }
+            ) {
+                Icon(
+                    imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
+                    contentDescription = null,
+                    modifier = Modifier.size(SplitButtonDefaults.leadingButtonIconSizeFor(height)),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(if (paired) R.string.unpair else R.string.pair), maxLines = 1)
+            }
+        },
+        trailingButton = {
+            SplitButtonDefaults.TrailingButton(
+                onClick = onKeyClick,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = container,
+                    contentColor = keyTint,
+                ),
+                elevation = ButtonDefaults.filledTonalButtonElevation(),
+            ) {
+                Icon(
+                    imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
+                    contentDescription = stringResource(
+                        if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
+                    ),
+                    modifier = Modifier.size(SplitButtonDefaults.trailingButtonIconSizeFor(height)),
+                )
+            }
+        },
+    )
 }

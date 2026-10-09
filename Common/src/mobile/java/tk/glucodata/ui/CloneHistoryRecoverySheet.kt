@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package tk.glucodata.ui
 
+import androidx.compose.material3.LoadingIndicator
 import android.text.format.Formatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -286,7 +289,7 @@ private fun CloneHistoryLoadingState(error: String?) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        CircularProgressIndicator()
+        LoadingIndicator()
         Text(
             text = if (error == null) {
                 stringResource(R.string.clone_history_checking_receiver)
