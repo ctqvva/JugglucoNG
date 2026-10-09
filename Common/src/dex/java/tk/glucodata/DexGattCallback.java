@@ -1106,6 +1106,7 @@ private void resetconnect() {
 public synchronized void close() {
    // Retired GATT callbacks are ignored, so teardown owns releasing this lock.
    releaselock();
+   connected = false;
    connectedAttempt = null;
    resetconnect();
    super.close();

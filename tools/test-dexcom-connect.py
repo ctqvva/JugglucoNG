@@ -39,7 +39,7 @@ methods = '\n'.join(method(s) for s in [
     'private synchronized void releaselock(' if 'private synchronized void releaselock(' in source
     else 'private void releaselock(',
     'private void authenticate(', 'static private boolean equalpart(',
-    'static boolean    createBond(', 'private void resetCerts(',
+    'static boolean    createBond(', 'private void resetCerts(', 'private void resetconnect(',
 ])
 fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):source.index('    public DexGattCallback(')]
 phase_start = source.index('private int phase =')
@@ -54,6 +54,7 @@ package tk.glucodata;
 import java.util.*;
 import java.util.concurrent.*;
 import java.lang.reflect.Method;
+import static java.util.Objects.nonNull;
 class SuperGattCallback {
     static boolean defaultAuto, alarmClock, doLog=false, isWearable=false;
     static final String LOG_ID="test", ALARM_SERVICE="alarm", POWER_SERVICE="power";
@@ -101,7 +102,7 @@ class SuperGattCallback {
     synchronized void free(){setPause(true);close();dataptr=0;}
     boolean acceptConnectionAttemptCallback(BluetoothGatt g,int state){return g==mBluetoothGatt&&!stop;}
     void noteFirstGattCallback(String s,BluetoothGatt g){}
-    void disconnect(){disconnects++;} void resetconnect(){}
+    void disconnect(){disconnects++;}
     void bonded(){}void getdatacmd(){dataCommands++;}void disablenotification(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void searchforDeviceAddress(){rescans++;mActiveDeviceAddress=null;}
     void unbond(){unbondCalls++;removedBond=true;} void setConStatus(int status){}
@@ -276,6 +277,10 @@ public class DexGattCallback extends SuperGattCallback {
         cb.close();cb.connectDevice(0);cb.phase=GetData;
         cb.onConnectionStateChange(old,19,0);
         check(cb.unbondCalls==0&&cb.triedinvain==0,"retired disconnect altered bond recovery");
+        cb=fresh();cb.triedinvain=100;Natives.lastGlucose=0;old=cb.mBluetoothGatt;
+        cb.onConnectionStateChange(old,0,2);cb.close();cb.connectDevice(0);
+        cb.onConnectionStateChange(cb.mBluetoothGatt,147,0);
+        check(cb.unbondCalls==0&&cb.triedinvain==100,"missing old disconnect let a failed dial erase the bond");
     }
     static void recognizesVerifiedSensor() {
         byte[] response=new byte[17];Arrays.fill(response,1,9,(byte)0x53);
