@@ -52,15 +52,16 @@ internal fun trendCornerAnimationSpec() = spring<Dp>(
     stiffness = Spring.StiffnessLow
 )
 
-/** Subtle 24..40dp corners around a symmetric 32dp resting shape. */
+/** Reference panel: broad top corners, tighter bottom corners; symmetric at rest. */
 internal fun navigationCornerRadii(velocity: Float): NavigationCornerRadii {
     val weights = trendCornerWeightsFromVelocity(velocity)
     val resting = trendCornerWeightsFromVelocity(0f)
-    fun radius(weight: Float, rest: Float) = (32f + (weight - rest) * 16f).coerceIn(24f, 40f)
+    fun radius(weight: Float, rest: Float, base: Float) =
+        (base + (weight - rest) * 8f).coerceIn(base - 8f, base + 8f)
     return NavigationCornerRadii(
-        topStart = radius(weights.topStart, resting.topStart),
-        topEnd = radius(weights.topEnd, resting.topEnd),
-        bottomEnd = radius(weights.bottomEnd, resting.bottomEnd),
-        bottomStart = radius(weights.bottomStart, resting.bottomStart)
+        topStart = radius(weights.topStart, resting.topStart, 32f),
+        topEnd = radius(weights.topEnd, resting.topEnd, 32f),
+        bottomEnd = radius(weights.bottomEnd, resting.bottomEnd, 12f),
+        bottomStart = radius(weights.bottomStart, resting.bottomStart, 12f)
     )
 }

@@ -819,6 +819,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                         val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
                         ShortNavigationBarItem(
                             iconPosition = NavigationItemIconPosition.Top,
+                            colors = morphingNavigationItemColors(),
                             icon = {
                                 TabIcon(
                                     isSelected = isSelected,
