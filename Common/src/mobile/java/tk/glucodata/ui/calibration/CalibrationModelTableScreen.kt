@@ -62,9 +62,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.titleLargeEmphasized
-import tk.glucodata.ui.theme.labelMediumEmphasized
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity

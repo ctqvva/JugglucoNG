@@ -14,10 +14,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.labelMediumEmphasized
-import tk.glucodata.ui.theme.labelLargeEmphasized
-import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton

@@ -1,11 +1,14 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
 package tk.glucodata.ui
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -82,8 +85,12 @@ fun JugglucoTheme(
         }
     }
 
-    MaterialTheme(
+    // Expressive theme and motion: switches, sliders, navigation indicators, sheets and
+    // buttons all move on the same springs as the hand-built components (ExpressiveMotion
+    // mirrors MotionScheme.expressive()).
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         typography = tk.glucodata.ui.theme.AppTypography,
     ) {
         // Display size (density) may grow at most 10% past the device's native density, so an

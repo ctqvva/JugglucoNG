@@ -64,7 +64,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition

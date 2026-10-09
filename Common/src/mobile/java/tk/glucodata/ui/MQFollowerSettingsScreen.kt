@@ -46,8 +46,6 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import tk.glucodata.ui.theme.titleSmallEmphasized
-import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 import tk.glucodata.drivers.mq.MQBootstrapFailure
 import tk.glucodata.drivers.mq.MQCloudClient

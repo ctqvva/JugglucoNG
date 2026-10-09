@@ -59,7 +59,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
-import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.GlucoseMeterManager
 import tk.glucodata.GlucoseMeterSnapshot
 import tk.glucodata.Log

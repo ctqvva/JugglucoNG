@@ -51,7 +51,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.ui.FontScaleCap
-import tk.glucodata.ui.theme.titleSmallEmphasized
 import tk.glucodata.R
 import tk.glucodata.RemoteIobSnapshot
 import tk.glucodata.UiRefreshBus

@@ -51,7 +51,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import tk.glucodata.ui.theme.titleSmallEmphasized
 import tk.glucodata.BuildConfig
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives

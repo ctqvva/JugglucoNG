@@ -107,10 +107,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.hypot
 import kotlin.math.roundToInt
-import tk.glucodata.ui.theme.titleSmallEmphasized
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.titleLargeEmphasized
-import tk.glucodata.ui.theme.headlineSmallEmphasized
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.R

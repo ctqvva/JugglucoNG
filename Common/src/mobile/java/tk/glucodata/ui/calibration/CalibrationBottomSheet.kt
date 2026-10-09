@@ -60,8 +60,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import tk.glucodata.ui.theme.titleMediumEmphasized
-import tk.glucodata.ui.theme.labelMediumEmphasized
 import tk.glucodata.GlucosePoint
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity

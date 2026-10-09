@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.StableModalBottomSheet
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import tk.glucodata.InsulinPenManager
