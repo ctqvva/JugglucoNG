@@ -25,7 +25,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
@@ -79,6 +77,8 @@ fun DataSmoothingSettingsScreen(
             add(stringResource(R.string.data_smoothing_exchange_only_title))
         } else if (graphOnly) {
             add(stringResource(R.string.data_smoothing_graph_only_title))
+        } else {
+            add(stringResource(R.string.data_smoothing_scope_all))
         }
         if (collapseChunks) {
             add(stringResource(R.string.data_smoothing_collapse_summary_format, collapseIntervalMinutes))
@@ -150,11 +150,7 @@ fun DataSmoothingSettingsScreen(
                                 style = MaterialTheme.typography.titleMediumEmphasized,)
 
                             Text(
-                                text = if (exchangeOnly) {
-                                    stringResource(R.string.data_smoothing_exchange_only_desc)
-                                } else {
-                                    stringResource(R.string.graph_smoothing_desc)
-                                },
+                                text = stringResource(R.string.data_smoothing_window_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -211,11 +207,14 @@ fun DataSmoothingSettingsScreen(
 
             Column(
                 modifier = Modifier.alpha(contentAlpha),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.data_smoothing_graph_only_title),
-                    subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
+                    subtitle = stringResource(
+                        if (collapseChunks) R.string.data_smoothing_graph_only_collapse_desc
+                        else R.string.data_smoothing_graph_only_desc
+                    ),
                     checked = graphOnly,
                     onCheckedChange = { viewModel.setDataSmoothingGraphOnly(it) },
                     icon = Icons.AutoMirrored.Filled.TrendingUp,

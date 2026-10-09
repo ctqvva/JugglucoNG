@@ -57,7 +57,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -82,6 +81,7 @@ import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.drivers.nightscout.NightscoutModePreference
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
@@ -578,7 +578,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 .heightIn(min = 56.dp)
                         ) {
                             if (testState is TestState.Testing) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_test_testing))
                             } else {
@@ -595,7 +595,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 .heightIn(min = 56.dp)
                         ) {
                             if (tokenState is TokenState.Refreshing) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_token_refreshing))
                             } else {
@@ -751,10 +751,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 item("nightscout_options_group") {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         SettingsSwitchItem(
-                            title = stringResource(R.string.sendamounts),
+                            title = stringResource(R.string.nightscout_send_treatments),
                             subtitle = stringResource(R.string.nightscout_send_amounts_desc),
                             checked = sendTreatments,
                             onCheckedChange = {
@@ -860,7 +860,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.resend_data_reset))
+                        Text(stringResource(R.string.nightscout_resend_data))
                     }
                 }
             }
@@ -883,6 +883,30 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         position = CardPosition.SINGLE
                     )
                 }
+            }
+            item("nightscout_permissions") {
+                var expanded by rememberSaveable(mode) { mutableStateOf(false) }
+                ExpandableSettingsCard(
+                    title = stringResource(R.string.nightscout_permissions_title),
+                    summary = stringResource(R.string.nightscout_permissions_summary),
+                    icon = Icons.Default.Key,
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                    position = CardPosition.SINGLE,
+                    content = {
+                        Text(
+                            text = stringResource(
+                                if (mode == NightscoutModePreference.Mode.FOLLOW) {
+                                    R.string.nightscout_permissions_follow
+                                } else {
+                                    R.string.nightscout_permissions_upload
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
             }
         }
     }
