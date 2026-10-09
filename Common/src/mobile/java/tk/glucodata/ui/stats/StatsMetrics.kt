@@ -93,6 +93,7 @@ import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import java.text.NumberFormat
 import java.util.Locale
 
 /**
@@ -491,6 +492,16 @@ internal fun rememberScoreTileNeedsOwnRow(
  * someone reading mmol/L — including the bounds quoted in the explanations, which come
  * from the user's own targets rather than fixed constants.
  */
+/**
+ * [percent] (0–100) in the locale's percent pattern: "7.0%" in English, "7,0 %" in German,
+ * "%7,0" in Turkish. A literal "%" after the number is wrong in those.
+ */
+internal fun formatLocalePercent(percent: Float, fractionDigits: Int = 0): String =
+    NumberFormat.getPercentInstance(Locale.getDefault()).apply {
+        minimumFractionDigits = fractionDigits
+        maximumFractionDigits = fractionDigits
+    }.format(percent / 100.0)
+
 @Composable
 internal fun metricSpec(
     metric: StatsMetric,
@@ -499,11 +510,15 @@ internal fun metricSpec(
     unit: GlucoseUnit
 ): MetricSpec {
     val title = stringResource(metric.titleResId)
-    val targetRange = "${formatMgDl(targets.lowMgDl, unit)}-${formatMgDl(targets.highMgDl, unit)}"
+    val targetRange = "${formatMgDl(targets.lowMgDl, unit)}–${formatMgDl(targets.highMgDl, unit)}"
 
     val lowWord = stringResource(R.string.low_range)
     val highWord = stringResource(R.string.high_range)
     val inRangeWord = stringResource(R.string.in_range)
+    // Words for a percentage judged against a target (TIR, tight range, coverage). These used
+    // the variability words, so a good TIR read "Good stability".
+    val onTargetWord = stringResource(R.string.stats_finding_on_target)
+    val belowTargetWord = stringResource(R.string.report_below_target)
     val steadyWord = stringResource(R.string.gvi_good)
     val middlingWord = stringResource(R.string.gvi_moderate)
     val swingyWord = stringResource(R.string.gvi_poor)
@@ -511,7 +526,6 @@ internal fun metricSpec(
     val noneWord = stringResource(R.string.stats_metric_none)
     val rangeWord = stringResource(R.string.range)
     val targetWord = stringResource(R.string.gmi_target)
-    val targetValue = stringResource(R.string.gmi_target_value)
     val tirWord = stringResource(R.string.tir)
     val stabilityWord = stringResource(R.string.stability)
     val trendWord = stringResource(R.string.stats_trend)
@@ -539,7 +553,7 @@ internal fun metricSpec(
     return when (metric) {
         StatsMetric.TIME_IN_RANGE -> spec(
             value = String.format(Locale.getDefault(), "%.0f%%", summary.tir.inRangePercent),
-            status = if (summary.tir.inRangePercent >= 70f) steadyWord else middlingWord,
+            status = if (summary.tir.inRangePercent >= 70f) onTargetWord else belowTargetWord,
             meta = "$rangeWord $targetRange",
             tone = tirHeatColor(summary.tir.inRangePercent)
         )
@@ -558,7 +572,7 @@ internal fun metricSpec(
             spec(
                 value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
                 status = if (band == GmiBand.AT_TARGET) targetWord else highWord,
-                meta = "$targetWord $targetValue",
+                meta = "$targetWord <${formatLocalePercent(GmiBand.TARGET_PERCENT, fractionDigits = 1)}",
                 tone = when (band) {
                     GmiBand.AT_TARGET -> TirInRangeColor
                     GmiBand.ABOVE_TARGET -> TirHighColor
@@ -588,10 +602,10 @@ internal fun metricSpec(
 
         StatsMetric.TIGHT_RANGE -> {
             val (low, high) = StatsAnalytics.tightRangeBounds(targets)
-            val bounds = "${formatMgDl(low, unit)}-${formatMgDl(high, unit)}"
+            val bounds = "${formatMgDl(low, unit)}–${formatMgDl(high, unit)}"
             spec(
                 value = String.format(Locale.getDefault(), "%.0f%%", summary.tightRangePercent),
-                status = if (summary.tightRangePercent >= 50f) steadyWord else middlingWord,
+                status = if (summary.tightRangePercent >= 50f) onTargetWord else belowTargetWord,
                 meta = bounds,
                 tone = when {
                     summary.tightRangePercent >= 50f -> TirInRangeColor
@@ -612,7 +626,7 @@ internal fun metricSpec(
         StatsMetric.IQR -> spec(
             value = formatMgDl((summary.p75MgDl - summary.p25MgDl).coerceAtLeast(0f), unit),
             status = typicalWord,
-            meta = "${formatMgDl(summary.p25MgDl, unit)}-${formatMgDl(summary.p75MgDl, unit)}",
+            meta = "${formatMgDl(summary.p25MgDl, unit)}–${formatMgDl(summary.p75MgDl, unit)}",
             tone = when {
                 summary.cvPercent < 32f -> TirInRangeColor
                 summary.cvPercent < 40f -> TirHighColor
@@ -663,7 +677,7 @@ internal fun metricSpec(
 
         StatsMetric.COVERAGE -> spec(
             value = String.format(Locale.getDefault(), "%.0f%%", summary.coverage.percent),
-            status = if (summary.coverage.percent >= 85f) steadyWord else middlingWord,
+            status = if (summary.coverage.percent >= 85f) onTargetWord else belowTargetWord,
             meta = stringResource(R.string.stats_metric_readings, summary.coverage.readingCount),
             tone = when {
                 summary.coverage.percent >= 85f -> TirInRangeColor
@@ -683,7 +697,7 @@ internal fun metricSpec(
                     else -> R.string.risk_high
                 }
             ),
-            meta = "$targetWord <2.5",
+            meta = "$targetWord ${String.format(Locale.getDefault(), "<%.1f", 2.5f)}",
             tone = if (summary.risk.lbgi < 2.5f) TirInRangeColor else TirVeryLowColor,
             infoText = stringResource(R.string.lbgi_description)
         )
@@ -697,7 +711,7 @@ internal fun metricSpec(
                     else -> R.string.risk_high
                 }
             ),
-            meta = "$targetWord <4.5",
+            meta = "$targetWord ${String.format(Locale.getDefault(), "<%.1f", 4.5f)}",
             tone = if (summary.risk.hbgi < 4.5f) TirInRangeColor else TirVeryHighColor,
             infoText = stringResource(R.string.hbgi_description)
         )

@@ -2112,10 +2112,20 @@ fun SensorCard(
                             DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
                         }
 
-                        if (sensor.expectedEndMs > 0) {
-                            DataRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEndMs.toString()))
-                        } else if (sensor.expectedEnd.isNotEmpty()) {
-                           DataRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
+                        // Only when it says something the official end does not: for most
+                        // sensors the two are the same timestamp, printed twice.
+                        val officialEndText = when {
+                            sensor.officialEndMs > 0 -> formatSensorTime(sensor.officialEndMs.toString())
+                            sensor.officialEnd.isNotEmpty() -> formatSensorTime(sensor.officialEnd)
+                            else -> null
+                        }
+                        val expectedEndText = when {
+                            sensor.expectedEndMs > 0 -> formatSensorTime(sensor.expectedEndMs.toString())
+                            sensor.expectedEnd.isNotEmpty() -> formatSensorTime(sensor.expectedEnd)
+                            else -> null
+                        }
+                        if (expectedEndText != null && expectedEndText != officialEndText) {
+                            DataRow(stringResource(R.string.sensor_expected_end), expectedEndText)
                         }
 
                         if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
@@ -2152,7 +2162,8 @@ fun SensorCard(
                             val remainText = when {
                                 sensor.isSensorExpired -> stringResource(R.string.expired)
                                 sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
-                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.hours_remaining, sensor.sensorRemainingHours)
+                                // The row is labelled "Remaining", so the value is just the duration.
+                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
                                 else -> {
                                     val days = sensor.sensorRemainingHours / 24
                                     val hours = sensor.sensorRemainingHours % 24

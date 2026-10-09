@@ -172,7 +172,7 @@ private fun SensorCard(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Navigate",
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxSize()

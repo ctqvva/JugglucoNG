@@ -4961,7 +4961,7 @@ fun InteractiveGlucoseChart(
                 ) {
                     Icon(
                         imageVector = androidx.compose.material.icons.Icons.Filled.DateRange,
-                        contentDescription = "Jump to Date",
+                        contentDescription = stringResource(R.string.chart_jump_to_date),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.requiredSize(scaled(baseOuterIconSize))
                     )
@@ -5118,7 +5118,7 @@ fun InteractiveGlucoseChart(
                         ) {
                             Icon(
                                 imageVector = if (isScrolledRight) Icons.Filled.FirstPage else Icons.AutoMirrored.Filled.LastPage,
-                                contentDescription = "Back to Now",
+                                contentDescription = stringResource(R.string.chart_back_to_now),
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.requiredSize(scaled(baseBackIconSize))
                             )
