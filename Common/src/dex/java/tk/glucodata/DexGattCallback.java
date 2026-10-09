@@ -67,6 +67,7 @@ public class DexGattCallback extends SuperGattCallback {
 private static final long DEXCOM_WARMUP_MSEC = 30L * 60L * 1000L;
 private static final long DEXCOM_WARMUP_RETRY_SLACK_MSEC = 15_000L;
 private static final long DEXCOM_CONNECT_ATTEMPT_TIMEOUT_MS = 45_000L;
+private static final long DEXCOM_RECONNECT_QUIET_MS = 5_000L;
 private static final String DEX_CONNECT_PREFS = "dex_connect";
 private static final String DIRECT_CONNECT_UNREACHABLE_PREFIX = "direct_unreachable_";
 private volatile boolean directConnectUnreachable;
@@ -357,7 +358,6 @@ private boolean connected=false;
                         // After a data response the sensor is quiet until its next slot.
                         preferBackgroundConnect("data response received");
                         Applic.wakemirrors();
-//                        long alreadywaited = tim - constatchange[0];
                         final long alreadywaited = tim - datatime;
                         if(lastDataInvalidDuringWarmup) {
                             long stillwait = lastWarmupRetryAt - tim;
@@ -367,18 +367,22 @@ private boolean connected=false;
                             sensorbluetooth.connectToActiveDevice(this, stillwait);
                         }
                         else if(getalarmclock()) {
-                            //long stillwait=justdata?(6700-alreadywaited):0;
+                            // Slot timing follows the sample; the quiet period follows reception.
+                            final long sinceSample = sampletime > 0L ? tim - sampletime : alreadywaited;
                             final long mmsectimebetween = 5 * 60 * 1000;
-                            long stillwait = mmsectimebetween - alreadywaited - 27500;
-                            {if(doLog) {Log.i(LOG_ID, "justdata=" + justdata + " alreadywaited=" + alreadywaited + " stillwait=" + stillwait);};};
-                            sensorbluetooth.connectToActiveDevice(this, Math.max(0L, stillwait));
+                            long stillwait = mmsectimebetween - sinceSample - 27500;
+                            {if(doLog) {Log.i(LOG_ID, "justdata=" + justdata + " sinceSample=" + sinceSample + " stillwait=" + stillwait);};};
+                            sensorbluetooth.connectToActiveDevice(this, Math.max(DEXCOM_RECONNECT_QUIET_MS, stillwait));
                         } else {
                             long stillwait = 7000 - alreadywaited;
                             {if(doLog) {Log.i(LOG_ID, "alreadywaited=" + alreadywaited + " stillwait=" + stillwait);};};
-                            if(stillwait<0) 
-                                stillwait=0;
-                            sensorbluetooth.connectToActiveDevice(this, stillwait);
+                            sensorbluetooth.connectToActiveDevice(this, Math.max(DEXCOM_RECONNECT_QUIET_MS, stillwait));
                         }
+                    }
+                    else if(reachedSensor) {
+                        // Give a closing live link time to settle before reconnecting.
+                        // Reaching the sensor does not indicate a failed direct dial.
+                        sensorbluetooth.connectToActiveDevice(this, DEXCOM_RECONNECT_QUIET_MS);
                     }
                     else {
                             {if(doLog) {Log.i(LOG_ID,"connect direct");};};
@@ -803,7 +807,10 @@ private    void getdatacmd() {
         write(1, buf);
     }
 private boolean justdata=false;
+// Reception time drives the quiet period and recent-response guard.
 private long datatime=0L;
+// Native decoding adjusts this timestamp for sample age; use it only for slot timing.
+private long sampletime=0L;
 private boolean lastDataInvalidDuringWarmup=false;
 private long lastWarmupRetryAt=0L;
 private boolean isWarmupReading(long readingTimeMsec, long res) {
@@ -839,8 +846,8 @@ private    void getdata(byte[] value) {
                 handleGlucoseResult(res, newtime);
                 Applic.scheduler.schedule(()->{
                   if(connected) askbackfill();}, 10, TimeUnit.MILLISECONDS);
-//                datatime=timmsec;
-                datatime=newtime;
+                datatime=timmsec;
+                sampletime=newtime;
                 if(savename) saveDeviceName();
             };break;
            case 0x59:{

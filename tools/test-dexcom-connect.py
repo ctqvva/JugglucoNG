@@ -40,6 +40,7 @@ methods = '\n'.join(method(s) for s in [
     else 'private void releaselock(',
     'private void authenticate(', 'static private boolean equalpart(',
     'static boolean    createBond(', 'private void resetCerts(', 'private void resetconnect(',
+    'private    void getdata(', 'private boolean isWarmupReading(',
 ])
 fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):source.index('    public DexGattCallback(')]
 phase_start = source.index('private int phase =')
@@ -55,12 +56,18 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.lang.reflect.Method;
 import static java.util.Objects.nonNull;
+class System {
+    static long now=1_760_000_000_000L;
+    static long currentTimeMillis(){return now;}
+    static long nanoTime(){return java.lang.System.nanoTime();}
+    static final java.io.PrintStream out=java.lang.System.out;
+}
 class SuperGattCallback {
     static boolean defaultAuto, alarmClock, doLog=false, isWearable=false;
     static final String LOG_ID="test", ALARM_SERVICE="alarm", POWER_SERVICE="power";
     static final int BOND_NONE=10, BOND_BONDED=12;
     boolean stop, removedBond, connected, bonded, justdata, lastDataInvalidDuringWarmup, backfilled, has_service;
-    long dataptr, showtime, foundtime, datatime, lastWarmupRetryAt;
+    long dataptr, showtime, foundtime, datatime, sampletime, lastWarmupRetryAt, sensorstartmsec;
     int triedinvain, payloadCalls, unbondCalls, certsize, startpacket;
     boolean newcertificates;byte[] packet;
     static final int TRANSPORT_LE=2;
@@ -87,8 +94,9 @@ class SuperGattCallback {
     void tryer(Runnable r){r.run();}void enableIndication(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void askbackfill(){}void write(int which,byte[] value){}void requestAuth(){}void docmd0(BluetoothGatt g){}
     void enableGattDescriptor(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
-    void getcert(byte[] v){payloadCalls++;}void getdata(byte[] v){
+    void getcert(byte[] v){payloadCalls++;}void handleGlucoseResult(long res,long time){
         payloadCalls++;
+        lastPublishedTime=time;
         if(publicationEntered!=null){
             if(!Thread.holdsLock(this))throw new AssertionError("native processing lost callback monitor");
             publicationEntered.countDown();
@@ -98,6 +106,7 @@ class SuperGattCallback {
             if(dataptr==0)throw new AssertionError("native pointer freed during reading");
         }
     }
+    long lastPublishedTime;
     static CountDownLatch publicationEntered,publicationContinue;
     synchronized void free(){setPause(true);close();dataptr=0;}
     boolean acceptConnectionAttemptCallback(BluetoothGatt g,int state){return g==mBluetoothGatt&&!stop;}
@@ -122,6 +131,10 @@ class SensorOwnershipRuntime {static boolean blocked;static boolean blocksLocalC
 class Natives {
     static String stored="F0:00:00:00:00:01";
     static long lastGlucose=-1;static boolean aesSuccess=true;static int resets;
+    static long sampleAge, result=100;static boolean saveName;
+    static boolean dexcomProcessData(long ptr,byte[] value,long[] timeres){timeres[0]-=sampleAge;timeres[1]=result;return saveName;}
+    static long getSensorStartmsec(long ptr){return 0;}
+    static void dexEndBackfill(long ptr){}
     static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}
     static long lastglucosetime(){return lastGlucose<0?System.currentTimeMillis():lastGlucose;}
     static boolean isAuthenticated(long p){return true;}static void dexbackfill(long p,byte[] v){}
@@ -171,6 +184,9 @@ class Prefs {
 class Applic extends Context {
     static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
     static PowerManager power=new PowerManager();
+    static class Scheduler {void schedule(Runnable r,long delay,TimeUnit unit){}}
+    static Scheduler scheduler=new Scheduler();
+    void redraw(){}
     static List<Runnable> ui=new ArrayList<>();static void RunOnUiThread(Runnable r){ui.add(r);}
     static void runUi(){for(Runnable r:new ArrayList<>(ui))r.run();ui.clear();}
     Prefs getSharedPreferences(String s,int mode){return prefs;}static void wakemirrors(){}
@@ -191,6 +207,7 @@ public class DexGattCallback extends SuperGattCallback {
         Applic.power=new PowerManager();PowerManager.releases=0;Applic.ui.clear();
         defaultAuto=false;alarmClock=false;isWearable=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
         Natives.lastGlucose=-1;Natives.aesSuccess=true;Natives.resets=0;
+        Natives.sampleAge=0;Natives.result=100;Natives.saveName=false;System.now=1_760_000_000_000L;
         DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
     static void publicationAndTeardownFinish(boolean remove) throws Exception {
@@ -247,6 +264,7 @@ public class DexGattCallback extends SuperGattCallback {
         SensorBluetooth.gattcallbacks.clear();
     }
     static void emptySession(DexGattCallback cb) {
+        if(cb.mBluetoothGatt==null) {System.now+=5000;cb.connectDevice(0);}
         BluetoothGatt gatt=cb.mBluetoothGatt;
         cb.onConnectionStateChange(gatt,0,BluetoothProfile.STATE_CONNECTED);
         cb.phase=GetData;
@@ -272,6 +290,7 @@ public class DexGattCallback extends SuperGattCallback {
             DexGattCallback cb=fresh();cb.known=true;isWearable=wear;
             int sessions=wear?3:6;
             for(int i=1;i<=sessions;i++) {
+                if(cb.mBluetoothGatt==null) {System.now+=5000;cb.connectDevice(0);}
                 BluetoothGatt gatt=cb.mBluetoothGatt;
                 cb.onConnectionStateChange(gatt,0,2);cb.phase=ChallengeReply;
                 cb.onCharacteristicChanged(gatt,cb.charact[1],new byte[]{0x05,0,3});
@@ -312,6 +331,62 @@ public class DexGattCallback extends SuperGattCallback {
             check(!cb.known&&Natives.resets==1&&cb.disconnects==1,"truncated challenge established identity");
         }
     }
+    static void quietReconnectsRespectReceptionAndSampleTime() {
+        for(boolean wear:new boolean[]{false,true}) {
+            DexGattCallback cb=fresh();isWearable=wear;
+            BluetoothGatt gatt=cb.mBluetoothGatt;
+            cb.onConnectionStateChange(gatt,0,2);
+            long received=System.now;Natives.sampleAge=120000;
+            cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            check(cb.datatime==received&&cb.sampletime==received-120000,"response/sample clocks were mixed");
+            check(cb.lastPublishedTime==received-120000,"published glucose lost its actual timestamp");
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+7000&&cb.directCalls==1,"old sample caused immediate post-reading reconnect");
+            check(cb.useAutoConnect()&&cb.wakelock==null,"post-reading policy/wake lock regressed");
+            cb.connectDevice(0);gatt=cb.mBluetoothGatt;
+            cb.onConnectionStateChange(gatt,0,2);
+            check(!cb.connected&&cb.wakelock==null,"old sample bypassed recent-response guard");
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+5000&&cb.directCalls==2,"recent-response link loss redialled immediately");
+
+            cb=fresh();isWearable=wear;gatt=cb.mBluetoothGatt;
+            cb.onConnectionStateChange(gatt,0,2);Natives.sampleAge=120000;
+            cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            System.now+=10000;cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+5000&&cb.directCalls==1,"elapsed quiet period bypassed reconnect floor");
+
+            cb=fresh();isWearable=wear;alarmClock=true;gatt=cb.mBluetoothGatt;
+            Natives.sampleAge=120000;cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+152500,"next-slot alarm followed reception instead of sample age");
+
+            cb=fresh();isWearable=wear;alarmClock=true;gatt=cb.mBluetoothGatt;
+            Natives.sampleAge=280000;cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+5000,"past slot alarm bypassed reconnect floor");
+
+            cb=fresh();isWearable=wear;alarmClock=true;gatt=cb.mBluetoothGatt;
+            cb.datatime=System.now;cb.justdata=true;cb.sampletime=0;
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+272500,"missing sample time lost reception fallback");
+
+            cb=fresh();isWearable=wear;gatt=cb.mBluetoothGatt;
+            cb.onConnectionStateChange(gatt,0,2);cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==System.now+5000&&cb.directCalls==1&&!cb.useAutoConnect(),"empty live session redialled immediately or changed direct policy");
+            cb.setPause(true);
+            check(Applic.alarms.pending==null,"pause retained empty-session reconnect alarm");
+
+            cb=fresh();isWearable=wear;gatt=cb.mBluetoothGatt;
+            cb.onConnectionStateChange(gatt,133,0);
+            check(cb.directCalls==2&&Applic.alarms.scheduled==0&&cb.useAutoConnect(),"failed dial acquired a quiet delay");
+
+            cb=fresh();isWearable=wear;gatt=cb.mBluetoothGatt;
+            Natives.result=0;cb.sensorstartmsec=System.now-600000;
+            cb.onCharacteristicChanged(gatt,cb.charact[0],new byte[]{0x4e});
+            cb.onConnectionStateChange(gatt,19,0);
+            check(Applic.alarms.at==cb.sensorstartmsec+1800000+15000,"warmup timing was replaced with quiet delay");
+        }
+    }
     public static void main(String[] args) throws Exception {
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
         check(cb.mActiveDeviceAddress.equals(Natives.stored),"process startup lost saved address");
@@ -326,7 +401,7 @@ public class DexGattCallback extends SuperGattCallback {
         check(cb.mBluetoothGatt==current&&cb.directCalls==calls&&PowerManager.releases==releases,"retired callback changed live attempt");
         cb.onServicesDiscovered(first,0);cb.onDescriptorWrite(first,new BluetoothGattDescriptor(cb.charact[3]),0);cb.onCharacteristicChanged(first,cb.charact[0],new byte[0]);
         check(cb.payloadCalls==0&&!cb.has_service,"retired payload callback mutated new session");
-        cb.onServicesDiscovered(current,0);cb.onCharacteristicChanged(current,cb.charact[0],new byte[0]);check(cb.payloadCalls==2,"current payload callback rejected");
+        cb.onServicesDiscovered(current,0);cb.onCharacteristicChanged(current,cb.charact[0],new byte[]{0x4e});check(cb.payloadCalls==2,"current payload callback rejected");
         cb=fresh();cb.onConnectionAttemptTimeout();check(cb.useAutoConnect(),"silent direct attempt did not fall back");
         cb=fresh();cb.onConnectionStateChange(cb.mBluetoothGatt,133,0);check(cb.useAutoConnect(),"legacy failure did not fall back");
         cb=fresh();first=cb.mBluetoothGatt;cb.onConnectionStateChange(first,0,2);cb.onConnectionStateChange(first,147,0);
@@ -371,8 +446,8 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();cb.mActiveBluetoothDevice=null;cb.bonded();check(Applic.ui.isEmpty(),"bonded without device queued discovery");
         cb=fresh();current=cb.mBluetoothGatt;current.discoveryResult=false;cb.bonded();Applic.runUi();check(cb.disconnects==1,"current discovery failure lost recovery");
         publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);stableRosterSnapshots();
-        preservesBondBeforeFirstReading();recognizesVerifiedSensor();
-        System.out.println("PASS: Dexcom recovery, bond/challenge guards, callback lifecycle, concurrent publication/teardown and nonblocking roster snapshots");
+        preservesBondBeforeFirstReading();recognizesVerifiedSensor();quietReconnectsRespectReceptionAndSampleTime();
+        System.out.println("PASS: Dexcom recovery, quiet/slot timing, bond/challenge guards, callback lifecycle, concurrent publication/teardown and nonblocking roster snapshots");
     }
 }
 '''
