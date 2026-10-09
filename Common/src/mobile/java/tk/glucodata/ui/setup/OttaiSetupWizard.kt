@@ -8,6 +8,10 @@
 
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.LoadingIndicator
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -1312,25 +1316,29 @@ fun OttaiSetupWizard(
                                                     modifier = Modifier.size(20.dp),
                                                 )
                                             }
-                                            DropdownMenu(
+                                            DropdownMenuPopup(
                                                 expanded = smsCountryMenuExpanded,
                                                 onDismissRequest = { smsCountryMenuExpanded = false },
                                             ) {
-                                                OttaiSmsCountry.entries.forEach { country ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(country.prefix) },
-                                                        onClick = {
-                                                            smsCountryMenuExpanded = false
-                                                            if (country != smsCountry) {
-                                                                smsCountry = country
-                                                                phone = ""
-                                                                requestId = ""
-                                                                code = ""
-                                                                smsStatus = ""
-                                                                smsStatusIsError = false
-                                                            }
-                                                        },
-                                                    )
+                                                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                                                    OttaiSmsCountry.entries.forEachIndexed { index, country ->
+                                                        SelectableDropdownMenuItem(
+                                                            selected = country == smsCountry,
+                                                            shapes = MenuDefaults.itemShape(index, OttaiSmsCountry.entries.size),
+                                                            text = { Text(country.prefix) },
+                                                            onClick = {
+                                                                smsCountryMenuExpanded = false
+                                                                if (country != smsCountry) {
+                                                                    smsCountry = country
+                                                                    phone = ""
+                                                                    requestId = ""
+                                                                    code = ""
+                                                                    smsStatus = ""
+                                                                    smsStatusIsError = false
+                                                                }
+                                                            },
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }

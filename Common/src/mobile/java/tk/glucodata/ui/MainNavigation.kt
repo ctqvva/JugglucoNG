@@ -31,8 +31,9 @@ import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarArrangement
 import androidx.compose.material3.ShortNavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -847,12 +848,13 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     ) { innerPadding ->
         Row(modifier = Modifier.fillMaxSize()) {
             if (isLandscape) {
-                NavigationRail {
-                    // Centred, for the thumb on a phone held sideways.
-                    Spacer(modifier = Modifier.weight(1f))
+                // The collapsed wide rail, the expressive partner of the portrait ShortNavigationBar.
+                // Centred, for the thumb on a phone held sideways.
+                WideNavigationRail(arrangement = Arrangement.Center) {
                     navItems.forEach { item ->
                         val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        NavigationRailItem(
+                        WideNavigationRailItem(
+                            railExpanded = false,
                             icon = {
                                 TabIcon(
                                     isSelected = isSelected,
@@ -868,7 +870,6 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                             onClick = { onNavigate(item.route) }
                         )
                     }
-                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
             NavHost(

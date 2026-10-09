@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
@@ -317,9 +321,11 @@ fun TalkerSettingsScreen(navController: NavController) {
                 ) {
                     voiceNames.forEachIndexed { index, label ->
                         val isPreviewing = previewingVoiceIndex == index
-                        DropdownMenuItem(
+                        SelectableDropdownMenuItem(
+                            selected = index == uiState.selectedVoiceIndex,
+                            shapes = MenuDefaults.itemShape(index, voiceNames.size),
                             text = { Text(label) },
-                            trailingIcon = {
+                            trailingContent = {
                                 IconButton(onClick = {
                                     if (isPreviewing) {
                                         Talker.stopPreview()
@@ -591,11 +597,13 @@ private fun DropdownSettingsCard(
             iconTint = iconTint,
             position = position
         )
-        DropdownMenu(
+        DropdownMenuPopup(
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) }
         ) {
-            content()
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                content()
+            }
         }
     }
 }
