@@ -94,7 +94,8 @@ class MessageReceiver: WearableListenerService() {
                     // watch that missed the change-time push would keep the
                     // compiled-in defaults for good.
                     GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
-                    WearPrefsSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // A previous prefs reply may have been lost, even if sendMessage succeeded.
+                    WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                     WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
                     // Answer the handshake with this build's protocol version.
                     MessageSender.sendProtocol(messageEvent.sourceNodeId)

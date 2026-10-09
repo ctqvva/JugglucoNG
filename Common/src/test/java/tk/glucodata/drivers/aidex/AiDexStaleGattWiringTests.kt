@@ -2,6 +2,7 @@ package tk.glucodata.drivers.aidex
 
 import java.io.File
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
@@ -44,5 +45,41 @@ class AiDexStaleGattWiringTests {
             )
             assertTrue("$name must drop a stale gatt before anything else", guardFirst.containsMatchIn(manager))
         }
+    }
+
+    @Test
+    fun connectionStateChangesUseTheSerializedIdentityGuardBeforeBookkeeping() {
+        assertTrue(manager.contains(
+            "override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) { " +
+                "if (!gattCallbacks.runIfCurrent(gatt) { handleConnectionStateChange(gatt, status, newState) })",
+        ))
+    }
+
+    @Test
+    fun characteristicCompletionsUseTheTestedDispatchGuard() {
+        assertTrue(manager.contains(
+            "gattCallbacks.completeOperation(gatt, characteristic.uuid, AiDexGattCallbacks.Kind.WRITE)",
+        ))
+        assertTrue(manager.contains(
+            "gattCallbacks.completeOperation(gatt, uuid, AiDexGattCallbacks.Kind.READ)",
+        ))
+    }
+
+    @Test
+    fun aWatchdogTimeoutRecoversTheConnectionInsteadOfReusingItsQueue() {
+        val watchdog = manager.substringAfter("private fun handleGattOpWatchdog() {")
+            .substringBefore("private val gattCallbacks")
+        assertTrue(watchdog.contains("gattCallbacks.timeoutOperation()"))
+        assertTrue(watchdog.contains("gattQueue.clear()"))
+        assertTrue(watchdog.contains("recoverFromStaleConnectionState("))
+        assertTrue(watchdog.contains("abandonClearStorageReset(\"gatt-timeout-before-clear-storage\")"))
+        assertTrue(watchdog.contains("completePostResetReconnect(\"gatt-operation-timeout\""))
+        assertFalse(watchdog.contains("gattQueue.addFirst("))
+        assertFalse(watchdog.contains("drainGattQueue()"))
+        val drain = manager.substringAfter("private fun drainGattQueue() {")
+            .substringBefore("private fun handleWriteFailure")
+        assertTrue(drain.indexOf("gattCallbacks.canStartOperation(gatt)") >= 0)
+        assertTrue(drain.indexOf("gattCallbacks.canStartOperation(gatt)") < drain.indexOf("gatt.writeCharacteristic("))
+        assertTrue(drain.indexOf("gattCallbacks.canStartOperation(gatt)") < drain.indexOf("gatt.readCharacteristic("))
     }
 }

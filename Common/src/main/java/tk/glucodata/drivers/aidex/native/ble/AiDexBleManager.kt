@@ -222,7 +222,6 @@ class AiDexBleManager(
         private const val CCCD_WRITE_CALLBACK_MAX_EXTRA_WAITS = 1
         private const val INVALID_SETUP_BOND_RESET_THRESHOLD = 2
         private const val GATT_OP_TIMEOUT_MS = 15_000L    // Watchdog for stuck GATT operations
-        private const val GATT_OP_WATCHDOG_RETRIES = 2  // Max retries on watchdog timeout before dropping op
         private const val STALE_CONNECTION_RECOVERY_FALLBACK_MS = 3_000L
         private const val CLEAR_STORAGE_QUIET_WINDOW_MS = 12_000L
         private const val POST_RESET_RECONNECT_DELAY_MS = 5_000L
@@ -330,24 +329,40 @@ class AiDexBleManager(
     private var currentGattOp: GattOp? = null  // Tracks active op for watchdog retry
 
     /** Watchdog fires when a GATT operation callback never arrives within GATT_OP_TIMEOUT_MS. */
-    private val gattOpWatchdog = Runnable {
-        if (!gattOpActive) return@Runnable
+    private val gattOpWatchdog = Runnable { handleGattOpWatchdog() }
+
+    @Synchronized
+    private fun handleGattOpWatchdog() {
+        if (!gattOpActive || !gattCallbacks.timeoutOperation()) return
         val op = currentGattOp
         Log.e(TAG, "GATT operation watchdog FIRED — no callback received in ${GATT_OP_TIMEOUT_MS}ms for $op")
         gattOpActive = false
         currentGattOp = null
+        gattQueue.clear()
+        // A late callback cannot distinguish a retry from the timed-out dispatch. Retire this
+        // transport instead of retrying or advancing the queue, including for timed-out reads.
         if (pendingResetReconnect && clearStorageQuietWindowActive) {
-            resetDiag("pre-f3-active-op-watchdog-dropped", "op=${describeGattOp(op)}")
-            Log.w(TAG, "GATT watchdog: dropping pre-reset operation so exclusive CLEAR_STORAGE can proceed")
-        } else if (op != null && op.retryCount < GATT_OP_WATCHDOG_RETRIES) {
-            op.retryCount++
-            Log.w(TAG, "GATT watchdog: retrying (attempt ${op.retryCount}/$GATT_OP_WATCHDOG_RETRIES)")
-            gattQueue.addFirst(op)
-        } else {
-            Log.e(TAG, "GATT watchdog: retries exhausted or no op — dropping")
+            if (postResetClearStorageWriteAtMs == 0L) {
+                abandonClearStorageReset("gatt-timeout-before-clear-storage")
+            } else {
+                completePostResetReconnect("gatt-operation-timeout", stateAlreadyReset = false)
+                return
+            }
         }
-        drainGattQueue()
+        recoverFromStaleConnectionState("gatt-operation-timeout:${describeGattOp(op)}")
     }
+
+    private val gattCallbacks = AiDexGattCallbacks(
+        lock = this,
+        currentGatt = { mBluetoothGatt },
+        post = { task -> handler.post { task() } },
+        operationCompleted = {
+            handler.removeCallbacks(gattOpWatchdog)
+            currentGattOp = null
+            gattOpActive = false
+            drainGattQueue()
+        },
+    )
 
     // -- CCCD State --
     private var servicesReady = false
@@ -1496,11 +1511,14 @@ class AiDexBleManager(
         connectAttemptInFlight = false
         negotiatedMtu = 23
 
-        gattQueue.clear()
-        cccdQueue.clear()
-        gattOpActive = false
-        queuePausedForBonding = false
-        currentGattOp = null
+        synchronized(this) {
+            gattCallbacks.clearOperation()
+            gattQueue.clear()
+            cccdQueue.clear()
+            gattOpActive = false
+            queuePausedForBonding = false
+            currentGattOp = null
+        }
         servicesReady = false
         serviceDiscoveryStarted = false
         lastMtuCallbackAtMs = 0L
@@ -1963,6 +1981,12 @@ class AiDexBleManager(
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+        if (!gattCallbacks.runIfCurrent(gatt) { handleConnectionStateChange(gatt, status, newState) }) {
+            Log.w(TAG, "onConnectionStateChange: stale callback, ignoring")
+        }
+    }
+
+    private fun handleConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         noteFirstGattCallback("onConnectionStateChange", gatt)
         super.onConnectionStateChange(gatt, status, newState)
         if (newState == BluetoothProfile.STATE_CONNECTED || newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -2015,6 +2039,7 @@ class AiDexBleManager(
             gattOpActive = false
             queuePausedForBonding = false
             currentGattOp = null
+            gattCallbacks.clearOperation()
             cccdQueue.clear()
             cccdWriteInProgress = false
             cccdRetryCount = 0
@@ -2603,14 +2628,7 @@ class AiDexBleManager(
         ) {
             resetDiag("f3-write-callback", "status=$status")
         }
-        if (gattOpActive) {
-            handler.post {
-                handler.removeCallbacks(gattOpWatchdog)
-                currentGattOp = null
-                gattOpActive = false
-                drainGattQueue()
-            }
-        }
+        gattCallbacks.completeOperation(gatt, characteristic.uuid, AiDexGattCallbacks.Kind.WRITE)
     }
 
     override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -2622,14 +2640,7 @@ class AiDexBleManager(
         val uuid = characteristic.uuid
         val data = characteristic.value
 
-        if (gattOpActive) {
-            handler.post {
-                handler.removeCallbacks(gattOpWatchdog)
-                currentGattOp = null
-                gattOpActive = false
-                drainGattQueue()
-            }
-        }
+        gattCallbacks.completeOperation(gatt, uuid, AiDexGattCallbacks.Kind.READ)
 
         if (status != BluetoothGatt.GATT_SUCCESS || data == null) {
             Log.w(TAG, "onCharacteristicRead: uuid=$uuid status=$status data=${data?.size}")
@@ -5253,16 +5264,20 @@ class AiDexBleManager(
             scheduleClearStorageQuietWindow("f3-ack", postResetClearStorageAckAtMs)
         } else if (!confirmed) {
             Log.e(TAG, "CLEAR_STORAGE not confirmed by the sensor — reset abandoned, PAIR credential untouched")
-            handler.removeCallbacks(clearStorageQuietWindowReconnect)
-            handler.removeCallbacks(postResetDisconnectFallback)
-            pendingResetReconnect = false
-            clearStorageQuietWindowActive = false
-            needsPostResetActivation = false
-            postResetWarmupExtensionActive = false
-            writeBoolPref("needsPostResetActivation", false)
-            writeBoolPref("postResetWarmupExtensionActive", false)
-            clearPostResetHistoryBarrier("clear-storage-failed")
+            abandonClearStorageReset("clear-storage-failed")
         }
+    }
+
+    private fun abandonClearStorageReset(reason: String) {
+        handler.removeCallbacks(clearStorageQuietWindowReconnect)
+        handler.removeCallbacks(postResetDisconnectFallback)
+        pendingResetReconnect = false
+        clearStorageQuietWindowActive = false
+        needsPostResetActivation = false
+        postResetWarmupExtensionActive = false
+        writeBoolPref("needsPostResetActivation", false)
+        writeBoolPref("postResetWarmupExtensionActive", false)
+        clearPostResetHistoryBarrier(reason)
     }
 
     /**
@@ -5476,6 +5491,7 @@ class AiDexBleManager(
         }
     }
 
+    @Synchronized
     private fun drainGattQueue() {
         if (gattOpActive) return
         if (queuePausedForBonding) {
@@ -5487,6 +5503,7 @@ class AiDexBleManager(
         // Cancel any prior watchdog before starting a new op
         handler.removeCallbacks(gattOpWatchdog)
         currentGattOp = null
+        gattCallbacks.clearOperation()
 
         val next = gattQueue.removeFirst()
         val gatt = mBluetoothGatt
@@ -5494,6 +5511,11 @@ class AiDexBleManager(
             Log.w(TAG, "GATT queue: no active GATT, dropping ${gattQueue.size + 1} ops")
             gattQueue.clear()
             gattOpActive = false
+            return
+        }
+        if (!gattCallbacks.canStartOperation(gatt)) {
+            gattQueue.clear()
+            Log.w(TAG, "GATT queue: transport timed out; waiting for connection recovery")
             return
         }
 
@@ -5552,6 +5574,7 @@ class AiDexBleManager(
                     gattOpActive = ok
                     if (ok) {
                         currentGattOp = next
+                        gattCallbacks.beginOperation(gatt, next.charUuid, AiDexGattCallbacks.Kind.WRITE)
                         handler.postDelayed(gattOpWatchdog, GATT_OP_TIMEOUT_MS)
                     }
                 }
@@ -5572,6 +5595,7 @@ class AiDexBleManager(
                 gattOpActive = ok
                 if (ok) {
                     currentGattOp = next
+                    gattCallbacks.beginOperation(gatt, next.charUuid, AiDexGattCallbacks.Kind.READ)
                     handler.postDelayed(gattOpWatchdog, GATT_OP_TIMEOUT_MS)
                 }
                 if (!ok) {
