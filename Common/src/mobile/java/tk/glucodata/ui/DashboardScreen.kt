@@ -954,29 +954,11 @@ fun DashboardScreen(
         // FAB removed - empty state now has inline cards
     ) { padding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val latestPoint = remember(glucoseHistory) {
-                val tail = glucoseHistory.lastOrNull()
-                if (tail == null || glucoseHistory.size < 2) {
-                    tail
-                } else {
-                    val previous = glucoseHistory[glucoseHistory.lastIndex - 1]
-                    if (tail.timestamp >= previous.timestamp) tail else glucoseHistory.maxByOrNull { it.timestamp }
-                }
-            }
-            val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
+            val latestPoint = remember(glucoseHistory) { latestDashboardPoint(glucoseHistory) }
             val hasSensorContext = sensorName.isNotBlank() || activeSensorList.isNotEmpty() || sensorStatus.isNotBlank()
-            val dashboardCurrentSnapshot = remember(
-                refreshRevision,
-                sensorName,
-                activeSensorList,
-                latestPoint?.timestamp,
-                viewMode
-            ) {
-                CurrentDisplaySource.resolveCurrent(
-                    maxAgeMillis = Notify.glucosetimeout,
-                    preferredSensorId = sensorName.ifBlank { activeSensorList.firstOrNull() }
-                )
-            }
+            val dashboardCurrentSnapshot = rememberDashboardCurrentSnapshot(
+                sensorName, activeSensorList, latestPoint, viewMode, unit
+            )
             val freshnessTick by produceState(
                 initialValue = System.currentTimeMillis(),
                 key1 = hasSensorContext,
