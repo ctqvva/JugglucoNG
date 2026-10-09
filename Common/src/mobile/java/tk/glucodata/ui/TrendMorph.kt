@@ -63,20 +63,9 @@ internal fun heroCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCorne
     )
 }
 
-/** Reference panel: broad top corners, tighter bottom corners; symmetric at rest. */
+/** Navigation uses the hero's geometry as well as its shared animated weights. */
 internal fun navigationCornerRadii(velocity: Float): TrendCornerRadii =
     navigationCornerRadiiFromWeights(trendCornerWeightsFromVelocity(velocity))
 
-internal fun navigationCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii {
-    val resting = trendCornerWeightsFromVelocity(0f)
-    fun radius(weight: Float, rest: Float, base: Float) =
-        // A normal 0.8mg/dL/min trend must be visible, not a 1–2dp outline wobble.
-        // Clamp the animated output too: the shared spatial spring can overshoot.
-        (base + (weight - rest) * 48f).coerceIn(base - 16f, base + 16f)
-    return TrendCornerRadii(
-        topStart = radius(weights.topStart, resting.topStart, 32f),
-        topEnd = radius(weights.topEnd, resting.topEnd, 32f),
-        bottomEnd = radius(weights.bottomEnd, resting.bottomEnd, 20f),
-        bottomStart = radius(weights.bottomStart, resting.bottomStart, 20f)
-    )
-}
+internal fun navigationCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii =
+    heroCornerRadiiFromWeights(weights)
