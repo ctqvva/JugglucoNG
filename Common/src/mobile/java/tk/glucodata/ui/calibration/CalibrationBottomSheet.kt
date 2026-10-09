@@ -1,5 +1,6 @@
 package tk.glucodata.ui.calibration
 
+import tk.glucodata.ui.StatusPalette
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -445,7 +446,7 @@ fun CalibrationBottomSheet(
 
             // --- BADGE ---
             val isStable = abs(trendResult.velocity) < 1.0
-            val statusColor = if (isStable) Color(0xFF4CAF50) else Color(0xFFFFB300)
+            val statusColor = if (isStable) StatusPalette.success() else StatusPalette.warning()
 
             Surface(
                 color = statusColor.copy(alpha = 0.1f),

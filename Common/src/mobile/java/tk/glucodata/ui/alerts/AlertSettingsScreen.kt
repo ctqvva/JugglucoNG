@@ -968,7 +968,7 @@ private fun AlertCard(
     onPickSound: () -> Unit
 ) {
     val isDark = tk.glucodata.ui.isAppInDarkTheme()
-    val (icon, accentColor) = getAlertIconAndColor(config.type, isDark)
+    val (icon, accentColor) = getAlertIconAndColor(config.type, isDark, MaterialTheme.colorScheme)
     val chevronRotation by animateFloatAsState(
         targetValue = if (isExpanded) 180f else 0f,
         label = "standardAlertChevron"
@@ -2001,7 +2001,8 @@ internal fun RetrySettings(
 
 // ---- Helper functions ----
 
-private fun getAlertIconAndColor(type: AlertType, isDark: Boolean): Pair<ImageVector, Color> {
+/** Glucose alerts wear their range colour; the rest take theme roles (system = secondary). */
+private fun getAlertIconAndColor(type: AlertType, isDark: Boolean, scheme: ColorScheme): Pair<ImageVector, Color> {
     return when (type) {
         AlertType.VERY_LOW -> Icons.Default.Warning to Color(GlucoseRangeColors.veryLow(isDark))
         AlertType.LOW -> Icons.Default.ArrowDownward to Color(GlucoseRangeColors.low(isDark))
@@ -2012,10 +2013,10 @@ private fun getAlertIconAndColor(type: AlertType, isDark: Boolean): Pair<ImageVe
         AlertType.FALLING_FAST -> Icons.AutoMirrored.Filled.TrendingDown to Color(GlucoseRangeColors.veryLow(isDark))
         AlertType.RISING_FAST -> Icons.AutoMirrored.Filled.TrendingUp to Color(GlucoseRangeColors.veryHigh(isDark))
         AlertType.PERSISTENT_HIGH -> Icons.Default.Timer to Color(GlucoseRangeColors.veryHigh(isDark))
-        AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to Color(0xFF78909C)
-        AlertType.LOSS -> Icons.Default.BluetoothDisabled to Color(0xFF90A4AE)
-        AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to Color(0xFF7E57C2)
-        else -> Icons.Default.Notifications to Color(0xFF42A5F5)  // Default blue
+        AlertType.MISSED_READING -> Icons.Default.SignalWifiOff to scheme.secondary
+        AlertType.LOSS -> Icons.Default.BluetoothDisabled to scheme.secondary
+        AlertType.SENSOR_EXPIRY -> Icons.Default.Schedule to scheme.tertiary
+        else -> Icons.Default.Notifications to scheme.primary
     }
 }
 

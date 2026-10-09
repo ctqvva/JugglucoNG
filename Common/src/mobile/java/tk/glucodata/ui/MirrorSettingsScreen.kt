@@ -976,7 +976,7 @@ fun MirrorConnectionCard(
                                 enabled = cardTestState != ConnTestState.TESTING,
                                 colors = ButtonDefaults.textButtonColors(
                                     contentColor = when (cardTestState) {
-                                        ConnTestState.SUCCESS -> Color(0xFF4CAF50)
+                                        ConnTestState.SUCCESS -> StatusPalette.success()
                                         ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
                                         else -> MaterialTheme.colorScheme.primary
                                     }
@@ -1422,9 +1422,9 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                     when (testState) {
                         ConnTestState.SUCCESS -> {
                             Icon(Icons.Filled.CheckCircle, contentDescription = null,
-                                tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                                tint = StatusPalette.success(), modifier = Modifier.size(24.dp))
                             Text(stringResource(R.string.status_connected),
-                                color = Color(0xFF4CAF50),
+                                color = StatusPalette.success(),
                                 style = MaterialTheme.typography.bodyMedium)
                         }
                         ConnTestState.FAILURE -> {

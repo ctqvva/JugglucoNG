@@ -104,6 +104,9 @@ in `ui/theme/Type.kt`, with `titleMedium` at 400 for the "sleek list" look.
 - **Glucose colours are fixed**, not dynamic: `GlucoseRangeColors` / `GlucoseValueTone`
   (and the Statistics band colours in `StatsVisualizations.kt`). A reading means the same
   colour on every wallpaper.
+- **Success and warning** have no M3 role: use `StatusPalette.success()` / `warning()`
+  (light/dark pairs, readable as text). Failure is `colorScheme.error`. A colour that has no
+  role and no palette belongs in a `*Palette.kt` file with a name, not inline.
 - **Dark or light:** call `isAppInDarkTheme()`, never `isSystemInDarkTheme()`. The in-app
   Theme setting can disagree with the system. (Windows drawn over other apps, like the
   floating overlay, are the exception.)
