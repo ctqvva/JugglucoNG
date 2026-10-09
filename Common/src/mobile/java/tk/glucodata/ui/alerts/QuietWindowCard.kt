@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.AlertDeliveryPolicy
 import tk.glucodata.R
 import tk.glucodata.alerts.QuietWindow
@@ -114,15 +115,7 @@ fun QuietWindowCard(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = CircleShape,
-                    color = accent.copy(alpha = 0.12f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.DoNotDisturbOn, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
-                    }
-                }
+                IconTile(icon = Icons.Default.DoNotDisturbOn, tint = accent)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

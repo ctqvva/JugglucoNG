@@ -13,6 +13,11 @@ import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.*
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.labelMediumEmphasized
+import tk.glucodata.ui.theme.labelLargeEmphasized
+import tk.glucodata.ui.theme.headlineSmallEmphasized
+import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -111,29 +116,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
-@Composable
-fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall, // Smaller label
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium, // Larger value for scannability
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
@@ -155,9 +137,11 @@ private fun BadgeLabel(
     val base = MaterialTheme.typography.labelSmall
     val density = LocalDensity.current
     val maxWidthPx = with(density) { maxWidth.roundToPx() }
-    val style = remember(text, sizes, maxWidthPx, base) {
+    // The weight is part of the measured style: drawn heavier than measured, the label
+    // overflows the tile it was sized to fit.
+    val style = remember(text, sizes, maxWidthPx, base, weight) {
         val candidates = sizes.map {
-            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp)
+            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp, fontWeight = weight)
         }
         candidates.firstOrNull { candidate ->
             measurer.measure(text, candidate, softWrap = false).size.width <= maxWidthPx
@@ -166,7 +150,6 @@ private fun BadgeLabel(
     Text(
         text = text,
         style = style,
-        fontWeight = weight,
         color = color,
         maxLines = 1,
         softWrap = false,
@@ -659,9 +642,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.unbind_sensor),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                        style = MaterialTheme.typography.titleMediumEmphasized,)
                                     Text(
                                         text = stringResource(R.string.unbind_sensor_desc),
                                         style = MaterialTheme.typography.bodySmall,
@@ -956,9 +937,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.reset_correction_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.reset_correction_desc),
@@ -994,9 +973,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.bias_correction),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
                             Text(
                                 if (sensor.resetCompensationActive && sensor.resetCompensationStatus.isNotEmpty())
                                     sensor.resetCompensationStatus
@@ -1051,8 +1028,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.hardware_reset),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
@@ -1114,9 +1090,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.auto_calibration_mode),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Bit 0 is calibration; bits 1-3 are the model. The model mask
@@ -1178,8 +1152,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(titleRes),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                     )
                                     Text(
                                         stringResource(subtitleRes),
@@ -1228,8 +1201,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
                                 )
                                 Text(
                                     stringResource(
@@ -1353,7 +1325,6 @@ fun SensorCard(
                 Button(
                     onClick = { showSibionicsCalSheet = false },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
                 ) { Text(stringResource(R.string.close)) }
             }
         }
@@ -1461,8 +1432,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_bootstrap_dialog_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1541,8 +1511,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_manual_calibration_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -2300,35 +2269,7 @@ fun SensorCard(
 
                 }
             }
-//
-//            Card(
-//                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), // Secondary Container
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(12.dp),
-//                    verticalArrangement = Arrangement.spacedBy(4.dp)
-//                ) {
-//                    if (sensor.connectionStatus.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
-//                    }
-//                    InfoRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-//
-//                    InfoRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.starttime))
-//                    if (sensor.officialEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
-//                    }
-//                    if (sensor.expectedEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
-//                    }
-//                    // InfoRow("Streaming", if (sensor.streaming) "Enabled" else "Disabled")
-//                }
-//            }
-
-            Spacer(modifier = Modifier.height(16.dp)) // More breathing room (M3 Expressive)
-//            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-//            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
             if (sensor.isSibionics || sensor.supportsDisplayModes) {
@@ -2401,9 +2342,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.auto_calibration_mode),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                                 Text(
                                     calSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -2438,7 +2377,6 @@ fun SensorCard(
                     onClick = { showSensorCalibrateDialog = true },
                     enabled = canCalibrate,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -2588,7 +2526,6 @@ fun SensorCard(
                     // correction is running, so it can still be switched off.
                     if (sensor.supportsHardwareReset || sensor.resetCompensationActive) FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
-                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
                                 MaterialTheme.colorScheme.tertiaryContainer
@@ -2644,7 +2581,6 @@ fun SensorCard(
                 FilledTonalButton(
                     onClick = { showUnifiedResetDialog = true },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -2729,8 +2665,7 @@ fun SensorCard(
                                         ) {
                                             Text(
                                                 text = stringResource(R.string.auto_reset_days, daysValue),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.labelLargeEmphasized,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
@@ -2769,7 +2704,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -2788,7 +2722,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -2813,7 +2746,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -2863,8 +2795,7 @@ fun SensorCard(
                         Column(modifier = Modifier.animateContentSize()) {
                             Text(
                                 text = stringResource(R.string.previous_calibrations),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMediumEmphasized,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
@@ -2979,7 +2910,6 @@ fun SensorCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        shape = RoundedCornerShape(28.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -3015,7 +2945,6 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -3040,7 +2969,6 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -3065,7 +2993,6 @@ fun SensorCard(
                         enabled = hasExportableCredentials,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -3095,7 +3022,6 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -3163,12 +3089,7 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 12.dp,
-                                bottomStart = 12.dp,
-                                topEnd = 4.dp,
-                                bottomEnd = 4.dp
-                            ),
+                            shape = ConnectedButtonShapes.Leading,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -3190,12 +3111,7 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showTerminateDialog = true },
                             modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                bottomStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
+                            shape = ConnectedButtonShapes.Trailing,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -3226,8 +3142,8 @@ fun SensorCard(
  * M3 Expressive split button, built by hand: `material3` 1.4.0 ships only the
  * `SplitButtonSmallTokens`, not the composable. Values follow those tokens — 40dp tall, 2dp
  * between the halves, 4dp inner corners that swell to 12dp while the trailing half is pressed,
- * a 22dp trailing glyph with 13dp either side. The outer corners stay at the 12dp this row
- * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
+ * a 22dp trailing glyph with 13dp either side, full pill outer corners like every other
+ * button on the card.
  *
  * Both halves share one container, as a split button does; the trailing key glyph alone
  * carries state — the app's in-range green while a verified key is held (tap: back it up),
@@ -3241,7 +3157,7 @@ private fun AiDexPairSplitButton(
     onKeyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val outer = 12.dp
+    val outer = ButtonDefaults.MinHeight / 2
     val innerRest = 4.dp
     val innerPressed = 12.dp
     val keyInteraction = remember { MutableInteractionSource() }

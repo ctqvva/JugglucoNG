@@ -107,6 +107,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.titleLargeEmphasized
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorSourceResolver
@@ -399,9 +402,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
                     } else {
                         stringResource(R.string.cgm_readiness_attention_title)
                     },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.titleLargeEmphasized,)
                 Text(
                     text = if (ready) {
                         stringResource(R.string.cgm_readiness_ready_body)
@@ -474,8 +475,7 @@ private fun CgmReadinessSummaryCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMediumEmphasized,
                             modifier = Modifier.weight(1f)
                         )
 //                        CgmReadinessCountChip(snapshot = snapshot, items = items)
@@ -546,8 +546,7 @@ private fun CgmReadinessDetailRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(item.titleRes),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         modifier = Modifier.weight(1f)
                     )
                     CgmStatusChip(status = item.status)
@@ -663,16 +662,7 @@ private fun StatusIconSurface(
     icon: ImageVector,
     color: Color
 ) {
-    Surface(
-        modifier = Modifier.size(44.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.12f),
-        contentColor = color
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-        }
-    }
+    IconTile(icon = icon, tint = color)
 }
 
 @Composable

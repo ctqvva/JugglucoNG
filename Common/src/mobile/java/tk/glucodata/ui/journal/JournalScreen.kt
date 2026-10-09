@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.theme.titleSmallEmphasized
 import tk.glucodata.R
 import tk.glucodata.RemoteIobSnapshot
 import tk.glucodata.UiRefreshBus
@@ -331,8 +332,7 @@ fun JournalScreen(
                                 top = if (sectionIndex == 0) 12.dp else 16.dp,
                                 bottom = 8.dp
                             ),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmallEmphasized,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

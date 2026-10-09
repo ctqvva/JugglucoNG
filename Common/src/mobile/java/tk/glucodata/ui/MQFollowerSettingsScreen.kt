@@ -46,6 +46,8 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.theme.titleSmallEmphasized
+import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 import tk.glucodata.drivers.mq.MQBootstrapFailure
 import tk.glucodata.drivers.mq.MQCloudClient
@@ -401,8 +403,7 @@ private fun NotSignedInCard() {
         ) {
             Text(
                 text = stringResource(R.string.mq_account_status_missing),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
             Text(
@@ -454,8 +455,7 @@ private fun IncomingRequestCard(
         ) {
             Text(
                 text = request.name?.takeIf { it.isNotBlank() } ?: request.phone,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
             )
             if (request.name?.isNotBlank() == true && request.phone.isNotBlank()) {
                 Text(

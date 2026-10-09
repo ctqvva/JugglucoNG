@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.BuildConfig
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertConfig
@@ -131,33 +133,18 @@ fun GlobalAlertSettingsCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = iconContainerColor
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsActive,
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                IconTile(
+                    icon = Icons.Default.NotificationsActive,
+                    tint = iconTint,
+                    containerColor = iconContainerColor,
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.master_alert_control),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        style = MaterialTheme.typography.titleMediumEmphasized,)
                     Text(
                         // The title already says "all alerts"; the line under it says on or off.
                         text = if (isMasterEnabled) {

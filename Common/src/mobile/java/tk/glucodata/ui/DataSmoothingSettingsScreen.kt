@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.labelLargeEmphasized
 import tk.glucodata.DataSmoothing
 import tk.glucodata.R
 import tk.glucodata.ui.components.AppTopBar
@@ -146,9 +148,7 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.data_smoothing_window_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
 
                             Text(
                                 text = if (exchangeOnly) {
@@ -171,8 +171,7 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = selectedLabel,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelLargeEmphasized,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
                         }

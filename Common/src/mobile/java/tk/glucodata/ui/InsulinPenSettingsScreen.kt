@@ -43,6 +43,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import tk.glucodata.ui.theme.titleMediumEmphasized
+import tk.glucodata.ui.theme.titleLargeEmphasized
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
@@ -397,8 +399,7 @@ private fun HowToScanCard() {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     stringResource(R.string.insulin_pens_how_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                 )
                 Text(
                     stringResource(R.string.insulin_pens_how_desc),
@@ -432,8 +433,7 @@ private fun PenDetailSheet(
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             Text(
                 stringResource(R.string.insulin_pen_name, pen.serial),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
             Spacer(Modifier.size(4.dp))
             Text(

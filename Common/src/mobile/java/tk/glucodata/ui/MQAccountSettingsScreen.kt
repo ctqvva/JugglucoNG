@@ -59,6 +59,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.theme.titleMediumEmphasized
 import tk.glucodata.R
 import tk.glucodata.drivers.mq.MQAuthCredentials
 import tk.glucodata.drivers.mq.MQCloudClient
@@ -548,8 +549,7 @@ private fun AccountStatusCard(
             ) {
                 Text(
                     text = stringResource(visuals.summaryRes),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color = visuals.content,
                 )
                 Text(
@@ -622,8 +622,7 @@ private fun CollapsibleCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                     )
                     Text(
                         text = subtitle,

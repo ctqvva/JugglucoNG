@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.theme.titleSmallEmphasized
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
@@ -483,9 +484,7 @@ private fun LibreViewStatusCard(
                 } else {
                     stringResource(R.string.libreview_account_missing_desc)
                 },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+                style = MaterialTheme.typography.titleSmallEmphasized,)
 
             if (accountId > 0L) {
                 Text(
