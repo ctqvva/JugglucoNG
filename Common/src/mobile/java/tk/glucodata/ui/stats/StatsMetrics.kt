@@ -143,7 +143,7 @@ internal fun ScoreTile(
         .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     Box(
         modifier = modifier
             .animateContentSize()
@@ -438,7 +438,7 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, title, value, expandable, density, textMeasurer, titleStyle, valueStyle) {
         titleOverflows(
             title = title,
@@ -467,7 +467,7 @@ internal fun rememberScoreTileNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, value, status, density, textMeasurer, statusStyle, valueStyle) {
         val widthPx = with(density) { maxOf(contentWidth, 0.dp).roundToPx() }
         val titleGapPx = with(density) { 12.dp.roundToPx() }
@@ -1093,9 +1093,8 @@ internal fun PinnedMetricChip(
                 transitionSpec = { verticalValueSwap() },
                 label = "pinnedMetricValue"
             ) { value ->
-                val valueStyle = MaterialTheme.typography.titleMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
+                val valueStyle = MaterialTheme.typography.titleMediumEmphasized.copy(
+                    fontFeatureSettings = "tnum"
                 ).scalePinnedStyle(contentScale)
                 // The cell is whatever the row shares out; "100%" a couple of dp wider
                 // than that used to lose its sign to the clip. The value gives up a
@@ -1511,7 +1510,7 @@ private fun PinnedMetricPickerSheet(
             ) {
                 Text(
                     text = stringResource(R.string.stats_pinned_pick_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 onRemove?.let { remove ->
@@ -1645,9 +1644,8 @@ private fun MetricSheetRow(
         )
         Text(
             text = spec.value,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFeatureSettings = "tnum",
-                fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                fontFeatureSettings = "tnum"
             ),
             color = spec.tone.copy(alpha = if (selected) 1f else 0.55f),
             maxLines = 1
@@ -1673,9 +1671,8 @@ private fun MetricSheetRow(
 
 /** The window pill's label. [PinnedStatsStrip] measures with it to size the pill. */
 @Composable
-private fun pinnedWindowLabelStyle(): TextStyle = MaterialTheme.typography.labelMedium.copy(
-    fontFeatureSettings = "tnum",
-    fontWeight = FontWeight.SemiBold
+private fun pinnedWindowLabelStyle(): TextStyle = MaterialTheme.typography.labelMediumEmphasized.copy(
+    fontFeatureSettings = "tnum"
 )
 
 @Composable

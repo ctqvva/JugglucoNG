@@ -130,7 +130,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -822,7 +821,7 @@ private fun ArrangeSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.stats_arrange_title),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         text = stringResource(R.string.stats_arrange_hint),
@@ -1623,8 +1622,8 @@ private fun tirRangeStyle(compactText: Boolean) = (
 
 @Composable
 private fun tirPercentStyle(compactText: Boolean) = (
-    if (compactText) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
-).copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold)
+    if (compactText) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelLargeEmphasized
+).copy(fontFeatureSettings = "tnum")
 
 /**
  * The band rows' range and percentage columns, sized to the widest label they will hold so
@@ -1873,7 +1872,7 @@ private fun PatternsCard(
                 ) {
                     Text(
                         text = stringResource(R.string.stats_patterns),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         text = subtitle,
@@ -1890,9 +1889,8 @@ private fun PatternsCard(
                 ) {
                     Text(
                         text = headerPrimary,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFeatureSettings = "tnum",
-                            fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                            fontFeatureSettings = "tnum"
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.End,
@@ -2652,7 +2650,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.stats_temperature_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium)
+                        style = MaterialTheme.typography.titleLarge
                     )
                     Text(
                         text = if (selectedIndex == null) {
@@ -2666,9 +2664,8 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
                 }
                 Text(
                     text = "${String.format(Locale.getDefault(), "%.1f", selected.temperatureCelsius)} °C",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontFeatureSettings = "tnum",
-                        fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.headlineMediumEmphasized.copy(
+                        fontFeatureSettings = "tnum"
                     ),
                     color = selectedTone
                 )
@@ -2911,7 +2908,7 @@ private fun InsightsCard(insights: List<StatsInsight>) {
             ) {
                 Text(
                     text = stringResource(R.string.insights),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -2967,7 +2964,7 @@ private fun InsightRow(insight: StatsInsight) {
         ) {
             Text(
                 text = insight.title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 color = contentColor
             )
             Text(

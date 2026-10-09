@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
@@ -249,8 +248,7 @@ private fun SensorSetupStatusScreen(
 
         Text(
             text = title,
-            style = if (ui.compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.SemiBold,
+            style = if (ui.compact) MaterialTheme.typography.headlineMediumEmphasized else MaterialTheme.typography.headlineLargeEmphasized,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface
         )
