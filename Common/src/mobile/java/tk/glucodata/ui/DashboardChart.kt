@@ -1062,7 +1062,9 @@ fun InteractiveGlucoseChart(
     val hasCalibration = remember(calibrationRevision, isRawModeChart, primarySerial) {
         tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRawModeChart, primarySerial)
     }
-    val hideInitialWhenCalibrated = hasCalibration &&
+    // The preference applies to every calibrated series, including peers when
+    // the current primary has no calibration of its own.
+    val hideInitialWhenCalibrated =
         tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
 
     // The resolved chart. Every decision — the value each point draws, who is
@@ -2622,7 +2624,7 @@ fun InteractiveGlucoseChart(
                         // Determine value based on mode commonality
                         // If showing Raw (Mode 1) or Raw-Primary (Mode 3), prioritize Raw
                         val useRaw = viewMode == 1 || viewMode == 3
-                        val v = if (hideInitialWhenCalibrated) {
+                        val v = if (hasCalibration && hideInitialWhenCalibrated) {
                             chartModel.primary?.valueAt(p.timestamp) ?: Float.NaN
                         } else {
                             if (useRaw) p.rawValue else p.value
