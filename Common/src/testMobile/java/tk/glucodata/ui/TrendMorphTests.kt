@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.logic.TrendEngine
 
 class TrendMorphTests {
     private val now = 1_700_000_000_000L
@@ -24,6 +25,34 @@ class TrendMorphTests {
     @Test
     fun restingNavigationShapeIsSymmetric() {
         corners(navigationCornerRadii(0f)).forEach { assertEquals(32f, it, 0f) }
+    }
+
+    @Test
+    fun flatReadingsWithNonzeroMeasuredVelocityKeepTheRestingCorners() {
+        for (slope in listOf(-0.4f, 0.4f)) {
+            val points = history().map { point ->
+                val minutesAgo = (now - point.timestamp) / 60_000f
+                point.copy(value = 120f - minutesAgo * slope)
+            }
+            val trend = dashboardTrend(points, latestDashboardPoint(points), null, 0, false)
+            assertEquals(TrendEngine.TrendState.Flat, trend.state)
+            assertEquals(slope, trend.velocity, 0.01f)
+            assertEquals(navigationCornerRadii(0f), navigationCornerRadiiForTrend(trend))
+        }
+    }
+
+    @Test
+    fun unknownTrendWithRetainedVelocityKeepsTheRestingCorners() {
+        val trend = TrendEngine.TrendResult(TrendEngine.TrendState.Unknown, 1.5f, 0f, 0f)
+        assertEquals(navigationCornerRadii(0f), navigationCornerRadiiForTrend(trend))
+    }
+
+    @Test
+    fun classificationChangesAtTheSameVelocityChangeTheTargetShape() {
+        val rising = TrendEngine.TrendResult(TrendEngine.TrendState.FortyFiveUp, 0.4f, 0f, 1f)
+        val flat = rising.copy(state = TrendEngine.TrendState.Flat)
+        assertTrue(navigationCornerRadiiForTrend(rising) != navigationCornerRadiiForTrend(flat))
+        assertEquals(navigationCornerRadii(0f), navigationCornerRadiiForTrend(flat))
     }
 
     @Test

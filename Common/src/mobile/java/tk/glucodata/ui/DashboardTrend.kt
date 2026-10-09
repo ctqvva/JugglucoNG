@@ -68,3 +68,11 @@ internal fun rememberDashboardTrend(
 ): TrendEngine.TrendResult = remember(history, latestPoint, currentSnapshot, viewMode, isMmol) {
     dashboardTrend(history, latestPoint, currentSnapshot, viewMode, isMmol)
 }
+
+internal fun navigationCornerRadiiForTrend(trend: TrendEngine.TrendResult): NavigationCornerRadii {
+    val velocity = when (trend.state) {
+        TrendEngine.TrendState.Flat, TrendEngine.TrendState.Unknown -> 0f
+        else -> trend.velocity
+    }
+    return navigationCornerRadii(velocity)
+}

@@ -37,7 +37,7 @@ internal fun MorphingNavigationBar(
     val latestPoint = remember(history) { latestDashboardPoint(history) }
     val currentSnapshot = rememberDashboardCurrentSnapshot(sensorName, activeSensors, latestPoint, viewMode, unit)
     val trend = rememberDashboardTrend(history, latestPoint, currentSnapshot, viewMode, GlucoseFormatter.isMmol(unit))
-    val radii = remember(trend.velocity) { navigationCornerRadii(trend.velocity) }
+    val radii = remember(trend.state, trend.velocity) { navigationCornerRadiiForTrend(trend) }
     val animationSpec = trendCornerAnimationSpec()
     val topStart by animateDpAsState(radii.topStart.dp, animationSpec, label = "NavigationTopStart")
     val topEnd by animateDpAsState(radii.topEnd.dp, animationSpec, label = "NavigationTopEnd")
