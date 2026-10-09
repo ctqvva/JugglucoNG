@@ -293,14 +293,27 @@ private boolean connected=false;
                    {if(doLog) {Log.i(LOG_ID, "BOND_BONDING");};};
                    }
             if(newState == BluetoothProfile.STATE_DISCONNECTED) {
+              final boolean reachedSensor = connectedAttempt == bluetoothGatt;
               // A failed direct dial between adverts does not invalidate the address.
               // Status 133 is the older stacks' generic connect failure.
-              if (connectedAttempt != bluetoothGatt
+              if (!reachedSensor
                       && (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133))
                   preferBackgroundConnect("connect failed status=" + status);
               connectedAttempt = null;
               if(!stop) {
-                  if(!known){
+                  // A live link dropping before the first reading does not by
+                  // itself mean pairing failed. Keep the bond for the next slot;
+                  // retain bounded recovery after repeated empty data sessions.
+                  if(reachedSensor) {
+                      if(!removedBond && phase==GetData && datatime==0
+                              && triedinvain>(isWearable?1:4)) {
+                          {if(doLog) {Log.i(LOG_ID,"tried too often "+triedinvain);};};
+                          unbond();
+                          triedinvain=-10;
+                      } else if(datatime==0) {
+                          ++triedinvain;
+                      }
+                  } else if(!known){
                       if(phase==GetData&&!removedBond) {
                           unbond();
                           }
@@ -599,8 +612,11 @@ private boolean removedBond=false;
                 boolean aesSu = Natives.dex8AES(dataptr, random8, 0, aes, 0);
                 {if(doLog){Log.showbytes("dex8AES ", aes);};}
                 {if(doLog){Log.showbytes("value ", value);};}
-                boolean verified = equalpart(aes, value, 1);
+                // The echo and sensor challenge are eight bytes each, after
+                // the opcode. Native AES below reads eight bytes at offset nine.
+                boolean verified = aesSu && value.length >= 17 && equalpart(aes, value, 1);
                 {if(doLog) {Log.i(LOG_ID,  SerialNumber +" "+ mActiveDeviceAddress + " dex8AES =" + aesSu + (verified ? " verified" : " not verified"));};};
+                if(verified) known=true;
                if(!verified) {
                   handshake = "dex8AES different";
                   wrotepass[1] = System.currentTimeMillis();
