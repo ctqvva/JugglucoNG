@@ -300,14 +300,12 @@ class AlarmActivity : ComponentActivity() {
         } ?: return false
 
         return try {
-            synchronized(SensorBluetooth.gattcallbacks) {
-                SensorBluetooth.gattcallbacks.firstOrNull { cb ->
-                    cb.SerialNumber != null && cb.SerialNumber == activeSensorSerial
-                }?.let { cb ->
-                    val viewMode = Natives.getViewMode(cb.dataptr)
-                    viewMode == 1 || viewMode == 3
-                } ?: false
-            }
+            SensorBluetooth.mygatts().firstOrNull { cb ->
+                cb.SerialNumber != null && cb.SerialNumber == activeSensorSerial
+            }?.let { cb ->
+                val viewMode = tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(cb.SerialNumber)
+                viewMode == 1 || viewMode == 3
+            } ?: false
         } catch (_: Throwable) {
             false
         }

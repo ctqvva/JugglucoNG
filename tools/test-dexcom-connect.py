@@ -7,9 +7,10 @@ import tempfile
 
 root = Path(__file__).resolve().parents[1]
 source = (root / 'Common/src/dex/java/tk/glucodata/DexGattCallback.java').read_text()
+roster_source = (root / 'Common/src/main/java/tk/glucodata/SensorBluetooth.java').read_text()
 
 
-def method(signature):
+def method(signature, source=source):
     start = source.index(signature)
     end = source.index('{', start) + 1
     depth = 1
@@ -36,6 +37,8 @@ methods = '\n'.join(method(s) for s in [
     else 'private void releaselock(',
 ])
 fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):source.index('    public DexGattCallback(')]
+roster_field = re.search(r'public static final \w+<SuperGattCallback> gattcallbacks = new \w+<>\(\);', roster_source).group()
+roster_methods = method('public static ArrayList<SuperGattCallback> mygatts()', roster_source)
 body = r'''
 package tk.glucodata;
 import java.util.*;
@@ -75,11 +78,10 @@ class SuperGattCallback {
         if(publicationEntered!=null){
             if(!Thread.holdsLock(this))throw new AssertionError("native processing lost callback monitor");
             publicationEntered.countDown();
-            try{if(!publicationContinue.await(2,TimeUnit.SECONDS))throw new AssertionError("publication gate timed out");}
+            try{if(!publicationContinue.await(5,TimeUnit.SECONDS))throw new AssertionError("publication gate timed out");}
             catch(InterruptedException e){throw new AssertionError(e);}
-            synchronized(SensorBluetooth.gattcallbacks){
-                if(dataptr==0)throw new AssertionError("native pointer freed during reading");
-            }
+            SensorBluetooth.mygatts();
+            if(dataptr==0)throw new AssertionError("native pointer freed during reading");
         }
     }
     static CountDownLatch publicationEntered,publicationContinue;
@@ -147,7 +149,7 @@ class Applic extends Context {
 }
 class SensorBluetooth {
     static SensorBluetooth blueone=new SensorBluetooth();
-    static final ArrayList<SuperGattCallback> gattcallbacks=new ArrayList<>();
+'''+roster_field+roster_methods+r'''
     void connectToActiveDevice(SuperGattCallback cb,long delay){cb.connectDevice(delay);}
 }
 public class DexGattCallback extends SuperGattCallback {
@@ -164,6 +166,7 @@ public class DexGattCallback extends SuperGattCallback {
     static void publicationAndTeardownFinish(boolean remove) throws Exception {
         final DexGattCallback cb=fresh();
         final BluetoothGatt current=cb.mBluetoothGatt;
+        SensorBluetooth.gattcallbacks.clear();SensorBluetooth.gattcallbacks.add(cb);
         publicationEntered=new CountDownLatch(1);publicationContinue=new CountDownLatch(1);
         final CountDownLatch teardownStarted=new CountDownLatch(1),finished=new CountDownLatch(2);
         final List<Throwable> errors=Collections.synchronizedList(new ArrayList<>());
@@ -173,7 +176,9 @@ public class DexGattCallback extends SuperGattCallback {
         });
         Thread teardown=new Thread(()->{
             teardownStarted.countDown();
-            try{synchronized(SensorBluetooth.gattcallbacks){if(remove)cb.free();else cb.setPause(true);}}
+            try{synchronized(SensorBluetooth.gattcallbacks){
+                if(remove){cb.free();SensorBluetooth.gattcallbacks.remove(cb);}else cb.setPause(true);
+            }}
             catch(Throwable e){errors.add(e);}finally{finished.countDown();}
         });
         reading.setDaemon(true);teardown.setDaemon(true);
@@ -182,13 +187,34 @@ public class DexGattCallback extends SuperGattCallback {
         long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
         while(teardown.getState()!=Thread.State.BLOCKED&&System.nanoTime()<deadline)Thread.sleep(1);
         check(teardown.getState()==Thread.State.BLOCKED,"teardown did not contend with reading");
+        CountDownLatch snapshotRead=new CountDownLatch(1);
+        Thread reader=new Thread(()->{
+            try{check(SensorBluetooth.mygatts().contains(cb),"snapshot lost current callback");}
+            catch(Throwable e){errors.add(e);}finally{snapshotRead.countDown();}
+        });
+        reader.setDaemon(true);reader.start();
+        boolean readable=snapshotRead.await(2,TimeUnit.SECONDS);
         publicationContinue.countDown();
+        check(readable,"UI roster snapshot blocked behind reading/teardown");
         check(finished.await(2,TimeUnit.SECONDS),"reading/teardown lock inversion deadlocked");
         check(errors.isEmpty(),"concurrent reading failure: "+errors);
         check(cb.payloadCalls==1&&cb.stop,"reading or teardown lost");
+        check(SensorBluetooth.mygatts().contains(cb)!=remove,"teardown lost roster membership update");
         cb.onCharacteristicChanged(current,cb.charact[0],new byte[]{0x4e});
         check(cb.payloadCalls==1,"paused/removed callback published again");
         publicationEntered=null;publicationContinue=null;
+        SensorBluetooth.gattcallbacks.clear();
+    }
+    static void stableRosterSnapshots() {
+        DexGattCallback first=fresh(),second=fresh();
+        SensorBluetooth.gattcallbacks.clear();SensorBluetooth.gattcallbacks.add(first);
+        ArrayList<SuperGattCallback> snapshot=SensorBluetooth.mygatts();
+        Iterator<SuperGattCallback> iterator=SensorBluetooth.gattcallbacks.iterator();
+        SensorBluetooth.gattcallbacks.remove(first);SensorBluetooth.gattcallbacks.add(second);
+        check(snapshot.size()==1&&snapshot.get(0)==first,"roster snapshot changed after mutation");
+        check(iterator.next()==first&&!iterator.hasNext(),"roster iteration changed after mutation");
+        snapshot.clear();check(SensorBluetooth.mygatts().get(0)==second,"snapshot mutated live roster");
+        SensorBluetooth.gattcallbacks.clear();
     }
     public static void main(String[] args) throws Exception {
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
@@ -248,8 +274,8 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();cb.close();cb.bonded();Applic.runUi();check(cb.dataCommands==0,"bonded without GATT tried command");
         cb=fresh();cb.mActiveBluetoothDevice=null;cb.bonded();check(Applic.ui.isEmpty(),"bonded without device queued discovery");
         cb=fresh();current=cb.mBluetoothGatt;current.discoveryResult=false;cb.bonded();Applic.runUi();check(cb.disconnects==1,"current discovery failure lost recovery");
-        publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);
-        System.out.println("PASS: Dexcom timeout fallback, persisted identity/mode, stale callbacks, wakeup scheduling and ownership guards");
+        publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);stableRosterSnapshots();
+        System.out.println("PASS: Dexcom recovery/lifecycle guards, concurrent publication/teardown, nonblocking UI reads and stable roster snapshots");
     }
 }
 '''

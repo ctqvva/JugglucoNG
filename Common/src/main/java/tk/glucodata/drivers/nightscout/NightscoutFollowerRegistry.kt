@@ -131,7 +131,7 @@ object NightscoutFollowerRegistry {
      *
      * Application.onCreate runs before an alarm receiver. Restoring here means an alarm that
      * starts a fresh process has a callback to hand its wakelock to instead of ending the poll
-     * chain. The list lock is the same one used by SensorBluetooth.mygatts().
+     * chain. The list lock serializes this compound update with roster rebuilds.
      */
     @JvmOverloads
     fun restoreConfiguredFollower(

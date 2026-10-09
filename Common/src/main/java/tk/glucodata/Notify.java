@@ -3978,12 +3978,10 @@ public class Notify {
         int viewMode = startupSnapshot != null ? startupSnapshot.getViewMode() : 0;
 
         if (activeSensorSerial != null && SensorBluetooth.blueone != null) {
-            synchronized (SensorBluetooth.gattcallbacks) {
-                for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
-                    if (cb.SerialNumber != null && cb.SerialNumber.equals(activeSensorSerial)) {
-                        statusText = cb.constatstatusstr;
-                        break;
-                    }
+            for (SuperGattCallback cb : SensorBluetooth.mygatts()) {
+                if (cb.SerialNumber != null && cb.SerialNumber.equals(activeSensorSerial)) {
+                    statusText = cb.constatstatusstr;
+                    break;
                 }
             }
         }
@@ -4366,15 +4364,6 @@ public class Notify {
 
         // Identify ViewMode for Startup
         int viewMode = 0;
-        if (activeSensorSerial != null && SensorBluetooth.blueone != null) {
-            synchronized (SensorBluetooth.gattcallbacks) {
-                for (SuperGattCallback cb : SensorBluetooth.gattcallbacks) {
-                    if (cb.SerialNumber != null && cb.SerialNumber.equals(activeSensorSerial)) {
-                        break;
-                    }
-                }
-            }
-        }
         if (viewMode == 0) {
             try {
                 String sensorName = activeSensorSerial;
