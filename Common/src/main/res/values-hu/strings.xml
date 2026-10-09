@@ -961,15 +961,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_invalid_glucose_from_sensor">Érvénytelen glükózérték a szenzortól</string>
     <string name="select_sensor_type">Szenzortípus kiválasztása</string>
     <string name="choose_theme">Téma kiválasztása</string>
-    <string name="sibionics_sensor_picker_desc">QR-szkennelés</string>
-    <string name="libre_sensor_picker_desc">NFC-szkennelés</string>
-    <string name="dexcom_sensor_picker_desc">QR-szkennelés</string>
-    <string name="accuchek_sensor_picker_desc">Data Matrix + Bluetooth</string>
-    <string name="caresens_air_sensor_picker_desc">Kód + Bluetooth</string>
-    <string name="aidex_sensor_picker_desc">Bluetooth beállítása</string>
-    <string name="icanhealth_sensor_picker_desc">Bluetooth beállítása</string>
-    <string name="mq_sensor_picker_desc">Bluetooth-párosítás</string>
-    <string name="anytime_sensor_picker_desc">Bluetooth-párosítás</string>
     <string name="sibionics_sensor">Sibionics</string>
     <string name="sibionics_sensor_desc">QR-kód szkennelése</string>
     <string name="libre_sensor">Libre 2/3</string>
@@ -990,7 +981,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="anytime_sensor_desc">Anytime / Yuwell CGM-jeladó párosítása Bluetooth-on keresztül</string>
     <string name="ottai_sensor">Ottai CGM</string>
     <string name="ottai_sensor_desc">Ottai-fiók vagy hitelesítőadat-fájl + Bluetooth</string>
-    <string name="ottai_sensor_picker_desc">Kínai piacra szánt CGM - felhős bejelentkezés + Bluetooth</string>
     <string name="ottai_setup_title">Ottai beállítása</string>
     <string name="ottai_login_title">Bejelentkezés az Ottai-fiókba</string>
     <string name="ottai_phone_hint">Telefonszám</string>
