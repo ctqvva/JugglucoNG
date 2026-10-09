@@ -6,7 +6,7 @@ The primary hero, sensor card, and navigation read one shared `DashboardTrendMor
 
 For regular and fast falling states, the top-right corner stays rounder than the bottom-right. Rising reverses that direction. Tests cover normal slopes, the fast-trend extremes, and animated overshoot.
 
-The original Greptile finding about stable readings was valid and is fixed by `trendShapeVelocity`: Flat and Unknown select zero before choosing the shared motion target, even when the measured velocity is nonzero. Tests cover actual Flat slopes of +/-0.4mg/dL/min, Unknown with retained velocity, and a classification change at unchanged velocity. The resting outline follows the softened hero mapping; the earlier promise of symmetric 32dp navigation corners has been superseded by this matching geometry.
+The original Greptile finding about stable readings was valid and is fixed by `trendShapeVelocity`: Flat and Unknown select zero before choosing the shared motion target, even when the measured velocity is nonzero. Tests cover actual Flat slopes of +/-0.4mg/dL/min, Unknown with retained velocity, and a classification change at unchanged velocity. The resting outline follows the softened hero mapping; the earlier promise of symmetric 32dp navigation corners has been superseded by this shared, softened geometry.
 
 The main tab lists draw behind the panel. Their scroll-end padding includes the measured panel height; FABs, export confirmation, and dashboard snackbars retain clearance. Dashboard chart expansion uses the unobscured viewport height. Nested detail screens retain their reserved viewport. The theme alone owns the transparent system navigation window.
 
