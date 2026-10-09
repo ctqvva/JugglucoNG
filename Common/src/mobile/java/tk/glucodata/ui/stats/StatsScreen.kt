@@ -682,6 +682,7 @@ fun StatsScreen(
             visible = exportedReportUri != null,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .padding(bottom = tk.glucodata.ui.LocalNavigationPanelInset.current)
                 .navigationBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 2 },

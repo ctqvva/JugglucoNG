@@ -810,8 +810,8 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
     // above a bar — meant every rotation disposed the open screen and rebuilt it from scratch.
     // The rail or the bar comes and goes around it; the NavHost keeps its slot.
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0), // Child screens apply their own insets.
+    OverlayNavigationScaffold(
+        overlaysContent = !isLandscape && currentRoute in setOf("dashboard", "stats", "sensors", "settings", "journal"),
         bottomBar = {
             if (!isLandscape) {
                 MorphingNavigationBar(dashboardViewModel) {

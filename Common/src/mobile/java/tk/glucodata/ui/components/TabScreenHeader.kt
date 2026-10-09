@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.LocalNavigationPanelInset
 
 /**
  * Geometry shared by the top-level tabs (Statistics, Sensors, Settings). They have no top
@@ -31,11 +32,12 @@ object TabScreenDefaults {
     /** Bottom clearance on a tab with a FAB: the 56dp FAB, its 16dp margin, then [BottomPadding]. */
     val BottomPaddingWithFab: Dp = 104.dp
 
+    @Composable
     fun contentPadding(hasFab: Boolean = false) = PaddingValues(
         start = Gutter,
         end = Gutter,
         top = Gutter,
-        bottom = if (hasFab) BottomPaddingWithFab else BottomPadding,
+        bottom = (if (hasFab) BottomPaddingWithFab else BottomPadding) + LocalNavigationPanelInset.current,
     )
 }
 

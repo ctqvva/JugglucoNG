@@ -79,7 +79,10 @@ fun JugglucoTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
+            // The navigation panel and page draw behind this edge-to-edge system area.
+            // One owner avoids a later theme recomposition repainting an opaque strip.
+            window.navigationBarColor = Color.Transparent.toArgb()
+            if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
