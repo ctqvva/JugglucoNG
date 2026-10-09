@@ -86,16 +86,17 @@ fun JugglucoTheme(
         colorScheme = colorScheme,
         typography = tk.glucodata.ui.theme.AppTypography,
     ) {
-        // Edit 52b (v3): Allow Display Size scaling up to 20% above hardware native.
-        // This lets users who want larger UI (accessibility) get a meaningful boost,
-        // while preventing extreme Display Size settings from breaking M3 layouts.
-        // fontScale capped at 1.15 — "slightly larger" text is fine, "huge" breaks cards.
+        // Display size (density) may grow at most 10% past the device's native density, so an
+        // extreme Display Size setting cannot break M3 layouts. Font size is not capped here:
+        // text follows the system setting, and the few surfaces too dense to reflow — the
+        // dashboard header and chart, sensor cards, Statistics, navigation labels — cap
+        // themselves with [FontScaleCap].
         val currentDensity = LocalDensity.current
         val nativeDensity = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE / 160f
         val maxDensity = nativeDensity * 1.1f
         val clampedDensity = Density(
             density = currentDensity.density.coerceAtMost(maxDensity),
-            fontScale = currentDensity.fontScale.coerceAtMost(1.1f)
+            fontScale = currentDensity.fontScale
         )
         CompositionLocalProvider(
             LocalDensity provides clampedDensity,
@@ -186,3 +187,22 @@ private val FallbackDarkColorScheme = darkColorScheme(
     surfaceContainerLowest = Color(0xFF000000),
     surfaceDim = Color(0xFF0C0E12),
 )
+
+/**
+ * The largest font scale a data-dense surface follows. Body text — settings, lists, dialogs,
+ * explanations — reflows and follows the system setting all the way. A glucose hero, a chart
+ * axis, a row of stat tiles or a navigation label sits in a fixed-width slot instead, and past
+ * about 1.3x it truncates into something nobody can read. Android 14's non-linear font scaling
+ * makes the same trade: large text grows less than small text.
+ */
+const val DENSE_FONT_SCALE_CAP = 1.3f
+
+/** Caps the font scale of [content] at [max]; see [DENSE_FONT_SCALE_CAP]. */
+@Composable
+fun FontScaleCap(max: Float = DENSE_FONT_SCALE_CAP, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    // Always provided, even when nothing is capped, so crossing the cap does not change the
+    // shape of the composition and throw away the content's state.
+    val capped = if (density.fontScale <= max) density else Density(density.density, max)
+    CompositionLocalProvider(LocalDensity provides capped, content = content)
+}

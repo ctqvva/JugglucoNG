@@ -2392,7 +2392,11 @@ fun SensorCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (canCalibrate) stringResource(R.string.calibrate_action) else stringResource(R.string.calibrate_connect_first),
-                        maxLines = 1
+                        // The disabled label is a sentence; at larger text it wraps rather than
+                        // being cut off mid-word.
+                        maxLines = 2,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 // Calibration history — show previous calibrations from the sensor
@@ -3054,8 +3058,9 @@ fun SensorCard(
                 val density = LocalDensity.current
                 val textMeasurer = rememberTextMeasurer()
                 val buttonTextStyle = MaterialTheme.typography.labelLarge
-                val buttonChromeWidth = 16.dp +
-                    8.dp +
+                // Icon (18) + gap (8) + the button's own padding.
+                val buttonIconWidth = 18.dp + 8.dp
+                val buttonChromeWidth = buttonIconWidth +
                     ButtonDefaults.ContentPadding.calculateLeftPadding(layoutDirection) +
                     ButtonDefaults.ContentPadding.calculateRightPadding(layoutDirection)
                 val reconnectPreferredWidth = with(density) {
@@ -3076,9 +3081,17 @@ fun SensorCard(
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val buttonSpacing = 8.dp
                     val equalButtonWidth = (maxWidth - buttonSpacing) / 2
-                    val prioritizeDisconnect =
-                        reconnectPreferredWidth > equalButtonWidth ||
-                        disconnectPreferredWidth > equalButtonWidth
+                    fun fitsHalf(width: Dp, withIcon: Boolean) =
+                        (if (withIcon) width else width - buttonIconWidth) <= equalButtonWidth
+                    // At large text the icons go first, so both labels stay whole in the
+                    // 50/50 row; only if the words alone still don't fit does Disconnect
+                    // take its full width and Reconnect ellipsize.
+                    val showButtonIcons = fitsHalf(reconnectPreferredWidth, true) &&
+                        fitsHalf(disconnectPreferredWidth, true)
+                    val prioritizeDisconnect = !showButtonIcons && !(
+                        fitsHalf(reconnectPreferredWidth, false) &&
+                            fitsHalf(disconnectPreferredWidth, false)
+                        )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3095,12 +3108,14 @@ fun SensorCard(
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.BluetoothConnected,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (showButtonIcons) {
+                                Icon(
+                                    imageVector = Icons.Default.BluetoothConnected,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
                                 reconnectLabel,
                                 maxLines = 1,
@@ -3117,12 +3132,14 @@ fun SensorCard(
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer
                             )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DeleteForever,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (showButtonIcons) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteForever,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
                                 disconnectLabel,
                                 maxLines = 1,

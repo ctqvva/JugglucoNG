@@ -205,8 +205,12 @@ Reach for these before building a surface by hand.
 - Selectable controls expose their role and state (`Modifier.selectable` / `toggleable`
   with a `Role`); a bare `.clickable` box announces neither.
 - Headings use `semantics { heading() }` (`TabScreenHeader` does).
-- Text scales with the system font size. `JugglucoTheme` currently caps font scale at 1.1×
-  as a stopgap; removing it needs a pass over fixed-height components, not a bigger number.
+- Text scales with the system font size, up to the system's 2×. Dense surfaces whose
+  layout is arithmetic (the dashboard header, chart and stat strip, sensor cards,
+  Statistics, the nav labels) wrap themselves in `FontScaleCap`, which stops them at 1.3×.
+- Anything holding text gets a minimum height, not a height: `heightIn(min = 56.dp)` on a
+  button or a text field, never `height(56.dp)`. A fixed height cuts the text off at large
+  font sizes.
 
 ---
 

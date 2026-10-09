@@ -838,7 +838,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                                 )
                             },
                             label = {
-                                AdaptiveNavigationLabel(item.label)
+                                FontScaleCap { AdaptiveNavigationLabel(item.label) }
                             },
                             selected = isSelected,
                             onClick = { onNavigate(item.route) }
@@ -866,7 +866,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                                     isStatistics = item.route == "stats"
                                 )
                             },
-                            label = { Text(item.label) },
+                            label = { FontScaleCap { Text(item.label) } },
                             selected = isSelected,
                             onClick = { onNavigate(item.route) }
                         )
@@ -942,7 +942,7 @@ private fun NavGraphBuilder.appDestinations(
             onTriggerCalibration = onTriggerCalibration,
         )
     }
-    composable("stats") { tk.glucodata.ui.stats.StatsScreen() }
+    composable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
     composable("sensors") {
         SensorScreen(
             onNavigateToMqAccount = { navController.navigate("settings/mq-account") },

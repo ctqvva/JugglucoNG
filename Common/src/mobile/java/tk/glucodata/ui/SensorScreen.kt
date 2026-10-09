@@ -501,12 +501,14 @@ fun SensorScreen(
                     )
                 }
                 items(sensors, key = { it.serial }) { sensor ->
-                    SensorCard(
-                        sensor,
-                        viewModel,
-                        sensorCount = sensors.size,
-                        onNavigateToMqAccount = onNavigateToMqAccount,
-                    )
+                    FontScaleCap {
+                        SensorCard(
+                            sensor,
+                            viewModel,
+                            sensorCount = sensors.size,
+                            onNavigateToMqAccount = onNavigateToMqAccount,
+                        )
+                    }
                 }
             }
         }

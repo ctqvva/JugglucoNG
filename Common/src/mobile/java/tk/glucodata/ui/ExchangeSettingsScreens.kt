@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -1264,7 +1265,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 ),
                                 modifier = Modifier
                                     .width(96.dp)
-                                    .height(52.dp)
+                                    .heightIn(min = 52.dp)
                             )
                         }
                     )
@@ -1445,7 +1446,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                         ),
                                         modifier = Modifier
                                             .width(96.dp)
-                                            .height(52.dp)
+                                            .heightIn(min = 52.dp)
                                     )
                                 }
                             }
@@ -1496,7 +1497,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                                 enabled = childEnabled,
                                 modifier = Modifier
                                     .width(82.dp)
-                                    .height(50.dp),
+                                    .heightIn(min = 52.dp),
                                 singleLine = true,
                                 textStyle = MaterialTheme.typography.bodyMedium,
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(

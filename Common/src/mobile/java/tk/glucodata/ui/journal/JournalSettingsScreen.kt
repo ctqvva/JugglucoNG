@@ -1307,7 +1307,7 @@ private fun JournalFoodSheet(
                         }
                         FilledTonalButton(
                             onClick = { draft = draft.copy(isArchived = !draft.isArchived) },
-                            modifier = Modifier.height(40.dp),
+                            modifier = Modifier.heightIn(min = 40.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,
@@ -1687,7 +1687,7 @@ private fun JournalInsulinPresetSheet(
                         }
                         FilledTonalButton(
                             onClick = { toggleArchivedAndPersist() },
-                            modifier = Modifier.height(40.dp),
+                            modifier = Modifier.heightIn(min = 40.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = containerColor,

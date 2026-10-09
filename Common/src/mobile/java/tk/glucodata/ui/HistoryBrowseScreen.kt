@@ -701,41 +701,43 @@ fun HistoryBrowseScreen(
             if (activeHistory.isNotEmpty() || rangeSummary != null) {
                 item(key = "history-chart") {
                     Box(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp)) {
-                        DashboardChartSection(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(420.dp),
-                            appChartRangeColors = chartRangeColors,
-                            glucoseHistory = activeHistory,
-                            // The chart may pan over the whole active range, of
-                            // which it holds a window; "latest" is the range's
-                            // last reading, as it was when the list was the range.
-                            dataBounds = rangeSummary?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
-                            onVisibleRangeChanged = onVisibleRangeChanged,
-                            journalMarkers = journalMarkers,
-                            graphSmoothingMinutes = graphSmoothingMinutes,
-                            collapseSmoothedData = collapseSmoothedData,
-                            previewWindowMode = previewWindowMode,
-                            graphLow = graphLow,
-                            graphHigh = graphHigh,
-                            targetLow = targetLow,
-                            targetHigh = targetHigh,
-                            unit = unit,
-                            viewMode = viewMode,
-                            calibrations = calibrations,
-                            onTimeRangeSelected = { selectedChartRange = it },
-                            selectedTimeRange = selectedChartRange,
-                            isExpanded = false,
-                            expandedProgress = 0f,
-                            onToggleExpanded = null,
-                            onPointClick = onPointClick,
-                            onCalibrationClick = null,
-                            onJournalMarkerClick = { entryId ->
-                                journalEntriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
-                            },
-                            resetToLatestOnResume = false,
-                            onViewportSnapshotChanged = { viewportSnapshot = it }
-                        )
+                        FontScaleCap {
+                            DashboardChartSection(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(420.dp),
+                                appChartRangeColors = chartRangeColors,
+                                glucoseHistory = activeHistory,
+                                // The chart may pan over the whole active range, of
+                                // which it holds a window; "latest" is the range's
+                                // last reading, as it was when the list was the range.
+                                dataBounds = rangeSummary?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                                onVisibleRangeChanged = onVisibleRangeChanged,
+                                journalMarkers = journalMarkers,
+                                graphSmoothingMinutes = graphSmoothingMinutes,
+                                collapseSmoothedData = collapseSmoothedData,
+                                previewWindowMode = previewWindowMode,
+                                graphLow = graphLow,
+                                graphHigh = graphHigh,
+                                targetLow = targetLow,
+                                targetHigh = targetHigh,
+                                unit = unit,
+                                viewMode = viewMode,
+                                calibrations = calibrations,
+                                onTimeRangeSelected = { selectedChartRange = it },
+                                selectedTimeRange = selectedChartRange,
+                                isExpanded = false,
+                                expandedProgress = 0f,
+                                onToggleExpanded = null,
+                                onPointClick = onPointClick,
+                                onCalibrationClick = null,
+                                onJournalMarkerClick = { entryId ->
+                                    journalEntriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
+                                },
+                                resetToLatestOnResume = false,
+                                onViewportSnapshotChanged = { viewportSnapshot = it }
+                            )
+                        }
                     }
                 }
             }
