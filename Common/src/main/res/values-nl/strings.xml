@@ -2975,4 +2975,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="chart_jump_to_date">Naar datum gaan</string>
     <string name="chart_back_to_now">Terug naar nu</string>
     <string name="talker_media_sound">Media</string>
+    <string name="ssl_port">SSL-poort</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Offset: %1$s</string>
 </resources>

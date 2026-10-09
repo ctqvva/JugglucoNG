@@ -3007,4 +3007,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="chart_jump_to_date">Перайсці да даты</string>
     <string name="chart_back_to_now">Вярнуцца да цяперашняга</string>
     <string name="talker_media_sound">Мультымедыя</string>
+    <string name="ssl_port">Порт SSL</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Зрушэнне: %1$s</string>
 </resources>

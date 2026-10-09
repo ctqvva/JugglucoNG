@@ -3980,11 +3980,13 @@ fun InteractiveGlucoseChart(
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp
                     ) {
+                        // ui-guardrails: allow-begin offgrid_spacing - the journal time pill, sized with the journal chips beside it
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            // ui-guardrails: allow-end
                             Icon(
                                 imageVector = Icons.Default.AccessTime,
                                 contentDescription = null,
@@ -4890,7 +4892,7 @@ fun InteractiveGlucoseChart(
                     .graphicsLayer { alpha = chartBoostProgress }
                     .background(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(2.dp)
+                        shape = CircleShape
                     )
             )
 
@@ -5235,6 +5237,7 @@ private fun JournalMarkerChip(
             .hoverable(hoverSource)
             .then(if (hiddenFromAccessibility) Modifier.semantics { hideFromAccessibility() } else Modifier)
     ) {
+        // ui-guardrails: allow-begin offgrid_spacing, offscale_radius - journal chip metrics as tuned in #572; the chart's chip layout measures them
         Surface(
             modifier = Modifier.width(widthDp),
             shape = RoundedCornerShape(14.dp),
@@ -5268,6 +5271,7 @@ private fun JournalMarkerChip(
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                // ui-guardrails: allow-end
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelMedium,

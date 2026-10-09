@@ -270,6 +270,7 @@ fun CalibrationListScreen(
         topBar = {
             if (isSelectionMode) {
                 // Selection Mode TopBar
+                // ui-guardrails: allow hand_built_top_bar - a contextual selection bar (close, count, select all), not a screen's top bar
                 TopAppBar(
                     title = { Text(stringResource(R.string.selected_count, selectedIds.size)) },
                     navigationIcon = {

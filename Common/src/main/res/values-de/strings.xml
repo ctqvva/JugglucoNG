@@ -3048,4 +3048,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="chart_jump_to_date">Zu Datum springen</string>
     <string name="chart_back_to_now">Zurück zu jetzt</string>
     <string name="talker_media_sound">Medien</string>
+    <string name="ssl_port">SSL-Port</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Versatz: %1$s</string>
 </resources>

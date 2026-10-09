@@ -1,11 +1,12 @@
 {
-  "collect_as_state": 15,
-  "content_description_literal": 1,
-  "font_weight_override": 75,
-  "hand_built_top_bar": 1,
-  "hex_color": 175,
-  "offgrid_spacing": 13,
-  "offscale_radius": 12,
-  "system_dark_theme": 1,
-  "text_literal": 7
+  "allowed_exceptions": 28,
+  "collect_as_state": 0,
+  "content_description_literal": 0,
+  "font_weight_override": 74,
+  "hand_built_top_bar": 0,
+  "hex_color": 47,
+  "offgrid_spacing": 0,
+  "offscale_radius": 0,
+  "system_dark_theme": 0,
+  "text_literal": 0
 }

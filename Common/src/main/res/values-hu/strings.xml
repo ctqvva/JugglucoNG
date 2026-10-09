@@ -3018,4 +3018,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="chart_jump_to_date">Ugrás dátumra</string>
     <string name="chart_back_to_now">Vissza a jelenhez</string>
     <string name="talker_media_sound">Média</string>
+    <string name="ssl_port">SSL-port</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Eltolás: %1$s</string>
 </resources>

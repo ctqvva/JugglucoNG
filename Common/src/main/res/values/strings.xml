@@ -3184,4 +3184,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="chart_jump_to_date">Jump to date</string>
     <string name="chart_back_to_now">Back to now</string>
     <string name="talker_media_sound">Media</string>
+    <string name="ssl_port">SSL port</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Offset: %1$s</string>
 </resources>

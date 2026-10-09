@@ -556,6 +556,7 @@ private fun AnytimeCt5CredentialsCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // ui-guardrails: allow text_literal - CT5 is the product name
             Text(
                 text = "CT5 · ${stringResource(R.string.ottai_saved_credentials_title)}",
                 style = MaterialTheme.typography.titleMedium,

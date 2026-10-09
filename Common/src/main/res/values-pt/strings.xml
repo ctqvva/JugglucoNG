@@ -2933,4 +2933,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="chart_jump_to_date">Ir para a data</string>
     <string name="chart_back_to_now">Voltar a agora</string>
     <string name="talker_media_sound">Multimédia</string>
+    <string name="ssl_port">Porta SSL</string>
+    <string name="calibration_cf_value">CF: %1$s</string>
+    <string name="calibration_offset_value">Deslocamento: %1$s</string>
 </resources>
