@@ -6,7 +6,6 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
@@ -148,6 +147,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import tk.glucodata.ui.components.TabScreenDefaults
+import tk.glucodata.ui.components.TabScreenHeader
 import tk.glucodata.R
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.StableModalBottomSheet
@@ -333,7 +334,7 @@ fun StatsScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp)
+            contentPadding = TabScreenDefaults.contentPadding()
         ) {
             item(key = "header") {
                 HeaderBlock(onShareClick = {
@@ -1199,24 +1200,9 @@ private fun PdfVisualStylePicker(
 @Composable
 private fun HeaderBlock(
     onShareClick: () -> Unit
-)
-{
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.statistics_title),
-            style = MaterialTheme.typography.displaySmall,
-            modifier = Modifier.padding(start = 16.dp)
-        )
-        IconButton(
-            onClick = onShareClick,
-            modifier = Modifier.size(40.dp)
-        ) {
+) {
+    TabScreenHeader(title = stringResource(R.string.statistics_title)) {
+        IconButton(onClick = onShareClick) {
             Icon(
                 imageVector = Icons.Filled.Share,
                 contentDescription = stringResource(R.string.export),
@@ -2047,7 +2033,7 @@ private fun AgpChart(
         chartContext.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
             .getBoolean("glucose_app_chart_range_colors_enabled", false)
     }
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = tk.glucodata.ui.isAppInDarkTheme()
     val targetBandColor = TirInRangeColor.copy(alpha = 0.16f)
     val iqrBandColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
     val p10P90Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)

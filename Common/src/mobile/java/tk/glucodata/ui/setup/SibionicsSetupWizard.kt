@@ -15,7 +15,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -440,15 +440,11 @@ fun SibionicsSetupWizard(
     Scaffold(
         modifier = scaffoldModifier,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.sibionics_setup_title)) },
-                windowInsets = TopAppBarDefaults.windowInsets, // Ensure status bar padding
-                navigationIcon = {
-                    IconButton(onClick = handleBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                },
-                scrollBehavior = scrollBehavior
+            AppTopBar(
+                title = stringResource(R.string.sibionics_setup_title),
+                onNavigateBack = handleBack,
+                navigationContentDescription = stringResource(R.string.cancel),
+                scrollBehavior = scrollBehavior,
             )
         }
     ) { padding ->

@@ -12,7 +12,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -21,6 +23,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import tk.glucodata.DashboardChartColors
+
+/**
+ * Whether the app is drawing dark, after the in-app Theme setting is applied. Null outside
+ * [JugglucoTheme] (the floating overlay and other windows of their own), where the system
+ * setting is the only one that applies.
+ */
+private val LocalAppDarkTheme = staticCompositionLocalOf<Boolean?> { null }
+
+/**
+ * Use this, not `isSystemInDarkTheme()`, for anything drawn inside the app: the Theme setting
+ * can force light or dark against the system, and glucose colours picked for the wrong one
+ * land on the wrong surface.
+ */
+@Composable
+@ReadOnlyComposable
+fun isAppInDarkTheme(): Boolean = LocalAppDarkTheme.current ?: isSystemInDarkTheme()
 
 enum class ThemeMode {
     SYSTEM, LIGHT, DARK
@@ -42,30 +60,8 @@ fun JugglucoTheme(
         android.os.Build.VERSION.SDK_INT >= 31 -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> darkColorScheme(
-            primary = Color(0xFF90CAF9),
-            secondary = Color(0xFF81D4FA),
-            tertiary = Color(0xFFCE93D8),
-            background = Color(0xFF121212),
-            surface = Color(0xFF1E1E1E),
-            onPrimary = Color.Black,
-            onSecondary = Color.Black,
-            onTertiary = Color.Black,
-            onBackground = Color.White,
-            onSurface = Color.White
-        )
-        else -> lightColorScheme(
-            primary = Color(0xFF1565C0),
-            secondary = Color(0xFF039BE5),
-            tertiary = Color(0xFF7B1FA2),
-            background = Color(0xFFFAFAFA),
-            surface = Color.White,
-            onPrimary = Color.White,
-            onSecondary = Color.White,
-            onTertiary = Color.White,
-            onBackground = Color.Black,
-            onSurface = Color.Black
-        )
+        darkTheme -> FallbackDarkColorScheme
+        else -> FallbackLightColorScheme
     }
 
     val view = LocalView.current
@@ -101,8 +97,92 @@ fun JugglucoTheme(
             density = currentDensity.density.coerceAtMost(maxDensity),
             fontScale = currentDensity.fontScale.coerceAtMost(1.1f)
         )
-        CompositionLocalProvider(LocalDensity provides clampedDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides clampedDensity,
+            LocalAppDarkTheme provides darkTheme,
+        ) {
             content()
         }
     }
 }
+
+// Below API 31 there is no wallpaper colour to follow. A full tonal-spot scheme generated from
+// the app's blue (#1565C0, material-color-utilities, 2025 spec), so the surface-container roles
+// every card here is built on are part of the same palette instead of the library's baseline.
+private val FallbackLightColorScheme = lightColorScheme(
+    primary = Color(0xFF465F8A),
+    onPrimary = Color(0xFFF8F8FF),
+    primaryContainer = Color(0xFFB3CDFE),
+    onPrimaryContainer = Color(0xFF2A446D),
+    inversePrimary = Color(0xFFB3CDFE),
+    secondary = Color(0xFF565F72),
+    onSecondary = Color(0xFFF8F8FF),
+    secondaryContainer = Color(0xFFDAE2F9),
+    onSecondaryContainer = Color(0xFF495264),
+    tertiary = Color(0xFF675882),
+    onTertiary = Color(0xFFFEF7FF),
+    tertiaryContainer = Color(0xFFDFCCFD),
+    onTertiaryContainer = Color(0xFF50426A),
+    background = Color(0xFFF9F9FE),
+    onBackground = Color(0xFF2F323A),
+    surface = Color(0xFFF9F9FE),
+    onSurface = Color(0xFF2F323A),
+    surfaceVariant = Color(0xFFE0E2EC),
+    onSurfaceVariant = Color(0xFF5C5F68),
+    surfaceTint = Color(0xFF465F8A),
+    inverseSurface = Color(0xFF0C0E12),
+    inverseOnSurface = Color(0xFF9C9CA2),
+    error = Color(0xFFA83836),
+    onError = Color(0xFFFFF7F6),
+    errorContainer = Color(0xFFFA746F),
+    onErrorContainer = Color(0xFF6E0A12),
+    outline = Color(0xFF777B84),
+    outlineVariant = Color(0xFFAFB2BC),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFFF9F9FE),
+    surfaceContainer = Color(0xFFECEDF6),
+    surfaceContainerHigh = Color(0xFFE6E8F1),
+    surfaceContainerHighest = Color(0xFFE0E2EC),
+    surfaceContainerLow = Color(0xFFF3F3FA),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFD7DAE4),
+)
+
+private val FallbackDarkColorScheme = darkColorScheme(
+    primary = Color(0xFFB4C7ED),
+    onPrimary = Color(0xFF2E4060),
+    primaryContainer = Color(0xFF405373),
+    onPrimaryContainer = Color(0xFFD7E3FF),
+    inversePrimary = Color(0xFF4D5F80),
+    secondary = Color(0xFFBDC7DC),
+    onSecondary = Color(0xFF374052),
+    secondaryContainer = Color(0xFF333C4D),
+    onSecondaryContainer = Color(0xFFB6BFD5),
+    tertiary = Color(0xFFEBDDFF),
+    onTertiary = Color(0xFF594B74),
+    tertiaryContainer = Color(0xFFDFCCFD),
+    onTertiaryContainer = Color(0xFF50426A),
+    background = Color(0xFF0C0E12),
+    onBackground = Color(0xFFE3E5EF),
+    surface = Color(0xFF0C0E12),
+    onSurface = Color(0xFFE3E5EF),
+    surfaceVariant = Color(0xFF22262D),
+    onSurfaceVariant = Color(0xFFA8ABB5),
+    surfaceTint = Color(0xFFB4C7ED),
+    inverseSurface = Color(0xFFF9F9FE),
+    inverseOnSurface = Color(0xFF545559),
+    error = Color(0xFFFA746F),
+    onError = Color(0xFF490006),
+    errorContainer = Color(0xFF871F21),
+    onErrorContainer = Color(0xFFFF9993),
+    outline = Color(0xFF72757E),
+    outlineVariant = Color(0xFF444850),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFF292C34),
+    surfaceContainer = Color(0xFF171A1F),
+    surfaceContainerHigh = Color(0xFF1D2026),
+    surfaceContainerHighest = Color(0xFF22262D),
+    surfaceContainerLow = Color(0xFF111318),
+    surfaceContainerLowest = Color(0xFF000000),
+    surfaceDim = Color(0xFF0C0E12),
+)

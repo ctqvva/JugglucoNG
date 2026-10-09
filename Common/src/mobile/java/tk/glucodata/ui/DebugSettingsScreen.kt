@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.BugReport
@@ -56,6 +55,7 @@ import tk.glucodata.BuildConfig
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
@@ -329,13 +329,9 @@ fun DebugSettingsScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.debug_logs_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.debug_logs_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHowTo = !showHowTo }) {
                         Icon(
@@ -353,7 +349,7 @@ fun DebugSettingsScreen(navController: NavController) {
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
                     }
-                }
+                },
             )
         }
     ) { padding ->

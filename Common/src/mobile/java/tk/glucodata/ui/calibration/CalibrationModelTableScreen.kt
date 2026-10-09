@@ -3,7 +3,6 @@ package tk.glucodata.ui.calibration
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
@@ -27,17 +26,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -174,36 +170,14 @@ fun CalibrationModelTableScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.calibration_model_table_title),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.calibration_model_table_subtitle,
-                                modeTitle,
-                                selectedAlgorithm.title
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+            AppTopBar(
+                title = stringResource(R.string.calibration_model_table_title),
+                subtitle = stringResource(
+                    R.string.calibration_model_table_subtitle,
+                    modeTitle,
+                    selectedAlgorithm.title
+                ),
+                onNavigateBack = { navController.navigateUp() },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -477,7 +451,7 @@ private fun CalibrationModelChart(
     dateFormatter: SimpleDateFormat,
     onEdit: (CalibrationEntity) -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = tk.glucodata.ui.isAppInDarkTheme()
     val activeColor = if (isDarkTheme) Color(0xFFDFFF78) else Color(0xFF496900)
     val disabledColor = if (isDarkTheme) Color(0xFF8B8A83) else Color(0xFF77746D)
     val fitColor = if (isDarkTheme) Color(0xFF77C8FF) else Color(0xFF00649F)
