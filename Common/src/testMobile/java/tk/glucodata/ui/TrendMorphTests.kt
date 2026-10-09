@@ -23,14 +23,28 @@ class TrendMorphTests {
     }
 
     @Test
-    fun navigationMatchesHeroGeometryAtRestAndAcrossBothTrendDirections() {
+    fun navigationKeepsTheHeroDirectionWithOneThirdOfItsCornerVariation() {
+        val rest = navigationCornerRadii(0f)
+        val heroRest = heroCornerRadiiFromWeights(trendCornerWeightsFromVelocity(0f))
         for (velocity in listOf(-100f, -3.6f, -1.5f, -0.8f, 0f, 0.8f, 1.5f, 3.6f, 100f)) {
-            val weights = trendCornerWeightsFromVelocity(velocity)
-            assertEquals(heroCornerRadiiFromWeights(weights), navigationCornerRadii(velocity))
+            val hero = heroCornerRadiiFromWeights(trendCornerWeightsFromVelocity(velocity))
+            val navigation = navigationCornerRadii(velocity)
+            corners(navigation).zip(corners(rest)).zip(corners(hero).zip(corners(heroRest)))
+                .forEach { (navPair, heroPair) ->
+                    assertEquals((heroPair.first - heroPair.second) / 3f, navPair.first - navPair.second, 0.001f)
+                }
         }
-        // Both consumers must keep the same geometry during spring overshoot, too.
-        val overshoot = TrendCornerWeights(-0.2f, 1.2f, -0.2f, 1.2f)
-        assertEquals(heroCornerRadiiFromWeights(overshoot), navigationCornerRadiiFromWeights(overshoot))
+    }
+
+    @Test
+    fun regularAndFastFallingKeepRoundedRightCornersInTheCorrectDirection() {
+        for (velocity in listOf(-0.8f, -1.5f, -3.6f, -100f)) {
+            val radii = navigationCornerRadii(velocity)
+            assertTrue(radii.topEnd >= 24f)
+            assertTrue(radii.bottomEnd >= 24f)
+            // Downward trends sharpen toward the bottom, not the top.
+            assertTrue(radii.topEnd > radii.bottomEnd)
+        }
     }
 
     @Test
@@ -72,33 +86,33 @@ class TrendMorphTests {
     }
 
     @Test
-    fun ordinaryRisingAndFallingTrendsProduceTheHeroCornerChanges() {
+    fun ordinaryRisingAndFallingTrendsProduceSubtleDirectionalCornerChanges() {
         val resting = navigationCornerRadii(0f)
         for (velocity in listOf(-0.8f, 0.8f)) {
             val radii = navigationCornerRadii(velocity)
             val topChange = radii.topEnd - resting.topEnd
             val bottomChange = radii.bottomEnd - resting.bottomEnd
-            assertTrue(kotlin.math.abs(topChange - bottomChange) >= 6f)
+            assertTrue(kotlin.math.abs(topChange - bottomChange) >= 2f)
             assertTrue((topChange - bottomChange) * velocity < 0f)
         }
     }
 
     @Test
     fun springOvershootCannotProduceInvalidNavigationCorners() {
-        assertWithinHeroRanges(navigationCornerRadiiFromWeights(TrendCornerWeights(-0.2f, 1.2f, -0.2f, 1.2f)))
+        assertWithinSoftNavigationRanges(navigationCornerRadiiFromWeights(TrendCornerWeights(-0.2f, 1.2f, -0.2f, 1.2f)))
     }
 
     @Test
-    fun extremeTrendsKeepEveryCornerWithinTheHeroRanges() {
+    fun extremeTrendsKeepEveryCornerWithinTheSoftNavigationRanges() {
         listOf(-Float.MAX_VALUE, -100f, -3.6f, -1f, 0f, 1f, 3.6f, 100f, Float.MAX_VALUE)
-            .forEach { assertWithinHeroRanges(navigationCornerRadii(it)) }
+            .forEach { assertWithinSoftNavigationRanges(navigationCornerRadii(it)) }
     }
 
-    private fun assertWithinHeroRanges(radii: TrendCornerRadii) {
-        assertTrue(radii.topStart in 22f..52f)
-        assertTrue(radii.topEnd in 8f..24f)
-        assertTrue(radii.bottomEnd in 8f..24f)
-        assertTrue(radii.bottomStart in 22f..46f)
+    private fun assertWithinSoftNavigationRanges(radii: TrendCornerRadii) {
+        assertTrue(radii.topStart in 24f..40f)
+        assertTrue(radii.topEnd in 24f..40f)
+        assertTrue(radii.bottomEnd in 24f..40f)
+        assertTrue(radii.bottomStart in 24f..40f)
     }
 
     @Test

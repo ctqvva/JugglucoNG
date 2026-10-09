@@ -63,9 +63,19 @@ internal fun heroCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCorne
     )
 }
 
-/** Navigation uses the hero's geometry as well as its shared animated weights. */
+/** Navigation follows the hero's geometry with a softer, smaller corner range. */
 internal fun navigationCornerRadii(velocity: Float): TrendCornerRadii =
     navigationCornerRadiiFromWeights(trendCornerWeightsFromVelocity(velocity))
 
-internal fun navigationCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii =
-    heroCornerRadiiFromWeights(weights)
+internal fun navigationCornerRadiiFromWeights(weights: TrendCornerWeights): TrendCornerRadii {
+    val hero = heroCornerRadiiFromWeights(weights)
+    // Blend toward a rounded 32dp panel: one third of the hero's variation, with
+    // at least 24dp at every corner, including during shared spring overshoot.
+    fun soften(radius: Float) = 32f + (radius - 32f) / 3f
+    return TrendCornerRadii(
+        soften(hero.topStart),
+        soften(hero.topEnd),
+        soften(hero.bottomEnd),
+        soften(hero.bottomStart)
+    )
+}
