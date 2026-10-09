@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.CloudUpload
@@ -43,8 +42,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -65,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -607,24 +605,9 @@ fun HistoryBrowseScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    onBack?.let { handleBack ->
-                        IconButton(onClick = handleBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null
-                            )
-                        }
-                    }
-                },
+            AppTopBar(
+                title = title,
+                onNavigateBack = onBack,
                 actions = {
                     if (showTransferActions) {
                         if (journalEnabled && onAddJournalEntry != null) {
@@ -717,41 +700,43 @@ fun HistoryBrowseScreen(
             if (activeHistory.isNotEmpty() || rangeSummary != null) {
                 item(key = "history-chart") {
                     Box(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp)) {
-                        DashboardChartSection(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(420.dp),
-                            appChartRangeColors = chartRangeColors,
-                            glucoseHistory = activeHistory,
-                            // The chart may pan over the whole active range, of
-                            // which it holds a window; "latest" is the range's
-                            // last reading, as it was when the list was the range.
-                            dataBounds = rangeSummary?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
-                            onVisibleRangeChanged = onVisibleRangeChanged,
-                            journalMarkers = journalMarkers,
-                            graphSmoothingMinutes = graphSmoothingMinutes,
-                            collapseSmoothedData = collapseSmoothedData,
-                            previewWindowMode = previewWindowMode,
-                            graphLow = graphLow,
-                            graphHigh = graphHigh,
-                            targetLow = targetLow,
-                            targetHigh = targetHigh,
-                            unit = unit,
-                            viewMode = viewMode,
-                            calibrations = calibrations,
-                            onTimeRangeSelected = { selectedChartRange = it },
-                            selectedTimeRange = selectedChartRange,
-                            isExpanded = false,
-                            expandedProgress = 0f,
-                            onToggleExpanded = null,
-                            onPointClick = onPointClick,
-                            onCalibrationClick = null,
-                            onJournalMarkerClick = { entryId ->
-                                journalEntriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
-                            },
-                            resetToLatestOnResume = false,
-                            onViewportSnapshotChanged = { viewportSnapshot = it }
-                        )
+                        FontScaleCap {
+                            DashboardChartSection(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(420.dp),
+                                appChartRangeColors = chartRangeColors,
+                                glucoseHistory = activeHistory,
+                                // The chart may pan over the whole active range, of
+                                // which it holds a window; "latest" is the range's
+                                // last reading, as it was when the list was the range.
+                                dataBounds = rangeSummary?.let { ChartDataBounds(it.earliestMs, it.latestMs) },
+                                onVisibleRangeChanged = onVisibleRangeChanged,
+                                journalMarkers = journalMarkers,
+                                graphSmoothingMinutes = graphSmoothingMinutes,
+                                collapseSmoothedData = collapseSmoothedData,
+                                previewWindowMode = previewWindowMode,
+                                graphLow = graphLow,
+                                graphHigh = graphHigh,
+                                targetLow = targetLow,
+                                targetHigh = targetHigh,
+                                unit = unit,
+                                viewMode = viewMode,
+                                calibrations = calibrations,
+                                onTimeRangeSelected = { selectedChartRange = it },
+                                selectedTimeRange = selectedChartRange,
+                                isExpanded = false,
+                                expandedProgress = 0f,
+                                onToggleExpanded = null,
+                                onPointClick = onPointClick,
+                                onCalibrationClick = null,
+                                onJournalMarkerClick = { entryId ->
+                                    journalEntriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
+                                },
+                                resetToLatestOnResume = false,
+                                onViewportSnapshotChanged = { viewportSnapshot = it }
+                            )
+                        }
                     }
                 }
             }
@@ -1007,8 +992,7 @@ private fun HistoryDateMarker(
     Text(
         text = label,
         modifier = modifier,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.titleSmallEmphasized,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }

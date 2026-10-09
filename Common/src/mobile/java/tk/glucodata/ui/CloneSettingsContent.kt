@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -17,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.ui.components.*
+import tk.glucodata.ui.components.AppTopBar
 
 @Composable
 internal fun CloneSettingsContent(
@@ -39,11 +39,9 @@ internal fun CloneSettingsContent(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.clone_sync_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.navigate_back)) }
-                },
+            AppTopBar(
+                title = stringResource(R.string.clone_sync_title),
+                onNavigateBack = onBack,
                 actions = {
                     IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all)) }
                 },

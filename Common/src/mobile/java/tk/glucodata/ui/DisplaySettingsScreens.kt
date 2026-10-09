@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Layers
@@ -43,13 +43,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,6 +69,7 @@ import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
@@ -100,8 +98,8 @@ fun NotificationSettingsScreen(
     val prefs = remember(context) {
         context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
     }
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsState()
-    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsState()
+    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
+    val deltaIntervalMinutes by viewModel.deltaIntervalMinutes.collectAsStateWithLifecycle()
 
     var fontSize by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_font_size", 1.0f)) }
     var fontType by rememberSaveable { mutableIntStateOf(prefs.getInt("notification_font_family", 0)) }
@@ -358,14 +356,14 @@ fun DisplayAndColorSettingsScreen(
     navController: NavController,
     viewModel: DashboardViewModel
 ) {
-    val rangeColorsEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsState()
-    val arrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsState()
-    val chartRangeColorsEnabled by viewModel.glucoseChartRangeColorsEnabled.collectAsState()
-    val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsState()
-    val dashboardDeltaEnabled by viewModel.dashboardShowDelta.collectAsState()
-    val dashboardRowsDeltaEnabled by viewModel.dashboardRowsShowDelta.collectAsState()
-    val dashboardReadingAgeEnabled by viewModel.dashboardShowReadingAge.collectAsState()
-    val previewWindowMode by viewModel.previewWindowMode.collectAsState()
+    val rangeColorsEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
+    val arrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsStateWithLifecycle()
+    val chartRangeColorsEnabled by viewModel.glucoseChartRangeColorsEnabled.collectAsStateWithLifecycle()
+    val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
+    val dashboardDeltaEnabled by viewModel.dashboardShowDelta.collectAsStateWithLifecycle()
+    val dashboardRowsDeltaEnabled by viewModel.dashboardRowsShowDelta.collectAsStateWithLifecycle()
+    val dashboardReadingAgeEnabled by viewModel.dashboardShowReadingAge.collectAsStateWithLifecycle()
+    val previewWindowMode by viewModel.previewWindowMode.collectAsStateWithLifecycle()
     var showPreviewWindowDialog by rememberSaveable { mutableStateOf(false) }
     val previewWindowLabel = when (previewWindowMode) {
         1 -> stringResource(R.string.preview_window_always)
@@ -478,19 +476,19 @@ fun FloatingGlucoseSettingsScreen(
     val context = LocalContext.current
     val repository = remember { viewModel.floatingRepository }
 
-    val isEnabled by repository.isEnabled.collectAsState(initial = false)
-    val isTransparent by repository.isTransparent.collectAsState(initial = false)
-    val showSecondary by repository.showSecondary.collectAsState(initial = false)
-    val fontSource by repository.fontSource.collectAsState(initial = "APP")
-    val fontSize by repository.fontSize.collectAsState(initial = FloatingSettingsRepository.DEFAULT_FONT_SIZE)
-    val fontWeight by repository.fontWeight.collectAsState(initial = "REGULAR")
-    val showArrow by repository.showArrow.collectAsState(initial = true)
-    val cornerRadius by repository.cornerRadius.collectAsState(initial = 28f)
-    val opacity by repository.backgroundOpacity.collectAsState(initial = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
-    val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsState(initial = false)
-    val verticalOffset by repository.islandVerticalOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
-    val manualGap by repository.islandGap.collectAsState(initial = 0f)
-    val useSubtleOutline by repository.useSubtleOutline.collectAsState(initial = false)
+    val isEnabled by repository.isEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val isTransparent by repository.isTransparent.collectAsStateWithLifecycle(initialValue = false)
+    val showSecondary by repository.showSecondary.collectAsStateWithLifecycle(initialValue = false)
+    val fontSource by repository.fontSource.collectAsStateWithLifecycle(initialValue = "APP")
+    val fontSize by repository.fontSize.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_FONT_SIZE)
+    val fontWeight by repository.fontWeight.collectAsStateWithLifecycle(initialValue = "REGULAR")
+    val showArrow by repository.showArrow.collectAsStateWithLifecycle(initialValue = true)
+    val cornerRadius by repository.cornerRadius.collectAsStateWithLifecycle(initialValue = 28f)
+    val opacity by repository.backgroundOpacity.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
+    val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val verticalOffset by repository.islandVerticalOffset.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
+    val manualGap by repository.islandGap.collectAsStateWithLifecycle(initialValue = 0f)
+    val useSubtleOutline by repository.useSubtleOutline.collectAsStateWithLifecycle(initialValue = false)
     var hasPermission by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -993,14 +991,9 @@ private fun LegacySettingsScaffold(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = title,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->

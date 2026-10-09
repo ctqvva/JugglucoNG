@@ -93,8 +93,7 @@ fun InsulinPenScanSheetHost() {
             // No icon tile on the header: everything in the sheet then shares one left edge.
             Text(
                 stringResource(R.string.insulin_pen_name, result.serial),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
             Spacer(Modifier.size(4.dp))
             Text(
@@ -281,7 +280,7 @@ private fun DoseRow(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         at,
                         style = MaterialTheme.typography.labelMedium,

@@ -23,21 +23,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,13 +102,9 @@ fun InsulinPenSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.insulin_pens_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.insulin_pens_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -381,7 +375,7 @@ private fun HowToScanCard() {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -392,19 +386,18 @@ private fun HowToScanCard() {
             Surface(
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
             ) {
                 Icon(
                     Icons.Default.Nfc,
                     contentDescription = null,
-                    modifier = Modifier.padding(14.dp).size(28.dp),
+                    modifier = Modifier.padding(16.dp).size(28.dp),
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     stringResource(R.string.insulin_pens_how_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                 )
                 Text(
                     stringResource(R.string.insulin_pens_how_desc),
@@ -438,8 +431,7 @@ private fun PenDetailSheet(
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             Text(
                 stringResource(R.string.insulin_pen_name, pen.serial),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
             Spacer(Modifier.size(4.dp))
             Text(

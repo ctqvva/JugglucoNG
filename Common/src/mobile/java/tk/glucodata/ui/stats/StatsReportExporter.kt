@@ -1279,7 +1279,7 @@ object StatsReportExporter {
                 cardHeight,
                 context.getString(R.string.time_in_range),
                 formatPercent(summary.tir.inRangePercent),
-                "${context.getString(R.string.gmi_target)} ${formatGlucose(uiState.targets.lowMgDl, false)}-${formatGlucose(uiState.targets.highMgDl, false)}",
+                "${context.getString(R.string.gmi_target)} ${formatGlucose(uiState.targets.lowMgDl, false)}–${formatGlucose(uiState.targets.highMgDl, false)}",
                 colorEmerald
             )
             drawMetricCard(
@@ -1552,12 +1552,12 @@ object StatsReportExporter {
                         canvas.drawRect(tableLeft, y, tableRight, y + agpRowHeight, fillPaint)
                     }
                     val iqrText = if (bin.p25MgDl != null && bin.p75MgDl != null) {
-                        "${formatGlucose(bin.p25MgDl, false)}-${formatGlucose(bin.p75MgDl, false)}"
+                        "${formatGlucose(bin.p25MgDl, false)}–${formatGlucose(bin.p75MgDl, false)}"
                     } else {
                         "-"
                     }
                     val p10p90Text = if (bin.p10MgDl != null && bin.p90MgDl != null) {
-                        "${formatGlucose(bin.p10MgDl, false)}-${formatGlucose(bin.p90MgDl, false)}"
+                        "${formatGlucose(bin.p10MgDl, false)}–${formatGlucose(bin.p90MgDl, false)}"
                     } else {
                         "-"
                     }

@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.BugReport
@@ -56,6 +55,7 @@ import tk.glucodata.BuildConfig
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import java.io.File
@@ -329,13 +329,9 @@ fun DebugSettingsScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.debug_logs_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.debug_logs_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { showHowTo = !showHowTo }) {
                         Icon(
@@ -353,7 +349,7 @@ fun DebugSettingsScreen(navController: NavController) {
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -467,12 +463,11 @@ private fun HowToReportCard(onDismiss: () -> Unit) {
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 14.dp)) {
+        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.debug_howto_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
@@ -492,7 +487,7 @@ private fun HowToReportCard(onDismiss: () -> Unit) {
                 NumberedStep(2, stringResource(R.string.debug_howto_step2))
                 NumberedStep(3, stringResource(R.string.debug_howto_step3))
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.debug_howto_hint),
                 style = MaterialTheme.typography.bodySmall,
@@ -521,7 +516,7 @@ private fun NumberedStep(number: Int, text: String) {
                 )
             }
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,

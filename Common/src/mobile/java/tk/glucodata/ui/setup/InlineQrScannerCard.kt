@@ -336,7 +336,7 @@ fun InlineQrScannerCard(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         tonalElevation = 3.dp,
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -420,7 +420,7 @@ fun InlineQrScannerCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
                     IconButton(
@@ -448,7 +448,7 @@ fun InlineQrScannerCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
                     IconButton(onClick = {
@@ -477,7 +477,7 @@ fun InlineQrScannerCard(
                         .align(Alignment.Center)
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = if (!hasPermission) {

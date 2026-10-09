@@ -2,6 +2,7 @@ package tk.glucodata.ui.calibration
 
 import android.os.Build
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -170,7 +171,7 @@ fun CalibrationBottomSheet(
 
     // Data Flow
     val duplicateThresholdMs = 60_000L
-    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsState(initial = emptyList())
+    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsStateWithLifecycle(initialValue = emptyList())
         ?: remember { mutableStateOf(emptyList()) }
     val calibrations = allCalibrations
         .filter { it.isRawMode == isRawMode }
@@ -226,7 +227,7 @@ fun CalibrationBottomSheet(
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         // Fix for Keyboard Gap:
         // When IME (Keyboard) is visible, we don't need navigationBarsPadding because the IME
@@ -242,11 +243,11 @@ fun CalibrationBottomSheet(
             val headerMinHeight = if (isCompactSheet) 44.dp else 48.dp
             val headerBottomSpacing = if (isCompactSheet) 8.dp else 12.dp
             val timeCardPadding = if (isCompactSheet) 12.dp else 16.dp
-            val timeIconSpacing = if (isCompactSheet) 10.dp else 16.dp
+            val timeIconSpacing = if (isCompactSheet) 8.dp else 16.dp
             val timePickerBottomSpacing = if (isCompactSheet) 12.dp else 16.dp
             val heroBottomSpacing = if (isCompactSheet) 8.dp else 12.dp
-            val statusMinHeight = if (isCompactSheet) 30.dp else 32.dp
-            val actionsTopSpacing = if (isCompactSheet) 14.dp else 24.dp
+            val statusMinHeight = 32.dp
+            val actionsTopSpacing = if (isCompactSheet) 16.dp else 24.dp
             val actionsBottomSpacing = if (isCompactSheet) 12.dp else 24.dp
             val sheetBottomPadding = if (isCompactSheet) 16.dp else 12.dp
 
@@ -346,9 +347,7 @@ fun CalibrationBottomSheet(
 //                                Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     text = if (isNow) stringResource(R.string.now) else dateFormatter.format(Date(selectedTimestamp)),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                             }
                         }
 
@@ -464,15 +463,13 @@ fun CalibrationBottomSheet(
                     }
                     Icon(trendIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     val statusText = if (isStable) stringResource(R.string.conditions_optimal) else stringResource(R.string.wait_15m_unstable)
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = statusColor,
-                        fontWeight = FontWeight.Bold
-                    )
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = statusColor,)
                 }
             }
             Spacer(modifier = Modifier.height(actionsTopSpacing))
@@ -538,7 +535,6 @@ fun CalibrationBottomSheet(
                         }
                     },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(if (editingEntity != null) stringResource(R.string.update) else stringResource(R.string.save))
                 }
@@ -675,8 +671,8 @@ private fun CalibrationHistoryList(
 //                        Row(verticalAlignment = Alignment.CenterVertically) {
 //                            Text(
 //                                text = "${String.format(Locale.getDefault(), sFmt, sVal)} → ${String.format(Locale.getDefault(), sFmt, cal.userValue)}",
-//                                style = MaterialTheme.typography.titleMedium,
-//                                fontWeight = FontWeight.SemiBold
+//                                style = MaterialTheme.typography.titleMediumEmphasized,
+//
 //                            )
 //                            if (!cal.isEnabled) {
 //                                Spacer(modifier = Modifier.width(8.dp))
@@ -741,7 +737,7 @@ private fun CalibrationHeroSection(
     val valuesMatch = kotlin.math.abs(userValue - originalValue) < 0.01f
     val valueButtonSize = if (compact) 56.dp else 64.dp
     val valueIconSize = if (compact) 28.dp else 32.dp
-    val valueGap = if (compact) 10.dp else 16.dp
+    val valueGap = if (compact) 8.dp else 16.dp
     val valueFontSize = if (compact) 48.sp else 56.sp
     val valueMinWidth = if (compact) 68.dp else 80.dp
     val valueMaxWidth = if (compact) 132.dp else 180.dp

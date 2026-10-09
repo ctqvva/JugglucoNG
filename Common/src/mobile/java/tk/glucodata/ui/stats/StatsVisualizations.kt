@@ -280,13 +280,13 @@ internal fun HourlyExposureRibbon(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(height)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(trackColor)
                 .semantics { this.contentDescription = contentDescription }
                 .pointerInput(hourlyStats) {
@@ -426,11 +426,11 @@ internal fun CalendarHeatGrid(
                         modifier = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(7.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(color)
                             .then(
                                 if (date == selectedDate) {
-                                    Modifier.border(2.dp, selectedRing, RoundedCornerShape(7.dp))
+                                    Modifier.border(2.dp, selectedRing, RoundedCornerShape(8.dp))
                                 } else {
                                     Modifier
                                 }
@@ -560,7 +560,7 @@ internal fun TirDistributionRow(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = label,
@@ -583,7 +583,7 @@ internal fun TirDistributionRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(14.dp)
-                        .clip(RoundedCornerShape(7.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
                 )
             }
@@ -617,12 +617,12 @@ internal fun HeatScaleLegend(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(20f, 45f, 60f, 72f, 90f).forEach { percent ->
                 Box(
                     modifier = Modifier
                         .size(width = 16.dp, height = 8.dp)
-                        .clip(RoundedCornerShape(3.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(tirHeatColor(percent))
                 )
             }
@@ -646,9 +646,9 @@ internal fun StatsChip(
         modifier = modifier
             .clip(CircleShape)
             .background(color.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier
