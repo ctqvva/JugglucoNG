@@ -13,7 +13,7 @@ object StatusPalette {
     /** Done, connected, stable. */
     @Composable
     @ReadOnlyComposable
-    fun success(): Color = if (isAppInDarkTheme()) Color(0xFF81C784) else Color(0xFF2E7D32)
+    fun success(): Color = if (isAppInDarkTheme()) Color(0xFF81C784) else Color(0xFF1B5E20)
 
     /** Not wrong, but wait or look: an unstable trend, a reading that needs time. */
     @Composable
