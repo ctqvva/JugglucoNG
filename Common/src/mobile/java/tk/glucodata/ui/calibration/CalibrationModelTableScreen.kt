@@ -449,10 +449,12 @@ private fun CalibrationModelChart(
     onEdit: (CalibrationEntity) -> Unit
 ) {
     val isDarkTheme = tk.glucodata.ui.isAppInDarkTheme()
+    // ui-guardrails: allow-begin hex_color - the chart's four series, picked as light/dark pairs to stay apart from each other
     val activeColor = if (isDarkTheme) Color(0xFFDFFF78) else Color(0xFF496900)
     val disabledColor = if (isDarkTheme) Color(0xFF8B8A83) else Color(0xFF77746D)
     val fitColor = if (isDarkTheme) Color(0xFF77C8FF) else Color(0xFF00649F)
     val residualColor = if (isDarkTheme) Color(0xFFFFC857) else Color(0xFF8F5600)
+    // ui-guardrails: allow-end
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val crosshairColor = MaterialTheme.colorScheme.onSurfaceVariant

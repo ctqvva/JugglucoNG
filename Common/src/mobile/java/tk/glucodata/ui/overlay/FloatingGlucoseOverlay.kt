@@ -157,6 +157,7 @@ fun FloatingGlucoseOverlay(
     val finalBgColor = if (isTransparent) Color.Transparent else Color.Black.copy(alpha = opacity)
     val finalShape = RoundedCornerShape(cornerRadius.dp)
     val finalTextColor = if (isTransparent && !isDarkTheme) {
+        // ui-guardrails: allow hex_color - drawn straight onto other apps, outside the app theme
         Color(0xFF27231F)
     } else {
         Color.White

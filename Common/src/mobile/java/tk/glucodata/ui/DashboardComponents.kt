@@ -913,7 +913,7 @@ fun DashboardCombinedHeader(
                     val fillColor = when {
                         sensorProgress > 0.95f -> MaterialTheme.colorScheme.error
                         sensorProgress > 0.80f -> MaterialTheme.colorScheme.tertiary
-                        else -> androidx.compose.ui.graphics.Color(0xFF66BB6A) // Muted Green (400) - "Make it Green"
+                        else -> StatusPalette.sensorLifeFill
                     }
                     Box(
                         modifier = Modifier
@@ -2136,10 +2136,10 @@ fun SignalQualityIndicator(
     // Color thresholds (Standard xDrip 0-200+ scale)
     // <10: Clean (Green), 10-25: Light (Lt Green), 25-60: Medium (Amber), >60: Heavy (Red)
     val color = when {
-        noiseLevel < 10f -> androidx.compose.ui.graphics.Color(0xB34CAF50)  // Green
-        noiseLevel < 25f -> androidx.compose.ui.graphics.Color(0xB38BC34A)  // Light Green
-        noiseLevel < 60f -> androidx.compose.ui.graphics.Color(0xB3FFC107)  // Amber
-        else -> androidx.compose.ui.graphics.Color(0xB3F44336)               // Red
+        noiseLevel < 10f -> StatusPalette.noiseClean
+        noiseLevel < 25f -> StatusPalette.noiseLight
+        noiseLevel < 60f -> StatusPalette.noiseMedium
+        else -> StatusPalette.noiseHeavy
     }
     
     // Pulse for medium noise and up, shake for heavy. Both are created only once their

@@ -86,6 +86,12 @@ object StatsReportExporter {
         val shadowOffsetY: Float
     )
 
+    /** The colours a style prints with, for the style picker's preview. */
+    data class PdfStyleSwatch(val paper: Int, val text: Int, val primary: Int, val secondary: Int)
+
+    fun swatch(style: PdfVisualStyle): PdfStyleSwatch =
+        resolveVisualTheme(style).let { PdfStyleSwatch(it.paper, it.text, it.primary, it.secondary) }
+
     private fun resolveVisualTheme(style: PdfVisualStyle): PdfVisualTheme = when (style) {
         PdfVisualStyle.CURRENT -> PdfVisualTheme(
             paper = android.graphics.Color.rgb(245, 248, 253),

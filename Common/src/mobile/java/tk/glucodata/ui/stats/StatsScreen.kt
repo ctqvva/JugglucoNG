@@ -1073,6 +1073,7 @@ private fun sharePdfReport(context: Context, uri: Uri) {
 }
 
 
+/** A style's printed colours, read from the exporter so the preview can't drift from the PDF. */
 private data class PdfStylePreviewPalette(
     val paper: Color,
     val stripe: Color,
@@ -1082,36 +1083,12 @@ private data class PdfStylePreviewPalette(
 
 private fun resolvePdfStylePreviewPalette(
     style: StatsReportExporter.PdfVisualStyle
-): PdfStylePreviewPalette = when (style) {
-    StatsReportExporter.PdfVisualStyle.CURRENT -> PdfStylePreviewPalette(
-        paper = Color(0xFFF5F8FD),
-        stripe = Color(0xFF1A52B0),
-        accent = Color(0xFFD65F3F),
-        text = Color(0xFF1B2637)
-    )
-    StatsReportExporter.PdfVisualStyle.MINIMAL_SWISS -> PdfStylePreviewPalette(
-        paper = Color(0xFFFAFBFD),
-        stripe = Color(0xFF181818),
-        accent = Color(0xFFBB2025),
-        text = Color(0xFF21252C)
-    )
-    StatsReportExporter.PdfVisualStyle.MEDICAL_JOURNAL -> PdfStylePreviewPalette(
-        paper = Color(0xFFF8F6F1),
-        stripe = Color(0xFF295789),
-        accent = Color(0xFF774935),
-        text = Color(0xFF30353F)
-    )
-    StatsReportExporter.PdfVisualStyle.PREMIUM_DARK_INK -> PdfStylePreviewPalette(
-        paper = Color(0xFF1A202B),
-        stripe = Color(0xFF7FABFF),
-        accent = Color(0xFFDB9E6E),
-        text = Color(0xFFE8EDF6)
-    )
-    StatsReportExporter.PdfVisualStyle.ELEGANT_TYPOGRAPHY -> PdfStylePreviewPalette(
-        paper = Color(0xFFFCFBF9),
-        stripe = Color(0xFF56448B),
-        accent = Color(0xFFB07F57),
-        text = Color(0xFF413952)
+): PdfStylePreviewPalette = StatsReportExporter.swatch(style).let {
+    PdfStylePreviewPalette(
+        paper = Color(it.paper),
+        stripe = Color(it.primary),
+        accent = Color(it.secondary),
+        text = Color(it.text)
     )
 }
 
@@ -2514,7 +2491,7 @@ private fun DailyTrendSparkline(
                 val targetTop = yFor(targets.highMgDl)
                 val targetBottom = yFor(targets.lowMgDl)
                 drawRoundRect(
-                    color = Color(0xFF43A047).copy(alpha = 0.14f),
+                    color = TirInRangeColor.copy(alpha = 0.14f),
                     topLeft = Offset(horizontalPadding, targetTop),
                     size = Size(width, targetBottom - targetTop),
                     cornerRadius = CornerRadius(8.dp.toPx())
@@ -2646,7 +2623,7 @@ private fun TemperatureOverviewCard(temperaturePoints: List<TemperaturePoint>) {
     val resolvedIndex = (selectedIndex ?: sampledPoints.lastIndex).coerceIn(0, sampledPoints.lastIndex)
     val selected = sampledPoints.getOrNull(resolvedIndex) ?: sampledPoints.last()
     val selectedTone by animateColorAsState(
-        targetValue = if (selectedIndex == null) Color(0xFF00838F) else Color(0xFF0277BD),
+        targetValue = if (selectedIndex == null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
         label = "tempSelectedTone"
     )
     val timeLabel = remember(selected.timestamp) {
@@ -2767,7 +2744,7 @@ private fun TemperatureSparkline(
     }
     var viewportStart by remember(points) { mutableFloatStateOf(0f) }
     var visibleSpan by remember(points, maxVisibleSpan) { mutableFloatStateOf(maxVisibleSpan) }
-    val lineColor = Color(0xFF00838F)
+    val lineColor = MaterialTheme.colorScheme.tertiary
     val selectorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
 
     val clampedViewportStart = { start: Float, span: Float ->
