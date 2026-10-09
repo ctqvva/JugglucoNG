@@ -1,8 +1,17 @@
 package tk.glucodata.drivers.sibionics
 
 internal object SibionicsSessionPolicy {
-    /** One incoming sample, as far as session identity is concerned. */
-    data class SessionSample(val index: Int, val eventMs: Long, val live: Boolean)
+    /**
+     * One incoming sample, as far as session identity is concerned.
+     * [sensorLiveIndex] is the sensor's newest index when the packet says so
+     * (Chinese: index + NumOfUnreceived), null when it does not (V120).
+     */
+    data class SessionSample(
+        val index: Int,
+        val eventMs: Long,
+        val live: Boolean,
+        val sensorLiveIndex: Int? = null,
+    )
 
     /**
      * A session that starts less than this after the known one is not a new
@@ -45,6 +54,12 @@ internal object SibionicsSessionPolicy {
      * The last sample's time is the later of [lastSeenMs] and what the cursor
      * implies, so an index the sensor skipped cannot make an old sample look new.
      * [knownStartMs] <= 0 (never seen a sample) leaves only the live-index rule.
+     *
+     * Chinese-protocol times are the phone's receipt time minus the sensor's
+     * backlog, so a phone clock change moves every implied start with it. Those
+     * packets also carry the sensor's newest index, and the second rule then
+     * also needs the sensor to hold fewer indices than we have already received:
+     * a restart the clock cannot fake.
      */
     fun restartedSessionStartMs(
         samples: List<SessionSample>,
@@ -61,6 +76,9 @@ internal object SibionicsSessionPolicy {
             }
             if (sample.eventMs <= 0L || knownStartMs <= 0L || knownCursor <= 1) continue
             if (sample.index >= knownCursor) continue
+            // A sensor still holding every index we already have is on the
+            // tracked session, whatever the clock says.
+            if (sample.sensorLiveIndex != null && sample.sensorLiveIndex >= knownCursor - 1) continue
             val implied = impliedStartMs(sample.index, sample.eventMs)
             if (implied > nowMs + MAX_FUTURE_START_MS || implied < MIN_REASONABLE_START_MS) continue
             if (implied - knownStartMs < MIN_SESSION_SHIFT_MS) continue
