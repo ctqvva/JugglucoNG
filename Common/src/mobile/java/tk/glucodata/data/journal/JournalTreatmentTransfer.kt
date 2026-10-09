@@ -306,7 +306,17 @@ object JournalTreatmentTransfer {
             )
         }
 
-        if (inputs.isEmpty() || (recoveryId != null && inputs.size != 1)) return null
+        // A treatment that carries nothing for the journal any more, such as a note whose text
+        // was cleared, takes away what it brought in earlier.
+        if (inputs.isEmpty()) {
+            return ParsedTreatment(
+                inputs = emptyList(),
+                candidateSourceRecordIds = candidateIds,
+                remoteId = remoteId,
+                deleteOnly = true
+            )
+        }
+        if (recoveryId != null && inputs.size != 1) return null
         return ParsedTreatment(
             inputs = inputs.map { input -> input.copy(recoveryId = recoveryId) },
             candidateSourceRecordIds = candidateIds,

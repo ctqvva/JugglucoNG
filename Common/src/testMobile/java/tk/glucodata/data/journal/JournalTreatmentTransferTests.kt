@@ -4,7 +4,6 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -233,7 +232,9 @@ class JournalTreatmentTransferTests {
             .put("duration", 30)
             .put("absolute", 0.4)
 
-        assertNull(parseAaps(tempBasal))
+        val parsed = parseAaps(tempBasal)!!
+        assertTrue(parsed.inputs.isEmpty())
+        assertTrue(parsed.deleteOnly)
     }
 
     @Test
@@ -245,7 +246,22 @@ class JournalTreatmentTransferTests {
             .put("notes", "AAPS")
             .put("enteredBy", "AndroidAPS")
 
-        assertNull(parseAaps(document))
+        assertTrue(parseAaps(document)!!.inputs.isEmpty())
+    }
+
+    /** The changed treatment must still reach the importer, or the old text would stay. */
+    @Test
+    fun aNoteWhoseTextWasClearedTakesAwayWhatItImportedBefore() {
+        val document = JSONObject()
+            .put("_id", "aaps-cleared-note")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Note")
+            .put("notes", "")
+            .put("enteredBy", "AndroidAPS")
+
+        val parsed = parseAaps(document)!!
+        assertTrue(parsed.deleteOnly)
+        assertTrue("aaps:aaps-cleared-note:note" in parsed.candidateSourceRecordIds)
     }
 
     @Test
