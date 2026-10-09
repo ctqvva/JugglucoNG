@@ -13,10 +13,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LegendToggle
@@ -30,8 +30,10 @@ import androidx.compose.material.icons.outlined.Sensors
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationItemIconPosition
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarArrangement
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.MaterialTheme
@@ -53,10 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -672,31 +671,25 @@ private const val CALIBRATION_SHEET_WINDOW_HALF_MS = 6L * 60L * 60L * 1000L
 
 @Composable
 private fun AdaptiveNavigationLabel(text: String) {
-    BoxWithConstraints {
-        val density = LocalDensity.current
-        val textMeasurer = rememberTextMeasurer()
-        val regularStyle = MaterialTheme.typography.labelMedium
-        val tightStyle = regularStyle.copy(letterSpacing = 0.sp)
-        val compactStyle = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp)
-        val availableWidthPx = with(density) { maxWidth.toPx() }
-        val labelStyle = remember(text, availableWidthPx, regularStyle, tightStyle, compactStyle) {
-            listOf(regularStyle, tightStyle, compactStyle).firstOrNull { style ->
-                textMeasurer.measure(
-                    text = AnnotatedString(text),
-                    style = style,
-                    maxLines = 1
-                ).size.width <= availableWidthPx
-            } ?: compactStyle
-        }
-
-        Text(
-            text = text,
-            style = labelStyle,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
+    val regularStyle = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.sp)
+    val compactFontSize = MaterialTheme.typography.labelSmall.fontSize
+    val autoSize = remember(compactFontSize, regularStyle.fontSize) {
+        TextAutoSize.StepBased(
+            minFontSize = compactFontSize,
+            maxFontSize = regularStyle.fontSize,
+            stepSize = 1.sp
         )
     }
+
+    // ShortNavigationBar queries intrinsic sizes; a BoxWithConstraints label cannot provide them.
+    Text(
+        text = text,
+        style = regularStyle,
+        autoSize = autoSize,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable
@@ -989,10 +982,11 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0), // Fix: Prevent double padding for child Scaffolds
             bottomBar = {
-                NavigationBar {
+                ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
                     navItems.forEach { item ->
                         val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        NavigationBarItem(
+                        ShortNavigationBarItem(
+                            iconPosition = NavigationItemIconPosition.Top,
                             icon = {
                                 TabIcon(
                                     isSelected = isSelected,
