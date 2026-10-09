@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.text.format.DateFormat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -90,7 +91,7 @@ fun QuietWindowCard(
     position: CardPosition = CardPosition.SINGLE
 ) {
     val context = LocalContext.current
-    val state by QuietWindow.state.collectAsState()
+    val state by QuietWindow.state.collectAsStateWithLifecycle()
     val startMode = if (anySound) state.mode else AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
     var openedByUser by rememberSaveable { mutableStateOf(false) }

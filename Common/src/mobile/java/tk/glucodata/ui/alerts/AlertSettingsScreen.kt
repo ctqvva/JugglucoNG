@@ -7,6 +7,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.widget.Toast
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -179,7 +180,7 @@ fun AlertSettingsScreen(
 
     // Collected outside the LazyColumn: the quiet-window card only exists while
     // something can be silenced, or while a window runs.
-    val quietWindowStateNow by tk.glucodata.alerts.QuietWindow.state.collectAsState()
+    val quietWindowStateNow by tk.glucodata.alerts.QuietWindow.state.collectAsStateWithLifecycle()
     // One Advanced state for every card on this screen.
     val advancedOpen = rememberSaveable { mutableStateOf(false) }
 

@@ -2,6 +2,7 @@ package tk.glucodata.ui.calibration
 
 import android.os.Build
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -172,7 +173,7 @@ fun CalibrationBottomSheet(
 
     // Data Flow
     val duplicateThresholdMs = 60_000L
-    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsState(initial = emptyList())
+    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsStateWithLifecycle(initialValue = emptyList())
         ?: remember { mutableStateOf(emptyList()) }
     val calibrations = allCalibrations
         .filter { it.isRawMode == isRawMode }
