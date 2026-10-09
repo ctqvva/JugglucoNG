@@ -459,7 +459,7 @@ fun SensorScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = TabScreenDefaults.Gutter)
-                    .padding(bottom = TabScreenDefaults.BottomPadding)
+                    .padding(bottom = TabScreenDefaults.BottomPadding + LocalNavigationPanelInset.current)
             ) {
                 Spacer(modifier = Modifier.height(TabScreenDefaults.Gutter))
                 TabScreenHeader(title = stringResource(R.string.sensors_title))
@@ -522,6 +522,7 @@ fun SensorScreen(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .padding(bottom = LocalNavigationPanelInset.current)
                     .padding(fabPadding)
             ) {
                 Icon(

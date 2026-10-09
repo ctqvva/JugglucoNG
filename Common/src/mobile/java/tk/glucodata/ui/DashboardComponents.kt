@@ -119,8 +119,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.lerp
-import kotlin.math.cos
-import kotlin.math.sin
 import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.Applic
@@ -136,20 +134,10 @@ import tk.glucodata.ui.util.AdaptiveContentWidthClass
 import tk.glucodata.ui.util.adaptiveContentWidthClass
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
-private data class TrendCornerWeights(
-    val topStart: Float,
-    val topEnd: Float,
-    val bottomEnd: Float,
-    val bottomStart: Float
-)
-
 private data class GlucoseHeroTone(
     val tint: Color,
     val blendFraction: Float
 )
-
-private fun lerpFloat(start: Float, end: Float, fraction: Float): Float =
-    start + (end - start) * fraction.coerceIn(0f, 1f)
 
 private fun fallbackLowThreshold(isMmol: Boolean): Float = GlucoseRangeColors.defaultLow(isMmol)
 
@@ -181,31 +169,6 @@ private fun glucoseHeroTone(
     isFreshData = isFreshData
 )?.let { tone ->
     GlucoseHeroTone(tint = Color(tone.tintArgb), blendFraction = tone.blendFraction)
-}
-
-private fun trendCornerWeightsFromVelocity(velocity: Float): TrendCornerWeights {
-    val angleDeg = (-velocity * 25f).coerceIn(-90f, 90f)
-    val angleRad = Math.toRadians(angleDeg.toDouble())
-    val dirX = cos(angleRad).toFloat()
-    val dirY = sin(angleRad).toFloat()
-
-    fun cornerRoundWeight(cornerX: Float, cornerY: Float): Float {
-        val dot = ((dirX * cornerX + dirY * cornerY) * 0.70710677f).coerceIn(-1f, 1f)
-        return if (dot >= 0f) {
-            // Toward direction: sharper as dot increases.
-            lerpFloat(0.88f, 0.08f, dot)
-        } else {
-            // Opposite side: extra rounded.
-            lerpFloat(0.88f, 1f, -dot)
-        }
-    }
-
-    return TrendCornerWeights(
-        topStart = cornerRoundWeight(-1f, -1f),
-        topEnd = cornerRoundWeight(1f, -1f),
-        bottomEnd = cornerRoundWeight(1f, 1f),
-        bottomStart = cornerRoundWeight(-1f, 1f)
-    )
 }
 
 private fun directionalRadius(weight: Float, min: Dp, max: Dp): Dp = lerp(min, max, weight.coerceIn(0f, 1f))
@@ -280,22 +243,9 @@ fun DashboardCombinedHeader(
     val sensorContentColor = if (isExpiring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
     // Advanced Trend
-    val trendResult = remember(history, latestPoint, currentSnapshot) {
-        if (history.isNotEmpty()) {
-             // Map Kotlin UI points to Native Java points for shared TrendEngine
-             val nativeList = history.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) }
-             // The canonical trend list (live-augmented, newest-anchored window) —
-             // the same points the notification and broadcast arrows regress over.
-             val trendPoints = tk.glucodata.DisplayTrendSource.resolveTrendPoints(nativeList, currentSnapshot, null)
-             tk.glucodata.logic.TrendEngine.calculateTrend(trendPoints, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
-        } else if (latestPoint != null) {
-            // Fallback
-             val nativeList = listOf(tk.glucodata.GlucosePoint(latestPoint.timestamp, latestPoint.value, latestPoint.rawValue))
-             tk.glucodata.logic.TrendEngine.calculateTrend(nativeList, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
-        } else {
-            tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
-        }
-    }
+    val sharedMorph = LocalDashboardTrendMorph.current
+    val trendResult = sharedMorph?.trend?.value
+        ?: rememberDashboardTrend(history, latestPoint, currentSnapshot, viewMode, isMmol)
     // "Δ" readout: the measured change over the last ~5 minutes — a raw
     // number to sanity-check the estimated arrow against. Same computation as
     // the per-row deltas in the readings list, anchored at the newest point.
@@ -311,53 +261,17 @@ fun DashboardCombinedHeader(
     }
     val adaptiveMetrics = rememberAdaptiveWindowMetrics()
     val isLandscape = adaptiveMetrics.isLandscape
-    val cornerWeights = remember(trendResult.velocity) { trendCornerWeightsFromVelocity(trendResult.velocity) }
-    val cornerAnimSpec = spring<Dp>(
-        dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness = Spring.StiffnessLow
-    )
-
-    val heroTopStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topStart, 22.dp, 52.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroTopStartRadius"
-    )
-    val heroTopEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topEnd, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroTopEndRadius"
-    )
-    val heroBottomEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomEnd, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroBottomEndRadius"
-    )
-    val heroBottomStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomStart, 22.dp, 46.dp),
-        animationSpec = cornerAnimSpec,
-        label = "HeroBottomStartRadius"
-    )
-
-    val sensorTopStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topStart, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorTopStartRadius"
-    )
-    val sensorTopEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.topEnd, 20.dp, 46.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorTopEndRadius"
-    )
-    val sensorBottomEnd by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomEnd, 22.dp, 52.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorBottomEndRadius"
-    )
-    val sensorBottomStart by animateDpAsState(
-        targetValue = directionalRadius(cornerWeights.bottomStart, 8.dp, 24.dp),
-        animationSpec = cornerAnimSpec,
-        label = "SensorBottomStartRadius"
-    )
+    val cornerMotion = sharedMorph?.corners ?: rememberTrendCornerMotion(trendShapeVelocity(trendResult))
+    val cornerWeights = cornerMotion.weights
+    val heroCorners = heroCornerRadiiFromWeights(cornerWeights)
+    val heroTopStart = heroCorners.topStart.dp
+    val heroTopEnd = heroCorners.topEnd.dp
+    val heroBottomEnd = heroCorners.bottomEnd.dp
+    val heroBottomStart = heroCorners.bottomStart.dp
+    val sensorTopStart = directionalRadius(cornerWeights.topStart, 8.dp, 24.dp)
+    val sensorTopEnd = directionalRadius(cornerWeights.topEnd, 20.dp, 46.dp)
+    val sensorBottomEnd = directionalRadius(cornerWeights.bottomEnd, 22.dp, 52.dp)
+    val sensorBottomStart = directionalRadius(cornerWeights.bottomStart, 8.dp, 24.dp)
 
     // 1. Resolve Values using shared logic (with calibration if active)
     val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)

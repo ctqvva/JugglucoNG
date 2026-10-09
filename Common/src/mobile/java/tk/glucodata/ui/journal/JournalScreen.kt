@@ -189,7 +189,7 @@ fun JournalScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = if (showTitle) 16.dp else 8.dp,
-                bottom = bottomContentPadding
+                bottom = bottomContentPadding + tk.glucodata.ui.LocalNavigationPanelInset.current
             )
         ) {
             if (showTitle) {
@@ -410,6 +410,7 @@ fun JournalScreen(
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .padding(bottom = tk.glucodata.ui.LocalNavigationPanelInset.current)
                 .padding(end = 20.dp, bottom = 20.dp)
         )
     }

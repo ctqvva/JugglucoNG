@@ -946,33 +946,20 @@ fun DashboardScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(
+                snackbarHostState,
+                modifier = Modifier.padding(bottom = LocalNavigationPanelInset.current)
+            )
+        }
         // FAB removed - empty state now has inline cards
     ) { padding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val latestPoint = remember(glucoseHistory) {
-                val tail = glucoseHistory.lastOrNull()
-                if (tail == null || glucoseHistory.size < 2) {
-                    tail
-                } else {
-                    val previous = glucoseHistory[glucoseHistory.lastIndex - 1]
-                    if (tail.timestamp >= previous.timestamp) tail else glucoseHistory.maxByOrNull { it.timestamp }
-                }
-            }
-            val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
+            val latestPoint = remember(glucoseHistory) { latestDashboardPoint(glucoseHistory) }
             val hasSensorContext = sensorName.isNotBlank() || activeSensorList.isNotEmpty() || sensorStatus.isNotBlank()
-            val dashboardCurrentSnapshot = remember(
-                refreshRevision,
-                sensorName,
-                activeSensorList,
-                latestPoint?.timestamp,
-                viewMode
-            ) {
-                CurrentDisplaySource.resolveCurrent(
-                    maxAgeMillis = Notify.glucosetimeout,
-                    preferredSensorId = sensorName.ifBlank { activeSensorList.firstOrNull() }
-                )
-            }
+            val dashboardCurrentSnapshot = rememberDashboardCurrentSnapshot(
+                sensorName, activeSensorList, latestPoint, viewMode, unit
+            )
             val freshnessTick by produceState(
                 initialValue = System.currentTimeMillis(),
                 key1 = hasSensorContext,
@@ -1005,8 +992,9 @@ fun DashboardScreen(
             val isLandscape = adaptiveMetrics.isLandscape
             val topContentInset = padding.calculateTopPadding()
             val bottomContentInset = padding.calculateBottomPadding()
-            val viewportHeight = remember(maxHeight, topContentInset, bottomContentInset) {
-                (maxHeight - topContentInset - bottomContentInset).coerceAtLeast(0.dp)
+            val navigationPanelInset = LocalNavigationPanelInset.current
+            val viewportHeight = remember(maxHeight, topContentInset, bottomContentInset, navigationPanelInset) {
+                (maxHeight - topContentInset - bottomContentInset - navigationPanelInset).coerceAtLeast(0.dp)
             }
             val listState = rememberLazyListState()
             val collapseDistancePx = with(LocalDensity.current) { 220.dp.toPx() }
@@ -1747,7 +1735,7 @@ fun DashboardScreen(
                     .padding(padding),
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(dashboardItemSpacing),
-                contentPadding = PaddingValues(top = dashboardListTopPadding, bottom = 12.dp)
+                contentPadding = PaddingValues(top = dashboardListTopPadding, bottom = 12.dp + navigationPanelInset)
             ) {
                 item {
                     Box(

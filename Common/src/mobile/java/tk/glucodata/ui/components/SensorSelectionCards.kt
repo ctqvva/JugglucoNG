@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import tk.glucodata.ui.LocalNavigationPanelInset
 
 @OptIn(ExperimentalTextApi::class)
 private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
@@ -267,7 +268,7 @@ fun DashboardEmptyState(
             .verticalScroll(scrollState)
             .padding(horizontal = sidePadding)
             .padding(top = if (compact) 8.dp else 16.dp)
-            .padding(bottom = if (compact) 104.dp else 120.dp),
+            .padding(bottom = (if (compact) 104.dp else 120.dp) + LocalNavigationPanelInset.current),
         horizontalAlignment = Alignment.Start
     ) {
         // Welcome header
