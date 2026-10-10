@@ -1454,7 +1454,8 @@ private fun FloatingActionToolbar(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp),
-                shape = ConnectedButtonShapes.Leading,
+                shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1474,7 +1475,8 @@ private fun FloatingActionToolbar(
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp),
-            shape = ConnectedButtonShapes.Trailing,
+            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+            contentPadding = ButtonDefaults.ContentPadding,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary

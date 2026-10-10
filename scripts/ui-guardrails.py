@@ -74,7 +74,7 @@ def offscale_radius(text):
 # Bare or fully qualified (androidx.compose.material3.TextButton(...)); other receivers are not M3.
 BUTTON_CALL = re.compile(
     r"(?:(?<![\w.])|(?<=material3\.))(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton"
-    r"|IconButton|FilledIconButton|FilledTonalIconButton|OutlinedIconButton)\("
+    r"|IconButton|FilledIconButton|FilledTonalIconButton|OutlinedIconButton)\s*\("
 )
 
 
@@ -85,7 +85,7 @@ def button_without_shapes(text, path):
         if re.search(r"\bfun\s+$", text[text.rfind("\n", 0, m.start()) + 1:m.start()]):
             continue
         args = text[m.end():_closing(text, m.end())]
-        if not re.search(r"\bshapes?\s*=", args):
+        if not re.search(r"\bshapes\s*=", args):
             hits.append(m.start())
     return hits
 
@@ -135,7 +135,7 @@ RULES = {
     # Pushed screens use AppTopBar.
     "hand_built_top_bar": pattern(r"(?<![\w.])TopAppBar\(", exclude=("components/AppTopBar.kt",)),
     # Emphasis is a style (titleMediumEmphasized...), not a call-site weight.
-    # Buttons morph on press: shapes = ButtonDefaults/IconButtonDefaults.shapes(), or a deliberate shape.
+    # Buttons morph on press: shapes = ...Defaults.shapes(), with shape/pressedShape for a custom silhouette.
     "button_without_shapes": button_without_shapes,
     "font_weight_override": pattern(r"fontWeight\s*=\s*FontWeight\.(?:Medium|SemiBold|Bold)\b", exclude=("theme/Type.kt",)),
 }

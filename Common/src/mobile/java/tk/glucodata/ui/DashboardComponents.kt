@@ -1811,7 +1811,8 @@ fun CalibrationsCard(
             onClick = onAddCalibration,
             enabled = isCalibrationEnabled,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(28.dp)),
+            contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
 //            elevation = androidx.compose.material3.ButtonDefaults.filledTonalButtonElevation(defaultElevation = 2.dp)
         ) {
             Icon(
@@ -1853,12 +1854,18 @@ fun CalibrationsCard(
 //                        modifier = Modifier
 //                            .weight(1f),
 //                            .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(
+                        shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
                             topStart = 12.dp,
                             bottomStart = 12.dp,
                             topEnd = 4.dp,
                             bottomEnd = 4.dp
-                        ),
+                        ), pressedShape = RoundedCornerShape(
+                            topStart = 8.dp,
+                            bottomStart = 8.dp,
+                            topEnd = 4.dp,
+                            bottomEnd = 4.dp
+                        )),
+                        contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                         colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1878,12 +1885,18 @@ fun CalibrationsCard(
                     onClick = onAddCalibration,
                     enabled = isCalibrationEnabled,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(
+                    shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
                         topStart = 4.dp,
                         bottomStart = 4.dp,
                         topEnd = 12.dp,
                         bottomEnd = 12.dp
-                    ),
+                    ), pressedShape = RoundedCornerShape(
+                        topStart = 4.dp,
+                        bottomStart = 4.dp,
+                        topEnd = 8.dp,
+                        bottomEnd = 8.dp
+                    )),
+                    contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -2066,7 +2079,8 @@ fun CalibrationsCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        shape = RoundedCornerShape(28.dp),
+                        shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(28.dp)),
+                        contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                         colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer

@@ -1900,15 +1900,16 @@ fun SensorCard(
                             // Nothing to pause on a sensor another phone is wearing.
                         } else if (isHandedOff) {
                             IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
-                                IconButton(
+                                // A filled icon button, not a background behind a plain one: the
+                                // container itself takes the press shape.
+                                FilledIconButton(
                                     onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            MaterialTheme.colorScheme.secondaryContainer,
-                                            CircleShape,
-                                        ),
+                                    modifier = Modifier.size(48.dp),
                                     shapes = IconButtonDefaults.shapes(),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    ),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.PhoneAndroid,
@@ -1924,7 +1925,7 @@ fun SensorCard(
                             IconButtonTooltip(
                                 stringResource(if (isLocallyEnabled) R.string.sensor_pause_streaming else R.string.sensor_resume_streaming)
                             ) {
-                                IconButton(
+                                FilledIconButton(
                                     onClick = {
                                         if (isLocallyEnabled) {
                                             android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
@@ -1934,17 +1935,15 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            if (isLocallyEnabled) {
-                                                MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
-                                            } else {
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            },
-                                            CircleShape,
-                                        ),
-                                    shapes = IconButtonDefaults.shapes()
+                                    modifier = Modifier.size(48.dp),
+                                    shapes = IconButtonDefaults.shapes(),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = if (isLocallyEnabled) {
+                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                        } else {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        },
+                                    ),
                                 ) {
                                     Icon(
                                         imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -3187,7 +3186,8 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
                             modifier = Modifier.weight(1f),
-                            shape = ConnectedButtonShapes.Leading,
+                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
+                            contentPadding = ButtonDefaults.ContentPadding,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -3211,7 +3211,8 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showTerminateDialog = true },
                             modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shape = ConnectedButtonShapes.Trailing,
+                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+                            contentPadding = ButtonDefaults.ContentPadding,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer

@@ -819,7 +819,8 @@ fun JournalEntrySheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = journalTypeIcon(draft.type),
@@ -1757,7 +1758,7 @@ private fun JournalFoodLibrarySelector(
                                 query = ""
                                 expanded = false
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(20.dp)),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
                             Text(
@@ -2430,7 +2431,8 @@ private fun JournalActionRow(
             FilledTonalButton(
                 onClick = { onAction(action) },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp),
+                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -3290,7 +3292,7 @@ private fun JournalStepperField(
                 FilledTonalIconButton(
                     onClick = { stepWithFeedback(-1) },
                     modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                    shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
+                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Remove,
@@ -3417,7 +3419,7 @@ private fun JournalStepperField(
                 FilledTonalIconButton(
                     onClick = { stepWithFeedback(1) },
                     modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                    shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
+                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,

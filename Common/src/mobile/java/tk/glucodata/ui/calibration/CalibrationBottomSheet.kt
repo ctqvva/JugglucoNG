@@ -487,7 +487,7 @@ fun CalibrationBottomSheet(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Cancel Button: Visible in Edit Mode
                 if (editingEntity != null) {
-                    OutlinedButton (
+                    OutlinedButton(
                         onClick = {
                             if (startedInEditMode) {
                                 // Started as Edit -> Close
@@ -499,7 +499,9 @@ fun CalibrationBottomSheet(
                                 textValue = TextFieldValue(if (isMmol) String.format("%.1f", userValue) else String.format("%.0f", userValue))
                             }
                         },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(R.string.cancel))
                     }

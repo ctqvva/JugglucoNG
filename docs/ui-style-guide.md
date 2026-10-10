@@ -65,9 +65,14 @@ Corner radii come from the M3 Expressive scale: **4, 8, 12, 16, 20, 28, 32, full
   (`IconButtonDefaults.shapes()` for icon buttons): round at rest, 8dp corners while pressed.
   The shapes overload defaults to 16dp padding, so keep `contentPadding =
   ButtonDefaults.ContentPadding` where the old width matters. Filter chips and time pickers
-  take their `…Defaults.shapes()` too. The ratchet counts buttons without `shapes`.
+  take their `…Defaults.shapes()` too. A custom silhouette goes through the same overload,
+  `shapes = ButtonDefaults.shapes(shape = …)`, so it still squeezes; a bare `shape =` does
+  not, and the ratchet counts it with the buttons that have no `shapes`. Colour a filled icon
+  button with `filledIconButtonColors`, never a `.background()` behind a plain `IconButton`:
+  the press shape would squeeze inside a circle that stays round.
 - **Connected buttons** (Reconnect | Disconnect) use `ConnectedButtonShapes`: pill ends
-  outside, 4dp where the halves meet. A split button is material3's `SplitButtonLayout`, and
+  outside, 4dp where the halves meet; pressed, the outer ends squeeze to 8dp
+  (`LeadingPressed` / `TrailingPressed`). A split button is material3's `SplitButtonLayout`, and
   a group of choices is `ConnectedButtonGroup`; both bring their own shapes and press morph.
 - **Statistics cards** use the one leaf shape, `StatsCardShape` (28 / 16).
 - **The dashboard hero** morphs its corners with the trend direction. That is the app's
