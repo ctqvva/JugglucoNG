@@ -1,5 +1,15 @@
 package tk.glucodata.ui.journal
 
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.activity.compose.BackHandler
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -204,75 +214,62 @@ fun JournalFloatingActionMenu(
     }
 }
 
+/**
+ * The journal's "+": material3's FAB menu. The button morphs into a close button and each
+ * entry type is a menu item in its own colours. A tap outside or Back closes it, as the
+ * popup it replaces did. Call it last in a Box, so the outside-tap catcher covers the rest
+ * of the screen; [modifier] places the menu (it adds 16dp of its own padding).
+ */
 @Composable
-fun JournalExpandableFab(
+fun BoxScope.JournalExpandableFab(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onTypeSelected: (JournalEntryType) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
-    val density = LocalDensity.current
     val actionTypes = remember { journalReachActionTypes() }
-    val menuReveal = remember { Animatable(0f) }
-    LaunchedEffect(expanded) {
-        menuReveal.animateTo(
-            targetValue = if (expanded) 1f else 0f,
-            animationSpec = if (expanded) {
-                spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            } else {
-                tween(durationMillis = 140)
-            }
+    BackHandler(enabled = expanded) { onExpandedChange(false) }
+    if (expanded) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(Unit) { detectTapGestures { onExpandedChange(false) } }
         )
     }
-    val menuProgress = menuReveal.value
-    val rowTravelPx = with(density) { 18.dp.toPx() }
-    val itemLiftPx = with(density) { 18.dp.toPx() }
-    Box(modifier = modifier) {
-        if (expanded || menuProgress > 0.01f) {
-            JournalFabMenuPopup(
-                menuProgress = menuProgress,
-                onDismissRequest = { onExpandedChange(false) },
-                modifier = Modifier.align(Alignment.TopEnd)
-            ) {
-                actionTypes.forEachIndexed { index, actionType ->
-                    val itemProgress = ((menuProgress - (index * 0.07f)) / 0.72f).coerceIn(0f, 1f)
-                    JournalActionMenuRow(
-                        actionType = actionType,
-                        placeIconAfterLabel = true,
-                        itemProgress = itemProgress,
-                        rowTravelPx = rowTravelPx,
-                        itemLiftPx = itemLiftPx,
-                        onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onTypeSelected(actionType)
-                            onExpandedChange(false)
-                        }
-                    )
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        modifier = modifier,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onExpandedChange(it)
                 }
+            ) {
+                val icon by remember {
+                    derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add }
+                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = stringResource(if (expanded) R.string.close else R.string.additem),
+                    modifier = Modifier.animateIcon({ checkedProgress })
+                )
             }
         }
-        FloatingActionButton(
-            onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                onExpandedChange(!expanded)
-            },
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(20.dp),
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp),
-            modifier = Modifier.graphicsLayer {
-                scaleX = 1f + (0.04f * menuProgress)
-                scaleY = 1f + (0.04f * menuProgress)
-            }
-        ) {
-            Icon(
-                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Add,
-                contentDescription = stringResource(if (expanded) R.string.close else R.string.additem),
-                modifier = Modifier.size(24.dp)
+    ) {
+        actionTypes.forEach { actionType ->
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onTypeSelected(actionType)
+                    onExpandedChange(false)
+                },
+                text = { Text(actionType.journalActionLabel()) },
+                icon = { Icon(actionType.journalActionIcon(), contentDescription = null) },
+                containerColor = journalTypeSelectedContainerColor(actionType),
+                contentColor = journalTypeColor(actionType)
             )
         }
     }
