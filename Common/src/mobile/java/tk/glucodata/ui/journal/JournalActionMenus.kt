@@ -1,5 +1,6 @@
 package tk.glucodata.ui.journal
 
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -52,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -269,19 +271,44 @@ fun BoxScope.JournalExpandableFab(
                     onTypeSelected(actionType)
                     onExpandedChange(false)
                 },
-                text = { Text(actionType.journalActionLabel()) },
+                text = {
+                    Text(
+                        actionType.journalActionLabel(),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.reachIntoPadding(end = FabMenuItemPaddingTrim)
+                    )
+                },
                 // The type colour marks the icon; the label stays onSurface, readable on every tint.
                 icon = {
                     Icon(
                         actionType.journalActionIcon(),
                         contentDescription = null,
-                        tint = journalTypeColor(actionType)
+                        tint = journalTypeColor(actionType),
+                        modifier = Modifier
+                            .reachIntoPadding(start = FabMenuItemPaddingTrim)
+                            .size(20.dp)
                     )
                 },
+                modifier = Modifier.height(FabMenuItemHeight),
                 containerColor = journalTypeSelectedContainerColor(actionType),
                 contentColor = MaterialTheme.colorScheme.onSurface
             )
         }
+    }
+}
+
+// material3's FAB menu item is 56dp tall with 24dp at each end, a size meant for a handful of
+// large actions; the journal lists five. The height clamps through the item's modifier, but
+// the padding is fixed inside, so the icon and the label reach 8dp into it (16dp a side).
+private val FabMenuItemHeight = 44.dp
+private val FabMenuItemPaddingTrim = 8.dp
+
+private fun Modifier.reachIntoPadding(start: Dp = 0.dp, end: Dp = 0.dp) = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val startPx = start.roundToPx()
+    val endPx = end.roundToPx()
+    layout((placeable.width - startPx - endPx).coerceAtLeast(0), placeable.height) {
+        placeable.place(-startPx, 0)
     }
 }
 
