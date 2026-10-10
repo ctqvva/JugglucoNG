@@ -18,11 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Api
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Key
@@ -48,7 +49,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -88,7 +88,6 @@ import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.drivers.nightscout.NightscoutModePreference
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
@@ -113,7 +112,7 @@ private sealed class TokenState {
     data class Err(val message: String) : TokenState()
 }
 
-private enum class NightscoutHelp { CONNECTION, POLLING, UPLOADS }
+private enum class NightscoutHelp { GENERAL, POLLING }
 
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
@@ -479,6 +478,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
             AppTopBar(
                 title = stringResource(R.string.nightscout_settings_title),
                 onNavigateBack = { navController.popBackStack() },
+                actions = {
+                    NightscoutHelpButton(stringResource(R.string.nightscout_settings_title)) {
+                        help = NightscoutHelp.GENERAL
+                    }
+                },
             )
         }
     ) { padding ->
@@ -579,42 +583,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 }
                             }
                         )
-                        val useV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) followerV3 else isV3
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Row(
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp).toggleable(
-                                    value = useV3,
-                                    enabled = isActive,
-                                    role = Role.Switch,
-                                    onValueChange = {
-                                        if (mode == NightscoutModePreference.Mode.FOLLOW) {
-                                            followerV3 = it
-                                            persistSettings(connectFollower = isActive)
-                                        } else {
-                                            isV3 = it
-                                        }
-                                        testState = TestState.Idle
-                                    }
-                                ),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    stringResource(R.string.nightscout_use_v3_api),
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Switch(checked = useV3, onCheckedChange = null, enabled = isActive)
-                            }
-                            NightscoutHelpButton(stringResource(R.string.nightscout_use_v3_api)) {
-                                help = NightscoutHelp.CONNECTION
-                            }
-                        }
                     }
                 }
             }
 
-            // Test the API selected above for the current direction.
+            // Test the API selected for the current direction.
             item("nightscout_test") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -694,66 +667,58 @@ fun NightscoutSettingsScreen(navController: NavController) {
             // Upload-only items
             if (mode == NightscoutModePreference.Mode.UPLOAD) {
                 item("nightscout_status_card") {
-                    var expanded by rememberSaveable { mutableStateOf(false) }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ExpandableSettingsCard(
-                            title = stringResource(R.string.status),
-                            summary = uploaderSummary,
-                            icon = Icons.Default.CloudUpload,
-                            expanded = expanded,
-                            onExpandedChange = { expanded = it },
-                            position = CardPosition.SINGLE,
-                            content = {
-                                Text(
-                                    text = responseSummary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = stringResource(R.string.nightscout_status_last_success, formatStatusTime(lastSuccessTime)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                if (treatmentSummary != null) {
-                                    Text(
-                                        text = treatmentSummary,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (treatmentSync.isFailing) {
-                                            MaterialTheme.colorScheme.error
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        }
-                                    )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(if (isActive) 1f else 0.6f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        shape = cardShape(CardPosition.SINGLE),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(text = stringResource(R.string.status), style = MaterialTheme.typography.titleMedium)
+                            Text(text = uploaderSummary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                text = responseSummary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isActive && lastResponseCode != 0 && lastResponseCode !in 200..299) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 }
-                                if (deviceStatusSummary != null) {
-                                    Text(
-                                        text = deviceStatusSummary,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(R.string.nightscout_status_last_success, formatStatusTime(lastSuccessTime)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (treatmentSummary != null) {
+                                Text(
+                                    text = treatmentSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (treatmentSync.isFailing) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
                             }
-                        )
-                        // Keep failures visible even when routine timestamps are collapsed.
-                        if (!expanded) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (isActive && lastResponseCode != 0 && lastResponseCode !in 200..299) {
-                                    Text(responseSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                                }
-                                if (treatmentSummary != null && treatmentSync.isFailing) {
-                                    Text(treatmentSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                                }
-                                if (deviceStatusSummary != null) {
-                                    Text(deviceStatusSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                                }
+                            if (deviceStatusSummary != null) {
+                                Text(
+                                    text = deviceStatusSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
@@ -764,19 +729,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                            shape = cardShape(CardPosition.TOP),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            NightscoutCardHeading(
-                                title = stringResource(R.string.nightscout_upload_options_title),
-                                // Match the text inset of the icon-bearing settings rows below.
-                                modifier = Modifier.padding(start = 68.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-                            ) { help = NightscoutHelp.UPLOADS }
-                        }
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_treatments),
+                            subtitle = stringResource(R.string.nightscout_send_amounts_desc),
                             checked = sendTreatments,
                             onCheckedChange = {
                                 sendTreatments = it
@@ -785,10 +740,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
+                            position = CardPosition.TOP
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
+                            subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
                             onCheckedChange = {
                                 sendLongInsulin = it
@@ -802,6 +758,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_receive_amounts),
+                            subtitle = stringResource(R.string.nightscout_receive_amounts_desc),
                             checked = receiveTreatments,
                             onCheckedChange = {
                                 receiveTreatments = it
@@ -814,6 +771,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_iob),
+                            subtitle = stringResource(R.string.nightscout_upload_iob_desc),
                             checked = uploadIob,
                             onCheckedChange = {
                                 uploadIob = it
@@ -821,6 +779,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 if (it) Natives.wakeuploader()
                             },
                             icon = Icons.Default.CloudUpload,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            enabled = isActive,
+                            position = CardPosition.MIDDLE
+                        )
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_use_v3_api),
+                            subtitle = stringResource(R.string.nightscout_use_v3_api_desc),
+                            checked = isV3,
+                            onCheckedChange = {
+                                isV3 = it
+                                testState = TestState.Idle
+                            },
+                            icon = Icons.Default.Api,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
                             position = CardPosition.BOTTOM
@@ -873,15 +844,32 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
 
+            if (mode == NightscoutModePreference.Mode.FOLLOW) {
+                item("nightscout_follow_options_group") {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.nightscout_follow_use_v3_api),
+                        subtitle = stringResource(R.string.nightscout_follow_use_v3_api_desc),
+                        checked = followerV3,
+                        onCheckedChange = {
+                            followerV3 = it
+                            persistSettings(connectFollower = isActive)
+                            testState = TestState.Idle
+                        },
+                        icon = Icons.Default.Science,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        enabled = isActive,
+                        position = CardPosition.SINGLE
+                    )
+                }
+            }
         }
     }
 
     help?.let { topic ->
         val useV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) followerV3 else isV3
         val title = stringResource(when (topic) {
-            NightscoutHelp.CONNECTION -> R.string.nightscout_use_v3_api
+            NightscoutHelp.GENERAL -> R.string.nightscout_settings_title
             NightscoutHelp.POLLING -> R.string.nightscout_follow_interval_title
-            NightscoutHelp.UPLOADS -> R.string.nightscout_upload_options_title
         })
         AlertDialog(
             onDismissRequest = { help = null },
@@ -896,13 +884,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             Text(stringResource(R.string.nightscout_follow_interval_desc))
                             Text(stringResource(R.string.nightscout_follow_interval_doze))
                         }
-                        NightscoutHelp.UPLOADS -> {
-                            NightscoutHelpParagraph(R.string.nightscout_send_treatments, R.string.nightscout_send_amounts_desc)
-                            NightscoutHelpParagraph(R.string.nightscout_send_long_insulin, R.string.nightscout_send_long_insulin_desc)
-                            NightscoutHelpParagraph(R.string.nightscout_receive_amounts, R.string.nightscout_receive_amounts_desc)
-                            NightscoutHelpParagraph(R.string.nightscout_upload_iob, R.string.nightscout_upload_iob_desc)
-                        }
-                        NightscoutHelp.CONNECTION -> {
+                        NightscoutHelp.GENERAL -> {
                             Text(stringResource(R.string.nightscout_use_v3_api_desc))
                             if (useV3) {
                                 Text(
@@ -939,7 +921,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             },
             dismissButton = {
-                if (topic == NightscoutHelp.CONNECTION && useV3 && mode == NightscoutModePreference.Mode.UPLOAD) {
+                if (topic == NightscoutHelp.GENERAL && useV3 && mode == NightscoutModePreference.Mode.UPLOAD) {
                     TextButton(
                         onClick = { refreshToken() },
                         enabled = isActive && tokenState !is TokenState.Refreshing
@@ -978,13 +960,5 @@ private fun NightscoutCardHeading(title: String, modifier: Modifier = Modifier, 
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         NightscoutHelpButton(title, onHelp)
-    }
-}
-
-@Composable
-private fun NightscoutHelpParagraph(title: Int, description: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
-        Text(stringResource(description))
     }
 }

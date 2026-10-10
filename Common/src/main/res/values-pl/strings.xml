@@ -1509,7 +1509,7 @@
     <string name="nightscout_upload_title">Przesyłanie do Nightscout</string>
     <string name="nightscout_upload_active">Przesyłanie w tle</string>
     <string name="nightscout_upload_paused">Przesyłanie wstrzymane</string>
-    <string name="nightscout_upload_options_title">Wysyłanie</string>
+    <string name="nightscout_upload_options_title">Opcje przesyłania</string>
     <string name="nightscout_status_never">Nigdy</string>
     <string name="nightscout_status_paused">Wysyłanie wstrzymane</string>
     <string name="nightscout_status_waiting">Oczekiwanie na następne wysłanie</string>

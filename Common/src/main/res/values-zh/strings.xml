@@ -1490,7 +1490,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Nightscout 上传</string>
     <string name="nightscout_upload_active">后台上传中</string>
     <string name="nightscout_upload_paused">上传已暂停</string>
-    <string name="nightscout_upload_options_title">上传</string>
+    <string name="nightscout_upload_options_title">上传选项</string>
     <string name="nightscout_status_never">从未</string>
     <string name="nightscout_status_paused">上传器已暂停</string>
     <string name="nightscout_status_waiting">等待下一次上传</string>

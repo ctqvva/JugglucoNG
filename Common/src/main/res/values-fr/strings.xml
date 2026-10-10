@@ -1480,7 +1480,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Téléversement Nightscout</string>
     <string name="nightscout_upload_active">Téléversement en arrière-plan</string>
     <string name="nightscout_upload_paused">Téléversements en pause</string>
-    <string name="nightscout_upload_options_title">Envois</string>
+    <string name="nightscout_upload_options_title">Options de téléversement</string>
     <string name="nightscout_status_never">Jamais</string>
     <string name="nightscout_status_paused">Envoi en pause</string>
     <string name="nightscout_status_waiting">En attente du prochain envoi</string>

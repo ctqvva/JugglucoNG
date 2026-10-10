@@ -1595,7 +1595,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_upload_title">Nightscout-Upload</string>
     <string name="nightscout_upload_active">Upload im Hintergrund aktiv</string>
     <string name="nightscout_upload_paused">Uploads pausiert</string>
-    <string name="nightscout_upload_options_title">Hochladen</string>
+    <string name="nightscout_upload_options_title">Upload-Optionen</string>
     <string name="nightscout_status_never">Nie</string>
     <string name="nightscout_status_paused">Uploader pausiert</string>
     <string name="nightscout_status_waiting">Warte auf den nächsten Upload</string>

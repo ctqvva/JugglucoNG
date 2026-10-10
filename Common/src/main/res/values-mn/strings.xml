@@ -1284,7 +1284,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_upload_title">Nightscout ачаалалт</string>
     <string name="nightscout_upload_active">Арын горимд ачаалж байна</string>
     <string name="nightscout_upload_paused">Ачаалалт түр зогссон</string>
-    <string name="nightscout_upload_options_title">Илгээх өгөгдөл</string>
+    <string name="nightscout_upload_options_title">Ачаалах сонголтууд</string>
     <string name="nightscout_status_never">Хэзээ ч үгүй</string>
     <string name="nightscout_status_paused">Ачаалагч түр зогссон</string>
     <string name="nightscout_status_waiting">Дараагийн ачаалалтыг хүлээж байна</string>

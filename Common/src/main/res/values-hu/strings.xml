@@ -1512,7 +1512,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_upload_title">Nightscout-feltöltés</string>
     <string name="nightscout_upload_active">Feltöltés a háttérben</string>
     <string name="nightscout_upload_paused">Feltöltések szüneteltetve</string>
-    <string name="nightscout_upload_options_title">Feltöltések</string>
+    <string name="nightscout_upload_options_title">Feltöltési beállítások</string>
     <string name="nightscout_status_never">Soha</string>
     <string name="nightscout_status_paused">Feltöltő szüneteltetve</string>
     <string name="nightscout_status_waiting">Várakozás a következő feltöltésre</string>

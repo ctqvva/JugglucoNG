@@ -1502,7 +1502,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_upload_title">Nightscout yükleme</string>
     <string name="nightscout_upload_active">Arka planda yükleniyor</string>
     <string name="nightscout_upload_paused">Yüklemeler duraklatıldı</string>
-    <string name="nightscout_upload_options_title">Yüklemeler</string>
+    <string name="nightscout_upload_options_title">Yükleme seçenekleri</string>
     <string name="nightscout_status_never">Asla</string>
     <string name="nightscout_status_paused">Yükleyici duraklatıldı</string>
     <string name="nightscout_status_waiting">Sonraki yükleme bekleniyor</string>

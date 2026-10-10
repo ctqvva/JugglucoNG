@@ -1517,7 +1517,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_upload_title">Nightscout-upload</string>
     <string name="nightscout_upload_active">Upload op de achtergrond actief</string>
     <string name="nightscout_upload_paused">Uploads gepauzeerd</string>
-    <string name="nightscout_upload_options_title">Verzenden</string>
+    <string name="nightscout_upload_options_title">Uploadopties</string>
     <string name="nightscout_status_never">Nooit</string>
     <string name="nightscout_status_paused">Uploader gepauzeerd</string>
     <string name="nightscout_status_waiting">Wachten op volgende upload</string>

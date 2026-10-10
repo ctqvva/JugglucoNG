@@ -28,7 +28,7 @@ class SettingsCopyLocalizationTests {
         "nightscout_follow_interval_title", "nightscout_follow_interval_desc", "nightscout_follow_interval_doze",
         "nightscout_mode_upload", "nightscout_mode_follow", "nightscout_permissions_title", "nightscout_permissions_summary",
         "nightscout_permissions_upload", "nightscout_permissions_follow", "nightscout_resend_data",
-        "nightscout_status_response_invalid_url", "nightscout_upload_options_title", "close"
+        "nightscout_status_response_invalid_url", "close"
     )
 
     private fun value(file: File, key: String): String? =

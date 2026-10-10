@@ -1544,7 +1544,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_upload_title">Nightscoout Upload</string>
     <string name="nightscout_upload_active">Soo dejinta gadaal</string>
     <string name="nightscout_upload_paused">Soo dejinta waa la hakiyay</string>
-    <string name="nightscout_upload_options_title">Dirista</string>
+    <string name="nightscout_upload_options_title">Ikhtiyaarada soo dejinta</string>
     <string name="nightscout_status_never">Marna</string>
     <string name="nightscout_status_paused">Soodejiye waa hakad</string>
     <string name="nightscout_status_waiting">Sugitaanka soo dejinta xigta</string>

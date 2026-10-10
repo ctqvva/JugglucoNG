@@ -1636,7 +1636,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Nightscout upload</string>
     <string name="nightscout_upload_active">Uploading in background</string>
     <string name="nightscout_upload_paused">Uploads paused</string>
-    <string name="nightscout_upload_options_title">Uploads</string>
+    <string name="nightscout_upload_options_title">Upload options</string>
     <string name="nightscout_status_never">Never</string>
     <string name="nightscout_status_paused">Uploader paused</string>
     <string name="nightscout_status_waiting">Waiting for next upload</string>
