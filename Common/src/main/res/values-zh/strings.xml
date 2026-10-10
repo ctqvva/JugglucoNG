@@ -1490,7 +1490,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Nightscout 上传</string>
     <string name="nightscout_upload_active">后台上传中</string>
     <string name="nightscout_upload_paused">上传已暂停</string>
-    <string name="nightscout_upload_options_title">上传选项</string>
+    <string name="nightscout_upload_options_title">上传</string>
     <string name="nightscout_status_never">从未</string>
     <string name="nightscout_status_paused">上传器已暂停</string>
     <string name="nightscout_status_waiting">等待下一次上传</string>
@@ -2954,7 +2954,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_all">所有读数</string>
     <string name="data_smoothing_graph_only_collapse_desc">发送的读数也会被平滑。</string>
     <string name="nightscout_send_treatments">发送胰岛素和碳水记录</string>
-    <string name="nightscout_permissions_title">高级设置</string>
+    <string name="nightscout_permissions_title">令牌权限</string>
     <string name="nightscout_permissions_summary">API 版本和令牌权限</string>
     <string name="nightscout_resend_data">重新发送数据</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\n如果更改权限后仍出现 HTTP 403，请重启应用。</string>

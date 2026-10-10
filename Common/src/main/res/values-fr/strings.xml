@@ -1480,7 +1480,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Téléversement Nightscout</string>
     <string name="nightscout_upload_active">Téléversement en arrière-plan</string>
     <string name="nightscout_upload_paused">Téléversements en pause</string>
-    <string name="nightscout_upload_options_title">Options de téléversement</string>
+    <string name="nightscout_upload_options_title">Envois</string>
     <string name="nightscout_status_never">Jamais</string>
     <string name="nightscout_status_paused">Envoi en pause</string>
     <string name="nightscout_status_waiting">En attente du prochain envoi</string>
@@ -2945,7 +2945,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_all">Toutes les valeurs</string>
     <string name="data_smoothing_graph_only_collapse_desc">Les valeurs envoyées sont aussi lissées.</string>
     <string name="nightscout_send_treatments">Envoyer l’insuline et les glucides</string>
-    <string name="nightscout_permissions_title">Avancé</string>
+    <string name="nightscout_permissions_title">Autorisations du jeton</string>
     <string name="nightscout_permissions_summary">Version de l’API et droits du jeton</string>
     <string name="nightscout_resend_data">Renvoyer les données</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nSi HTTP 403 persiste après une modification des droits, redémarrez l’application.</string>

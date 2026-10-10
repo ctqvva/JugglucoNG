@@ -1502,7 +1502,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_upload_title">Nightscout yükleme</string>
     <string name="nightscout_upload_active">Arka planda yükleniyor</string>
     <string name="nightscout_upload_paused">Yüklemeler duraklatıldı</string>
-    <string name="nightscout_upload_options_title">Yükleme seçenekleri</string>
+    <string name="nightscout_upload_options_title">Yüklemeler</string>
     <string name="nightscout_status_never">Asla</string>
     <string name="nightscout_status_paused">Yükleyici duraklatıldı</string>
     <string name="nightscout_status_waiting">Sonraki yükleme bekleniyor</string>
@@ -2967,7 +2967,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="data_smoothing_scope_all">Tüm değerler</string>
     <string name="data_smoothing_graph_only_collapse_desc">Gönderilen ölçümler de yumuşatılır.</string>
     <string name="nightscout_send_treatments">İnsülin ve karbonhidrat gönder</string>
-    <string name="nightscout_permissions_title">Gelişmiş</string>
+    <string name="nightscout_permissions_title">Token izinleri</string>
     <string name="nightscout_permissions_summary">API sürümü ve belirteç izinleri</string>
     <string name="nightscout_resend_data">Verileri yeniden gönder</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nİzinleri değiştirdikten sonra HTTP 403 devam ederse uygulamayı yeniden başlatın.</string>

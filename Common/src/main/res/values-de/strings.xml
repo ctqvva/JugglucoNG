@@ -1595,7 +1595,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_upload_title">Nightscout-Upload</string>
     <string name="nightscout_upload_active">Upload im Hintergrund aktiv</string>
     <string name="nightscout_upload_paused">Uploads pausiert</string>
-    <string name="nightscout_upload_options_title">Upload-Optionen</string>
+    <string name="nightscout_upload_options_title">Hochladen</string>
     <string name="nightscout_status_never">Nie</string>
     <string name="nightscout_status_paused">Uploader pausiert</string>
     <string name="nightscout_status_waiting">Warte auf den nächsten Upload</string>
@@ -3055,7 +3055,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="data_smoothing_scope_all">Alle Werte</string>
     <string name="data_smoothing_graph_only_collapse_desc">Auch gesendete Werte werden geglättet.</string>
     <string name="nightscout_send_treatments">Insulin und Kohlenhydrate senden</string>
-    <string name="nightscout_permissions_title">Erweitert</string>
+    <string name="nightscout_permissions_title">Token-Berechtigungen</string>
     <string name="nightscout_permissions_summary">API-Version und Token-Berechtigungen</string>
     <string name="nightscout_resend_data">Daten erneut senden</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nBleibt HTTP 403 nach einer Änderung der Berechtigungen bestehen, die App neu starten.</string>

@@ -1284,7 +1284,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_upload_title">Nightscout ачаалалт</string>
     <string name="nightscout_upload_active">Арын горимд ачаалж байна</string>
     <string name="nightscout_upload_paused">Ачаалалт түр зогссон</string>
-    <string name="nightscout_upload_options_title">Ачаалах сонголтууд</string>
+    <string name="nightscout_upload_options_title">Илгээх өгөгдөл</string>
     <string name="nightscout_status_never">Хэзээ ч үгүй</string>
     <string name="nightscout_status_paused">Ачаалагч түр зогссон</string>
     <string name="nightscout_status_waiting">Дараагийн ачаалалтыг хүлээж байна</string>
@@ -3040,7 +3040,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_smoothing_scope_all">Бүх утга</string>
     <string name="data_smoothing_graph_only_collapse_desc">Илгээх хэмжилтийг мөн жигдрүүлнэ.</string>
     <string name="nightscout_send_treatments">Инсулин, нүүрс ус илгээх</string>
-    <string name="nightscout_permissions_title">Нэмэлт тохиргоо</string>
+    <string name="nightscout_permissions_title">Токены зөвшөөрөл</string>
     <string name="nightscout_permissions_summary">API хувилбар ба токены эрх</string>
     <string name="nightscout_resend_data">Өгөгдлийг дахин илгээх</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nЭрхийг өөрчилсний дараа HTTP 403 хэвээр байвал аппыг дахин эхлүүлнэ үү.</string>

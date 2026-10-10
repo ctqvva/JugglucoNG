@@ -1636,7 +1636,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Nightscout upload</string>
     <string name="nightscout_upload_active">Uploading in background</string>
     <string name="nightscout_upload_paused">Uploads paused</string>
-    <string name="nightscout_upload_options_title">Upload options</string>
+    <string name="nightscout_upload_options_title">Uploads</string>
     <string name="nightscout_status_never">Never</string>
     <string name="nightscout_status_paused">Uploader paused</string>
     <string name="nightscout_status_waiting">Waiting for next upload</string>
@@ -3191,7 +3191,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_all">Everywhere</string>
     <string name="data_smoothing_graph_only_collapse_desc">This also smooths sent readings.</string>
     <string name="nightscout_send_treatments">Send insulin and carbs</string>
-    <string name="nightscout_permissions_title">Advanced</string>
+    <string name="nightscout_permissions_title">Token permissions</string>
     <string name="nightscout_permissions_summary">API version and token permissions</string>
     <string name="nightscout_permissions_upload">Glucose\napi:entries:create\napi:entries:update\n\nSend insulin and carbs\napi:treatments:create\napi:treatments:update\napi:treatments:delete\n\nReceive insulin and carbs\napi:treatments:read\n\nSend insulin on board\napi:devicestatus:create\n\nAfter changing token roles, refresh the token.</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nIf HTTP 403 persists after changing token roles, restart the app.</string>

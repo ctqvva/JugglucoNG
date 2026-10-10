@@ -1512,7 +1512,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_upload_title">Nightscout-feltöltés</string>
     <string name="nightscout_upload_active">Feltöltés a háttérben</string>
     <string name="nightscout_upload_paused">Feltöltések szüneteltetve</string>
-    <string name="nightscout_upload_options_title">Feltöltési beállítások</string>
+    <string name="nightscout_upload_options_title">Feltöltések</string>
     <string name="nightscout_status_never">Soha</string>
     <string name="nightscout_status_paused">Feltöltő szüneteltetve</string>
     <string name="nightscout_status_waiting">Várakozás a következő feltöltésre</string>
@@ -3025,7 +3025,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="data_smoothing_scope_all">Minden értékre</string>
     <string name="data_smoothing_graph_only_collapse_desc">A küldött értékeket is simítja.</string>
     <string name="nightscout_send_treatments">Inzulin és szénhidrát küldése</string>
-    <string name="nightscout_permissions_title">Haladó</string>
+    <string name="nightscout_permissions_title">Tokenjogosultságok</string>
     <string name="nightscout_permissions_summary">API-verzió és tokenjogosultságok</string>
     <string name="nightscout_resend_data">Adatok újraküldése</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nHa a jogosultságok módosítása után is HTTP 403 jelenik meg, indítsa újra az alkalmazást.</string>

@@ -1509,7 +1509,7 @@
     <string name="nightscout_upload_title">Przesyłanie do Nightscout</string>
     <string name="nightscout_upload_active">Przesyłanie w tle</string>
     <string name="nightscout_upload_paused">Przesyłanie wstrzymane</string>
-    <string name="nightscout_upload_options_title">Opcje przesyłania</string>
+    <string name="nightscout_upload_options_title">Wysyłanie</string>
     <string name="nightscout_status_never">Nigdy</string>
     <string name="nightscout_status_paused">Wysyłanie wstrzymane</string>
     <string name="nightscout_status_waiting">Oczekiwanie na następne wysłanie</string>
@@ -2981,7 +2981,7 @@
     <string name="data_smoothing_scope_all">Wszystkie wartości</string>
     <string name="data_smoothing_graph_only_collapse_desc">Wysyłane odczyty też są wygładzane.</string>
     <string name="nightscout_send_treatments">Wysyłaj insulinę i węglowodany</string>
-    <string name="nightscout_permissions_title">Zaawansowane</string>
+    <string name="nightscout_permissions_title">Uprawnienia tokenu</string>
     <string name="nightscout_permissions_summary">Wersja API i uprawnienia tokena</string>
     <string name="nightscout_resend_data">Wyślij dane ponownie</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nJeśli po zmianie uprawnień nadal występuje HTTP 403, uruchom aplikację ponownie.</string>

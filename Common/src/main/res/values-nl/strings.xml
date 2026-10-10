@@ -1517,7 +1517,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_upload_title">Nightscout-upload</string>
     <string name="nightscout_upload_active">Upload op de achtergrond actief</string>
     <string name="nightscout_upload_paused">Uploads gepauzeerd</string>
-    <string name="nightscout_upload_options_title">Uploadopties</string>
+    <string name="nightscout_upload_options_title">Verzenden</string>
     <string name="nightscout_status_never">Nooit</string>
     <string name="nightscout_status_paused">Uploader gepauzeerd</string>
     <string name="nightscout_status_waiting">Wachten op volgende upload</string>
@@ -2982,7 +2982,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="data_smoothing_scope_all">Alle waarden</string>
     <string name="data_smoothing_graph_only_collapse_desc">Ook verzonden waarden worden afgevlakt.</string>
     <string name="nightscout_send_treatments">Insuline en koolhydraten versturen</string>
-    <string name="nightscout_permissions_title">Geavanceerd</string>
+    <string name="nightscout_permissions_title">Tokenrechten</string>
     <string name="nightscout_permissions_summary">API-versie en tokenrechten</string>
     <string name="nightscout_resend_data">Gegevens opnieuw versturen</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nBlijft HTTP 403 optreden nadat de rechten zijn gewijzigd, start dan de app opnieuw.</string>

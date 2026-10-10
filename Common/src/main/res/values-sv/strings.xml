@@ -1474,7 +1474,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Nightscout-uppladdning</string>
     <string name="nightscout_upload_active">Uppladdning i bakgrunden</string>
     <string name="nightscout_upload_paused">Uppladdningar pausade</string>
-    <string name="nightscout_upload_options_title">Uppladdningsalternativ</string>
+    <string name="nightscout_upload_options_title">Uppladdningar</string>
     <string name="nightscout_status_never">Aldrig</string>
     <string name="nightscout_status_paused">Uppladdning pausad</string>
     <string name="nightscout_status_waiting">Väntar på nästa uppladdning</string>
@@ -2939,7 +2939,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_all">Alla värden</string>
     <string name="data_smoothing_graph_only_collapse_desc">Även skickade värden jämnas ut.</string>
     <string name="nightscout_send_treatments">Skicka insulin och kolhydrater</string>
-    <string name="nightscout_permissions_title">Avancerat</string>
+    <string name="nightscout_permissions_title">Tokenbehörigheter</string>
     <string name="nightscout_permissions_summary">API-version och tokenbehörigheter</string>
     <string name="nightscout_resend_data">Skicka data igen</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nStarta om appen om HTTP 403 kvarstår efter att behörigheterna har ändrats.</string>

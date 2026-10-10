@@ -1475,7 +1475,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_upload_title">Envio para Nightscout</string>
     <string name="nightscout_upload_active">Enviando em segundo plano</string>
     <string name="nightscout_upload_paused">Envios em pausa</string>
-    <string name="nightscout_upload_options_title">Opções de envio</string>
+    <string name="nightscout_upload_options_title">Envios</string>
     <string name="nightscout_status_never">Nunca</string>
     <string name="nightscout_status_paused">Envio em pausa</string>
     <string name="nightscout_status_waiting">Aguardando o próximo envio</string>
@@ -2940,7 +2940,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_all">Todos os valores</string>
     <string name="data_smoothing_graph_only_collapse_desc">As leituras enviadas também são suavizadas.</string>
     <string name="nightscout_send_treatments">Enviar insulina e hidratos de carbono</string>
-    <string name="nightscout_permissions_title">Avançado</string>
+    <string name="nightscout_permissions_title">Permissões do token</string>
     <string name="nightscout_permissions_summary">Versão da API e permissões do token</string>
     <string name="nightscout_resend_data">Reenviar dados</string>
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nSe o erro HTTP 403 persistir após alterar as permissões, reinicie o aplicativo.</string>
