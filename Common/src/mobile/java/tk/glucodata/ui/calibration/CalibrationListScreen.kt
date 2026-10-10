@@ -1513,7 +1513,9 @@ private fun SelectionModeToolbar(
             Text(
                 text = stringResource(R.string.selected_count, selectedCount),
                 style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 8.dp)
             )
         }
     ) {
