@@ -5,6 +5,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -39,9 +43,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
@@ -51,7 +52,11 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
-import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.IconTile
+import tk.glucodata.ui.components.IconTileDefaults
+import tk.glucodata.ui.components.cardShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -209,56 +214,41 @@ fun DataSmoothingSettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
                 )
-                SettingsItem(
+                SmoothingScopeOption(
                     title = stringResource(R.string.data_smoothing_scope_all),
                     subtitle = stringResource(R.string.data_smoothing_scope_all_desc),
-                    onClick = if (isEnabled) ({
+                    onSelect = {
                         viewModel.setDataSmoothingGraphOnly(false)
                         viewModel.setDataSmoothingExchangeOnly(false)
-                    }) else null,
+                    },
                     icon = Icons.Default.AllInclusive,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
-                    modifier = Modifier.semantics {
-                        role = Role.RadioButton
-                        selected = !graphOnly && !exchangeOnly
-                    },
-                    trailingContent = {
-                        RadioButton(selected = !graphOnly && !exchangeOnly, onClick = null, enabled = isEnabled)
-                    }
+                    selected = !graphOnly && !exchangeOnly,
+                    enabled = isEnabled
                 )
-                SettingsItem(
+                SmoothingScopeOption(
                     title = stringResource(
                         if (collapseChunks) R.string.data_smoothing_scope_graph_and_sent
                         else R.string.data_smoothing_graph_only_title
                     ),
                     subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
-                    onClick = if (isEnabled) ({ viewModel.setDataSmoothingGraphOnly(true) }) else null,
+                    onSelect = { viewModel.setDataSmoothingGraphOnly(true) },
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.MIDDLE,
-                    modifier = Modifier.semantics {
-                        role = Role.RadioButton
-                        selected = graphOnly && !exchangeOnly
-                    },
-                    trailingContent = {
-                        RadioButton(selected = graphOnly && !exchangeOnly, onClick = null, enabled = isEnabled)
-                    }
+                    selected = graphOnly && !exchangeOnly,
+                    enabled = isEnabled
                 )
-                SettingsItem(
+                SmoothingScopeOption(
                     title = stringResource(R.string.data_smoothing_exchange_only_title),
                     subtitle = stringResource(R.string.data_smoothing_exchange_only_desc),
-                    onClick = if (isEnabled) ({ viewModel.setDataSmoothingExchangeOnly(true) }) else null,
+                    onSelect = { viewModel.setDataSmoothingExchangeOnly(true) },
                     icon = Icons.AutoMirrored.Filled.Send,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.BOTTOM,
-                    modifier = Modifier.semantics {
-                        role = Role.RadioButton
-                        selected = exchangeOnly
-                    },
-                    trailingContent = {
-                        RadioButton(selected = exchangeOnly, onClick = null, enabled = isEnabled)
-                    }
+                    selected = exchangeOnly,
+                    enabled = isEnabled
                 )
             }
 
@@ -285,6 +275,45 @@ fun DataSmoothingSettingsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SmoothingScopeOption(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    icon: ImageVector,
+    iconTint: Color,
+    position: CardPosition,
+    enabled: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onSelect)
+                .heightIn(min = 72.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconTile(icon = icon, tint = iconTint)
+            Spacer(Modifier.width(IconTileDefaults.Gap))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
         }
     }
 }
