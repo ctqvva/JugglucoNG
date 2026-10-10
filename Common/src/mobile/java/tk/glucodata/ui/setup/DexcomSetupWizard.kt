@@ -153,7 +153,10 @@ private fun DexcomManualPairingDialog(
                             onClick = { wearDays = days },
                             shape = SegmentedButtonDefaults.itemShape(index, 2),
                             modifier = Modifier.heightIn(min = 48.dp)
-                        ) { Text(stringResource(R.string.stats_span_days, days)) }
+                        ) {
+                            val duration = stringResource(R.string.stats_span_days, days)
+                            Text(if (days == 15) stringResource(R.string.dexcom_15_day_models, duration) else duration)
+                        }
                     }
                 }
                 OutlinedTextField(

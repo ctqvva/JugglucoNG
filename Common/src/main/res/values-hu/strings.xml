@@ -966,7 +966,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre_sensor">Libre 2/3</string>
     <string name="libre_sensor_desc">NFC-n keresztül</string>
     <string name="dexcom_sensor">Dexcom</string>
-    <string name="dexcom_sensor_desc">G6/G7/One</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
     <string name="accuchek_sensor">Accu-Chek SmartGuide</string>
     <string name="accuchek_sensor_desc">Data Matrix szkennelése + Bluetooth</string>
     <string name="caresens_air_sensor">CareSens Air</string>

@@ -41,6 +41,7 @@ fixture = fixture.replace('/* SENSOR_METHODS */', methods('SensorGlucoseData.hpp
     'uint32_t officialendtime()', 'int expectedWearDuration()', 'uint32_t expectedEndTime()',
 ]))
 fixture = fixture.replace('/* REGISTRY_METHODS */', methods('sensoren.hpp', [
+    'bool knownDex(',
     'sensor *findUnboundManualDexcom(',
     'std::pair<int, SensorGlucoseData *>\n  makeDexComSensorindex(',
 ]))
@@ -48,7 +49,12 @@ fixture = fixture.replace('/* DRIVER_METHODS */',
     extract('dexcom/java.cpp', 'struct glucoseinput {') + ' __attribute__((packed));\n' +
     extract('dexcom/java.cpp', 'struct dexbackfill {') + ' __attribute__((packed));\n' +
     'jbyteArray ' + extract('dexcom/java.cpp', 'fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr)')
-        .replace('fromjava(getDexbackfillcmd)', 'getDexbackfillcmd'))
+        .replace('fromjava(getDexbackfillcmd)', 'getDexbackfillcmd') + '\n' +
+    'jboolean ' + extract('dexcom/java.cpp', 'fromjava(dexbackfill)(')
+        .replace('fromjava(dexbackfill)', 'dexbackfillInput') + '\n' +
+    extract('dexcom/java.cpp', 'static bool isG7(') + '\n' +
+    'jboolean ' + extract('dexcom/java.cpp', 'fromjava(dexCandidate)(')
+        .replace('fromjava(dexCandidate)', 'dexCandidate'))
 with tempfile.TemporaryDirectory(prefix='dexcom-native-') as directory:
     directory = Path(directory)
     source = directory / 'dexcom.cpp'

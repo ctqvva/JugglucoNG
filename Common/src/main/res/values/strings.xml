@@ -1065,7 +1065,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre_sensor" translatable="false">FreeStyle Libre</string>
     <string name="libre_sensor_desc" translatable="false">2, 2 Plus, 3, 3 Plus</string>
     <string name="dexcom_sensor" translatable="false">Dexcom</string>
-    <string name="dexcom_sensor_desc" translatable="false">G7, ONE+</string>
+    <string name="dexcom_sensor_desc" translatable="false">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models" translatable="false">%1$s (G7 / Flex)</string>
     <string name="sibionics_sensor" translatable="false">Sibionics</string>
     <string name="sibionics_sensor_desc" translatable="false">GS1, Sibionics 2, Hematonix</string>
     <string name="aidex_sensor" translatable="false">AiDEX / LinX</string>

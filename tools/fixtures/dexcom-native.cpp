@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <ctime>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -53,6 +54,9 @@ struct SensorGlucoseData {
     bool haserror=false,sensorerror=false,missingInfo=false;
     uint32_t sensorErrorTime=0;
     int saved=0,lastSaved=-1,broadcast=10000;
+    map<int,pair<int,float>> readings;
+    string address="F0:00:00:00:00:01";
+    const char* deviceaddress()const{return address.c_str();}
     array<Stream,4896> stream{};
     static constexpr const char* infopdat="info.dat";
     explicit SensorGlucoseData(string path="sensor1234"):sensordir(std::move(path)){}
@@ -72,9 +76,10 @@ struct SensorGlucoseData {
     uint32_t getstarttime()const{return metadata.starttime;}
     int pollcount()const{return metadata.pollcount;}
     Stream* getstream(int index){assert(index>=0&&index<int(stream.size()));return &stream[index];}
-    template<int Interval> void savepollallIDs(uint32_t t,int index,int,int,float){
+    template<int Interval> void savepollallIDs(uint32_t t,int index,int glucose,int,float rate){
         assert(index>=0&&index<int(stream.size()));
         saved++;lastSaved=index;stream[index].timestamp=t;
+        readings[index]={glucose,rate};
         metadata.pollcount=max(metadata.pollcount,index+1);
     }
     void saveDexFuture(int,uint32_t,int){}void consecutivelifecount(){}
@@ -95,10 +100,12 @@ struct Sensoren {
     static constexpr string_view manualDexcomPrefix=dexcom::manualPrefix;
     array<sensor,32> records{};
     vector<unique_ptr<SensorGlucoseData>> data;
-    int last(){return int(data.size())-1;}
+    int last()const{return int(data.size())-1;}
     sensor* getsensor(int i){return &records.at(i);}
+    const sensor* getsensor(int i)const{return &records.at(i);}
     sensor* sensorlist(){return records.data();}
     SensorGlucoseData* getSensorData(int i){return data.at(i).get();}
+    const SensorGlucoseData* getSensorData(int i)const{return data.at(i).get();}
     sensor* findsensorm(string_view name){
         for(int i=0;i<=last();i++)if(string_view(records[i].name,16)==name)return getsensor(i);
         return nullptr;
@@ -119,14 +126,25 @@ Sensoren* sensors=&registry;
 struct updateone {static constexpr int sendstream=1;};
 struct Backup {static constexpr int wakestream=1;void resendResetDevices(const int*){}void wakebackup(int){}};
 Backup backupInstance;Backup* backup=&backupInstance;
-using jlong=long long;using jclass=int;
+using jlong=long long;using jclass=int;using jboolean=bool;using jsize=int;using jstring=const char*;
 int rate2changeindex(float){return 0;}
 jlong glucoseback(uint32_t,uint32_t,float,SensorGlucoseData*){return 123;}
 void wakewithcurrent(){}
-struct Cmd {int start,end;};
+struct Cmd {int start,end;vector<uint8_t> bytes;};
 using jbyteArray=shared_ptr<Cmd>;
-struct JNIEnv{};
+struct JNIEnv{
+    jsize GetArrayLength(const jbyteArray& value){return value->bytes.size();}
+    const char* GetStringUTFChars(jstring value,void*){return value;}
+    void ReleaseStringUTFChars(jstring,const char*){}
+};
+struct CritAr {
+    jbyteArray value;
+    CritAr(JNIEnv*,jbyteArray input):value(std::move(input)){}
+    const uint8_t* data()const{return value->bytes.data();}
+};
+struct destruct {function<void()> done;template<class F>destruct(F f):done(f){}~destruct(){done();}};
 struct dexcomstream {SensorGlucoseData* hist;};
+using streamdata=dexcomstream;
 jbyteArray mkbackfillcmd(JNIEnv*,int start,int end){return make_shared<Cmd>(Cmd{start,end});}
 /* DRIVER_METHODS */
 
@@ -143,7 +161,75 @@ void live(SensorGlucoseData& d,int seconds,int age=0){
     value.actual(&d,timeres,0);
     assert((timeres[1]!=0)==!d.sensorerror);
 }
+void flexDiscovery(){
+    JNIEnv env;
+    SensorGlucoseData d("M000000000010012");payload(d.metadata,manual(15));
+    d.initialHistoryBytes();
+    dexcomstream transport{&d};const auto ptr=reinterpret_cast<jlong>(&transport);
+    for(const char* name:{"DXCM12345","DX0212345","DX0112345","DX0412345"}){
+        assert(isG7(name));assert(dexCandidate(&env,0,ptr,name,d.address.c_str()));
+    }
+    for(const char* name:{"","D","DX","DX0","DX03abcde","DX05abcde","AB0412345"}){
+        assert(!isG7(name));assert(!dexCandidate(&env,0,ptr,name,d.address.c_str()));
+    }
+    assert(!isG7(nullptr));
+    assert(!dexCandidate(&env,0,ptr,nullptr,d.address.c_str()));
+    assert(!dexCandidate(&env,0,ptr,"DX0412345",nullptr));
+    // Recognizing Flex neither binds a sensor nor changes its PIN or lifetime.
+    assert(!*d.metadata.DexDeviceName&&d.metadata.sharedKey[0]==0);
+    assert((d.getDexPin()==array<uint8_t,4>{'0','0','1','2'}));
+    assert(d.getDexWearMinutes()==21600);
+    live(d,14*86400);assert(!d.sensorerror);
+    auto owner=make_unique<SensorGlucoseData>();
+    strcpy(owner->metadata.DexDeviceName,"DX0412345");owner->metadata.sharedKey[0]=42;
+    registry.records[0].name[0]='F';registry.data.push_back(std::move(owner));
+    assert(!dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));
+    assert(dexCandidate(&env,0,ptr,"DX0412345","F0:00:00:00:00:02"));
+    // A saved Flex binding requires an exact name match, just like G7/ONE+.
+    strcpy(d.metadata.DexDeviceName,"DX0412345");d.metadata.sharedKey[0]=42;
+    assert(dexCandidate(&env,0,ptr,"DX0412345",d.address.c_str()));
+    assert(!dexCandidate(&env,0,ptr,"DX0499999",d.address.c_str()));
+    assert(d.metadata.sharedKey[0]==42);
+    registry=Sensoren{};
+}
+jbyteArray backfillPacket(initializer_list<array<int,4>> records){
+    auto packet=make_shared<Cmd>();
+    for(auto [seconds,glucose,type,trend]:records){
+        // Encode the documented wire layout independently of the packed C++ struct.
+        for(int byte=0;byte<4;++byte)packet->bytes.push_back(uint32_t(seconds)>>(8*byte));
+        packet->bytes.push_back(glucose);packet->bytes.push_back(glucose>>8);
+        packet->bytes.push_back(type);packet->bytes.push_back(0);packet->bytes.push_back(trend);
+    }
+    return packet;
+}
+void batchedBackfill(){
+    JNIEnv env;
+    SensorGlucoseData d;payload(d.metadata,manual());
+    dexcomstream transport{&d};const auto ptr=reinterpret_cast<jlong>(&transport);
+    auto single=backfillPacket({{300,100,6,5}});
+    assert(dexbackfillInput(&env,0,ptr,single)&&d.saved==1&&d.lastSaved==1);
+    auto multiple=backfillPacket({{600,101,6,5},{900,102,7,-5},{1200,103,14,0}});
+    assert(dexbackfillInput(&env,0,ptr,multiple)&&d.saved==4&&d.lastSaved==4);
+    assert(d.stream[2].timestamp==d.getstarttime()+600&&d.stream[3].timestamp==d.getstarttime()+900);
+    assert(d.stream[4].timestamp==d.getstarttime()+1200&&d.broadcast==1&&d.metadata.lastLifeCountReceived==4);
+    assert((d.readings[1]==pair<int,float>{100,0.5f}));
+    assert((d.readings[2]==pair<int,float>{101,0.5f}));
+    assert((d.readings[3]==pair<int,float>{102,-0.5f}));
+    assert((d.readings[4]==pair<int,float>{103,0.0f}));
+    auto mixed=backfillPacket({{1500,104,0,0},{-1,100,6,0},{d.maxstreampos()*300,100,6,0},{1800,105,6,0}});
+    assert(dexbackfillInput(&env,0,ptr,mixed)&&d.saved==5&&d.lastSaved==6);
+    auto unusable=backfillPacket({{2100,100,0,0},{-300,100,6,0},{d.maxstreampos()*300,100,6,0}});
+    assert(!dexbackfillInput(&env,0,ptr,unusable)&&d.saved==5);
+    for(int length:{0,1,8,10,17}){
+        auto partial=make_shared<Cmd>();partial->bytes=multiple->bytes;partial->bytes.resize(length);
+        assert(!dexbackfillInput(&env,0,ptr,partial)&&d.saved==5);
+    }
+    assert(!dexbackfillInput(&env,0,0,single));
+    assert(!dexbackfillInput(&env,0,ptr,nullptr));
+    transport.hist=nullptr;assert(!dexbackfillInput(&env,0,ptr,single));
+}
 int main(){
+    flexDiscovery();batchedBackfill();
     for(auto model:{"4574","4581","0071"}){
         auto scan=dexcom::parseScan(barcode(model));assert(scan);
         assert(scan->days==(string_view(model)=="0071"?10:15));
@@ -250,5 +336,5 @@ int main(){
     assert(missing.pollStorageSize()==24*24*60);
     assert(!SensorGlucoseData::mkdatabaseDex("bad",string(69,'a'),1700000001));
     assert(!SensorGlucoseData::mkdatabaseDex("bad",manual(),1700000001,12));
-    cout<<"PASS: Dexcom GS1/manual identities, model-aware reuse, legacy migration, storage, live cutoff and backfill\n";
+    cout<<"PASS: Dexcom Flex discovery/binding, batched backfill, GS1/manual identities, model-aware reuse, legacy migration, storage and live cutoff\n";
 }
