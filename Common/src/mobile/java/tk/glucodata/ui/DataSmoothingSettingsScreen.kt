@@ -79,22 +79,6 @@ fun DataSmoothingSettingsScreen(
     val selectedMinutes = options[sliderIndex.roundToInt().coerceIn(0, options.lastIndex)]
     val selectedLabel = stringResource(R.string.minutes_short_format, selectedMinutes)
     val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(configuredMinutes)
-    val enabledSummary = buildList {
-        add(stringResource(R.string.minutes_short_format, smoothingMinutes.coerceAtLeast(options.first())))
-        if (exchangeOnly) {
-            add(stringResource(R.string.data_smoothing_exchange_only_title))
-        } else if (graphOnly) {
-            add(stringResource(
-                if (collapseChunks) R.string.data_smoothing_scope_graph_and_sent
-                else R.string.data_smoothing_graph_only_title
-            ))
-        } else {
-            add(stringResource(R.string.data_smoothing_scope_all))
-        }
-        if (collapseChunks) {
-            add(stringResource(R.string.data_smoothing_collapse_summary_format, collapseIntervalMinutes))
-        }
-    }.joinToString(" · ")
     val collapseSubtitle = when {
         collapseIntervalMinutes in 1 until configuredMinutes ->
             stringResource(R.string.data_smoothing_collapse_desc_capped, configuredMinutes)
@@ -121,7 +105,7 @@ fun DataSmoothingSettingsScreen(
         ) {
             MasterSwitchCard(
                 title = stringResource(R.string.graph_smoothing_title),
-                subtitle = if (isEnabled) enabledSummary else stringResource(R.string.graph_smoothing_none),
+                subtitle = stringResource(if (isEnabled) R.string.active else R.string.graph_smoothing_none),
                 checked = isEnabled,
                 onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
                 icon = Icons.AutoMirrored.Filled.TrendingUp
