@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -72,6 +74,9 @@ import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.LocalNavigationTapCatcher
+import tk.glucodata.ui.components.NavigationTapCatcher
+import tk.glucodata.ui.components.NavigationTapCatcherLayer
 import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalFoodLibraryScreen
@@ -695,6 +700,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
         calibrationSheetState = state
     }
+    val navigationTapCatcher = remember { NavigationTapCatcher() }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -820,28 +826,31 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // Child screens apply their own insets.
         bottomBar = {
             if (!isLandscape) {
-                ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
-                    navItems.forEach { item ->
-                        val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        ShortNavigationBarItem(
-                            iconPosition = NavigationItemIconPosition.Top,
-                            icon = {
-                                TabIcon(
-                                    isSelected = isSelected,
-                                    selectedIcon = item.selectedIcon,
-                                    unselectedIcon = item.unselectedIcon,
-                                    description = item.label,
-                                    isDashboard = item.route == "dashboard",
-                                    isStatistics = item.route == "stats"
-                                )
-                            },
-                            label = {
-                                FontScaleCap { AdaptiveNavigationLabel(item.label) }
-                            },
-                            selected = isSelected,
-                            onClick = { onNavigate(item.route) }
-                        )
+                Box {
+                    ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            ShortNavigationBarItem(
+                                iconPosition = NavigationItemIconPosition.Top,
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = {
+                                    FontScaleCap { AdaptiveNavigationLabel(item.label) }
+                                },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
+                            )
+                        }
                     }
+                    NavigationTapCatcherLayer(navigationTapCatcher)
                 }
             }
         }
@@ -850,49 +859,54 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
             if (isLandscape) {
                 // The collapsed wide rail, the expressive partner of the portrait ShortNavigationBar.
                 // Centred, for the thumb on a phone held sideways.
-                WideNavigationRail(arrangement = Arrangement.Center) {
-                    navItems.forEach { item ->
-                        val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        WideNavigationRailItem(
-                            railExpanded = false,
-                            icon = {
-                                TabIcon(
-                                    isSelected = isSelected,
-                                    selectedIcon = item.selectedIcon,
-                                    unselectedIcon = item.unselectedIcon,
-                                    description = item.label,
-                                    isDashboard = item.route == "dashboard",
-                                    isStatistics = item.route == "stats"
-                                )
-                            },
-                            label = { FontScaleCap { Text(item.label) } },
-                            selected = isSelected,
-                            onClick = { onNavigate(item.route) }
-                        )
+                Box {
+                    WideNavigationRail(arrangement = Arrangement.Center) {
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            WideNavigationRailItem(
+                                railExpanded = false,
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = { FontScaleCap { Text(item.label) } },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
+                            )
+                        }
                     }
+                    NavigationTapCatcherLayer(navigationTapCatcher)
                 }
             }
-            NavHost(
-                navController = navController,
-                startDestination = "dashboard",
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(innerPadding)
-                    .consumeWindowInsets(innerPadding),
-                // A short fade between destinations. NavHost's own default is a 700ms
-                // crossfade; landscape used to have none at all and portrait this one.
-                enterTransition = { fadeIn(animationSpec = tween(200)) },
-                exitTransition = { fadeOut(animationSpec = tween(200)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(200)) },
-                popExitTransition = { fadeOut(animationSpec = tween(200)) }
-            ) {
-                appDestinations(
+            CompositionLocalProvider(LocalNavigationTapCatcher provides navigationTapCatcher) {
+                NavHost(
                     navController = navController,
-                    dashboardViewModel = dashboardViewModel,
-                    themeMode = themeMode,
-                    onThemeChanged = onThemeChanged,
-                    onTriggerCalibration = onTriggerCalibration,
-                )
+                    startDestination = "dashboard",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding),
+                    // A short fade between destinations. NavHost's own default is a 700ms
+                    // crossfade; landscape used to have none at all and portrait this one.
+                    enterTransition = { fadeIn(animationSpec = tween(200)) },
+                    exitTransition = { fadeOut(animationSpec = tween(200)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                ) {
+                    appDestinations(
+                        navController = navController,
+                        dashboardViewModel = dashboardViewModel,
+                        themeMode = themeMode,
+                        onThemeChanged = onThemeChanged,
+                        onTriggerCalibration = onTriggerCalibration,
+                    )
+                }
             }
         }
     }

@@ -62,6 +62,7 @@ import androidx.compose.ui.window.PopupProperties
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartViewportSnapshot
+import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
 
 fun journalReachActionTypes(): List<JournalEntryType> = listOf(
@@ -217,8 +218,9 @@ fun JournalFloatingActionMenu(
 /**
  * The journal's "+": material3's FAB menu. The button morphs into a close button and each
  * entry type is a menu item in its own colours. A tap outside or Back closes it, as the
- * popup it replaces did. Call it last in a Box, so the outside-tap catcher covers the rest
- * of the screen; [modifier] places the menu (it adds 16dp of its own padding).
+ * popup it replaces did, the navigation bar or rail included. Call it last in a Box, so the
+ * outside-tap catcher covers the rest of the screen; [modifier] places the menu (it adds 16dp
+ * of its own padding).
  */
 @Composable
 fun BoxScope.JournalExpandableFab(
@@ -230,6 +232,7 @@ fun BoxScope.JournalExpandableFab(
     val view = LocalView.current
     val actionTypes = remember { journalReachActionTypes() }
     BackHandler(enabled = expanded) { onExpandedChange(false) }
+    CatchNavigationTaps(active = expanded) { onExpandedChange(false) }
     if (expanded) {
         Box(
             modifier = Modifier

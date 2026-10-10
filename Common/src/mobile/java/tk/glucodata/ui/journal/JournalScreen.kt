@@ -150,7 +150,8 @@ fun JournalScreen(
     var chartActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
-    var fabExpanded by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
+    var fabExpanded by remember { mutableStateOf(false) }
 
     val selectedTypes = remember(selectedTypeFilters) {
         selectedTypeFilters.mapNotNull { name ->

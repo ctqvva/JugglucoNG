@@ -436,7 +436,8 @@ fun DashboardScreen(
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
     var journalNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var dashboardChartViewport by remember { mutableStateOf<ChartViewportSnapshot?>(null) }
-    var dashboardFabExpanded by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
+    var dashboardFabExpanded by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
