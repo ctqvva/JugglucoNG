@@ -84,6 +84,33 @@ object HistoryRepositoryAccess {
     }
 
     @JvmStatic
+    fun storeHistoryBatchWithCompletionAsync(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ) {
+        val registered = bridge
+        if (registered == null) {
+            completion.complete(false)
+            return
+        }
+        runCatching {
+            registered.storeHistoryBatchWithCompletionAsync(
+                sensorSerial,
+                timestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                completion,
+            )
+        }.onFailure {
+            Log.stack(TAG, "storeHistoryBatchWithCompletionAsync failed", it)
+            completion.complete(false)
+        }
+    }
+
+    @JvmStatic
     fun storeHistoryBatchBlocking(
         sensorSerial: String,
         timestamps: LongArray,
@@ -149,6 +176,36 @@ object HistoryRepositoryAccess {
         runCatching { bridge?.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive) }
             .onFailure { Log.stack(TAG, "deleteReadingsForSensorAfterBlocking failed", it) }
             .getOrNull() ?: 0
+
+    @JvmStatic
+    fun replaceProvisionalHistoryAsync(
+        sensorSerial: String,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ) {
+        val registered = bridge
+        if (registered == null) {
+            completion.complete(false)
+            return
+        }
+        runCatching {
+            registered.replaceProvisionalHistoryAsync(
+                sensorSerial,
+                provisionalTimestamps,
+                correctedTimestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                completion,
+            )
+        }
+            .onFailure {
+                Log.stack(TAG, "replaceProvisionalHistoryAsync failed", it)
+                completion.complete(false)
+            }
+    }
 
     @JvmStatic
     fun getMainSensorOwnership(startTimeMs: Long): tk.glucodata.chart.MainSensorOwnership =

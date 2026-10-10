@@ -18,6 +18,7 @@ import tk.glucodata.BatteryTrace
 import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.HistorySourceProvenance
+import tk.glucodata.HistoryOperationCompletion
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -307,7 +308,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 HistoryRepository().deleteReadingsForSensorAfter(resolvedSerial, timestampExclusive)
             }
         }
-        
+
         /**
          * Blocking version for Notify.java that returns tk.glucodata.GlucosePoint.
          * Filters by main sensor serial.
@@ -509,6 +510,56 @@ class HistoryRepository(context: Context = Applic.app) {
             rawValues,
             GlucoseReadingSource.SENSOR,
         )
+
+        /**
+         * Store one history payload without the coalescing delay and signal only after its Room
+         * transaction has finished. Drivers use this when a follow-up native reconciliation must
+         * observe the rows just accepted from BLE.
+         */
+        @JvmStatic
+        fun storeHistoryBatchWithCompletionAsync(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            completion: HistoryOperationCompletion,
+        ) {
+            historyBatchScope.launch {
+                val stored = runCatching {
+                    storeHistoryBatchWithSourceBlocking(
+                        sensorSerial,
+                        timestamps,
+                        values,
+                        rawValues,
+                        GlucoseReadingSource.SENSOR,
+                    )
+                }.getOrDefault(false)
+                completion.complete(stored)
+            }
+        }
+
+        @JvmStatic
+        fun replaceProvisionalHistoryAsync(
+            sensorSerial: String,
+            provisionalTimestamps: LongArray,
+            correctedTimestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            completion: HistoryOperationCompletion,
+        ) {
+            historyBatchScope.launch {
+                val stored = runCatching {
+                    HistoryRepository().replaceProvisionalHistory(
+                        sensorSerial,
+                        provisionalTimestamps,
+                        correctedTimestamps,
+                        values,
+                        rawValues,
+                    )
+                }.getOrDefault(false)
+                completion.complete(stored)
+            }
+        }
 
         @JvmStatic
         fun storeHistoryBatchWithSourceAsync(
@@ -836,6 +887,92 @@ class HistoryRepository(context: Context = Applic.app) {
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
+                false
+            }
+        }
+    }
+
+    /**
+     * Atomically replace history dated from a provisional Ottai anchor with the same records
+     * dated from its first reliable live anchor. This is an internal correction, not a user
+     * deletion: the discarded timestamps must never enter [DeletedHistoryReading], because a
+     * neighbouring record can legitimately occupy one of those minutes after the anchor moves.
+     */
+    suspend fun replaceProvisionalHistory(
+        sensorSerial: String,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        values: FloatArray,
+        rawValues: FloatArray,
+    ): Boolean {
+        val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
+        if (roomSerial.isBlank() || provisionalTimestamps.isEmpty()) return false
+        if (provisionalTimestamps.size != correctedTimestamps.size ||
+            provisionalTimestamps.size != values.size ||
+            provisionalTimestamps.size != rawValues.size
+        ) {
+            Log.w(TAG, "replaceProvisionalHistory rejected mismatched arrays for $roomSerial")
+            return false
+        }
+
+        val replacementsByTimestamp = LinkedHashMap<Long, Pair<Long, HistoryReading>>()
+        for (index in provisionalTimestamps.indices) {
+            val oldTimestamp = provisionalTimestamps[index]
+            val correctedTimestamp = correctedTimestamps[index]
+            val value = values[index]
+            val rawValue = rawValues[index]
+            if (oldTimestamp <= 0L || correctedTimestamp <= 0L) continue
+            if ((!value.isFinite() || value <= 0f) && (!rawValue.isFinite() || rawValue <= 0f)) continue
+            replacementsByTimestamp[correctedTimestamp] = oldTimestamp to HistoryReading(
+                timestamp = correctedTimestamp,
+                sensorSerial = roomSerial,
+                value = if (value.isFinite()) value else 0f,
+                rawValue = if (rawValue.isFinite()) rawValue else 0f,
+                rate = null,
+                source = GlucoseReadingSource.SENSOR,
+            )
+        }
+        if (replacementsByTimestamp.isEmpty()) return false
+
+        return withContext(Dispatchers.IO) {
+            try {
+                database.withTransaction {
+                    val oldRows = HashMap<Long, HistoryReading>()
+                    provisionalTimestamps.asSequence().filter { it > 0L }.distinct().toList()
+                        .chunked(DELETED_TIMESTAMP_QUERY_CHUNK)
+                        .forEach { timestamps ->
+                            dao.getSensorReadingsAtTimestamps(roomSerial, timestamps).forEach { row ->
+                                oldRows[row.timestamp] = row
+                            }
+                    }
+                    val corrected = filterDeletedReadings(
+                        replacementsByTimestamp.values.map { it.second }
+                    ).map { incoming ->
+                        val oldTimestamp = replacementsByTimestamp.getValue(incoming.timestamp).first
+                        val old = oldRows[oldTimestamp]
+                        incoming.copy(
+                            source = HistorySourceProvenance.stableSource(old?.source, incoming.source),
+                            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                                old?.firstStoredAt,
+                                incoming.firstStoredAt,
+                            ),
+                        )
+                    }
+                    provisionalTimestamps.asSequence().filter { it > 0L }.distinct().toList()
+                        .chunked(DELETED_TIMESTAMP_QUERY_CHUNK)
+                        .forEach { timestamps ->
+                            dao.deleteSensorReadingsAtTimestamps(roomSerial, timestamps)
+                        }
+                    if (corrected.isNotEmpty()) dao.insertAll(corrected)
+                }
+                UiRefreshBus.requestDataRefresh()
+                BatteryTrace.bump(
+                    "room.history.retime_provisional",
+                    detail = "serial=$roomSerial size=${replacementsByTimestamp.size}",
+                )
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed replacing provisional history for $roomSerial", e)
                 false
             }
         }

@@ -31,9 +31,10 @@ class ExternalCurrentReadingTests {
             @JvmStatic
             @Implementation
             fun dowithglucose(serial: String, mgdl: Int, glucose: Float, rate: Float, alarm: Int,
-                time: Long, start: Long, timeout: Long, generation: Int, reading: LiveReadingLanes) {
+                time: Long, start: Long, timeout: Long, generation: Int, reading: LiveReadingLanes): Boolean {
                 value = glucose
                 timestamp = time
+                return true
             }
         }
     }
