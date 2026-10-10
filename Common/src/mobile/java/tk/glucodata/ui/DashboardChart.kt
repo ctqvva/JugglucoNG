@@ -133,7 +133,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalContext
@@ -693,8 +695,15 @@ data class ChartTimelineTapSuggestion(
     val timestamp: Long,
     val suggestedDisplayGlucose: Float? = null,
     val normalizedYFraction: Float? = null,
-    val forceMenu: Boolean = false
+    val forceMenu: Boolean = false,
+    val menuAnchor: ChartMenuAnchor? = null
 )
+
+/**
+ * Where the journal menu grows from, in window coordinates: the finger's spot, and the lowest
+ * the menu may reach, the top of the tapped time's chip at the plot's foot.
+ */
+data class ChartMenuAnchor(val touch: Offset, val floorY: Float)
 
 /** A peer's row in the scrub tooltip: its smoothed point, and what its line drew there when that is not the point's own value. */
 private class TooltipPeerRow(
@@ -1850,6 +1859,8 @@ fun InteractiveGlucoseChart(
     // A chip in the overlap group spread open by a tap; any touch on the chart outside the
     // chips settles it back.
     var expandedJournalChipId by remember { mutableStateOf<Long?>(null) }
+    // Read only by the gesture handler, to put a tap in window coordinates.
+    val gestureCoordinates = remember { mutableStateOf<LayoutCoordinates?>(null) }
 
 
 
@@ -1859,6 +1870,7 @@ fun InteractiveGlucoseChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .onGloballyPositioned { gestureCoordinates.value = it }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
                     // 1. Pan / Inertia
@@ -2057,7 +2069,18 @@ fun InteractiveGlucoseChart(
                                     timestamp = tapTime.toLong(),
                                     suggestedDisplayGlucose = suggestedValue,
                                     normalizedYFraction = normalizedY.coerceIn(0f, 1f),
-                                    forceMenu = forceMenu
+                                    forceMenu = forceMenu,
+                                    menuAnchor = gestureCoordinates.value
+                                        ?.takeIf { it.isAttached }
+                                        ?.let { coordinates ->
+                                            ChartMenuAnchor(
+                                                touch = coordinates.localToWindow(Offset(clampedX, position.y)),
+                                                // Where the overlay draws the time chip.
+                                                floorY = coordinates.localToWindow(
+                                                    Offset(0f, (chartHeight - 34.dp.toPx()).coerceAtLeast(12.dp.toPx()))
+                                                ).y
+                                            )
+                                        }
                                 )
                             }
 

@@ -86,6 +86,10 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.focus.FocusState
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -575,7 +579,8 @@ fun JournalEntrySheet(
                     date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
                     time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
                     onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true }
+                    onTimeClick = { showTimePicker = true },
+                    onTimeLongClick = { draft = draft.copy(timestamp = System.currentTimeMillis()) }
                 )
             }
 
@@ -897,8 +902,20 @@ fun JournalEntrySheet(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                    Text(text = stringResource(R.string.cancel))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            draft = draft.copy(timestamp = System.currentTimeMillis())
+                            showTimePicker = false
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
+                    ) {
+                        Text(text = stringResource(R.string.now))
+                    }
+                    TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
                 }
             }
         )
@@ -2119,14 +2136,17 @@ internal fun JournalFoodCompositionDetails(
                         Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value))
                     }
                 }
+                val portionField = rememberSelectAllOnFocusField(portionText)
                 BasicTextField(
-                    value = portionText,
-                    onValueChange = { value ->
-                        onPortionTextChange(
-                            value
-                                .filter { it.isDigit() || it == ',' || it == '.' }
-                                .take(6)
-                        )
+                    value = portionField.value,
+                    onValueChange = {
+                        portionField.onValueChange(it) { value ->
+                            onPortionTextChange(
+                                value
+                                    .filter { it.isDigit() || it == ',' || it == '.' }
+                                    .take(6)
+                            )
+                        }
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2137,7 +2157,8 @@ internal fun JournalFoodCompositionDetails(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 8.dp)
+                        .onFocusChanged(portionField::onFocusChanged),
                     decorationBox = { innerTextField ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2932,7 +2953,8 @@ private fun JournalDateTimeCard(
     date: String,
     time: String,
     onDateClick: () -> Unit,
-    onTimeClick: () -> Unit
+    onTimeClick: () -> Unit,
+    onTimeLongClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -2963,7 +2985,9 @@ private fun JournalDateTimeCard(
                 icon = Icons.Default.AccessTime,
                 contentDescription = stringResource(R.string.time),
                 value = time,
-                onClick = onTimeClick
+                onClick = onTimeClick,
+                onLongClick = onTimeLongClick,
+                onLongClickLabel = stringResource(R.string.journal_quickadd_always_now_title)
             )
         }
     }
@@ -2975,8 +2999,11 @@ private fun JournalDateTimeSegment(
     icon: ImageVector,
     contentDescription: String,
     value: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null
 ) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier
             .heightIn(min = 56.dp)
@@ -2984,7 +3011,16 @@ private fun JournalDateTimeSegment(
                 this.contentDescription = "$contentDescription, $value"
                 role = Role.Button
             }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = onLongClickLabel,
+                onLongClick = onLongClick?.let { longClick ->
+                    {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longClick()
+                    }
+                }
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3270,6 +3306,7 @@ private fun JournalStepperField(
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         onStep(delta)
     }
+    val field = rememberSelectAllOnFocusField(value)
     Surface(
         color = if (prominent) {
             MaterialTheme.colorScheme.surfaceContainerHigh
@@ -3302,11 +3339,12 @@ private fun JournalStepperField(
             }
             if (prominent) {
                 BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
+                    value = field.value,
+                    onValueChange = { field.onValueChange(it, onValueChange) },
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 64.dp),
+                        .heightIn(min = 64.dp)
+                        .onFocusChanged(field::onFocusChanged),
                     textStyle = MaterialTheme.typography.displaySmall.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
@@ -3357,11 +3395,12 @@ private fun JournalStepperField(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
+                        value = field.value,
+                        onValueChange = { field.onValueChange(it, onValueChange) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .onFocusChanged(field::onFocusChanged),
                         textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
@@ -3620,4 +3659,42 @@ private fun mergeJournalTime(currentTimestamp: Long, selectedTime: Pair<Int, Int
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
+}
+
+/**
+ * A number field's text, kept so that focusing the field selects all of it: a typed amount
+ * replaces the old one instead of landing beside it. The caller's text stays the source of
+ * truth; the steppers change it from outside.
+ */
+@Stable
+private class SelectAllOnFocusField(text: String) {
+    var value by mutableStateOf(TextFieldValue(text))
+        private set
+
+    // The tap that focuses the field places the cursor straight after; that must not undo it.
+    private var keepSelectionOnce = false
+
+    fun sync(text: String) {
+        if (text != value.text) value = TextFieldValue(text, TextRange(text.length))
+    }
+
+    fun onFocusChanged(state: FocusState) {
+        keepSelectionOnce = state.isFocused
+        if (state.isFocused) value = value.copy(selection = TextRange(0, value.text.length))
+    }
+
+    fun onValueChange(newValue: TextFieldValue, onTextChange: (String) -> Unit) {
+        val keepSelection = keepSelectionOnce && newValue.text == value.text
+        keepSelectionOnce = false
+        if (keepSelection) return
+        value = newValue
+        onTextChange(newValue.text)
+    }
+}
+
+@Composable
+private fun rememberSelectAllOnFocusField(text: String): SelectAllOnFocusField {
+    val field = remember { SelectAllOnFocusField(text) }
+    field.sync(text)
+    return field
 }

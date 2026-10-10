@@ -12,11 +12,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.activity.compose.BackHandler
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
@@ -39,12 +33,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,8 +51,38 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.material3.FloatingActionButtonMenuScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.PopupPositionProvider
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.unit.Constraints
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.Density
+import kotlin.math.abs
+import androidx.compose.ui.unit.lerp
+import kotlin.math.hypot
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.ui.ChartMenuAnchor
 import tk.glucodata.ui.ChartViewportSnapshot
 import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
@@ -92,127 +112,264 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
     JournalEntryType.NOTE -> Icons.AutoMirrored.Filled.Label
 }
 
+/**
+ * The chart's "add at this time" menu. It grows out of the finger's spot ([menuAnchor]; the
+ * tapped time's line, halfway up, when that is unknown) into the room beside it, above the time
+ * chip: upward, so the hand does not cover it, unless the spot is too high; to the left past
+ * the middle, where the
+ * newest readings are. The items stand in one column beside the spot, Insulin nearest, each
+ * springing out of the spot in turn and folding back into it on close; the nearest one points
+ * at it. [selectedTimestamp] null closes the menu, animated, so keep calling this rather
+ * than dropping it. [modifier] is the chart's box; the menu stays inside it.
+ */
 @Composable
 fun JournalFloatingActionMenu(
-    visible: Boolean,
-    selectedTimestamp: Long,
+    selectedTimestamp: Long?,
+    menuAnchor: ChartMenuAnchor?,
     onDismissRequest: () -> Unit,
     viewportSnapshot: ChartViewportSnapshot?,
-    onTypeSelected: (JournalEntryType) -> Unit,
-    menuTopOffset: Dp = 86.dp,
-    menuItemSpacing: Dp = 10.dp,
-    menuYOffset: Dp = 0.dp,
+    onTypeSelected: (type: JournalEntryType, timestamp: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
-    val actionTypes = remember { journalReachActionTypes() }
-    val anchorFraction = remember(selectedTimestamp, viewportSnapshot) {
-        viewportSnapshot
-            ?.takeIf { it.endMillis > it.startMillis }
-            ?.let { snapshot ->
-                ((selectedTimestamp - snapshot.startMillis).toFloat() /
-                    (snapshot.endMillis - snapshot.startMillis).toFloat()).coerceIn(0f, 1f)
-            }
-    }
-    val menuReveal = remember { Animatable(0f) }
-    LaunchedEffect(visible, selectedTimestamp, anchorFraction) {
-        if (visible && anchorFraction != null) {
-            menuReveal.snapTo(0f)
-            menuReveal.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            )
-        } else {
-            menuReveal.animateTo(0f, animationSpec = tween(durationMillis = 120))
-        }
-    }
-    val menuProgress = menuReveal.value
-    val menuScale = 0.82f + (0.18f * menuProgress)
-
-    if (anchorFraction != null && (visible || menuProgress > 0.01f)) {
-        BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-            val popupWidth = maxWidth
-            val popupHeight = maxHeight
-            Popup(
-                onDismissRequest = onDismissRequest,
-                properties = PopupProperties(focusable = true)
-            ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .size(popupWidth, popupHeight)
-                        .graphicsLayer { alpha = menuProgress.coerceIn(0f, 1f) }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onDismissRequest
-                        )
-                ) {
-                    val density = LocalDensity.current
-                    val resolvedAnchorFraction = anchorFraction
-                    val containerWidthPx = with(density) { maxWidth.toPx() }
-                    val containerHeightPx = with(density) { maxHeight.toPx() }
-                    val menuWidthPx = with(density) { 176.dp.toPx() }
-                    val edgePaddingPx = with(density) { 12.dp.toPx() }
-                    val anchorGapPx = with(density) { 14.dp.toPx() }
-                    val menuTopPx = with(density) { menuTopOffset.toPx() }
-                    val menuHeightPx = with(density) { (252.dp + (menuItemSpacing * 4)).toPx() }
-                    val menuYOffsetPx = with(density) { menuYOffset.toPx() }
-                    val rowTravelPx = with(density) { 18.dp.toPx() }
-                    val itemLiftPx = with(density) { 16.dp.toPx() }
-                    val anchorX = containerWidthPx * resolvedAnchorFraction
-                    val placeMenuLeft = resolvedAnchorFraction > 0.56f
-                    val desiredX = if (placeMenuLeft) {
-                        anchorX - menuWidthPx - anchorGapPx
-                    } else {
-                        anchorX + anchorGapPx
-                    }
-                    val clampedX = desiredX.coerceIn(
-                        edgePaddingPx,
-                        (containerWidthPx - menuWidthPx - edgePaddingPx).coerceAtLeast(edgePaddingPx)
-                    )
-                    val clampedY = menuTopPx.coerceIn(
-                        edgePaddingPx,
-                        (containerHeightPx - menuHeightPx).coerceAtLeast(edgePaddingPx)
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .offset {
-                                androidx.compose.ui.unit.IntOffset(
-                                    x = clampedX.roundToInt(),
-                                    y = clampedY.roundToInt()
-                                )
-                            }
-                            .graphicsLayer {
-                                alpha = menuProgress
-                                scaleX = menuScale
-                                scaleY = menuScale
-                                translationY = menuYOffsetPx + (12.dp.toPx() * (1f - menuProgress))
-                            }
-                            .width(176.dp),
-                        horizontalAlignment = if (placeMenuLeft) Alignment.End else Alignment.Start,
-                        verticalArrangement = Arrangement.spacedBy(menuItemSpacing)
-                    ) {
-                        actionTypes.forEachIndexed { index, actionType ->
-                            val itemProgress = ((menuProgress - (index * 0.08f)) / 0.92f).coerceIn(0f, 1f)
-                            JournalActionMenuRow(
-                                actionType = actionType,
-                                placeIconAfterLabel = placeMenuLeft,
-                                itemProgress = itemProgress,
-                                rowTravelPx = rowTravelPx,
-                                itemLiftPx = itemLiftPx,
-                                onClick = {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    onTypeSelected(actionType)
-                                }
-                            )
-                        }
+    // Nearest the finger first: the FAB menu's order, read from its button outward.
+    val actionTypes = remember { journalReachActionTypes().asReversed() }
+    val progress = remember { List(actionTypes.size) { Animatable(0f) } }
+    val enterSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    // What is drawn outlives selectedTimestamp by the close animation.
+    var shownTimestamp by remember { mutableStateOf<Long?>(null) }
+    var shownAnchor by remember { mutableStateOf<ChartMenuAnchor?>(null) }
+    val open = selectedTimestamp != null
+    LaunchedEffect(selectedTimestamp, menuAnchor) {
+        if (selectedTimestamp != null) {
+            if (shownTimestamp != null) progress.forEach { it.snapTo(0f) }
+            shownTimestamp = selectedTimestamp
+            shownAnchor = menuAnchor
+            coroutineScope {
+                progress.forEachIndexed { index, item ->
+                    launch {
+                        delay(index * ChartMenuStaggerMillis)
+                        item.animateTo(1f, enterSpec)
                     }
                 }
             }
+        } else if (shownTimestamp != null) {
+            coroutineScope {
+                progress.forEachIndexed { index, item ->
+                    launch {
+                        delay((progress.lastIndex - index) * ChartMenuStaggerMillis / 2)
+                        item.animateTo(0f, exitSpec)
+                    }
+                }
+            }
+            shownTimestamp = null
+            shownAnchor = null
+        }
+    }
+    val timestamp = shownTimestamp ?: return
+    val lineFraction = remember(timestamp, viewportSnapshot) {
+        viewportSnapshot
+            ?.takeIf { it.endMillis > it.startMillis }
+            ?.let { snapshot ->
+                ((timestamp - snapshot.startMillis).toFloat() /
+                    (snapshot.endMillis - snapshot.startMillis).toFloat()).coerceIn(0f, 1f)
+            }
+    }
+    var boxInWindow by remember { mutableStateOf(Offset.Zero) }
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { boxInWindow = it.positionInWindow() }
+    ) {
+        val boxWidth = maxWidth
+        val boxHeight = maxHeight
+        val touch = shownAnchor?.let { it.touch - boxInWindow }
+            ?: lineFraction?.let { Offset(constraints.maxWidth * it, constraints.maxHeight / 2f) }
+            ?: return@BoxWithConstraints
+        val floorPx = shownAnchor?.let { it.floorY - boxInWindow.y } ?: constraints.maxHeight.toFloat()
+        val opensLeft = touch.x > constraints.maxWidth * 0.56f
+        // Popup alignment defaults to the anchor's top start, so the two share coordinates.
+        Popup(
+            onDismissRequest = onDismissRequest,
+            // Closing, it no longer takes Back or taps meant for the screen.
+            properties = PopupProperties(focusable = open, dismissOnClickOutside = open)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(boxWidth, boxHeight)
+                    .pointerInput(open) {
+                        if (open) detectTapGestures { onDismissRequest() }
+                    }
+            ) {
+                ChartMenuColumn(
+                    touch = touch,
+                    floorPx = floorPx,
+                    opensLeft = opensLeft,
+                    progress = progress
+                ) { shapes ->
+                    actionTypes.forEachIndexed { index, actionType ->
+                        ChartMenuItem(
+                            actionType = actionType,
+                            shape = shapes[index],
+                            onClick = {
+                                if (open) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    onTypeSelected(actionType, timestamp)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val ChartMenuStaggerMillis = 30L
+
+// From the finger's spot to the nearest item's corner, so the spot's dot stays in view.
+private val ChartMenuTouchGap = 12.dp
+private val ChartMenuItemGap = 8.dp
+private val ChartMenuEdge = 8.dp
+// A corner this close to the finger's spot comes to a point; one this far off is the pill's.
+private val ChartMenuPointCorner = 4.dp
+private val ChartMenuPointReach = 96.dp
+
+/**
+ * Lays the items out from [touch] in one column, nearest first, all as wide as the widest:
+ * above it unless they do not fit there, beside it on the [opensLeft] side, sliding back in
+ * from the top or the [floorPx]. Each item's corners on the finger's side sharpen the nearer
+ * they are to the spot, so the column leans toward it. Each item grows from its corner
+ * nearest the spot as its [progress] runs from 0 to 1; a spring's overshoot carries it a
+ * little past its place and back. [content] gets each item's shape.
+ */
+@Composable
+private fun ChartMenuColumn(
+    touch: Offset,
+    floorPx: Float,
+    opensLeft: Boolean,
+    progress: List<Animatable<Float, *>>,
+    content: @Composable (shapes: List<Shape>) -> Unit
+) {
+    val density = LocalDensity.current
+    val tops = remember(touch, floorPx, progress.size, density) {
+        with(density) { chartMenuTops(progress.size, touch.y, floorPx) }
+    }
+    val shapes = remember(tops, touch, opensLeft, density) {
+        with(density) {
+            val itemHeight = FabMenuItemHeight.toPx()
+            tops.map { top -> shapeTowards(touch.y, top.toFloat(), top + itemHeight, opensLeft) }
+        }
+    }
+    Layout(
+        content = { content(shapes) },
+        modifier = Modifier.fillMaxSize()
+    ) { measurables, constraints ->
+        // One width for all, so the column is one block and the icons and labels line up.
+        val itemWidth = measurables.maxOf { it.maxIntrinsicWidth(Constraints.Infinity) }
+        val placeables = measurables.map { it.measure(Constraints.fixedWidth(itemWidth)) }
+        val touchGap = ChartMenuTouchGap.roundToPx()
+        val edge = ChartMenuEdge.roundToPx()
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            placeables.forEachIndexed { index, placeable ->
+                val x = if (opensLeft) {
+                    touch.x.roundToInt() - touchGap - placeable.width
+                } else {
+                    touch.x.roundToInt() + touchGap
+                }.coerceIn(edge, (constraints.maxWidth - edge - placeable.width).coerceAtLeast(edge))
+                val y = tops[index]
+                // The corner nearest the finger, where the item grows from.
+                val fromBottom = abs(touch.y - (y + placeable.height)) < abs(touch.y - y)
+                val cornerX = if (opensLeft) x + placeable.width else x
+                val cornerY = if (fromBottom) y + placeable.height else y
+                val fromX = touch.x - cornerX
+                val fromY = touch.y - cornerY
+                val item = progress[index]
+                placeable.placeWithLayer(x, y) {
+                    val t = item.value
+                    alpha = t.coerceIn(0f, 1f)
+                    scaleX = 0.4f + 0.6f * t
+                    scaleY = 0.4f + 0.6f * t
+                    transformOrigin = TransformOrigin(if (opensLeft) 1f else 0f, if (fromBottom) 1f else 0f)
+                    translationX = fromX * (1f - t)
+                    translationY = fromY * (1f - t)
+                }
+            }
+        }
+    }
+}
+
+/** Each item's top: up from [touchY] when the column fits there, else toward the larger room. */
+private fun Density.chartMenuTops(count: Int, touchY: Float, floorPx: Float): List<Int> {
+    val itemHeight = FabMenuItemHeight.roundToPx()
+    val itemGap = ChartMenuItemGap.roundToPx()
+    val touchGap = ChartMenuTouchGap.roundToPx()
+    val edge = ChartMenuEdge.roundToPx()
+    val stack = count * itemHeight + (count - 1) * itemGap
+    val opensUp = touchY >= stack + touchGap + edge || touchY >= floorPx - touchY
+    val tops = List(count) { index ->
+        val reach = touchGap + index * (itemHeight + itemGap)
+        if (opensUp) touchY.roundToInt() - reach - itemHeight else touchY.roundToInt() + reach
+    }
+    // Too close to an edge, the whole column slides back in rather than squashing.
+    val minTop = tops.min()
+    val maxBottom = tops.max() + itemHeight
+    val floor = floorPx.roundToInt() - itemGap
+    val shift = when {
+        maxBottom > floor -> (floor - maxBottom).coerceAtLeast(edge - minTop)
+        minTop < edge -> edge - minTop
+        else -> 0
+    }
+    return tops.map { it + shift }
+}
+
+/**
+ * The item's corners on the finger's side sharpen with nearness to [touchY]; the far side
+ * stays the pill's. Absolute, as the chart is never mirrored.
+ */
+private fun Density.shapeTowards(touchY: Float, top: Float, bottom: Float, opensLeft: Boolean): Shape {
+    val gap = ChartMenuTouchGap.toPx()
+    fun corner(y: Float): CornerSize {
+        val reach = ((hypot(gap, y - touchY) - gap) / (ChartMenuPointReach.toPx() - gap)).coerceIn(0f, 1f)
+        return CornerSize(lerp(ChartMenuPointCorner, FabMenuItemHeight / 2, reach))
+    }
+    val full = CornerSize(50)
+    return AbsoluteRoundedCornerShape(
+        topLeft = if (opensLeft) full else corner(top),
+        bottomLeft = if (opensLeft) full else corner(bottom),
+        topRight = if (opensLeft) corner(top) else full,
+        bottomRight = if (opensLeft) corner(bottom) else full
+    )
+}
+
+/** The FAB menu item's look as a button, so it morphs when pressed. */
+@Composable
+private fun ChartMenuItem(
+    actionType: JournalEntryType,
+    shape: Shape,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.height(FabMenuItemHeight),
+        shapes = ButtonDefaults.shapes(shape = shape),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = journalTypeSelectedContainerColor(actionType),
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        // Start-aligned: the button centres its content, and the column is one width.
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                actionType.journalActionIcon(),
+                contentDescription = null,
+                tint = journalTypeColor(actionType),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(actionType.journalActionLabel(), style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -267,39 +424,51 @@ fun BoxScope.JournalExpandableFab(
             }
         }
     ) {
-        actionTypes.forEach { actionType ->
-            FloatingActionButtonMenuItem(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    onTypeSelected(actionType)
-                    onExpandedChange(false)
-                },
-                text = {
-                    Text(
-                        actionType.journalActionLabel(),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.reachIntoPadding(end = FabMenuItemPaddingTrim)
-                    )
-                },
-                // The type colour marks the icon; the label stays onSurface, readable on every tint.
-                icon = {
-                    Icon(
-                        actionType.journalActionIcon(),
-                        contentDescription = null,
-                        tint = journalTypeColor(actionType),
-                        modifier = Modifier
-                            .reachIntoPadding(start = FabMenuItemPaddingTrim)
-                            .size(20.dp)
-                    )
-                },
-                // The padding sits outside the item's container: 4dp more between items.
-                modifier = Modifier
-                    .padding(vertical = FabMenuItemExtraGap)
-                    .height(FabMenuItemHeight),
-                containerColor = journalTypeSelectedContainerColor(actionType),
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
+        JournalFabMenuItems(actionTypes) { type ->
+            onTypeSelected(type)
+            onExpandedChange(false)
         }
+    }
+}
+
+/** The FAB menu's items, also the chart menu's: one per entry type, in its own colours. */
+@Composable
+private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
+    actionTypes: List<JournalEntryType>,
+    onTypeSelected: (JournalEntryType) -> Unit
+) {
+    val view = LocalView.current
+    actionTypes.forEach { actionType ->
+        FloatingActionButtonMenuItem(
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                onTypeSelected(actionType)
+            },
+            text = {
+                Text(
+                    actionType.journalActionLabel(),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.reachIntoPadding(end = FabMenuItemPaddingTrim)
+                )
+            },
+            // The type colour marks the icon; the label stays onSurface, readable on every tint.
+            icon = {
+                Icon(
+                    actionType.journalActionIcon(),
+                    contentDescription = null,
+                    tint = journalTypeColor(actionType),
+                    modifier = Modifier
+                        .reachIntoPadding(start = FabMenuItemPaddingTrim)
+                        .size(20.dp)
+                )
+            },
+            // The padding sits outside the item's container: 4dp more between items.
+            modifier = Modifier
+                .padding(vertical = FabMenuItemExtraGap)
+                .height(FabMenuItemHeight),
+            containerColor = journalTypeSelectedContainerColor(actionType),
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -316,89 +485,5 @@ private fun Modifier.reachIntoPadding(start: Dp = 0.dp, end: Dp = 0.dp) = layout
     val endPx = end.roundToPx()
     layout((placeable.width - startPx - endPx).coerceAtLeast(0), placeable.height) {
         placeable.place(-startPx, 0)
-    }
-}
-
-@Composable
-private fun JournalActionMenuRow(
-    actionType: JournalEntryType,
-    placeIconAfterLabel: Boolean,
-    itemProgress: Float,
-    rowTravelPx: Float,
-    itemLiftPx: Float,
-    onClick: () -> Unit
-) {
-    val label = actionType.journalActionLabel()
-    val actionTint = journalTypeColor(actionType)
-    val iconContainerColor = journalTypeSelectedContainerColor(actionType)
-    val labelContainerColor = journalTypeSubtleContainerColor(actionType)
-    Row(
-        modifier = Modifier
-            .wrapContentWidth(if (placeIconAfterLabel) Alignment.End else Alignment.Start)
-            .graphicsLayer {
-                alpha = itemProgress
-                translationX = (if (placeIconAfterLabel) rowTravelPx else -rowTravelPx) * (1f - itemProgress)
-                translationY = itemLiftPx * (1f - itemProgress)
-                scaleX = 0.78f + (0.22f * itemProgress)
-                scaleY = 0.78f + (0.22f * itemProgress)
-                rotationZ = (if (placeIconAfterLabel) -7f else 7f) * (1f - itemProgress)
-            }
-            // The whole row is one touch target: without this, the 10dp gap
-            // between the label pill and the icon belongs to nothing, and a
-            // tap there falls through to the content behind the menu (journal
-            // rows, or the dashboard chart's calibration tap). No indication:
-            // the pills keep their own ripples.
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            ),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (!placeIconAfterLabel) {
-            JournalActionFab(actionType, label, actionTint, iconContainerColor, onClick)
-        }
-        // Clickable Surface overload, not an outer .clickable: the ripple
-        // must be clipped to the pill, otherwise it paints a square.
-        Surface(
-            onClick = onClick,
-            shape = RoundedCornerShape(16.dp),
-            color = labelContainerColor,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        }
-        if (placeIconAfterLabel) {
-            JournalActionFab(actionType, label, actionTint, iconContainerColor, onClick)
-        }
-    }
-}
-
-@Composable
-private fun JournalActionFab(
-    actionType: JournalEntryType,
-    label: String,
-    actionTint: androidx.compose.ui.graphics.Color,
-    iconContainerColor: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit
-) {
-    SmallFloatingActionButton(
-        onClick = onClick,
-        shape = CircleShape,
-        containerColor = iconContainerColor,
-        contentColor = actionTint,
-        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp)
-    ) {
-        Icon(
-            imageVector = actionType.journalActionIcon(),
-            contentDescription = label,
-            modifier = Modifier.size(24.dp)
-        )
     }
 }

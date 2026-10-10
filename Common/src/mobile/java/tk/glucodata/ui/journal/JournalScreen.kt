@@ -148,6 +148,8 @@ fun JournalScreen(
         mutableStateOf(JournalEntryType.entries.map { it.name })
     }
     var chartActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Not saved: after a rotation the finger's spot means nothing, and the menu falls back to the line.
+    var chartActionAnchor by remember { mutableStateOf<tk.glucodata.ui.ChartMenuAnchor?>(null) }
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
     // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
@@ -175,6 +177,7 @@ fun JournalScreen(
 
     fun clearChartAction() {
         chartActionTimestamp = null
+        chartActionAnchor = null
         chartActionDisplayValue = null
         chartActionAmountFraction = null
     }
@@ -253,6 +256,7 @@ fun JournalScreen(
                                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                     } else {
                                         chartActionTimestamp = suggestion.timestamp
+                                        chartActionAnchor = suggestion.menuAnchor
                                         chartActionDisplayValue = suggestion.suggestedDisplayGlucose
                                         chartActionAmountFraction = suggestion.normalizedYFraction
                                         view.performHapticFeedback(
@@ -271,28 +275,23 @@ fun JournalScreen(
                             )
                         }
 
-                        chartActionTimestamp?.let { actionTimestamp ->
-                            JournalFloatingActionMenu(
-                                visible = true,
-                                selectedTimestamp = actionTimestamp,
-                                onDismissRequest = { clearChartAction() },
-                                viewportSnapshot = viewportSnapshot,
-                                menuTopOffset = 40.dp,
-                                menuItemSpacing = 6.dp,
-                                menuYOffset = (-36).dp,
-                                modifier = Modifier.matchParentSize(),
-                                onTypeSelected = { type ->
-                                    onAddJournalEntry(
-                                        actionTimestamp,
-                                        type,
-                                        chartActionDisplayValue,
-                                        chartActionAmountFraction
-                                    )
-                                    clearChartAction()
-                                    fabExpanded = false
-                                }
-                            )
-                        }
+                        JournalFloatingActionMenu(
+                            selectedTimestamp = chartActionTimestamp,
+                            menuAnchor = chartActionAnchor,
+                            onDismissRequest = { clearChartAction() },
+                            viewportSnapshot = viewportSnapshot,
+                            modifier = Modifier.matchParentSize(),
+                            onTypeSelected = { type, actionTimestamp ->
+                                onAddJournalEntry(
+                                    actionTimestamp,
+                                    type,
+                                    chartActionDisplayValue,
+                                    chartActionAmountFraction
+                                )
+                                clearChartAction()
+                                fabExpanded = false
+                            }
+                        )
                     }
                 }
             }
