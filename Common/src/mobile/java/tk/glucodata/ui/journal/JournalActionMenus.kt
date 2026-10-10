@@ -267,9 +267,16 @@ fun BoxScope.JournalExpandableFab(
                     onExpandedChange(false)
                 },
                 text = { Text(actionType.journalActionLabel()) },
-                icon = { Icon(actionType.journalActionIcon(), contentDescription = null) },
+                // The type colour marks the icon; the label stays onSurface, readable on every tint.
+                icon = {
+                    Icon(
+                        actionType.journalActionIcon(),
+                        contentDescription = null,
+                        tint = journalTypeColor(actionType)
+                    )
+                },
                 containerColor = journalTypeSelectedContainerColor(actionType),
-                contentColor = journalTypeColor(actionType)
+                contentColor = MaterialTheme.colorScheme.onSurface
             )
         }
     }
