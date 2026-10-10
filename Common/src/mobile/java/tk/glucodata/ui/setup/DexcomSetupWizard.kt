@@ -49,8 +49,8 @@ fun DexcomSetupWizard(
     if (showManualEntry) {
         DexcomManualPairingDialog(
             onDismiss = { showManualEntry = false },
-            onConfirm = { pairingCode ->
-                val payload = DexcomManualPairing.createScanPayload(pairingCode)
+            onConfirm = { pairingCode, wearDays ->
+                val payload = DexcomManualPairing.createScanPayload(pairingCode, wearDays)
                 if (payload != null && !handledScan) {
                     handledScan = true
                     showManualEntry = false
@@ -123,9 +123,10 @@ fun DexcomSetupWizard(
 @Composable
 private fun DexcomManualPairingDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String, Int) -> Unit
 ) {
     var pairingCode by remember { mutableStateOf("") }
+    var wearDays by remember { mutableIntStateOf(10) }
     val isValid = DexcomManualPairing.isValidPairingCode(pairingCode)
 
     AlertDialog(
@@ -137,6 +138,23 @@ private fun DexcomManualPairingDialog(
                     text = stringResource(R.string.dexcom_pairing_code_instruction),
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Text(
+                    text = stringResource(R.string.sensor_life),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(10, 15).forEachIndexed { index, days ->
+                        SegmentedButton(
+                            selected = wearDays == days,
+                            onClick = { wearDays = days },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2),
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) {
+                            val duration = stringResource(R.string.stats_span_days, days)
+                            Text(if (days == 15) stringResource(R.string.dexcom_15_day_models, duration) else duration)
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = pairingCode,
                     onValueChange = { raw ->
@@ -151,7 +169,7 @@ private fun DexcomManualPairingDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(pairingCode) },
+                onClick = { onConfirm(pairingCode, wearDays) },
                 enabled = isValid
             ) {
                 Text(stringResource(R.string.confirm))

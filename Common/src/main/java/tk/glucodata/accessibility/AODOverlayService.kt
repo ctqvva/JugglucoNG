@@ -525,13 +525,11 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         var statusText = ""
 
         if (activeSensorSerial != null && SensorBluetooth.blueone != null) {
-            synchronized(SensorBluetooth.gattcallbacks) {
-                for (cb in SensorBluetooth.gattcallbacks) {
-                    if (cb.SerialNumber != null && cb.SerialNumber == activeSensorSerial) {
-                        statusText = cb.constatstatusstr
-                        viewMode = Natives.getViewMode(cb.dataptr)
-                        break
-                    }
+            for (cb in SensorBluetooth.mygatts()) {
+                if (cb.SerialNumber != null && cb.SerialNumber == activeSensorSerial) {
+                    statusText = cb.constatstatusstr
+                    viewMode = tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(activeSensorSerial)
+                    break
                 }
             }
         }

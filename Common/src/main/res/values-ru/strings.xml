@@ -686,6 +686,8 @@
     <string name="factory_reset_desc">Удалить все, вернуть в исходное</string>
     <string name="sibionics_setup_title">Настройка Sibionics</string>
     <string name="dexcom_setup_title">Настройка Dexcom</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Сканировать Dexcom</string>
     <string name="dexcom_scan_instruction">Сканируйте datamatrix код на сенсоре Dexcom</string>
     <string name="dexcom_pairing_code_label">4-значный код сопряжения</string>

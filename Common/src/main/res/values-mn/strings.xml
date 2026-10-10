@@ -698,6 +698,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="libre_setup_account_id_timeout">Хугацаа дууслаа. Нэвтрэх мэдээллээ шалгаад дахин оролдоно уу.</string>
     <!-- Dexcom Setup Wizard -->
     <string name="dexcom_setup_title">Dexcom тохиргоо</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">Dexcom мэдрэгч дээрх дата матрицыг уншуулна уу</string>
     <string name="scan_dexcom">Dexcom уншуулах</string>
     <string name="dexcom_pairing_code_label">4 оронтой холбох код</string>

@@ -682,6 +682,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="factory_reset_desc">Verwijder alles, terug naar eerste staat</string>
     <string name="sibionics_setup_title">Sibionics Installatie</string>
     <string name="dexcom_setup_title">Dexcom Installatie</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_scan_instruction">Scan de datamatrix op je Dexcom-sensor</string>
     <string name="dexcom_pairing_code_label">4-cijferige koppelcode</string>

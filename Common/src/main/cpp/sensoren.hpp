@@ -523,9 +523,10 @@ public:
   }
 
   bool needsScan(const int ind) const {
+    const auto *data = getSensorData(ind);
     const sensor *sens = getsensor(ind);
     const auto res = sens->halfdays >= (stdMaxDaysSI * 2) ||
-                     sens->halfdays == (maxdaysDex * 2);
+                     (data && data->isDexcom());
     LOGGER("needsScan(%d,%s)=%d\n", ind, sens->name, res);
     return res;
   }
@@ -649,14 +650,9 @@ public:
 #endif
 #ifdef DEXCOM
   static constexpr std::string_view manualDexcomPrefix =
-      "JUGGLUCO-MANUAL-G7:";
+      dexcom::manualPrefix;
 
-  static bool isManualDexcomPayload(std::string_view payload) {
-    return payload.size() == 55 &&
-           payload.substr(0, manualDexcomPrefix.size()) == manualDexcomPrefix;
-  }
-
-  sensor *findUnboundManualDexcom(const char *pin) {
+  sensor *findUnboundManualDexcom(const char *pin, int wearDays) {
     for (int index = last(); index >= 0; --index) {
       sensor *candidate = getsensor(index);
       if (!candidate->present || candidate->finished)
@@ -675,54 +671,55 @@ public:
           memcmp(info->siId, manualDexcomPrefix.data(),
                  manualDexcomPrefix.size()))
         continue;
+      if (info->wearduration != dexcom::wearMinutes(wearDays))
+        continue;
       const auto storedPin = data->getDexPin();
       if (!memcmp(storedPin.data(), pin, storedPin.size()))
-        return candidate;
+        return getsensor(index);
     }
     return nullptr;
   }
 
   std::pair<int, SensorGlucoseData *>
-  makeDexComSensorindex(const char *pin, std::string_view gegs, uint32_t now) {
-    std::array<char, 16> name;
-    if (gegs.size() == 55) {
-      std::copy_n(&gegs[19], 12, name.data());
-    } else {
-      if (gegs.size() >= 15) {
-        std::copy_n(gegs.end() - 15, 7, name.data());
-        std::copy_n(&gegs[5], 5, name.data() + 7);
-      } else {
-        const char *end = gegs.end();
-        int uitit = 0;
-        for (const char *iter = gegs.data(); uitit < 11; ++iter) {
-          if (iter == end) {
-            return {-1, nullptr};
-          }
-          if (isprint(*iter)) {
-            name[uitit++] = *iter;
-          }
-        }
-      }
-    }
-    std::copy_n(pin, 4, name.data() + 12);
-    LOGGER("makeDexComSensorindex %s name=%.16s\n", pin, name.data());
+  makeDexComSensorindex(const dexcom::ScanIdentity &scan, uint32_t now) {
+    const auto &name = scan.name;
+    const char *pin = name.data() + 12;
     removeunused();
     sensor *sensgegs = findsensorm(std::string_view(name.data(), name.size()));
-    if (!sensgegs && isManualDexcomPayload(gegs)) {
-      sensgegs = findUnboundManualDexcom(pin);
-      if (sensgegs)
-        LOGGER("manual Dexcom retry uses unbound sensor %s\n",
-               sensgegs->showsensorname());
+    if (!sensgegs && scan.manual) {
+      sensgegs = findUnboundManualDexcom(pin, scan.days);
+    }
+    if (!sensgegs && !scan.manual) {
+      // Older compact scans derived the directory name from byte offsets. Match
+      // the stored GS1 identity so rescanning keeps their key/history/directory.
+      for (int index = last(); index >= 0; --index) {
+        const auto *data = getSensorData(index);
+        if (!data || !data->isDexcom()) continue;
+        const auto *info = data->getinfo();
+        if (info->siIdlen > sizeof(info->siId)) continue;
+        const auto stored = dexcom::parseScan(std::string_view(
+            reinterpret_cast<const char *>(info->siId), info->siIdlen));
+        if (stored && !stored->manual && stored->name == scan.name) {
+          sensgegs = getsensor(index);
+          break;
+        }
+      }
     }
     if (sensgegs) {
       LOGGER("known sensor %s\n", sensgegs->showsensorname());
       const int sensindex = sensgegs - sensorlist();
       SensorGlucoseData *sens = getSensorData(sensindex);
+      if (!sens) return {-1, nullptr};
+      sensgegs = getsensor(sensindex);
+      auto *info = sens->getinfo();
+      info->wearduration = std::max<uint16_t>(info->wearduration,
+          static_cast<uint16_t>(dexcom::wearMinutes(scan.days)));
+      info->days = std::max<uint8_t>(info->days, scan.days + 2);
+      sensgegs->halfdays = info->days * 2;
       sendKAuth(sens);
       sendsiScan(sens);
       setstreaming(sens);
       sensgegs->finished = 0;
-      auto *info = sens->getinfo();
       info->lastscantime = now;
       if (!info->pollcount)
         info->starttime = now; // Not needed
@@ -731,26 +728,16 @@ public:
       return {sensindex, sens};
     }
     const pathconcat sensordir(inbasedir, name);
-    SensorGlucoseData::mkdatabaseDex(sensordir, gegs, now);
+    if (!SensorGlucoseData::mkdatabaseDex(sensordir, scan.payload, now, scan.days))
+      return {-1, nullptr};
     const int ind = addsensor(name);
     sensor *sen = getsensor(ind);
     sen->initialized = true;
-    sen->halfdays = maxdaysDex * 2;
+    sen->halfdays = (scan.days + 2) * 2;
     return {ind, getSensorData(ind)};
   }
 
 private:
-  static bool dexcomEnd(const char *endcode) {
-    if (!memcmp(endcode - 7, "240", 3)) {
-      const char *pin = endcode - 4;
-      for (auto *iter = pin; iter < endcode; ++iter) {
-        if (!isdigit(*iter))
-          return false;
-      }
-      return true;
-    }
-    return false;
-  }
 #endif
 
   // Scanned: 01040156300880101125031317260203211R000162641
@@ -880,12 +867,16 @@ public:
   std::pair<int, SensorGlucoseData *> makeSIsensorindex(std::string_view gegsSI,
                                                         uint32_t now) {
 
+#ifdef DEXCOM
+    if (const auto scan = dexcom::parseScan(gegsSI))
+      return makeDexComSensorindex(*scan, now);
+#endif
+
 #ifndef NOLOG
     // Length only: a CareSens Air code carries the pairing PIN.
     LOGGER("makeSIsensorindex() len=%zu\n", gegsSI.size());
 #endif
     bool hasnum = std::ranges::contains_subrange(gegsSI, sibionicsRecognition);
-    const auto *endcode = gegsSI.end();
     /*   bool
      * hasnum=std::search(gegsSI.begin(),endcode,sibionicsRecognition.begin(),sibionicsRecognition.end())!=endcode;
      */
@@ -894,11 +885,6 @@ public:
       if (gegsSI.size() < 36 || !std::ranges::contains_subrange(gegsSI, si)) {
         if (const auto *air = asCareSensAirScan(gegsSI))
           return makeAirSensorindex(*air, now);
-        if (dexcomEnd(endcode)) {
-          if (const auto res = makeDexComSensorindex(endcode - 4, gegsSI, now);
-              res.first >= 0)
-            return res;
-        }
         return makeAccuCheckSensorindex(gegsSI, now);
       }
     }
@@ -1248,6 +1234,8 @@ public:
     if (hist[ind]) {
       const bool error = hist[ind]->error();
       if (!error) {
+        if (hist[ind]->isDexcom())
+          sensorlist()[ind].halfdays = hist[ind]->getinfo()->days * 2;
         if (hist[ind]->infowrong()) {
           LOGGER("hist[%d] %s: infoblock wrong", ind, name);
           goto INFOWRONGERROR;

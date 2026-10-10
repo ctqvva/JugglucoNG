@@ -44,18 +44,27 @@ public final class DexcomManualPairing {
      * clock-independent identity here so clock rollback cannot make it reopen an older record.
      */
     public static String createScanPayload(String rawCode) {
-        return createScanPayload(rawCode, createSensorId(sensorIdRandom));
+        return createScanPayload(rawCode, 10);
+    }
+
+    public static String createScanPayload(String rawCode, int wearDays) {
+        return createScanPayload(rawCode, createSensorId(sensorIdRandom), wearDays);
     }
 
     static String createScanPayload(String rawCode, String sensorId) {
+        return createScanPayload(rawCode, sensorId, 10);
+    }
+
+    static String createScanPayload(String rawCode, String sensorId, int wearDays) {
         final String code = normalizePairingCode(rawCode);
-        if (!isValidPairingCode(code) || !isValidSensorId(sensorId)) {
+        if (!isValidPairingCode(code) || !isValidSensorId(sensorId)
+                || (wearDays != 10 && wearDays != 15)) {
             return null;
         }
 
         return MANUAL_PAYLOAD_PREFIX
                 + sensorId
-                + MANUAL_PAYLOAD_PADDING
+                + (wearDays == 15 ? "15000000000000000" : MANUAL_PAYLOAD_PADDING)
                 + DEXCOM_PAIRING_MARKER
                 + code;
     }

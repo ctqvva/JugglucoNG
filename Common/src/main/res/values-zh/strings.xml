@@ -597,6 +597,8 @@
     <string name="factory_reset_desc">删除所有内容，恢复初始状态</string>
     <string name="sibionics_setup_title">Sibionics 设置</string>
     <string name="dexcom_setup_title">Dexcom 设置</string>
+    <string name="dexcom_sensor_desc">G7、ONE+、Flex</string>
+    <string name="dexcom_15_day_models">%1$s（G7 / Flex）</string>
     <string name="scan_dexcom">扫描 Dexcom</string>
     <string name="dexcom_scan_instruction">扫描 Dexcom 传感器上的 DataMatrix 代码</string>
     <string name="dexcom_pairing_code_label">4 位配对码</string>

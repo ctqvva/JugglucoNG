@@ -642,6 +642,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="factory_reset_desc">Her şeyi sil, başa dön</string>
     <string name="sibionics_setup_title">Sibionics Kurulumu</string>
     <string name="dexcom_setup_title">Dexcom Kurulumu</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Dexcom Tara</string>
     <string name="dexcom_scan_instruction">Dexcom sensöründeki datamatrix kodunu tarayın</string>
     <string name="dexcom_pairing_code_label">4 haneli eşleştirme kodu</string>
