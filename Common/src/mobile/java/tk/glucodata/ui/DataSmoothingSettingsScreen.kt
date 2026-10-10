@@ -12,14 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -35,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
@@ -44,6 +51,7 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +84,10 @@ fun DataSmoothingSettingsScreen(
         if (exchangeOnly) {
             add(stringResource(R.string.data_smoothing_exchange_only_title))
         } else if (graphOnly) {
-            add(stringResource(R.string.data_smoothing_graph_only_title))
+            add(stringResource(
+                if (collapseChunks) R.string.data_smoothing_scope_graph_and_sent
+                else R.string.data_smoothing_graph_only_title
+            ))
         } else {
             add(stringResource(R.string.data_smoothing_scope_all))
         }
@@ -85,13 +96,11 @@ fun DataSmoothingSettingsScreen(
         }
     }.joinToString(" · ")
     val collapseSubtitle = when {
-        !collapseChunks -> stringResource(R.string.data_smoothing_collapse_desc)
         collapseIntervalMinutes in 1 until configuredMinutes ->
             stringResource(R.string.data_smoothing_collapse_desc_capped, configuredMinutes)
         else ->
             stringResource(R.string.data_smoothing_collapse_desc_match, collapseIntervalMinutes)
     }
-    val exchangeOnlySubtitle = stringResource(R.string.data_smoothing_exchange_only_desc)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -147,7 +156,8 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.data_smoothing_window_title),
-                                style = MaterialTheme.typography.titleMediumEmphasized,)
+                                style = MaterialTheme.typography.titleMediumEmphasized
+                            )
 
                             Text(
                                 text = stringResource(R.string.data_smoothing_window_desc),
@@ -206,32 +216,69 @@ fun DataSmoothingSettingsScreen(
             }
 
             Column(
-                modifier = Modifier.alpha(contentAlpha),
+                modifier = Modifier.alpha(contentAlpha).selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.data_smoothing_graph_only_title),
-                    subtitle = stringResource(
-                        if (collapseChunks) R.string.data_smoothing_graph_only_collapse_desc
-                        else R.string.data_smoothing_graph_only_desc
-                    ),
-                    checked = graphOnly,
-                    onCheckedChange = { viewModel.setDataSmoothingGraphOnly(it) },
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                Text(
+                    text = stringResource(R.string.data_smoothing_scope_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                )
+                SettingsItem(
+                    title = stringResource(R.string.data_smoothing_scope_all),
+                    subtitle = stringResource(R.string.data_smoothing_scope_all_desc),
+                    onClick = if (isEnabled) ({
+                        viewModel.setDataSmoothingGraphOnly(false)
+                        viewModel.setDataSmoothingExchangeOnly(false)
+                    }) else null,
+                    icon = Icons.Default.AllInclusive,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
-                    enabled = isEnabled
+                    modifier = Modifier.semantics {
+                        role = Role.RadioButton
+                        selected = !graphOnly && !exchangeOnly
+                    },
+                    trailingContent = {
+                        RadioButton(selected = !graphOnly && !exchangeOnly, onClick = null, enabled = isEnabled)
+                    }
                 )
-                SettingsSwitchItem(
+                SettingsItem(
+                    title = stringResource(R.string.data_smoothing_graph_only_title),
+                    subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
+                    onClick = if (isEnabled) ({ viewModel.setDataSmoothingGraphOnly(true) }) else null,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.MIDDLE,
+                    modifier = Modifier.semantics {
+                        role = Role.RadioButton
+                        selected = graphOnly && !exchangeOnly
+                    },
+                    trailingContent = {
+                        RadioButton(selected = graphOnly && !exchangeOnly, onClick = null, enabled = isEnabled)
+                    }
+                )
+                SettingsItem(
                     title = stringResource(R.string.data_smoothing_exchange_only_title),
-                    subtitle = exchangeOnlySubtitle,
-                    checked = exchangeOnly,
-                    onCheckedChange = { viewModel.setDataSmoothingExchangeOnly(it) },
+                    subtitle = stringResource(R.string.data_smoothing_exchange_only_desc),
+                    onClick = if (isEnabled) ({ viewModel.setDataSmoothingExchangeOnly(true) }) else null,
                     icon = Icons.AutoMirrored.Filled.Send,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.MIDDLE,
-                    enabled = isEnabled
+                    position = CardPosition.BOTTOM,
+                    modifier = Modifier.semantics {
+                        role = Role.RadioButton
+                        selected = exchangeOnly
+                    },
+                    trailingContent = {
+                        RadioButton(selected = exchangeOnly, onClick = null, enabled = isEnabled)
+                    }
                 )
+            }
+
+            Column(
+                modifier = Modifier.alpha(contentAlpha),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.data_smoothing_collapse_title),
                     subtitle = collapseSubtitle,
@@ -239,9 +286,22 @@ fun DataSmoothingSettingsScreen(
                     onCheckedChange = { viewModel.setDataSmoothingCollapseChunks(it) },
                     icon = Icons.Default.FilterAlt,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.SINGLE,
                     enabled = isEnabled
                 )
+                if (collapseChunks) {
+                    Text(
+                        text = buildList {
+                            if (graphOnly && !exchangeOnly) {
+                                add(stringResource(R.string.data_smoothing_graph_only_collapse_desc))
+                            }
+                            add(stringResource(R.string.data_smoothing_preserve_originals))
+                        }.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
         }
     }

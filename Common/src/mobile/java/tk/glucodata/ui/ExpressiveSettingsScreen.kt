@@ -236,7 +236,12 @@ fun ExpressiveSettingsScreen(
             if (dataSmoothingExchangeOnly) {
                 add(stringResource(R.string.data_smoothing_exchange_only_title))
             } else if (dataSmoothingGraphOnly) {
-                add(stringResource(R.string.data_smoothing_graph_only_title))
+                add(stringResource(
+                    if (dataSmoothingCollapseChunks) R.string.data_smoothing_scope_graph_and_sent
+                    else R.string.data_smoothing_graph_only_title
+                ))
+            } else {
+                add(stringResource(R.string.data_smoothing_scope_all))
             }
             if (dataSmoothingCollapseChunks) {
                 add(stringResource(R.string.data_smoothing_collapse_summary_format, collapseIntervalMinutes))

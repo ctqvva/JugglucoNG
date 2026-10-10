@@ -15,18 +15,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +57,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -122,6 +125,12 @@ private fun failureDetail(context: android.content.Context, code: Int): String =
  */
 internal fun nightscoutTestEndpointPath(useV3: Boolean): String =
     if (useV3) "api/v3/status" else "api/v1/status.json"
+
+internal fun nightscoutTestUsesV3(
+    mode: NightscoutModePreference.Mode,
+    uploadV3: Boolean,
+    followV3: Boolean
+): Boolean = if (mode == NightscoutModePreference.Mode.FOLLOW) followV3 else uploadV3
 
 internal fun nightscoutResponseDetail(body: String): String {
     return NightscoutTokenGrant.refusalMessage(body)
@@ -307,14 +316,15 @@ fun NightscoutSettingsScreen(navController: NavController) {
             testState = withContext(Dispatchers.IO) {
                 try {
                     val baseUrl = NightscoutFollowerRegistry.normalizeUrl(url)
-                    val path = nightscoutTestEndpointPath(isV3)
+                    val testV3 = nightscoutTestUsesV3(mode, uploadV3 = isV3, followV3 = followerV3)
+                    val path = nightscoutTestEndpointPath(testV3)
                     val conn = (java.net.URL("$baseUrl/$path").openConnection() as java.net.HttpURLConnection).apply {
                         connectTimeout = 10_000
                         readTimeout = 10_000
                         requestMethod = "GET"
                         setRequestProperty("Accept", "application/json")
                     }
-                    applyNightscoutTestAuth(conn, baseUrl, secret, isV3)
+                    applyNightscoutTestAuth(conn, baseUrl, secret, testV3)
                     val code = conn.responseCode
                     conn.disconnect()
                     // A bare status code sends people debugging the server; the endpoint says
@@ -548,7 +558,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             onValueChange = { secret = it; testState = TestState.Idle },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text(stringResource(R.string.api_secret_label)) },
+                            label = { Text(stringResource(R.string.nightscout_secret_label)) },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
@@ -566,7 +576,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
 
-            // Test connection and token refresh — available regardless of mode
+            // The routine connection check stays visible; auth maintenance lives in advanced settings.
             item("nightscout_test") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -574,7 +584,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             onClick = { testConnection() },
                             enabled = isActive && testState !is TestState.Testing,
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .heightIn(min = 56.dp)
                         ) {
                             if (testState is TestState.Testing) {
@@ -587,42 +597,6 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 Text(stringResource(R.string.nightscout_test_connection))
                             }
                         }
-                        OutlinedButton(
-                            onClick = { refreshToken() },
-                            enabled = isActive && tokenState !is TokenState.Refreshing,
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 56.dp)
-                        ) {
-                            if (tokenState is TokenState.Refreshing) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.nightscout_token_refreshing))
-                            } else {
-                                Icon(Icons.Default.Refresh, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.nightscout_refresh_token))
-                            }
-                        }
-                    }
-                    when (val t = tokenState) {
-                        is TokenState.Ok -> Text(
-                            text = stringResource(
-                                R.string.nightscout_token_ok,
-                                formatStatusTime(t.expiresAtMillis / 1000L),
-                                t.permissions.joinToString(", ").ifEmpty { "-" }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                        is TokenState.Err -> Text(
-                            text = stringResource(R.string.nightscout_token_error, t.message),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                        else -> {}
                     }
                     when (val s = testState) {
                         is TestState.Ok -> Text(
@@ -767,19 +741,6 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             position = CardPosition.TOP
                         )
                         SettingsSwitchItem(
-                            title = stringResource(R.string.nightscout_receive_amounts),
-                            subtitle = stringResource(R.string.nightscout_receive_amounts_desc),
-                            checked = receiveTreatments,
-                            onCheckedChange = {
-                                receiveTreatments = it
-                                JournalTreatmentUploader.setReceiveTreatments(it)
-                            },
-                            icon = Icons.Default.Link,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                            enabled = isActive,
-                            position = CardPosition.MIDDLE
-                        )
-                        SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
                             subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
                             checked = sendLongInsulin,
@@ -794,6 +755,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             position = CardPosition.MIDDLE
                         )
                         SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_receive_amounts),
+                            subtitle = stringResource(R.string.nightscout_receive_amounts_desc),
+                            checked = receiveTreatments,
+                            onCheckedChange = {
+                                receiveTreatments = it
+                                JournalTreatmentUploader.setReceiveTreatments(it)
+                            },
+                            icon = Icons.Default.Link,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            enabled = isActive,
+                            position = CardPosition.MIDDLE
+                        )
+                        SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_upload_iob),
                             subtitle = stringResource(R.string.nightscout_upload_iob_desc),
                             checked = uploadIob,
@@ -805,18 +779,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.CloudUpload,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = CardPosition.MIDDLE
-                        )
-                        SettingsSwitchItem(
-                            title = stringResource(R.string.nightscout_use_v3_api),
-                            subtitle = stringResource(R.string.nightscout_use_v3_api_desc),
-                            checked = isV3,
-                            onCheckedChange = { isV3 = it },
-                            icon = Icons.Default.Api,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                            enabled = isActive,
                             position = CardPosition.BOTTOM
                         )
+
                     }
                 }
 
@@ -865,25 +830,6 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
 
-            // Follow-only items. The uploader's v3 switch above is an uploader setting: a
-            // follower may point at a different server, so it carries its own.
-            if (mode == NightscoutModePreference.Mode.FOLLOW) {
-                item("nightscout_follow_options_group") {
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.nightscout_follow_use_v3_api),
-                        subtitle = stringResource(R.string.nightscout_follow_use_v3_api_desc),
-                        checked = followerV3,
-                        onCheckedChange = {
-                            followerV3 = it
-                            persistSettings(connectFollower = isActive)
-                        },
-                        icon = Icons.Default.Science,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        enabled = isActive,
-                        position = CardPosition.SINGLE
-                    )
-                }
-            }
             item("nightscout_permissions") {
                 var expanded by rememberSaveable(mode) { mutableStateOf(false) }
                 ExpandableSettingsCard(
@@ -894,17 +840,89 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     onExpandedChange = { expanded = it },
                     position = CardPosition.SINGLE,
                     content = {
-                        Text(
-                            text = stringResource(
-                                if (mode == NightscoutModePreference.Mode.FOLLOW) {
-                                    R.string.nightscout_permissions_follow
-                                } else {
-                                    R.string.nightscout_permissions_upload
+                        val useV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) followerV3 else isV3
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
+                                value = useV3,
+                                enabled = isActive,
+                                role = Role.Switch,
+                                onValueChange = {
+                                    if (mode == NightscoutModePreference.Mode.FOLLOW) {
+                                        followerV3 = it
+                                        persistSettings(connectFollower = isActive)
+                                    } else {
+                                        isV3 = it
+                                    }
+                                    testState = TestState.Idle
                                 }
                             ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.nightscout_use_v3_api), style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    stringResource(R.string.nightscout_use_v3_api_desc),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(checked = useV3, onCheckedChange = null, enabled = isActive)
+                        }
+                        if (useV3) {
+                            SelectionContainer {
+                                Text(
+                                    text = stringResource(
+                                        if (mode == NightscoutModePreference.Mode.FOLLOW) {
+                                            R.string.nightscout_permissions_follow
+                                        } else {
+                                            R.string.nightscout_permissions_upload
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            // Refreshing the uploader token does not invalidate the follower's token cache.
+                            if (mode == NightscoutModePreference.Mode.UPLOAD) {
+                                OutlinedButton(
+                                    onClick = { refreshToken() },
+                                    enabled = isActive && tokenState !is TokenState.Refreshing,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 56.dp)
+                                ) {
+                                    if (tokenState is TokenState.Refreshing) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.nightscout_token_refreshing))
+                                    } else {
+                                        Icon(Icons.Default.Refresh, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.nightscout_refresh_token))
+                                    }
+                                }
+                                when (val t = tokenState) {
+                                    is TokenState.Ok -> Text(
+                                        text = stringResource(
+                                            R.string.nightscout_token_ok,
+                                            formatStatusTime(t.expiresAtMillis / 1000L),
+                                            t.permissions.joinToString(", ").ifEmpty { "-" }
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+                                    is TokenState.Err -> Text(
+                                        text = stringResource(R.string.nightscout_token_error, t.message),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+                                    else -> {}
+                                }
+                            }
+                        }
                     }
                 )
             }
