@@ -623,6 +623,32 @@ fromjava(removeSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
   return removedAll ? JNI_TRUE : JNI_FALSE;
 }
 
+// Retires a managed driver's native mirror shell by its full id. Unlike
+// removeSensorById this only marks the slot finished, so data written after
+// the same sensor is added again revives it. finishfromSensorptr cannot stand
+// in: it resolves the slot from the last 16 characters of the directory, which
+// misses ids shorter than 16 such as Ottai's 12-hex cloud id.
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(finishSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const auto sensorindices = sensorIndicesFromId(env, jsensor);
+  if (sensorindices.empty()) {
+    LOGAR("finishSensorById unknown sensor");
+    return JNI_FALSE;
+  }
+  for (const int sensorindex : sensorindices) {
+    LOGGER("finishSensorById %s index=%d of %zu\n",
+           sensors->getsensor(sensorindex)->showsensorname(), sensorindex,
+           sensorindices.size());
+    sensors->finishsensor(sensorindex);
+    if (SensorGlucoseData *sensorptr = sensors->getSensorData(sensorindex))
+      setstreaming(sensorptr);
+  }
+  setusedsensors();
+  if (backup)
+    backup->wakebackup(Backup::wakeall);
+  return JNI_TRUE;
+}
+
 static void unfinishsensor(SensorGlucoseData *sensorptr, int sensorindex) {
   LOGGER("unfinishSensor %s\n", sensorptr->showsensorname().data());
   sensors->unfinishsensor(sensorindex);

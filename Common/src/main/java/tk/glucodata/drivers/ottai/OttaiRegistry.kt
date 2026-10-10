@@ -392,7 +392,14 @@ object OttaiRegistry {
         val recoveredStartMs = loadMaterials(context, canonical).activeTimeMs
             .takeIf { it > 0L }
             ?: loadProvisionalActiveTime(context, canonical)
-        writeRecords(context, persistedRecords(context).filter { !it.matchesId(canonical) })
+        val (removed, remaining) = persistedRecords(context).partition { it.matchesId(canonical) }
+        // The native mirror shell stays in Natives.activeSensors() under its short name (the last
+        // 7 of the 12 hex). With the record gone nothing claims that name, so SensorBluetooth
+        // rebuilt it as a generic Libre callback: a paused card titled with a cut-off id that
+        // needed a second Disconnect (2026-10-10, 8871A25). Finish it while the record still
+        // exists; a re-added sensor revives it on its first native write.
+        removed.forEach { finishNativeShell(it.sensorId) }
+        writeRecords(context, remaining)
         writeRecords(
             context,
             draftRecords(context).filter { !it.matchesId(canonical) },
@@ -421,6 +428,12 @@ object OttaiRegistry {
             remove(lastValidatedVersionKey(canonical))
         }.apply()
         saveProvisionalActiveTime(context, canonical, recoveredStartMs)
+    }
+
+    private fun finishNativeShell(sensorId: String) {
+        runCatching { Natives.finishSensorById(sensorId) }
+            .onSuccess { finished -> if (finished) Log.i(TAG, "finished native shell of $sensorId") }
+            .onFailure { Log.stack(TAG, "finishNativeShell($sensorId)", it) }
     }
 
     // ---- per-sensor materials ----
