@@ -2380,7 +2380,7 @@ private fun DashboardClearOptionsBottomSheet(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            androidx.compose.material3.TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }
+            androidx.compose.material3.TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shapes = androidx.compose.material3.ButtonDefaults.shapes(), contentPadding = androidx.compose.material3.ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
         }
     }
 }

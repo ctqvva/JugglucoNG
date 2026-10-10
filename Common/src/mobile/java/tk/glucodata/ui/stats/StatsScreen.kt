@@ -544,7 +544,9 @@ fun StatsScreen(
                     )
                     androidx.compose.material3.FilledTonalButton(
                         onClick = { showPatientInfo = !showPatientInfo },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(
                             text = if (showPatientInfo) {
@@ -607,7 +609,9 @@ fun StatsScreen(
                             pdfLauncher.launch("cgm_report_$reportDate.pdf")
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = parsedReportDays != null
+                        enabled = parsedReportDays != null,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = stringResource(R.string.export_readable_report))
                     }
@@ -659,7 +663,9 @@ fun StatsScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isPublishing && workerUrl.isNotBlank() && parsedReportDays != null
+                        enabled = !isPublishing && workerUrl.isNotBlank() && parsedReportDays != null,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = if (isPublishing) stringResource(R.string.loading_data) else stringResource(R.string.export))
                     }

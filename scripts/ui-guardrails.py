@@ -71,8 +71,9 @@ def offscale_radius(text):
     return hits
 
 
+# Bare or fully qualified (androidx.compose.material3.TextButton(...)); other receivers are not M3.
 BUTTON_CALL = re.compile(
-    r"(?<![\w.])(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton"
+    r"(?:(?<![\w.])|(?<=material3\.))(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton"
     r"|IconButton|FilledIconButton|FilledTonalIconButton|OutlinedIconButton)\("
 )
 
