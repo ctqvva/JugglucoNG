@@ -1321,7 +1321,7 @@
     <string name="nightscout_receive_amounts">Odbieraj insulinę i węglowodany</string>
     <string name="nightscout_receive_amounts_desc">Dodawaj wpisy Nightscout do dziennika.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Adres Nightscout</string>
+    <string name="nightscout_url_label">Adres serwera</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Używaj API v3</string>
     <string name="nightscout_use_v3_api_desc">Wyłącz, jeśli serwer nie obsługuje API v3.</string>

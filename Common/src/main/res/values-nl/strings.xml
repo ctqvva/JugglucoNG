@@ -1329,7 +1329,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_receive_amounts">Insuline en koolhydraten ontvangen</string>
     <string name="nightscout_receive_amounts_desc">Nightscout-gegevens aan je dagboek toevoegen.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Nightscout-URL</string>
+    <string name="nightscout_url_label">Serveradres</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3-API gebruiken</string>
     <string name="nightscout_use_v3_api_desc">Uitschakelen als de server API v3 niet ondersteunt.</string>

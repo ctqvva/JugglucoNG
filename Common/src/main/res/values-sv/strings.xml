@@ -1286,7 +1286,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_receive_amounts">Ta emot insulin och kolhydrater</string>
     <string name="nightscout_receive_amounts_desc">Lägg till Nightscout-poster i journalen.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Nightscout-URL</string>
+    <string name="nightscout_url_label">Serveradress</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Använd v3-API</string>
     <string name="nightscout_use_v3_api_desc">Stäng av om servern inte stöder API v3.</string>

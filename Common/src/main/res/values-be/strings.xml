@@ -1285,7 +1285,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_receive_amounts">Атрымліваць інсулін і вугляводы</string>
     <string name="nightscout_receive_amounts_desc">Дадаваць запісы Nightscout у дзённік.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Адрас Nightscout</string>
+    <string name="nightscout_url_label">Адрас сервера</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Выкарыстоўваць API v3</string>
     <string name="nightscout_use_v3_api_desc">Адключыце, калі сервер не падтрымлівае API v3.</string>

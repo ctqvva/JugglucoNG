@@ -1302,7 +1302,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_receive_amounts">接收胰岛素和碳水记录</string>
     <string name="nightscout_receive_amounts_desc">将 Nightscout 记录添加到日志。</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Nightscout 地址</string>
+    <string name="nightscout_url_label">服务器地址</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">使用 v3 API</string>
     <string name="nightscout_use_v3_api_desc">如果服务器不支持 API v3，请关闭此选项。</string>

@@ -59,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -669,54 +668,66 @@ fun NightscoutSettingsScreen(navController: NavController) {
             // Upload-only items
             if (mode == NightscoutModePreference.Mode.UPLOAD) {
                 item("nightscout_status_card") {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(if (isActive) 1f else 0.6f),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        shape = cardShape(CardPosition.SINGLE),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(text = stringResource(R.string.status), style = MaterialTheme.typography.titleMedium)
-                            Text(text = uploaderSummary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                text = responseSummary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = stringResource(R.string.nightscout_status_last_success, formatStatusTime(lastSuccessTime)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (treatmentSummary != null) {
+                    var expanded by rememberSaveable { mutableStateOf(false) }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ExpandableSettingsCard(
+                            title = stringResource(R.string.status),
+                            summary = uploaderSummary,
+                            icon = Icons.Default.CloudUpload,
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it },
+                            position = CardPosition.SINGLE,
+                            content = {
                                 Text(
-                                    text = treatmentSummary,
+                                    text = responseSummary,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (treatmentSync.isFailing) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Text(
+                                    text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = stringResource(R.string.nightscout_status_last_success, formatStatusTime(lastSuccessTime)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (treatmentSummary != null) {
+                                    Text(
+                                        text = treatmentSummary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (treatmentSync.isFailing) {
+                                            MaterialTheme.colorScheme.error
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+                                if (deviceStatusSummary != null) {
+                                    Text(
+                                        text = deviceStatusSummary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
-                            if (deviceStatusSummary != null) {
-                                Text(
-                                    text = deviceStatusSummary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                        )
+                        // Keep failures visible even when routine timestamps are collapsed.
+                        if (!expanded) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (isActive && lastAttemptTime > 0L && lastResponseCode != 0 && lastResponseCode !in 200..299) {
+                                    Text(responseSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                }
+                                if (treatmentSummary != null && treatmentSync.isFailing) {
+                                    Text(treatmentSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                }
+                                if (deviceStatusSummary != null) {
+                                    Text(deviceStatusSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
@@ -781,7 +792,6 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             enabled = isActive,
                             position = CardPosition.BOTTOM
                         )
-
                     }
                 }
 

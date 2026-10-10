@@ -1552,7 +1552,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_upload_iob_desc">A Juggluco számítását mutatja a Nightscouté helyett.</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Szinkronizálási műveletek</string>
-    <string name="nightscout_url_label">Nightscout URL</string>
+    <string name="nightscout_url_label">Szerver címe</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3 API használata</string>
     <string name="nightscout_use_v3_api_desc">Kapcsolja ki, ha a szerver nem támogatja az API v3-at.</string>

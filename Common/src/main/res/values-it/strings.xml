@@ -1276,7 +1276,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_receive_amounts">Ricevi insulina e carboidrati</string>
     <string name="nightscout_receive_amounts_desc">Aggiungi le voci Nightscout al diario.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">URL Nightscout</string>
+    <string name="nightscout_url_label">Indirizzo del server</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Usa API v3</string>
     <string name="nightscout_use_v3_api_desc">Disattiva se il server non supporta l’API v3.</string>

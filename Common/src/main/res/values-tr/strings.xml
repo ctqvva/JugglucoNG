@@ -1314,7 +1314,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_receive_amounts">İnsülin ve karbonhidrat al</string>
     <string name="nightscout_receive_amounts_desc">Nightscout kayıtlarını günlüğüne ekle.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Nightscout adresi</string>
+    <string name="nightscout_url_label">Sunucu adresi</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3 API kullan</string>
     <string name="nightscout_use_v3_api_desc">Sunucunuz API v3 desteklemiyorsa kapatın.</string>

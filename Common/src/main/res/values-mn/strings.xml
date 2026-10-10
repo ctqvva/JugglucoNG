@@ -1320,7 +1320,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_send_long_insulin_desc">Суурь болон хэт удаан үйлдэлтэй инсулиныг оруулна.</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Синк үйлдлүүд</string>
-    <string name="nightscout_url_label">Nightscout хаяг</string>
+    <string name="nightscout_url_label">Серверийн хаяг</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3 API ашиглах</string>
     <string name="nightscout_use_v3_api_desc">Сервер API v3 дэмжихгүй бол унтраана уу.</string>

@@ -1399,7 +1399,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_upload_iob">Aktives Insulin senden</string>
     <string name="nightscout_upload_iob_desc">Jugglucos Berechnung statt der von Nightscout anzeigen.</string>
     <string name="nightscout_settings_title">Nightscout</string>
-    <string name="nightscout_url_label">Nightscout-URL</string>
+    <string name="nightscout_url_label">Serveradresse</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3-API verwenden</string>
     <string name="nightscout_use_v3_api_desc">Ausschalten, wenn der Server API v3 nicht unterstützt.</string>
