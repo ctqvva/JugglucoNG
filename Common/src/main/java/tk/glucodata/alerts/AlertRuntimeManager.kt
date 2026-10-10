@@ -34,6 +34,9 @@ object AlertRuntimeManager {
     private var lastLoggedExpiryEndMs: Long = Long.MIN_VALUE
     private var warnedForecastRateUntrusted = false
     private var preLowSuppressionReason: String? = null
+    private val preLowConfidence = ForecastLowConfidencePolicy()
+    private val preLowReturnToBaseline = ForecastLowReturnToBaselineState()
+    private var preLowConfidenceDecision: ForecastLowConfidencePolicy.Decision? = null
     private var preHighIobSuppressed = false
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
@@ -77,6 +80,8 @@ object AlertRuntimeManager {
         synchronized(lock) {
             val suppressThroughMs = maxOf(lastReadingTimeMs, currentReadingTimeMs)
             calibrationReadingBarrier.suppressThrough(suppressThroughMs)
+            preLowConfidence.reset()
+            preLowReturnToBaseline.clear()
             // A recalibration shifts the displayed value without a real new sample; drop the delta
             // baseline so the jump can't be mistaken for a steep fall/rise.
             fallingDeltaState.resetBaseline()
@@ -137,6 +142,8 @@ object AlertRuntimeManager {
                 lastRate = snapshot.rate
                 lastDisplaySnapshot = snapshot
             } else {
+                preLowConfidence.reset()
+                preLowReturnToBaseline.clear()
                 lastGlucoseValue = Float.NaN
                 lastRate = Float.NaN
                 lastDisplaySnapshot = null
@@ -233,15 +240,29 @@ object AlertRuntimeManager {
     }
 
     private fun evaluateStandardGlucoseAlertsLocked(): AlertRuntimeEvaluation {
-        val glucoseValue = currentGlucoseValueLocked() ?: return AlertRuntimeEvaluation()
+        val glucoseValue = currentGlucoseValueLocked() ?: run {
+            preLowConfidence.reset()
+            preLowReturnToBaseline.clear()
+            return AlertRuntimeEvaluation()
+        }
         val rate = currentRateLocked()
         val configs = standardGlucoseAlertTypes.associateWith { AlertRepository.loadConfig(it) }
+        if (configs[AlertType.PRE_LOW]?.preLowEvidenceEnabled == true) {
+            preLowReturnToBaseline.observe(
+                lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs, glucoseValue,
+                lastDisplaySnapshot?.sensorId, lastDisplaySnapshot?.sensorGen ?: 0,
+                lastDisplaySnapshot?.viewMode ?: 0, Applic.unit == 1
+            )
+        } else {
+            preLowReturnToBaseline.clear()
+        }
         val activeConditions = suppressPreLow(
             suppressIobCoveredPreHigh(
                 resolveActiveStandardGlucoseAlerts(glucoseValue, rate, configs),
                 configs
             ),
-            rate
+            rate,
+            configs[AlertType.PRE_LOW]
         )
         val activeTypes = activeConditions.keys
         val transition = standardEpisodes.update(activeTypes)
@@ -331,21 +352,38 @@ object AlertRuntimeManager {
 
     private fun suppressPreLow(
         conditions: Map<AlertType, StandardGlucoseAlertCondition>,
-        rate: Float
+        rate: Float,
+        config: AlertConfig?
     ): Map<AlertType, StandardGlucoseAlertCondition> {
         preLowSuppressionReason = null
-        val condition = conditions[AlertType.PRE_LOW] ?: return conditions
+        val condition = conditions[AlertType.PRE_LOW] ?: run {
+            preLowConfidence.reset()
+            preLowConfidenceDecision = null
+            return conditions
+        }
         if (!ForecastLowSuppression.hasDownwardArrow(rate)) {
+            preLowConfidence.reset()
+            preLowConfidenceDecision = null
             preLowSuppressionReason = "forecast-low-not-falling"
             return conditions - AlertType.PRE_LOW
         }
+        val nowMs = System.currentTimeMillis()
+        var iobNext30 = Float.NaN
+        var classicIob = Float.NaN
+        var configuredSensitivity = Float.NaN
         val covered = try {
-            val nowMs = System.currentTimeMillis()
-            val cobGrams = tk.glucodata.JournalIobAccess.snapshot(nowMs)?.getOrNull(2) ?: Float.NaN
+            val journal = tk.glucodata.JournalIobAccess.snapshot(nowMs)
+            iobNext30 = journal?.getOrNull(3) ?: Float.NaN
+            classicIob = journal?.getOrNull(0) ?: Float.NaN
+            val cobGrams = journal?.getOrNull(2) ?: Float.NaN
             val prefs = Applic.app.getSharedPreferences(
                 "tk.glucodata_preferences", android.content.Context.MODE_PRIVATE
             )
             val profile = tk.glucodata.data.prediction.PredictionModelProfileStore.parametersAt(prefs, nowMs)
+            val store = tk.glucodata.data.prediction.PredictionModelProfileStore
+            if (prefs.contains(store.PROFILE_KEY) || prefs.contains(store.INSULIN_SENSITIVITY_KEY)) {
+                configuredSensitivity = profile.insulinSensitivityMgDlPerUnit
+            }
             ForecastLowSuppression.cobCoversLow(
                 condition.evaluatedValue, condition.threshold, Applic.unit == 1,
                 cobGrams, profile.carbRatioGramsPerUnit, profile.insulinSensitivityMgDlPerUnit
@@ -355,7 +393,38 @@ object AlertRuntimeManager {
             false
         }
         if (covered) {
+            preLowConfidence.reset()
+            preLowConfidenceDecision = null
             preLowSuppressionReason = "forecast-cob-covered"
+            return conditions - AlertType.PRE_LOW
+        }
+        if (config?.preLowEvidenceEnabled != true) {
+            preLowConfidence.reset()
+            preLowConfidenceDecision = null
+            return conditions
+        }
+        val decision = preLowConfidence.evaluate(
+            condition = condition,
+            rate = rate,
+            readingTimeMs = lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs,
+            nowMs = nowMs,
+            sensorId = lastDisplaySnapshot?.sensorId,
+            sensorGen = lastDisplaySnapshot?.sensorGen ?: 0,
+            forecastMinutes = config?.forecastMinutes,
+            isMmol = Applic.unit == 1,
+            episodeActive = standardEpisodes.isActive(AlertType.PRE_LOW),
+            iobNext30 = iobNext30,
+            insulinSensitivity = configuredSensitivity,
+            classicIob = classicIob,
+            recentRiseBaselineMgdl = preLowReturnToBaseline.recentRiseBaselineMgdl()
+        )
+        if (decision != preLowConfidenceDecision) {
+            Log.i(LOG_ID, "PRE_LOW evidence=$decision glucose=${condition.glucoseValue} " +
+                "projected=${condition.evaluatedValue} iobNext30=$iobNext30")
+            preLowConfidenceDecision = decision
+        }
+        if (!decision.eligible) {
+            preLowSuppressionReason = "forecast-low-confirming"
             return conditions - AlertType.PRE_LOW
         }
         return conditions
