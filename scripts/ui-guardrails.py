@@ -71,6 +71,24 @@ def offscale_radius(text):
     return hits
 
 
+BUTTON_CALL = re.compile(
+    r"(?<![\w.])(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton"
+    r"|IconButton|FilledIconButton|FilledTonalIconButton|OutlinedIconButton)\("
+)
+
+
+def button_without_shapes(text, path):
+    """A standard button that misses the expressive press morph (shapes = ...Defaults.shapes())."""
+    hits = []
+    for m in BUTTON_CALL.finditer(text):
+        if re.search(r"\bfun\s+$", text[text.rfind("\n", 0, m.start()) + 1:m.start()]):
+            continue
+        args = text[m.end():_closing(text, m.end())]
+        if not re.search(r"\bshapes?\s*=", args):
+            hits.append(m.start())
+    return hits
+
+
 def palette_spans(text):
     spans = []
     for m in PALETTE_CALLS.finditer(text):
@@ -116,6 +134,8 @@ RULES = {
     # Pushed screens use AppTopBar.
     "hand_built_top_bar": pattern(r"(?<![\w.])TopAppBar\(", exclude=("components/AppTopBar.kt",)),
     # Emphasis is a style (titleMediumEmphasized...), not a call-site weight.
+    # Buttons morph on press: shapes = ButtonDefaults/IconButtonDefaults.shapes(), or a deliberate shape.
+    "button_without_shapes": button_without_shapes,
     "font_weight_override": pattern(r"fontWeight\s*=\s*FontWeight\.(?:Medium|SemiBold|Bold)\b", exclude=("theme/Type.kt",)),
 }
 
