@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -68,7 +69,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -593,17 +596,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
             // Test the API selected for the current direction.
             item("nightscout_test") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    val showTokenAction = mode == NightscoutModePreference.Mode.UPLOAD && isV3
+                    val testAction: @Composable (Modifier) -> Unit = { actionModifier ->
                         OutlinedButton(
                             onClick = { testConnection() },
                             enabled = isActive && testState !is TestState.Testing,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .heightIn(min = 56.dp)
+                            modifier = actionModifier.heightIn(min = 56.dp)
                         ) {
                             if (testState is TestState.Testing) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -615,21 +613,49 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 Text(stringResource(R.string.nightscout_test_connection))
                             }
                         }
-                        if (mode == NightscoutModePreference.Mode.UPLOAD && isV3) {
-                            OutlinedButton(
-                                onClick = { refreshToken() },
-                                enabled = isActive && tokenState !is TokenState.Refreshing,
-                                modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 56.dp)
+                    }
+                    val tokenAction: @Composable (Modifier) -> Unit = { actionModifier ->
+                        OutlinedButton(
+                            onClick = { refreshToken() },
+                            enabled = isActive && tokenState !is TokenState.Refreshing,
+                            modifier = actionModifier.heightIn(min = 56.dp)
+                        ) {
+                            if (tokenState is TokenState.Refreshing) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.nightscout_token_refreshing))
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.nightscout_refresh_token))
+                            }
+                        }
+                    }
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val density = LocalDensity.current
+                        val textMeasurer = rememberTextMeasurer()
+                        val actionStyle = MaterialTheme.typography.labelLarge
+                        val labels = listOf(
+                            stringResource(if (testState is TestState.Testing) R.string.nightscout_test_testing else R.string.nightscout_test_connection),
+                            stringResource(if (tokenState is TokenState.Refreshing) R.string.nightscout_token_refreshing else R.string.nightscout_refresh_token)
+                        )
+                        val widestLabel = with(density) {
+                            labels.maxOf { textMeasurer.measure(it, style = actionStyle).size.width }.toDp()
+                        }
+                        // Each button needs its label, a 24dp icon, an 8dp gap and 48dp padding.
+                        val requiredRowWidth = (widestLabel + 80.dp) * 2 + 8.dp
+                        if (showTokenAction && maxWidth < requiredRowWidth) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                testAction(Modifier.fillMaxWidth())
+                                tokenAction(Modifier.fillMaxWidth())
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (tokenState is TokenState.Refreshing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.nightscout_token_refreshing))
-                                } else {
-                                    Icon(Icons.Default.Refresh, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.nightscout_refresh_token))
-                                }
+                                testAction(Modifier.weight(1f).fillMaxHeight())
+                                if (showTokenAction) tokenAction(Modifier.weight(1f).fillMaxHeight())
                             }
                         }
                     }
