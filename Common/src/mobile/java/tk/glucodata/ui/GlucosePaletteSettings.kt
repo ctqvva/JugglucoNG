@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.layout.Arrangement
@@ -88,7 +89,9 @@ fun GlucosePalettePresetSelector(modifier: Modifier = Modifier) {
                     GlucosePaletteState.clearOverrides(context)
                 },
                 label = { Text(stringResource(presetLabelRes(preset))) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                shapes = FilterChipDefaults.shapes(),
+                colors = FilterChipDefaults.filterChipColors()
             )
         }
     }

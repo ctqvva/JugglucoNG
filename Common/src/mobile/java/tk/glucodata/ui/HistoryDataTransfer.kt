@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Intent
 import android.net.Uri
@@ -1032,7 +1033,7 @@ fun ScheduledBackupSettingsSheet(
                     Text(stringResource(android.R.string.cancel))
                 }
             },
-            text = { TimePicker(state = pickerState) }
+            text = { TimePicker(state = pickerState, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) }
         )
     }
 

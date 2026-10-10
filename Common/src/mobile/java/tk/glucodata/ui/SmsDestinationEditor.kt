@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -503,7 +504,9 @@ private fun SmsAlertTypePicker(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
                         }
                         onChange(policy.copy(alarmAlertIds = next))
                     },
-                    label = { Text(stringResource(type.nameResId)) }
+                    label = { Text(stringResource(type.nameResId)) },
+                    shapes = FilterChipDefaults.shapes(),
+                    colors = FilterChipDefaults.filterChipColors()
                 )
             }
         }

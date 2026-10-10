@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.TimePickerDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -403,7 +404,7 @@ private fun ProfileTimePickerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                TimePicker(state = state)
+                TimePicker(state = state, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors())
             }
         },
         confirmButton = {

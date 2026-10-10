@@ -1,5 +1,6 @@
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.app.StatusBarManager
 import android.content.ComponentName
@@ -236,7 +237,7 @@ fun QuietWindowCard(
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
             title = { Text(stringResource(R.string.quiet_window_select_end_time)) },
-            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth()) },
+            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth(), shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) },
             confirmButton = {
                 TextButton(onClick = {
                     val nowMs = System.currentTimeMillis()

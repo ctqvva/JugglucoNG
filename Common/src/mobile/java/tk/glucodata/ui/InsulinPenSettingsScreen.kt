@@ -5,6 +5,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -457,6 +458,8 @@ private fun PenDetailSheet(
                         selected = preset.id == pen.insulinPresetId,
                         onClick = { onSelected(preset) },
                         label = { Text(preset.displayName) },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
             }

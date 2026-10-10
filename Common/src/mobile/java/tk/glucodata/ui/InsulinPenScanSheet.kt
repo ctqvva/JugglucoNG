@@ -5,6 +5,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
@@ -116,6 +117,8 @@ fun InsulinPenScanSheetHost() {
                         selected = preset.id == chosenInsulin?.id,
                         onClick = { chosenInsulinId = preset.id },
                         label = { Text(preset.displayName) },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
             }

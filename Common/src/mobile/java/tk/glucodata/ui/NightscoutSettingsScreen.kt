@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
@@ -684,7 +685,9 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                             pollMinutes = minutes
                                             NightscoutFollowerRegistry.savePollMinutes(context, minutes)
                                         },
-                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) }
+                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) },
+                                        shapes = FilterChipDefaults.shapes(),
+                                        colors = FilterChipDefaults.filterChipColors()
                                     )
                                 }
                             }

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.TimePickerDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.MenuDefaults
@@ -767,6 +768,6 @@ private fun ScheduleTimePickerDialog(
                 Text(stringResource(android.R.string.cancel))
             }
         },
-        text = { TimePicker(state = state) }
+        text = { TimePicker(state = state, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) }
     )
 }

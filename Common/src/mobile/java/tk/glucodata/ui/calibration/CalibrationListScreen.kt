@@ -1042,7 +1042,9 @@ private fun CalibrationWeightControl(
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shapes = FilterChipDefaults.shapes(),
+                    colors = FilterChipDefaults.filterChipColors()
                 )
             }
         }

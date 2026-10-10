@@ -521,13 +521,17 @@ fun AlarmItem(
                             selected = soundMode == 0,
                             onClick = { onSoundChange(0) },
                             label = { Text(stringResource(R.string.vibrate_only)) },
-                            leadingIcon = { if(soundMode == 0) Icon(Icons.Filled.Check, null) }
+                            leadingIcon = { if(soundMode == 0) Icon(Icons.Filled.Check, null) },
+                            shapes = FilterChipDefaults.shapes(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                         FilterChip(
                             selected = soundMode == 1,
                             onClick = { onSoundChange(1) },
                             label = { Text(stringResource(R.string.sound_vibrate)) },
-                            leadingIcon = { if(soundMode == 1) Icon(Icons.Filled.Check, null) }
+                            leadingIcon = { if(soundMode == 1) Icon(Icons.Filled.Check, null) },
+                            shapes = FilterChipDefaults.shapes(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                     }
                 }

@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.FilterChipDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
@@ -875,7 +877,7 @@ fun JournalEntrySheet(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    TimePicker(state = timePickerState)
+                    TimePicker(state = timePickerState, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors())
                 }
             },
             confirmButton = {
@@ -2500,7 +2502,9 @@ private fun JournalIntensitySelector(
             FilterChip(
                 selected = selectedIntensity == intensity,
                 onClick = { onIntensitySelected(intensity) },
-                label = { Text(text = stringResource(intensity.labelRes())) }
+                label = { Text(text = stringResource(intensity.labelRes())) },
+                shapes = FilterChipDefaults.shapes(),
+                colors = FilterChipDefaults.filterChipColors()
             )
         }
     }
