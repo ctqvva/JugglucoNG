@@ -5,6 +5,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -63,6 +64,9 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -257,7 +261,7 @@ fun DashboardCombinedHeader(
     showDelta: Boolean = false,
     showReadingAge: Boolean = false,
     deltaIntervalMinutes: Int = tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES,
-    peerReadings: List<tk.glucodata.ui.viewmodel.DashboardViewModel.PeerCurrentReading> = emptyList(),
+    peerReadings: List<PeerCurrentReading> = emptyList(),
     onPeerReadingClick: (String) -> Unit = {},
     onHeroClick: () -> Unit = {},
     // The alarm quiet window: 0 = none, and then nothing is drawn. A running one
@@ -434,6 +438,11 @@ fun DashboardCombinedHeader(
                 }
         }
     }
+    val selectedPeerReadings = peerReadings.filter { peer ->
+        activeSensors.any { tk.glucodata.SensorIdentity.matches(it, peer.sensorId) }
+    }
+    val secondaryPeer = SecondarySensorDisplay.fallback(dvs, sensorName, selectedPeerReadings)
+    val remainingPeers = selectedPeerReadings.filterNot { it == secondaryPeer }
     val secondaryText = dvs?.secondaryStr
     val tertiaryText = dvs?.tertiaryStr
     val hasSecondary = secondaryText != null
@@ -558,7 +567,7 @@ fun DashboardCombinedHeader(
                 // read as a balanced cluster), and the hero CARD is pinned to the
                 // single-sensor content height (heroContentMinHeight below) so it
                 // never grows or shrinks — the scaled cluster just centers inside it.
-                val isMultiHero = peerReadings.isNotEmpty()
+                val isMultiHero = secondaryPeer != null || remainingPeers.isNotEmpty()
                 val heroMultiSensorScale = if (isMultiHero) 0.74f else 1f
                 // Single-sensor padding defines the target card height. Multi mode
                 // uses a smaller inner padding so the scaled value + chip cluster
@@ -667,6 +676,43 @@ fun DashboardCombinedHeader(
                             subdued = statusCopy.isStale
                         )
                     }
+                } else if (secondaryPeer != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .heightIn(min = heroContentMinHeight)
+                            .padding(
+                                start = resolvedStartPadding,
+                                end = resolvedEndPadding,
+                                top = resolvedVerticalPadding,
+                                bottom = resolvedVerticalPadding
+                            ),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        DashboardHeroSensorPair(
+                            primaryText = primaryText,
+                            primaryStyle = primaryValueStyle,
+                            primaryColor = heroValueColor,
+                            primaryRangeText = currentRangeText,
+                            primaryTrend = trendResult,
+                            primaryArrowColor = heroArrowColor,
+                            primaryDeltaText = heroDeltaText,
+                            peer = secondaryPeer,
+                            peerStyle = secondaryInlineStyle,
+                            selectedSensorIds = activeSensors,
+                            contentColor = glucoseContentColor,
+                            onPeerClick = onPeerReadingClick
+                        )
+                        if (remainingPeers.isNotEmpty()) {
+                            DashboardHeroPeerStrip(
+                                peerReadings = remainingPeers,
+                                selectedSensorIds = activeSensors,
+                                contentColor = glucoseContentColor,
+                                onPeerClick = onPeerReadingClick,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 } else if (isLandscape) {
                     Column(
                         modifier = Modifier
@@ -765,9 +811,9 @@ fun DashboardCombinedHeader(
                             )
                         }
 
-                        if (peerReadings.isNotEmpty()) {
+                        if (remainingPeers.isNotEmpty()) {
                             DashboardHeroPeerStrip(
-                                peerReadings = peerReadings,
+                                peerReadings = remainingPeers,
                                 selectedSensorIds = activeSensors,
                                 contentColor = glucoseContentColor,
                                 onPeerClick = onPeerReadingClick,
@@ -817,9 +863,9 @@ fun DashboardCombinedHeader(
                             )
                         }
 
-                        if (peerReadings.isNotEmpty()) {
+                        if (remainingPeers.isNotEmpty()) {
                             DashboardHeroPeerStrip(
-                                peerReadings = peerReadings,
+                                peerReadings = remainingPeers,
                                 selectedSensorIds = activeSensors,
                                 contentColor = glucoseContentColor,
                                 onPeerClick = onPeerReadingClick,
@@ -1166,6 +1212,94 @@ private fun DashboardHeroPrimaryText(
 }
 
 /**
+ * Keep each sensor's value beside its own arrow. Fit the two values to the
+ * available width while preserving the peer chip's padding and touch target.
+ */
+@Composable
+private fun DashboardHeroSensorPair(
+    primaryText: String,
+    primaryStyle: TextStyle,
+    primaryColor: Color,
+    primaryRangeText: String?,
+    primaryTrend: tk.glucodata.logic.TrendEngine.TrendResult,
+    primaryArrowColor: Color,
+    primaryDeltaText: String?,
+    peer: PeerCurrentReading,
+    peerStyle: TextStyle,
+    selectedSensorIds: List<String>,
+    contentColor: Color,
+    onPeerClick: (String) -> Unit
+) {
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val primaryTrendWidthPx = maxOf(
+            with(density) { 32.dp.roundToPx() },
+            primaryDeltaText?.let {
+                textMeasurer.measure(
+                    "Δ $it",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    maxLines = 1
+                ).size.width
+            } ?: 0
+        )
+        // Main gap + sensor gap + chip insets + dot + dot gap + arrow gap + arrow,
+        // plus a small allowance for independent text/dp rounding after scaling.
+        val fixedWidthPx = primaryTrendWidthPx + with(density) {
+            (8.dp + 12.dp + 16.dp + 8.dp + 4.dp + 4.dp + 24.dp + 4.dp).roundToPx()
+        }
+        val valuesWidthPx = textMeasurer.measure(primaryText, style = primaryStyle, maxLines = 1).size.width +
+            textMeasurer.measure(peer.primaryStr, style = peerStyle, maxLines = 1).size.width
+        val valueScale = ((constraints.maxWidth - fixedWidthPx).coerceAtLeast(0).toFloat() /
+            valuesWidthPx.coerceAtLeast(1)).coerceIn(0.1f, 1f)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                DashboardHeroPrimaryText(
+                    value = primaryText,
+                    style = primaryStyle.scaleForHero(valueScale),
+                    color = primaryColor
+                )
+                primaryRangeText?.let { range ->
+                    Text(
+                        text = range,
+                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                        color = primaryColor.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.width(with(density) { primaryTrendWidthPx.toDp() })) {
+                HeroTrendWithDelta(
+                    trendResult = primaryTrend,
+                    arrowColor = primaryArrowColor,
+                    deltaText = primaryDeltaText,
+                    contentColor = contentColor,
+                    iconSize = 32.dp
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            DashboardHeroPeerStrip(
+                peerReadings = listOf(peer),
+                selectedSensorIds = selectedSensorIds,
+                contentColor = contentColor,
+                onPeerClick = onPeerClick,
+                valueStyle = peerStyle.scaleForHero(valueScale),
+                showSecondary = false,
+                iconSize = 24.dp,
+                minChipHeight = 48.dp
+            )
+        }
+    }
+}
+
+/**
  * Compact per-peer value chips inside the hero card. Each chip shows the
  * peer sensor's current value (and secondary lane when present) with its
  * subtle identity tint plus a small trend arrow; tapping promotes the peer
@@ -1173,11 +1307,15 @@ private fun DashboardHeroPrimaryText(
  */
 @Composable
 private fun DashboardHeroPeerStrip(
-    peerReadings: List<tk.glucodata.ui.viewmodel.DashboardViewModel.PeerCurrentReading>,
+    peerReadings: List<PeerCurrentReading>,
     selectedSensorIds: List<String>,
     contentColor: Color,
     onPeerClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    valueStyle: TextStyle? = null,
+    showSecondary: Boolean = true,
+    iconSize: androidx.compose.ui.unit.Dp = 12.dp,
+    minChipHeight: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     Row(
         modifier = modifier,
@@ -1209,24 +1347,26 @@ private fun DashboardHeroPeerStrip(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(identityColor.copy(alpha = 0.14f))
-                    .clickable { onPeerClick(peer.sensorId) }
+                    .clickable(role = Role.Button) { onPeerClick(peer.sensorId) }
+                    .semantics { contentDescription = peer.sensorId }
+                    .heightIn(min = minChipHeight)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(8.dp)
                         .background(identityColor.copy(alpha = 0.9f), CircleShape)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = peer.primaryStr,
-                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                    style = valueStyle ?: MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
                     color = textColor,
                     softWrap = false,
                     maxLines = 1
                 )
-                peer.secondaryStr?.let { secondary ->
+                peer.secondaryStr?.takeIf { showSecondary }?.let { secondary ->
                     Text(
                         text = " · $secondary",
                         style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
@@ -1239,7 +1379,7 @@ private fun DashboardHeroPeerStrip(
                 tk.glucodata.ui.components.TrendIndicator(
                     trendResult = peerTrend,
                     color = textColor,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
