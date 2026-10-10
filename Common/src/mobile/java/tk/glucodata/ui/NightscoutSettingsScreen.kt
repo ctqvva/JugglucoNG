@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -555,11 +556,13 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { persistSettings(connectFollower = isActive && mode == NightscoutModePreference.Mode.FOLLOW) }),
                             trailingIcon = {
-                                IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
-                                    Icon(
-                                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = null
-                                    )
+                                IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                    IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                        Icon(
+                                            imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                        )
+                                    }
                                 }
                             }
                         )

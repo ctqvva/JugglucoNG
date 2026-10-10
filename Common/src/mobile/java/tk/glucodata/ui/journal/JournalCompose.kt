@@ -1850,28 +1850,30 @@ private fun JournalFoodLibrarySelector(
                                     )
                                 },
                                 trailingContent = {
-                                    FilledTonalIconButton(
-                                        onClick = {
-                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onFoodAdded(
+                                    IconButtonTooltip(stringResource(R.string.journal_add_food)) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onFoodAdded(
+                                                    if (rowExpanded) {
+                                                        food.scaledForPortion(rowPortionGrams)
+                                                    } else {
+                                                        food
+                                                    }
+                                                )
                                                 if (rowExpanded) {
-                                                    food.scaledForPortion(rowPortionGrams)
-                                                } else {
-                                                    food
+                                                    expandedFoodId = null
                                                 }
+                                            },
+                                            modifier = Modifier.size(40.dp),
+                                            shapes = IconButtonDefaults.shapes()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = stringResource(R.string.journal_add_food),
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            if (rowExpanded) {
-                                                expandedFoodId = null
-                                            }
-                                        },
-                                        modifier = Modifier.size(40.dp),
-                                        shapes = IconButtonDefaults.shapes()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        }
                                     }
                                 }
                             )
@@ -1950,16 +1952,18 @@ private fun JournalSelectedFoodChip(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(34.dp),
-                shapes = IconButtonDefaults.shapes()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+            IconButtonTooltip(stringResource(R.string.remove)) {
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(34.dp),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.remove),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
@@ -2103,12 +2107,14 @@ internal fun JournalFoodCompositionDetails(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalIconButton(
-                    onClick = { updatePortion(portionGrams - 10f) },
-                    modifier = Modifier.size(44.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = null)
+                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                    FilledTonalIconButton(
+                        onClick = { updatePortion(portionGrams - 10f) },
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value))
+                    }
                 }
                 BasicTextField(
                     value = portionText,
@@ -2148,12 +2154,14 @@ internal fun JournalFoodCompositionDetails(
                         }
                     }
                 )
-                FilledTonalIconButton(
-                    onClick = { updatePortion(portionGrams + 10f) },
-                    modifier = Modifier.size(44.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
+                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                    FilledTonalIconButton(
+                        onClick = { updatePortion(portionGrams + 10f) },
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value))
+                    }
                 }
             }
         }
@@ -3274,15 +3282,17 @@ private fun JournalStepperField(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilledTonalIconButton(
-                onClick = { stepWithFeedback(-1) },
-                modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = null
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                FilledTonalIconButton(
+                    onClick = { stepWithFeedback(-1) },
+                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
+                    shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                    )
+                }
             }
             if (prominent) {
                 BasicTextField(
@@ -3399,15 +3409,17 @@ private fun JournalStepperField(
                     )
                 }
             }
-            FilledTonalIconButton(
-                onClick = { stepWithFeedback(1) },
-                modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                FilledTonalIconButton(
+                    onClick = { stepWithFeedback(1) },
+                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
+                    shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.outbound_api_increase_value)
+                    )
+                }
             }
         }
     }

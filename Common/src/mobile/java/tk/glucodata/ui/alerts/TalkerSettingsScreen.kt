@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.alerts
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -326,20 +327,22 @@ fun TalkerSettingsScreen(navController: NavController) {
                             shapes = MenuDefaults.itemShape(index, voiceNames.size),
                             text = { Text(label) },
                             trailingContent = {
-                                IconButton(onClick = {
-                                    if (isPreviewing) {
-                                        Talker.stopPreview()
-                                        previewingVoiceIndex = -1
-                                    } else {
-                                        previewingVoiceIndex = index
-                                        Talker.previewVoice(index)
+                                IconButtonTooltip(if (isPreviewing) stringResource(R.string.stop) else stringResource(R.string.preview)) {
+                                    IconButton(onClick = {
+                                        if (isPreviewing) {
+                                            Talker.stopPreview()
+                                            previewingVoiceIndex = -1
+                                        } else {
+                                            previewingVoiceIndex = index
+                                            Talker.previewVoice(index)
+                                        }
+                                    },
+                                    shapes = IconButtonDefaults.shapes()) {
+                                        Icon(
+                                            if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = if (isPreviewing) stringResource(R.string.stop) else stringResource(R.string.preview)
+                                        )
                                     }
-                                },
-                                shapes = IconButtonDefaults.shapes()) {
-                                    Icon(
-                                        if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = null
-                                    )
                                 }
                             },
                             onClick = {

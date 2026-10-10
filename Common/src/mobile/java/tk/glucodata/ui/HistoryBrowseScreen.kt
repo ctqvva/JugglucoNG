@@ -614,25 +614,27 @@ fun HistoryBrowseScreen(
                 actions = {
                     if (showTransferActions) {
                         if (journalEnabled && onAddJournalEntry != null) {
-                            IconButton(
-                                onClick = {
-                                    onAddJournalEntry(
-                                        journalQuickAddTimestamp(
-                                            viewportSnapshot?.selectedPoint?.timestamp,
-                                            System.currentTimeMillis(),
-                                            quickAddAlwaysNow
-                                        ),
-                                        selectedJournalTypes.singleOrNull(),
-                                        viewportSnapshot?.selectedPoint?.value
-                                            ?.takeIf { !quickAddAlwaysNow }
+                            IconButtonTooltip(stringResource(R.string.additem)) {
+                                IconButton(
+                                    onClick = {
+                                        onAddJournalEntry(
+                                            journalQuickAddTimestamp(
+                                                viewportSnapshot?.selectedPoint?.timestamp,
+                                                System.currentTimeMillis(),
+                                                quickAddAlwaysNow
+                                            ),
+                                            selectedJournalTypes.singleOrNull(),
+                                            viewportSnapshot?.selectedPoint?.value
+                                                ?.takeIf { !quickAddAlwaysNow }
+                                        )
+                                    },
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = stringResource(R.string.additem)
                                     )
-                                },
-                                shapes = IconButtonDefaults.shapes()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Add,
-                                    contentDescription = null
-                                )
+                                }
                             }
                         }
                         IconButtonTooltip(stringResource(R.string.export_data)) {

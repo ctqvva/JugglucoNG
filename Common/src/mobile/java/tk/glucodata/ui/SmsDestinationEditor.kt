@@ -308,11 +308,13 @@ private fun SmsContactCard(
                         )
                     }
                 }
-                IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
+                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
+                        )
+                    }
                 }
             }
 

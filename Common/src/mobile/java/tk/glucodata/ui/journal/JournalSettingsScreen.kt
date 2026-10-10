@@ -1112,23 +1112,25 @@ private fun JournalFoodImportRow(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                FilledTonalIconButton(
-                    onClick = {
-                        onAdd(
-                            if (expanded) {
-                                parseFoodPortionGrams(portionText)
-                            } else {
-                                null
-                            }
+                IconButtonTooltip(stringResource(R.string.journal_add_food)) {
+                    FilledTonalIconButton(
+                        onClick = {
+                            onAdd(
+                                if (expanded) {
+                                    parseFoodPortionGrams(portionText)
+                                } else {
+                                    null
+                                }
+                            )
+                        },
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.journal_add_food)
                         )
-                    },
-                    modifier = Modifier.size(44.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null
-                    )
+                    }
                 }
             }
             AnimatedVisibility(
@@ -1510,20 +1512,22 @@ private fun JournalFoodEditorField(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            FilledTonalIconButton(
-                onClick = { onStep(-1) },
-                modifier = Modifier.size(44.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                shapes = IconButtonDefaults.shapes()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                FilledTonalIconButton(
+                    onClick = { onStep(-1) },
+                    modifier = Modifier.size(44.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.outbound_api_decrease_value),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Column(
                 modifier = Modifier.weight(1f),
@@ -1568,20 +1572,22 @@ private fun JournalFoodEditorField(
                     )
                 }
             }
-            FilledTonalIconButton(
-                onClick = { onStep(1) },
-                modifier = Modifier.size(44.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = accentColor.copy(alpha = 0.18f),
-                    contentColor = accentColor
-                ),
-                shapes = IconButtonDefaults.shapes()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                FilledTonalIconButton(
+                    onClick = { onStep(1) },
+                    modifier = Modifier.size(44.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = accentColor.copy(alpha = 0.18f),
+                        contentColor = accentColor
+                    ),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.outbound_api_increase_value),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -1753,20 +1759,10 @@ private fun JournalInsulinPresetSheet(
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
-                        FilledTonalIconButton(
-                            onClick = { showColorDialog = true },
-                            modifier = Modifier.size(56.dp),
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
-                            shapes = IconButtonDefaults.shapes()
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(20.dp),
-                                shape = CircleShape,
-                                color = Color(draft.accentColor)
-                            ) {}
-                        }
+                        ColorSwatchButton(
+                            color = Color(draft.accentColor),
+                            onClick = { showColorDialog = true }
+                        )
                     }
                     draft.scientificName?.let { scientificName ->
                         OutlinedTextField(

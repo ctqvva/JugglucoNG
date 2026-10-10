@@ -468,8 +468,10 @@ fun WearOsConfigScreen(navController: NavController) {
                 title = stringResource(R.string.wearos_config_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.refresh))
+                        }
                     }
                 },
             )
@@ -762,8 +764,10 @@ fun GarminStatusScreen(navController: NavController) {
                 title = stringResource(R.string.garmin_status_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshSnapshot() }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshSnapshot() }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.refresh))
+                        }
                     }
                 },
             )
@@ -1238,11 +1242,13 @@ fun WebServerSettingsScreen(navController: NavController) {
                         onDone = { applyCurrentInputs(showErrors = true) }
                     ),
                     trailingIcon = {
-                        IconButton(enabled = childEnabled, onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = if (showSecret) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                contentDescription = null
-                            )
+                        IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                            IconButton(enabled = childEnabled, onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = if (showSecret) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                )
+                            }
                         }
                     }
                 )

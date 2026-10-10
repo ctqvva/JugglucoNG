@@ -2977,4 +2977,5 @@
     <string name="ssl_port">Port SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Przesunięcie: %1$s</string>
+    <string name="choose_color">Wybierz kolor</string>
 </resources>

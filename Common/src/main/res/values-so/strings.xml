@@ -3120,4 +3120,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ssl_port">Dekedda SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Deminta: %1$s</string>
+    <string name="choose_color">Dooro midab</string>
 </resources>

@@ -359,11 +359,13 @@ private fun DestinationCard(
                         Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                     }
                 }
-                IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
+                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
+                        )
+                    }
                 }
             }
 
@@ -541,11 +543,13 @@ private fun DestinationEditor(
             leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                    IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                        )
+                    }
                 }
             },
             keyboardOptions = KeyboardOptions(

@@ -3051,4 +3051,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ssl_port">SSL-Port</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Versatz: %1$s</string>
+    <string name="choose_color">Farbe wählen</string>
 </resources>

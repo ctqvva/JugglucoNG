@@ -1,5 +1,6 @@
 package tk.glucodata.ui.calibration
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.StatusPalette
 import android.os.Build
 import android.view.HapticFeedbackConstants
@@ -282,42 +283,46 @@ fun CalibrationBottomSheet(
                 if (editingEntity != null) {
                     Row {
                         // Disable/Enable toggle
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                contentColor = if (editingEntity!!.isEnabled)
-                                    MaterialTheme.colorScheme.secondary
-                                else
-                                    MaterialTheme.colorScheme.tertiary
-                            ),
-                            modifier = Modifier.size(48.dp),
-                            shapes = IconButtonDefaults.shapes()
-                        ) {
-                            Icon(
-                                if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
-                                contentDescription = null
-                            )
+                        IconButtonTooltip(stringResource(if (editingEntity!!.isEnabled) R.string.disable else R.string.enable)) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    contentColor = if (editingEntity!!.isEnabled)
+                                        MaterialTheme.colorScheme.secondary
+                                    else
+                                        MaterialTheme.colorScheme.tertiary
+                                ),
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes()
+                            ) {
+                                Icon(
+                                    if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
+                                    contentDescription = stringResource(if (editingEntity!!.isEnabled) R.string.disable else R.string.enable)
+                                )
+                            }
                         }
 
                         // Delete button
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                     val deletedTimestamp = editingEntity!!.timestamp
-                                     CalibrationManager.deleteCalibration(editingEntity!!)
-                                     selectedTimestamp = System.currentTimeMillis()
-                                     onDismiss()
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.size(48.dp),
-                            shapes = IconButtonDefaults.shapes()
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = null)
+                        IconButtonTooltip(stringResource(R.string.delete)) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                         val deletedTimestamp = editingEntity!!.timestamp
+                                         CalibrationManager.deleteCalibration(editingEntity!!)
+                                         selectedTimestamp = System.currentTimeMillis()
+                                         onDismiss()
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes()
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                            }
                         }
                     }
                 }
@@ -824,17 +829,19 @@ private fun CalibrationHeroSection(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            FilledTonalIconButton(
-                onClick = {
-                    val newValue = (userValue - step).coerceAtLeast(0f)
-                    val newText = String.format(Locale.getDefault(), fmt, newValue)
-                    onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
-                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                },
-                modifier = Modifier.size(valueButtonSize),
-                shapes = IconButtonDefaults.shapes()
-            ) {
-                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(valueIconSize))
+            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                FilledTonalIconButton(
+                    onClick = {
+                        val newValue = (userValue - step).coerceAtLeast(0f)
+                        val newText = String.format(Locale.getDefault(), fmt, newValue)
+                        onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    },
+                    modifier = Modifier.size(valueButtonSize),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value), modifier = Modifier.size(valueIconSize))
+                }
             }
 
             Spacer(modifier = Modifier.width(valueGap))
@@ -899,17 +906,19 @@ private fun CalibrationHeroSection(
 
             Spacer(modifier = Modifier.width(valueGap))
 
-            FilledTonalIconButton(
-                onClick = {
-                    val newValue = userValue + step
-                    val newText = String.format(Locale.getDefault(), fmt, newValue)
-                    onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
-                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                },
-                modifier = Modifier.size(valueButtonSize),
-                shapes = IconButtonDefaults.shapes()
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(valueIconSize))
+            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                FilledTonalIconButton(
+                    onClick = {
+                        val newValue = userValue + step
+                        val newText = String.format(Locale.getDefault(), fmt, newValue)
+                        onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    },
+                    modifier = Modifier.size(valueButtonSize),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value), modifier = Modifier.size(valueIconSize))
+                }
             }
         }
     }
