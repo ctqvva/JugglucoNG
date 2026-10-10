@@ -32,7 +32,7 @@ class HealthConnectNativeRecordTests {
     @Test
     fun exportAsksTheCallbackForItsNativeRecord() {
         val callback = flattened("Common/src/main/java/tk/glucodata/SuperGattCallback.java")
-        val export = callback.substring(callback.indexOf("private void exportToHealthConnect()"))
+        val export = callback.substring(callback.indexOf("protected final void exportToHealthConnect()"))
             .substringBefore("protected void handleGlucoseResult(")
         assertTrue(export.contains("final long sensorptr = nativeSensorPtr();"))
         assertFalse(
@@ -49,12 +49,49 @@ class HealthConnectNativeRecordTests {
     }
 
     @Test
+    fun nativeBackfillRewindsHealthConnectCursor() {
+        val jni = flattened("Common/src/main/cpp/g.cpp")
+        val store = jni.substring(jni.indexOf("static bool storeGlucoseStreamSample("))
+            .substringBefore("static bool addGlucoseStreamInternal(")
+        val gap = store.indexOf("fillsPollGap")
+        val invalidate = store.indexOf("healthconnect::gapFilled(&info->healthconnectiter")
+        assertTrue("every new gap fill must invalidate an in-flight snapshot", gap >= 0 && invalidate > gap)
+    }
+
+    @Test
+    fun overlappingHealthConnectTriggersStayQueued() {
+        val health = flattened("Common/src/mobile/java/tk/glucodata/HealthConnection.kt")
+        val entry = health.substring(health.indexOf("private fun writeAllIns("))
+            .substringBefore("private suspend fun exportOneSensor(")
+        assertTrue(entry.contains("pendingExports[sensorptr] = sensorName"))
+        assertTrue(entry.contains("if (exportWorkerActive)"))
+        assertTrue(entry.contains("while (true)"))
+        assertTrue(entry.contains("pendingExports.remove(next.key)"))
+    }
+
+    @Test
+    fun glucoseReplayUsesStableHealthConnectClientRecordIds() {
+        val list = flattened("Common/src/mobile/java/tk/glucodata/GlucoseList.java")
+        val iterator = list
+        val health = flattened("Common/src/mobile/java/tk/glucodata/HealthConnection.kt")
+
+        assertTrue(list.contains("String sensorName"))
+        assertTrue(
+            iterator.contains(
+                "\"juggluco-ng:glucose:\" + sensorName + \":\" + time"
+            )
+        )
+        assertTrue(iterator.contains("Metadata.unknownRecordingMethod("))
+        assertTrue(health.contains("GlucoseList(meta, sensorptr, start, take, sensorName)"))
+    }
+
+    @Test
     fun rebaseCarriesTheHealthConnectCursorIntoTheNewWindow() {
         val hpp = flattened("Common/src/main/cpp/SensorGlucoseData.hpp")
         val rebase = hpp.substring(hpp.indexOf("void rebaseDirectStreamWindow(uint32_t starttime) {"))
             .substringBefore("void sendbluetoothOn(")
         val shift = rebase.indexOf("(static_cast<int64_t>(starttime) - info->starttime) / 60")
-        val moved = rebase.indexOf("info->healthconnectiter = static_cast<uint16_t>(")
+        val moved = rebase.indexOf("healthconnect::reset(&info->healthconnectiter, static_cast<uint16_t>(")
         val overwrite = rebase.indexOf("info->starttime = starttime;")
         assertTrue("rebase must shift the cursor by the window's move in minutes", shift >= 0 && moved > shift)
         assertTrue("the shift must be measured against the old starttime", overwrite > moved)

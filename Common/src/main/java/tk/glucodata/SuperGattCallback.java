@@ -1007,7 +1007,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         return Natives.getsensorptr(dataptr);
     }
 
-    private void exportToHealthConnect() {
+    protected final void exportToHealthConnect() {
         if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) {
             return;
         }

@@ -1229,11 +1229,11 @@ public class Natives {
         // public static native void setnightscoutV3(boolean val);
         public static native boolean getnightscoutV3();
 
-        public static native long streamfromSensorptr(long sensorptr, int pos);
+        public static native long streamfromSensorptr(long sensorptr, int pos, int end);
 
-        public static native int healthConnectfromSensorptr(long sensorptr);
+        public static native long healthConnectfromSensorptr(long sensorptr);
 
-        public static native void healthConnectWritten(long sensorptr, int pos);
+        public static native boolean healthConnectWritten(long sensorptr, long snapshot, int pos);
 
         public static native void sethealthConnect(boolean val);
 

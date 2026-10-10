@@ -419,13 +419,14 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(getsensorptr)(JNIEnv *env,
 }
 double calibrateONEtest(const SensorGlucoseData *sens, const ScanData &value);
 extern "C" JNIEXPORT jlong JNICALL fromjava(streamfromSensorptr)(
-    JNIEnv *env, jclass cl, jlong sensorptr, int pos) {
+    JNIEnv *env, jclass cl, jlong sensorptr, jint pos, jint end) {
   if (!sensorptr) {
     return 0LL;
   }
   const auto *sens = reinterpret_cast<const SensorGlucoseData *>(sensorptr);
   const ScanData *start = sens->beginpolls();
-  const int len = sens->pollcount();
+  const int len = std::min(sens->pollcount(), int(end));
+  if (pos < 0 || pos >= len) return ((jlong)len) << 48;
   for (int i = pos; i < len; i++) {
     const ScanData *item = start + i;
     if (item->valid()) {
@@ -511,32 +512,24 @@ extern "C" JNIEXPORT void JNICALL fromjava(healthConnectReset)(JNIEnv *env,
                                                                jclass cl) {
   sensors->onallsensors([](SensorGlucoseData *sens) {
     auto *info = sens->getinfo();
-    info->healthconnectiter = info->pollstart;
+    healthconnect::reset(&info->healthconnectiter, info->pollstart);
   });
 }
-extern "C" JNIEXPORT jint JNICALL
+extern "C" JNIEXPORT jlong JNICALL
 fromjava(healthConnectfromSensorptr)(JNIEnv *env, jclass cl, jlong sensorptr) {
-  LOGGER("healthConnectfromSensorptr(%p)\n", sensorptr);
-  if (!sensorptr) {
-    return 0;
-  }
+  if (!sensorptr) return 0;
   auto *info = reinterpret_cast<SensorGlucoseData *>(sensorptr)->getinfo();
-  int start = info->healthconnectiter;
-  if (!start) {
-    info->healthconnectiter = start = info->pollstart;
-  }
-  auto res = start | ((int)info->pollcount << 16);
-  LOGGER("healthConnectfromSensorptr=%x\n", res);
-  return res;
+  return static_cast<jlong>(healthconnect::snapshot(
+      &info->healthconnectiter, info->pollstart, info->pollcount));
 }
-extern "C" JNIEXPORT void JNICALL fromjava(healthConnectWritten)(
-    JNIEnv *env, jclass cl, jlong sensorptr, jint pos) {
-  if (!sensorptr) {
-    return;
-  }
-  reinterpret_cast<SensorGlucoseData *>(sensorptr)
-      ->getinfo()
-      ->healthconnectiter = pos;
+extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(
+    JNIEnv *env, jclass cl, jlong sensorptr, jlong snapshot, jint pos) {
+  if (!sensorptr) return JNI_FALSE;
+  if (pos < 0 || pos > UINT16_MAX) return JNI_FALSE;
+  auto *info = reinterpret_cast<SensorGlucoseData *>(sensorptr)->getinfo();
+  return healthconnect::advance(&info->healthconnectiter,
+                               static_cast<uint64_t>(snapshot),
+                               static_cast<uint16_t>(pos)) ? JNI_TRUE : JNI_FALSE;
 }
 extern "C" JNIEXPORT jlong JNICALL fromjava(getSensorStartmsec)(JNIEnv *env,
                                                                 jclass cl,
@@ -1519,6 +1512,11 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
              sensorId, lifeCount, (unsigned)info->nightiter);
     }
     __atomic_store_n(&info->nightiter, (uint16_t)lifeCount, __ATOMIC_RELAXED);
+  }
+  if (fillsPollGap && lifeCount <= UINT16_MAX) {
+    // Invalidate even if the gap is inside the current export chunk, where
+    // rewinding the persisted cursor alone would not detect the race.
+    healthconnect::gapFilled(&info->healthconnectiter, uint16_t(lifeCount));
   }
   if (backup) {
     if (rewindFrom) {

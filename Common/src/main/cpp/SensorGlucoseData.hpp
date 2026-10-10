@@ -1,3 +1,4 @@
+#include "healthconnectcursor.hpp"
 /*      This file is part of Juggluco, an Android app to receive and display */
 /*      glucose values from Freestyle Libre 2 and 3 sensors. */
 /*                                                                                   */
@@ -2768,8 +2769,10 @@ void setbackuptime(int ind,uint32_t starttime) {
       const int64_t shiftMinutes =
           (static_cast<int64_t>(starttime) - info->starttime) / 60;
       const int64_t moved = cursor - shiftMinutes;
-      info->healthconnectiter = static_cast<uint16_t>(
-          std::clamp<int64_t>(moved, 0, UINT16_MAX));
+      healthconnect::reset(&info->healthconnectiter, static_cast<uint16_t>(
+          std::clamp<int64_t>(moved, 0, UINT16_MAX)));
+    } else {
+      healthconnect::reset(&info->healthconnectiter, 0);
     }
 
     info->starttime = starttime;
