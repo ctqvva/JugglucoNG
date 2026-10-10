@@ -114,12 +114,11 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
 
 /**
  * The chart's "add at this time" menu. It grows out of the finger's spot ([menuAnchor]; the
- * tapped time's line, halfway up, when that is unknown) into the room beside it, above the time
- * chip: upward, so the hand does not cover it, unless the spot is too high; to the left past
- * the middle, where the
- * newest readings are. The items stand in one column beside the spot, Insulin nearest, each
- * springing out of the spot in turn and folding back into it on close; the nearest one points
- * at it. [selectedTimestamp] null closes the menu, animated, so keep calling this rather
+ * tapped time's line, halfway up, when that is unknown): one column centred on the spot and
+ * beside it, to the left past the middle, where the newest readings are, kept above the time
+ * chip. Each item springs out of the spot, from the middle outward, and folds back into it on
+ * close; the corners on the spot's side sharpen the nearer they are to it, so the column leans
+ * toward it. [selectedTimestamp] null closes the menu, animated, so keep calling this rather
  * than dropping it. [modifier] is the chart's box; the menu stays inside it.
  */
 @Composable
@@ -132,8 +131,8 @@ fun JournalFloatingActionMenu(
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
-    // Nearest the finger first: the FAB menu's order, read from its button outward.
-    val actionTypes = remember { journalReachActionTypes().asReversed() }
+    // The FAB menu's order, top to bottom.
+    val actionTypes = remember { journalReachActionTypes() }
     val progress = remember { List(actionTypes.size) { Animatable(0f) } }
     val enterSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -149,7 +148,7 @@ fun JournalFloatingActionMenu(
             coroutineScope {
                 progress.forEachIndexed { index, item ->
                     launch {
-                        delay(index * ChartMenuStaggerMillis)
+                        delay(abs(index - progress.lastIndex / 2) * ChartMenuStaggerMillis)
                         item.animateTo(1f, enterSpec)
                     }
                 }
@@ -158,7 +157,7 @@ fun JournalFloatingActionMenu(
             coroutineScope {
                 progress.forEachIndexed { index, item ->
                     launch {
-                        delay((progress.lastIndex - index) * ChartMenuStaggerMillis / 2)
+                        delay((progress.lastIndex / 2 - abs(index - progress.lastIndex / 2)) * ChartMenuStaggerMillis / 2)
                         item.animateTo(0f, exitSpec)
                     }
                 }
@@ -237,9 +236,8 @@ private val ChartMenuPointCorner = 4.dp
 private val ChartMenuPointReach = 96.dp
 
 /**
- * Lays the items out from [touch] in one column, nearest first, all as wide as the widest:
- * above it unless they do not fit there, beside it on the [opensLeft] side, sliding back in
- * from the top or the [floorPx]. Each item's corners on the finger's side sharpen the nearer
+ * Lays the items out in one column, all as wide as the widest, centred on [touch] and beside
+ * it on the [opensLeft] side, sliding back in from the top or the [floorPx]. Each item's corners on the finger's side sharpen the nearer
  * they are to the spot, so the column leans toward it. Each item grows from its corner
  * nearest the spot as its [progress] runs from 0 to 1; a spring's overshoot carries it a
  * little past its place and back. [content] gets each item's shape.
@@ -300,28 +298,15 @@ private fun ChartMenuColumn(
     }
 }
 
-/** Each item's top: up from [touchY] when the column fits there, else toward the larger room. */
+/** Each item's top: the column centred on [touchY], slid back in from the top or [floorPx]. */
 private fun Density.chartMenuTops(count: Int, touchY: Float, floorPx: Float): List<Int> {
     val itemHeight = FabMenuItemHeight.roundToPx()
     val itemGap = ChartMenuItemGap.roundToPx()
-    val touchGap = ChartMenuTouchGap.roundToPx()
     val edge = ChartMenuEdge.roundToPx()
     val stack = count * itemHeight + (count - 1) * itemGap
-    val opensUp = touchY >= stack + touchGap + edge || touchY >= floorPx - touchY
-    val tops = List(count) { index ->
-        val reach = touchGap + index * (itemHeight + itemGap)
-        if (opensUp) touchY.roundToInt() - reach - itemHeight else touchY.roundToInt() + reach
-    }
-    // Too close to an edge, the whole column slides back in rather than squashing.
-    val minTop = tops.min()
-    val maxBottom = tops.max() + itemHeight
     val floor = floorPx.roundToInt() - itemGap
-    val shift = when {
-        maxBottom > floor -> (floor - maxBottom).coerceAtLeast(edge - minTop)
-        minTop < edge -> edge - minTop
-        else -> 0
-    }
-    return tops.map { it + shift }
+    val top = (touchY.roundToInt() - stack / 2).coerceAtMost(floor - stack).coerceAtLeast(edge)
+    return List(count) { index -> top + index * (itemHeight + itemGap) }
 }
 
 /**

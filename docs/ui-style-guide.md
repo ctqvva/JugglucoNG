@@ -157,7 +157,7 @@ Reach for these before building a surface by hand.
 | A progress bar | `LinearWavyProgressIndicator` | material3 |
 | An icon-only button | the button inside `IconButtonTooltip(label)`, label = its content description | `components/IconButtonTooltip.kt` |
 | A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; centred on the dashboard, where the end sat on the newest value (`JournalExpandableFab`) |
-| Add at a point on the chart | `JournalFloatingActionMenu` | One column of the FAB menu's 44dp items, one width, beside the long-pressed spot: up unless it does not fit, left past the middle, never below the time chip. Items spring out of the spot (`motionScheme.fastSpatialSpec`) and fold back into it; corners on the spot's side sharpen with nearness to it |
+| Add at a point on the chart | `JournalFloatingActionMenu` | One column of the FAB menu's 44dp items, one width, centred on the long-pressed spot and beside it, left past the middle, never below the time chip. Items spring out of the spot, middle first, (`motionScheme.fastSpatialSpec`) and fold back into it; corners on the spot's side sharpen with nearness to it |
 | Actions on a multi-selection | `HorizontalFloatingToolbar`; the screen keeps its top bar | material3 |
 | Pick one value from a short list | `DropdownMenuPopup` + `DropdownMenuGroup` + `SelectableDropdownMenuItem` | material3 |
 | Landscape navigation | collapsed `WideNavigationRail` (portrait: `ShortNavigationBar`) | material3 |
