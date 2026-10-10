@@ -419,7 +419,7 @@
     <string name="notification_chart_desc">Wyświetl wykres glukozy w pasku stanu</string>
     <string name="google_scan_desc">Użyj usług Google Play do skanowania QR</string>
     <string name="mirror_desc">Udostępnij/Odbieraj dane przez Internet/Sieć domową</string>
-    <string name="nightscout_desc">Wysyłaj lub obserwuj odczyty</string>
+    <string name="nightscout_desc">Wysyłanie lub odbieranie odczytów</string>
     <string name="glucose_alerts_title">Alarmy i powiadomienia</string>
     <string name="glucose_range_title">Zakres glukozy</string>
     <string name="target_short_title">Cel</string>

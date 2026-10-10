@@ -344,7 +344,7 @@
     <string name="notification_chart_desc">Visa glukosdiagram i statusfältet</string>
     <string name="google_scan_desc">Använd Google Play Services för QR-skanning</string>
     <string name="mirror_desc">Dela/Ta emot data via Internet/Hemnätverk</string>
-    <string name="nightscout_desc">Ladda upp eller följ mätvärden</string>
+    <string name="nightscout_desc">Skicka eller ta emot värden</string>
     <string name="glucose_alerts_title">Varningar och larm</string>
     <string name="glucose_range_title">Glukosintervall</string>
     <string name="target_short_title">Mål</string>

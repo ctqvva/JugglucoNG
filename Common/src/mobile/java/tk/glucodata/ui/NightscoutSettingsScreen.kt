@@ -719,7 +719,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (isActive && lastAttemptTime > 0L && lastResponseCode != 0 && lastResponseCode !in 200..299) {
+                                if (isActive && lastResponseCode != 0 && lastResponseCode !in 200..299) {
                                     Text(responseSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                 }
                                 if (treatmentSummary != null && treatmentSync.isFailing) {

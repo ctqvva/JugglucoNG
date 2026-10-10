@@ -427,7 +427,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_chart_desc">Glucosegrafiek weergeven in statusbalk</string>
     <string name="google_scan_desc">Gebruik Google Play Services voor QR-scan</string>
     <string name="mirror_desc">Delen/Ontvangen via internet/thuisnetwerk</string>
-    <string name="nightscout_desc">Metingen uploaden of volgen</string>
+    <string name="nightscout_desc">Meetwaarden verzenden of ontvangen</string>
     <string name="glucose_alerts_title">Meldingen en alarmen</string>
     <string name="glucose_range_title">Glucosebereik</string>
     <string name="target_short_title">Doel</string>

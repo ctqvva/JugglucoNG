@@ -496,7 +496,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="notification_chart_desc">Glükózgrafikon megjelenítése az értesítési sávban</string>
     <string name="google_scan_desc">Google Play Services használata QR-szkenneléshez</string>
     <string name="mirror_desc">Adatok megosztása/fogadása interneten/otthoni hálózaton</string>
-    <string name="nightscout_desc">Mérések feltöltése vagy követése</string>
+    <string name="nightscout_desc">Értékek küldése vagy fogadása</string>
     <string name="glucose_alerts_title">Riasztások</string>
     <string name="glucose_range_title">Glükóztartomány</string>
     <string name="target_short_title">Cél</string>

@@ -495,7 +495,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_chart_desc">Мэдэгдлийн мөрөнд глюкозын графикийг харуулах</string>
     <string name="google_scan_desc">QR скан хийхэд Google Play үйлчилгээг ашиглах</string>
     <string name="mirror_desc">Датаг интернет/локал сүлжээгээр хуваалцах/хүлээн авах</string>
-    <string name="nightscout_desc">Уншилтыг илгээх эсвэл дагах</string>
+    <string name="nightscout_desc">Хэмжилт илгээх эсвэл хүлээн авах</string>
     <string name="glucose_alerts_title">Дохио ба сэрүүлэг</string>
     <string name="glucose_range_title">Глюкозын хүрээ</string>
     <string name="target_short_title">Зорилт</string>

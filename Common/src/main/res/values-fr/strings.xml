@@ -308,7 +308,7 @@
     <string name="notification_chart_desc">Afficher le graphique de glucose dans la barre d\'état</string>
     <string name="google_scan_desc">Utiliser les services Google Play pour le scan QR</string>
     <string name="mirror_desc">Partager/Recevoir via Internet/Réseau local</string>
-    <string name="nightscout_desc">Envoyer ou suivre les mesures</string>
+    <string name="nightscout_desc">Envoyer ou recevoir des valeurs</string>
     <string name="glucose_alerts_title">Alertes et alarmes</string>
     <string name="glucose_range_title">Plage de glucose</string>
     <string name="target_short_title">Cible</string>

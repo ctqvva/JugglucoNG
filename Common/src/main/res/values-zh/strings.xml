@@ -351,7 +351,7 @@
 
     <string name="google_scan_desc">使用 Google Play 服务进行扫码</string>
     <string name="mirror_desc">通过互联网/家庭网络共享/接收数据</string>
-    <string name="nightscout_desc">上传或跟随读数</string>
+    <string name="nightscout_desc">发送或接收读数</string>
     <string name="glucose_alerts_title">警报与闹铃</string>
     <string name="glucose_range_title">血糖范围</string>
     <string name="target_short_title">目标</string>

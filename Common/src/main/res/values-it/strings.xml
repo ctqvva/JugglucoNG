@@ -218,7 +218,7 @@
     <string name="notification_chart_desc">Visualizza il grafico del glucosio nella barra di stato</string>
     <string name="google_scan_desc">Usa Google Play Services per la scansione QR</string>
     <string name="mirror_desc">Condividi/Ricevi dati via Internet/Rete domestica</string>
-    <string name="nightscout_desc">Invia o segui le letture</string>
+    <string name="nightscout_desc">Inviare o ricevere valori</string>
     <string name="glucose_alerts_title">Avvisi e allarmi</string>
     <string name="glucose_range_title">Intervallo glicemico</string>
     <string name="target_short_title">Target</string>

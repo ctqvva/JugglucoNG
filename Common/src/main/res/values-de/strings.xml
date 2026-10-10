@@ -443,7 +443,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_chart_desc">Glukosekurve in der Statusleiste anzeigen</string>
     <string name="google_scan_desc">Google Play Dienste für QR-Scan verwenden</string>
     <string name="mirror_desc">Daten über Internet/Heimnetz teilen/empfangen</string>
-    <string name="nightscout_desc">Messwerte hochladen oder empfangen</string>
+    <string name="nightscout_desc">Messwerte senden oder empfangen</string>
     <string name="glucose_alerts_title">Warnungen und Alarme</string>
     <string name="glucose_range_title">Glukosebereich</string>
     <string name="target_short_title">Ziel</string>

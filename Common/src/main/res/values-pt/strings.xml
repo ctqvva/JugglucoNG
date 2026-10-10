@@ -243,7 +243,7 @@
     <string name="notification_chart_desc">Exibir gráfico de glicose na barra de status</string>
     <string name="google_scan_desc">Usar Google Play Services para digitalização QR</string>
     <string name="mirror_desc">Compartilhar/Receber dados via Internet/Rede doméstica</string>
-    <string name="nightscout_desc">Enviar ou acompanhar leituras</string>
+    <string name="nightscout_desc">Enviar ou receber leituras</string>
     <string name="glucose_alerts_title">Alertas e alarmes</string>
     <string name="glucose_range_title">Intervalo de glicose</string>
     <string name="target_short_title">Alvo</string>

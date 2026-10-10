@@ -356,7 +356,7 @@
     <string name="notification_chart_desc">Відобразити графік глюкози в рядку стану</string>
     <string name="google_scan_desc">Використовувати сервіси Google Play для сканування QR</string>
     <string name="mirror_desc">Ділитися/Отримувати дані через Інтернет/Домашню мережу</string>
-    <string name="nightscout_desc">Завантаження або отримання показань</string>
+    <string name="nightscout_desc">Надсилання й отримання показань</string>
     <string name="glucose_alerts_title">Сповіщення та сигнали</string>
     <string name="glucose_range_title">Діапазон глюкози</string>
     <string name="target_short_title">Ціль</string>

@@ -396,7 +396,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_chart_desc">Durum çubuğunda glikoz grafiğini göster</string>
     <string name="google_scan_desc">QR tarama için Google Play Hizmetlerini kullan</string>
     <string name="mirror_desc">İnternet/Ev Ağı üzerinden veri paylaş/al</string>
-    <string name="nightscout_desc">Ölçümleri yükle veya takip et</string>
+    <string name="nightscout_desc">Ölçüm gönder veya al</string>
     <string name="glucose_alerts_title">Uyarılar ve alarmlar</string>
     <string name="glucose_range_title">Glukoz aralığı</string>
     <string name="target_short_title">Hedef</string>

@@ -520,7 +520,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="notification_chart_desc">Ku muuji garaafka gulukooska ee barta ogeysiiska</string>
     <string name="google_scan_desc">U isticmaal adeegyada Google Play baarista QR</string>
     <string name="mirror_desc">La wadaag/ku hel xogta adoo isticmaalaya Internet/Home Net</string>
-    <string name="nightscout_desc">Dir ama la soco akhrisyada</string>
+    <string name="nightscout_desc">Dir ama hel cabbirro</string>
     <string name="glucose_alerts_title">Digniinaha iyo alaarmada</string>
     <string name="glucose_range_title">Kala duwanaanshaha gulukooska</string>
     <string name="target_short_title">Bartilmaameedka</string>
