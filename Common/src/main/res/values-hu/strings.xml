@@ -702,6 +702,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre_setup_account_id_obtained">Fiókazonosító lekérve</string>
     <string name="libre_setup_account_id_timeout">Időtúllépés. Ellenőrizze a bejelentkezési adatokat, és próbálja újra.</string>
     <string name="dexcom_setup_title">Dexcom beállítása</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">A Dexcom szenzoron lévő Data Matrix kód szkennelése</string>
     <string name="scan_dexcom">Dexcom szkennelése</string>
     <string name="accuchek_setup_title">Accu-Chek beállítása</string>

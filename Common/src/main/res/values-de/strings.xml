@@ -694,6 +694,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="factory_reset_desc">Alles entfernen, zurück zum Ausgangszustand</string>
     <string name="sibionics_setup_title">Sibionics Einrichtung</string>
     <string name="dexcom_setup_title">Dexcom Einrichtung</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Dexcom scannen</string>
     <string name="dexcom_scan_instruction">Scannen Sie den Datamatrix-Code auf Ihrem Dexcom-Sensor</string>
     <string name="dexcom_pairing_code_label">4-stelliger Kopplungscode</string>

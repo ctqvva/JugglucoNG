@@ -665,6 +665,8 @@
     <string name="factory_reset_desc">Usuń wszystko, powrót do początkowego</string>
     <string name="sibionics_setup_title">Konfiguracja Sibionics</string>
     <string name="dexcom_setup_title">Konfiguracja Dexcom</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Skanuj Dexcom</string>
     <string name="dexcom_scan_instruction">Zeskanuj kod datamatrix na sensorze Dexcom</string>
     <string name="dexcom_pairing_code_label">4-cyfrowy kod parowania</string>

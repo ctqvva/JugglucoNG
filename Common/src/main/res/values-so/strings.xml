@@ -746,6 +746,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     
     <!-- Dexcom Setup Wizard -->
     <string name="dexcom_setup_title">Dexcom Dejinta</string>
+    <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
+    <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">Sawir shaxanka xogta ee dareenkaaga Dexcom</string>
     <string name="scan_dexcom">Iskaan Dexcom</string>
     <string name="dexcom_pairing_code_label">Koodhka isku-xidhka ee 4 lambar</string>
