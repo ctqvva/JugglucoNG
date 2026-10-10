@@ -5,6 +5,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,20 +15,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlin.math.roundToInt
@@ -46,6 +52,11 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.components.IconTile
+import tk.glucodata.ui.components.IconTileDefaults
+import tk.glucodata.ui.components.cardShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,25 +84,12 @@ fun DataSmoothingSettingsScreen(
     val selectedMinutes = options[sliderIndex.roundToInt().coerceIn(0, options.lastIndex)]
     val selectedLabel = stringResource(R.string.minutes_short_format, selectedMinutes)
     val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(configuredMinutes)
-    val enabledSummary = buildList {
-        add(stringResource(R.string.minutes_short_format, smoothingMinutes.coerceAtLeast(options.first())))
-        if (exchangeOnly) {
-            add(stringResource(R.string.data_smoothing_exchange_only_title))
-        } else if (graphOnly) {
-            add(stringResource(R.string.data_smoothing_graph_only_title))
-        }
-        if (collapseChunks) {
-            add(stringResource(R.string.data_smoothing_collapse_summary_format, collapseIntervalMinutes))
-        }
-    }.joinToString(" · ")
     val collapseSubtitle = when {
-        !collapseChunks -> stringResource(R.string.data_smoothing_collapse_desc)
         collapseIntervalMinutes in 1 until configuredMinutes ->
             stringResource(R.string.data_smoothing_collapse_desc_capped, configuredMinutes)
         else ->
             stringResource(R.string.data_smoothing_collapse_desc_match, collapseIntervalMinutes)
     }
-    val exchangeOnlySubtitle = stringResource(R.string.data_smoothing_exchange_only_desc)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -112,7 +110,7 @@ fun DataSmoothingSettingsScreen(
         ) {
             MasterSwitchCard(
                 title = stringResource(R.string.graph_smoothing_title),
-                subtitle = if (isEnabled) enabledSummary else stringResource(R.string.graph_smoothing_none),
+                subtitle = stringResource(if (isEnabled) R.string.active else R.string.graph_smoothing_none),
                 checked = isEnabled,
                 onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
                 icon = Icons.AutoMirrored.Filled.TrendingUp
@@ -147,14 +145,11 @@ fun DataSmoothingSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.data_smoothing_window_title),
-                                style = MaterialTheme.typography.titleMediumEmphasized,)
+                                style = MaterialTheme.typography.titleMediumEmphasized
+                            )
 
                             Text(
-                                text = if (exchangeOnly) {
-                                    stringResource(R.string.data_smoothing_exchange_only_desc)
-                                } else {
-                                    stringResource(R.string.graph_smoothing_desc)
-                                },
+                                text = stringResource(R.string.data_smoothing_window_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -210,29 +205,57 @@ fun DataSmoothingSettingsScreen(
             }
 
             Column(
-                modifier = Modifier.alpha(contentAlpha),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.alpha(contentAlpha).selectableGroup(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.data_smoothing_graph_only_title),
-                    subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
-                    checked = graphOnly,
-                    onCheckedChange = { viewModel.setDataSmoothingGraphOnly(it) },
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                Text(
+                    text = stringResource(R.string.data_smoothing_scope_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                )
+                SmoothingScopeOption(
+                    title = stringResource(R.string.data_smoothing_scope_all),
+                    subtitle = stringResource(R.string.data_smoothing_scope_all_desc),
+                    onSelect = {
+                        viewModel.setDataSmoothingGraphOnly(false)
+                        viewModel.setDataSmoothingExchangeOnly(false)
+                    },
+                    icon = Icons.Default.AllInclusive,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
+                    selected = !graphOnly && !exchangeOnly,
                     enabled = isEnabled
                 )
-                SettingsSwitchItem(
+                SmoothingScopeOption(
+                    title = stringResource(
+                        if (collapseChunks) R.string.data_smoothing_scope_graph_and_sent
+                        else R.string.data_smoothing_graph_only_title
+                    ),
+                    subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
+                    onSelect = { viewModel.setDataSmoothingGraphOnly(true) },
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.MIDDLE,
+                    selected = graphOnly && !exchangeOnly,
+                    enabled = isEnabled
+                )
+                SmoothingScopeOption(
                     title = stringResource(R.string.data_smoothing_exchange_only_title),
-                    subtitle = exchangeOnlySubtitle,
-                    checked = exchangeOnly,
-                    onCheckedChange = { viewModel.setDataSmoothingExchangeOnly(it) },
+                    subtitle = stringResource(R.string.data_smoothing_exchange_only_desc),
+                    onSelect = { viewModel.setDataSmoothingExchangeOnly(true) },
                     icon = Icons.AutoMirrored.Filled.Send,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.MIDDLE,
+                    position = CardPosition.BOTTOM,
+                    selected = exchangeOnly,
                     enabled = isEnabled
                 )
+            }
+
+            Column(
+                modifier = Modifier.alpha(contentAlpha),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.data_smoothing_collapse_title),
                     subtitle = collapseSubtitle,
@@ -240,10 +263,57 @@ fun DataSmoothingSettingsScreen(
                     onCheckedChange = { viewModel.setDataSmoothingCollapseChunks(it) },
                     icon = Icons.Default.FilterAlt,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.SINGLE,
                     enabled = isEnabled
                 )
+                if (collapseChunks) {
+                    Text(
+                        text = stringResource(R.string.data_smoothing_preserve_originals),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun SmoothingScopeOption(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    icon: ImageVector,
+    iconTint: Color,
+    position: CardPosition,
+    enabled: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onSelect)
+                .heightIn(min = 72.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconTile(icon = icon, tint = iconTint)
+            Spacer(Modifier.width(IconTileDefaults.Gap))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
         }
     }
 }

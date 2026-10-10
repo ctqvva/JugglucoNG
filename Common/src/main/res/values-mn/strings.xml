@@ -495,7 +495,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_chart_desc">Мэдэгдлийн мөрөнд глюкозын графикийг харуулах</string>
     <string name="google_scan_desc">QR скан хийхэд Google Play үйлчилгээг ашиглах</string>
     <string name="mirror_desc">Датаг интернет/локал сүлжээгээр хуваалцах/хүлээн авах</string>
-    <string name="nightscout_desc">Nightscout руу ачаалах</string>
+    <string name="nightscout_desc">Хэмжилт илгээх эсвэл хүлээн авах</string>
     <string name="glucose_alerts_title">Дохио ба сэрүүлэг</string>
     <string name="glucose_range_title">Глюкозын хүрээ</string>
     <string name="target_short_title">Зорилт</string>
@@ -803,13 +803,13 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="graph_smoothing_5_minutes">5 минут</string>
     <string name="graph_smoothing_7_minutes">7 минут</string>
     <string name="data_smoothing_window_title">Жигдлэх цонх</string>
-    <string name="data_smoothing_graph_only_title">Зөвхөн графикийг жигдлэх</string>
-    <string name="data_smoothing_graph_only_desc">Одоогийн глюкоз, виджетүүд, анхааруулга болон дамжуулалтыг жигдлэхгүй үлдээх — харин «Хэсгүүдэд хуваах» асаалттай бол хуваахад жигдэлсэн утга шаардлагатай тул дамжуулалтын жигдлэлтийг дахин асаана</string>
-    <string name="data_smoothing_collapse_title">Хэсгүүдэд хуваах</string>
-    <string name="data_smoothing_collapse_desc">Интервал бүрт нэг жигдэрсэн цэгийг үлдээж, солилцооны гаралтыг хэмжилт бүрт бус интервал бүрт нэг удаа илгээнэ</string>
-    <string name="data_smoothing_collapse_desc_match">%1$d минут тутамд нэг жигдэрсэн цэгийг үлдээж, солилцооны гаралтыг мөн ижил хурдаар илгээнэ</string>
-    <string name="data_smoothing_collapse_desc_capped">5 минут тутамд нэг жигдэрсэн цэгийг үлдээж, солилцооны гаралтыг мөн ижил хурдаар илгээнэ, харин жигдрүүлэлт одоо ч %1$d минут ашиглана</string>
-    <string name="data_smoothing_collapse_summary_format">Хэсэг бүр %1$d мин тутамд</string>
+    <string name="data_smoothing_graph_only_title">Зөвхөн график</string>
+    <string name="data_smoothing_graph_only_desc">Одоогийн глюкоз, виджет болон сэрэмжлүүлгийг жигдрүүлэхгүй</string>
+    <string name="data_smoothing_collapse_title">Цөөн хэмжилт</string>
+    <string name="data_smoothing_collapse_desc">Цөөн хэмжилт харуулж, илгээнэ</string>
+    <string name="data_smoothing_collapse_desc_match">%1$d минут тутамд нэг хэмжилт</string>
+    <string name="data_smoothing_collapse_desc_capped">5 минут тутамд нэг хэмжилт, %1$d минутын цонхоор жигдрүүлнэ</string>
+    <string name="data_smoothing_collapse_summary_format">%1$d минут тутамд</string>
     <string name="preview_window_title">Урьдчилан харах цонх</string>
     <string name="preview_window_desc">Үндсэн графикийн үйл ажиллагааг өөрчлөхгүйгээр хянах самбарын графикийн доор 24 цагийн мини навигаторыг харуулах</string>
     <string name="preview_window_expanded_only">Дэлгэсэн харагдац (үндсэн)</string>
@@ -1293,12 +1293,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_ok">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Сүүлчийн хариу: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Сүүлчийн хариу: буруу Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Серверийн хаяг буруу байна.</string>
     <string name="nightscout_follow_title">Nightscout дагагч</string>
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
     <string name="nightscout_follow_status_following">Nightscout-ийг дагаж байна</string>
-    <string name="nightscout_follow_use_v3_api">Дагахдаа v3 API ашиглах</string>
-    <string name="nightscout_follow_use_v3_api_desc">/api/v1-ийн оронд /api/v3-аас уншина. Хандалтын токенд api:entries:read, api:treatments:read, api:devicestatus:read шаардлагатай. Өөрчилсөн эрх зөвхөн дараагийн токен солилцоонд хүчинтэй тул 403 үргэлжилвэл аппыг дахин эхлүүлнэ үү.</string>
+    <string name="nightscout_follow_use_v3_api">v3 API ашиглах</string>
+    <string name="nightscout_follow_use_v3_api_desc">API v3 дэмжлэг шаардлагатай</string>
     <string name="nightscout_follow_status_syncing">Nightscout-ийг шинэчилж байна</string>
     <string name="nightscout_follow_status_paused">Nightscout дагагч түр зогссон</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL-г оруулна уу</string>
@@ -1308,7 +1308,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Инсулин/Нүүрс ус ачаалах (Treatments). Хандалтын токенд api:treatments:create, api:treatments:update, api:treatments:delete шаардлагатай.</string>
+    <string name="nightscout_send_amounts_desc">Таны тэмдэглэлээс</string>
     <string name="nightscout_status_treatments_never">Эмчилгээ: одоогоор юу ч илгээгээгүй</string>
     <string name="nightscout_status_treatments_ok">Эмчилгээ: сүүлд илгээсэн %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй, сүүлд оролдсон %3$s (%2$s)</string>
@@ -1316,14 +1316,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_treatments_no_response">хариу алга</string>
     <string name="nightscout_status_iob_no_token">IOB илгээлт: алгассан - Nightscout токен хараахан алга</string>
     <string name="nightscout_status_iob_rejected">IOB илгээлт: татгалзсан (%1$s)</string>
-    <string name="nightscout_send_long_insulin">Удаан үйлдэлтэй инсулин илгээх</string>
-    <string name="nightscout_send_long_insulin_desc">Nightscout руу суурь болон хэт удаан инсулиныг хамт илгээх</string>
-    <string name="nightscout_settings_title">Nightscout тохиргоо</string>
+    <string name="nightscout_send_long_insulin">Урт үйлчилгээтэй инсулин оруулах</string>
+    <string name="nightscout_send_long_insulin_desc">Суурь болон хэт удаан үйлчилдэг тун</string>
+    <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Синк үйлдлүүд</string>
-    <string name="nightscout_url_label">Nightscout URL</string>
-    <string name="nightscout_url_placeholder">https://my-nightscout.herokuapp.com</string>
-    <string name="nightscout_use_v3_api">Nightscout v3 API ашиглах</string>
-    <string name="nightscout_use_v3_api_desc">Глюкозын байршуулалтад api:entries:create болон api:entries:update хэрэгтэй.</string>
+    <string name="nightscout_url_label">Серверийн хаяг</string>
+    <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
+    <string name="nightscout_use_v3_api">v3 API ашиглах</string>
+    <string name="nightscout_use_v3_api_desc">API v3 дэмжлэг шаардлагатай</string>
     <string name="nightscout_follow_desc">Энэ Nightscout URL-аас зөвхөн унших боломжтой виртуал мэдрэгч үүсгэх.</string>
     <string name="nightscout_follow_url_required">Эхлээд Nightscout URL-г оруулна уу</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
@@ -1350,7 +1350,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="reminders">Сануулга</string>
     <string name="requesting_account_id">Requesting account ID…</string>
     <string name="resend_data_reset">Resend Data (Reset)</string>
-    <string name="resend_triggered">Resend triggered</string>
+    <string name="resend_triggered">Дахин илгээж эхэллээ</string>
     <string name="reset_correction_desc">Manage initialization bias correction and hardware reset</string>
     <string name="reset_correction_title">Reset and correction</string>
     <string name="restart_algorithm">Restart algorithm</string>
@@ -2214,8 +2214,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <!-- Preserved current-main entries added after the translation branch split. -->
     <string name="gs3">Sibionics GS3</string>
-    <string name="data_smoothing_exchange_only_title">Зөвхөн солилцооны гаралтыг жигдрүүлэх</string>
-    <string name="data_smoothing_exchange_only_desc">Жигдрүүлэлт болон илгээх интервалыг зөвхөн дамжуулалт ба гадагш API өгөгдөлд хэрэглэнэ; график, одоогийн глюкоз, виджет болон дохио өөрчлөгдөхгүй</string>
+    <string name="data_smoothing_exchange_only_title">Зөвхөн илгээх хэмжилт</string>
+    <string name="data_smoothing_exchange_only_desc">Дамжуулалт болон байршуулалтыг жигдрүүлнэ. Апп доторх хэмжилтийг жигдрүүлэхгүй</string>
     <string name="status_invalid_glucose_from_sensor">Сенсороос ирсэн глюкозын утга буруу</string>
     <string name="ottai_settings_desc">Холбогдсон Ottai мэдрэгчийн Ottai дансны хандалт, хадгалсан материал болон тохиргоог удирдана.</string>
     <string name="ottai_account_sensors_title">Ottai дансны мэдрэгчүүд</string>
@@ -2314,8 +2314,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="calibration_import_merge_desc">Одоо байгаа давхцлыг устгахгүйгээр профайлын цэг нэмэх.</string>
     <string name="calibration_import_replace_desc">Энэ мэдрэгчийн калибровкийн профайлыг солих.</string>
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
-    <string name="nightscout_receive_amounts">Хэмжээг хүлээн авах</string>
-    <string name="nightscout_receive_amounts_desc">Nightscout инсулин/нүүрс усыг журналд импортлох. Хандалтын токенд api:treatments:read зөвшөөрөл шаардлагатай.</string>
+    <string name="nightscout_receive_amounts">Инсулин, нүүрс ус хүлээн авах</string>
+    <string name="nightscout_receive_amounts_desc">Тэмдэглэлд нэмэх</string>
     <string name="nightscout_test_testing">Шалгаж байна…</string>
     <string name="nightscout_refresh_token">Токен шинэчлэх</string>
     <string name="nightscout_token_refreshing">Токен шинэчилж байна…</string>
@@ -2324,7 +2324,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_test_error">Амжилтгүй - %1$s</string>
     <string name="nightscout_test_ok">Холбогдсон - HTTP %1$d</string>
     <string name="nightscout_test_connection">Холболтыг шалгах</string>
-    <string name="nightscout_mode_follow">Дагах</string>
+    <string name="nightscout_mode_follow">Хүлээн авах</string>
     <string name="nightscout_mode_upload">Илгээх</string>
 
 
@@ -2574,8 +2574,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_handover_warming_text">%1$s одоо өгөгдлийн эх үүсвэр боловч халаалт үргэлжилж байна (ойролцоогоор %2$d мин). Халаалт дуусмагц хэмжилт үргэлжилнэ.</string>
     <string name="sensor_handover_multiple_text">Мэдрэгчийн хугацаа дууссан ч хэд хэдэн залгамжлагч мэдрэгч идэвхтэй байна. Автомат шилжүүлгийг алгаслаа; гараар шилжүүлнэ үү.</string>
     <string name="sensor_handover_successor_ready">Залгамжлагч мэдрэгч бэлэн; хугацаа дуусахад автомат шилжүүлэг ажиллана</string>
-    <string name="nightscout_upload_iob">IOB-г Nightscout руу илгээх</string>
-    <string name="nightscout_upload_iob_desc">Nightscout нь профайлаас өөрөө тооцоолохын оронд энэ утгыг харуулна. eIOB болон COB-г тусдаа талбараар давхар илгээнэ. Хандалтын токенд api:devicestatus:create шаардлагатай.</string>
+    <string name="nightscout_upload_iob">Идэвхтэй инсулин илгээх</string>
+    <string name="nightscout_upload_iob_desc">Juggluco-ийн тооцоог ашиглах</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Ottai дансны мэдрэгчүүд» хэсгийг нээж, мэдрэгчийг салгаад дахин оролдоно уу.</string>
     <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
@@ -2893,9 +2893,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="anytime_restart_title">Мэдрэгчийг дахин эхлүүлэх үү?</string>
     <string name="anytime_restart_warning">Дамжуулагчийн одоогийн холболтыг дуусгаж, шинэ хослуулах мөчлөг эхлүүлэх үү? Одоогийн глюкозын түүх апп-д үлдэнэ.</string>
     <string name="anytime_history_action">Түүх</string>
-    <string name="nightscout_follow_interval_title">Шинэ утга шалгах</string>
-    <string name="nightscout_follow_interval_desc">Дагагч сервер рүү ямар давтамжтай хандахыг заана. Энэ нь мөн утга хэр хуучин байж болохыг, тиймээс дагасан утган дээр сэрэмжлүүлэг хэр хожуу ирэхийг тодорхойлно. Дагагчид утсыг сэрүүн байлгах өөрийн мэдрэгч байхгүй тул шалгалт бүр нь сэрээх үйлдэл юм.</string>
-    <string name="nightscout_follow_interval_doze">9 минутаас бага бол утас сул зогсож байх үед Android шалгалтуудыг улам сунгаж болно. Juggluco-г батерейны оновчлолоос хасвал сонгосон интервал хэвээр үлдэнэ.</string>
+    <string name="nightscout_follow_interval_title">Шалгах интервал</string>
+    <string name="nightscout_follow_interval_desc">Богино интервал уншилтыг хурдан авдаг ч батарей илүү зарцуулна. Урт интервал дохиоллыг хойшлуулж болно.</string>
+    <string name="nightscout_follow_interval_doze">Утас идэвхгүй үед Android 9 минутаас богино интервалтай шалгалтыг хойшлуулж болно. Тогтмол шалгуулахын тулд батарейн оновчлолыг унтраана уу.</string>
 
     <!-- Web server TLS certificate -->
     <string name="webserver_https_subtitle">HTTPS шифрлэлт</string>
@@ -3036,4 +3036,23 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ssl_port">SSL порт</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Шилжилт: %1$s</string>
+    <string name="data_smoothing_window_desc">Урт хугацааны цонх хэлбэлзлийг илүү жигдрүүлнэ</string>
+    <string name="data_smoothing_scope_all">Бүх утга</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Илгээх хэмжилтийг мөн жигдрүүлнэ</string>
+    <string name="nightscout_send_treatments">Инсулин, нүүрс ус илгээх</string>
+    <string name="nightscout_permissions_title">Токены зөвшөөрөл</string>
+    <string name="nightscout_permissions_summary">API хувилбар ба токены эрх</string>
+    <string name="nightscout_resend_data">Өгөгдлийг дахин илгээх</string>
+    <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nЭрхийг өөрчилсний дараа HTTP 403 хэвээр байвал аппыг дахин эхлүүлнэ үү.</string>
+    <string name="nightscout_permissions_upload">Глюкоз\napi:entries:create\napi:entries:update\n\nИнсулин, нүүрс ус илгээх\napi:treatments:create\napi:treatments:update\napi:treatments:delete\n\nИнсулин, нүүрс ус хүлээн авах\napi:treatments:read\n\nИдэвхтэй инсулин илгээх\napi:devicestatus:create\n\nЭрхийг өөрчилсний дараа токеныг шинэчилнэ үү.</string>
+    <string name="data_smoothing_scope_title">Жигдрүүлэх өгөгдөл</string>
+    <string name="data_smoothing_scope_all_desc">График, одоогийн глюкоз, сэрэмжлүүлэг болон илгээх хэмжилт</string>
+    <string name="data_smoothing_scope_graph_and_sent">График болон илгээх хэмжилт</string>
+    <string name="data_smoothing_preserve_originals">Анхны хэмжилтүүд хадгалагдана</string>
+    <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
+    <string name="nightscout_api_help">API v3 нь /api/v1-ийн оронд /api/v3 замыг ашиглана. Сервер v3 дэмждэггүй бол v1 ашиглана уу.</string>
+    <string name="nightscout_send_treatments_help">Тэмдэглэлийн инсулин, нүүрс усны бичлэгийг эмчилгээний мэдээлэл болгон илгээнэ. Өөрчлөлт болон устгал мөн синхрончлогдоно.</string>
+    <string name="nightscout_long_insulin_help">Суурь болон хэт удаан үйлчилдэг тунг оруулахын тулд инсулин, нүүрс ус илгээх тохиргоотой хамт идэвхжүүлнэ үү.</string>
+    <string name="nightscout_receive_treatments_help">Nightscout-ийн инсулин, нүүрс усны бичлэг таны тэмдэглэлд нэмэгдэнэ.</string>
+    <string name="nightscout_iob_help">Nightscout нь өөрийн профайлаар тооцоолохын оронд Juggluco-ийн IOB-ийг ашиглана. eIOB болон COB-ийг тусдаа талбарт илгээнэ.</string>
 </resources>
