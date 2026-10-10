@@ -228,7 +228,10 @@ fun DataSmoothingSettingsScreen(
                     }
                 )
                 SettingsItem(
-                    title = stringResource(R.string.data_smoothing_graph_only_title),
+                    title = stringResource(
+                        if (collapseChunks) R.string.data_smoothing_scope_graph_and_sent
+                        else R.string.data_smoothing_graph_only_title
+                    ),
                     subtitle = stringResource(R.string.data_smoothing_graph_only_desc),
                     onClick = if (isEnabled) ({ viewModel.setDataSmoothingGraphOnly(true) }) else null,
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
@@ -275,12 +278,7 @@ fun DataSmoothingSettingsScreen(
                 )
                 if (collapseChunks) {
                     Text(
-                        text = buildList {
-                            if (graphOnly && !exchangeOnly) {
-                                add(stringResource(R.string.data_smoothing_graph_only_collapse_desc))
-                            }
-                            add(stringResource(R.string.data_smoothing_preserve_originals))
-                        }.joinToString("\n"),
+                        text = stringResource(R.string.data_smoothing_preserve_originals),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp)
