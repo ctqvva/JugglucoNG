@@ -2937,7 +2937,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Offset: %1$s</string>
     <string name="data_smoothing_window_desc">Ett längre tidsfönster jämnar ut fler svängningar.</string>
     <string name="data_smoothing_scope_all">Alla värden</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Även skickade värden jämnas ut. Aktuellt glukosvärde och larm förblir outjämnade.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Även skickade värden jämnas ut.</string>
     <string name="nightscout_send_treatments">Skicka insulin och kolhydrater</string>
     <string name="nightscout_permissions_title">Avancerat</string>
     <string name="nightscout_permissions_summary">API-version och tokenbehörigheter</string>

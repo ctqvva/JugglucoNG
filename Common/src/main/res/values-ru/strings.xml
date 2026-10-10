@@ -598,10 +598,10 @@
     <string name="graph_smoothing_7_minutes">7 минут</string>
     <string name="data_smoothing_window_title">Окно сглаживания</string>
     <string name="data_smoothing_graph_only_title">Только график</string>
-    <string name="data_smoothing_graph_only_desc">Текущая глюкоза, виджеты и значения для тревог — без сглаживания.</string>
+    <string name="data_smoothing_graph_only_desc">Текущая глюкоза, виджеты и оповещения — без сглаживания.</string>
     <string name="data_smoothing_exchange_only_title">Только передаваемые показания</string>
     <string name="data_smoothing_exchange_only_desc">Сглаживать трансляции и загрузки. Показания в приложении — без сглаживания.</string>
-    <string name="data_smoothing_collapse_title">Реже показывать и передавать</string>
+    <string name="data_smoothing_collapse_title">Меньше показаний</string>
     <string name="data_smoothing_collapse_desc">Уменьшить число точек на графике и частоту передачи показаний.</string>
     <string name="data_smoothing_collapse_desc_match">Одно показание каждые %1$d мин.</string>
     <string name="data_smoothing_collapse_desc_capped">Одно показание каждые 5 мин со сглаживанием за %1$d мин.</string>
@@ -2988,7 +2988,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Смещение: %1$s</string>
     <string name="data_smoothing_window_desc">Чем больше окно, тем сильнее сглаживание.</string>
     <string name="data_smoothing_scope_all">Везде</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Передаваемые показания тоже сглаживаются. Текущая глюкоза и значения для тревог — без сглаживания.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Передаваемые показания тоже сглаживаются.</string>
     <string name="nightscout_send_treatments">Отправлять инсулин и углеводы</string>
     <string name="nightscout_permissions_title">Дополнительно</string>
     <string name="nightscout_permissions_summary">Версия API и права токена</string>
@@ -2996,7 +2996,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nЕсли после изменения прав сохраняется HTTP 403, перезапустите приложение.</string>
     <string name="nightscout_resend_data">Отправить данные повторно</string>
     <string name="data_smoothing_scope_title">Сглаживать</string>
-    <string name="data_smoothing_scope_all_desc">График, текущую глюкозу, значения для тревог и передаваемые показания.</string>
+    <string name="data_smoothing_scope_all_desc">График, текущую глюкозу, оповещения и передаваемые показания.</string>
     <string name="data_smoothing_scope_graph_and_sent">График и передаваемые показания</string>
     <string name="data_smoothing_preserve_originals">Исходные показания сохраняются.</string>
     <string name="nightscout_secret_label">Секрет API или токен доступа</string>

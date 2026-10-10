@@ -875,7 +875,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="data_smoothing_graph_only_desc">Gulukoosta hadda, widget-yada iyo digniinaha lama simayo.</string>
     <string name="data_smoothing_exchange_only_title">Cabbirrada la diro oo keliya</string>
     <string name="data_smoothing_exchange_only_desc">Sim gudbinta iyo gelinta xogta. Cabbirrada abka ku jira lama simayo.</string>
-    <string name="data_smoothing_collapse_title">Yaree inta jeer ee cabbirrada</string>
+    <string name="data_smoothing_collapse_title">Cabbirro ka yar</string>
     <string name="data_smoothing_collapse_desc">Soo bandhig oo dir cabbirro ka yar.</string>
     <string name="data_smoothing_collapse_desc_match">Hal cabbir %1$d daqiiqo kasta.</string>
     <string name="data_smoothing_collapse_desc_capped">Hal cabbir 5 daqiiqo kasta, laguna simay %1$d daqiiqo.</string>
@@ -3122,7 +3122,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="calibration_offset_value">Deminta: %1$s</string>
     <string name="data_smoothing_window_desc">Waqti dheer wuxuu si ka badan u simaa isbeddellada.</string>
     <string name="data_smoothing_scope_all">Dhammaan qiimayaasha</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Cabbirrada la diro sidoo kale waa la simayaa. Gulukoosta hadda iyo digniinaha lama simayo.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Cabbirrada la diro sidoo kale waa la simayaa.</string>
     <string name="nightscout_send_treatments">Dir insuliin iyo karbohaydraytyo</string>
     <string name="nightscout_permissions_title">Dheeraad</string>
     <string name="nightscout_permissions_summary">Nooca API iyo oggolaanshaha token-ka</string>

@@ -405,7 +405,7 @@
     <string name="data_smoothing_graph_only_desc">A glicose atual, os widgets e os alertas ficam sem suavização.</string>
     <string name="data_smoothing_exchange_only_title">Apenas leituras enviadas</string>
     <string name="data_smoothing_exchange_only_desc">Suavizar transmissões e envios. As leituras no aplicativo ficam sem suavização.</string>
-    <string name="data_smoothing_collapse_title">Reduzir a frequência das leituras</string>
+    <string name="data_smoothing_collapse_title">Menos leituras</string>
     <string name="data_smoothing_collapse_desc">Mostrar e enviar menos leituras.</string>
     <string name="data_smoothing_collapse_desc_match">Uma leitura a cada %1$d min.</string>
     <string name="data_smoothing_collapse_desc_capped">Uma leitura a cada 5 min, suavizada em %1$d min.</string>
@@ -2938,7 +2938,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Deslocamento: %1$s</string>
     <string name="data_smoothing_window_desc">Uma janela maior suaviza mais as oscilações.</string>
     <string name="data_smoothing_scope_all">Todos os valores</string>
-    <string name="data_smoothing_graph_only_collapse_desc">As leituras enviadas também são suavizadas. A glicose atual e os alertas ficam sem suavização.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">As leituras enviadas também são suavizadas.</string>
     <string name="nightscout_send_treatments">Enviar insulina e hidratos de carbono</string>
     <string name="nightscout_permissions_title">Avançado</string>
     <string name="nightscout_permissions_summary">Versão da API e permissões do token</string>

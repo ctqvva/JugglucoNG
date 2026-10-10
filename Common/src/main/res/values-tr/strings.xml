@@ -557,7 +557,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="data_smoothing_graph_only_desc">Güncel glikoz, widget’lar ve alarmlar yumuşatılmaz.</string>
     <string name="data_smoothing_exchange_only_title">Yalnızca gönderilen ölçümler</string>
     <string name="data_smoothing_exchange_only_desc">Yayınları ve yüklemeleri yumuşat. Uygulamadaki ölçümler yumuşatılmaz.</string>
-    <string name="data_smoothing_collapse_title">Ölçüm sıklığını azalt</string>
+    <string name="data_smoothing_collapse_title">Daha az ölçüm</string>
     <string name="data_smoothing_collapse_desc">Daha az ölçüm göster ve gönder.</string>
     <string name="data_smoothing_collapse_desc_match">Her %1$d dakikada bir ölçüm.</string>
     <string name="data_smoothing_collapse_desc_capped">Her 5 dakikada bir ölçüm, %1$d dakikalık pencereyle yumuşatılır.</string>
@@ -2965,7 +2965,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="calibration_offset_value">Ofset: %1$s</string>
     <string name="data_smoothing_window_desc">Daha uzun pencereler dalgalanmaları daha fazla yumuşatır.</string>
     <string name="data_smoothing_scope_all">Tüm değerler</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Gönderilen ölçümler de yumuşatılır. Güncel glikoz ve alarmlar yumuşatılmaz.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Gönderilen ölçümler de yumuşatılır.</string>
     <string name="nightscout_send_treatments">İnsülin ve karbonhidrat gönder</string>
     <string name="nightscout_permissions_title">Gelişmiş</string>
     <string name="nightscout_permissions_summary">API sürümü ve belirteç izinleri</string>

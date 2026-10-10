@@ -378,7 +378,7 @@
     <string name="data_smoothing_graph_only_desc">Glucosio attuale, widget e avvisi restano senza smussamento.</string>
     <string name="data_smoothing_exchange_only_title">Solo valori inviati</string>
     <string name="data_smoothing_exchange_only_desc">Smussa trasmissioni e caricamenti. I valori nell’app restano senza smussamento.</string>
-    <string name="data_smoothing_collapse_title">Riduci la frequenza dei valori</string>
+    <string name="data_smoothing_collapse_title">Meno valori</string>
     <string name="data_smoothing_collapse_desc">Mostra e invia meno valori.</string>
     <string name="data_smoothing_collapse_desc_match">Un valore ogni %1$d min.</string>
     <string name="data_smoothing_collapse_desc_capped">Un valore ogni 5 min, smussato su %1$d min.</string>
@@ -2927,7 +2927,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Compensazione: %1$s</string>
     <string name="data_smoothing_window_desc">Una finestra più lunga attenua maggiormente le oscillazioni.</string>
     <string name="data_smoothing_scope_all">Tutti i valori</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Anche i valori inviati vengono smussati. Glucosio attuale e avvisi restano senza smussamento.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Anche i valori inviati vengono smussati.</string>
     <string name="nightscout_send_treatments">Invia insulina e carboidrati</string>
     <string name="nightscout_permissions_title">Avanzate</string>
     <string name="nightscout_permissions_summary">Versione API e permessi del token</string>

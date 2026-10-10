@@ -898,7 +898,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_graph_only_desc">Current glucose, widgets and alerts stay unsmoothed.</string>
     <string name="data_smoothing_exchange_only_title">Sent readings only</string>
     <string name="data_smoothing_exchange_only_desc">Smooth broadcasts and uploads. In-app readings stay unsmoothed.</string>
-    <string name="data_smoothing_collapse_title">Reduce reading frequency</string>
+    <string name="data_smoothing_collapse_title">Fewer readings</string>
     <string name="data_smoothing_collapse_desc">Show and send fewer readings.</string>
     <string name="data_smoothing_collapse_desc_match">One reading every %1$d min.</string>
     <string name="data_smoothing_collapse_desc_capped">One reading every 5 min, smoothed over %1$d min.</string>
@@ -3189,7 +3189,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Offset: %1$s</string>
     <string name="data_smoothing_window_desc">Longer windows smooth out more fluctuations.</string>
     <string name="data_smoothing_scope_all">Everywhere</string>
-    <string name="data_smoothing_graph_only_collapse_desc">This also smooths sent readings. Current glucose and alerts stay unsmoothed.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">This also smooths sent readings.</string>
     <string name="nightscout_send_treatments">Send insulin and carbs</string>
     <string name="nightscout_permissions_title">Advanced</string>
     <string name="nightscout_permissions_summary">API version and token permissions</string>

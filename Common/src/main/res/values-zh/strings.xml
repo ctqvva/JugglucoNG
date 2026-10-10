@@ -512,7 +512,7 @@
     <string name="data_smoothing_graph_only_desc">当前血糖、小组件和警报不做平滑处理。</string>
     <string name="data_smoothing_exchange_only_title">仅发送的读数</string>
     <string name="data_smoothing_exchange_only_desc">平滑广播和上传的数据。应用内的读数不做平滑处理。</string>
-    <string name="data_smoothing_collapse_title">降低读数频率</string>
+    <string name="data_smoothing_collapse_title">减少读数</string>
     <string name="data_smoothing_collapse_desc">减少显示和发送的读数。</string>
     <string name="data_smoothing_collapse_desc_match">每 %1$d 分钟一个读数。</string>
     <string name="data_smoothing_collapse_desc_capped">每 5 分钟一个读数，使用 %1$d 分钟的平滑窗口。</string>
@@ -2952,7 +2952,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">偏移量：%1$s</string>
     <string name="data_smoothing_window_desc">时间窗口越长，平滑效果越强。</string>
     <string name="data_smoothing_scope_all">所有读数</string>
-    <string name="data_smoothing_graph_only_collapse_desc">发送的读数也会被平滑。当前血糖和警报不做平滑处理。</string>
+    <string name="data_smoothing_graph_only_collapse_desc">发送的读数也会被平滑。</string>
     <string name="nightscout_send_treatments">发送胰岛素和碳水记录</string>
     <string name="nightscout_permissions_title">高级设置</string>
     <string name="nightscout_permissions_summary">API 版本和令牌权限</string>

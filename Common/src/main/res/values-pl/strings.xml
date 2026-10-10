@@ -577,10 +577,10 @@
     <string name="graph_smoothing_7_minutes">7 minut</string>
     <string name="data_smoothing_window_title">Okno wygładzania</string>
     <string name="data_smoothing_graph_only_title">Tylko wykres</string>
-    <string name="data_smoothing_graph_only_desc">Bieżąca glukoza, widżety i wartości dla alarmów pozostają bez wygładzania.</string>
+    <string name="data_smoothing_graph_only_desc">Bieżąca glukoza, widżety i alarmy pozostają bez wygładzania.</string>
     <string name="data_smoothing_exchange_only_title">Tylko wysyłane odczyty</string>
     <string name="data_smoothing_exchange_only_desc">Wygładzaj transmisje i wysyłane dane. Odczyty w aplikacji pozostają bez wygładzania.</string>
-    <string name="data_smoothing_collapse_title">Zmniejsz częstotliwość odczytów</string>
+    <string name="data_smoothing_collapse_title">Mniej odczytów</string>
     <string name="data_smoothing_collapse_desc">Wyświetlaj i wysyłaj mniej odczytów.</string>
     <string name="data_smoothing_collapse_desc_match">Jeden odczyt co %1$d min.</string>
     <string name="data_smoothing_collapse_desc_capped">Jeden odczyt co 5 min, wygładzony w oknie %1$d min.</string>
@@ -2979,7 +2979,7 @@
     <string name="calibration_offset_value">Przesunięcie: %1$s</string>
     <string name="data_smoothing_window_desc">Dłuższe okno mocniej wygładza wahania.</string>
     <string name="data_smoothing_scope_all">Wszystkie wartości</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Wysyłane odczyty też są wygładzane. Bieżąca glukoza i wartości dla alarmów pozostają bez wygładzania.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Wysyłane odczyty też są wygładzane.</string>
     <string name="nightscout_send_treatments">Wysyłaj insulinę i węglowodany</string>
     <string name="nightscout_permissions_title">Zaawansowane</string>
     <string name="nightscout_permissions_summary">Wersja API i uprawnienia tokena</string>
@@ -2987,7 +2987,7 @@
     <string name="nightscout_permissions_follow">api:entries:read\napi:treatments:read\napi:devicestatus:read\n\nJeśli po zmianie uprawnień nadal występuje HTTP 403, uruchom aplikację ponownie.</string>
     <string name="nightscout_permissions_upload">Glukoza\napi:entries:create\napi:entries:update\n\nWysyłaj insulinę i węglowodany\napi:treatments:create\napi:treatments:update\napi:treatments:delete\n\nOdbieraj insulinę i węglowodany\napi:treatments:read\n\nWysyłaj aktywną insulinę\napi:devicestatus:create\n\nPo zmianie uprawnień odśwież token.</string>
     <string name="data_smoothing_scope_title">Wygładzaj</string>
-    <string name="data_smoothing_scope_all_desc">Wykres, bieżącą glukozę, wartości dla alarmów i wysyłane odczyty.</string>
+    <string name="data_smoothing_scope_all_desc">Wykres, bieżącą glukozę, alarmy i wysyłane odczyty.</string>
     <string name="data_smoothing_scope_graph_and_sent">Wykres i wysyłane odczyty</string>
     <string name="data_smoothing_preserve_originals">Oryginalne odczyty są zachowywane.</string>
     <string name="nightscout_secret_label">Sekret API lub token dostępu</string>

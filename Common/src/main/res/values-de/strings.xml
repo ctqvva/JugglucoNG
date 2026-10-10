@@ -3053,7 +3053,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="calibration_offset_value">Versatz: %1$s</string>
     <string name="data_smoothing_window_desc">Längere Zeitfenster glätten Schwankungen stärker.</string>
     <string name="data_smoothing_scope_all">Alle Werte</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Auch gesendete Werte werden geglättet. Aktueller Glukosewert und Alarme bleiben ungeglättet.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Auch gesendete Werte werden geglättet.</string>
     <string name="nightscout_send_treatments">Insulin und Kohlenhydrate senden</string>
     <string name="nightscout_permissions_title">Erweitert</string>
     <string name="nightscout_permissions_summary">API-Version und Token-Berechtigungen</string>

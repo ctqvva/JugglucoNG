@@ -452,7 +452,7 @@
     <string name="data_smoothing_graph_only_desc">Le glucose actuel, les widgets et les alertes restent sans lissage.</string>
     <string name="data_smoothing_exchange_only_title">Valeurs envoyées uniquement</string>
     <string name="data_smoothing_exchange_only_desc">Lisser les diffusions et les envois. Les valeurs dans l’application restent sans lissage.</string>
-    <string name="data_smoothing_collapse_title">Réduire la fréquence des valeurs</string>
+    <string name="data_smoothing_collapse_title">Moins de valeurs</string>
     <string name="data_smoothing_collapse_desc">Afficher et envoyer moins de valeurs.</string>
     <string name="data_smoothing_collapse_desc_match">Une valeur toutes les %1$d min.</string>
     <string name="data_smoothing_collapse_desc_capped">Une valeur toutes les 5 min, lissée sur %1$d min.</string>
@@ -2943,7 +2943,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibration_offset_value">Décalage : %1$s</string>
     <string name="data_smoothing_window_desc">Une fenêtre plus longue atténue davantage les fluctuations.</string>
     <string name="data_smoothing_scope_all">Toutes les valeurs</string>
-    <string name="data_smoothing_graph_only_collapse_desc">Les valeurs envoyées sont aussi lissées. Le glucose actuel et les alertes restent sans lissage.</string>
+    <string name="data_smoothing_graph_only_collapse_desc">Les valeurs envoyées sont aussi lissées.</string>
     <string name="nightscout_send_treatments">Envoyer l’insuline et les glucides</string>
     <string name="nightscout_permissions_title">Avancé</string>
     <string name="nightscout_permissions_summary">Version de l’API et droits du jeton</string>
