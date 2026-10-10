@@ -581,7 +581,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Digitalize a matriz de dados no seu sensor Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configuração Accu-Chek</string>
-    <string name="active">Active</string>
+    <string name="active">Ativo</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
@@ -1484,7 +1484,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_ok">Última resposta: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Última resposta: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Última resposta: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Endereço do servidor inválido.</string>
     <string name="nightscout_follow_title">Seguidor Nightscout</string>
     <string name="nightscout_follow_status_idle">Seguidor Nightscout inativo</string>
     <string name="nightscout_follow_status_following">A seguir Nightscout</string>

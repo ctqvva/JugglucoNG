@@ -1604,7 +1604,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_response_ok">Letzte Antwort: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Letzte Antwort: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Letzte Antwort: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Letzte Antwort: ungültige Nightscout-URL</string>
+    <string name="nightscout_status_response_invalid_url">Ungültige Serveradresse.</string>
     <string name="nightscout_follow_title">Nightscout-Follower</string>
     <string name="nightscout_follow_status_idle">Nightscout-Follower bereit</string>
     <string name="nightscout_follow_status_following">Folgt Nightscout</string>

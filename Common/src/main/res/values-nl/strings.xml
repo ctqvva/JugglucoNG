@@ -1526,7 +1526,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_response_ok">Laatste reactie: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Laatste reactie: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Laatste reactie: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Ongeldig serveradres.</string>
     <string name="nightscout_follow_title">Nightscout-volger</string>
     <string name="nightscout_follow_status_idle">Nightscout-volger inactief</string>
     <string name="nightscout_follow_status_following">Nightscout volgen</string>

@@ -1553,7 +1553,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_response_ok">Jawaabtii u dambaysay: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Jawaabtii u dambaysay: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Jawaabtii u dambaysay: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Jawaabtii u dambaysay: URL aan sax ahayn Nightscoout</string>
+    <string name="nightscout_status_response_invalid_url">Cinwaanka server-ka waa khaldan yahay.</string>
     <string name="nightscout_follow_title">Nightscoout raaca</string>
     <string name="nightscout_follow_status_idle">Nightscoout raaca</string>
     <string name="nightscout_follow_status_following">Ka dib Nightscout</string>

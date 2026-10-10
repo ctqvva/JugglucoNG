@@ -1511,7 +1511,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_status_response_ok">Son yanıt: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Son yanıt: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Son yanıt: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Geçersiz sunucu adresi.</string>
     <string name="nightscout_follow_title">Nightscout takipçisi</string>
     <string name="nightscout_follow_status_idle">Nightscout takipçisi boşta</string>
     <string name="nightscout_follow_status_following">Nightscout takip ediliyor</string>

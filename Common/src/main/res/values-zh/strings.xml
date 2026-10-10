@@ -1499,7 +1499,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_ok">上次响应：HTTP %1$d</string>
     <string name="nightscout_status_response_error">上次响应：HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">上次响应：HTTP %1$d，%2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">服务器地址无效。</string>
     <string name="nightscout_follow_title">Nightscout 跟随器</string>
     <string name="nightscout_follow_status_idle">Nightscout 跟随器空闲</string>
     <string name="nightscout_follow_status_following">正在跟随 Nightscout</string>

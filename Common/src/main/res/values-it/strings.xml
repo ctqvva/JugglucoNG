@@ -554,7 +554,7 @@
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scansiona la matrice dei dati sul sensore Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configurazione Accu-Chek</string>
-    <string name="active">Active</string>
+    <string name="active">Attivo</string>
     <string name="add_sensor">Add Sensor</string>
     <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
@@ -867,7 +867,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="secret">api_secret</string>
     <string name="sendamounts">Send amounts</string>
     <string name="sendfrom">"Send from: "</string>
-    <string name="sendnow">Send now</string>
+    <string name="sendnow">Invia ora</string>
     <string name="sensor_address">Address</string>
     <string name="sensor_ends_officially">Ends Officially</string>
     <string name="sensor_expected_end">Expected End</string>
@@ -1473,7 +1473,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_ok">Ultima risposta: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Ultima risposta: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Ultima risposta: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Indirizzo del server non valido.</string>
     <string name="nightscout_follow_title">Follower Nightscout</string>
     <string name="nightscout_follow_status_idle">Follower Nightscout inattivo</string>
     <string name="nightscout_follow_status_following">Connessione a Nightscout</string>

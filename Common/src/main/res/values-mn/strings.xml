@@ -1293,7 +1293,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_ok">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Сүүлчийн хариу: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Сүүлчийн хариу: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Сүүлчийн хариу: буруу Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Серверийн хаяг буруу байна.</string>
     <string name="nightscout_follow_title">Nightscout дагагч</string>
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
     <string name="nightscout_follow_status_following">Nightscout-ийг дагаж байна</string>
@@ -1350,7 +1350,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="reminders">Сануулга</string>
     <string name="requesting_account_id">Requesting account ID…</string>
     <string name="resend_data_reset">Resend Data (Reset)</string>
-    <string name="resend_triggered">Resend triggered</string>
+    <string name="resend_triggered">Дахин илгээж эхэллээ</string>
     <string name="reset_correction_desc">Manage initialization bias correction and hardware reset</string>
     <string name="reset_correction_title">Reset and correction</string>
     <string name="restart_algorithm">Restart algorithm</string>

@@ -1521,7 +1521,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_status_response_ok">Utolsó válasz: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Utolsó válasz: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Utolsó válasz: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Utolsó válasz: érvénytelen Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Érvénytelen szervercím.</string>
     <string name="nightscout_follow_title">Nightscout-követő</string>
     <string name="nightscout_follow_status_idle">Nightscout-követő tétlen</string>
     <string name="nightscout_follow_status_following">Nightscout követése</string>

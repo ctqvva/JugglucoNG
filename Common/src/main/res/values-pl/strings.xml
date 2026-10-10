@@ -1518,7 +1518,7 @@
     <string name="nightscout_status_response_ok">Ostatnia odpowiedź: HTTP %1$d</string>
     <string name="nightscout_status_response_error">Ostatnia odpowiedź: HTTP %1$d</string>
     <string name="nightscout_status_response_error_detail">Ostatnia odpowiedź: HTTP %1$d, %2$s</string>
-    <string name="nightscout_status_response_invalid_url">Last response: invalid Nightscout URL</string>
+    <string name="nightscout_status_response_invalid_url">Nieprawidłowy adres serwera.</string>
     <string name="nightscout_follow_title">Obserwator Nightscout</string>
     <string name="nightscout_follow_status_idle">Obserwator Nightscout bezczynny</string>
     <string name="nightscout_follow_status_following">Obserwowanie Nightscout</string>
