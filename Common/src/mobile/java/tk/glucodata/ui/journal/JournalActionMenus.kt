@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -63,7 +62,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +79,7 @@ import androidx.compose.ui.unit.Density
 import kotlin.math.abs
 import androidx.compose.ui.unit.lerp
 import kotlin.math.hypot
+import androidx.compose.ui.platform.LocalLayoutDirection
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartMenuAnchor
@@ -251,13 +251,16 @@ private fun ChartMenuColumn(
     content: @Composable (shapes: List<Shape>) -> Unit
 ) {
     val density = LocalDensity.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val tops = remember(touch, floorPx, progress.size, density) {
         with(density) { chartMenuTops(progress.size, touch.y, floorPx) }
     }
-    val shapes = remember(tops, touch, opensLeft, density) {
+    val shapes = remember(tops, touch, opensLeft, rtl, density) {
         with(density) {
             val itemHeight = FabMenuItemHeight.toPx()
-            tops.map { top -> shapeTowards(touch.y, top.toFloat(), top + itemHeight, opensLeft) }
+            // The finger's side as the layout sees it: the chart itself is never mirrored.
+            val towardEnd = opensLeft != rtl
+            tops.map { top -> shapeTowards(touch.y, top.toFloat(), top + itemHeight, towardEnd) }
         }
     }
     Layout(
@@ -310,21 +313,22 @@ private fun Density.chartMenuTops(count: Int, touchY: Float, floorPx: Float): Li
 }
 
 /**
- * The item's corners on the finger's side sharpen with nearness to [touchY]; the far side
- * stays the pill's. Absolute, as the chart is never mirrored.
+ * The item's corners on the finger's side, its end side when [towardEnd], sharpen with nearness
+ * to [touchY]; the other side stays the pill's. A RoundedCornerShape, as the button only
+ * animates its press morph between two of those.
  */
-private fun Density.shapeTowards(touchY: Float, top: Float, bottom: Float, opensLeft: Boolean): Shape {
+private fun Density.shapeTowards(touchY: Float, top: Float, bottom: Float, towardEnd: Boolean): Shape {
     val gap = ChartMenuTouchGap.toPx()
     fun corner(y: Float): CornerSize {
         val reach = ((hypot(gap, y - touchY) - gap) / (ChartMenuPointReach.toPx() - gap)).coerceIn(0f, 1f)
         return CornerSize(lerp(ChartMenuPointCorner, FabMenuItemHeight / 2, reach))
     }
-    val full = CornerSize(50)
-    return AbsoluteRoundedCornerShape(
-        topLeft = if (opensLeft) full else corner(top),
-        bottomLeft = if (opensLeft) full else corner(bottom),
-        topRight = if (opensLeft) corner(top) else full,
-        bottomRight = if (opensLeft) corner(bottom) else full
+    val full = CornerSize(FabMenuItemHeight / 2)
+    return RoundedCornerShape(
+        topStart = if (towardEnd) full else corner(top),
+        bottomStart = if (towardEnd) full else corner(bottom),
+        topEnd = if (towardEnd) corner(top) else full,
+        bottomEnd = if (towardEnd) corner(bottom) else full
     )
 }
 
