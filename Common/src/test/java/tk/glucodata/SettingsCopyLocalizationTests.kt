@@ -28,7 +28,9 @@ class SettingsCopyLocalizationTests {
         "nightscout_follow_interval_title", "nightscout_follow_interval_desc", "nightscout_follow_interval_doze",
         "nightscout_mode_upload", "nightscout_mode_follow", "nightscout_permissions_title", "nightscout_permissions_summary",
         "nightscout_permissions_upload", "nightscout_permissions_follow", "nightscout_resend_data",
-        "nightscout_status_response_invalid_url", "close"
+        "nightscout_status_response_invalid_url", "close", "nightscout_follow_desc",
+        "nightscout_api_help", "nightscout_send_treatments_help", "nightscout_long_insulin_help",
+        "nightscout_receive_treatments_help", "nightscout_iob_help"
     )
 
     private fun value(file: File, key: String): String? =
@@ -75,4 +77,36 @@ class SettingsCopyLocalizationTests {
             }
         }
     }
+
+    @Test
+    fun shortSettingsSubtitlesDoNotEndInFullStops() {
+        val subtitles = listOf(
+            "nightscout_send_amounts_desc", "nightscout_send_long_insulin_desc", "nightscout_receive_amounts_desc",
+            "nightscout_upload_iob_desc", "nightscout_use_v3_api_desc", "nightscout_follow_use_v3_api_desc",
+            "data_smoothing_scope_all_desc", "data_smoothing_graph_only_desc", "data_smoothing_exchange_only_desc",
+            "data_smoothing_collapse_desc_match", "data_smoothing_collapse_desc_capped"
+        )
+        for (file in files) {
+            for (key in subtitles) {
+                val text = value(file, key)
+                assertNotNull("${file.parentFile.name}: missing $key", text)
+                assertTrue("${file.parentFile.name}: $key ends in a full stop", text!!.trim().last() !in ".。．")
+            }
+        }
+    }
+
+    @Test
+    fun detailedHelpRetainsApiPathsAndExtraIobFields() {
+        for (file in files) {
+            val apiHelp = value(file, "nightscout_api_help")!!
+            val iobHelp = value(file, "nightscout_iob_help")!!
+            for (path in listOf("/api/v1", "/api/v3")) {
+                assertTrue("${file.parentFile.name}: API help lost $path", apiHelp.contains(path))
+            }
+            for (field in listOf("eIOB", "COB")) {
+                assertTrue("${file.parentFile.name}: IOB help lost $field", iobHelp.contains(field))
+            }
+        }
+    }
+
 }
