@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.activity.compose.BackHandler
 import android.view.HapticFeedbackConstants
+import android.view.WindowManager
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,7 +72,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Constraints
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -80,10 +80,11 @@ import kotlin.math.abs
 import androidx.compose.ui.unit.lerp
 import kotlin.math.hypot
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.layout.positionOnScreen
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntryType
-import tk.glucodata.ui.ChartMenuAnchor
-import tk.glucodata.ui.ChartViewportSnapshot
+import tk.glucodata.ui.ChartActionAnchor
 import tk.glucodata.ui.components.CatchNavigationTaps
 import kotlin.math.roundToInt
 
@@ -113,22 +114,21 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
 }
 
 /**
- * The chart's "add at this time" menu. It grows out of the finger's spot ([menuAnchor]; the
- * tapped time's line, halfway up, when that is unknown): one column centred on the spot and
+ * The chart's "add at this time" menu, grown out of the tapped time's dot where the chart drew
+ * it ([anchor]), and following it as the screen moves: one column centred on the dot and
  * beside it, to the left past the middle, where the newest readings are, kept above the time
- * chip. Each item springs out of the spot, from the middle outward, and folds back into it on
- * close; the corners on the spot's side sharpen the nearer they are to it, so the column leans
- * toward it. [selectedTimestamp] null closes the menu, animated, so keep calling this rather
- * than dropping it. [modifier] is the chart's box; the menu stays inside it.
+ * chip where the screen allows. It is not held to the chart: it uses the whole window, so it
+ * fits short charts and small screens. Each item springs out of the dot, from the middle
+ * outward, and folds back into it on close; the corners on the dot's side sharpen the nearer
+ * they are to it, so the column leans toward it. A tap or a drag anywhere else closes it.
+ * [selectedTimestamp] null closes it, animated, so keep calling this rather than dropping it.
  */
 @Composable
 fun JournalFloatingActionMenu(
     selectedTimestamp: Long?,
-    menuAnchor: ChartMenuAnchor?,
+    anchor: ChartActionAnchor,
     onDismissRequest: () -> Unit,
-    viewportSnapshot: ChartViewportSnapshot?,
-    onTypeSelected: (type: JournalEntryType, timestamp: Long) -> Unit,
-    modifier: Modifier = Modifier
+    onTypeSelected: (type: JournalEntryType, timestamp: Long) -> Unit
 ) {
     val view = LocalView.current
     // The FAB menu's order, top to bottom.
@@ -138,13 +138,11 @@ fun JournalFloatingActionMenu(
     val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     // What is drawn outlives selectedTimestamp by the close animation.
     var shownTimestamp by remember { mutableStateOf<Long?>(null) }
-    var shownAnchor by remember { mutableStateOf<ChartMenuAnchor?>(null) }
     val open = selectedTimestamp != null
-    LaunchedEffect(selectedTimestamp, menuAnchor) {
+    LaunchedEffect(selectedTimestamp) {
         if (selectedTimestamp != null) {
             if (shownTimestamp != null) progress.forEach { it.snapTo(0f) }
             shownTimestamp = selectedTimestamp
-            shownAnchor = menuAnchor
             coroutineScope {
                 progress.forEachIndexed { index, item ->
                     launch {
@@ -163,88 +161,91 @@ fun JournalFloatingActionMenu(
                 }
             }
             shownTimestamp = null
-            shownAnchor = null
         }
     }
     val timestamp = shownTimestamp ?: return
-    val lineFraction = remember(timestamp, viewportSnapshot) {
-        viewportSnapshot
-            ?.takeIf { it.endMillis > it.startMillis }
-            ?.let { snapshot ->
-                ((timestamp - snapshot.startMillis).toFloat() /
-                    (snapshot.endMillis - snapshot.startMillis).toFloat()).coerceIn(0f, 1f)
-            }
-    }
-    var boxInWindow by remember { mutableStateOf(Offset.Zero) }
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .onGloballyPositioned { boxInWindow = it.positionInWindow() }
+    Popup(
+        popupPositionProvider = WholeWindow,
+        onDismissRequest = onDismissRequest,
+        // Closing, it no longer takes Back or touches meant for the screen.
+        properties = if (open) {
+            PopupProperties(focusable = true, dismissOnClickOutside = false)
+        } else {
+            PopupProperties(
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            )
+        }
     ) {
-        val boxWidth = maxWidth
-        val boxHeight = maxHeight
-        val touch = shownAnchor?.let { it.touch - boxInWindow }
-            ?: lineFraction?.let { Offset(constraints.maxWidth * it, constraints.maxHeight / 2f) }
-            ?: return@BoxWithConstraints
-        val floorPx = shownAnchor?.let { it.floorY - boxInWindow.y } ?: constraints.maxHeight.toFloat()
-        val opensLeft = touch.x > constraints.maxWidth * 0.56f
-        // Popup alignment defaults to the anchor's top start, so the two share coordinates.
-        Popup(
-            onDismissRequest = onDismissRequest,
-            // Closing, it no longer takes Back or taps meant for the screen.
-            properties = PopupProperties(focusable = open, dismissOnClickOutside = open)
+        var popupOnScreen by remember { mutableStateOf<Offset?>(null) }
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { popupOnScreen = it.positionOnScreen() }
+                .pointerInput(open) {
+                    if (open) detectTapGestures { onDismissRequest() }
+                }
+                .pointerInput(open) {
+                    if (open) detectDragGestures(onDragStart = { onDismissRequest() }) { _, _ -> }
+                }
         ) {
-            Box(
-                modifier = Modifier
-                    .size(boxWidth, boxHeight)
-                    .pointerInput(open) {
-                        if (open) detectTapGestures { onDismissRequest() }
-                    }
-            ) {
-                ChartMenuColumn(
-                    touch = touch,
-                    floorPx = floorPx,
-                    opensLeft = opensLeft,
-                    progress = progress
-                ) { shapes ->
-                    actionTypes.forEachIndexed { index, actionType ->
-                        ChartMenuItem(
-                            actionType = actionType,
-                            shape = shapes[index],
-                            onClick = {
-                                if (open) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    onTypeSelected(actionType, timestamp)
-                                }
+            val origin = popupOnScreen ?: return@BoxWithConstraints
+            val dot = (anchor.dotOnScreen ?: return@BoxWithConstraints) - origin
+            val edge = with(LocalDensity.current) { ChartMenuEdge.toPx() }
+            val floorPx = (anchor.floorOnScreen - origin.y).coerceAtMost(constraints.maxHeight - edge)
+            ChartMenuColumn(
+                dot = dot,
+                floorPx = floorPx,
+                opensLeft = anchor.opensLeft,
+                progress = progress
+            ) { shapes ->
+                actionTypes.forEachIndexed { index, actionType ->
+                    ChartMenuItem(
+                        actionType = actionType,
+                        shape = shapes[index],
+                        onClick = {
+                            if (open) {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onTypeSelected(actionType, timestamp)
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }
     }
 }
 
+/** The popup spans the window; the menu places itself inside. */
+private object WholeWindow : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset = IntOffset.Zero
+}
+
 private const val ChartMenuStaggerMillis = 30L
 
-// From the finger's spot to the nearest item's corner, so the spot's dot stays in view.
-private val ChartMenuTouchGap = 12.dp
+// From the dot's centre to the column, clear of the dot's halo.
+private val ChartMenuDotGap = 24.dp
 private val ChartMenuItemGap = 8.dp
 private val ChartMenuEdge = 8.dp
-// A corner this close to the finger's spot comes to a point; one this far off is the pill's.
+// A corner this close to the dot comes to a point; one this far off is the pill's.
 private val ChartMenuPointCorner = 4.dp
 private val ChartMenuPointReach = 96.dp
 
 /**
- * Lays the items out in one column, all as wide as the widest, centred on [touch] and beside
- * it on the [opensLeft] side, sliding back in from the top or the [floorPx]. Each item's corners on the finger's side sharpen the nearer
- * they are to the spot, so the column leans toward it. Each item grows from its corner
- * nearest the spot as its [progress] runs from 0 to 1; a spring's overshoot carries it a
+ * Lays the items out in one column, all as wide as the widest, centred on [dot] and beside it
+ * on the [opensLeft] side, sliding back in from the top or the [floorPx], and kept in the
+ * window. Each item's corners on the dot's side sharpen the nearer they are to it, so the
+ * column leans toward it. Each item grows from its corner nearest the dot as its [progress]
+ * runs from 0 to 1; a spring's overshoot carries it a
  * little past its place and back. [content] gets each item's shape.
  */
 @Composable
 private fun ChartMenuColumn(
-    touch: Offset,
+    dot: Offset,
     floorPx: Float,
     opensLeft: Boolean,
     progress: List<Animatable<Float, *>>,
@@ -252,15 +253,15 @@ private fun ChartMenuColumn(
 ) {
     val density = LocalDensity.current
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val tops = remember(touch, floorPx, progress.size, density) {
-        with(density) { chartMenuTops(progress.size, touch.y, floorPx) }
+    val tops = remember(dot, floorPx, progress.size, density) {
+        with(density) { chartMenuTops(progress.size, dot.y, floorPx) }
     }
-    val shapes = remember(tops, touch, opensLeft, rtl, density) {
+    val shapes = remember(tops, dot, opensLeft, rtl, density) {
         with(density) {
             val itemHeight = FabMenuItemHeight.toPx()
-            // The finger's side as the layout sees it: the chart itself is never mirrored.
+            // The dot's side as the layout sees it: the chart itself is never mirrored.
             val towardEnd = opensLeft != rtl
-            tops.map { top -> shapeTowards(touch.y, top.toFloat(), top + itemHeight, towardEnd) }
+            tops.map { top -> shapeTowards(dot.y, top.toFloat(), top + itemHeight, towardEnd) }
         }
     }
     Layout(
@@ -270,22 +271,22 @@ private fun ChartMenuColumn(
         // One width for all, so the column is one block and the icons and labels line up.
         val itemWidth = measurables.maxOf { it.maxIntrinsicWidth(Constraints.Infinity) }
         val placeables = measurables.map { it.measure(Constraints.fixedWidth(itemWidth)) }
-        val touchGap = ChartMenuTouchGap.roundToPx()
+        val dotGap = ChartMenuDotGap.roundToPx()
         val edge = ChartMenuEdge.roundToPx()
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.forEachIndexed { index, placeable ->
                 val x = if (opensLeft) {
-                    touch.x.roundToInt() - touchGap - placeable.width
+                    dot.x.roundToInt() - dotGap - placeable.width
                 } else {
-                    touch.x.roundToInt() + touchGap
+                    dot.x.roundToInt() + dotGap
                 }.coerceIn(edge, (constraints.maxWidth - edge - placeable.width).coerceAtLeast(edge))
                 val y = tops[index]
-                // The corner nearest the finger, where the item grows from.
-                val fromBottom = abs(touch.y - (y + placeable.height)) < abs(touch.y - y)
+                // The corner nearest the dot, where the item grows from.
+                val fromBottom = abs(dot.y - (y + placeable.height)) < abs(dot.y - y)
                 val cornerX = if (opensLeft) x + placeable.width else x
                 val cornerY = if (fromBottom) y + placeable.height else y
-                val fromX = touch.x - cornerX
-                val fromY = touch.y - cornerY
+                val fromX = dot.x - cornerX
+                val fromY = dot.y - cornerY
                 val item = progress[index]
                 placeable.placeWithLayer(x, y) {
                     val t = item.value
@@ -301,26 +302,26 @@ private fun ChartMenuColumn(
     }
 }
 
-/** Each item's top: the column centred on [touchY], slid back in from the top or [floorPx]. */
-private fun Density.chartMenuTops(count: Int, touchY: Float, floorPx: Float): List<Int> {
+/** Each item's top: the column centred on [dotY], slid back in from the top or [floorPx]. */
+private fun Density.chartMenuTops(count: Int, dotY: Float, floorPx: Float): List<Int> {
     val itemHeight = FabMenuItemHeight.roundToPx()
     val itemGap = ChartMenuItemGap.roundToPx()
     val edge = ChartMenuEdge.roundToPx()
     val stack = count * itemHeight + (count - 1) * itemGap
     val floor = floorPx.roundToInt() - itemGap
-    val top = (touchY.roundToInt() - stack / 2).coerceAtMost(floor - stack).coerceAtLeast(edge)
+    val top = (dotY.roundToInt() - stack / 2).coerceAtMost(floor - stack).coerceAtLeast(edge)
     return List(count) { index -> top + index * (itemHeight + itemGap) }
 }
 
 /**
  * The item's corners on the finger's side, its end side when [towardEnd], sharpen with nearness
- * to [touchY]; the other side stays the pill's. A RoundedCornerShape, as the button only
+ * to [dotY]; the other side stays the pill's. A RoundedCornerShape, as the button only
  * animates its press morph between two of those.
  */
-private fun Density.shapeTowards(touchY: Float, top: Float, bottom: Float, towardEnd: Boolean): Shape {
-    val gap = ChartMenuTouchGap.toPx()
+private fun Density.shapeTowards(dotY: Float, top: Float, bottom: Float, towardEnd: Boolean): Shape {
+    val gap = ChartMenuDotGap.toPx()
     fun corner(y: Float): CornerSize {
-        val reach = ((hypot(gap, y - touchY) - gap) / (ChartMenuPointReach.toPx() - gap)).coerceIn(0f, 1f)
+        val reach = ((hypot(gap, y - dotY) - gap) / (ChartMenuPointReach.toPx() - gap)).coerceIn(0f, 1f)
         return CornerSize(lerp(ChartMenuPointCorner, FabMenuItemHeight / 2, reach))
     }
     val full = CornerSize(FabMenuItemHeight / 2)

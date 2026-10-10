@@ -431,8 +431,8 @@ fun DashboardScreen(
     var showOttaiWizard by remember { mutableStateOf(false) }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
-    // Not saved: after a rotation the finger's spot means nothing, and the menu falls back to the line.
-    var journalActionAnchor by remember { mutableStateOf<tk.glucodata.ui.ChartMenuAnchor?>(null) }
+    // Where the chart draws the tapped time's dot, for the journal menu to grow from.
+    val journalActionAnchor = remember { tk.glucodata.ui.ChartActionAnchor() }
     var journalActionSuggestedGlucoseMgDl by remember { mutableStateOf<Float?>(null) }
     var journalActionSuggestedAmountFraction by remember { mutableStateOf<Float?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
@@ -678,7 +678,6 @@ fun DashboardScreen(
     }
     fun clearJournalAction(withHaptic: Boolean = false) {
         journalActionTimestamp = null
-        journalActionAnchor = null
         journalActionSuggestedGlucoseMgDl = null
         journalActionSuggestedAmountFraction = null
         if (withHaptic) {
@@ -694,7 +693,6 @@ fun DashboardScreen(
             if (isMmolUnit) tk.glucodata.ui.util.GlucoseFormatter.mmolToMg(it) else it
         }
         journalActionTimestamp = suggestion.timestamp
-        journalActionAnchor = suggestion.menuAnchor
         journalActionSuggestedGlucoseMgDl = suggestedMgDl
         journalActionSuggestedAmountFraction = suggestion.normalizedYFraction
         view.performHapticFeedback(
@@ -1686,6 +1684,7 @@ fun DashboardScreen(
                                         },
                                         journalActionTimestamp = if (journalEnabled) journalActionTimestamp else null,
                                         journalActionDisplayValue = if (journalEnabled) journalActionSuggestedDisplayValue else null,
+                                        journalActionAnchor = journalActionAnchor,
                                         onDismissJournalAction = { clearJournalAction() },
                                         onJournalMarkerClick = { entryId ->
                                             journalEntriesById[entryId]?.let { entry ->
@@ -1700,9 +1699,8 @@ fun DashboardScreen(
                             }
                             JournalFloatingActionMenu(
                                 selectedTimestamp = journalActionTimestamp?.takeIf { journalEnabled },
-                                menuAnchor = journalActionAnchor,
+                                anchor = journalActionAnchor,
                                 onDismissRequest = { clearJournalAction() },
-                                viewportSnapshot = dashboardChartViewport,
                                 onTypeSelected = { type, actionTimestamp ->
                                     lastJournalType = type
                                     val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl
@@ -1930,6 +1928,7 @@ fun DashboardScreen(
                                         },
                                         journalActionTimestamp = if (journalEnabled) journalActionTimestamp else null,
                                         journalActionDisplayValue = if (journalEnabled) journalActionSuggestedDisplayValue else null,
+                                        journalActionAnchor = journalActionAnchor,
                                         onDismissJournalAction = { clearJournalAction() },
                                         onJournalMarkerClick = { entryId ->
                                             journalEntriesById[entryId]?.let { entry ->
@@ -1944,9 +1943,8 @@ fun DashboardScreen(
                             }
                             JournalFloatingActionMenu(
                                 selectedTimestamp = journalActionTimestamp?.takeIf { journalEnabled },
-                                menuAnchor = journalActionAnchor,
+                                anchor = journalActionAnchor,
                                 onDismissRequest = { clearJournalAction() },
-                                viewportSnapshot = dashboardChartViewport,
                                 onTypeSelected = { type, actionTimestamp ->
                                     lastJournalType = type
                                     val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl

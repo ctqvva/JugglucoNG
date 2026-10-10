@@ -133,9 +133,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalContext
@@ -691,19 +692,29 @@ data class ChartViewportSnapshot(
     val selectedPoint: GlucosePoint?
 )
 
+/**
+ * Where the chart draws the tapped time's dot, on screen, for the journal menu to grow from. It
+ * follows the dot through scrolling and panning, and keeps its last place once the dot goes,
+ * so the menu can close where it was.
+ */
+@Stable
+class ChartActionAnchor {
+    var dotOnScreen by mutableStateOf<Offset?>(null)
+        internal set
+    /** The top of the tapped time's chip at the plot's foot. */
+    var floorOnScreen by mutableStateOf(0f)
+        internal set
+    /** Past the middle, where the newest readings are, the menu opens to the dot's left. */
+    var opensLeft by mutableStateOf(false)
+        internal set
+}
+
 data class ChartTimelineTapSuggestion(
     val timestamp: Long,
     val suggestedDisplayGlucose: Float? = null,
     val normalizedYFraction: Float? = null,
-    val forceMenu: Boolean = false,
-    val menuAnchor: ChartMenuAnchor? = null
+    val forceMenu: Boolean = false
 )
-
-/**
- * Where the journal menu grows from, in window coordinates: the finger's spot, and the lowest
- * the menu may reach, the top of the tapped time's chip at the plot's foot.
- */
-data class ChartMenuAnchor(val touch: Offset, val floorY: Float)
 
 /** A peer's row in the scrub tooltip: its smoothed point, and what its line drew there when that is not the point's own value. */
 private class TooltipPeerRow(
@@ -763,6 +774,7 @@ fun DashboardChartSection(
     onTimelineTap: ((ChartTimelineTapSuggestion) -> Unit)? = null,
     journalActionTimestamp: Long? = null,
     journalActionDisplayValue: Float? = null,
+    journalActionAnchor: ChartActionAnchor? = null,
     onDismissJournalAction: (() -> Unit)? = null,
     onJournalMarkerClick: ((Long) -> Unit)? = null,
     chartBoostProgress: Float = 0f,
@@ -817,6 +829,7 @@ fun DashboardChartSection(
                         onTimelineTap = onTimelineTap,
                         journalActionTimestamp = journalActionTimestamp,
                         journalActionDisplayValue = journalActionDisplayValue,
+                        journalActionAnchor = journalActionAnchor,
                         onDismissJournalAction = onDismissJournalAction,
                         onJournalMarkerClick = onJournalMarkerClick,
                         chartBoostProgress = chartBoostProgress,
@@ -894,6 +907,7 @@ fun InteractiveGlucoseChart(
     onTimelineTap: ((ChartTimelineTapSuggestion) -> Unit)? = null,
     journalActionTimestamp: Long? = null,
     journalActionDisplayValue: Float? = null,
+    journalActionAnchor: ChartActionAnchor? = null,
     onDismissJournalAction: (() -> Unit)? = null,
     onJournalMarkerClick: ((Long) -> Unit)? = null,
     chartBoostProgress: Float = 0f,
@@ -1859,8 +1873,6 @@ fun InteractiveGlucoseChart(
     // A chip in the overlap group spread open by a tap; any touch on the chart outside the
     // chips settles it back.
     var expandedJournalChipId by remember { mutableStateOf<Long?>(null) }
-    // Read only by the gesture handler, to put a tap in window coordinates.
-    val gestureCoordinates = remember { mutableStateOf<LayoutCoordinates?>(null) }
 
 
 
@@ -1870,7 +1882,6 @@ fun InteractiveGlucoseChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .onGloballyPositioned { gestureCoordinates.value = it }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
                     // 1. Pan / Inertia
@@ -2069,18 +2080,7 @@ fun InteractiveGlucoseChart(
                                     timestamp = tapTime.toLong(),
                                     suggestedDisplayGlucose = suggestedValue,
                                     normalizedYFraction = normalizedY.coerceIn(0f, 1f),
-                                    forceMenu = forceMenu,
-                                    menuAnchor = gestureCoordinates.value
-                                        ?.takeIf { it.isAttached }
-                                        ?.let { coordinates ->
-                                            ChartMenuAnchor(
-                                                touch = coordinates.localToWindow(Offset(clampedX, position.y)),
-                                                // Where the overlay draws the time chip.
-                                                floorY = coordinates.localToWindow(
-                                                    Offset(0f, (chartHeight - 34.dp.toPx()).coerceAtLeast(12.dp.toPx()))
-                                                ).y
-                                            )
-                                        }
+                                    forceMenu = forceMenu
                                 )
                             }
 
@@ -3509,6 +3509,7 @@ fun InteractiveGlucoseChart(
             val overlayViewportEnd = centerTime + overlayDurationMillis / 2
             val journalChipMinTopPx = with(LocalDensity.current) { 8.dp.toPx() }
             val journalActionChipYOffsetPx = with(LocalDensity.current) { (chartHeightPx - 34.dp.toPx()).coerceAtLeast(12.dp.toPx()) }
+            val journalActionDotInsetPx = with(LocalDensity.current) { 12.dp.toPx() }
             val overlayValueToY: (Float) -> Float = { value ->
                 val range = (renderedYMax - renderedYMin).takeIf { it > 0.001f } ?: 1f
                 (chartHeightPx - ((value - renderedYMin) / range) * chartHeightPx).coerceIn(0f, chartHeightPx)
@@ -3991,6 +3992,26 @@ fun InteractiveGlucoseChart(
                 ?.let { actionTimestamp ->
                     val xFraction = (actionTimestamp - overlayViewportStart).toFloat() / overlayDuration
                     val actionX = (overlayDataWidthPx * xFraction).coerceIn(0f, overlayDataWidthPx)
+                    journalActionAnchor?.let { anchor ->
+                        // Where the canvas draws the dot.
+                        val actionY = journalActionDisplayValue
+                            ?.let(overlayValueToY)
+                            ?.takeIf { it.isFinite() }
+                            ?.let { coerceChartYToDrawableRange(it, chartHeightPx, journalActionDotInsetPx) }
+                            ?: coerceChartYToDrawableRange(chartHeightPx - journalActionDotInsetPx, chartHeightPx, journalActionDotInsetPx)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset { androidx.compose.ui.unit.IntOffset(actionX.roundToInt(), actionY.roundToInt()) }
+                                .size(0.dp)
+                                .onGloballyPositioned { coordinates ->
+                                    val dot = coordinates.positionOnScreen()
+                                    anchor.dotOnScreen = dot
+                                    anchor.floorOnScreen = dot.y + journalActionChipYOffsetPx - actionY
+                                    anchor.opensLeft = xFraction > 0.56f
+                                }
+                        )
+                    }
                     Surface(
                         modifier = Modifier
                             .align(Alignment.TopStart)

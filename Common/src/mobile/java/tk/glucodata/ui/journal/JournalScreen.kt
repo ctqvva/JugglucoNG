@@ -148,8 +148,8 @@ fun JournalScreen(
         mutableStateOf(JournalEntryType.entries.map { it.name })
     }
     var chartActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
-    // Not saved: after a rotation the finger's spot means nothing, and the menu falls back to the line.
-    var chartActionAnchor by remember { mutableStateOf<tk.glucodata.ui.ChartMenuAnchor?>(null) }
+    // Where the chart draws the tapped time's dot, for the journal menu to grow from.
+    val chartActionAnchor = remember { tk.glucodata.ui.ChartActionAnchor() }
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
     // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
@@ -177,7 +177,6 @@ fun JournalScreen(
 
     fun clearChartAction() {
         chartActionTimestamp = null
-        chartActionAnchor = null
         chartActionDisplayValue = null
         chartActionAmountFraction = null
     }
@@ -256,7 +255,6 @@ fun JournalScreen(
                                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                     } else {
                                         chartActionTimestamp = suggestion.timestamp
-                                        chartActionAnchor = suggestion.menuAnchor
                                         chartActionDisplayValue = suggestion.suggestedDisplayGlucose
                                         chartActionAmountFraction = suggestion.normalizedYFraction
                                         view.performHapticFeedback(
@@ -267,6 +265,7 @@ fun JournalScreen(
                                 },
                                 journalActionTimestamp = chartActionTimestamp,
                                 journalActionDisplayValue = chartActionDisplayValue,
+                                journalActionAnchor = chartActionAnchor,
                                 onDismissJournalAction = { clearChartAction() },
                                 onJournalMarkerClick = { entryId ->
                                     entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
@@ -277,10 +276,8 @@ fun JournalScreen(
 
                         JournalFloatingActionMenu(
                             selectedTimestamp = chartActionTimestamp,
-                            menuAnchor = chartActionAnchor,
+                            anchor = chartActionAnchor,
                             onDismissRequest = { clearChartAction() },
-                            viewportSnapshot = viewportSnapshot,
-                            modifier = Modifier.matchParentSize(),
                             onTypeSelected = { type, actionTimestamp ->
                                 onAddJournalEntry(
                                     actionTimestamp,
