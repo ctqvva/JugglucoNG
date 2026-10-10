@@ -156,7 +156,7 @@ Reach for these before building a surface by hand.
 | A short wait with no progress to show | `LoadingIndicator` | material3 |
 | A progress bar | `LinearWavyProgressIndicator` | material3 |
 | An icon-only button | the button inside `IconButtonTooltip(label)`, label = its content description | `components/IconButtonTooltip.kt` |
-| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items trimmed to 44dp, labelLarge, 16dp ends (`JournalExpandableFab`) |
+| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; centred on the dashboard, where the end sat on the newest value (`JournalExpandableFab`) |
 | Actions on a multi-selection | `HorizontalFloatingToolbar`; the screen keeps its top bar | material3 |
 | Pick one value from a short list | `DropdownMenuPopup` + `DropdownMenuGroup` + `SelectableDropdownMenuItem` | material3 |
 | Landscape navigation | collapsed `WideNavigationRail` (portrait: `ShortNavigationBar`) | material3 |

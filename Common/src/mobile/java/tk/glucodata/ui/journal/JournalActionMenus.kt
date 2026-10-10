@@ -221,15 +221,17 @@ fun JournalFloatingActionMenu(
  * The journal's "+": material3's FAB menu. The button morphs into a close button and each
  * entry type is a menu item in its own colours. A tap outside or Back closes it, as the
  * popup it replaces did, the navigation bar or rail included. Call it last in a Box, so the
- * outside-tap catcher covers the rest of the screen; [modifier] places the menu (it adds 16dp
- * of its own padding).
+ * outside-tap catcher covers the rest of the screen; [modifier] places the menu, which adds
+ * the spec's 16dp from the edges itself. [horizontalAlignment] lines the items up over the
+ * button: End for a corner FAB, CenterHorizontally for a centred one.
  */
 @Composable
 fun BoxScope.JournalExpandableFab(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onTypeSelected: (JournalEntryType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.End
 ) {
     val view = LocalView.current
     val actionTypes = remember { journalReachActionTypes() }
@@ -245,6 +247,7 @@ fun BoxScope.JournalExpandableFab(
     FloatingActionButtonMenu(
         expanded = expanded,
         modifier = modifier,
+        horizontalAlignment = horizontalAlignment,
         button = {
             ToggleFloatingActionButton(
                 checked = expanded,
@@ -289,7 +292,10 @@ fun BoxScope.JournalExpandableFab(
                             .size(20.dp)
                     )
                 },
-                modifier = Modifier.height(FabMenuItemHeight),
+                // The padding sits outside the item's container: 4dp more between items.
+                modifier = Modifier
+                    .padding(vertical = FabMenuItemExtraGap)
+                    .height(FabMenuItemHeight),
                 containerColor = journalTypeSelectedContainerColor(actionType),
                 contentColor = MaterialTheme.colorScheme.onSurface
             )
@@ -302,6 +308,7 @@ fun BoxScope.JournalExpandableFab(
 // the padding is fixed inside, so the icon and the label reach 8dp into it (16dp a side).
 private val FabMenuItemHeight = 44.dp
 private val FabMenuItemPaddingTrim = 8.dp
+private val FabMenuItemExtraGap = 2.dp
 
 private fun Modifier.reachIntoPadding(start: Dp = 0.dp, end: Dp = 0.dp) = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)

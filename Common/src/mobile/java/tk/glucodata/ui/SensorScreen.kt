@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -519,7 +518,6 @@ fun SensorScreen(
                 onClick = { showSensorPicker = true },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(fabPadding)

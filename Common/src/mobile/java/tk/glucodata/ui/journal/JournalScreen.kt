@@ -410,9 +410,7 @@ fun JournalScreen(
                     null
                 )
             },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 4.dp, bottom = 4.dp) // + the menu's own 16dp: the FAB stays 20dp in
+            modifier = Modifier.align(Alignment.BottomEnd)
         )
     }
 }

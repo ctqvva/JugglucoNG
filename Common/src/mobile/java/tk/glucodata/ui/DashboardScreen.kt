@@ -2150,9 +2150,9 @@ fun DashboardScreen(
                             suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl
                         )
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 4.dp, bottom = 4.dp) // + the menu's own 16dp: the FAB stays 20dp in
+                    // Centred: at the end it sat on the newest reading's value.
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 )
             }
         }
