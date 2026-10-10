@@ -3036,4 +3036,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ssl_port">SSL порт</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Шилжилт: %1$s</string>
+    <string name="choose_color">Өнгө сонгох</string>
 </resources>

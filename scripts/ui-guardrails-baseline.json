@@ -1,5 +1,6 @@
 {
-  "allowed_exceptions": 37,
+  "allowed_exceptions": 36,
+  "button_without_shapes": 0,
   "collect_as_state": 0,
   "content_description_literal": 0,
   "font_weight_override": 21,

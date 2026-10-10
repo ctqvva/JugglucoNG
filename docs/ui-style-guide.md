@@ -61,9 +61,18 @@ Corner radii come from the M3 Expressive scale: **4, 8, 12, 16, 20, 28, 32, full
 | 28 | Dialogs, bottom sheets, large hero containers |
 | full | Buttons, chips, pills, circular indicators (`CircleShape`) |
 
-- **Buttons are pills.** A standalone button keeps the default shape; don't pass `shape =`.
+- **Buttons are pills that squeeze when pressed.** Pass `shapes = ButtonDefaults.shapes()`
+  (`IconButtonDefaults.shapes()` for icon buttons): round at rest, 8dp corners while pressed.
+  The shapes overload defaults to 16dp padding, so keep `contentPadding =
+  ButtonDefaults.ContentPadding` where the old width matters. Filter chips and time pickers
+  take their `…Defaults.shapes()` too. A custom silhouette goes through the same overload,
+  `shapes = ButtonDefaults.shapes(shape = …)`, so it still squeezes; a bare `shape =` does
+  not, and the ratchet counts it with the buttons that have no `shapes`. Colour a filled icon
+  button with `filledIconButtonColors`, never a `.background()` behind a plain `IconButton`:
+  the press shape would squeeze inside a circle that stays round.
 - **Connected buttons** (Reconnect | Disconnect) use `ConnectedButtonShapes`: pill ends
-  outside, 4dp where the halves meet. A split button is material3's `SplitButtonLayout`, and
+  outside, 4dp where the halves meet; pressed, the outer ends squeeze to 8dp
+  (`LeadingPressed` / `TrailingPressed`). A split button is material3's `SplitButtonLayout`, and
   a group of choices is `ConnectedButtonGroup`; both bring their own shapes and press morph.
 - **Statistics cards** use the one leaf shape, `StatsCardShape` (28 / 16).
 - **The dashboard hero** morphs its corners with the trend direction. That is the app's
@@ -145,6 +154,13 @@ Reach for these before building a surface by hand.
 | Two buttons as one control | `ConnectedButtonShapes` | `components/ConnectedButtonShapes.kt` |
 | An action with a related second action | `SplitButtonLayout` + `SplitButtonDefaults` | material3 |
 | A short wait with no progress to show | `LoadingIndicator` | material3 |
+| A progress bar | `LinearWavyProgressIndicator` | material3 |
+| An icon-only button | the button inside `IconButtonTooltip(label)`, label = its content description | `components/IconButtonTooltip.kt` |
+| A "+" that offers several kinds of thing | `FloatingActionButtonMenu` + `ToggleFloatingActionButton` | material3; journal items 44dp, 8dp apart, labelLarge, 16dp ends; FABs keep the spec 16dp corner and 16dp inset; centred on the dashboard, where the end sat on the newest value (`JournalExpandableFab`) |
+| Add at a point on the chart | `JournalFloatingActionMenu` | One column of the FAB menu's 44dp items, one width, centred on the tapped time's dot (where the chart draws it, followed as the screen moves) and 24dp beside it, left past the middle, above the time chip, free to leave the chart but not the window. Items spring out of the dot, middle first, (`motionScheme.fastSpatialSpec`) and fold back into it; corners on the dot's side sharpen with nearness to it |
+| Actions on a multi-selection | `HorizontalFloatingToolbar`; the screen keeps its top bar | material3 |
+| Pick one value from a short list | `DropdownMenuPopup` + `DropdownMenuGroup` + `SelectableDropdownMenuItem` | material3 |
+| Landscape navigation | collapsed `WideNavigationRail` (portrait: `ShortNavigationBar`) | material3 |
 | Switch | `StyledSwitch` | `components/StyledSwitch.kt` |
 | Sheet | `StableModalBottomSheet` | `components/StableModalBottomSheet.kt` |
 
@@ -176,7 +192,8 @@ read at 18dp.
   adjacent things that mean different things must not share one.
 - Glyph sizes: 24 (default, tiles), 20, 18 (in buttons), 16 or 14 (inline with label text).
 - `Icons.AutoMirrored.*` for anything directional (back, forward, lists), so RTL works.
-- Decorative icons get `contentDescription = null`; icon-only buttons get a translated label.
+- Decorative icons get `contentDescription = null`; icon-only buttons get a translated label,
+  and the same label as their tooltip (`IconButtonTooltip`).
 
 ---
 
@@ -243,7 +260,8 @@ read at 18dp.
 
 `scripts/ui-guardrails.py` counts the patterns above that can be checked mechanically
 (off-grid spacing, off-scale radii, hex colours, `isSystemInDarkTheme()`, `collectAsState()`,
-literal `Text("…")` and content descriptions, hand-built top bars, weight overrides) and
+literal `Text("…")` and content descriptions, hand-built top bars, weight overrides, buttons
+without the press-morph `shapes`) and
 compares each count with `scripts/ui-guardrails-baseline.json`. A count may go down; it may
 not go up. When you remove debt, lower the baseline in the same change:
 

@@ -43,7 +43,7 @@ internal fun CloneSettingsContent(
                 title = stringResource(R.string.clone_sync_title),
                 onNavigateBack = onBack,
                 actions = {
-                    IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all)) }
+                    IconButton(onClick = onRefresh, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all)) }
                 },
             )
         },

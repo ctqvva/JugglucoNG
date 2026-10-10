@@ -103,7 +103,9 @@ fun DexcomSetupWizard(
                 onClick = { showManualEntry = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 48.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Text(stringResource(R.string.enter_code_manually))
             }
@@ -152,13 +154,15 @@ private fun DexcomManualPairingDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(pairingCode) },
-                enabled = isValid
+                enabled = isValid,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }

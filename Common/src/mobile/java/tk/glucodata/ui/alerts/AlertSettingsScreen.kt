@@ -594,7 +594,9 @@ fun AddCustomAlertButton(text: String, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-        )
+        ),
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.ContentPadding
     ) {
         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
@@ -763,7 +765,9 @@ fun CustomAlertCard(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         ),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -1274,7 +1278,9 @@ private fun SensorExpiryThresholdSelector(
                     },
                     leadingIcon = if (isSelected) {
                         { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                    } else null
+                    } else null,
+                    shapes = FilterChipDefaults.shapes(),
+                    colors = FilterChipDefaults.filterChipColors()
                 )
             }
         }
@@ -1578,7 +1584,9 @@ private fun PreemptiveSnoozeDialog(
                         label = { Text(stringResource(R.string.low_alerts)) },
                         leadingIcon = if (snoozeLow) {
                             { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        } else null
+                        } else null,
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors()
                     )
                     FilterChip(
                         selected = snoozeHigh,
@@ -1586,7 +1594,9 @@ private fun PreemptiveSnoozeDialog(
                         label = { Text(stringResource(R.string.high_alerts)) },
                         leadingIcon = if (snoozeHigh) {
                             { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        } else null
+                        } else null,
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors()
                     )
                 }
 
@@ -1607,13 +1617,15 @@ private fun PreemptiveSnoozeDialog(
                     }
                     onDismiss()
                 },
-                enabled = snoozeLow || snoozeHigh
+                enabled = snoozeLow || snoozeHigh,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Text(stringResource(R.string.snooze))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -1882,19 +1894,23 @@ private fun TimeChip(
             text = {
                 TimePicker(
                     state = timePickerState,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shapes = TimePickerDefaults.shapes(),
+                    colors = TimePickerDefaults.colors()
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     onTimeChange(timePickerState.hour, timePickerState.minute)
                     showTimePicker = false
-                }) {
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
+                TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -1961,13 +1977,17 @@ internal fun RetrySettings(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
+                        },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors()
                     )
                     listOf(1, 2, 3, 5, 10, 15).forEach { minutes ->
                         FilterChip(
                             selected = intervalMinutes == minutes,
                             onClick = { onIntervalChange(minutes) },
-                            label = { Text(stringResource(R.string.minutes_short_format, minutes)) }
+                            label = { Text(stringResource(R.string.minutes_short_format, minutes)) },
+                            shapes = FilterChipDefaults.shapes(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                     }
                 }
@@ -1990,7 +2010,9 @@ internal fun RetrySettings(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            }
+                            },
+                            shapes = FilterChipDefaults.shapes(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                     }
                 }

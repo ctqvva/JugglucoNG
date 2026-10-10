@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.view.HapticFeedbackConstants
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
@@ -146,9 +148,12 @@ fun JournalScreen(
         mutableStateOf(JournalEntryType.entries.map { it.name })
     }
     var chartActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Where the chart draws the tapped time's dot, for the journal menu to grow from.
+    val chartActionAnchor = remember { tk.glucodata.ui.ChartActionAnchor() }
     var chartActionDisplayValue by remember { mutableStateOf<Float?>(null) }
     var chartActionAmountFraction by remember { mutableStateOf<Float?>(null) }
-    var fabExpanded by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
+    var fabExpanded by remember { mutableStateOf(false) }
 
     val selectedTypes = remember(selectedTypeFilters) {
         selectedTypeFilters.mapNotNull { name ->
@@ -260,6 +265,7 @@ fun JournalScreen(
                                 },
                                 journalActionTimestamp = chartActionTimestamp,
                                 journalActionDisplayValue = chartActionDisplayValue,
+                                journalActionAnchor = chartActionAnchor,
                                 onDismissJournalAction = { clearChartAction() },
                                 onJournalMarkerClick = { entryId ->
                                     entriesById[entryId]?.let { onJournalEntryClick?.invoke(it) }
@@ -268,28 +274,21 @@ fun JournalScreen(
                             )
                         }
 
-                        chartActionTimestamp?.let { actionTimestamp ->
-                            JournalFloatingActionMenu(
-                                visible = true,
-                                selectedTimestamp = actionTimestamp,
-                                onDismissRequest = { clearChartAction() },
-                                viewportSnapshot = viewportSnapshot,
-                                menuTopOffset = 40.dp,
-                                menuItemSpacing = 6.dp,
-                                menuYOffset = (-36).dp,
-                                modifier = Modifier.matchParentSize(),
-                                onTypeSelected = { type ->
-                                    onAddJournalEntry(
-                                        actionTimestamp,
-                                        type,
-                                        chartActionDisplayValue,
-                                        chartActionAmountFraction
-                                    )
-                                    clearChartAction()
-                                    fabExpanded = false
-                                }
-                            )
-                        }
+                        JournalFloatingActionMenu(
+                            selectedTimestamp = chartActionTimestamp,
+                            anchor = chartActionAnchor,
+                            onDismissRequest = { clearChartAction() },
+                            onTypeSelected = { type, actionTimestamp ->
+                                onAddJournalEntry(
+                                    actionTimestamp,
+                                    type,
+                                    chartActionDisplayValue,
+                                    chartActionAmountFraction
+                                )
+                                clearChartAction()
+                                fabExpanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -407,9 +406,7 @@ fun JournalScreen(
                     null
                 )
             },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 20.dp)
+            modifier = Modifier.align(Alignment.BottomEnd)
         )
     }
 }
@@ -455,19 +452,23 @@ private fun JournalHeader(
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Restaurant,
-                    contentDescription = stringResource(R.string.journal_food_library),
-                    tint = journalTypeColor(JournalEntryType.CARBS)
-                )
+            IconButtonTooltip(stringResource(R.string.journal_food_library)) {
+                IconButton(onClick = onOpenFoodLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = stringResource(R.string.journal_food_library),
+                        tint = journalTypeColor(JournalEntryType.CARBS)
+                    )
+                }
             }
-            IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Vaccines,
-                    contentDescription = stringResource(R.string.journal_insulin_library),
-                    tint = journalTypeColor(JournalEntryType.INSULIN)
-                )
+            IconButtonTooltip(stringResource(R.string.journal_insulin_library)) {
+                IconButton(onClick = onOpenInsulinLibrary, modifier = Modifier.size(40.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Icons.Default.Vaccines,
+                        contentDescription = stringResource(R.string.journal_insulin_library),
+                        tint = journalTypeColor(JournalEntryType.INSULIN)
+                    )
+                }
             }
         }
     }

@@ -1,5 +1,12 @@
 package tk.glucodata.ui.calibration
 
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.Block
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
 import android.view.HapticFeedbackConstants
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -261,6 +268,11 @@ fun CalibrationListScreen(
         }
     }
 
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        selectedIds = emptySet()
+    }
+
     LaunchedEffect(isRawMode, selectedAlgorithm, isCalibrationEnabled, calibrations) {
         CalibrationManager.refreshDiagnosticsPreview(isRawMode = isRawMode, force = true)
     }
@@ -268,55 +280,28 @@ fun CalibrationListScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (isSelectionMode) {
-                // Selection Mode TopBar
-                // ui-guardrails: allow hand_built_top_bar - a contextual selection bar (close, count, select all), not a screen's top bar
-                TopAppBar(
-                    title = { Text(stringResource(R.string.selected_count, selectedIds.size)) },
-                    navigationIcon = {
-                        IconButton(onClick = { 
-                            isSelectionMode = false
-                            selectedIds = emptySet()
-                        }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-                        }
-                    },
-                    actions = {
-                        // Select All
-                        TextButton(onClick = {
-                            selectedIds = if (selectedIds.size == calibrations.size) {
-                                emptySet()
-                            } else {
-                                calibrations.map { it.id }.toSet()
-                            }
-                        }) {
-                            Text(if (selectedIds.size == calibrations.size) stringResource(R.string.deselect_all) else stringResource(R.string.select_all))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                )
-            } else {
                 AppTopBar(
                     title = stringResource(R.string.calibration_with_mode, modeTitle),
                     onNavigateBack = { navController.navigateUp() },
                     actions = {
-                        IconButton(onClick = onOpenModelTable) {
-                            Icon(
-                                imageVector = Icons.Default.Analytics,
-                                contentDescription = stringResource(R.string.calibration_model_table_action)
-                            )
+                        IconButtonTooltip(stringResource(R.string.calibration_model_table_action)) {
+                            IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.Analytics,
+                                    contentDescription = stringResource(R.string.calibration_model_table_action)
+                                )
+                            }
                         }
-                        IconButton(onClick = { showImportExportSheet = true }) {
-                            Icon(
-                                imageVector = Icons.Default.ImportExport,
-                                contentDescription = stringResource(R.string.calibration_import_export_action)
-                            )
+                        IconButtonTooltip(stringResource(R.string.calibration_import_export_action)) {
+                            IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.ImportExport,
+                                    contentDescription = stringResource(R.string.calibration_import_export_action)
+                                )
+                            }
                         }
                     }
                 )
-            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0) 
     ) { innerPadding ->
@@ -495,6 +480,18 @@ fun CalibrationListScreen(
             ) {
                 SelectionModeToolbar(
                     selectedCount = selectedIds.size,
+                    allSelected = selectedIds.size == calibrations.size,
+                    onCancel = {
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                    },
+                    onToggleSelectAll = {
+                        selectedIds = if (selectedIds.size == calibrations.size) {
+                            emptySet()
+                        } else {
+                            calibrations.map { it.id }.toSet()
+                        }
+                    },
                     onDelete = { showBulkDeleteConfirmation = true },
                     onDisable = {
                         scope.launch {
@@ -554,11 +551,13 @@ fun CalibrationListScreen(
                                     isSelectionMode = false
                                     selectedIds = emptySet()
                                 }
-                            }
+                            },
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
                         ) { Text(stringResource(R.string.delete)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showBulkDeleteConfirmation = false }) { Text(stringResource(R.string.cancel)) }
+                        TextButton(onClick = { showBulkDeleteConfirmation = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
                     }
                 )
             }
@@ -1030,7 +1029,9 @@ private fun CalibrationWeightControl(
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shapes = FilterChipDefaults.shapes(),
+                    colors = FilterChipDefaults.filterChipColors()
                 )
             }
         }
@@ -1453,7 +1454,8 @@ private fun FloatingActionToolbar(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp),
-                shape = ConnectedButtonShapes.Leading,
+                shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1473,7 +1475,8 @@ private fun FloatingActionToolbar(
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp),
-            shape = ConnectedButtonShapes.Trailing,
+            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+            contentPadding = ButtonDefaults.ContentPadding,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1487,69 +1490,66 @@ private fun FloatingActionToolbar(
     }
 }
 
+/**
+ * Selection mode in material3's floating toolbar: cancel and the count lead, select-all and the
+ * bulk actions follow. The screen keeps its own top bar while selecting.
+ */
 @Composable
 private fun SelectionModeToolbar(
     selectedCount: Int,
+    allSelected: Boolean,
+    onCancel: () -> Unit,
+    onToggleSelectAll: () -> Unit,
     onDelete: () -> Unit,
     onDisable: () -> Unit,
     onEnable: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp,
-        shadowElevation = 4.dp
+    HorizontalFloatingToolbar(
+        expanded = true,
+        leadingContent = {
+            IconButtonTooltip(stringResource(R.string.cancel)) {
+                IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                }
+            }
+            Text(
+                text = stringResource(R.string.selected_count, selectedCount),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 8.dp)
+            )
+        }
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Disable
-            FilledTonalButton(
-                onClick = onDisable,
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.disable), style = MaterialTheme.typography.labelLarge)
+        val selectAllLabel = stringResource(if (allSelected) R.string.deselect_all else R.string.select_all)
+        IconButtonTooltip(selectAllLabel) {
+            IconButton(onClick = onToggleSelectAll, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    imageVector = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                    contentDescription = selectAllLabel
+                )
             }
-            
-            // Enable
-            FilledTonalButton(
-                onClick = onEnable,
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.enable), style = MaterialTheme.typography.labelLarge)
+        }
+        IconButtonTooltip(stringResource(R.string.disable)) {
+            IconButton(onClick = onDisable, shapes = IconButtonDefaults.shapes()) {
+                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.disable))
             }
-            
-            // Delete
-            FilledTonalButton(
+        }
+        IconButtonTooltip(stringResource(R.string.enable)) {
+            IconButton(onClick = onEnable, shapes = IconButtonDefaults.shapes()) {
+                Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.enable))
+            }
+        }
+        IconButtonTooltip(stringResource(R.string.delete)) {
+            FilledTonalIconButton(
                 onClick = onDelete,
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
+                shapes = IconButtonDefaults.shapes(),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                )
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
             }
         }
     }
@@ -1622,7 +1622,9 @@ private fun CalibrationImportExportBottomSheet(
 
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.cancel))
             }
@@ -1790,7 +1792,9 @@ private fun ClearOptionsBottomSheet(
             // Cancel
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.cancel))
             }
