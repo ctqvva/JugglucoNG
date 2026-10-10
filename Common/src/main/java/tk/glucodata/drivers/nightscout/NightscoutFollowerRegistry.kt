@@ -98,6 +98,9 @@ object NightscoutFollowerRegistry {
         prefs(context).edit()
             .putInt(PREF_POLL_MINUTES, NightscoutFollowerPollPolicy.sanitizeMinutes(minutes))
             .apply()
+        // apply() updates the in-memory value at once, so the follower already reads the new
+        // interval here; its pending alarm was booked with the old one.
+        findRunningFollower(loadConfig(context).sensorId)?.onPollIntervalChanged()
     }
 
     fun persistedSensorIds(context: Context): List<String> =
@@ -171,6 +174,41 @@ object NightscoutFollowerRegistry {
         restoreConfiguredFollower(context, config.sensorId)
             ?.recoverIfNeeded("network", forceWhenIdle = true)
     }
+
+    /** The app came to the foreground: fetch now rather than at the next scheduled poll. */
+    fun refreshOnForeground(context: Context): Boolean {
+        val config = loadConfig(context)
+        if (!config.isUsable) return false
+        return restoreConfiguredFollower(context, config.sensorId)?.requestForegroundRefresh() == true
+    }
+
+    /**
+     * Bring the follower back after the Bluetooth roster was torn down. Turning Bluetooth use
+     * off frees every callback, the follower included, although it never used Bluetooth; that
+     * also cancels its alarm, so nothing would poll again until the network changed.
+     */
+    fun ensureFollowerRunning(context: Context) {
+        val config = loadConfig(context)
+        if (!config.isUsable) return
+        if (findRunningFollower(config.sensorId) != null) return
+        connectSensor(context, config.sensorId)
+    }
+
+    /**
+     * Whether [follower] may cancel the poll alarm. All instances for one sensor book the same
+     * PendingIntent, so closing one that is not the registered follower (a discarded duplicate,
+     * a stale instance) must leave the registered one's alarm alone.
+     */
+    internal fun ownsSharedPollAlarm(follower: NightscoutFollowerManager): Boolean =
+        mayCancelSharedAlarm(follower, SensorBluetooth.mygatts()) { other ->
+            other is NightscoutFollowerManager && other.matchesManagedSensorId(follower.SerialNumber)
+        }
+
+    internal fun <T> mayCancelSharedAlarm(
+        self: T,
+        running: List<T>,
+        sharesAlarm: (T) -> Boolean,
+    ): Boolean = running.none { other -> other !== self && sharesAlarm(other) }
 
     fun enableFollowerSensor(
         context: Context,

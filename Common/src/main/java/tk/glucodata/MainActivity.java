@@ -855,6 +855,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
         // Resolve stored values and render notification charts on the notification worker.
         Notify.scheduleStoredGlucoseRefresh();
+        if (Applic.Nativesloaded) {
+            // A Nightscout follower shows whatever its last poll fetched, and the next poll
+            // can be minutes away. Opening the app is when someone is looking: fetch now.
+            try {
+                tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                        .refreshOnForeground(this);
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "onResume follower refresh", th);
+            }
+        }
         if (Applic.isWearable && Applic.Nativesloaded) {
             // The companion stream routinely stalls while the watch app is
             // backgrounded/dozed; ask the phone for the stream immediately on

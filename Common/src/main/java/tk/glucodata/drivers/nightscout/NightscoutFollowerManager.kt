@@ -15,6 +15,8 @@ import java.net.URLEncoder
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.Applic
@@ -46,7 +48,6 @@ class NightscoutFollowerManager(
         /** A server that is down overnight must not wake the phone twice a minute until morning. */
         private const val RETRY_BACKOFF_CEILING_MS = 15L * 60_000L
         private const val PROBE_INTERVAL_MS = 59_000L
-        private const val POLL_IN_FLIGHT_TIMEOUT_MS = 60_000L
         private const val DEVICE_STATUS_COUNT = 5
         private const val REFRESH_ERROR_LOG_INTERVAL_MS = 5L * 60_000L
         private const val MMOL_TO_MGDL = 18.0182f
@@ -58,8 +59,10 @@ class NightscoutFollowerManager(
         FOLLOWING,
     }
 
-    private val handlerThread = HandlerThread("NightscoutFollower-$serial").also { it.start() }
-    private val handler = Handler(handlerThread.looper)
+    // Replaced, not reused, when a refresh hangs: the stuck call keeps its old thread and
+    // a fresh one takes over polling (see abandonStalledRefresh).
+    @Volatile private var handlerThread = newHandlerThread()
+    @Volatile private var handler = Handler(handlerThread.looper)
     private val pollRunnable = Runnable { enqueueRefresh("timer", null) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val probeRunnable = Runnable { reconnect(System.currentTimeMillis()) }
@@ -69,6 +72,19 @@ class NightscoutFollowerManager(
     @Volatile private var consecutiveFailures: Int = 0
     @Volatile private var nextPollElapsedRealtime: Long = 0L
     private val refreshQueuedOrRunning = AtomicBoolean(false)
+    /** Guards the refresh flag, the generation and the adopted wakelock as one unit. */
+    private val refreshLock = Any()
+    /**
+     * Bumped whenever a queued or running refresh is given up on. A refresh only publishes,
+     * reschedules or clears the flag while its generation is still the current one, so a
+     * call that comes back late cannot overwrite the state its replacement owns.
+     */
+    private val refreshGeneration = AtomicLong(0L)
+    @Volatile private var lastProgressUptime: Long = 0L
+    @Volatile private var lastRefreshStartedElapsed: Long = 0L
+    @Volatile private var lastRefreshFinishedElapsed: Long = 0L
+    /** A poll alarm's wakelock that arrived while a refresh was already running. */
+    private val adoptedWakelock = AtomicReference<PowerManager.WakeLock?>(null)
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
@@ -162,7 +178,14 @@ class NightscoutFollowerManager(
 
     override fun close() {
         cancelPendingHandlerWork()
-        cancelPollAlarm()
+        // Every instance for this serial books the same PendingIntent. A duplicate being
+        // discarded, or a stale instance closed after its replacement started, must not
+        // cancel the poll the running follower depends on.
+        if (NightscoutFollowerRegistry.ownsSharedPollAlarm(this)) {
+            cancelPollAlarm()
+        } else {
+            nextPollElapsedRealtime = 0L
+        }
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close().
             // Quit the HandlerThread so it doesn't outlive the sensor object.
@@ -200,17 +223,59 @@ class NightscoutFollowerManager(
     }
 
     internal fun recoverIfNeeded(reason: String, forceWhenIdle: Boolean = false): Boolean {
-        if (stop || refreshQueuedOrRunning.get()) return false
+        if (stop) return false
+        if (refreshQueuedOrRunning.get()) {
+            // A refresh in progress books the next poll when it finishes, so it is left alone
+            // unless it has stopped making progress, in which case nothing else ever will.
+            if (!isRefreshStalled()) return false
+            abandonStalledRefresh(reason)
+            connectDevice(0)
+            return true
+        }
         val recover = NightscoutFollowerRecoveryPolicy.shouldRecover(
             nextPollElapsedRealtime = nextPollElapsedRealtime,
             nowElapsedRealtime = SystemClock.elapsedRealtime(),
-            syncing = phase == Phase.SYNCING,
+            // The flag, checked above, is what says a refresh is in progress. The phase can
+            // still read SYNCING after a refresh was given up on and must not block repair.
+            syncing = false,
             force = forceWhenIdle && phase == Phase.IDLE,
         )
         if (!recover) return false
         Log.w(TAG, "Repairing missing or overdue follower poll ($reason)")
         connectDevice(0)
         return true
+    }
+
+    /**
+     * The app was opened. Whatever is on screen is as old as the last poll, and the next one
+     * may be minutes away, so fetch now instead of making someone wait for it.
+     */
+    internal fun requestForegroundRefresh(): Boolean {
+        if (stop) return false
+        if (refreshQueuedOrRunning.get()) return recoverIfNeeded("foreground")
+        val due = NightscoutFollowerRecoveryPolicy.shouldRefreshOnForeground(
+            lastRefreshStartedElapsed = lastRefreshStartedElapsed,
+            nowElapsedRealtime = SystemClock.elapsedRealtime(),
+        )
+        if (!due) return false
+        armRecoveryProbe()
+        enqueueRefresh("foreground", null)
+        return true
+    }
+
+    /** The user picked a new interval; move the pending poll instead of waiting out the old one. */
+    internal fun onPollIntervalChanged() {
+        // A refresh in progress reads the interval fresh when it books the next poll.
+        if (stop || refreshQueuedOrRunning.get()) return
+        scheduleRefresh(
+            NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+                lastCompletedElapsed = lastRefreshFinishedElapsed,
+                nextPollElapsed = nextPollElapsedRealtime,
+                nowElapsed = SystemClock.elapsedRealtime(),
+                newIntervalMillis = pollIntervalMillis(),
+                failing = consecutiveFailures > 0,
+            )
+        )
     }
 
     private fun armRecoveryProbe() {
@@ -277,6 +342,10 @@ class NightscoutFollowerManager(
             enqueueRefresh("poll", null)
             return
         }
+        setPollAlarm(delayMillis)
+    }
+
+    private fun setPollAlarm(delayMillis: Long) {
         val at = SystemClock.elapsedRealtime() + delayMillis
         nextPollElapsedRealtime = at
         val app = Applic.app
@@ -301,6 +370,17 @@ class NightscoutFollowerManager(
         }
     }
 
+    /**
+     * Book a poll before the refresh starts rather than only after it ends. Once the
+     * receiver's wakelock runs out the phone may sleep in the middle of a refresh, and a
+     * refresh frozen that way never reaches the line that books its successor. The refresh
+     * replaces this alarm when it finishes; if it does not, this one wakes the phone again.
+     */
+    private fun armBackstop() {
+        if (stop) return
+        setPollAlarm(NightscoutFollowerRecoveryPolicy.backstopDelayMillis(pollIntervalMillis()))
+    }
+
     private fun cancelPollAlarm() {
         val alarms = Applic.app?.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         pollIntent()?.let { pending -> runCatching { alarms?.cancel(pending) } }
@@ -309,10 +389,44 @@ class NightscoutFollowerManager(
 
     private fun cancelPendingHandlerWork() {
         handler.removeCallbacksAndMessages(null)
-        // A queued refresh has not changed phase yet. A running one has, and owns the flag
-        // until its finally block, so do not make a second refresh eligible alongside it.
-        if (phase != Phase.SYNCING) {
+        synchronized(refreshLock) {
+            // A refresh already running cannot be pulled off the thread. Moving the generation
+            // on makes it inert instead: it will not publish, reschedule or touch the flag.
+            refreshGeneration.incrementAndGet()
             refreshQueuedOrRunning.set(false)
+            releaseWakelock(adoptedWakelock.getAndSet(null))
+        }
+    }
+
+    private fun newHandlerThread(): HandlerThread =
+        HandlerThread("NightscoutFollower-$SerialNumber").also { it.start() }
+
+    private fun noteProgress() {
+        lastProgressUptime = SystemClock.uptimeMillis()
+    }
+
+    private fun isRefreshStalled(): Boolean =
+        NightscoutFollowerRecoveryPolicy.isStalled(lastProgressUptime, SystemClock.uptimeMillis())
+
+    private fun isCurrent(generation: Long): Boolean =
+        !stop && refreshGeneration.get() == generation
+
+    /**
+     * Give up on a refresh that stopped making progress. The call blocking it cannot be
+     * interrupted, so it keeps the old thread to itself and finishes (or not) there as an
+     * inert generation; polling moves to a fresh thread.
+     */
+    private fun abandonStalledRefresh(reason: String) {
+        synchronized(refreshLock) {
+            Log.w(TAG, "Abandoning a follower refresh that stopped making progress ($reason)")
+            refreshGeneration.incrementAndGet()
+            refreshQueuedOrRunning.set(false)
+            releaseWakelock(adoptedWakelock.getAndSet(null))
+            val stale = handlerThread
+            val fresh = newHandlerThread()
+            handlerThread = fresh
+            handler = Handler(fresh.looper)
+            runCatching { stale.quit() }
         }
     }
 
@@ -328,26 +442,52 @@ class NightscoutFollowerManager(
         }
         handler.removeCallbacks(pollRunnable)
         armRecoveryProbe()
+        if (refreshQueuedOrRunning.get() && isRefreshStalled()) {
+            abandonStalledRefresh("alarm")
+        }
         enqueueRefresh("alarm", wakelock)
     }
 
     private fun enqueueRefresh(reason: String, wakelock: PowerManager.WakeLock?) {
-        if (stop || !refreshQueuedOrRunning.compareAndSet(false, true)) {
-            releaseWakelock(wakelock)
-            return
-        }
-        nextPollElapsedRealtime = SystemClock.elapsedRealtime() + POLL_IN_FLIGHT_TIMEOUT_MS
-        val accepted = handler.post {
-            try {
-                refresh(reason)
-            } finally {
+        synchronized(refreshLock) {
+            if (stop) {
+                releaseWakelock(wakelock)
+                return
+            }
+            if (!refreshQueuedOrRunning.compareAndSet(false, true)) {
+                // Usually the backstop firing on a refresh the phone froze by sleeping. The
+                // alarm has just woken the phone; keep it awake until that refresh finishes,
+                // and book another backstop in case it freezes again.
+                if (wakelock != null) {
+                    releaseWakelock(adoptedWakelock.getAndSet(wakelock))
+                    armBackstop()
+                }
+                return
+            }
+            val generation = refreshGeneration.incrementAndGet()
+            lastRefreshStartedElapsed = SystemClock.elapsedRealtime()
+            noteProgress()
+            armBackstop()
+            val accepted = handler.post { runRefresh(reason, generation, wakelock) }
+            if (!accepted) {
                 refreshQueuedOrRunning.set(false)
+                nextPollElapsedRealtime = 0L
                 releaseWakelock(wakelock)
             }
         }
-        if (!accepted) {
-            refreshQueuedOrRunning.set(false)
-            nextPollElapsedRealtime = 0L
+    }
+
+    private fun runRefresh(reason: String, generation: Long, wakelock: PowerManager.WakeLock?) {
+        try {
+            noteProgress()
+            refresh(reason, generation)
+        } finally {
+            synchronized(refreshLock) {
+                if (refreshGeneration.get() == generation) {
+                    refreshQueuedOrRunning.set(false)
+                    releaseWakelock(adoptedWakelock.getAndSet(null))
+                }
+            }
             releaseWakelock(wakelock)
         }
     }
@@ -356,47 +496,38 @@ class NightscoutFollowerManager(
         runCatching { if (wakelock?.isHeld == true) wakelock.release() }
     }
 
-    private fun refresh(reason: String) {
-        if (stop) return
+    private fun refresh(reason: String, generation: Long) {
+        if (!isCurrent(generation)) return
         if (url.isBlank()) {
+            cancelPollAlarm()
             setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_config_needed, "Enter Nightscout URL"))
             return
         }
         setStatus(Phase.SYNCING, localizedString(R.string.nightscout_follow_status_syncing, "Refreshing Nightscout"))
         try {
-            val fetched = fetchReadings()
-            val readings = fetched.latestReadings
-            importRemoteTreatments()
-            refreshRemoteDeviceStatus()
+            // Readings first, everything else after: the value on screen should not wait on
+            // 512 treatments, 512 finger sticks and devicestatus downloading behind it.
+            val outcome = NightscoutFollowerRefreshSequence.run(
+                fetch = ::fetchReadings,
+                publish = { fetched -> publishFetched(fetched, reason) },
+                enrich = {
+                    noteProgress()
+                    importRemoteTreatments()
+                    refreshRemoteDeviceStatus()
+                },
+                isCurrent = { isCurrent(generation) },
+                onEnrichFailure = { error -> Log.w(TAG, "Nightscout enrichment ignored: ${error.message}") },
+            )
+            if (outcome == NightscoutFollowerRefreshSequence.Outcome.SUPERSEDED) return
             // Any completed refresh ends the previous failure episode, even when the server
             // legitimately has no readings yet. The next failure should get the prompt first
             // retry and a fresh diagnostic instead of inheriting stale backoff state.
             consecutiveFailures = 0
             refreshErrorLog.reset()
-            if (readings.isEmpty()) {
-                setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_no_readings, "No Nightscout readings yet"))
-                scheduleRefresh(pollIntervalMillis())
-                return
-            }
-            if (!fetched.historyImported) {
-                importHistory(readings)
-            }
-            publishLatest(readings)
-            bootstrapHistoryPending = false
-            setStatus(Phase.FOLLOWING, localizedString(R.string.nightscout_follow_status_following, "Following Nightscout"))
-            Log.i(
-                TAG,
-                String.format(
-                    Locale.US,
-                    "Nightscout follower refreshed (%s): %s points latest=%.1f",
-                    reason,
-                    fetched.fetchedCount,
-                    readings.last().glucoseMgdl,
-                ),
-            )
-            UiRefreshBus.requestDataRefresh()
+            lastRefreshFinishedElapsed = SystemClock.elapsedRealtime()
             scheduleRefresh(pollIntervalMillis())
         } catch (t: Throwable) {
+            if (!isCurrent(generation)) return
             // The poll retries every 30s, far faster than a stuck server recovers, so an
             // unchanged failure used to write a stack trace every half minute.
             val message = "refresh($reason): ${t.message}"
@@ -416,8 +547,34 @@ class NightscoutFollowerManager(
             val backoff = (RETRY_INTERVAL_MS shl (consecutiveFailures - 1))
                 .coerceAtMost(RETRY_BACKOFF_CEILING_MS)
                 .coerceAtMost(pollIntervalMillis().coerceAtLeast(RETRY_INTERVAL_MS))
+            lastRefreshFinishedElapsed = SystemClock.elapsedRealtime()
             scheduleRefresh(backoff)
         }
+    }
+
+    private fun publishFetched(fetched: FetchedReadings, reason: String) {
+        val readings = fetched.latestReadings
+        if (readings.isEmpty()) {
+            setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_no_readings, "No Nightscout readings yet"))
+            return
+        }
+        if (!fetched.historyImported) {
+            importHistory(readings)
+        }
+        publishLatest(readings)
+        bootstrapHistoryPending = false
+        setStatus(Phase.FOLLOWING, localizedString(R.string.nightscout_follow_status_following, "Following Nightscout"))
+        Log.i(
+            TAG,
+            String.format(
+                Locale.US,
+                "Nightscout follower refreshed (%s): %s points latest=%.1f",
+                reason,
+                fetched.fetchedCount,
+                readings.last().glucoseMgdl,
+            ),
+        )
+        UiRefreshBus.requestDataRefresh()
     }
 
     private fun importHistory(readings: List<VirtualGlucoseSensorBridge.Reading>) {
@@ -470,6 +627,7 @@ class NightscoutFollowerManager(
         val lowerBoundMs = NightscoutFollowerHistoryPaging.lowerBoundMs(
             latestStoredMs = latestStoredMs,
             bootstrap = bootstrapHistoryPending,
+            nowMs = System.currentTimeMillis(),
         )
         if (bootstrapHistoryPending || lowerBoundMs == null) {
             val result = NightscoutFollowerHistoryPaging.consumePages(
@@ -487,6 +645,8 @@ class NightscoutFollowerManager(
                     check(imported > 0) {
                         "Nightscout history page could not be stored"
                     }
+                    // A first import can run to many pages; each stored one is progress.
+                    noteProgress()
                 },
             )
             lastImportedHistoryTailMs =
@@ -519,6 +679,28 @@ class NightscoutFollowerManager(
             beforeExclusiveMs = beforeExclusiveMs,
             useV3 = useV3,
         )
+        val response = httpGet(endpoint)
+        if (response.code !in 200..299) {
+            throw IllegalStateException(failureText("entries", response.code, endpoint, response.body))
+        }
+        val array = JSONArray(NightscoutFollowerV3.arrayBody(response.body))
+        val readings = ArrayList<VirtualGlucoseSensorBridge.Reading>(array.length())
+        for (index in 0 until array.length()) {
+            parseEntry(array.optJSONObject(index))?.let(readings::add)
+        }
+        return readings
+            .distinctBy { it.timestampMs }
+            .sortedBy { it.timestampMs }
+    }
+
+    private class HttpResponse(val code: Int, val body: String)
+
+    /**
+     * One GET against the follower's server. Marks progress on both sides of the call, so a
+     * refresh only looks stuck when a single request has not come back.
+     */
+    private fun httpGet(endpoint: String): HttpResponse {
+        noteProgress()
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
@@ -533,19 +715,10 @@ class NightscoutFollowerManager(
                 ?.bufferedReader()
                 ?.use { it.readText() }
                 .orEmpty()
-            if (code !in 200..299) {
-                throw IllegalStateException(failureText("entries", code, endpoint, body))
-            }
-            val array = JSONArray(NightscoutFollowerV3.arrayBody(body))
-            val readings = ArrayList<VirtualGlucoseSensorBridge.Reading>(array.length())
-            for (index in 0 until array.length()) {
-                parseEntry(array.optJSONObject(index))?.let(readings::add)
-            }
-            return readings
-                .distinctBy { it.timestampMs }
-                .sortedBy { it.timestampMs }
+            return HttpResponse(code, body)
         } finally {
             connection.disconnect()
+            noteProgress()
         }
     }
 
@@ -588,28 +761,7 @@ class NightscoutFollowerManager(
         } else {
             "$baseUrl/api/v1/devicestatus.json?count=$DEVICE_STATUS_COUNT"
         }
-        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 30_000
-            requestMethod = "GET"
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            applyFollowerAuth(this)
-        }
-        try {
-            val code = connection.responseCode
-            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader()
-                ?.use { it.readText() }
-                .orEmpty()
-            if (code == 404) return "[]"
-            if (code !in 200..299) {
-                throw IllegalStateException(failureText("devicestatus", code, endpoint, body))
-            }
-            return NightscoutFollowerV3.arrayBody(body)
-        } finally {
-            connection.disconnect()
-        }
+        return fetchJournalJson(endpoint, "devicestatus")
     }
 
     private fun fetchTreatmentsJson(): String {
@@ -668,28 +820,12 @@ class NightscoutFollowerManager(
     }
 
     private fun fetchJournalJson(endpoint: String, label: String): String {
-        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 30_000
-            requestMethod = "GET"
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            applyFollowerAuth(this)
+        val response = httpGet(endpoint)
+        if (response.code == 404) return "[]"
+        if (response.code !in 200..299) {
+            throw IllegalStateException(failureText(label, response.code, endpoint, response.body))
         }
-        try {
-            val code = connection.responseCode
-            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader()
-                ?.use { it.readText() }
-                .orEmpty()
-            if (code == 404) return "[]"
-            if (code !in 200..299) {
-                throw IllegalStateException(failureText(label, code, endpoint, body))
-            }
-            return NightscoutFollowerV3.arrayBody(body)
-        } finally {
-            connection.disconnect()
-        }
+        return NightscoutFollowerV3.arrayBody(response.body)
     }
 
     private fun parseEntry(entry: JSONObject?): VirtualGlucoseSensorBridge.Reading? {
@@ -711,6 +847,40 @@ class NightscoutFollowerManager(
 
 }
 
+/**
+ * The order of one refresh, kept apart from the network so it can be tested.
+ *
+ * Readings are published as soon as they arrive; treatments, finger sticks and devicestatus
+ * come after and can neither delay the value on screen nor turn a refresh that already
+ * delivered it into a failure. A refresh that was given up on while it ran stops at the next
+ * step instead of publishing over its replacement.
+ */
+internal object NightscoutFollowerRefreshSequence {
+    enum class Outcome {
+        COMPLETED,
+        SUPERSEDED,
+    }
+
+    fun <T> run(
+        fetch: () -> T,
+        publish: (T) -> Unit,
+        enrich: () -> Unit,
+        isCurrent: () -> Boolean,
+        onEnrichFailure: (Throwable) -> Unit = {},
+    ): Outcome {
+        val fetched = fetch()
+        if (!isCurrent()) return Outcome.SUPERSEDED
+        publish(fetched)
+        if (!isCurrent()) return Outcome.SUPERSEDED
+        try {
+            enrich()
+        } catch (t: Throwable) {
+            onEnrichFailure(t)
+        }
+        return if (isCurrent()) Outcome.COMPLETED else Outcome.SUPERSEDED
+    }
+}
+
 internal object NightscoutFollowerJournalEndpoints {
     private const val JOURNAL_COUNT = 512
 
@@ -727,12 +897,18 @@ internal object NightscoutFollowerHistoryPaging {
     private const val INCREMENTAL_OVERLAP_MS = 5L * 60L * 1000L
     private const val PAGE_COUNT = 1_000
 
+    /**
+     * Where an incremental fetch starts. A stored reading dated in the future (an uploader
+     * whose clock ran ahead, say) would otherwise move the start past every real reading the
+     * server will ever have, and the follower would fetch nothing until the clock caught up.
+     */
     fun lowerBoundMs(
         latestStoredMs: Long,
         bootstrap: Boolean,
+        nowMs: Long = System.currentTimeMillis(),
     ): Long? =
         if (bootstrap || latestStoredMs <= 0L) null
-        else (latestStoredMs - INCREMENTAL_OVERLAP_MS).coerceAtLeast(1L)
+        else (latestStoredMs.coerceAtMost(nowMs) - INCREMENTAL_OVERLAP_MS).coerceAtLeast(1L)
 
     fun endpoint(
         baseUrl: String,
