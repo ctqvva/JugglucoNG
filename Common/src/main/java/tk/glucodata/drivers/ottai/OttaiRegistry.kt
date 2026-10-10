@@ -398,6 +398,12 @@ object OttaiRegistry {
         // rebuilt it as a generic Libre callback: a paused card titled with a cut-off id that
         // needed a second Disconnect (2026-10-10, 8871A25). Finish it while the record still
         // exists; a re-added sensor revives it on its first native write.
+        // WearSync2 removes the record before SensorBluetooth.sensorEnded() frees callbacks.
+        // Stop and drain them here while aliases still resolve to their owner; otherwise an
+        // in-flight native write can revive the shell after it has been finished.
+        SensorBluetooth.mygatts().filterIsInstance<OttaiBleManager>()
+            .filter { callback -> removed.any { callback.matchesManagedSensorId(it.sensorId) } }
+            .forEach { it.stopForRemoval() }
         removed.forEach { finishNativeShell(it.sensorId) }
         writeRecords(context, remaining)
         writeRecords(
