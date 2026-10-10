@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -35,7 +36,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -386,7 +386,7 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                     Spacer(Modifier.size(8.dp))
                     Text(stringResource(if (scanning) R.string.scanning_devices else R.string.finddevices))
                 }
-                if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+                if (scanning) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             items(nearby, key = NearbyGlucoseMeter::address) { candidate ->
                 SettingsItem(

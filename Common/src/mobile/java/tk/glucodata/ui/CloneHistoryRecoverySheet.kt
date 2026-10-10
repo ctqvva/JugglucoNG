@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import android.text.format.Formatter
@@ -25,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -452,9 +452,9 @@ private fun CloneHistoryRecoveryProgress(
     Text(phaseText, style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
     if (progress != null && state.phase in setOf(CloneOutgoingPhase.PUTTING_PACKAGE, CloneOutgoingPhase.GETTING_PACKAGE)) {
-        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
     } else if (!state.phase.isTerminal) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
     manifest?.let {
         Spacer(Modifier.height(8.dp))

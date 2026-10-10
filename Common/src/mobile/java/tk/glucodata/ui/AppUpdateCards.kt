@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.content.ActivityNotFoundException
@@ -45,7 +46,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -258,7 +258,7 @@ internal fun AppUpdateStatusCard(
             ),
             icon = Icons.Filled.Download,
             content = {
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { state.downloadFraction },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -277,7 +277,7 @@ internal fun AppUpdateStatusCard(
             title = stringResource(R.string.app_updates_verifying_title),
             body = stringResource(R.string.app_updates_verifying_body),
             icon = Icons.Filled.Security,
-            content = { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            content = { LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         )
 
         // Reached when the system prompt was dismissed or the install failed. The normal path

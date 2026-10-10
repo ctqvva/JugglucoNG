@@ -1,5 +1,6 @@
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -45,7 +46,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -248,7 +248,7 @@ fun LibreSetupWizard(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { (currentStep + 1f) / 2f },
                 modifier = Modifier
                     .fillMaxWidth()

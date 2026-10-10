@@ -291,7 +291,7 @@ fun AiDexScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         tk.glucodata.ui.CgmReadinessSetupBanner(
             modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
             onOpenReadiness = onNavigateToReadiness

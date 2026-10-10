@@ -8,6 +8,7 @@
 
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -60,7 +61,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -1657,7 +1657,7 @@ fun OttaiSetupWizard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (status.isNotBlank()) Text(status)
-                    if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (busy) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
                     if (signedIn) {
                         OutlinedButton(
                             onClick = { refreshAccountDevices(cloudId) },
@@ -2206,7 +2206,7 @@ private fun OttaiBleScanPanel(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (scanActive) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
