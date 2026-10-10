@@ -1,5 +1,6 @@
 package tk.glucodata.ui.stats
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.view.HapticFeedbackConstants
@@ -347,49 +348,55 @@ private fun EditorRow(
             )
         }
         if (wide != null) {
-            IconButton(onClick = onToggleWide, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
-                Icon(
-                    imageVector = if (wide) Icons.Default.WidthFull else Icons.Default.WidthNormal,
-                    contentDescription = stringResource(R.string.stats_arrange_width),
-                    tint = if (wide) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    },
-                    modifier = Modifier.size(20.dp)
-                )
+            IconButtonTooltip(stringResource(R.string.stats_arrange_width)) {
+                IconButton(onClick = onToggleWide, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = if (wide) Icons.Default.WidthFull else Icons.Default.WidthNormal,
+                        contentDescription = stringResource(R.string.stats_arrange_width),
+                        tint = if (wide) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
         if (pinnable) {
-            IconButton(
-                onClick = onTogglePinned,
-                enabled = pinEnabled,
-                modifier = Modifier.size(38.dp),
-                shapes = IconButtonDefaults.shapes()
-            ) {
+            IconButtonTooltip(stringResource(R.string.stats_arrange_pin)) {
+                IconButton(
+                    onClick = onTogglePinned,
+                    enabled = pinEnabled,
+                    modifier = Modifier.size(38.dp),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(
+                        imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = stringResource(R.string.stats_arrange_pin),
+                        tint = when {
+                            pinned -> MaterialTheme.colorScheme.primary
+                            pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+        IconButtonTooltip(stringResource(R.string.stats_arrange_visibility)) {
+            IconButton(onClick = onToggleHidden, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
                 Icon(
-                    imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                    contentDescription = stringResource(R.string.stats_arrange_pin),
-                    tint = when {
-                        pinned -> MaterialTheme.colorScheme.primary
-                        pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    imageVector = if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = stringResource(R.string.stats_arrange_visibility),
+                    tint = if (hidden) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.primary
                     },
                     modifier = Modifier.size(20.dp)
                 )
             }
-        }
-        IconButton(onClick = onToggleHidden, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
-            Icon(
-                imageVector = if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                contentDescription = stringResource(R.string.stats_arrange_visibility),
-                tint = if (hidden) {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }

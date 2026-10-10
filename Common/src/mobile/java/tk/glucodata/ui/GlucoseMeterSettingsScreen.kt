@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.Manifest
@@ -350,12 +351,14 @@ fun GlucoseMeterSettingsScreen(navController: NavController) {
                             },
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = { pendingForget = meter }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.glucose_meter_forget),
-                                tint = MaterialTheme.colorScheme.error,
-                            )
+                        IconButtonTooltip(stringResource(R.string.glucose_meter_forget)) {
+                            IconButton(onClick = { pendingForget = meter }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.glucose_meter_forget),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                 }

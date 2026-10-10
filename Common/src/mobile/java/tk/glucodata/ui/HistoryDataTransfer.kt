@@ -855,8 +855,8 @@ fun ScheduledBackupSettingsSheet(
                                 modifier = Modifier
                                     .align(Alignment.End)
                                     .padding(top = 8.dp),
-                                    shapes = ButtonDefaults.shapes(),
-                                    contentPadding = ButtonDefaults.ContentPadding
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) {
                                 Text(stringResource(R.string.scheduled_backup_acknowledge))
                             }

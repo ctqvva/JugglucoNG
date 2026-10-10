@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -333,22 +334,26 @@ fun DebugSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.debug_logs_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { showHowTo = !showHowTo }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.HelpOutline,
-                            contentDescription = stringResource(R.string.debug_howto_title)
-                        )
-                    }
-                    IconButton(onClick = {
-                        when (logType) {
-                            LogType.TRACE -> Natives.zeroLog()
-                            LogType.LOGCAT -> Natives.zeroLogcat()
-                            LogType.BLE_ERRORS -> BleErrorHistory.clear()
+                    IconButtonTooltip(stringResource(R.string.debug_howto_title)) {
+                        IconButton(onClick = { showHowTo = !showHowTo }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.HelpOutline,
+                                contentDescription = stringResource(R.string.debug_howto_title)
+                            )
                         }
-                        snapshot = LogSnapshot()
-                    },
-                    shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
+                    }
+                    IconButtonTooltip(stringResource(R.string.clear)) {
+                        IconButton(onClick = {
+                            when (logType) {
+                                LogType.TRACE -> Natives.zeroLog()
+                                LogType.LOGCAT -> Natives.zeroLogcat()
+                                LogType.BLE_ERRORS -> BleErrorHistory.clear()
+                            }
+                            snapshot = LogSnapshot()
+                        },
+                        shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear))
+                        }
                     }
                 },
             )
@@ -473,12 +478,14 @@ private fun HowToReportCard(onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.titleSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.debug_dismiss_howto),
-                        modifier = Modifier.size(18.dp)
-                    )
+                IconButtonTooltip(stringResource(R.string.debug_dismiss_howto)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.debug_dismiss_howto),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))

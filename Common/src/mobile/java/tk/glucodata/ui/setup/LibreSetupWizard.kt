@@ -1,5 +1,6 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.BackHandler
@@ -319,8 +320,8 @@ fun LibreSetupWizard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(ui.buttonHeight),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Icon(Icons.Default.Nfc, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -495,15 +496,17 @@ fun LibreSetupWizard(
                                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     val image = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                    IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
-                                        Icon(
-                                            imageVector = image,
-                                            contentDescription = if (showPassword) {
-                                                stringResource(R.string.hide_password)
-                                            } else {
-                                                stringResource(R.string.show_password)
-                                            }
-                                        )
+                                    IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                        IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
+                                            Icon(
+                                                imageVector = image,
+                                                contentDescription = if (showPassword) {
+                                                    stringResource(R.string.hide_password)
+                                                } else {
+                                                    stringResource(R.string.show_password)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             )

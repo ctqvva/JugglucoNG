@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.stats
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.ClipData
@@ -1187,12 +1188,14 @@ private fun HeaderBlock(
     onShareClick: () -> Unit
 ) {
     TabScreenHeader(title = stringResource(R.string.statistics_title)) {
-        IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
-            Icon(
-                imageVector = Icons.Filled.Share,
-                contentDescription = stringResource(R.string.export),
-                tint = MaterialTheme.colorScheme.primary
-            )
+        IconButtonTooltip(stringResource(R.string.export)) {
+            IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = stringResource(R.string.export),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -1208,17 +1209,19 @@ private fun JournalFoodLibrarySearchField(
                 }
             )
             if (onClose != null) {
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(42.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.clear),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButtonTooltip(stringResource(R.string.clear)) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(42.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.clear),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1926,7 +1929,7 @@ private fun JournalInsulinPresetSheet(
                                 modifier = Modifier
                                     .height(32.dp)
                                     .widthIn(max = 132.dp),
-                                    shapes = ButtonDefaults.shapes()
+                                shapes = ButtonDefaults.shapes()
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Restore,
@@ -2220,11 +2223,13 @@ private fun SelectedCurvePointEditor(
                 modifier = Modifier.weight(1f)
             )
             if (canDelete) {
-                IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.delete)
-                    )
+                IconButtonTooltip(stringResource(R.string.delete)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete)
+                        )
+                    }
                 }
             }
         }

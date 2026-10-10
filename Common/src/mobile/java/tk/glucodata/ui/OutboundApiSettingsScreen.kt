@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
@@ -353,8 +354,10 @@ private fun DestinationCard(
                     checked = destination.enabled,
                     onCheckedChange = onEnabledChange
                 )
-                IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                IconButtonTooltip(stringResource(R.string.delete)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                    }
                 }
                 IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
                     Icon(
@@ -401,7 +404,7 @@ private fun DestinationCard(
                                     confirmTestSms = false
                                     onSendTest()
                                 },
-                                shapes = ButtonDefaults.shapes(),
+                        shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.TextButtonContentPadding) {
                                     Text(stringResource(R.string.sms_send_test))
                                 }
@@ -986,16 +989,18 @@ internal fun NumberStepper(
                 modifier = Modifier.height(48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
-                    enabled = value > range.first,
-                    modifier = Modifier.size(48.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        Icons.Filled.Remove,
-                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                    IconButton(
+                        onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
+                        enabled = value > range.first,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Remove,
+                            contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                        )
+                    }
                 }
                 Text(
                     text = value.toString(),
@@ -1004,16 +1009,18 @@ internal fun NumberStepper(
                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(
-                    onClick = { onChange((value + 1).coerceAtMost(range.last)) },
-                    enabled = value < range.last,
-                    modifier = Modifier.size(48.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.outbound_api_increase_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                    IconButton(
+                        onClick = { onChange((value + 1).coerceAtMost(range.last)) },
+                        enabled = value < range.last,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.outbound_api_increase_value)
+                        )
+                    }
                 }
             }
         }

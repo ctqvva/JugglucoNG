@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.Manifest
@@ -299,11 +300,13 @@ private fun SmsContactCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.sms_remove_contact)
-                    )
+                IconButtonTooltip(stringResource(R.string.sms_remove_contact)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.sms_remove_contact)
+                        )
+                    }
                 }
                 IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
                     Icon(

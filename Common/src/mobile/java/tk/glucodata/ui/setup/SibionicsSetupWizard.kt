@@ -713,8 +713,8 @@ fun ScanSensorStep(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(buttonHeight),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     if (bleProbeScanning) {
                         CircularProgressIndicator(
@@ -779,8 +779,8 @@ fun ScanSensorStep(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(buttonHeight),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Default.Bluetooth, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -817,8 +817,8 @@ fun ScanSensorStep(
             TextButton(
                 onClick = { showManualEntry = true },
                         modifier = Modifier.fillMaxWidth().height(buttonHeight),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
 
             ) {
                 Text(stringResource(R.string.enter_code_manually))
@@ -953,8 +953,8 @@ fun SelectTypeStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(buttonHeight),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
         ) {
             Text(
                 text = stringResource(R.string.continue_action),

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.journal
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -545,12 +546,14 @@ fun JournalEntrySheet(
 //                        )
                     }
                     existingEntry?.id?.let { entryId ->
-                        IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.delete),
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        IconButtonTooltip(stringResource(R.string.delete)) {
+                            IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.delete),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
@@ -840,7 +843,7 @@ fun JournalEntrySheet(
                     }
                     showDatePicker = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
@@ -885,7 +888,7 @@ fun JournalEntrySheet(
                     )
                     showTimePicker = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
@@ -1728,20 +1731,22 @@ private fun JournalFoodLibrarySelector(
                             enter = fadeIn(),
                             exit = fadeOut()
                         ) {
-                            IconButton(
-                                onClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    query = ""
-                                },
-                                modifier = Modifier.size(42.dp),
-                                shapes = IconButtonDefaults.shapes()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.clear),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(19.dp)
-                                )
+                            IconButtonTooltip(stringResource(R.string.clear)) {
+                                IconButton(
+                                    onClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        query = ""
+                                    },
+                                    modifier = Modifier.size(42.dp),
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.clear),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
                             }
                         }
                         TextButton(

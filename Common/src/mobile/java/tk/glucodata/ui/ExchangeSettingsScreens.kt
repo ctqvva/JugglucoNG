@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Intent
@@ -140,8 +141,10 @@ fun WatchSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.watches),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                    IconButtonTooltip(stringResource(R.string.helpname)) {
+                        IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                        }
                     }
                 },
             )
@@ -1182,8 +1185,10 @@ fun WebServerSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.webserver),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                    IconButtonTooltip(stringResource(R.string.helpname)) {
+                        IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                        }
                     }
                 },
             )
@@ -1577,12 +1582,14 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     )
                                 }
                             }
-                            IconButton(
-                                enabled = childEnabled,
-                                onClick = { shareUrl(rootUrl) },
-                                shapes = IconButtonDefaults.shapes()
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.sendto))
+                            IconButtonTooltip(stringResource(R.string.sendto)) {
+                                IconButton(
+                                    enabled = childEnabled,
+                                    onClick = { shareUrl(rootUrl) },
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.sendto))
+                                }
                             }
                         }
 

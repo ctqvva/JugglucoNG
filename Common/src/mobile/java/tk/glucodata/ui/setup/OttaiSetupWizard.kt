@@ -1227,7 +1227,7 @@ fun OttaiSetupWizard(
                                         status = ""
                                     }
                                 },
-                                shapes = ButtonDefaults.shapes(),
+                        shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.ottai_sign_out)) }
                             }
                         }

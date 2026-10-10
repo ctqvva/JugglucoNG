@@ -310,7 +310,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                     InsulinPenManager.forget(pen.serial)
                     forgetTarget = null
                 },
-                shapes = ButtonDefaults.shapes(),
+                                shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.remove)) }
             },
             dismissButton = {

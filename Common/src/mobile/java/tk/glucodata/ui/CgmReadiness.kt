@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
@@ -198,11 +199,13 @@ fun CgmReadinessScreen(navController: NavController) {
                 title = stringResource(R.string.cgm_readiness_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshTick++ }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.refresh)
-                        )
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshTick++ }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.refresh)
+                            )
+                        }
                     }
                 },
             )
@@ -486,12 +489,14 @@ private fun CgmReadinessSummaryCard(
                         color = supportingColor
                     )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
-                        tint = supportingColor
-                    )
+                IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
+                            tint = supportingColor
+                        )
+                    }
                 }
             }
 

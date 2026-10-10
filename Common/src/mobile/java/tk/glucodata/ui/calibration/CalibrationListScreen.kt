@@ -1,5 +1,6 @@
 package tk.glucodata.ui.calibration
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.content.Context
 import android.view.HapticFeedbackConstants
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -274,12 +275,14 @@ fun CalibrationListScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.selected_count, selectedIds.size)) },
                     navigationIcon = {
-                        IconButton(onClick = { 
-                            isSelectionMode = false
-                            selectedIds = emptySet()
-                        },
-                        shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        IconButtonTooltip(stringResource(R.string.cancel)) {
+                            IconButton(onClick = { 
+                                isSelectionMode = false
+                                selectedIds = emptySet()
+                            },
+                            shapes = IconButtonDefaults.shapes()) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                            }
                         }
                     },
                     actions = {
@@ -305,17 +308,21 @@ fun CalibrationListScreen(
                     title = stringResource(R.string.calibration_with_mode, modeTitle),
                     onNavigateBack = { navController.navigateUp() },
                     actions = {
-                        IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = Icons.Default.Analytics,
-                                contentDescription = stringResource(R.string.calibration_model_table_action)
-                            )
+                        IconButtonTooltip(stringResource(R.string.calibration_model_table_action)) {
+                            IconButton(onClick = onOpenModelTable, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.Analytics,
+                                    contentDescription = stringResource(R.string.calibration_model_table_action)
+                                )
+                            }
                         }
-                        IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = Icons.Default.ImportExport,
-                                contentDescription = stringResource(R.string.calibration_import_export_action)
-                            )
+                        IconButtonTooltip(stringResource(R.string.calibration_import_export_action)) {
+                            IconButton(onClick = { showImportExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.ImportExport,
+                                    contentDescription = stringResource(R.string.calibration_import_export_action)
+                                )
+                            }
                         }
                     }
                 )

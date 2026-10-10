@@ -248,7 +248,7 @@ fun QuietWindowCard(
                     )
                     showTimePicker = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                                        shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.ok))
                 }

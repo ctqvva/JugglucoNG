@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
@@ -293,15 +294,17 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 },
                 trailingIcon = {
                     val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            imageVector = image,
-                            contentDescription = if (showPassword) {
-                                stringResource(R.string.hide_password)
-                            } else {
-                                stringResource(R.string.show_password)
-                            }
-                        )
+                    IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                        IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = image,
+                                contentDescription = if (showPassword) {
+                                    stringResource(R.string.hide_password)
+                                } else {
+                                    stringResource(R.string.show_password)
+                                }
+                            )
+                        }
                     }
                 }
             )

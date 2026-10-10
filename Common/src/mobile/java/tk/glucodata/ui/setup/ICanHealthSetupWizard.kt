@@ -259,8 +259,8 @@ private fun ICanHealthOnboardingStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(ui.buttonHeight),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding
         ) {
             Text(stringResource(R.string.enter_code_manually))
         }

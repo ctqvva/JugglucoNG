@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
@@ -634,17 +635,21 @@ fun HistoryBrowseScreen(
                                 )
                             }
                         }
-                        IconButton(onClick = { showExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = Icons.Filled.CloudUpload,
-                                contentDescription = stringResource(R.string.export_data)
-                            )
+                        IconButtonTooltip(stringResource(R.string.export_data)) {
+                            IconButton(onClick = { showExportSheet = true }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Filled.CloudUpload,
+                                    contentDescription = stringResource(R.string.export_data)
+                                )
+                            }
                         }
-                        IconButton(onClick = { importLauncher.launch(arrayOf("text/csv", "text/tab-separated-values", "text/plain", "*/*")) }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                imageVector = Icons.Filled.FolderOpen,
-                                contentDescription = stringResource(R.string.import_data)
-                            )
+                        IconButtonTooltip(stringResource(R.string.import_data)) {
+                            IconButton(onClick = { importLauncher.launch(arrayOf("text/csv", "text/tab-separated-values", "text/plain", "*/*")) }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Filled.FolderOpen,
+                                    contentDescription = stringResource(R.string.import_data)
+                                )
+                            }
                         }
                     }
                 }

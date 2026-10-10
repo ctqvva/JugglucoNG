@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.text.format.DateUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
@@ -741,7 +742,7 @@ fun SensorCard(
                     showReconnectDialog = false
                     wipeDataChecked = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.reconnect)) }
             },
             dismissButton = {
@@ -749,7 +750,7 @@ fun SensorCard(
                     showReconnectDialog = false
                     wipeDataChecked = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
@@ -822,7 +823,7 @@ fun SensorCard(
                     viewModel.resetSensor(sensor.serial)
                     showResetDialog = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(
                         stringResource(
@@ -847,7 +848,7 @@ fun SensorCard(
                     viewModel.clearManagedSensorCalibration(sensor.serial)
                     showAnytimeClearCalibrationDialog = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.clear)) }
             },
             dismissButton = {
@@ -896,7 +897,7 @@ fun SensorCard(
                     showUnifiedResetDialog = false
                     keepAutoCalChecked = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.reset_sensor)) }
             },
             dismissButton = {
@@ -904,7 +905,7 @@ fun SensorCard(
                     showUnifiedResetDialog = false 
                     keepAutoCalChecked = false
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
@@ -1425,7 +1426,7 @@ fun SensorCard(
                     showSensorCalibrateDialog = false
                     calibrationInputText = ""
                 },
-                shapes = ButtonDefaults.shapes(),
+                    shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
@@ -1898,61 +1899,67 @@ fun SensorCard(
                         if (sensor.isCloneSource) {
                             // Nothing to pause on a sensor another phone is wearing.
                         } else if (isHandedOff) {
-                            IconButton(
-                                onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.secondaryContainer,
-                                        CircleShape,
-                                    ),
+                            IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
+                                IconButton(
+                                    onClick = { viewModel.returnSensorToPhone(sensor.serial) },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.secondaryContainer,
+                                            CircleShape,
+                                        ),
                                     shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PhoneAndroid,
-                                    contentDescription = stringResource(R.string.return_sensor_to_phone),
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhoneAndroid,
+                                        contentDescription = stringResource(R.string.return_sensor_to_phone),
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
                             }
                         } else {
                             // Show Pause while running, Play once stopped. A paused sensor gets
                             // the accent container so the way back to streaming is the loud thing.
-                            IconButton(
-                                onClick = {
-                                    if (isLocallyEnabled) {
-                                        android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
-                                        viewModel.disconnectSensor(sensor.serial)
-                                    } else {
-                                        android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
-                                        viewModel.reconnectSensor(sensor.serial, false)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        if (isLocallyEnabled) {
-                                            MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
-                                        } else {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        },
-                                        CircleShape,
-                                    ),
-                                    shapes = IconButtonDefaults.shapes()
+                            IconButtonTooltip(
+                                stringResource(if (isLocallyEnabled) R.string.sensor_pause_streaming else R.string.sensor_resume_streaming)
                             ) {
-                                Icon(
-                                    imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(
-                                        if (isLocallyEnabled) R.string.sensor_pause_streaming
-                                        else R.string.sensor_resume_streaming
-                                    ),
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (isLocallyEnabled) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                IconButton(
+                                    onClick = {
+                                        if (isLocallyEnabled) {
+                                            android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
+                                            viewModel.disconnectSensor(sensor.serial)
+                                        } else {
+                                            android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
+                                            viewModel.reconnectSensor(sensor.serial, false)
+                                        }
                                     },
-                                )
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (isLocallyEnabled) {
+                                                MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
+                                            } else {
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            },
+                                            CircleShape,
+                                        ),
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(
+                                        imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = stringResource(
+                                            if (isLocallyEnabled) R.string.sensor_pause_streaming
+                                            else R.string.sensor_resume_streaming
+                                        ),
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (isLocallyEnabled) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
@@ -2706,22 +2713,24 @@ fun SensorCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 2.dp),
                                     ) {
-                                        IconButton(
-                                            onClick = {
-                                                if (daysValue > 1) {
-                                                    daysValue--
-                                                    viewModel.setAutoResetDays(sensor.serial, daysValue)
-                                                }
-                                            },
-                                            enabled = daysValue > 1,
-                                            modifier = Modifier.size(40.dp),
-                                            shapes = IconButtonDefaults.shapes(),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Remove,
-                                                contentDescription = stringResource(R.string.outbound_api_decrease_value),
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                        IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (daysValue > 1) {
+                                                        daysValue--
+                                                        viewModel.setAutoResetDays(sensor.serial, daysValue)
+                                                    }
+                                                },
+                                                enabled = daysValue > 1,
+                                                modifier = Modifier.size(40.dp),
+                                                shapes = IconButtonDefaults.shapes(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Remove,
+                                                    contentDescription = stringResource(R.string.outbound_api_decrease_value),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                         }
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
@@ -2734,22 +2743,24 @@ fun SensorCard(
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
                                         }
-                                        IconButton(
-                                            onClick = {
-                                                if (daysValue < 22) {
-                                                    daysValue++
-                                                    viewModel.setAutoResetDays(sensor.serial, daysValue)
-                                                }
-                                            },
-                                            enabled = daysValue < 22,
-                                            modifier = Modifier.size(40.dp),
-                                            shapes = IconButtonDefaults.shapes(),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = stringResource(R.string.outbound_api_increase_value),
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                        IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (daysValue < 22) {
+                                                        daysValue++
+                                                        viewModel.setAutoResetDays(sensor.serial, daysValue)
+                                                    }
+                                                },
+                                                enabled = daysValue < 22,
+                                                modifier = Modifier.size(40.dp),
+                                                shapes = IconButtonDefaults.shapes(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = stringResource(R.string.outbound_api_increase_value),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 }

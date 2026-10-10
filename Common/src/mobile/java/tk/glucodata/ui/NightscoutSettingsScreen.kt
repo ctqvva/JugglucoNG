@@ -577,8 +577,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 56.dp),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (testState is TestState.Testing) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -596,8 +596,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 56.dp),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (tokenState is TokenState.Refreshing) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -864,8 +864,8 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 56.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

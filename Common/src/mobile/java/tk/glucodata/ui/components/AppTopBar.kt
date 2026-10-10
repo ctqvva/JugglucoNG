@@ -53,11 +53,13 @@ fun AppTopBar(
     }
     val navigationIcon: @Composable () -> Unit = {
         if (onNavigateBack != null) {
-            IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = navigationContentDescription,
-                )
+            IconButtonTooltip(navigationContentDescription) {
+                IconButton(onClick = onNavigateBack, shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = navigationContentDescription,
+                    )
+                }
             }
         }
     }

@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.app.Activity
 import android.content.Context
 import android.os.Handler
@@ -569,7 +570,7 @@ fun MirrorSettingsScreen(navController: NavController) {
                     if (injectMirrorJson(scannedQrPayload!!, context)) triggerRefresh++
                     scannedQrPayload = null
                 },
-                shapes = ButtonDefaults.shapes(),
+                        shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.mirror_connect_action)) }
             },
             dismissButton = { OutlinedButton(onClick = { scannedQrPayload = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
@@ -593,7 +594,7 @@ fun MirrorSettingsScreen(navController: NavController) {
                     }
                     pendingNearby = null
                 },
-                shapes = ButtonDefaults.shapes(),
+                        shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.mirror_connect_action)) }
             },
             dismissButton = { OutlinedButton(onClick = { pendingNearby = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
@@ -747,8 +748,10 @@ fun MirrorSettingsScreen(navController: NavController) {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 SectionLabel(stringResource(R.string.mirror_connections), topPadding = 0.dp)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { editSheetPos = -1 }, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_connection), tint = MaterialTheme.colorScheme.primary)
+                IconButtonTooltip(stringResource(R.string.add_connection)) {
+                    IconButton(onClick = { editSheetPos = -1 }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_connection), tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
@@ -949,8 +952,8 @@ fun MirrorConnectionCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
                         ) {
                             Text(stringResource(R.string.clone_history_recovery))
                         }

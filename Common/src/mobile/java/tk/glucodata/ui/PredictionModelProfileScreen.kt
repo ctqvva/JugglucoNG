@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -309,20 +310,24 @@ private fun PredictionModelBlockCard(
                     modifier = Modifier.weight(1f)
                 )
                 if (canEditStart) {
-                    IconButton(onClick = onEditStart, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.predictive_edit_period_start)
-                        )
+                    IconButtonTooltip(stringResource(R.string.predictive_edit_period_start)) {
+                        IconButton(onClick = onEditStart, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.predictive_edit_period_start)
+                            )
+                        }
                     }
                 }
                 if (canDelete) {
-                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete),
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                    IconButtonTooltip(stringResource(R.string.delete)) {
+                        IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }

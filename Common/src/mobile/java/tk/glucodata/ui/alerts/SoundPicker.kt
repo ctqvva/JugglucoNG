@@ -1,5 +1,6 @@
 package tk.glucodata.ui.alerts
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.app.Activity
@@ -325,11 +326,13 @@ private fun SoundRow(
             modifier = Modifier.weight(1f).padding(start = 8.dp),
             style = MaterialTheme.typography.bodyLarge
         )
-        IconButton(onClick = onPlay, shapes = IconButtonDefaults.shapes()) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)
-            )
+        IconButtonTooltip(if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)) {
+            IconButton(onClick = onPlay, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)
+                )
+            }
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
