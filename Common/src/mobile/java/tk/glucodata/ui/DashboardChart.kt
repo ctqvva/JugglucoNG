@@ -701,6 +701,9 @@ data class ChartViewportSnapshot(
 class ChartActionAnchor {
     var dotOnScreen by mutableStateOf<Offset?>(null)
         internal set
+    /** The plot's top. */
+    var ceilingOnScreen by mutableStateOf(0f)
+        internal set
     /** The top of the tapped time's chip at the plot's foot. */
     var floorOnScreen by mutableStateOf(0f)
         internal set
@@ -4007,6 +4010,7 @@ fun InteractiveGlucoseChart(
                                 .onGloballyPositioned { coordinates ->
                                     val dot = coordinates.positionOnScreen()
                                     anchor.dotOnScreen = dot
+                                    anchor.ceilingOnScreen = dot.y - actionY
                                     anchor.floorOnScreen = dot.y + journalActionChipYOffsetPx - actionY
                                     anchor.opensLeft = xFraction > 0.56f
                                 }

@@ -191,9 +191,11 @@ fun JournalFloatingActionMenu(
             val origin = popupOnScreen ?: return@BoxWithConstraints
             val dot = (anchor.dotOnScreen ?: return@BoxWithConstraints) - origin
             val edge = with(LocalDensity.current) { ChartMenuEdge.toPx() }
+            val ceilingPx = anchor.ceilingOnScreen - origin.y
             val floorPx = (anchor.floorOnScreen - origin.y).coerceAtMost(constraints.maxHeight - edge)
             ChartMenuColumn(
                 dot = dot,
+                ceilingPx = ceilingPx,
                 floorPx = floorPx,
                 opensLeft = anchor.opensLeft,
                 progress = progress
@@ -237,8 +239,8 @@ private val ChartMenuPointReach = 96.dp
 
 /**
  * Lays the items out in one column, all as wide as the widest, centred on [dot] and beside it
- * on the [opensLeft] side, sliding back in from the top or the [floorPx], and kept in the
- * window. Each item's corners on the dot's side sharpen the nearer they are to it, so the
+ * on the [opensLeft] side, kept between the plot's [ceilingPx] and the [floorPx]; only a
+ * column taller than the plot leaves it, upward, and then stays in the window. Each item's corners on the dot's side sharpen the nearer they are to it, so the
  * column leans toward it. Each item grows from its corner nearest the dot as its [progress]
  * runs from 0 to 1; a spring's overshoot carries it a
  * little past its place and back. [content] gets each item's shape.
@@ -246,6 +248,7 @@ private val ChartMenuPointReach = 96.dp
 @Composable
 private fun ChartMenuColumn(
     dot: Offset,
+    ceilingPx: Float,
     floorPx: Float,
     opensLeft: Boolean,
     progress: List<Animatable<Float, *>>,
@@ -253,8 +256,8 @@ private fun ChartMenuColumn(
 ) {
     val density = LocalDensity.current
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val tops = remember(dot, floorPx, progress.size, density) {
-        with(density) { chartMenuTops(progress.size, dot.y, floorPx) }
+    val tops = remember(dot, ceilingPx, floorPx, progress.size, density) {
+        with(density) { chartMenuTops(progress.size, dot.y, ceilingPx, floorPx) }
     }
     val shapes = remember(tops, dot, opensLeft, rtl, density) {
         with(density) {
@@ -302,14 +305,23 @@ private fun ChartMenuColumn(
     }
 }
 
-/** Each item's top: the column centred on [dotY], slid back in from the top or [floorPx]. */
-private fun Density.chartMenuTops(count: Int, dotY: Float, floorPx: Float): List<Int> {
+/**
+ * Each item's top: the column centred on [dotY], slid back inside the plot, between
+ * [ceilingPx] and [floorPx]. A column taller than the plot sits on the floor and rises past
+ * the plot's top, as far as the window's.
+ */
+private fun Density.chartMenuTops(count: Int, dotY: Float, ceilingPx: Float, floorPx: Float): List<Int> {
     val itemHeight = FabMenuItemHeight.roundToPx()
     val itemGap = ChartMenuItemGap.roundToPx()
     val edge = ChartMenuEdge.roundToPx()
     val stack = count * itemHeight + (count - 1) * itemGap
-    val floor = floorPx.roundToInt() - itemGap
-    val top = (dotY.roundToInt() - stack / 2).coerceAtMost(floor - stack).coerceAtLeast(edge)
+    val minTop = ceilingPx.roundToInt() + edge
+    val maxTop = floorPx.roundToInt() - itemGap - stack
+    val top = if (maxTop >= minTop) {
+        (dotY.roundToInt() - stack / 2).coerceIn(minTop, maxTop)
+    } else {
+        maxTop.coerceAtLeast(edge)
+    }
     return List(count) { index -> top + index * (itemHeight + itemGap) }
 }
 
