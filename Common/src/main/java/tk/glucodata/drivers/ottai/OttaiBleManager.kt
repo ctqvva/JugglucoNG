@@ -3659,7 +3659,10 @@ class OttaiBleManager(
             if (usable.isEmpty()) return@runCatching
             // Query Room outside the write lock; shutdown only needs to drain native writes.
             synchronized(nativeMirrorLock) {
-                if (stop) return@runCatching
+                if (stop) {
+                    nativeReconciledFor = null
+                    return@runCatching
+                }
                 ensureNativePresenceShell("room-reconcile")
                 val written = nativeGlucoseMirror.mirrorHistory(
                     id,
