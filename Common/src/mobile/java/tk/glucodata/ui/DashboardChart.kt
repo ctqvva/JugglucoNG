@@ -710,6 +710,12 @@ class ChartActionAnchor {
     /** Past the middle, where the newest readings are, the menu opens to the dot's left. */
     var opensLeft by mutableStateOf(false)
         internal set
+    /**
+     * The finger still down from the long press that opened the menu, on screen; null once it
+     * lifts. The menu takes the slide onto an item and the lift there as picking it.
+     */
+    var heldFingerOnScreen by mutableStateOf<Offset?>(null)
+        internal set
 }
 
 data class ChartTimelineTapSuggestion(
@@ -1880,11 +1886,14 @@ fun InteractiveGlucoseChart(
 
 
 
+    // Where the gesture surface sits on screen, to hand the held finger to the journal menu.
+    var gestureSurfaceOnScreen by remember { mutableStateOf(Offset.Zero) }
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .onGloballyPositioned { gestureSurfaceOnScreen = it.positionOnScreen() }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
                     // 1. Pan / Inertia
@@ -2110,6 +2119,8 @@ fun InteractiveGlucoseChart(
                                             selectedPoint = null
                                             onTimelineTap.invoke(suggestion)
                                             longPressTriggered = true
+                                            journalActionAnchor?.heldFingerOnScreen =
+                                                gestureSurfaceOnScreen + latestTouchPosition
                                         }
                                     }
                                 }
@@ -2150,6 +2161,10 @@ fun InteractiveGlucoseChart(
                                 val newChange = event.changes.firstOrNull { it.pressed }
                                     ?: event.changes.firstOrNull() ?: break
                                 latestTouchPosition = newChange.position
+                                if (longPressTriggered) {
+                                    journalActionAnchor?.heldFingerOnScreen =
+                                        gestureSurfaceOnScreen + newChange.position
+                                }
                                 if (pointerCount == 0 || newChange.changedToUp()) break
                                 if (pointerCount != lastPointerCount) {
                                     longPressJob?.cancel()
@@ -2383,6 +2398,7 @@ fun InteractiveGlucoseChart(
                                 }
                             }
                         } finally {
+                            journalActionAnchor?.heldFingerOnScreen = null
                             isYAxisAdjusting = false
                             isUserInteracting = false
                             lastInteractionTimestamp = System.currentTimeMillis()

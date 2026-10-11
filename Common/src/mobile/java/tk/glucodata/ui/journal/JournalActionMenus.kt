@@ -82,6 +82,18 @@ import kotlin.math.hypot
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.isOutOfBounds
+import androidx.compose.ui.input.pointer.PointerInputChange
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.ui.ChartActionAnchor
@@ -120,8 +132,10 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
  * chip where the screen allows. It is not held to the chart: it uses the whole window, so it
  * fits short charts and small screens. Each item springs out of the dot, from the middle
  * outward, and folds back into it on close; the corners on the dot's side sharpen the nearer
- * they are to it, so the column leans toward it. A tap or a drag anywhere else closes it.
- * [selectedTimestamp] null closes it, animated, so keep calling this rather than dropping it.
+ * they are to it, so the column leans toward it. As in a menu, the finger that long-pressed
+ * can slide onto an item, which presses under it, and lift there to pick it. A tap or a drag
+ * anywhere else closes it. [selectedTimestamp] null closes it, animated, so keep calling this
+ * rather than dropping it.
  */
 @Composable
 fun JournalFloatingActionMenu(
@@ -161,6 +175,36 @@ fun JournalFloatingActionMenu(
                 }
             }
             shownTimestamp = null
+        }
+    }
+    val interactions = remember { List(actionTypes.size) { MutableInteractionSource() } }
+    val itemCoordinates = remember { arrayOfNulls<LayoutCoordinates>(actionTypes.size) }
+    val currentOnTypeSelected by rememberUpdatedState(onTypeSelected)
+    // The long press's finger, still down: the item under it is pressed, and lifting there picks it.
+    LaunchedEffect(selectedTimestamp) {
+        val actionTimestamp = selectedTimestamp ?: return@LaunchedEffect
+        var held = false
+        var hovered = -1
+        var press: PressInteraction.Press? = null
+        try {
+            snapshotFlow { anchor.heldFingerOnScreen }.collect { finger ->
+                val (index, local) = finger?.let { itemCoordinates.itemUnder(it) } ?: (-1 to Offset.Zero)
+                if (index != hovered || finger == null) {
+                    press?.let { interactions[hovered].emit(PressInteraction.Release(it)) }
+                    if (finger == null && held && hovered >= 0) {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        currentOnTypeSelected(actionTypes[hovered], actionTimestamp)
+                    }
+                    press = if (index >= 0) PressInteraction.Press(local).also {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        interactions[index].emit(it)
+                    } else null
+                    hovered = index
+                }
+                held = finger != null
+            }
+        } finally {
+            press?.let { interactions[hovered].tryEmit(PressInteraction.Release(it)) }
         }
     }
     val timestamp = shownTimestamp ?: return
@@ -204,6 +248,8 @@ fun JournalFloatingActionMenu(
                     ChartMenuItem(
                         actionType = actionType,
                         shape = shapes[index],
+                        interactionSource = interactions[index],
+                        modifier = Modifier.onGloballyPositioned { itemCoordinates[index] = it },
                         onClick = {
                             if (open) {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -218,6 +264,18 @@ fun JournalFloatingActionMenu(
 }
 
 /** The popup spans the window; the menu places itself inside. */
+/** The item under [onScreen], and where in it; null for none. */
+private fun Array<LayoutCoordinates?>.itemUnder(onScreen: Offset): Pair<Int, Offset>? {
+    forEachIndexed { index, coordinates ->
+        if (coordinates == null || !coordinates.isAttached) return@forEachIndexed
+        val local = coordinates.screenToLocal(onScreen)
+        if (local.x in 0f..coordinates.size.width.toFloat() && local.y in 0f..coordinates.size.height.toFloat()) {
+            return index to local
+        }
+    }
+    return null
+}
+
 private object WholeWindow : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
@@ -350,11 +408,14 @@ private fun Density.shapeTowards(dotY: Float, top: Float, bottom: Float, towardE
 private fun ChartMenuItem(
     actionType: JournalEntryType,
     shape: Shape,
+    interactionSource: MutableInteractionSource,
+    modifier: Modifier,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.height(FabMenuItemHeight),
+        modifier = modifier.height(FabMenuItemHeight),
+        interactionSource = interactionSource,
         shapes = ButtonDefaults.shapes(shape = shape),
         colors = ButtonDefaults.buttonColors(
             containerColor = journalTypeSelectedContainerColor(actionType),
@@ -382,7 +443,9 @@ private fun ChartMenuItem(
  * popup it replaces did, the navigation bar or rail included. Call it last in a Box, so the
  * outside-tap catcher covers the rest of the screen; [modifier] places the menu, which adds
  * the spec's 16dp from the edges itself. [horizontalAlignment] lines the items up over the
- * button: End for a corner FAB, CenterHorizontally for a centred one.
+ * button: End for a corner FAB, CenterHorizontally for a centred one. As in a menu, pressing the
+ * button and sliding off it, or holding it, opens the menu under the finger: the item it is
+ * over lights up, and lifting there picks it; lifting anywhere else leaves the menu open.
  */
 @Composable
 fun BoxScope.JournalExpandableFab(
@@ -394,6 +457,12 @@ fun BoxScope.JournalExpandableFab(
 ) {
     val view = LocalView.current
     val actionTypes = remember { journalReachActionTypes() }
+    val itemCoordinates = remember { arrayOfNulls<LayoutCoordinates>(actionTypes.size) }
+    var hoveredType by remember { mutableStateOf<JournalEntryType?>(null) }
+    val currentExpanded by rememberUpdatedState(expanded)
+    val currentOnExpandedChange by rememberUpdatedState(onExpandedChange)
+    val currentOnTypeSelected by rememberUpdatedState(onTypeSelected)
+    var buttonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     BackHandler(enabled = expanded) { onExpandedChange(false) }
     CatchNavigationTaps(active = expanded) { onExpandedChange(false) }
     if (expanded) {
@@ -413,7 +482,53 @@ fun BoxScope.JournalExpandableFab(
                 onCheckedChange = {
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     onExpandedChange(it)
-                }
+                },
+                modifier = Modifier
+                    .onGloballyPositioned { buttonCoordinates = it }
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            // Ahead of the button's own click, which the slide then cancels.
+                            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            // Slid off the button, or still held at the long-press timeout.
+                            val slid = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                var change: PointerInputChange?
+                                do {
+                                    change = awaitPointerEvent(PointerEventPass.Initial).changes
+                                        .firstOrNull { it.id == down.id }
+                                } while (change != null && change.pressed && !change.isOutOfBounds(size, extendedTouchPadding))
+                                change != null && change.pressed
+                            } ?: true
+                            if (!slid) return@awaitEachGesture
+                            if (!currentExpanded) {
+                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                currentOnExpandedChange(true)
+                            }
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    event.changes.forEach { it.consume() }
+                                    val button = buttonCoordinates?.takeIf { it.isAttached } ?: break
+                                    val index = itemCoordinates.itemUnder(button.localToScreen(change.position))?.first ?: -1
+                                    val type = actionTypes.getOrNull(index)
+                                    if (!change.pressed) {
+                                        if (type != null) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            currentOnTypeSelected(type)
+                                            currentOnExpandedChange(false)
+                                        }
+                                        break
+                                    }
+                                    if (type != hoveredType) {
+                                        if (type != null) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        hoveredType = type
+                                    }
+                                }
+                            } finally {
+                                hoveredType = null
+                            }
+                        }
+                    }
             ) {
                 val icon by remember {
                     derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add }
@@ -426,21 +541,30 @@ fun BoxScope.JournalExpandableFab(
             }
         }
     ) {
-        JournalFabMenuItems(actionTypes) { type ->
+        JournalFabMenuItems(actionTypes, itemCoordinates, hoveredType) { type ->
             onTypeSelected(type)
             onExpandedChange(false)
         }
     }
 }
 
-/** The FAB menu's items, also the chart menu's: one per entry type, in its own colours. */
+/**
+ * The FAB menu's items: one per entry type, in its own colours. Each reports where it is to
+ * [itemCoordinates]; the [hoveredType], under a finger slid from the button, wears the pressed
+ * state layer, which the item takes no interaction source to show itself.
+ */
 @Composable
 private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
     actionTypes: List<JournalEntryType>,
+    itemCoordinates: Array<LayoutCoordinates?>,
+    hoveredType: JournalEntryType?,
     onTypeSelected: (JournalEntryType) -> Unit
 ) {
     val view = LocalView.current
-    actionTypes.forEach { actionType ->
+    val stateLayerColor = MaterialTheme.colorScheme.onSurface
+    val stateLayerSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    actionTypes.forEachIndexed { index, actionType ->
+        val stateLayer by animateFloatAsState(if (actionType == hoveredType) 1f else 0f, stateLayerSpec)
         FloatingActionButtonMenuItem(
             onClick = {
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -467,7 +591,15 @@ private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
             // The padding sits outside the item's container: 4dp more between items.
             modifier = Modifier
                 .padding(vertical = FabMenuItemExtraGap)
-                .height(FabMenuItemHeight),
+                .height(FabMenuItemHeight)
+                .onGloballyPositioned { itemCoordinates[index] = it }
+                .drawWithContent {
+                    drawContent()
+                    drawRoundRect(
+                        color = stateLayerColor.copy(alpha = PressedStateLayerAlpha * stateLayer),
+                        cornerRadius = CornerRadius(size.height / 2)
+                    )
+                },
             containerColor = journalTypeSelectedContainerColor(actionType),
             contentColor = MaterialTheme.colorScheme.onSurface
         )
@@ -480,6 +612,7 @@ private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
 private val FabMenuItemHeight = 44.dp
 private val FabMenuItemPaddingTrim = 8.dp
 private val FabMenuItemExtraGap = 2.dp
+private const val PressedStateLayerAlpha = 0.1f
 
 private fun Modifier.reachIntoPadding(start: Dp = 0.dp, end: Dp = 0.dp) = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
