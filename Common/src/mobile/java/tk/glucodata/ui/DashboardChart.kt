@@ -136,6 +136,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.TransformOrigin
@@ -711,12 +712,17 @@ class ChartActionAnchor {
     var opensLeft by mutableStateOf(false)
         internal set
     /**
-     * The finger still down from the long press that opened the menu, on screen; null once it
-     * lifts. The menu takes the slide onto an item and the lift there as picking it.
+     * The finger from the long press that opened the menu, on screen; null if its gesture was
+     * cancelled. The menu takes the slide onto an item and the lift there as picking it, so a
+     * lift stays, with where it happened, until the next long press.
      */
-    var heldFingerOnScreen by mutableStateOf<Offset?>(null)
+    var heldFinger by mutableStateOf<HeldFinger?>(null)
         internal set
 }
+
+/** Where the long-pressing finger is on screen, or where it [lifted]. */
+@Immutable
+data class HeldFinger(val onScreen: Offset, val lifted: Boolean)
 
 data class ChartTimelineTapSuggestion(
     val timestamp: Long,
@@ -2119,8 +2125,8 @@ fun InteractiveGlucoseChart(
                                             selectedPoint = null
                                             onTimelineTap.invoke(suggestion)
                                             longPressTriggered = true
-                                            journalActionAnchor?.heldFingerOnScreen =
-                                                gestureSurfaceOnScreen + latestTouchPosition
+                                            journalActionAnchor?.heldFinger =
+                                                HeldFinger(gestureSurfaceOnScreen + latestTouchPosition, lifted = false)
                                         }
                                     }
                                 }
@@ -2162,8 +2168,10 @@ fun InteractiveGlucoseChart(
                                     ?: event.changes.firstOrNull() ?: break
                                 latestTouchPosition = newChange.position
                                 if (longPressTriggered) {
-                                    journalActionAnchor?.heldFingerOnScreen =
-                                        gestureSurfaceOnScreen + newChange.position
+                                    journalActionAnchor?.heldFinger = HeldFinger(
+                                        gestureSurfaceOnScreen + newChange.position,
+                                        lifted = pointerCount == 0 || newChange.changedToUp()
+                                    )
                                 }
                                 if (pointerCount == 0 || newChange.changedToUp()) break
                                 if (pointerCount != lastPointerCount) {
@@ -2398,7 +2406,10 @@ fun InteractiveGlucoseChart(
                                 }
                             }
                         } finally {
-                            journalActionAnchor?.heldFingerOnScreen = null
+                            // A lift is kept for the menu to pick on; anything else is a cancel.
+                            if (journalActionAnchor?.heldFinger?.lifted == false) {
+                                journalActionAnchor.heldFinger = null
+                            }
                             isYAxisAdjusting = false
                             isUserInteracting = false
                             lastInteractionTimestamp = System.currentTimeMillis()

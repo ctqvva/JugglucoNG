@@ -187,21 +187,27 @@ fun JournalFloatingActionMenu(
         var hovered = -1
         var press: PressInteraction.Press? = null
         try {
-            snapshotFlow { anchor.heldFingerOnScreen }.collect { finger ->
-                val (index, local) = finger?.let { itemCoordinates.itemUnder(it) } ?: (-1 to Offset.Zero)
-                if (index != hovered || finger == null) {
+            snapshotFlow { anchor.heldFinger }.collect { finger ->
+                // Where it lifted, not the last item seen: the two can differ by a frame.
+                val (index, local) = finger?.let { itemCoordinates.itemUnder(it.onScreen) } ?: (-1 to Offset.Zero)
+                val down = finger != null && !finger.lifted
+                if (!down) {
                     press?.let { interactions[hovered].emit(PressInteraction.Release(it)) }
-                    if (finger == null && held && hovered >= 0) {
+                    press = null
+                    hovered = -1
+                    if (held && finger != null && index >= 0) {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        currentOnTypeSelected(actionTypes[hovered], actionTimestamp)
+                        currentOnTypeSelected(actionTypes[index], actionTimestamp)
                     }
+                } else if (index != hovered) {
+                    press?.let { interactions[hovered].emit(PressInteraction.Release(it)) }
                     press = if (index >= 0) PressInteraction.Press(local).also {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         interactions[index].emit(it)
                     } else null
                     hovered = index
                 }
-                held = finger != null
+                held = down
             }
         } finally {
             press?.let { interactions[hovered].tryEmit(PressInteraction.Release(it)) }
