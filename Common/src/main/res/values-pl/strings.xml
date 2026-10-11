@@ -2977,4 +2977,6 @@
     <string name="ssl_port">Port SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Przesunięcie: %1$s</string>
+    <string name="voice_chime_title">Sygnał przed glukozą</string>
+    <string name="voice_chime_desc">Najpierw krótki dźwięk, aby zdążyć się wsłuchać w wartość</string>
 </resources>

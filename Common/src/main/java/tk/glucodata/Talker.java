@@ -318,10 +318,11 @@ public static void testCurrentValue(Context context) {
         talk.setvalues();
         talk.setvoice();
         // Use media stream so test is audible regardless of notification mute
+        final boolean chime=getChimeBeforeGlucose(context);
         if(android.os.Build.VERSION.SDK_INT >= minandroid)
-            talk.speak(say, mediaAudio);
+            talk.speak(say, mediaAudio, chime);
         else
-            talk.speak(say);
+            talk.speak(say, chime);
         return;
         }
     // Engine not ready yet — queue for after init
@@ -386,6 +387,8 @@ if(!DontTalk) {
             }
          if(status ==TextToSpeech.SUCCESS) {
             engineReady = true;
+            gine.addEarcon(LeadIn.SILENCE_EARCON,context.getPackageName(),R.raw.voice_lead_in);
+            gine.addEarcon(LeadIn.CHIME_EARCON,context.getPackageName(),R.raw.voice_chime);
             setvalues();
             if (android.os.Build.VERSION.SDK_INT >= minandroid) {
                 Set<Voice> voices=gine.getVoices();
@@ -449,6 +452,9 @@ if(!DontTalk) {
         @Override
         public void onDone(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onDone "+utteranceId);};
+            // The words that follow the lead-in still need the focus speak() took for them.
+            if(LeadIn.isLeadIn(utteranceId))
+                return;
             if(!notifyfocus)
                 doTurnFocusoff();
             if ("voice_preview".equals(utteranceId)) {
@@ -460,6 +466,9 @@ if(!DontTalk) {
         @Override
         public void onError(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onError "+utteranceId);};
+            // A lead-in that failed to play is skipped; the words queued after it still play.
+            if(LeadIn.isLeadIn(utteranceId))
+                return;
             if(!notifyfocus)
                 doTurnFocusoff();
             if ("voice_preview".equals(utteranceId)) {
@@ -470,6 +479,10 @@ if(!DontTalk) {
         @Override
         public void onStart(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onStart "+utteranceId);};
+            // speak() already owns focus for the lead-in, and releases it itself when the words
+            // are refused - taking it again here would leave it held with no onDone to free it.
+            if(LeadIn.isLeadIn(utteranceId))
+                return;
             if(!notifyfocus)
                 doTurnFocuson() ;
             }
@@ -518,13 +531,38 @@ private static void ensureMinStreamVolume() {
  *         focus must release it themselves on false.
  */
 public boolean speak(String message) {
+    return speak(message,false);
+    }
+
+/**
+ * As {@link #speak(String)}, optionally sounding the glucose chime first.
+ *
+ * <p>Audio focus is taken before anything is queued. It used to be requested from onStart, once
+ * the first word was already playing, so music or navigation was still at full level over it.
+ * The words then follow a short lead-in, see {@link LeadIn}.
+ */
+boolean speak(String message,boolean chime) {
     if(!DontTalk) {
+        final boolean ownsFocus=!notifyfocus;
+        boolean queued=false;
         try {
+            // One read: destruct() nulls the field from another thread, and this makes three calls.
+            final TextToSpeech gine=engine;
             ensureMinStreamVolume();
-            int speakResult=(android.os.Build.VERSION.SDK_INT >= 21)
-                    ? engine.speak(message, TextToSpeech.QUEUE_FLUSH, null,message)
-                    : engine.speak(message, TextToSpeech.QUEUE_FLUSH, null);
+            if(ownsFocus)
+                doTurnFocuson();
+            int speakResult=LeadIn.queue(new LeadIn.Engine() {
+                @Override
+                public int playEarcon(String earcon,int queueMode,String utteranceId) {
+                    return gine.playEarcon(earcon,queueMode,null,utteranceId);
+                    }
+                @Override
+                public int speak(String text,int queueMode,String utteranceId) {
+                    return gine.speak(text,queueMode,null,utteranceId);
+                    }
+                },message,chime);
             if(speakResult==TextToSpeech.SUCCESS) {
+                queued=true;
                 health.record(true,engineReady);
                 if(doLog) {Log.i(LOG_ID,"success speak "+message);}
                 return true;
@@ -541,8 +579,26 @@ public boolean speak(String message) {
             health.record(false,engineReady);
             Log.stack(LOG_ID,"speak failed",th);
             }
+        finally {
+            // Nothing will call onDone for words that were never queued, and the listener
+            // ignores the lead-in, so the focus taken above is ours to give back.
+            if(ownsFocus&&!queued)
+                doTurnFocusoff();
+            }
         }
     return false;
+    }
+
+private static final String PREFS="tk.glucodata_preferences";
+private static final String KEY_CHIME="voice_chime_before_glucose";
+
+/** Whether glucose announcements start with a short chime. Off unless the user turns it on. */
+public static boolean getChimeBeforeGlucose(Context context) {
+    return context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).getBoolean(KEY_CHIME,false);
+    }
+
+public static void setChimeBeforeGlucose(Context context,boolean chime) {
+    context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().putBoolean(KEY_CHIME,chime).apply();
     }
 
 // Tracks real engine health, as opposed to istalking() which only checks that
@@ -580,6 +636,10 @@ static boolean notifyfocus=false;
  * @return true only when the engine accepted the utterance. See {@link #speak(String)}.
  */
 public boolean speak(String message, AudioAttributes attr) {
+    return speak(message,attr,false);
+    }
+
+boolean speak(String message, AudioAttributes attr, boolean chime) {
     if(DontTalk)
         return false;
     final TextToSpeech gine=engine;
@@ -593,7 +653,7 @@ public boolean speak(String message, AudioAttributes attr) {
         if(override) {
             gine.setAudioAttributes(attr);
             }
-        spoken=speak(message);
+        spoken=speak(message,chime);
         }
     catch(Throwable th) {
         Log.stack(LOG_ID,"speak(message,attr)",th);
@@ -628,7 +688,7 @@ void selspeak(String message) {
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
             nexttime=now+cursep;
-            if(!speak(message)) {
+            if(!speak(message,getChimeBeforeGlucose(Applic.app))) {
                 nexttime=now+Math.min(cursep,FAILED_SPEAK_RETRY_MS);
                 }
             }
@@ -971,7 +1031,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
             if(talk!=null) {
                 talk.setvalues();
                 talk.setvoice();
-                talk.speak(say);
+                talk.speak(say,getChimeBeforeGlucose(context));
                 return;
                 }
             }

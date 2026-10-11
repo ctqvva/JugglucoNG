@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Doorbell
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Message
@@ -128,6 +129,7 @@ fun TalkerSettingsScreen(navController: NavController) {
     var scheduleEnd by remember { mutableStateOf(SpeakSchedule.getEndMinutes(activity)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -253,6 +255,19 @@ fun TalkerSettingsScreen(navController: NavController) {
                     icon = Icons.Default.VolumeUp,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_chime_title),
+                    subtitle = stringResource(R.string.voice_chime_desc),
+                    checked = chimeBeforeGlucose,
+                    onCheckedChange = {
+                        chimeBeforeGlucose = it
+                        Talker.setChimeBeforeGlucose(activity, it)
+                    },
+                    icon = Icons.Default.Doorbell,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE,
+                    enabled = uiState.speakGlucose
                 )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),

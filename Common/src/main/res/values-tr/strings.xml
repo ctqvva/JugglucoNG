@@ -2963,4 +2963,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ssl_port">SSL portu</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Ofset: %1$s</string>
+    <string name="voice_chime_title">Glikozdan önce sinyal</string>
+    <string name="voice_chime_desc">Önce kısa bir ses, böylece değer okunurken dinliyor olursunuz</string>
 </resources>

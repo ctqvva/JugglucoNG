@@ -2950,4 +2950,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">SSL 端口</string>
     <string name="calibration_cf_value">CF：%1$s</string>
     <string name="calibration_offset_value">偏移量：%1$s</string>
+    <string name="voice_chime_title">播报血糖前提示音</string>
+    <string name="voice_chime_desc">先播放一声短促提示音，让您在播报数值时已在聆听</string>
 </resources>
