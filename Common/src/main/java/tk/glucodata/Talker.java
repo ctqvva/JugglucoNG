@@ -94,6 +94,8 @@ static  private float curspeed=1.0f;
 static private volatile long cursep=50*1000L;
 static private int voicepos=-1;
 static private String playstring=null;
+// The chime setting for playstring: it is spoken from onInit, after the Test press has returned.
+static private boolean playchime=false;
 static private Spinner spinner=null;
 //static final private int minandroid=24; //21
 static final private int minandroid=21; //21
@@ -193,6 +195,7 @@ public static void previewVoice(int index) {
 private void speakPreview() {
     if (DontTalk) return;
     try {
+      synchronized (queueLock) {
         if (android.os.Build.VERSION.SDK_INT >= minandroid) {
             engine.setAudioAttributes(mediaAudio);
             engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null, "voice_preview");
@@ -200,6 +203,7 @@ private void speakPreview() {
         } else {
             engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null);
         }
+      }
     } catch (Throwable th) {
         Log.stack(LOG_ID, "speakPreview failed", th);
     }
@@ -208,7 +212,9 @@ private void speakPreview() {
 public static void stopPreview() {
     var talk = SuperGattCallback.talker;
     if (talk != null && talk.engine != null) {
-        talk.engine.stop();
+        synchronized (talk.queueLock) {
+            talk.engine.stop();
+            }
         talk.setvoice();
     }
     var cb = previewDoneCallback;
@@ -326,6 +332,7 @@ public static void testCurrentValue(Context context) {
         return;
         }
     // Engine not ready yet — queue for after init
+    playchime=getChimeBeforeGlucose(context);
     playstring=say;
     if(talk==null)
         SuperGattCallback.newtalker(context);
@@ -432,7 +439,7 @@ if(!DontTalk) {
                 notifyVoiceListeners();
             }
              if(playstring!=null) {
-                 speak(playstring);
+                 speak(playstring,playchime);
                  playstring=null;
                  }
            }
@@ -551,7 +558,12 @@ boolean speak(String message,boolean chime) {
             ensureMinStreamVolume();
             if(ownsFocus)
                 doTurnFocuson();
-            int speakResult=LeadIn.queue(new LeadIn.Engine() {
+            final int speakResult;
+            // An utterance is now several queue calls. Unlocked, a second speak() could flush
+            // between this one's lead-in and its words, and these older words would then be
+            // appended after the newer ones instead of being replaced by them.
+            synchronized(queueLock) {
+            speakResult=LeadIn.queue(new LeadIn.Engine() {
                 @Override
                 public int playEarcon(String earcon,int queueMode,String utteranceId) {
                     return gine.playEarcon(earcon,queueMode,null,utteranceId);
@@ -561,6 +573,7 @@ boolean speak(String message,boolean chime) {
                     return gine.speak(text,queueMode,null,utteranceId);
                     }
                 },message,chime);
+                }
             if(speakResult==TextToSpeech.SUCCESS) {
                 queued=true;
                 health.record(true,engineReady);
@@ -588,6 +601,9 @@ boolean speak(String message,boolean chime) {
         }
     return false;
     }
+
+/** Held across every write to the engine's queue, so one utterance's items stay together. */
+private final Object queueLock=new Object();
 
 private static final String PREFS="tk.glucodata_preferences";
 private static final String KEY_CHIME="voice_chime_before_glucose";
@@ -649,6 +665,9 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
         }
     final boolean override=android.os.Build.VERSION.SDK_INT >= minandroid && attr!=notification_audio;
     boolean spoken=false;
+    // Locked so another speak() cannot queue under these attributes, or restore them, between
+    // the override and this utterance. speak(message,chime) takes the same lock again.
+    synchronized(queueLock) {
     try {
         if(override) {
             gine.setAudioAttributes(attr);
@@ -670,6 +689,7 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
                 }
             }
          }
+        }
     return spoken;
     }
 // volatile: written and read from the announce path and the settings/UI thread alike.
@@ -1035,6 +1055,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
                 return;
                 }
             }
+        playchime=getChimeBeforeGlucose(context);
         playstring=say;
         SuperGattCallback.newtalker(context);
         });
