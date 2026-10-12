@@ -171,7 +171,7 @@ private fun DexcomManualPairingDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(pairingCode) },
+                onClick = { onConfirm(pairingCode, wearDays) },
                 enabled = isValid,
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
