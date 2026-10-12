@@ -431,12 +431,15 @@ fun DashboardScreen(
     var showOttaiWizard by remember { mutableStateOf(false) }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Where the chart draws the tapped time's dot, for the journal menu to grow from.
+    val journalActionAnchor = remember { tk.glucodata.ui.ChartActionAnchor() }
     var journalActionSuggestedGlucoseMgDl by remember { mutableStateOf<Float?>(null) }
     var journalActionSuggestedAmountFraction by remember { mutableStateOf<Float?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
     var journalNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var dashboardChartViewport by remember { mutableStateOf<ChartViewportSnapshot?>(null) }
-    var dashboardFabExpanded by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: leaving the screen by any route closes the menu, as it did the popup.
+    var dashboardFabExpanded by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
@@ -1681,6 +1684,7 @@ fun DashboardScreen(
                                         },
                                         journalActionTimestamp = if (journalEnabled) journalActionTimestamp else null,
                                         journalActionDisplayValue = if (journalEnabled) journalActionSuggestedDisplayValue else null,
+                                        journalActionAnchor = journalActionAnchor,
                                         onDismissJournalAction = { clearJournalAction() },
                                         onJournalMarkerClick = { entryId ->
                                             journalEntriesById[entryId]?.let { entry ->
@@ -1693,27 +1697,24 @@ fun DashboardScreen(
                                     )
                                 }
                             }
-                            journalActionTimestamp?.let { actionTimestamp ->
-                                JournalFloatingActionMenu(
-                                    visible = journalEnabled,
-                                    selectedTimestamp = actionTimestamp,
-                                    onDismissRequest = { clearJournalAction() },
-                                    viewportSnapshot = dashboardChartViewport,
-                                    onTypeSelected = {
-                                        lastJournalType = it
-                                        val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl
-                                        val suggestedAmountFraction = journalActionSuggestedAmountFraction
-                                        clearJournalAction()
-                                        journalEditorRequest = JournalEditorRequest(
-                                            type = it,
-                                            timestamp = actionTimestamp,
-                                            suggestedGlucoseMgDl = suggestedGlucoseMgDl,
-                                            suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl,
-                                            suggestedAmountFraction = suggestedAmountFraction
-                                        )
-                                    }
-                                )
-                            }
+                            JournalFloatingActionMenu(
+                                selectedTimestamp = journalActionTimestamp?.takeIf { journalEnabled },
+                                anchor = journalActionAnchor,
+                                onDismissRequest = { clearJournalAction() },
+                                onTypeSelected = { type, actionTimestamp ->
+                                    lastJournalType = type
+                                    val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl
+                                    val suggestedAmountFraction = journalActionSuggestedAmountFraction
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(
+                                        type = type,
+                                        timestamp = actionTimestamp,
+                                        suggestedGlucoseMgDl = suggestedGlucoseMgDl,
+                                        suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl,
+                                        suggestedAmountFraction = suggestedAmountFraction
+                                    )
+                                }
+                            )
                         }
 
                 }
@@ -1927,6 +1928,7 @@ fun DashboardScreen(
                                         },
                                         journalActionTimestamp = if (journalEnabled) journalActionTimestamp else null,
                                         journalActionDisplayValue = if (journalEnabled) journalActionSuggestedDisplayValue else null,
+                                        journalActionAnchor = journalActionAnchor,
                                         onDismissJournalAction = { clearJournalAction() },
                                         onJournalMarkerClick = { entryId ->
                                             journalEntriesById[entryId]?.let { entry ->
@@ -1939,27 +1941,24 @@ fun DashboardScreen(
                                     )
                                 }
                             }
-                            journalActionTimestamp?.let { actionTimestamp ->
-                                JournalFloatingActionMenu(
-                                    visible = journalEnabled,
-                                    selectedTimestamp = actionTimestamp,
-                                    onDismissRequest = { clearJournalAction() },
-                                    viewportSnapshot = dashboardChartViewport,
-                                    onTypeSelected = {
-                                        lastJournalType = it
-                                        val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl
-                                        val suggestedAmountFraction = journalActionSuggestedAmountFraction
-                                        clearJournalAction()
-                                        journalEditorRequest = JournalEditorRequest(
-                                            type = it,
-                                            timestamp = actionTimestamp,
-                                            suggestedGlucoseMgDl = suggestedGlucoseMgDl,
-                                            suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl,
-                                            suggestedAmountFraction = suggestedAmountFraction
-                                        )
-                                    }
-                                )
-                            }
+                            JournalFloatingActionMenu(
+                                selectedTimestamp = journalActionTimestamp?.takeIf { journalEnabled },
+                                anchor = journalActionAnchor,
+                                onDismissRequest = { clearJournalAction() },
+                                onTypeSelected = { type, actionTimestamp ->
+                                    lastJournalType = type
+                                    val suggestedGlucoseMgDl = journalActionSuggestedGlucoseMgDl
+                                    val suggestedAmountFraction = journalActionSuggestedAmountFraction
+                                    clearJournalAction()
+                                    journalEditorRequest = JournalEditorRequest(
+                                        type = type,
+                                        timestamp = actionTimestamp,
+                                        suggestedGlucoseMgDl = suggestedGlucoseMgDl,
+                                        suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl,
+                                        suggestedAmountFraction = suggestedAmountFraction
+                                    )
+                                }
+                            )
                         }
                     }
 
@@ -2149,9 +2148,9 @@ fun DashboardScreen(
                             suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl
                         )
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 20.dp)
+                    // Centred: at the end it sat on the newest reading's value.
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 )
             }
         }

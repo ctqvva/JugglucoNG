@@ -80,7 +80,8 @@ fun CommonAlertSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = sectionHorizontalPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
@@ -363,7 +364,8 @@ fun CommonAlertSettings(
                             .fillMaxWidth()
                             .padding(horizontal = sectionHorizontalPadding)
                             .padding(bottom = 16.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))

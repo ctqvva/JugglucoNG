@@ -1,5 +1,7 @@
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.app.StatusBarManager
 import android.content.ComponentName
 import android.graphics.drawable.Icon
@@ -157,7 +159,9 @@ fun QuietWindowCard(
                     if (state.active) {
                         Button(
                             onClick = { QuietWindow.end(context) },
-                            modifier = inset.fillMaxWidth().heightIn(min = 56.dp)
+                            modifier = inset.fillMaxWidth().heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(stringResource(R.string.quiet_window_end_now))
                         }
@@ -181,7 +185,9 @@ fun QuietWindowCard(
                                 pair.forEach { (label, start) ->
                                     FilledTonalButton(
                                         onClick = start,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) {
                                         Text(label)
                                     }
@@ -231,7 +237,7 @@ fun QuietWindowCard(
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
             title = { Text(stringResource(R.string.quiet_window_select_end_time)) },
-            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth()) },
+            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth(), shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) },
             confirmButton = {
                 TextButton(onClick = {
                     val nowMs = System.currentTimeMillis()
@@ -242,12 +248,14 @@ fun QuietWindowCard(
                         nowMs = nowMs
                     )
                     showTimePicker = false
-                }) {
+                },
+                                        shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
+                TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -345,7 +353,9 @@ private fun QuietWindowAdvanced() {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { requestAddQuietWindowTile(context) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.AddCircleOutline, contentDescription = null)
                         Spacer(Modifier.width(8.dp))

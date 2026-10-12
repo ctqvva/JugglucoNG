@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -193,12 +196,12 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = { deleteDestination(destination) }) {
+                TextButton(onClick = { deleteDestination(destination) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
+                TextButton(onClick = { pendingDelete = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -254,7 +257,8 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                     FilledTonalButton(
                         onClick = { showAddSheet = true },
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
                         Text(
@@ -350,14 +354,18 @@ private fun DestinationCard(
                     checked = destination.enabled,
                     onCheckedChange = onEnabledChange
                 )
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                IconButtonTooltip(stringResource(R.string.delete)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                    }
                 }
-                IconButton(onClick = onToggleExpanded) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
+                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
+                        )
+                    }
                 }
             }
 
@@ -397,12 +405,14 @@ private fun DestinationCard(
                                 TextButton(onClick = {
                                     confirmTestSms = false
                                     onSendTest()
-                                }) {
+                                },
+                        shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                                     Text(stringResource(R.string.sms_send_test))
                                 }
                             },
                             dismissButton = {
-                                TextButton(onClick = { confirmTestSms = false }) {
+                                TextButton(onClick = { confirmTestSms = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                                     Text(stringResource(R.string.cancel))
                                 }
                             }
@@ -413,7 +423,9 @@ private fun DestinationCard(
                         // always goes through a confirmation step.
                         onClick = { if (destination.isSms()) confirmTestSms = true else onSendTest() },
                         enabled = destination.isReady(),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
                             if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
@@ -531,11 +543,13 @@ private fun DestinationEditor(
             leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { onShowSecretChange(!showSecret) }) {
-                    Icon(
-                        if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                    IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                        )
+                    }
                 }
             },
             keyboardOptions = KeyboardOptions(
@@ -679,7 +693,7 @@ private fun PresetSummaryRow(
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
-            TextButton(onClick = onChangePreset) {
+            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
@@ -721,7 +735,7 @@ private fun TriggerPicker(
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        TextButton(onClick = { showSheet = true }) {
+        TextButton(onClick = { showSheet = true }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
             Text(stringResource(R.string.outbound_api_change_trigger))
         }
     }
@@ -979,15 +993,18 @@ internal fun NumberStepper(
                 modifier = Modifier.height(48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
-                    enabled = value > range.first,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Remove,
-                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                    IconButton(
+                        onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
+                        enabled = value > range.first,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Remove,
+                            contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                        )
+                    }
                 }
                 Text(
                     text = value.toString(),
@@ -996,15 +1013,18 @@ internal fun NumberStepper(
                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(
-                    onClick = { onChange((value + 1).coerceAtMost(range.last)) },
-                    enabled = value < range.last,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.outbound_api_increase_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                    IconButton(
+                        onClick = { onChange((value + 1).coerceAtMost(range.last)) },
+                        enabled = value < range.last,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.outbound_api_increase_value)
+                        )
+                    }
                 }
             }
         }

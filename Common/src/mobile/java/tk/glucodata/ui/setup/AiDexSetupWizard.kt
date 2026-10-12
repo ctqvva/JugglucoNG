@@ -291,7 +291,7 @@ fun AiDexScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         tk.glucodata.ui.CgmReadinessSetupBanner(
             modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
             onOpenReadiness = onNavigateToReadiness
@@ -309,7 +309,9 @@ fun AiDexScanStep(
                 style = MaterialTheme.typography.titleMedium
             )
             TextButton(
-                onClick = { showAllDevices = !showAllDevices }
+                onClick = { showAllDevices = !showAllDevices },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(
                     if (showAllDevices) {
@@ -360,7 +362,9 @@ fun AiDexScanStep(
                                 }
                             }
                         },
-                        modifier = Modifier.height(ui.buttonHeight)
+                        modifier = Modifier.height(ui.buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(buttonRes))
                     }

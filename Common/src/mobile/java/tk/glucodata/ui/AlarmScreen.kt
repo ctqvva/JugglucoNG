@@ -419,7 +419,7 @@ private fun ActionDock(
                     modifier = Modifier
                         .fillMaxWidth(if (compact) 0.42f else 0.36f)
                         .height(if (compact) 58.dp else 62.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                    shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -440,7 +440,8 @@ private fun ActionDock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (compact) 82.dp else 90.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary

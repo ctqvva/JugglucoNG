@@ -1,5 +1,8 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -423,22 +426,25 @@ fun InlineQrScannerCard(
                     shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
-                    IconButton(
-                        onClick = {
-                            val nextTorch = !torchEnabled
-                            try {
-                                camera?.cameraControl?.enableTorch(nextTorch)
-                                torchEnabled = nextTorch
-                            } catch (throwable: Throwable) {
-                                scannerError = throwable.message ?: throwable.javaClass.simpleName
-                            }
+                    IconButtonTooltip(stringResource(R.string.flash)) {
+                        IconButton(
+                            onClick = {
+                                val nextTorch = !torchEnabled
+                                try {
+                                    camera?.cameraControl?.enableTorch(nextTorch)
+                                    torchEnabled = nextTorch
+                                } catch (throwable: Throwable) {
+                                    scannerError = throwable.message ?: throwable.javaClass.simpleName
+                                }
+                            },
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                contentDescription = stringResource(R.string.flash),
+                                tint = Color.White
+                            )
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (torchEnabled) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
-                            contentDescription = stringResource(R.string.flash),
-                            tint = Color.White
-                        )
                     }
                 }
             }
@@ -451,22 +457,25 @@ fun InlineQrScannerCard(
                     shape = RoundedCornerShape(12.dp),
                     color = Color.Black.copy(alpha = 0.45f)
                 ) {
-                    IconButton(onClick = {
-                        if (touchActive) {
-                            touchActive = false
-                            onTouchInteractionChangedState.value?.invoke(false)
+                    IconButtonTooltip(stringResource(R.string.scan_qr_button)) {
+                        IconButton(onClick = {
+                            if (touchActive) {
+                                touchActive = false
+                                onTouchInteractionChangedState.value?.invoke(false)
+                            }
+                            camera = null
+                            torchEnabled = false
+                            previewView = null
+                            previewInstanceNonce++
+                            onManualFallback()
+                        },
+                        shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = Icons.Filled.OpenInFull,
+                                contentDescription = stringResource(R.string.scan_qr_button),
+                                tint = Color.White
+                            )
                         }
-                        camera = null
-                        torchEnabled = false
-                        previewView = null
-                        previewInstanceNonce++
-                        onManualFallback()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.OpenInFull,
-                            contentDescription = stringResource(R.string.scan_qr_button),
-                            tint = Color.White
-                        )
                     }
                 }
             }
@@ -497,12 +506,12 @@ fun InlineQrScannerCard(
                         )
                     }
 
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                         Text(stringResource(R.string.permission))
                     }
 
                     if (onManualFallback != null) {
-                        OutlinedButton(onClick = onManualFallback) {
+                        OutlinedButton(onClick = onManualFallback, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                             Text(manualFallbackLabel ?: stringResource(R.string.scanname))
                         }
                     }

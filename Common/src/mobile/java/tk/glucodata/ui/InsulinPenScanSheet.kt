@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
@@ -115,6 +117,8 @@ fun InsulinPenScanSheetHost() {
                         selected = preset.id == chosenInsulin?.id,
                         onClick = { chosenInsulinId = preset.id },
                         label = { Text(preset.displayName) },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
             }
@@ -137,7 +141,9 @@ fun InsulinPenScanSheetHost() {
                         } else {
                             offered.map(PenDose::relativeSeconds).toSet()
                         }
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Text(
                         stringResource(
@@ -204,6 +210,8 @@ fun InsulinPenScanSheetHost() {
                 },
                 enabled = selected.isNotEmpty() && chosenInsulin != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(stringResource(R.string.insulin_pen_add_doses, selected.size))
             }

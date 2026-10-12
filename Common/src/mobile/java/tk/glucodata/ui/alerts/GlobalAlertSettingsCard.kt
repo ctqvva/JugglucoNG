@@ -205,7 +205,9 @@ fun GlobalAlertSettingsCard(
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-                            )
+                            ),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Icon(Icons.Default.DoneAll, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))

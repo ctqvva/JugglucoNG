@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.stats
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -404,7 +405,9 @@ fun StatsDateRangeSheet(
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Text(text = stringResource(R.string.cancel))
                 }
@@ -415,7 +418,9 @@ fun StatsDateRangeSheet(
                         onApply(start, end)
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = startUtc != null
+                    enabled = startUtc != null,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Text(text = stringResource(R.string.stats_apply_range))
                 }
