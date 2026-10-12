@@ -115,7 +115,7 @@ internal fun RiskIndexCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.gri_title),
@@ -149,7 +149,7 @@ internal fun RiskIndexCard(
                         text = "/100",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                        modifier = Modifier.padding(start = 2.dp, bottom = 8.dp)
                     )
                 }
             }
@@ -176,7 +176,7 @@ internal fun RiskIndexCard(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ComponentSplitBar(lowShare = gri.hypoComponent, highShare = gri.hyperComponent)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -271,8 +271,7 @@ private fun RiskIndexRow(
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum")
                 )
             }
         }
@@ -334,12 +333,12 @@ internal fun EpisodesCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = stringResource(R.string.episodes_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
                 Text(
                     text = stringResource(R.string.episodes_subtitle),
@@ -372,7 +371,7 @@ internal fun EpisodesCard(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { showAll = !showAll }
-                        .padding(vertical = 6.dp),
+                        .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -420,20 +419,19 @@ private fun EpisodeTile(
         modifier = modifier
             .clip(statsCardShape(20.dp, 12.dp))
             .background(tone.copy(alpha = 0.10f))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             color = tone
         )
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = summary.count.toString(),
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.headlineMediumEmphasized.copy(
+                    fontFeatureSettings = "tnum"
                 )
             )
             if (summary.severeCount > 0) {
@@ -441,7 +439,7 @@ private fun EpisodeTile(
                     text = stringResource(R.string.episodes_severe_count, summary.severeCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = tone,
-                    modifier = Modifier.padding(bottom = 5.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
         }
@@ -494,7 +492,6 @@ private fun EpisodeStatLine(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
@@ -509,9 +506,9 @@ private fun EpisodeRow(episode: GlucoseEpisode, unit: GlucoseUnit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier
@@ -529,9 +526,8 @@ private fun EpisodeRow(episode: GlucoseEpisode, unit: GlucoseUnit) {
         )
         Text(
             text = formatMgDl(episode.extremeMgDl, unit),
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            color = tone,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.labelLargeEmphasized.copy(fontFeatureSettings = "tnum"),
+            color = tone
         )
         Text(
             text = durationText(episode.durationMinutes),
@@ -574,7 +570,7 @@ internal fun DayByDayCard(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.stats_day_by_day),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         text = stringResource(R.string.stats_day_by_day_hint),
@@ -668,14 +664,13 @@ internal fun DayDetailSheet(
             ) {
                 Text(
                     text = titleFormatter.format(day.date),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = String.format(Locale.getDefault(), "%.0f%%", day.tir.inRangePercent),
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFeatureSettings = "tnum",
-                        fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.headlineSmallEmphasized.copy(
+                        fontFeatureSettings = "tnum"
                     ),
                     color = tirHeatColor(day.tir.inRangePercent)
                 )
@@ -685,7 +680,7 @@ internal fun DayDetailSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DaySheetStat(
                     label = stringResource(R.string.average_glucose),
@@ -738,7 +733,7 @@ internal fun DayDetailSheet(
 
             if (hourly.any { it.sampleCount > 0 }) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -797,7 +792,7 @@ private fun DaySheetStat(label: String, value: String, modifier: Modifier = Modi
         modifier = modifier
             .clip(statsCardShape(16.dp, 10.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
@@ -809,9 +804,8 @@ private fun DaySheetStat(label: String, value: String, modifier: Modifier = Modi
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFeatureSettings = "tnum",
-                fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                fontFeatureSettings = "tnum"
             ),
             maxLines = 1
         )
@@ -834,7 +828,7 @@ internal fun DayPartPatterns(
     val best = dayParts.filter { it.readingCount > 0 }.maxByOrNull { it.tir.inRangePercent }
     Column(
         modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         dayParts.forEach { part ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -877,7 +871,7 @@ internal fun WeekdayPatterns(
     val best = withData.maxByOrNull { it.tir.inRangePercent }
     Column(
         modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         weekdays.forEach { weekday ->
             TirDistributionRow(

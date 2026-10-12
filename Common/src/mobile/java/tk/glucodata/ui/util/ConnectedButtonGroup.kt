@@ -1,8 +1,8 @@
 package tk.glucodata.ui.util
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,17 +38,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.rememberTextMeasurer
 
 /**
- * A Connected Button Group with M3 Expressive shape morphing.
- * 
- * - Items behave as a group but are visually distinct (spaced by 2dp).
- * - Shapes animate based on selection state and position:
- *   - Selected: Fully rounded (Pill).
- *   - Unselected (Start): Rounded Start, Squared End.
- *   - Unselected (Middle): Squared both sides.
- *   - Unselected (End): Squared Start, Rounded End.
- * 
- * @param itemHeight Default 48.dp
- * @param spacing Default 2.dp
+ * M3 Expressive connected button group: material3's [ToggleButton]s with the
+ * [ButtonGroupDefaults] connected shapes, so the outer ends are round, inner corners small,
+ * the selected item a pill, and a press squeezes the inner corners with the expressive spring.
+ *
+ * On top of the library pieces this adds what the app's groups need: colours that cross-fade
+ * (ToggleButton swaps them instantly), per-option colours, and labels that step down from
+ * labelLarge to labelSmall until every option fits.
+ *
+ * Each item is a checkable node, so TalkBack reads which option is selected.
+ *
+ * @param itemHeight Default 40.dp, the M3 small button height
+ * @param spacing Default 2.dp, [ButtonGroupDefaults.ConnectedSpaceBetween]
  */
 @Composable
 fun <T> ConnectedButtonGroup(
@@ -62,7 +64,7 @@ fun <T> ConnectedButtonGroup(
     multiSelect: Boolean = false,
     iconOnly: Boolean = false,
     itemHeight: Dp = 40.dp,
-    spacing: Dp = 2.dp,
+    spacing: Dp = ButtonGroupDefaults.ConnectedSpaceBetween,
     selectedContainerColor: Color = MaterialTheme.colorScheme.primary,
     selectedContentColor: Color = MaterialTheme.colorScheme.onPrimary,
     unselectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh, // Slightly darker than surface for contrast
@@ -80,7 +82,7 @@ fun <T> ConnectedButtonGroup(
     ) {
         options.forEachIndexed { index, option ->
             val isSelected = if (multiSelect) selectedOptions.contains(option) else option == selectedOption
-            
+
             val containerColor by animateColorAsState(
                 targetValue = if (isSelected) {
                     selectedContainerColorFor?.invoke(option) ?: selectedContainerColor
@@ -97,42 +99,28 @@ fun <T> ConnectedButtonGroup(
                 },
                 label = "contentColor"
             )
-            
-            // Shape Logic
-            // Full radius (50%) for rounded sides, meaningful for 48dp height -> 24dp
-            // "Square" side isn't sharp 0dp in M3 usually, often has a tiny radius (e.g. 4dp) or 0.
-            // Let's use 0% for square inner connections to look "Connected" but separated by space.
-            val fullRadiusPercent = 50
-            val smallRadiusPercent = 16 // Slight rounding for "squared" edges looks more refined, or 0 for strict. Let's go with 10% for a "tile" look or 0 for "brick". User said "squared off". Let's stick to a very small percent or 0.
-            // User photo suggests quite square inner edges. Let's use 4% for "Small" and 50% for "Full".
-            
-            // Start Corners
-            val targetTopStart = if (isSelected || index == 0) fullRadiusPercent else smallRadiusPercent
-            val targetBottomStart = if (isSelected || index == 0) fullRadiusPercent else smallRadiusPercent
-            
-            // End Corners
-            val targetTopEnd = if (isSelected || index == options.lastIndex) fullRadiusPercent else smallRadiusPercent
-            val targetBottomEnd = if (isSelected || index == options.lastIndex) fullRadiusPercent else smallRadiusPercent
 
-            val topStart by animateIntAsState(targetTopStart, label = "topStart")
-            val bottomStart by animateIntAsState(targetBottomStart, label = "bottomStart")
-            val topEnd by animateIntAsState(targetTopEnd, label = "topEnd")
-            val bottomEnd by animateIntAsState(targetBottomEnd, label = "bottomEnd")
-
-            Surface(
-                onClick = { onOptionSelected(option) },
+            ToggleButton(
+                checked = isSelected,
+                onCheckedChange = { onOptionSelected(option) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(itemHeight), // Fill container height explicitly
-                shape = RoundedCornerShape(
-                    topStartPercent = topStart,
-                    topEndPercent = topEnd,
-                    bottomEndPercent = bottomEnd,
-                    bottomStartPercent = bottomStart
+                    .height(itemHeight),
+                shapes = when {
+                    options.size == 1 -> ToggleButtonDefaults.shapesFor(itemHeight)
+                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    index == options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                // The animated colour serves both states, so the swap cross-fades.
+                colors = ToggleButtonDefaults.colors(
+                    containerColor = containerColor,
+                    contentColor = contentColor,
+                    checkedContainerColor = containerColor,
+                    checkedContentColor = contentColor
                 ),
-                color = containerColor,
-                contentColor = contentColor,
-                border = null 
+                elevation = null,
+                contentPadding = PaddingValues(0.dp)
             ) {
                 var availableWidthPx by remember(option) { mutableIntStateOf(0) }
                 val customIcon = icon?.invoke(option)

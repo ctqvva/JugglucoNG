@@ -30,6 +30,7 @@ object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
         if (array.length() == 0) return 0
 
         val repository = JournalRepository()
+        repository.deleteAapsSenderOnlyNotesOnce()
         repository.ensureDefaultInsulinPresets()
         val presets = repository.getInsulinPresetsSnapshot()
         val journalDao = HistoryDatabase.getInstance(Applic.app).journalDao()

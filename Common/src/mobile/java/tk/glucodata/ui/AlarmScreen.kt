@@ -400,7 +400,7 @@ private fun ActionDock(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(36.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         tonalElevation = 6.dp
     ) {
@@ -408,7 +408,7 @@ private fun ActionDock(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -419,7 +419,7 @@ private fun ActionDock(
                     modifier = Modifier
                         .fillMaxWidth(if (compact) 0.42f else 0.36f)
                         .height(if (compact) 58.dp else 62.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+                    shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -440,7 +440,8 @@ private fun ActionDock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (compact) 82.dp else 90.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -449,7 +450,6 @@ private fun ActionDock(
                 Text(
                     text = stringResource(R.string.stop),
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Medium,
                         letterSpacing = (-0.1).sp
                     )
                 )

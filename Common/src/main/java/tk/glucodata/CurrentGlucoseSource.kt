@@ -66,7 +66,34 @@ object CurrentGlucoseSource {
     fun getFresh(maxAgeMillis: Long, preferredSensorId: String?): Snapshot? {
         val now = System.currentTimeMillis()
         val targetSensor = preferredSensorId ?: SensorIdentity.resolveMainSensor()
+        return resolveForOwnership(
+            isCloneSensor = CloneSensorRegistry.isCloneSensor(targetSensor),
+            targetSensorId = targetSensor,
+            readNative = { getFromNative(now, maxAgeMillis, targetSensor) },
+            readLocal = { getFromLocalOrNative(now, maxAgeMillis, targetSensor, preferredSensorId) }
+        )
+    }
 
+    internal fun resolveForOwnership(
+        isCloneSensor: Boolean,
+        targetSensorId: String?,
+        readNative: () -> Snapshot?,
+        readLocal: () -> Snapshot?
+    ): Snapshot? {
+        // Clone updates native history, not the paused local driver's current cache.
+        // Bypass both local source priority and raw-lane enrichment from that driver.
+        if (isCloneSensor) {
+            return readNative()?.takeIf { SensorIdentity.matches(it.sensorId, targetSensorId) }
+        }
+        return readLocal()
+    }
+
+    private fun getFromLocalOrNative(
+        now: Long,
+        maxAgeMillis: Long,
+        targetSensor: String?,
+        preferredSensorId: String?
+    ): Snapshot? {
         // A sensor we handed to the other device leaves its driver holding the
         // last value it read. That value stopped being current at the handover,
         // so preferring it made the display alternate between the stale reading
@@ -171,8 +198,20 @@ object CurrentGlucoseSource {
         )
     }
 
-    private fun getFromNative(now: Long, maxAgeMillis: Long): Snapshot? {
-        val latest = Natives.lastglucose() ?: return null
+    private fun getFromNative(now: Long, maxAgeMillis: Long, targetSensor: String? = null): Snapshot? {
+        if (targetSensor != null) {
+            for (nativeName in SensorIdentity.resolveNativeHistorySensorNames(targetSensor)) {
+                val snapshot = nativeSnapshot(Natives.lastglucoseForSensor(nativeName), now, maxAgeMillis)
+                    ?: continue
+                if (SensorIdentity.matches(snapshot.sensorId, targetSensor)) return snapshot
+            }
+            return null
+        }
+        return nativeSnapshot(Natives.lastglucose(), now, maxAgeMillis)
+    }
+
+    private fun nativeSnapshot(latest: strGlucose?, now: Long, maxAgeMillis: Long): Snapshot? {
+        latest ?: return null
         val numericValue = GlucoseValueParser.parseFirst(latest.value)
             ?.takeIf { it.isFinite() && it > 0.1f }
             ?: return null

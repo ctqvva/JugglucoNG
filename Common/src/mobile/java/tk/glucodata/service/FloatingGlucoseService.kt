@@ -31,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.optOutOfForceDark
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.settings.FloatingSettingsRepository
@@ -157,6 +158,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             setViewTreeSavedStateRegistryOwner(this@FloatingGlucoseService)
         }
         overlayRoot = root
+        root.optOutOfForceDark()
 
         composeView = ComposeView(this).apply {
             setContent {

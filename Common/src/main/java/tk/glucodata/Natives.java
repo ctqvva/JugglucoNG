@@ -718,6 +718,8 @@ public class Natives {
         public static native void closedynlib();
 
         public static native strGlucose lastglucose();
+        /** Latest valid stream reading for this sensor only; never falls back to a peer. */
+        public static native strGlucose lastglucoseForSensor(String sensorName);
 
         public static native long[] getGlucoseHistory(long starttime);
 

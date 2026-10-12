@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui.journal
 
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.FilterChipDefaults
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
@@ -82,6 +86,10 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.focus.FocusState
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -327,8 +335,8 @@ fun JournalQuickDock(
 
         if (visibleEntries.isNotEmpty()) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 visibleEntries.forEach { entry ->
                     JournalEntryChip(
@@ -489,7 +497,7 @@ fun JournalEntrySheet(
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         contentKey = draft.type,
     ) {
         LazyColumn(
@@ -514,15 +522,14 @@ fun JournalEntrySheet(
                                     else -> draft.type.labelRes()
                                 }
                             ),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.headlineSmallEmphasized
                         )
                         existingEntry?.source?.presentation()?.let { source ->
                             // The icon on the row only explains itself for NFC; here the
                             // origin is spelled out.
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
                                     imageVector = source.icon,
@@ -545,12 +552,14 @@ fun JournalEntrySheet(
 //                        )
                     }
                     existingEntry?.id?.let { entryId ->
-                        IconButton(onClick = { onDelete?.invoke(entryId) }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.delete),
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        IconButtonTooltip(stringResource(R.string.delete)) {
+                            IconButton(onClick = { onDelete?.invoke(entryId) }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.delete),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
@@ -570,7 +579,8 @@ fun JournalEntrySheet(
                     date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
                     time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
                     onDateClick = { showDatePicker = true },
-                    onTimeClick = { showTimePicker = true }
+                    onTimeClick = { showTimePicker = true },
+                    onTimeLongClick = { draft = draft.copy(timestamp = System.currentTimeMillis()) }
                 )
             }
 
@@ -787,7 +797,7 @@ fun JournalEntrySheet(
                         noteFieldExpanded -> 3
                         else -> 1
                     },
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -814,13 +824,14 @@ fun JournalEntrySheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = journalTypeIcon(draft.type),
                         contentDescription = null
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.save))
                 }
             }
@@ -839,12 +850,14 @@ fun JournalEntrySheet(
                         draft = draft.copy(timestamp = mergeJournalDate(draft.timestamp, selected))
                     }
                     showDatePicker = false
-                }) {
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
+                TextButton(onClick = { showDatePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.cancel))
                 }
             }
@@ -870,7 +883,7 @@ fun JournalEntrySheet(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    TimePicker(state = timePickerState)
+                    TimePicker(state = timePickerState, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors())
                 }
             },
             confirmButton = {
@@ -882,13 +895,27 @@ fun JournalEntrySheet(
                         )
                     )
                     showTimePicker = false
-                }) {
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(text = stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(text = stringResource(R.string.cancel))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            draft = draft.copy(timestamp = System.currentTimeMillis())
+                            showTimePicker = false
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
+                    ) {
+                        Text(text = stringResource(R.string.now))
+                    }
+                    TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
                 }
             }
         )
@@ -1329,17 +1356,16 @@ private fun JournalDoseAssistCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.68f),
-        shape = RoundedCornerShape(22.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.journal_dose_math_title),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
@@ -1358,8 +1384,7 @@ private fun JournalDoseAssistCard(
                             R.string.journal_dose_suggested_insulin,
                             suggestion?.totalInsulinUnits?.let(::formatInsulinDose) ?: "—"
                         ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = if (suggestion != null) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
@@ -1402,8 +1427,7 @@ private fun JournalDoseAssistCard(
                             R.string.journal_dose_covers_carbs,
                             coveredCarbsSuggestion?.let(::formatCarbDose) ?: "—"
                         ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = if (coveredCarbsSuggestion != null) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
@@ -1432,7 +1456,9 @@ private fun JournalDoseAssistCard(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     }
-                )
+                ),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(
                     imageVector = if (draft.type == JournalEntryType.CARBS) Icons.Default.Vaccines else Icons.Default.Restaurant,
@@ -1632,7 +1658,7 @@ private fun JournalFoodLibrarySelector(
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         expanded = true
                     }
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -1642,12 +1668,11 @@ private fun JournalFoodLibrarySelector(
                         ?: MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
                 )
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = visibleItems.singleOrNull()?.displayName ?: stringResource(R.string.journal_add_food),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1673,7 +1698,7 @@ private fun JournalFoodLibrarySelector(
             }
         } else {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Surface(
@@ -1685,7 +1710,7 @@ private fun JournalFoodLibrarySelector(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 62.dp)
-                            .padding(start = 14.dp, end = 4.dp),
+                            .padding(start = 16.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -1726,19 +1751,22 @@ private fun JournalFoodLibrarySelector(
                             enter = fadeIn(),
                             exit = fadeOut()
                         ) {
-                            IconButton(
-                                onClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    query = ""
-                                },
-                                modifier = Modifier.size(42.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.clear),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(19.dp)
-                                )
+                            IconButtonTooltip(stringResource(R.string.clear)) {
+                                IconButton(
+                                    onClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        query = ""
+                                    },
+                                    modifier = Modifier.size(42.dp),
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.clear),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
                             }
                         }
                         TextButton(
@@ -1747,8 +1775,8 @@ private fun JournalFoodLibrarySelector(
                                 query = ""
                                 expanded = false
                             },
-                            shape = RoundedCornerShape(22.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(20.dp)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.close),
@@ -1791,7 +1819,7 @@ private fun JournalFoodLibrarySelector(
                         shrinkTowards = Alignment.Top
                     ) + fadeOut()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         filteredFoods.forEach { food ->
                             val rowExpanded = expandedFoodId == food.id
                             val rowPortionGrams = parseFoodPortionGrams(expandedPortionText)
@@ -1842,27 +1870,30 @@ private fun JournalFoodLibrarySelector(
                                     )
                                 },
                                 trailingContent = {
-                                    FilledTonalIconButton(
-                                        onClick = {
-                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onFoodAdded(
+                                    IconButtonTooltip(stringResource(R.string.journal_add_food)) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onFoodAdded(
+                                                    if (rowExpanded) {
+                                                        food.scaledForPortion(rowPortionGrams)
+                                                    } else {
+                                                        food
+                                                    }
+                                                )
                                                 if (rowExpanded) {
-                                                    food.scaledForPortion(rowPortionGrams)
-                                                } else {
-                                                    food
+                                                    expandedFoodId = null
                                                 }
+                                            },
+                                            modifier = Modifier.size(40.dp),
+                                            shapes = IconButtonDefaults.shapes()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = stringResource(R.string.journal_add_food),
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            if (rowExpanded) {
-                                                expandedFoodId = null
-                                            }
-                                        },
-                                        modifier = Modifier.size(40.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        }
                                     }
                                 }
                             )
@@ -1914,10 +1945,10 @@ private fun JournalSelectedFoodChip(
     val color = Color(item.accentColor)
     Surface(
         color = color.copy(alpha = 0.18f),
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -1929,8 +1960,7 @@ private fun JournalSelectedFoodChip(
             Column(modifier = Modifier.widthIn(max = 180.dp)) {
                 Text(
                     text = item.displayName,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1942,15 +1972,18 @@ private fun JournalSelectedFoodChip(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+            IconButtonTooltip(stringResource(R.string.remove)) {
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(34.dp),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.remove),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
@@ -1969,7 +2002,7 @@ private fun JournalFoodPickerRow(
     detailsContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(16.dp)
     Surface(
         color = if (selected) color.copy(alpha = 0.18f) else unselectedContainerColor,
         shape = shape
@@ -1988,7 +2021,7 @@ private fun JournalFoodPickerRow(
                         stiffness = Spring.StiffnessMediumLow
                     )
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -1996,12 +2029,11 @@ private fun JournalFoodPickerRow(
                         .size(10.dp)
                         .background(color, CircleShape)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2026,7 +2058,7 @@ private fun JournalFoodPickerRow(
                     shrinkTowards = Alignment.Top
                 ) + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(top = 10.dp)) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
                     detailsContent?.invoke()
                 }
             }
@@ -2071,8 +2103,7 @@ internal fun JournalFoodCompositionDetails(
                     )
                     Text(
                         text = formatFoodComponentValue(component.rawValue),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
                         textAlign = TextAlign.End,
                         modifier = Modifier.widthIn(min = 46.dp)
                     )
@@ -2088,40 +2119,46 @@ internal fun JournalFoodCompositionDetails(
         }
         Surface(
             color = color.copy(alpha = 0.10f),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(6.dp),
+                modifier = Modifier.padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalIconButton(
-                    onClick = { updatePortion(portionGrams - 10f) },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = null)
+                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                    FilledTonalIconButton(
+                        onClick = { updatePortion(portionGrams - 10f) },
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value))
+                    }
                 }
+                val portionField = rememberSelectAllOnFocusField(portionText)
                 BasicTextField(
-                    value = portionText,
-                    onValueChange = { value ->
-                        onPortionTextChange(
-                            value
-                                .filter { it.isDigit() || it == ',' || it == '.' }
-                                .take(6)
-                        )
+                    value = portionField.value,
+                    onValueChange = {
+                        portionField.onValueChange(it) { value ->
+                            onPortionTextChange(
+                                value
+                                    .filter { it.isDigit() || it == ',' || it == '.' }
+                                    .take(6)
+                            )
+                        }
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                    textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 8.dp)
+                        .onFocusChanged(portionField::onFocusChanged),
                     decorationBox = { innerTextField ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2141,11 +2178,14 @@ internal fun JournalFoodCompositionDetails(
                         }
                     }
                 )
-                FilledTonalIconButton(
-                    onClick = { updatePortion(portionGrams + 10f) },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
+                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                    FilledTonalIconButton(
+                        onClick = { updatePortion(portionGrams + 10f) },
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value))
+                    }
                 }
             }
         }
@@ -2157,14 +2197,16 @@ internal fun JournalFoodCompositionDetails(
             ) {
                 TextButton(
                     onClick = saveToLibrary,
-                    colors = ButtonDefaults.textButtonColors(contentColor = color)
+                    colors = ButtonDefaults.textButtonColors(contentColor = color),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.journal_food_save_to_library))
                 }
             }
@@ -2261,10 +2303,10 @@ private fun JournalFoodPill(
     Surface(
         onClick = onClick,
         color = if (selected) color.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -2307,7 +2349,7 @@ private fun JournalMacroFields(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         JournalStepperField(
             value = proteinText,
@@ -2336,7 +2378,7 @@ private fun JournalDoseMetric(label: String) {
             text = label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
     }
 }
@@ -2404,13 +2446,14 @@ private fun JournalActionRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         actions.forEach { action ->
             FilledTonalButton(
                 onClick = { onAction(action) },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(18.dp),
+                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -2482,7 +2525,9 @@ private fun JournalIntensitySelector(
             FilterChip(
                 selected = selectedIntensity == intensity,
                 onClick = { onIntensitySelected(intensity) },
-                label = { Text(text = stringResource(intensity.labelRes())) }
+                label = { Text(text = stringResource(intensity.labelRes())) },
+                shapes = FilterChipDefaults.shapes(),
+                colors = FilterChipDefaults.filterChipColors()
             )
         }
     }
@@ -2640,6 +2685,7 @@ fun JournalInlineChip(
             Dp.Unspecified
         }
     ) {
+        // ui-guardrails: allow-begin offgrid_spacing, offscale_radius - journal chip metrics as tuned in #572; the chart's chip layout measures them
         Surface(
             modifier = modifier.widthIn(max = if (expanded) 320.dp else 180.dp),
             onClick = onClick,
@@ -2720,6 +2766,7 @@ fun JournalInlineChip(
                             .padding(top = if (expanded) 3.dp else 0.dp)
                             .size(if (expanded) 14.dp else 12.dp)
                     )
+                // ui-guardrails: allow-end
                 }
             }
         }
@@ -2834,6 +2881,7 @@ private fun JournalEntryChip(
     onClick: () -> Unit
 ) {
     val tint = insulinPreset?.let { Color(it.accentColor) } ?: journalTypeColor(entry.type)
+    // ui-guardrails: allow-begin offgrid_spacing, offscale_radius - journal chip metrics as tuned in #572; the chart's chip layout measures them
     Surface(
         onClick = onClick,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -2861,6 +2909,7 @@ private fun JournalEntryChip(
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // ui-guardrails: allow-end
                 Text(
                     text = if (entry.type == JournalEntryType.INSULIN) {
                         insulinPreset?.displayName ?: entry.title
@@ -2904,7 +2953,8 @@ private fun JournalDateTimeCard(
     date: String,
     time: String,
     onDateClick: () -> Unit,
-    onTimeClick: () -> Unit
+    onTimeClick: () -> Unit,
+    onTimeLongClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -2935,7 +2985,9 @@ private fun JournalDateTimeCard(
                 icon = Icons.Default.AccessTime,
                 contentDescription = stringResource(R.string.time),
                 value = time,
-                onClick = onTimeClick
+                onClick = onTimeClick,
+                onLongClick = onTimeLongClick,
+                onLongClickLabel = stringResource(R.string.journal_quickadd_always_now_title)
             )
         }
     }
@@ -2947,8 +2999,11 @@ private fun JournalDateTimeSegment(
     icon: ImageVector,
     contentDescription: String,
     value: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null
 ) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier
             .heightIn(min = 56.dp)
@@ -2956,7 +3011,16 @@ private fun JournalDateTimeSegment(
                 this.contentDescription = "$contentDescription, $value"
                 role = Role.Button
             }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = onLongClickLabel,
+                onLongClick = onLongClick?.let { longClick ->
+                    {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longClick()
+                    }
+                }
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3242,41 +3306,45 @@ private fun JournalStepperField(
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         onStep(delta)
     }
+    val field = rememberSelectAllOnFocusField(value)
     Surface(
         color = if (prominent) {
             MaterialTheme.colorScheme.surfaceContainerHigh
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
-        shape = RoundedCornerShape(if (prominent) 28.dp else 22.dp)
+        shape = RoundedCornerShape(if (prominent) 28.dp else 20.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = if (prominent) 10.dp else 12.dp,
-                    vertical = if (prominent) 9.dp else 12.dp
+                    horizontal = if (prominent) 12.dp else 12.dp,
+                    vertical = if (prominent) 8.dp else 12.dp
                 ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilledTonalIconButton(
-                onClick = { stepWithFeedback(-1) },
-                modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 18.dp else 14.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = null
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                FilledTonalIconButton(
+                    onClick = { stepWithFeedback(-1) },
+                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
+                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                    )
+                }
             }
             if (prominent) {
                 BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
+                    value = field.value,
+                    onValueChange = { field.onValueChange(it, onValueChange) },
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 64.dp),
+                        .heightIn(min = 64.dp)
+                        .onFocusChanged(field::onFocusChanged),
                     textStyle = MaterialTheme.typography.displaySmall.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
@@ -3293,7 +3361,7 @@ private fun JournalStepperField(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(horizontal = 6.dp),
+                                    .padding(horizontal = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (value.isEmpty()) {
@@ -3311,8 +3379,7 @@ private fun JournalStepperField(
                             suffix?.let {
                                 Text(
                                     text = it,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleLargeEmphasized,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -3328,14 +3395,14 @@ private fun JournalStepperField(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
+                        value = field.value,
+                        onValueChange = { field.onValueChange(it, onValueChange) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .onFocusChanged(field::onFocusChanged),
+                        textStyle = MaterialTheme.typography.titleLargeEmphasized.copy(
                             color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
                         ),
                         singleLine = true,
@@ -3365,9 +3432,8 @@ private fun JournalStepperField(
                                         if (value.isBlank()) {
                                             Text(
                                                 text = "0",
-                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                style = MaterialTheme.typography.titleLargeEmphasized.copy(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
-                                                    fontWeight = FontWeight.SemiBold,
                                                     textAlign = TextAlign.Center
                                                 )
                                             )
@@ -3388,15 +3454,17 @@ private fun JournalStepperField(
                     )
                 }
             }
-            FilledTonalIconButton(
-                onClick = { stepWithFeedback(1) },
-                modifier = if (prominent) Modifier.size(56.dp) else Modifier,
-                shape = RoundedCornerShape(if (prominent) 18.dp else 14.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null
-                )
+            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                FilledTonalIconButton(
+                    onClick = { stepWithFeedback(1) },
+                    modifier = if (prominent) Modifier.size(56.dp) else Modifier,
+                    shapes = IconButtonDefaults.shapes(shape = RoundedCornerShape(if (prominent) 16.dp else 12.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.outbound_api_increase_value)
+                    )
+                }
             }
         }
     }
@@ -3591,4 +3659,42 @@ private fun mergeJournalTime(currentTimestamp: Long, selectedTime: Pair<Int, Int
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
+}
+
+/**
+ * A number field's text, kept so that focusing the field selects all of it: a typed amount
+ * replaces the old one instead of landing beside it. The caller's text stays the source of
+ * truth; the steppers change it from outside.
+ */
+@Stable
+private class SelectAllOnFocusField(text: String) {
+    var value by mutableStateOf(TextFieldValue(text))
+        private set
+
+    // The tap that focuses the field places the cursor straight after; that must not undo it.
+    private var keepSelectionOnce = false
+
+    fun sync(text: String) {
+        if (text != value.text) value = TextFieldValue(text, TextRange(text.length))
+    }
+
+    fun onFocusChanged(state: FocusState) {
+        keepSelectionOnce = state.isFocused
+        if (state.isFocused) value = value.copy(selection = TextRange(0, value.text.length))
+    }
+
+    fun onValueChange(newValue: TextFieldValue, onTextChange: (String) -> Unit) {
+        val keepSelection = keepSelectionOnce && newValue.text == value.text
+        keepSelectionOnce = false
+        if (keepSelection) return
+        value = newValue
+        onTextChange(newValue.text)
+    }
+}
+
+@Composable
+private fun rememberSelectAllOnFocusField(text: String): SelectAllOnFocusField {
+    val field = remember { SelectAllOnFocusField(text) }
+    field.sync(text)
+    return field
 }

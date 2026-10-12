@@ -1,7 +1,10 @@
 package tk.glucodata.ui.calibration
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import tk.glucodata.ui.StatusPalette
 import android.os.Build
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -170,7 +173,7 @@ fun CalibrationBottomSheet(
 
     // Data Flow
     val duplicateThresholdMs = 60_000L
-    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsState(initial = emptyList())
+    val allCalibrations by CalibrationManager.getCalibrationsFlow()?.collectAsStateWithLifecycle(initialValue = emptyList())
         ?: remember { mutableStateOf(emptyList()) }
     val calibrations = allCalibrations
         .filter { it.isRawMode == isRawMode }
@@ -226,7 +229,7 @@ fun CalibrationBottomSheet(
         sheetState = sheetState,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         // Fix for Keyboard Gap:
         // When IME (Keyboard) is visible, we don't need navigationBarsPadding because the IME
@@ -242,11 +245,11 @@ fun CalibrationBottomSheet(
             val headerMinHeight = if (isCompactSheet) 44.dp else 48.dp
             val headerBottomSpacing = if (isCompactSheet) 8.dp else 12.dp
             val timeCardPadding = if (isCompactSheet) 12.dp else 16.dp
-            val timeIconSpacing = if (isCompactSheet) 10.dp else 16.dp
+            val timeIconSpacing = if (isCompactSheet) 8.dp else 16.dp
             val timePickerBottomSpacing = if (isCompactSheet) 12.dp else 16.dp
             val heroBottomSpacing = if (isCompactSheet) 8.dp else 12.dp
-            val statusMinHeight = if (isCompactSheet) 30.dp else 32.dp
-            val actionsTopSpacing = if (isCompactSheet) 14.dp else 24.dp
+            val statusMinHeight = 32.dp
+            val actionsTopSpacing = if (isCompactSheet) 16.dp else 24.dp
             val actionsBottomSpacing = if (isCompactSheet) 12.dp else 24.dp
             val sheetBottomPadding = if (isCompactSheet) 16.dp else 12.dp
 
@@ -280,40 +283,46 @@ fun CalibrationBottomSheet(
                 if (editingEntity != null) {
                     Row {
                         // Disable/Enable toggle
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                contentColor = if (editingEntity!!.isEnabled)
-                                    MaterialTheme.colorScheme.secondary
-                                else
-                                    MaterialTheme.colorScheme.tertiary
-                            ),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
-                                contentDescription = null
-                            )
+                        IconButtonTooltip(stringResource(if (editingEntity!!.isEnabled) R.string.disable else R.string.enable)) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        CalibrationManager.updateCalibration(editingEntity!!.copy(isEnabled = !editingEntity!!.isEnabled))
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    contentColor = if (editingEntity!!.isEnabled)
+                                        MaterialTheme.colorScheme.secondary
+                                    else
+                                        MaterialTheme.colorScheme.tertiary
+                                ),
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes()
+                            ) {
+                                Icon(
+                                    if (editingEntity!!.isEnabled) Icons.Default.Close else Icons.Default.Check,
+                                    contentDescription = stringResource(if (editingEntity!!.isEnabled) R.string.disable else R.string.enable)
+                                )
+                            }
                         }
 
                         // Delete button
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                     val deletedTimestamp = editingEntity!!.timestamp
-                                     CalibrationManager.deleteCalibration(editingEntity!!)
-                                     selectedTimestamp = System.currentTimeMillis()
-                                     onDismiss()
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = null)
+                        IconButtonTooltip(stringResource(R.string.delete)) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                         val deletedTimestamp = editingEntity!!.timestamp
+                                         CalibrationManager.deleteCalibration(editingEntity!!)
+                                         selectedTimestamp = System.currentTimeMillis()
+                                         onDismiss()
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes()
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
+                            }
                         }
                     }
                 }
@@ -346,9 +355,7 @@ fun CalibrationBottomSheet(
 //                                Text("Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     text = if (isNow) stringResource(R.string.now) else dateFormatter.format(Date(selectedTimestamp)),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                             }
                         }
 
@@ -358,7 +365,8 @@ fun CalibrationBottomSheet(
                                 FilledTonalButton(
                                     onClick = { selectedTimestamp = System.currentTimeMillis() },
                                     contentPadding = PaddingValues(horizontal = 16.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    modifier = Modifier.height(32.dp),
+                                    shapes = ButtonDefaults.shapes()
                                 ) {
                                     Text(stringResource(R.string.now))
                                 }
@@ -446,7 +454,7 @@ fun CalibrationBottomSheet(
 
             // --- BADGE ---
             val isStable = abs(trendResult.velocity) < 1.0
-            val statusColor = if (isStable) Color(0xFF4CAF50) else Color(0xFFFFB300)
+            val statusColor = if (isStable) StatusPalette.success() else StatusPalette.warning()
 
             Surface(
                 color = statusColor.copy(alpha = 0.1f),
@@ -464,15 +472,13 @@ fun CalibrationBottomSheet(
                     }
                     Icon(trendIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     val statusText = if (isStable) stringResource(R.string.conditions_optimal) else stringResource(R.string.wait_15m_unstable)
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = statusColor,
-                        fontWeight = FontWeight.Bold
-                    )
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = statusColor,)
                 }
             }
             Spacer(modifier = Modifier.height(actionsTopSpacing))
@@ -481,7 +487,7 @@ fun CalibrationBottomSheet(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Cancel Button: Visible in Edit Mode
                 if (editingEntity != null) {
-                    OutlinedButton (
+                    OutlinedButton(
                         onClick = {
                             if (startedInEditMode) {
                                 // Started as Edit -> Close
@@ -493,7 +499,9 @@ fun CalibrationBottomSheet(
                                 textValue = TextFieldValue(if (isMmol) String.format("%.1f", userValue) else String.format("%.0f", userValue))
                             }
                         },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
@@ -538,7 +546,8 @@ fun CalibrationBottomSheet(
                         }
                     },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Text(if (editingEntity != null) stringResource(R.string.update) else stringResource(R.string.save))
                 }
@@ -675,8 +684,8 @@ private fun CalibrationHistoryList(
 //                        Row(verticalAlignment = Alignment.CenterVertically) {
 //                            Text(
 //                                text = "${String.format(Locale.getDefault(), sFmt, sVal)} → ${String.format(Locale.getDefault(), sFmt, cal.userValue)}",
-//                                style = MaterialTheme.typography.titleMedium,
-//                                fontWeight = FontWeight.SemiBold
+//                                style = MaterialTheme.typography.titleMediumEmphasized,
+//
 //                            )
 //                            if (!cal.isEnabled) {
 //                                Spacer(modifier = Modifier.width(8.dp))
@@ -712,7 +721,9 @@ private fun CalibrationHistoryList(
         if (calibrations.size > 0) {
             TextButton(
                 onClick = onSeeAll,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -741,7 +752,7 @@ private fun CalibrationHeroSection(
     val valuesMatch = kotlin.math.abs(userValue - originalValue) < 0.01f
     val valueButtonSize = if (compact) 56.dp else 64.dp
     val valueIconSize = if (compact) 28.dp else 32.dp
-    val valueGap = if (compact) 10.dp else 16.dp
+    val valueGap = if (compact) 8.dp else 16.dp
     val valueFontSize = if (compact) 48.sp else 56.sp
     val valueMinWidth = if (compact) 68.dp else 80.dp
     val valueMaxWidth = if (compact) 132.dp else 180.dp
@@ -820,16 +831,19 @@ private fun CalibrationHeroSection(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            FilledTonalIconButton(
-                onClick = {
-                    val newValue = (userValue - step).coerceAtLeast(0f)
-                    val newText = String.format(Locale.getDefault(), fmt, newValue)
-                    onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
-                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                },
-                modifier = Modifier.size(valueButtonSize)
-            ) {
-                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(valueIconSize))
+            IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                FilledTonalIconButton(
+                    onClick = {
+                        val newValue = (userValue - step).coerceAtLeast(0f)
+                        val newText = String.format(Locale.getDefault(), fmt, newValue)
+                        onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    },
+                    modifier = Modifier.size(valueButtonSize),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.outbound_api_decrease_value), modifier = Modifier.size(valueIconSize))
+                }
             }
 
             Spacer(modifier = Modifier.width(valueGap))
@@ -894,16 +908,19 @@ private fun CalibrationHeroSection(
 
             Spacer(modifier = Modifier.width(valueGap))
 
-            FilledTonalIconButton(
-                onClick = {
-                    val newValue = userValue + step
-                    val newText = String.format(Locale.getDefault(), fmt, newValue)
-                    onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
-                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                },
-                modifier = Modifier.size(valueButtonSize)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(valueIconSize))
+            IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                FilledTonalIconButton(
+                    onClick = {
+                        val newValue = userValue + step
+                        val newText = String.format(Locale.getDefault(), fmt, newValue)
+                        onValueChange(newValue, TextFieldValue(newText, TextRange(newText.length)))
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    },
+                    modifier = Modifier.size(valueButtonSize),
+                    shapes = IconButtonDefaults.shapes()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.outbound_api_increase_value), modifier = Modifier.size(valueIconSize))
+                }
             }
         }
     }

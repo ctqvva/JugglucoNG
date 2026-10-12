@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui.stats
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -42,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,7 +59,7 @@ import kotlin.math.roundToInt
 fun formatStatsDateRange(range: StatsDateRange?): String? {
     if (range == null) return null
     val formatter = SimpleDateFormat("MMM d", Locale.getDefault())
-    return "${formatter.format(Date(range.startMillis))} - ${formatter.format(Date(range.endMillis))}"
+    return "${formatter.format(Date(range.startMillis))} – ${formatter.format(Date(range.endMillis))}"
 }
 
 fun clampStatsDateRangeToAvailable(range: StatsDateRange?, availableRange: StatsDateRange?): StatsDateRange? {
@@ -123,9 +123,9 @@ private fun formatPickerHeadline(
     return when {
         startUtcMillis != null && endUtcMillis != null &&
             yearFormatter.format(Date(startUtcMillis)) == yearFormatter.format(Date(endUtcMillis)) ->
-            "${monthDayFormatter.format(Date(startUtcMillis))} - ${monthDayYearFormatter.format(Date(endUtcMillis))}"
+            "${monthDayFormatter.format(Date(startUtcMillis))} – ${monthDayYearFormatter.format(Date(endUtcMillis))}"
         startUtcMillis != null && endUtcMillis != null ->
-            "${monthDayYearFormatter.format(Date(startUtcMillis))} - ${monthDayYearFormatter.format(Date(endUtcMillis))}"
+            "${monthDayYearFormatter.format(Date(startUtcMillis))} – ${monthDayYearFormatter.format(Date(endUtcMillis))}"
         startUtcMillis != null -> monthDayYearFormatter.format(Date(startUtcMillis))
         else -> monthDayYearFormatter.format(Date(endUtcMillis!!))
     }
@@ -144,7 +144,6 @@ fun StatsDateRangePickerHeadline(
             text = headline,
             modifier = modifier.padding(start = 24.dp, end = 24.dp, bottom = 2.dp),
             style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Medium,
                 lineHeight = 24.sp
             ),
             maxLines = 1,
@@ -181,13 +180,13 @@ fun StatsRangeSelectorControl(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (hasData && readingCount > 0) {
                 // Reading count and sensor coverage are both facts about the window, so
                 // they belong on the window's own line rather than inside a result card.
-                val countText = "$readingCount ${stringResource(countLabelResId)}"
+                val countText = "${java.text.NumberFormat.getIntegerInstance().format(readingCount)} ${stringResource(countLabelResId)}"
                 Text(
                     text = coveragePercent
                         ?.let { "$countText · ${stringResource(R.string.stats_coverage_active, it.roundToInt())}" }
@@ -207,7 +206,7 @@ fun StatsRangeSelectorControl(
             Surface(
                 modifier = Modifier.heightIn(min = 36.dp),
                 onClick = onCustomRangeClick,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 color = if (selectedRange == null) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
@@ -223,7 +222,7 @@ fun StatsRangeSelectorControl(
                     modifier = Modifier
                         .animateContentSize()
                         .heightIn(min = 36.dp)
-                        .padding(horizontal = 10.dp),
+                        .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -341,7 +340,7 @@ fun StatsDateRangeSheet(
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
                     text = stringResource(R.string.stats_custom_range_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
                 Text(
                     text = if (dayCount > 0) {
@@ -406,7 +405,9 @@ fun StatsDateRangeSheet(
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Text(text = stringResource(R.string.cancel))
                 }
@@ -417,7 +418,9 @@ fun StatsDateRangeSheet(
                         onApply(start, end)
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = startUtc != null
+                    enabled = startUtc != null,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Text(text = stringResource(R.string.stats_apply_range))
                 }

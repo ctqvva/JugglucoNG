@@ -1,5 +1,9 @@
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,7 +28,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ExpandMore
@@ -43,7 +46,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -52,7 +54,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -74,9 +75,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsItem
@@ -219,25 +222,24 @@ fun LibreSetupWizard(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.libre_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = {
+            AppTopBar(
+                title = stringResource(R.string.libre_setup_title),
+                onNavigateBack = {
                         if (currentStep > 0) currentStep-- else onDismiss()
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                },
+                    },
+                navigationContentDescription = stringResource(R.string.cancel),
                 actions = {
                     if (currentStep == 1) {
                         TextButton(
                             onClick = ::leaveLibreViewStep,
-                            enabled = !isSendingNow && !isFetchingAccountId && !isResendingData
+                            enabled = !isSendingNow && !isFetchingAccountId && !isResendingData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
                         ) {
                             Text(stringResource(R.string.libre_setup_done))
                         }
                     }
-                }
+                },
             )
         }
     ) { padding ->
@@ -246,7 +248,7 @@ fun LibreSetupWizard(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { (currentStep + 1f) / 2f },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -269,7 +271,7 @@ fun LibreSetupWizard(
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
                                 .size(if (ui.compact) 88.dp else 104.dp),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Row(
@@ -293,8 +295,7 @@ fun LibreSetupWizard(
                         ) {
                             Text(
                                 text = stringResource(R.string.libre_setup_step_scan),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.headlineSmallEmphasized,
                                 textAlign = TextAlign.Center
                             )
 
@@ -318,7 +319,9 @@ fun LibreSetupWizard(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ui.buttonHeight)
+                                .height(ui.buttonHeight),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Icon(Icons.Default.Nfc, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -370,9 +373,7 @@ fun LibreSetupWizard(
                     ) {
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                            style = MaterialTheme.typography.headlineSmallEmphasized,)
 
                         Text(
                             text = stringResource(R.string.libre_setup_step_libreview_desc),
@@ -463,7 +464,9 @@ fun LibreSetupWizard(
                                     OutlinedButton(
                                         onClick = { saveManualAccountId() },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = !isBusy
+                                        enabled = !isBusy,
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) {
                                         Text(saveText)
                                     }
@@ -493,15 +496,17 @@ fun LibreSetupWizard(
                                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     val image = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                    IconButton(onClick = { showPassword = !showPassword }) {
-                                        Icon(
-                                            imageVector = image,
-                                            contentDescription = if (showPassword) {
-                                                stringResource(R.string.hide_password)
-                                            } else {
-                                                stringResource(R.string.show_password)
-                                            }
-                                        )
+                                    IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                        IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
+                                            Icon(
+                                                imageVector = image,
+                                                contentDescription = if (showPassword) {
+                                                    stringResource(R.string.hide_password)
+                                                } else {
+                                                    stringResource(R.string.show_password)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             )
@@ -535,14 +540,16 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = canSendData
+                            enabled = canSendData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isSendingNow) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
                             } else {
                                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(stringResource(R.string.save))
                         }
@@ -576,7 +583,9 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = canSendData
+                            enabled = canSendData,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isResendingData) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -621,7 +630,9 @@ fun LibreSetupWizard(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = hasCredentials && !isBusy
+                            enabled = hasCredentials && !isBusy,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (isFetchingAccountId) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -671,20 +682,7 @@ private fun LibreSetupAdvancedSection(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+            IconTile(icon = Icons.Default.Tune, tint = MaterialTheme.colorScheme.secondary)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -744,7 +742,7 @@ private fun LibreSetupAdvancedSection(
                                 }
                             )
                             .clickable { onModeSelected(mode) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(

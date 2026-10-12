@@ -2319,6 +2319,8 @@ extern "C" JNIEXPORT jobjectArray JNICALL fromjava(activeSensors)(JNIEnv *env,
   std::vector<std::string> names;
   names.reserve(active.size());
   for (const int index : active) {
+    if (sensors->sensorDirectoryMissing(index))
+      continue;
     const char *name = sensors->shortsensorname_chars(index);
     if (name)
       names.emplace_back(name);
@@ -2332,6 +2334,8 @@ extern "C" JNIEXPORT jobjectArray JNICALL fromjava(activeSensors)(JNIEnv *env,
   std::vector<std::string> names;
   names.reserve(active.size());
   for (const int index : active) {
+    if (sensors->sensorDirectoryMissing(index))
+      continue;
     const SensorGlucoseData *sens = sensors->getSensorData(index);
     const char *name = sensors->shortsensorname_chars(index);
     if (sens && !sens->isLibre3() && name)

@@ -5,20 +5,18 @@ package tk.glucodata.ui
 import android.app.Activity
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LegendToggle
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Settings
@@ -30,21 +28,21 @@ import androidx.compose.material.icons.outlined.Sensors
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationItemIconPosition
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarArrangement
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -53,10 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,6 +61,8 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -76,6 +73,10 @@ import tk.glucodata.R
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.LocalNavigationTapCatcher
+import tk.glucodata.ui.components.NavigationTapCatcher
+import tk.glucodata.ui.components.NavigationTapCatcherLayer
 import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalFoodLibraryScreen
@@ -476,17 +477,9 @@ private fun JournalSettingsHistoryRoute(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.journal_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.journal_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -672,31 +665,28 @@ private const val CALIBRATION_SHEET_WINDOW_HALF_MS = 6L * 60L * 60L * 1000L
 
 @Composable
 private fun AdaptiveNavigationLabel(text: String) {
-    BoxWithConstraints {
-        val density = LocalDensity.current
-        val textMeasurer = rememberTextMeasurer()
-        val regularStyle = MaterialTheme.typography.labelMedium
-        val tightStyle = regularStyle.copy(letterSpacing = 0.sp)
-        val compactStyle = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp)
-        val availableWidthPx = with(density) { maxWidth.toPx() }
-        val labelStyle = remember(text, availableWidthPx, regularStyle, tightStyle, compactStyle) {
-            listOf(regularStyle, tightStyle, compactStyle).firstOrNull { style ->
-                textMeasurer.measure(
-                    text = AnnotatedString(text),
-                    style = style,
-                    maxLines = 1
-                ).size.width <= availableWidthPx
-            } ?: compactStyle
-        }
-
-        Text(
-            text = text,
-            style = labelStyle,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
+    val regularStyle = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.sp)
+    val compactFontSize = MaterialTheme.typography.labelSmall.fontSize
+    val autoSize = remember(compactFontSize, regularStyle.fontSize) {
+        TextAutoSize.StepBased(
+            minFontSize = compactFontSize,
+            maxFontSize = regularStyle.fontSize,
+            stepSize = 1.sp
         )
     }
+
+    // ShortNavigationBar queries intrinsic sizes; a BoxWithConstraints label cannot provide them.
+    // Its top-icon items only add vertical padding. Reserve a horizontal label gutter
+    // before auto-sizing without shrinking the item's full-width touch target.
+    Text(
+        text = text,
+        modifier = Modifier.padding(horizontal = 8.dp),
+        style = regularStyle,
+        autoSize = autoSize,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable
@@ -710,6 +700,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
         calibrationSheetState = state
     }
+    val navigationTapCatcher = remember { NavigationTapCatcher() }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -827,313 +818,93 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         add(NavItem("settings", stringResource(R.string.settings), Icons.Filled.Settings, Icons.Outlined.Settings))
     }
 
-    if (isLandscape) {
-        // --- LANDSCAPE: Navigation Rail on Left ---
-        Row(modifier = Modifier.fillMaxSize()) {
-            NavigationRail {
-                Spacer(modifier = Modifier.weight(1f)) // Center vertically? Or top? Usually top or center.
-                // Let's center them vertically for likely better ergonomics in landscape phone
-
-                navItems.forEach { item ->
-                    val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                    NavigationRailItem(
-                        icon = {
-                            TabIcon(
-                                isSelected = isSelected,
-                                selectedIcon = item.selectedIcon,
-                                unselectedIcon = item.unselectedIcon,
-                                description = item.label,
-                                isDashboard = item.route == "dashboard",
-                                isStatistics = item.route == "stats"
+    // One NavHost in one place for both orientations. Rotation is handled by this activity
+    // (configChanges), so the composition survives it; two NavHosts — one beside a rail, one
+    // above a bar — meant every rotation disposed the open screen and rebuilt it from scratch.
+    // The rail or the bar comes and goes around it; the NavHost keeps its slot.
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0), // Child screens apply their own insets.
+        bottomBar = {
+            if (!isLandscape) {
+                Box {
+                    ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            ShortNavigationBarItem(
+                                iconPosition = NavigationItemIconPosition.Top,
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = {
+                                    FontScaleCap { AdaptiveNavigationLabel(item.label) }
+                                },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
                             )
-                        },
-                        label = { Text(item.label) },
-                        selected = isSelected,
-                        onClick = { onNavigate(item.route) }
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            // Content Area -- LANDSCAPE
-            Scaffold(contentWindowInsets = WindowInsets(0.dp)) { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = "dashboard",
-                    modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
-                    // No transition between rail destinations. This was never asked for —
-                    // it is NavHost's own 700 ms default, which portrait overrides with a
-                    // fast fade and landscape had simply been left on.
-                    enterTransition = { EnterTransition.None },
-                    exitTransition = { ExitTransition.None },
-                    popEnterTransition = { EnterTransition.None },
-                    popExitTransition = { ExitTransition.None }
-                ) {
-                    composable("dashboard") {
-                        DashboardRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
+                        }
                     }
-                    composable("history") {
-                        HistoryRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            title = stringResource(R.string.historyname),
-                            browseMode = TimelineBrowseMode.HISTORY,
-                            onBack = { navController.popBackStack() },
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
-                    composable("journal") {
-                        JournalRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration,
-                        )
-                    }
-                    composable("stats") { tk.glucodata.ui.stats.StatsScreen() }
-                    composable("sensors") {
-                        SensorScreen(
-                            onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
-                            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
-                        )
-                    }
-                    composable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
-                    composable("settings/nightscout") { NightscoutSettingsScreen(navController) }
-                    composable("settings/libreview") { LibreViewSettingsScreen(navController) }
-                    composable("settings/mq-account") { MQAccountSettingsScreen(navController) }
-                    composable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }
-                    composable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
-                    composable("settings/mirror") { MirrorSettingsScreen(navController) }
-                    composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
-                    composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
-                    composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
-                    composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
-                    composable("settings/watch") { WatchSettingsScreen(navController) }
-                    // Keep legacy route for backward compatibility.
-                    composable("settings/weartransport") { WatchSettingsScreen(navController) }
-                    composable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }
-                    composable("settings/watch/garmin-status") { GarminStatusScreen(navController) }
-                    composable("settings/webserver") { WebServerSettingsScreen(navController) }
-                    composable("settings/notification-display") {
-                        NotificationSettingsScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/display-colors") {
-                        DisplayAndColorSettingsScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/data-smoothing") {
-                        DataSmoothingSettingsScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/predictive-simulation") {
-                        PredictiveSimulationSettingsScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/predictive-simulation/model-profile") {
-                        PredictionModelProfileScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/floating-display") {
-                        FloatingGlucoseSettingsScreen(navController, dashboardViewModel)
-                    }
-                    composable("settings/aod-display") { AodSettingsScreen(navController) }
-
-                    composable("settings/turnserver") { tk.glucodata.ui.TurnServerSettingsScreen(navController) }
-                    composable("settings/debug") { DebugSettingsScreen(navController) }
-                    composable("settings/cgm-readiness") { CgmReadinessScreen(navController) }
-                    composable("settings/app-updates") { AppUpdatesScreen(navController) }
-                    composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
-                    composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
-                    composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
-                    composable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
-                    composable("settings/journal/history") {
-                        JournalSettingsHistoryRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
-                    composable("settings/journal/foods") { JournalFoodLibraryScreen(navController, dashboardViewModel) }
-                    composable("settings/journal/insulin") { JournalInsulinLibraryScreen(navController, dashboardViewModel) }
-                    composable("settings/calibrations") {
-                        CalibrationListRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
-                    composable("settings/calibrations/model-table") {
-                        CalibrationModelTableRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
-                    composable("calibrations") {
-                        CalibrationListRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
-                    composable("calibrations/model-table") {
-                        CalibrationModelTableRoute(
-                            dashboardViewModel = dashboardViewModel,
-                            navController = navController,
-                            onTriggerCalibration = onTriggerCalibration
-                        )
-                    }
+                    NavigationTapCatcherLayer(navigationTapCatcher)
                 }
             }
         }
-    } else {
-        // --- PORTRAIT: Bottom Navigation Bar ---
-        Scaffold(
-            contentWindowInsets = WindowInsets(0, 0, 0, 0), // Fix: Prevent double padding for child Scaffolds
-            bottomBar = {
-                NavigationBar {
-                    navItems.forEach { item ->
-                        val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                        NavigationBarItem(
-                            icon = {
-                                TabIcon(
-                                    isSelected = isSelected,
-                                    selectedIcon = item.selectedIcon,
-                                    unselectedIcon = item.unselectedIcon,
-                                    description = item.label,
-                                    isDashboard = item.route == "dashboard",
-                                    isStatistics = item.route == "stats"
-                                )
-                            },
-                            label = {
-                                AdaptiveNavigationLabel(item.label)
-                            },
-                            selected = isSelected,
-                            onClick = { onNavigate(item.route) }
-                        )
+    ) { innerPadding ->
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (isLandscape) {
+                // The collapsed wide rail, the expressive partner of the portrait ShortNavigationBar.
+                // Centred, for the thumb on a phone held sideways.
+                Box {
+                    WideNavigationRail(arrangement = Arrangement.Center) {
+                        navItems.forEach { item ->
+                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
+                            WideNavigationRailItem(
+                                railExpanded = false,
+                                icon = {
+                                    TabIcon(
+                                        isSelected = isSelected,
+                                        selectedIcon = item.selectedIcon,
+                                        unselectedIcon = item.unselectedIcon,
+                                        description = item.label,
+                                        isDashboard = item.route == "dashboard",
+                                        isStatistics = item.route == "stats"
+                                    )
+                                },
+                                label = { FontScaleCap { Text(item.label) } },
+                                selected = isSelected,
+                                onClick = { onNavigate(item.route) }
+                            )
+                        }
                     }
+                    NavigationTapCatcherLayer(navigationTapCatcher)
                 }
             }
-
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = "dashboard",
-                modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
-                // Use a fast fade (200ms) for a snappy feel that isn't jarring
-                enterTransition = { fadeIn(animationSpec = tween(200)) },
-                exitTransition = { fadeOut(animationSpec = tween(200)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(200)) },
-                popExitTransition = { fadeOut(animationSpec = tween(200)) }
-            ) {
-                composable("dashboard") {
-                    DashboardRoute(
-                        dashboardViewModel = dashboardViewModel,
+            CompositionLocalProvider(LocalNavigationTapCatcher provides navigationTapCatcher) {
+                NavHost(
+                    navController = navController,
+                    startDestination = "dashboard",
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding),
+                    // A short fade between destinations. NavHost's own default is a 700ms
+                    // crossfade; landscape used to have none at all and portrait this one.
+                    enterTransition = { fadeIn(animationSpec = tween(200)) },
+                    exitTransition = { fadeOut(animationSpec = tween(200)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                ) {
+                    appDestinations(
                         navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("history") {
-                    HistoryRoute(
                         dashboardViewModel = dashboardViewModel,
-                        title = stringResource(R.string.historyname),
-                        browseMode = TimelineBrowseMode.HISTORY,
-                        onBack = { navController.popBackStack() },
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("journal") {
-                    JournalRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
+                        themeMode = themeMode,
+                        onThemeChanged = onThemeChanged,
                         onTriggerCalibration = onTriggerCalibration,
-                    )
-                }
-                composable("stats") { tk.glucodata.ui.stats.StatsScreen() }
-                composable("sensors") {
-                    SensorScreen(
-                        onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
-                        onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
-                    )
-                }
-                composable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
-                composable("settings/nightscout") { NightscoutSettingsScreen(navController) }
-                composable("settings/libreview") { LibreViewSettingsScreen(navController) }
-                composable("settings/mq-account") { MQAccountSettingsScreen(navController) }
-                composable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }
-                composable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
-                composable("settings/mirror") { MirrorSettingsScreen(navController) }
-                composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
-                composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
-                composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
-                composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
-                composable("settings/watch") { WatchSettingsScreen(navController) }
-                // Keep legacy route for backward compatibility.
-                composable("settings/weartransport") { WatchSettingsScreen(navController) }
-                composable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }
-                composable("settings/watch/garmin-status") { GarminStatusScreen(navController) }
-                composable("settings/webserver") { WebServerSettingsScreen(navController) }
-                composable("settings/notification-display") {
-                    NotificationSettingsScreen(navController, dashboardViewModel)
-                }
-                composable("settings/display-colors") {
-                    DisplayAndColorSettingsScreen(navController, dashboardViewModel)
-                }
-                composable("settings/data-smoothing") {
-                    DataSmoothingSettingsScreen(navController, dashboardViewModel)
-                }
-                composable("settings/predictive-simulation") {
-                    PredictiveSimulationSettingsScreen(navController, dashboardViewModel)
-                }
-                composable("settings/predictive-simulation/model-profile") {
-                    PredictionModelProfileScreen(navController, dashboardViewModel)
-                }
-                composable("settings/floating-display") {
-                    FloatingGlucoseSettingsScreen(navController, dashboardViewModel)
-                }
-                composable("settings/aod-display") { AodSettingsScreen(navController) }
-
-                composable("settings/turnserver") { tk.glucodata.ui.TurnServerSettingsScreen(navController) }
-                composable("settings/debug") { DebugSettingsScreen(navController) }
-                composable("settings/cgm-readiness") { CgmReadinessScreen(navController) }
-                composable("settings/app-updates") { AppUpdatesScreen(navController) }
-                composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
-                composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
-                composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
-                composable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
-                composable("settings/journal/history") {
-                    JournalSettingsHistoryRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("settings/journal/foods") { JournalFoodLibraryScreen(navController, dashboardViewModel) }
-                composable("settings/journal/insulin") { JournalInsulinLibraryScreen(navController, dashboardViewModel) }
-                composable("settings/calibrations") {
-                    CalibrationListRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("settings/calibrations/model-table") {
-                    CalibrationModelTableRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("calibrations") {
-                    CalibrationListRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
-                    )
-                }
-                composable("calibrations/model-table") {
-                    CalibrationModelTableRoute(
-                        dashboardViewModel = dashboardViewModel,
-                        navController = navController,
-                        onTriggerCalibration = onTriggerCalibration
                     )
                 }
             }
@@ -1151,4 +922,125 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         onDismiss = { calibrationSheetState = CalibrationSheetState.Hidden },
         onNavigateToCalibrations = { navController.navigate("calibrations") }
     )
+}
+
+private fun NavGraphBuilder.appDestinations(
+    navController: NavHostController,
+    dashboardViewModel: DashboardViewModel,
+    themeMode: ThemeMode,
+    onThemeChanged: (ThemeMode) -> Unit,
+    onTriggerCalibration: (CalibrationSheetState) -> Unit,
+) {
+    composable("dashboard") {
+        DashboardRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("history") {
+        HistoryRoute(
+            dashboardViewModel = dashboardViewModel,
+            title = stringResource(R.string.historyname),
+            browseMode = TimelineBrowseMode.HISTORY,
+            onBack = { navController.popBackStack() },
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("journal") {
+        JournalRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration,
+        )
+    }
+    composable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
+    composable("sensors") {
+        SensorScreen(
+            onNavigateToMqAccount = { navController.navigate("settings/mq-account") },
+            onNavigateToReadiness = { navController.navigate("settings/cgm-readiness") }
+        )
+    }
+    composable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
+    composable("settings/nightscout") { NightscoutSettingsScreen(navController) }
+    composable("settings/libreview") { LibreViewSettingsScreen(navController) }
+    composable("settings/mq-account") { MQAccountSettingsScreen(navController) }
+    composable("settings/mq-follower") { MQFollowerSettingsScreen(navController) }
+    composable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
+    composable("settings/mirror") { MirrorSettingsScreen(navController) }
+    composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
+    composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
+    composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
+    composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
+    composable("settings/watch") { WatchSettingsScreen(navController) }
+    // Keep legacy route for backward compatibility.
+    composable("settings/weartransport") { WatchSettingsScreen(navController) }
+    composable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }
+    composable("settings/watch/garmin-status") { GarminStatusScreen(navController) }
+    composable("settings/webserver") { WebServerSettingsScreen(navController) }
+    composable("settings/notification-display") {
+        NotificationSettingsScreen(navController, dashboardViewModel)
+    }
+    composable("settings/display-colors") {
+        DisplayAndColorSettingsScreen(navController, dashboardViewModel)
+    }
+    composable("settings/data-smoothing") {
+        DataSmoothingSettingsScreen(navController, dashboardViewModel)
+    }
+    composable("settings/predictive-simulation") {
+        PredictiveSimulationSettingsScreen(navController, dashboardViewModel)
+    }
+    composable("settings/predictive-simulation/model-profile") {
+        PredictionModelProfileScreen(navController, dashboardViewModel)
+    }
+    composable("settings/floating-display") {
+        FloatingGlucoseSettingsScreen(navController, dashboardViewModel)
+    }
+    composable("settings/aod-display") { AodSettingsScreen(navController) }
+
+    composable("settings/turnserver") { tk.glucodata.ui.TurnServerSettingsScreen(navController) }
+    composable("settings/debug") { DebugSettingsScreen(navController) }
+    composable("settings/cgm-readiness") { CgmReadinessScreen(navController) }
+    composable("settings/app-updates") { AppUpdatesScreen(navController) }
+    composable("settings/alerts") { tk.glucodata.ui.alerts.AlertSettingsScreen(navController) }
+    composable("settings/alerts/talker") { tk.glucodata.ui.alerts.TalkerSettingsScreen(navController) }
+    composable("settings/journal") { JournalSettingsScreen(navController, dashboardViewModel) }
+    composable("settings/journal/calculations") { JournalCalculationsSettingsScreen(navController, dashboardViewModel) }
+    composable("settings/journal/history") {
+        JournalSettingsHistoryRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("settings/journal/foods") { JournalFoodLibraryScreen(navController, dashboardViewModel) }
+    composable("settings/journal/insulin") { JournalInsulinLibraryScreen(navController, dashboardViewModel) }
+    composable("settings/calibrations") {
+        CalibrationListRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("settings/calibrations/model-table") {
+        CalibrationModelTableRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("calibrations") {
+        CalibrationListRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
+    composable("calibrations/model-table") {
+        CalibrationModelTableRoute(
+            dashboardViewModel = dashboardViewModel,
+            navController = navController,
+            onTriggerCalibration = onTriggerCalibration
+        )
+    }
 }

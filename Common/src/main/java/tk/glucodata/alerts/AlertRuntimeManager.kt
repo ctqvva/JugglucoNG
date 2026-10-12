@@ -221,7 +221,7 @@ object AlertRuntimeManager {
         try {
             SuperGattCallback.processExternalCurrentReading(
                 latest.sensorId,
-                latest.primaryValue,
+                tk.glucodata.LiveReadingLanes.resolved(latest.primaryValue),
                 latest.rate,
                 latest.timeMillis,
                 latest.sensorGen

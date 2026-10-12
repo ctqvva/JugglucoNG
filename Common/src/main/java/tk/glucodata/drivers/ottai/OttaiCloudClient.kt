@@ -92,6 +92,11 @@ object OttaiCloudClient {
         val isTokenInvalid: Boolean get() = code.equals(BIZ_TOKEN_INVALID, ignoreCase = true)
     }
 
+    /** Failure belongs to this unbind attempt even if another cloud request finishes meanwhile. */
+    data class UnbindResult(val released: Boolean, val failure: CloudFailure? = null)
+
+    internal data class CloudRequestResult(val body: JSONObject?, val failure: CloudFailure?)
+
     /** Last non-secret failure reason (HTTP + business code/message); null after a call that succeeded. */
     @Volatile
     var lastFailure: CloudFailure? = null
@@ -715,13 +720,21 @@ object OttaiCloudClient {
     /** PUT /deviceBind/unBindDevice — release a cloud binding. */
     fun unbind(ctx: Context, mac: String): Boolean = unbind(ctx, mac, null)
 
+    fun unbindWithResult(ctx: Context, mac: String): UnbindResult = unbindWithResult(ctx, mac, null)
+
     private fun unbind(
         ctx: Context,
         mac: String,
         headerOverride: ((Long) -> Map<String, String>)?,
-    ): Boolean {
+    ): Boolean = unbindWithResult(ctx, mac, headerOverride).released
+
+    private fun unbindWithResult(
+        ctx: Context,
+        mac: String,
+        headerOverride: ((Long) -> Map<String, String>)?,
+    ): UnbindResult {
         val canonical = OttaiConstants.canonicalSensorId(mac)
-        if (canonical.isBlank()) return false
+        if (canonical.isBlank()) return UnbindResult(false, CloudFailure("unbind requires mac"))
         val ts = now()
         val body = JSONObject().apply {
             put("mac", canonical)
@@ -729,12 +742,18 @@ object OttaiCloudClient {
             put("unbindType", 0)
         }
         val requestHeaders = headerOverride?.invoke(ts) ?: headers(ctx, ts, base(ctx))
-        val resp = httpPutJson(base(ctx) + OttaiConstants.EP_UNBIND, body.toString(), requestHeaders) ?: return false
+        return unbindResponseResult(
+            httpPutJsonWithResult(base(ctx) + OttaiConstants.EP_UNBIND, body.toString(), requestHeaders),
+        )
+    }
+
+    internal fun unbindResponseResult(result: CloudRequestResult): UnbindResult {
+        val resp = result.body ?: return UnbindResult(false, result.failure)
         val bizCode = resp.opt("code")?.toString().orEmpty()
         // BIZ_END_USING says the server had already finished with this sensor, so the binding the
         // caller wanted released is gone either way — not a failure to report.
-        return bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true) ||
-            bizCode.equals(BIZ_END_USING, ignoreCase = true)
+        val released = result.failure == null || bizCode.equals(BIZ_END_USING, ignoreCase = true)
+        return UnbindResult(released, result.failure.takeUnless { released })
     }
 
     /** GET /deviceBind/getBindDevice — current account-bound sensor, no signature. */
@@ -756,9 +775,82 @@ object OttaiCloudClient {
         val deviceVersion: String,
         val bindTime: Long,
         val unbindTime: Long,
+        /** Current-binding lookup overrides historical timestamps when available. */
+        val boundToAccount: Boolean? = null,
     ) {
         /** Still bound (vs. a previously-used sensor that was unbound). */
-        val isActive: Boolean get() = unbindTime <= 0L
+        val isActive: Boolean get() = boundToAccount ?: (unbindTime <= 0L)
+    }
+
+    data class AccountDevicesResult(val devices: List<DeviceSummary>?, val failure: CloudFailure? = null)
+
+    /** Read-only account snapshot: history alone does not identify the current binding. */
+    fun accountDevices(ctx: Context): AccountDevicesResult {
+        val apiBase = base(ctx)
+        val requestHeaders = headers(ctx, now(), apiBase)
+        val history = httpGetWithResult(
+            apiBase + OttaiConstants.EP_DEVICE_LIST,
+            mapOf("pageSize" to "80", "pageNumber" to "1"),
+            requestHeaders,
+        )
+        if (history.failure?.isTokenInvalid == true) return AccountDevicesResult(null, history.failure)
+        val binding = httpGetWithResult(
+            apiBase + OttaiConstants.EP_GET_BIND_DEVICE,
+            emptyMap(),
+            requestHeaders,
+        )
+        val result = accountDevicesResult(history, binding)
+        Log.i(
+            TAG,
+            "account binding current=${result.devices?.firstOrNull { it.isActive }?.mac ?: "none"} " +
+                "rows=${result.devices?.size ?: 0} checked=${result.failure == null}",
+        )
+        if (result.failure != null) {
+            val data = binding.body?.optJSONObject("data") ?: binding.body?.optJSONObject("result")
+            val fields = data?.keys()?.asSequence()?.take(12)?.joinToString(",").orEmpty()
+            Log.w(TAG, "account binding lookup failed: ${result.failure.text} dataFields=$fields")
+        }
+        return result
+    }
+
+    internal fun accountDevicesResult(
+        history: CloudRequestResult,
+        binding: CloudRequestResult,
+    ): AccountDevicesResult {
+        history.failure?.takeIf { it.isTokenInvalid }?.let { return AccountDevicesResult(null, it) }
+        binding.failure?.let { return AccountDevicesResult(null, it) }
+        val body = binding.body ?: return AccountDevicesResult(null, CloudFailure("Empty account binding response"))
+        val data = body.optJSONObject("data") ?: body.optJSONObject("result")
+        val vo = data?.optJSONObject("cgmDeviceRespVO") ?: data
+        val mac = OttaiConstants.canonicalSensorId(vo?.optString("mac").orEmptyIfNull())
+        val historyDevices = if (history.failure == null) history.body?.let(::parseDeviceSummaries).orEmpty() else emptyList()
+        if (!OttaiConstants.looksLikeMac(mac)) {
+            // Explicit null/empty data means no binding. An unfamiliar non-empty response must
+            // not be presented as proof that a sensor is unbound.
+            val explicitlyEmpty = if (data != null) data.length() == 0 else
+                (body.has("data") && body.isNull("data")) || (body.has("result") && body.isNull("result"))
+            if (!explicitlyEmpty) {
+                return AccountDevicesResult(null, CloudFailure("Account binding response has no valid sensor MAC"))
+            }
+            if (history.failure != null) return AccountDevicesResult(null, history.failure)
+            return AccountDevicesResult(historyDevices.map { it.copy(boundToAccount = false) })
+        }
+        val previous = historyDevices.firstOrNull { OttaiConstants.canonicalSensorId(it.mac) == mac }
+        val current = DeviceSummary(
+            mac = mac,
+            serialNo = vo?.optString("serialNo").orEmptyIfNull().ifBlank { previous?.serialNo.orEmpty() },
+            deviceType = vo?.optString("deviceType").orEmptyIfNull().ifBlank { "cgm" },
+            deviceVersion = vo?.optString("deviceVersion").orEmptyIfNull().ifBlank { previous?.deviceVersion.orEmpty() },
+            bindTime = data?.optLongLoose("bindTime")?.takeIf { it > 0L }
+                ?: vo?.optLongLoose("bindTime")?.takeIf { it > 0L } ?: previous?.bindTime ?: 0L,
+            unbindTime = 0L,
+            boundToAccount = true,
+        )
+        return AccountDevicesResult(
+            listOf(current) + historyDevices
+                .filter { OttaiConstants.canonicalSensorId(it.mac) != mac }
+                .map { it.copy(boundToAccount = false) },
+        )
     }
 
     /**
@@ -773,6 +865,10 @@ object OttaiCloudClient {
             mapOf("pageSize" to pageSize.toString(), "pageNumber" to pageNumber.toString()),
             headers(ctx, ts, base(ctx)),
         ) ?: return emptyList()
+        return parseDeviceSummaries(resp)
+    }
+
+    internal fun parseDeviceSummaries(resp: JSONObject): List<DeviceSummary> {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return emptyList()
         val items = data.optJSONArray("items")
             ?: data.optJSONArray("list")
@@ -1161,29 +1257,42 @@ object OttaiCloudClient {
             (if (isSyai(webBase)) mapOf("deviceId" to WEB_DEVICE_ID) else emptyMap()) +
             ("Authorization" to "Bearer $accessToken")
 
-    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? {
+    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? =
+        httpGetWithResult(base, query, headers).body
+
+    private fun httpGetWithResult(base: String, query: Map<String, String>, headers: Map<String, String>): CloudRequestResult {
         val qs = query.entries.joinToString("&") {
             "${enc(it.key)}=${enc(it.value)}"
         }
         val url = if (qs.isEmpty()) base else "$base?$qs"
-        return request("GET", url, null, headers)
+        return requestWithResult("GET", url, null, headers)
     }
 
     private fun httpPostJson(url: String, body: String, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? =
         request("POST", url, body, headers + ("Content-Type" to "application/json;charset=UTF-8"), timeoutMs)
 
-    private fun httpPutJson(url: String, body: String, headers: Map<String, String>): JSONObject? =
-        request(
+    private fun httpPutJsonWithResult(url: String, body: String, headers: Map<String, String>): CloudRequestResult =
+        requestWithResult(
             TEMPORARY_MATERIAL_UNBIND_METHOD,
             url,
             body,
             headers + ("Content-Type" to "application/json;charset=UTF-8"),
         )
 
-    private fun request(method: String, url: String, body: String?, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? {
+    private fun request(method: String, url: String, body: String?, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? =
+        requestWithResult(method, url, body, headers, timeoutMs).body
+
+    internal fun requestWithResult(
+        method: String,
+        url: String,
+        body: String?,
+        headers: Map<String, String>,
+        timeoutMs: Int = TIMEOUT_MS,
+        openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
+    ): CloudRequestResult {
         var conn: HttpURLConnection? = null
         return try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            conn = openConnection(url).apply {
                 requestMethod = method
                 connectTimeout = TIMEOUT_MS
                 readTimeout = timeoutMs
@@ -1205,21 +1314,25 @@ object OttaiCloudClient {
             val bizMsg = (json?.opt("message") ?: json?.opt("msg") ?: json?.opt("detailMessage"))
                 ?.toString().orEmpty().takeIf { it != "null" }.orEmpty()
             val bizOk = bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true)
-            if (code !in 200..299 || !bizOk) {
-                lastFailure = CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
-                Log.w(TAG, "$path -> $lastError")
+            val failure = if (code !in 200..299 || !bizOk) {
+                CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
+            } else null
+            // Keep the legacy diagnostic for older callers, but return this request's own value.
+            lastFailure = failure
+            if (failure != null) {
+                Log.w(TAG, "$path -> ${failure.text}")
             } else {
-                lastFailure = null
                 // Without this a successful cloud phase is invisible and reconstructable only from
                 // the absence of warnings. Path and status ONLY: the body carries keyA and the
                 // account glucoseSecretKey.
                 Log.i(TAG, "$path -> http=$code")
             }
-            json
+            CloudRequestResult(json, failure)
         } catch (t: Throwable) {
-            lastFailure = CloudFailure("network: ${t.message}")
+            val failure = CloudFailure("network: ${t.message}")
+            lastFailure = failure
             Log.w(TAG, "request failed ${url.substringBefore('?')}: ${t.message}")
-            null
+            CloudRequestResult(null, failure)
         } finally {
             conn?.disconnect()
         }

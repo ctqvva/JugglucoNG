@@ -4,6 +4,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JournalTreatmentTransferTests {
@@ -209,5 +210,95 @@ class JournalTreatmentTransferTests {
         val entry = parsed!!.inputs.single()
         assertEquals(JournalEntrySource.CLONE_TURN, entry.source)
         assertEquals(JournalEntrySource.PEN, entry.originSource)
+    }
+
+    private fun parseAaps(document: JSONObject) = JournalTreatmentTransfer.parseTreatment(
+        treatment = document,
+        source = JournalEntrySource.AAPS,
+        sourcePrefix = "aaps",
+        insulinPresets = emptyList(),
+        stringResource = { "Entry" },
+    )
+
+    /** AAPS signs every treatment; a temp basal is nothing the journal has a place for. */
+    @Test
+    fun anAapsTreatmentCarryingOnlyItsSenderIsNotANote() {
+        val tempBasal = JSONObject()
+            .put("_id", "aaps-temp-basal")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Temp Basal")
+            .put("enteredBy", "openaps://AndroidAPS")
+            .put("app", "AAPS")
+            .put("duration", 30)
+            .put("absolute", 0.4)
+
+        val parsed = parseAaps(tempBasal)!!
+        assertTrue(parsed.inputs.isEmpty())
+        assertTrue(parsed.deleteOnly)
+    }
+
+    @Test
+    fun aNoteSayingOnlyWhoSentItIsNotANote() {
+        val document = JSONObject()
+            .put("_id", "aaps-note")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Note")
+            .put("notes", "AAPS")
+            .put("enteredBy", "AndroidAPS")
+
+        assertTrue(parseAaps(document)!!.inputs.isEmpty())
+    }
+
+    /** The changed treatment must still reach the importer, or the old text would stay. */
+    @Test
+    fun aNoteWhoseTextWasClearedTakesAwayWhatItImportedBefore() {
+        val document = JSONObject()
+            .put("_id", "aaps-cleared-note")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Note")
+            .put("notes", "")
+            .put("enteredBy", "AndroidAPS")
+
+        val parsed = parseAaps(document)!!
+        assertTrue(parsed.deleteOnly)
+        assertTrue("aaps:aaps-cleared-note:note" in parsed.candidateSourceRecordIds)
+    }
+
+    @Test
+    fun theSenderStaysInsideTheEntryTheTreatmentCarries() {
+        val document = JSONObject()
+            .put("_id", "aaps-bolus")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 1.5)
+            .put("enteredBy", "AndroidAPS")
+
+        val entry = parseAaps(document)!!.inputs.single()
+        assertEquals(JournalEntryType.INSULIN, entry.type)
+        assertEquals("AndroidAPS", entry.note)
+    }
+
+    @Test
+    fun aWrittenNoteFromAapsIsStillANoteWithItsSenderInside() {
+        val document = JSONObject()
+            .put("_id", "aaps-written-note")
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Note")
+            .put("notes", "Pizza, slow carbs")
+            .put("enteredBy", "AndroidAPS")
+
+        val entry = parseAaps(document)!!.inputs.single()
+        assertEquals(JournalEntryType.NOTE, entry.type)
+        assertEquals("Pizza, slow carbs | AndroidAPS", entry.note)
+    }
+
+    @Test
+    fun onlyNotesNamingNothingButAapsAreSweptAway() {
+        assertTrue(JournalTreatmentTransfer.isAapsSenderOnlyNote("AndroidAPS"))
+        assertTrue(JournalTreatmentTransfer.isAapsSenderOnlyNote("openaps://AndroidAPS"))
+        assertTrue(JournalTreatmentTransfer.isAapsSenderOnlyNote("AAPS | AndroidAPS"))
+        assertFalse(JournalTreatmentTransfer.isAapsSenderOnlyNote("Pizza | AndroidAPS"))
+        assertFalse(JournalTreatmentTransfer.isAapsSenderOnlyNote("xDrip"))
+        assertFalse(JournalTreatmentTransfer.isAapsSenderOnlyNote(null))
     }
 }

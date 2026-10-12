@@ -171,8 +171,12 @@ class RecordedMainValueTests {
         assertTrue(
             stats.contains(
                 "!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||\n" +
-                    "                            recordStillDescribes(reading, record)"
+                    "                        recordStillDescribes(reading, record)"
             ),
+        )
+        assertTrue(
+            "the lane tag must travel with the value or no consumer can gate on it",
+            stats.contains("sealedDisplayViewMode = sealed?.viewMode"),
         )
     }
 

@@ -78,6 +78,7 @@ class AlarmActivity : ComponentActivity() {
             cancelAlarmNotification()
         }
 
+        window.decorView.optOutOfForceDark()
         setContent {
             AlarmScreen(
                 primaryGlucose = model.primaryGlucose,

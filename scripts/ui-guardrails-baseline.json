@@ -1,0 +1,13 @@
+{
+  "allowed_exceptions": 36,
+  "button_without_shapes": 0,
+  "collect_as_state": 0,
+  "content_description_literal": 0,
+  "font_weight_override": 21,
+  "hand_built_top_bar": 0,
+  "hex_color": 0,
+  "offgrid_spacing": 0,
+  "offscale_radius": 0,
+  "system_dark_theme": 0,
+  "text_literal": 0
+}

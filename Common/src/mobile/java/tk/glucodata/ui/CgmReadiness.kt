@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
@@ -51,7 +53,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.BatterySaver
@@ -85,8 +86,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +109,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SensorSourceResolver
@@ -118,6 +118,7 @@ import tk.glucodata.alerts.AlertType
 import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.alerts.FullScreenIntentReadiness
 import tk.glucodata.data.settings.FloatingSettingsRepository
+import tk.glucodata.ui.components.AppTopBar
 
 private const val CGM_READINESS_PREFS = "cgm_readiness"
 private const val DISMISS_SENSORS = "dismiss_sensors_signature"
@@ -194,25 +195,19 @@ fun CgmReadinessScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.cgm_readiness_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.cgm_readiness_title),
+                onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshTick++ }) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.refresh)
-                        )
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshTick++ }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.refresh)
+                            )
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -385,7 +380,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         color = if (ready) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f)
         } else {
@@ -394,14 +389,14 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
         border = BorderStroke(1.dp, color.copy(alpha = 0.24f))
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatusIconSurface(
                 icon = if (ready) Icons.Filled.CheckCircle else Icons.Filled.Security,
                 color = color
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (ready) {
@@ -409,9 +404,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
                     } else {
                         stringResource(R.string.cgm_readiness_attention_title)
                     },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.titleLargeEmphasized,)
                 Text(
                     text = if (ready) {
                         stringResource(R.string.cgm_readiness_ready_body)
@@ -484,25 +477,26 @@ private fun CgmReadinessSummaryCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMediumEmphasized,
                             modifier = Modifier.weight(1f)
                         )
 //                        CgmReadinessCountChip(snapshot = snapshot, items = items)
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = summaryText ?: stringResource(R.string.cgm_readiness_summary_body, attentionCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = supportingColor
                     )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
-                        tint = supportingColor
-                    )
+                IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
+                            tint = supportingColor
+                        )
+                    }
                 }
             }
 
@@ -513,7 +507,7 @@ private fun CgmReadinessSummaryCard(
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -521,12 +515,14 @@ private fun CgmReadinessSummaryCard(
                 topAction?.let { (action, labelRes) ->
                     Button(
                         onClick = { onAction(action) },
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(labelRes))
                     }
                 }
-                OutlinedButton(onClick = onOpenReadiness) {
+                OutlinedButton(onClick = onOpenReadiness, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Text(stringResource(R.string.cgm_readiness_review_action))
                 }
             }
@@ -542,7 +538,7 @@ private fun CgmReadinessDetailRow(
     val color = item.status.statusColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, color.copy(alpha = 0.18f))
     ) {
@@ -551,13 +547,12 @@ private fun CgmReadinessDetailRow(
             verticalAlignment = Alignment.Top
         ) {
             StatusIconSurface(icon = item.icon, color = color)
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(item.titleRes),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         modifier = Modifier.weight(1f)
                     )
                     CgmStatusChip(status = item.status)
@@ -570,7 +565,7 @@ private fun CgmReadinessDetailRow(
                 )
                 if (item.action != null && item.actionLabelRes != null) {
                     Spacer(Modifier.height(12.dp))
-                    FilledTonalButton(onClick = { onAction(item.action) }) {
+                    FilledTonalButton(onClick = { onAction(item.action) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                         Text(stringResource(item.actionLabelRes))
                         Spacer(Modifier.width(8.dp))
                         Icon(
@@ -602,7 +597,7 @@ private fun CgmReadinessCompactIssue(item: CgmReadinessItem) {
                 color = item.status.statusColor()
             ) {}
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = stringResource(item.titleRes),
             style = MaterialTheme.typography.bodyMedium,
@@ -634,14 +629,14 @@ private fun CgmReadinessCountChip(
         else -> MaterialTheme.colorScheme.secondary
     }
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = color.copy(alpha = 0.12f),
         contentColor = color
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
 }
@@ -653,7 +648,7 @@ private fun CgmStatusChip(
 ) {
     val color = status.statusColor()
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = color.copy(alpha = if (status == CgmReadinessStatus.Ready) 0.14f else 0.12f),
         contentColor = color
     ) {
@@ -661,8 +656,8 @@ private fun CgmStatusChip(
             text = stringResource(status.labelRes()),
             style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(
-                horizontal = if (compact) 8.dp else 10.dp,
-                vertical = if (compact) 4.dp else 5.dp
+                horizontal = if (compact) 8.dp else 12.dp,
+                vertical = if (compact) 4.dp else 4.dp
             )
         )
     }
@@ -673,16 +668,7 @@ private fun StatusIconSurface(
     icon: ImageVector,
     color: Color
 ) {
-    Surface(
-        modifier = Modifier.size(44.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = color.copy(alpha = 0.12f),
-        contentColor = color
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-        }
-    }
+    IconTile(icon = icon, tint = color)
 }
 
 @Composable

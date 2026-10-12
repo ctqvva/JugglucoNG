@@ -1,9 +1,9 @@
 package tk.glucodata.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -359,7 +360,7 @@ fun DashboardCombinedHeader(
     )
 
     // 1. Resolve Values using shared logic (with calibration if active)
-    val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
     val resolvedCurrentSnapshot = currentSnapshot ?: remember(refreshRevision, sensorName, currentGlucose, currentRate, latestPoint?.timestamp, viewMode) {
         CurrentDisplaySource.resolveCurrent(
             maxAgeMillis = Notify.glucosetimeout,
@@ -438,7 +439,7 @@ fun DashboardCombinedHeader(
     val hasSecondary = secondaryText != null
     val hasTertiary = tertiaryText != null
     val hasThreeValues = hasSecondary && hasTertiary
-    val isDark = isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     val glucoseTone = remember(
         dvs?.primaryValue,
         isFreshData,
@@ -562,7 +563,7 @@ fun DashboardCombinedHeader(
                 // Single-sensor padding defines the target card height. Multi mode
                 // uses a smaller inner padding so the scaled value + chip cluster
                 // fills the SAME pinned height (heroContentMinHeight) below.
-                val singleVerticalPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 10.dp else 12.dp
+                val singleVerticalPadding = if (heroWidthClass == AdaptiveContentWidthClass.Compact) 8.dp else 12.dp
                 val resolvedVerticalPadding = if (isMultiHero) 4.dp else singleVerticalPadding
                 // Full (single-sensor) value style. The card height is pinned to
                 // the MEASURED height of this style (incl. font padding) + padding,
@@ -912,7 +913,7 @@ fun DashboardCombinedHeader(
                     val fillColor = when {
                         sensorProgress > 0.95f -> MaterialTheme.colorScheme.error
                         sensorProgress > 0.80f -> MaterialTheme.colorScheme.tertiary
-                        else -> androidx.compose.ui.graphics.Color(0xFF66BB6A) // Muted Green (400) - "Make it Green"
+                        else -> StatusPalette.sensorLifeFill
                     }
                     Box(
                         modifier = Modifier
@@ -981,7 +982,7 @@ fun DashboardCombinedHeader(
                                 val selectedSensorColors = remember(activeSensors) {
                                     tk.glucodata.SensorVisuals.distinctColorArgbMap(activeSensors)
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 activeSensors.forEach { serial ->
                                      Box(
                                          modifier = Modifier
@@ -1180,7 +1181,7 @@ private fun DashboardHeroPeerStrip(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val selectedColors = remember(selectedSensorIds, peerReadings) {
@@ -1304,8 +1305,10 @@ private fun DashboardHeroValueCluster(
             maxLines = 1
         ).size.width
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
+            // Same gaps as the InlinePair row below; a mismatch leaves the pair unscaled
+            // while it is still too wide, and the secondary value clips.
             primaryWidthPx +
-                with(density) { 6.dp.roundToPx() } +
+                with(density) { 8.dp.roundToPx() } +
                 dotWidthPx +
                 with(density) { 4.dp.roundToPx() } +
                 textMeasurer.measure(
@@ -1367,7 +1370,7 @@ private fun DashboardHeroValueCluster(
                         style = scaledPrimaryStyle,
                         color = primaryColor
                     )
-                    Spacer(modifier = Modifier.width(6.dp * pairScale))
+                    Spacer(modifier = Modifier.width(8.dp * pairScale))
                     Text(
                         text = "·",
                         style = scaledDotStyle,
@@ -1627,7 +1630,7 @@ fun RecentReadingsCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onViewHistory() }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1636,7 +1639,7 @@ fun RecentReadingsCard(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = footerLabel,
                             style = MaterialTheme.typography.labelLarge,
@@ -1771,7 +1774,7 @@ fun CalibrationsCard(
     val isRawMode = viewMode == 1 || viewMode == 3
     
     // Collect calibrations and enable state
-    val allCalibrations by tk.glucodata.data.calibration.CalibrationManager.getCalibrationsFlow()?.collectAsState(initial = tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations())
+    val allCalibrations by tk.glucodata.data.calibration.CalibrationManager.getCalibrationsFlow()?.collectAsStateWithLifecycle(initialValue = tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations())
         ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(tk.glucodata.data.calibration.CalibrationManager.getCachedCalibrations()) }
     val currentSensor = SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId
     val calibrations = allCalibrations.filter {
@@ -1780,7 +1783,7 @@ fun CalibrationsCard(
             tk.glucodata.data.calibration.CalibrationManager.calibrationMatchesSensor(it.sensorId, currentSensor)
     }
     
-    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsState()
+    val calibrationRevision by tk.glucodata.data.calibration.CalibrationManager.revision.collectAsStateWithLifecycle()
     val isCalibrationEnabled = remember(isRawMode, currentSensor, calibrationRevision) {
         tk.glucodata.data.calibration.CalibrationManager.isEnabledForMode(isRawMode, currentSensor)
     }
@@ -1808,7 +1811,8 @@ fun CalibrationsCard(
             onClick = onAddCalibration,
             enabled = isCalibrationEnabled,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(28.dp)),
+            contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
 //            elevation = androidx.compose.material3.ButtonDefaults.filledTonalButtonElevation(defaultElevation = 2.dp)
         ) {
             Icon(
@@ -1850,12 +1854,18 @@ fun CalibrationsCard(
 //                        modifier = Modifier
 //                            .weight(1f),
 //                            .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(
+                        shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
                             topStart = 12.dp,
                             bottomStart = 12.dp,
                             topEnd = 4.dp,
                             bottomEnd = 4.dp
-                        ),
+                        ), pressedShape = RoundedCornerShape(
+                            topStart = 8.dp,
+                            bottomStart = 8.dp,
+                            topEnd = 4.dp,
+                            bottomEnd = 4.dp
+                        )),
+                        contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                         colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1875,12 +1885,18 @@ fun CalibrationsCard(
                     onClick = onAddCalibration,
                     enabled = isCalibrationEnabled,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(
+                    shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(
                         topStart = 4.dp,
                         bottomStart = 4.dp,
                         topEnd = 12.dp,
                         bottomEnd = 12.dp
-                    ),
+                    ), pressedShape = RoundedCornerShape(
+                        topStart = 4.dp,
+                        bottomStart = 4.dp,
+                        topEnd = 8.dp,
+                        bottomEnd = 8.dp
+                    )),
+                    contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -2063,7 +2079,8 @@ fun CalibrationsCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        shape = RoundedCornerShape(28.dp),
+                        shapes = androidx.compose.material3.ButtonDefaults.shapes(shape = RoundedCornerShape(28.dp)),
+                        contentPadding = androidx.compose.material3.ButtonDefaults.ContentPadding,
                         colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -2133,53 +2150,51 @@ fun SignalQualityIndicator(
     // Color thresholds (Standard xDrip 0-200+ scale)
     // <10: Clean (Green), 10-25: Light (Lt Green), 25-60: Medium (Amber), >60: Heavy (Red)
     val color = when {
-        noiseLevel < 10f -> androidx.compose.ui.graphics.Color(0xB34CAF50)  // Green
-        noiseLevel < 25f -> androidx.compose.ui.graphics.Color(0xB38BC34A)  // Light Green
-        noiseLevel < 60f -> androidx.compose.ui.graphics.Color(0xB3FFC107)  // Amber
-        else -> androidx.compose.ui.graphics.Color(0xB3F44336)               // Red
+        noiseLevel < 10f -> StatusPalette.noiseClean
+        noiseLevel < 25f -> StatusPalette.noiseLight
+        noiseLevel < 60f -> StatusPalette.noiseMedium
+        else -> StatusPalette.noiseHeavy
     }
     
-    // Animation: Pulse for medium+, Shake for heavy.
-    // The transitions are created only once a threshold is actually crossed. Encoding the
-    // decision in the target value instead (1f -> 1f) still registers a live animation, so a
-    // clean signal — the common case, and this indicator shows for any noiseLevel > 0 — would
-    // drive the frame clock and recompose forever for no visible motion.
+    // Pulse for medium noise and up, shake for heavy. Both are created only once their
+    // threshold is crossed (a clean signal, the common case, runs no animation at all), and
+    // both are read inside graphicsLayer so a frame redraws the glyph instead of recomposing.
     val pulses = noiseLevel >= 25f
     val shakes = noiseLevel >= 60f
 
     val pulseScale = if (pulses) {
-        val pulseTransition = rememberInfiniteTransition(label = "signalPulse")
-        val animated by pulseTransition.animateFloat(
+        rememberInfiniteTransition(label = "signalPulse").animateFloat(
             initialValue = 1f,
             targetValue = 1.15f,
             animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = if (shakes) 300 else 600,
-                    easing = LinearEasing
-                ),
+                animation = tween(durationMillis = 600, easing = LinearEasing),
                 repeatMode = RepeatMode.Reverse
             ),
             label = "pulseScale"
         )
-        animated
     } else {
-        1f
+        null
     }
 
-    val shakeRotation = if (shakes) {
-        val shakeTransition = rememberInfiniteTransition(label = "signalShake")
-        val animated by shakeTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 8f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 100, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "shakeRotation"
-        )
-        animated
-    } else {
-        0f
+    // Heavy noise shakes in short bursts — about half a second, then a few seconds of rest —
+    // rather than continuously: enough to catch the eye, without a glyph that never stops
+    // moving on the screen people look at most.
+    val shakeRotation = remember { Animatable(0f) }
+    LaunchedEffect(shakes) {
+        if (!shakes) {
+            shakeRotation.snapTo(0f)
+            return@LaunchedEffect
+        }
+        while (true) {
+            repeat(SIGNAL_SHAKE_SWINGS) { swing ->
+                shakeRotation.animateTo(
+                    targetValue = if (swing % 2 == 0) SIGNAL_SHAKE_DEGREES else -SIGNAL_SHAKE_DEGREES,
+                    animationSpec = tween(durationMillis = SIGNAL_SHAKE_SWING_MS, easing = LinearEasing)
+                )
+            }
+            shakeRotation.animateTo(0f, tween(durationMillis = SIGNAL_SHAKE_SWING_MS, easing = LinearEasing))
+            delay(SIGNAL_SHAKE_REST_MS)
+        }
     }
 
     Row(
@@ -2194,11 +2209,15 @@ fun SignalQualityIndicator(
             tint = color,
             modifier = Modifier
                 .size(14.dp)
-                .scale(pulseScale)
-                .modifierRotate(shakeRotation)
+                .graphicsLayer {
+                    val scale = pulseScale?.value ?: 1f
+                    scaleX = scale
+                    scaleY = scale
+                    rotationZ = shakeRotation.value
+                }
         )
         
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         
         // Raw noise value (xDrip-style, 1 decimal)
         Text(
@@ -2305,6 +2324,12 @@ private fun SignalQualityAndReadingAgeRow(
     }
 }
 
+private const val SIGNAL_SHAKE_DEGREES = 8f
+private const val SIGNAL_SHAKE_SWING_MS = 80
+// Five swings and the return, 80ms each: a half-second burst, then the rest.
+private const val SIGNAL_SHAKE_SWINGS = 5
+private const val SIGNAL_SHAKE_REST_MS = 4_000L
+
 private const val SIGNAL_AGE_NOISE_ID = "signalQuality"
 private const val SIGNAL_AGE_COUNTER_ID = "readingAge"
 /** Breathing room the indicator wants before the counter; less than this counts as a collision. */
@@ -2338,7 +2363,7 @@ private fun DashboardClearOptionsBottomSheet(
                 .padding(bottom = 32.dp) // Extra padding for nav bar
                 .padding(bottom = 24.dp)
         ) {
-            Text(stringResource(R.string.clear_calibrations_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.clear_calibrations_title), style = MaterialTheme.typography.headlineSmallEmphasized,)
             Spacer(modifier = Modifier.height(8.dp))
             Text(stringResource(R.string.choose_what_to_clear), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(24.dp))
@@ -2349,7 +2374,7 @@ private fun DashboardClearOptionsBottomSheet(
                         Icon(Icons.Filled.Close, null, tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.clear_disabled_only), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                            Text(stringResource(R.string.clear_disabled_only), style = MaterialTheme.typography.titleMediumEmphasized,)
                             Text(stringResource(R.string.disabled_count, disabledCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -2369,7 +2394,7 @@ private fun DashboardClearOptionsBottomSheet(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            androidx.compose.material3.TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }
+            androidx.compose.material3.TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shapes = androidx.compose.material3.ButtonDefaults.shapes(), contentPadding = androidx.compose.material3.ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
         }
     }
 }

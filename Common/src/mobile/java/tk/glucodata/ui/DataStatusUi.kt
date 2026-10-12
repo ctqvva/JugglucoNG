@@ -168,7 +168,7 @@ internal fun DataStatusPulse(
 
     Row(
         modifier = modifier.width(if (subdued) 22.dp else 28.dp).height(if (subdued) 16.dp else 22.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (subdued) 3.dp else 4.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(if (subdued) 4.dp else 4.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.Bottom
     ) {
         listOf(phase1.value, phase2.value, phase3.value).forEach { amplitude ->

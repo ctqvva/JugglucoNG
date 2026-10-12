@@ -407,6 +407,36 @@ object ICanHealthConstants {
     }
 
     /**
+     * True when an edge-derived time for the sensor's current sequence disagrees with the moment
+     * that sequence was actually read. No observation yet means nothing to compare against.
+     */
+    internal fun isAnchorDivergentFromObservedSequence(
+        anchorMs: Long,
+        sequenceObservedAtMs: Long,
+        toleranceMs: Long,
+    ): Boolean {
+        if (sequenceObservedAtMs <= 0L) {
+            return false
+        }
+        return abs(anchorMs - sequenceObservedAtMs) > toleranceMs.coerceAtLeast(0L)
+    }
+
+    /**
+     * True when a measurement that has just arrived resolved to a time far behind the wall clock.
+     * Only the newest sequence qualifies: a lower one may be a legitimately delayed record.
+     */
+    internal fun isStaleLiveTimestamp(
+        sequenceNumber: Int,
+        currentSequenceNumber: Int,
+        resolvedMs: Long,
+        nowMs: Long,
+        maxLagMs: Long,
+    ): Boolean {
+        val isNewestSequence = currentSequenceNumber < 0 || sequenceNumber >= currentSequenceNumber
+        return isNewestSequence && nowMs - resolvedMs > maxLagMs
+    }
+
+    /**
      * True while a parsed session start still explains the sensor's own sequence counter.
      *
      * The counter ticks once a minute from session start, so `sessionStart + sequence` must land

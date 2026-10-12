@@ -1,5 +1,7 @@
 package tk.glucodata.ui.stats
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -93,6 +95,7 @@ import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
+import java.text.NumberFormat
 import java.util.Locale
 
 /**
@@ -108,6 +111,13 @@ internal data class MetricSpec(
     val tone: Color,
     val infoText: String? = null
 )
+
+/**
+ * A tile's side padding. [MetricRow] decides how both tiles of a row lay out from their
+ * content width before they exist, so it must subtract exactly this; a mismatch makes it
+ * think a title fits beside its value when it does not, and the title ellipsizes to "…".
+ */
+private val ScoreTileHorizontalPadding = 16.dp
 
 @Composable
 internal fun ScoreTile(
@@ -135,7 +145,7 @@ internal fun ScoreTile(
         .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     Box(
         modifier = modifier
             .animateContentSize()
@@ -154,8 +164,8 @@ internal fun ScoreTile(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 6.dp else 4.dp)
+                .padding(horizontal = ScoreTileHorizontalPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (hasMeta) 8.dp else 4.dp)
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 val density = LocalDensity.current
@@ -241,7 +251,6 @@ internal fun ScoreTile(
                             Text(
                                 text = value,
                                 style = valueStyle,
-                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 8.dp),
                                 maxLines = 1,
@@ -255,7 +264,7 @@ internal fun ScoreTile(
                 if (statusNeedsOwnRow) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -271,7 +280,6 @@ internal fun ScoreTile(
                             Text(
                                 text = value,
                                 style = valueStyle,
-                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 12.dp),
                                 maxLines = 1,
@@ -316,7 +324,6 @@ internal fun ScoreTile(
                         Text(
                             text = value,
                             style = valueStyle,
-                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(start = 12.dp),
                             maxLines = 1,
@@ -433,7 +440,7 @@ internal fun rememberScoreTileTitleNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 22.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, title, value, expandable, density, textMeasurer, titleStyle, valueStyle) {
         titleOverflows(
             title = title,
@@ -462,7 +469,7 @@ internal fun rememberScoreTileNeedsOwnRow(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val statusStyle = MaterialTheme.typography.titleSmall.copy(lineHeight = 20.sp)
-    val valueStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum")
+    val valueStyle = MaterialTheme.typography.headlineMediumEmphasized.copy(fontFeatureSettings = "tnum")
     return remember(contentWidth, value, status, density, textMeasurer, statusStyle, valueStyle) {
         val widthPx = with(density) { maxOf(contentWidth, 0.dp).roundToPx() }
         val titleGapPx = with(density) { 12.dp.roundToPx() }
@@ -487,6 +494,16 @@ internal fun rememberScoreTileNeedsOwnRow(
  * someone reading mmol/L — including the bounds quoted in the explanations, which come
  * from the user's own targets rather than fixed constants.
  */
+/**
+ * [percent] (0–100) in the locale's percent pattern: "7.0%" in English, "7,0 %" in German,
+ * "%7,0" in Turkish. A literal "%" after the number is wrong in those.
+ */
+internal fun formatLocalePercent(percent: Float, fractionDigits: Int = 0): String =
+    NumberFormat.getPercentInstance(Locale.getDefault()).apply {
+        minimumFractionDigits = fractionDigits
+        maximumFractionDigits = fractionDigits
+    }.format(percent / 100.0)
+
 @Composable
 internal fun metricSpec(
     metric: StatsMetric,
@@ -495,11 +512,15 @@ internal fun metricSpec(
     unit: GlucoseUnit
 ): MetricSpec {
     val title = stringResource(metric.titleResId)
-    val targetRange = "${formatMgDl(targets.lowMgDl, unit)}-${formatMgDl(targets.highMgDl, unit)}"
+    val targetRange = "${formatMgDl(targets.lowMgDl, unit)}–${formatMgDl(targets.highMgDl, unit)}"
 
     val lowWord = stringResource(R.string.low_range)
     val highWord = stringResource(R.string.high_range)
     val inRangeWord = stringResource(R.string.in_range)
+    // Words for a percentage judged against a target (TIR, tight range, coverage). These used
+    // the variability words, so a good TIR read "Good stability".
+    val onTargetWord = stringResource(R.string.stats_finding_on_target)
+    val belowTargetWord = stringResource(R.string.report_below_target)
     val steadyWord = stringResource(R.string.gvi_good)
     val middlingWord = stringResource(R.string.gvi_moderate)
     val swingyWord = stringResource(R.string.gvi_poor)
@@ -507,7 +528,6 @@ internal fun metricSpec(
     val noneWord = stringResource(R.string.stats_metric_none)
     val rangeWord = stringResource(R.string.range)
     val targetWord = stringResource(R.string.gmi_target)
-    val targetValue = stringResource(R.string.gmi_target_value)
     val tirWord = stringResource(R.string.tir)
     val stabilityWord = stringResource(R.string.stability)
     val trendWord = stringResource(R.string.stats_trend)
@@ -535,7 +555,7 @@ internal fun metricSpec(
     return when (metric) {
         StatsMetric.TIME_IN_RANGE -> spec(
             value = String.format(Locale.getDefault(), "%.0f%%", summary.tir.inRangePercent),
-            status = if (summary.tir.inRangePercent >= 70f) steadyWord else middlingWord,
+            status = if (summary.tir.inRangePercent >= 70f) onTargetWord else belowTargetWord,
             meta = "$rangeWord $targetRange",
             tone = tirHeatColor(summary.tir.inRangePercent)
         )
@@ -554,7 +574,7 @@ internal fun metricSpec(
             spec(
                 value = String.format(Locale.getDefault(), "%.1f%%", summary.gmiPercent),
                 status = if (band == GmiBand.AT_TARGET) targetWord else highWord,
-                meta = "$targetWord $targetValue",
+                meta = "$targetWord <${formatLocalePercent(GmiBand.TARGET_PERCENT, fractionDigits = 1)}",
                 tone = when (band) {
                     GmiBand.AT_TARGET -> TirInRangeColor
                     GmiBand.ABOVE_TARGET -> TirHighColor
@@ -584,10 +604,10 @@ internal fun metricSpec(
 
         StatsMetric.TIGHT_RANGE -> {
             val (low, high) = StatsAnalytics.tightRangeBounds(targets)
-            val bounds = "${formatMgDl(low, unit)}-${formatMgDl(high, unit)}"
+            val bounds = "${formatMgDl(low, unit)}–${formatMgDl(high, unit)}"
             spec(
                 value = String.format(Locale.getDefault(), "%.0f%%", summary.tightRangePercent),
-                status = if (summary.tightRangePercent >= 50f) steadyWord else middlingWord,
+                status = if (summary.tightRangePercent >= 50f) onTargetWord else belowTargetWord,
                 meta = bounds,
                 tone = when {
                     summary.tightRangePercent >= 50f -> TirInRangeColor
@@ -608,7 +628,7 @@ internal fun metricSpec(
         StatsMetric.IQR -> spec(
             value = formatMgDl((summary.p75MgDl - summary.p25MgDl).coerceAtLeast(0f), unit),
             status = typicalWord,
-            meta = "${formatMgDl(summary.p25MgDl, unit)}-${formatMgDl(summary.p75MgDl, unit)}",
+            meta = "${formatMgDl(summary.p25MgDl, unit)}–${formatMgDl(summary.p75MgDl, unit)}",
             tone = when {
                 summary.cvPercent < 32f -> TirInRangeColor
                 summary.cvPercent < 40f -> TirHighColor
@@ -659,7 +679,7 @@ internal fun metricSpec(
 
         StatsMetric.COVERAGE -> spec(
             value = String.format(Locale.getDefault(), "%.0f%%", summary.coverage.percent),
-            status = if (summary.coverage.percent >= 85f) steadyWord else middlingWord,
+            status = if (summary.coverage.percent >= 85f) onTargetWord else belowTargetWord,
             meta = stringResource(R.string.stats_metric_readings, summary.coverage.readingCount),
             tone = when {
                 summary.coverage.percent >= 85f -> TirInRangeColor
@@ -679,7 +699,7 @@ internal fun metricSpec(
                     else -> R.string.risk_high
                 }
             ),
-            meta = "$targetWord <2.5",
+            meta = "$targetWord ${String.format(Locale.getDefault(), "<%.1f", 2.5f)}",
             tone = if (summary.risk.lbgi < 2.5f) TirInRangeColor else TirVeryLowColor,
             infoText = stringResource(R.string.lbgi_description)
         )
@@ -693,7 +713,7 @@ internal fun metricSpec(
                     else -> R.string.risk_high
                 }
             ),
-            meta = "$targetWord <4.5",
+            meta = "$targetWord ${String.format(Locale.getDefault(), "<%.1f", 4.5f)}",
             tone = if (summary.risk.hbgi < 4.5f) TirInRangeColor else TirVeryHighColor,
             infoText = stringResource(R.string.hbgi_description)
         )
@@ -895,9 +915,9 @@ private fun MetricRow(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val tileContentWidth = if (rightSpec == null) {
-            maxWidth - 28.dp
+            maxWidth - ScoreTileHorizontalPadding * 2
         } else {
-            ((maxWidth - spacing) / 2f) - 28.dp
+            ((maxWidth - spacing) / 2f) - ScoreTileHorizontalPadding * 2
         }
         val useOwnStatusRow =
             rememberScoreTileNeedsOwnRow(tileContentWidth, leftSpec.value, leftSpec.status) ||
@@ -1054,7 +1074,7 @@ internal fun PinnedMetricChip(
                     Modifier
                 }
             )
-            .padding(horizontal = 10.dp * contentScale, vertical = 8.dp * contentScale),
+            .padding(horizontal = 8.dp * contentScale, vertical = 8.dp * contentScale),
         horizontalArrangement = Arrangement.spacedBy(8.dp * contentScale),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1075,9 +1095,8 @@ internal fun PinnedMetricChip(
                 transitionSpec = { verticalValueSwap() },
                 label = "pinnedMetricValue"
             ) { value ->
-                val valueStyle = MaterialTheme.typography.titleMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
+                val valueStyle = MaterialTheme.typography.titleMediumEmphasized.copy(
+                    fontFeatureSettings = "tnum"
                 ).scalePinnedStyle(contentScale)
                 // The cell is whatever the row shares out; "100%" a couple of dp wider
                 // than that used to lose its sign to the clip. The value gives up a
@@ -1287,13 +1306,15 @@ internal fun PinnedStatsStrip(
             }
 
             val compactWindowCellWidth = (
-                textWidth(windowLabel, MaterialTheme.typography.labelMedium) + 31.dp
+                // The window pill's chrome: 2 x 8dp padding, the 1dp gap and the 14dp arrow.
+                // Measured in the style the pill draws its label in.
+                textWidth(windowLabel, pinnedWindowLabelStyle()) + 31.dp
             ).coerceAtLeast(62.dp)
             val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
                 maxOf(
                     textWidth(spec.title, MaterialTheme.typography.labelSmall),
                     textWidth(spec.value, MaterialTheme.typography.titleMedium)
-                ) + 28.dp
+                ) + 24.dp
             }?.coerceIn(96.dp, 124.dp) ?: 96.dp
             val baseGap = 8.dp
             val useEstablishedPhoneLayout = shouldUseEstablishedPinnedStatsPhoneLayout(
@@ -1491,7 +1512,7 @@ private fun PinnedMetricPickerSheet(
             ) {
                 Text(
                     text = stringResource(R.string.stats_pinned_pick_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     modifier = Modifier.weight(1f)
                 )
                 onRemove?.let { remove ->
@@ -1508,7 +1529,7 @@ private fun PinnedMetricPickerSheet(
                                 .clickable(onClick = remove)
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -1558,7 +1579,7 @@ private fun PinnedMetricPickerSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatsMetric.entries.forEach { metric ->
                     val selected = metric == current
@@ -1606,9 +1627,9 @@ private fun MetricSheetRow(
             .clip(statsCardShape(20.dp, 12.dp))
             .background(container)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = spec.title,
@@ -1625,31 +1646,39 @@ private fun MetricSheetRow(
         )
         Text(
             text = spec.value,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFeatureSettings = "tnum",
-                fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                fontFeatureSettings = "tnum"
             ),
             color = spec.tone.copy(alpha = if (selected) 1f else 0.55f),
             maxLines = 1
         )
-        IconButton(
-            onClick = onTogglePinned,
-            enabled = pinEnabled,
-            modifier = Modifier.size(38.dp)
-        ) {
-            Icon(
-                imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                contentDescription = stringResource(R.string.stats_arrange_pin),
-                tint = when {
-                    pinned -> MaterialTheme.colorScheme.primary
-                    pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
-                },
-                modifier = Modifier.size(20.dp)
-            )
+        IconButtonTooltip(stringResource(R.string.stats_arrange_pin)) {
+            IconButton(
+                onClick = onTogglePinned,
+                enabled = pinEnabled,
+                modifier = Modifier.size(38.dp),
+                shapes = IconButtonDefaults.shapes()
+            ) {
+                Icon(
+                    imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    contentDescription = stringResource(R.string.stats_arrange_pin),
+                    tint = when {
+                        pinned -> MaterialTheme.colorScheme.primary
+                        pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
+
+/** The window pill's label. [PinnedStatsStrip] measures with it to size the pill. */
+@Composable
+private fun pinnedWindowLabelStyle(): TextStyle = MaterialTheme.typography.labelMediumEmphasized.copy(
+    fontFeatureSettings = "tnum"
+)
 
 @Composable
 private fun PinnedWindowPill(
@@ -1692,10 +1721,7 @@ private fun PinnedWindowPill(
         ) { text ->
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold
-                ).scalePinnedStyle(contentScale),
+                style = pinnedWindowLabelStyle().scalePinnedStyle(contentScale),
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 softWrap = false

@@ -258,9 +258,11 @@ object VirtualGlucoseSensorBridge {
         } else {
             primaryMgdl
         }
+        // Resolved: a follower publishes the upstream app's own final number
+        // (its calibrated value when it sends one), not a stock lane to calibrate.
         SuperGattCallback.processExternalCurrentReading(
             sensorSerial,
-            glucoseDisplay,
+            tk.glucodata.LiveReadingLanes.resolved(glucoseDisplay),
             rate,
             reading.timestampMs,
             sensorGen,

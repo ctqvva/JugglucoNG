@@ -2,7 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
 import android.text.format.DateUtils
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -12,7 +14,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.*
+import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -21,9 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -112,29 +114,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
-@Composable
-fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall, // Smaller label
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium, // Larger value for scannability
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 private fun formatSibionicsSensitivity(value: Float): String =
     String.format(Locale.getDefault(), "%.2f", value)
 
@@ -156,9 +135,11 @@ private fun BadgeLabel(
     val base = MaterialTheme.typography.labelSmall
     val density = LocalDensity.current
     val maxWidthPx = with(density) { maxWidth.roundToPx() }
-    val style = remember(text, sizes, maxWidthPx, base) {
+    // The weight is part of the measured style: drawn heavier than measured, the label
+    // overflows the tile it was sized to fit.
+    val style = remember(text, sizes, maxWidthPx, base, weight) {
         val candidates = sizes.map {
-            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp)
+            base.copy(fontSize = it, lineHeight = it * 1.2f, letterSpacing = 0.4.sp, fontWeight = weight)
         }
         candidates.firstOrNull { candidate ->
             measurer.measure(text, candidate, softWrap = false).size.width <= maxWidthPx
@@ -167,7 +148,6 @@ private fun BadgeLabel(
     Text(
         text = text,
         style = style,
-        fontWeight = weight,
         color = color,
         maxLines = 1,
         softWrap = false,
@@ -246,12 +226,7 @@ private fun SensorIdentityControl(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-        val leadShape = RoundedCornerShape(
-            topStart = 22.dp,
-            bottomStart = 22.dp,
-            topEnd = 6.dp,
-            bottomEnd = 6.dp,
-        )
+        val leadShape = ConnectedButtonShapes.Leading
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -277,7 +252,7 @@ private fun SensorIdentityControl(
                         Modifier
                     }
                 )
-                .padding(start = 10.dp, end = 10.dp),
+                .padding(start = 12.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (selectable) {
@@ -306,14 +281,7 @@ private fun SensorIdentityControl(
             modifier = Modifier
                 .width(40.dp)
                 .fillMaxHeight()
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 6.dp,
-                        bottomStart = 6.dp,
-                        topEnd = 22.dp,
-                        bottomEnd = 22.dp,
-                    )
-                )
+                .clip(ConnectedButtonShapes.Trailing)
                 .background(color.copy(alpha = 0.12f))
                 .clickable(onClick = onPickColor),
             contentAlignment = Alignment.Center,
@@ -384,19 +352,20 @@ private fun SensorCurrentValueChip(
 ) {
     Surface(
         modifier = modifier.widthIn(max = 220.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 1.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = snapshot.primaryStr,
-                style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum"),
                 maxLines = 1,
                 softWrap = false,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -418,7 +387,7 @@ private fun SensorCurrentValueChip(
                 iconTint = accentColor.copy(alpha = 0.82f),
                 textColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
-//            Spacer(modifier = Modifier.width(6.dp))
+//            Spacer(modifier = Modifier.width(8.dp))
 //            Icon(
 //                imageVector = getTrendIcon(snapshot.rate),
 //                contentDescription = null,
@@ -594,11 +563,13 @@ fun SensorCard(
                                 "JugglucoNG-Anytime-$safeId.json"
                             )
                         }
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.export)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAnytimeCredentialBackupDialog = false }) {
+                TextButton(onClick = { showAnytimeCredentialBackupDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -615,11 +586,13 @@ fun SensorCard(
                     onClick = {
                         viewModel.requestAnytimeHistory(sensor.serial)
                         showAnytimeHistoryDialog = false
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.streamhistory)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAnytimeHistoryDialog = false }) {
+                TextButton(onClick = { showAnytimeHistoryDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -658,9 +631,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.unbind_sensor),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                        style = MaterialTheme.typography.titleMediumEmphasized,)
                                     Text(
                                         text = stringResource(R.string.unbind_sensor_desc),
                                         style = MaterialTheme.typography.bodySmall,
@@ -681,13 +652,17 @@ fun SensorCard(
                         viewModel.disconnectAiDexSensor(sensor.serial, unbindAiDexChecked && sensor.isVendorPaired)
                         showTerminateDialog = false
                         unbindAiDexChecked = sensor.isVendorPaired
-                    }) { Text(stringResource(R.string.disconnect)) }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         showTerminateDialog = false
                         unbindAiDexChecked = sensor.isVendorPaired
-                    }) {
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -725,13 +700,17 @@ fun SensorCard(
                                 android.widget.Toast.LENGTH_LONG,
                             ).show()
                         }
-                    }) { Text(stringResource(R.string.disconnect)) }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         showTerminateDialog = false
                         removeHistoryChecked = false
-                    }) { Text(stringResource(R.string.cancel)) }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
                 }
             )
         }
@@ -762,13 +741,17 @@ fun SensorCard(
                     viewModel.reconnectSensor(sensor.serial, wipeDataChecked)
                     showReconnectDialog = false
                     wipeDataChecked = false
-                }) { Text(stringResource(R.string.reconnect)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.reconnect)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showReconnectDialog = false
                     wipeDataChecked = false
-                }) { Text(stringResource(R.string.cancel)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -785,10 +768,12 @@ fun SensorCard(
                     TextButton(onClick = {
                         viewModel.forgetSensor(sensor.serial)
                         showForgetDialog = false
-                    }) { Text(stringResource(R.string.disconnect)) }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.disconnect)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showForgetDialog = false }) { Text(stringResource(R.string.cancel)) }
+                    TextButton(onClick = { showForgetDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
                 }
             )
         } else {
@@ -800,10 +785,12 @@ fun SensorCard(
                     TextButton(onClick = {
                         viewModel.forgetSensor(sensor.serial)
                         showForgetDialog = false
-                    }) { Text(stringResource(R.string.forget)) }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.forget)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showForgetDialog = false }) { Text(stringResource(R.string.cancel)) }
+                    TextButton(onClick = { showForgetDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
                 }
             )
         }
@@ -835,7 +822,9 @@ fun SensorCard(
                 TextButton(onClick = {
                     viewModel.resetSensor(sensor.serial)
                     showResetDialog = false
-                }) {
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(
                         stringResource(
                             if (sensor.isAnytime) R.string.anytime_restart_action
@@ -845,7 +834,7 @@ fun SensorCard(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showResetDialog = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showResetDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -858,10 +847,12 @@ fun SensorCard(
                 TextButton(onClick = {
                     viewModel.clearManagedSensorCalibration(sensor.serial)
                     showAnytimeClearCalibrationDialog = false
-                }) { Text(stringResource(R.string.clear)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.clear)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAnytimeClearCalibrationDialog = false }) {
+                TextButton(onClick = { showAnytimeClearCalibrationDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -905,13 +896,17 @@ fun SensorCard(
                     }
                     showUnifiedResetDialog = false
                     keepAutoCalChecked = false
-                }) { Text(stringResource(R.string.reset_sensor)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.reset_sensor)) }
             },
             dismissButton = {
                 TextButton(onClick = { 
                     showUnifiedResetDialog = false 
                     keepAutoCalChecked = false
-                }) { Text(stringResource(R.string.cancel)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -927,13 +922,15 @@ fun SensorCard(
                         viewModel.wipeSensorData(sensor.serial)
                         showWipeDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Text(stringResource(R.string.wipe_data))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showWipeDialog = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showWipeDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -955,9 +952,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.reset_correction_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.reset_correction_desc),
@@ -993,9 +988,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.bias_correction),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                                style = MaterialTheme.typography.titleMediumEmphasized,)
                             Text(
                                 if (sensor.resetCompensationActive && sensor.resetCompensationStatus.isNotEmpty())
                                     sensor.resetCompensationStatus
@@ -1050,8 +1043,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.hardware_reset),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
@@ -1066,7 +1058,9 @@ fun SensorCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(
                     onClick = { showAiDexClearDialog = false },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.cancel)) }
             }
         }
@@ -1113,9 +1107,7 @@ fun SensorCard(
             ) {
                 Text(
                     stringResource(R.string.auto_calibration_mode),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    style = MaterialTheme.typography.headlineSmallEmphasized,)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Bit 0 is calibration; bits 1-3 are the model. The model mask
@@ -1154,9 +1146,9 @@ fun SensorCard(
                     algorithmOptions.forEachIndexed { index, (modelBase, titleRes, subtitleRes) ->
                         val selected = algorithmFeatures and 14 == modelBase
                         val shape = when (index) {
-                            0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-                            algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
-                            else -> RoundedCornerShape(6.dp)
+                            0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                            algorithmOptions.lastIndex -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                            else -> RoundedCornerShape(4.dp)
                         }
                         Surface(
                             shape = shape,
@@ -1177,8 +1169,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(titleRes),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                     )
                                     Text(
                                         stringResource(subtitleRes),
@@ -1227,8 +1218,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
                                 )
                                 Text(
                                     stringResource(
@@ -1268,6 +1258,8 @@ fun SensorCard(
                                     viewModel.setSibionicsAlgorithmSensitivity(sensor.serial, null)
                                 },
                                 modifier = Modifier.align(Alignment.End),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding,
                             ) {
                                 Text(stringResource(R.string.sibionics_use_sensor_sensitivity))
                             }
@@ -1348,11 +1340,12 @@ fun SensorCard(
 //                    style = MaterialTheme.typography.titleMedium,
 //                    color = MaterialTheme.colorScheme.primary,
 //                )
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = { showSibionicsCalSheet = false },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) { Text(stringResource(R.string.close)) }
             }
         }
@@ -1370,7 +1363,7 @@ fun SensorCard(
                 val unitLabel = if (isMmol) "mmol/L" else "mg/dL"
                 Column {
                     Text(stringResource(R.string.calibrate_sensor_desc, unitLabel))
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.calibrate_sensor_timing_note),
                         style = MaterialTheme.typography.bodySmall,
@@ -1423,14 +1416,18 @@ fun SensorCard(
                             calibrationInputText = ""
                         }
                     },
-                    enabled = isValid
+                    enabled = isValid,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.calibrate_action)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showSensorCalibrateDialog = false
                     calibrationInputText = ""
-                }) { Text(stringResource(R.string.cancel)) }
+                },
+                    shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -1460,8 +1457,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_bootstrap_dialog_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1500,6 +1496,8 @@ fun SensorCard(
                     },
                     enabled = canAttemptVendorRestore,
                     modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Text(stringResource(R.string.mq_fetch_calibration_action))
                 }
@@ -1507,6 +1505,8 @@ fun SensorCard(
                 TextButton(
                     onClick = { showMqRestoreSheet = false },
                     modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
                     Text(stringResource(R.string.cancel))
                 }
@@ -1540,8 +1540,7 @@ fun SensorCard(
             ) {
                 Text(
                     text = stringResource(R.string.mq_manual_calibration_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1589,6 +1588,8 @@ fun SensorCard(
                     },
                     enabled = canCalibrate,
                     modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     Text(stringResource(R.string.calibrate_action))
                 }
@@ -1599,6 +1600,8 @@ fun SensorCard(
                         mqCalibrationInputText = ""
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
                     Text(stringResource(R.string.cancel))
                 }
@@ -1629,7 +1632,9 @@ fun SensorCard(
                                 .canonicalBareSerial(sensor.serial)
                             aiDexKeyExportLauncher.launch("JugglucoNG-AiDex-$bareSerial.aidexkey")
                         }
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.export)) }
             },
             dismissButton = {
@@ -1642,9 +1647,11 @@ fun SensorCard(
                         },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
-                        )
+                        ),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding
                     ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
-                    TextButton(onClick = { showAiDexKeyBackupDialog = false }) {
+                    TextButton(onClick = { showAiDexKeyBackupDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -1670,11 +1677,13 @@ fun SensorCard(
                     },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) { Text(stringResource(R.string.aidex_pairing_key_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAiDexKeyDeleteConfirm = false }) {
+                TextButton(onClick = { showAiDexKeyDeleteConfirm = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -1692,11 +1701,13 @@ fun SensorCard(
                         viewModel.unpairAiDexSensor(sensor.serial)
                         showAiDexUnpairDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) { Text(stringResource(R.string.unpair)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAiDexUnpairDialog = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showAiDexUnpairDialog = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -1704,10 +1715,10 @@ fun SensorCard(
     val isLocallyStreaming = sensor.streaming
     val isLocallyEnabled = isSensorLocallyEnabled(sensor.streaming, sensor.paused)
     val isHandedOff = sensor.handoffUiState != SensorHandoffUiState.NONE
-    val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
+    val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
     val latestPersistedReading by remember(sensor.serial) {
         HistoryRepository().getLatestReadingFlowForSensor(sensor.serial)
-    }.collectAsState(initial = null)
+    }.collectAsStateWithLifecycle(initialValue = null)
     val currentSnapshot = remember(
         refreshRevision,
         sensor.serial,
@@ -1888,59 +1899,66 @@ fun SensorCard(
                         if (sensor.isCloneSource) {
                             // Nothing to pause on a sensor another phone is wearing.
                         } else if (isHandedOff) {
-                            IconButton(
-                                onClick = { viewModel.returnSensorToPhone(sensor.serial) },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.secondaryContainer,
-                                        CircleShape,
+                            IconButtonTooltip(stringResource(R.string.return_sensor_to_phone)) {
+                                // A filled icon button, not a background behind a plain one: the
+                                // container itself takes the press shape.
+                                FilledIconButton(
+                                    onClick = { viewModel.returnSensorToPhone(sensor.serial) },
+                                    modifier = Modifier.size(48.dp),
+                                    shapes = IconButtonDefaults.shapes(),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                     ),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PhoneAndroid,
-                                    contentDescription = stringResource(R.string.return_sensor_to_phone),
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhoneAndroid,
+                                        contentDescription = stringResource(R.string.return_sensor_to_phone),
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
                             }
                         } else {
                             // Show Pause while running, Play once stopped. A paused sensor gets
                             // the accent container so the way back to streaming is the loud thing.
-                            IconButton(
-                                onClick = {
-                                    if (isLocallyEnabled) {
-                                        android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
-                                        viewModel.disconnectSensor(sensor.serial)
-                                    } else {
-                                        android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
-                                        viewModel.reconnectSensor(sensor.serial, false)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
+                            IconButtonTooltip(
+                                stringResource(if (isLocallyEnabled) R.string.sensor_pause_streaming else R.string.sensor_resume_streaming)
+                            ) {
+                                FilledIconButton(
+                                    onClick = {
                                         if (isLocallyEnabled) {
+                                            android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
+                                            viewModel.disconnectSensor(sensor.serial)
+                                        } else {
+                                            android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
+                                            viewModel.reconnectSensor(sensor.serial, false)
+                                        }
+                                    },
+                                    modifier = Modifier.size(48.dp),
+                                    shapes = IconButtonDefaults.shapes(),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = if (isLocallyEnabled) {
                                             MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
                                         } else {
                                             MaterialTheme.colorScheme.primaryContainer
                                         },
-                                        CircleShape,
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(
-                                        if (isLocallyEnabled) R.string.sensor_pause_streaming
-                                        else R.string.sensor_resume_streaming
                                     ),
-                                    modifier = Modifier.size(26.dp),
-                                    tint = if (isLocallyEnabled) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    },
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = if (isLocallyEnabled) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = stringResource(
+                                            if (isLocallyEnabled) R.string.sensor_pause_streaming
+                                            else R.string.sensor_resume_streaming
+                                        ),
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (isLocallyEnabled) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
@@ -2141,10 +2159,20 @@ fun SensorCard(
                             DataRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
                         }
 
-                        if (sensor.expectedEndMs > 0) {
-                            DataRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEndMs.toString()))
-                        } else if (sensor.expectedEnd.isNotEmpty()) {
-                           DataRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
+                        // Only when it says something the official end does not: for most
+                        // sensors the two are the same timestamp, printed twice.
+                        val officialEndText = when {
+                            sensor.officialEndMs > 0 -> formatSensorTime(sensor.officialEndMs.toString())
+                            sensor.officialEnd.isNotEmpty() -> formatSensorTime(sensor.officialEnd)
+                            else -> null
+                        }
+                        val expectedEndText = when {
+                            sensor.expectedEndMs > 0 -> formatSensorTime(sensor.expectedEndMs.toString())
+                            sensor.expectedEnd.isNotEmpty() -> formatSensorTime(sensor.expectedEnd)
+                            else -> null
+                        }
+                        if (expectedEndText != null && expectedEndText != officialEndText) {
+                            DataRow(stringResource(R.string.sensor_expected_end), expectedEndText)
                         }
 
                         if (sensor.isAnytime && sensor.batteryMillivolts > 0) {
@@ -2181,7 +2209,8 @@ fun SensorCard(
                             val remainText = when {
                                 sensor.isSensorExpired -> stringResource(R.string.expired)
                                 sensor.sensorRemainingHours <= 0 -> stringResource(R.string.expired)
-                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.hours_remaining, sensor.sensorRemainingHours)
+                                // The row is labelled "Remaining", so the value is just the duration.
+                                sensor.sensorRemainingHours <= 24 -> stringResource(R.string.sensor_age_hours, sensor.sensorRemainingHours)
                                 else -> {
                                     val days = sensor.sensorRemainingHours / 24
                                     val hours = sensor.sensorRemainingHours % 24
@@ -2299,35 +2328,7 @@ fun SensorCard(
 
                 }
             }
-//
-//            Card(
-//                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), // Secondary Container
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(12.dp),
-//                    verticalArrangement = Arrangement.spacedBy(4.dp)
-//                ) {
-//                    if (sensor.connectionStatus.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.last_ble_status), sensor.connectionStatus)
-//                    }
-//                    InfoRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
-//
-//                    InfoRow(stringResource(R.string.sensor_started), formatSensorTime(sensor.starttime))
-//                    if (sensor.officialEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_ends_officially), formatSensorTime(sensor.officialEnd))
-//                    }
-//                    if (sensor.expectedEnd.isNotEmpty()) {
-//                        InfoRow(stringResource(R.string.sensor_expected_end), formatSensorTime(sensor.expectedEnd))
-//                    }
-//                    // InfoRow("Streaming", if (sensor.streaming) "Enabled" else "Disabled")
-//                }
-//            }
-
-            Spacer(modifier = Modifier.height(16.dp)) // More breathing room (M3 Expressive)
-//            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-//            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
             if (sensor.isSibionics || sensor.supportsDisplayModes) {
@@ -2400,9 +2401,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.auto_calibration_mode),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                    style = MaterialTheme.typography.titleMediumEmphasized,)
                                 Text(
                                     calSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -2437,13 +2436,14 @@ fun SensorCard(
                     onClick = { showSensorCalibrateDialog = true },
                     enabled = canCalibrate,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bloodtype,
@@ -2453,7 +2453,11 @@ fun SensorCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (canCalibrate) stringResource(R.string.calibrate_action) else stringResource(R.string.calibrate_connect_first),
-                        maxLines = 1
+                        // The disabled label is a sentence; at larger text it wraps rather than
+                        // being cut off mid-word.
+                        maxLines = 2,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 // Calibration history — show previous calibrations from the sensor
@@ -2520,12 +2524,12 @@ fun SensorCard(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         Text(
-                                            text = "CF: ${"%.2f".format(cal.cf)}",
+                                            text = stringResource(R.string.calibration_cf_value, "%.2f".format(cal.cf)),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = "Offset: ${"%.2f".format(cal.offset)}",
+                                            text = stringResource(R.string.calibration_offset_value, "%.2f".format(cal.offset)),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -2587,7 +2591,6 @@ fun SensorCard(
                     // correction is running, so it can still be switched off.
                     if (sensor.supportsHardwareReset || sensor.resetCompensationActive) FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
-                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
                                 MaterialTheme.colorScheme.tertiaryContainer
@@ -2597,7 +2600,9 @@ fun SensorCard(
                                 MaterialTheme.colorScheme.onTertiaryContainer
                             else
                                 MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        ),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
@@ -2643,11 +2648,12 @@ fun SensorCard(
                 FilledTonalButton(
                     onClick = { showUnifiedResetDialog = true },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.SettingsBackupRestore,
@@ -2706,21 +2712,24 @@ fun SensorCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 2.dp),
                                     ) {
-                                        IconButton(
-                                            onClick = {
-                                                if (daysValue > 1) {
-                                                    daysValue--
-                                                    viewModel.setAutoResetDays(sensor.serial, daysValue)
-                                                }
-                                            },
-                                            enabled = daysValue > 1,
-                                            modifier = Modifier.size(40.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Remove,
-                                                contentDescription = stringResource(R.string.outbound_api_decrease_value),
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                        IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (daysValue > 1) {
+                                                        daysValue--
+                                                        viewModel.setAutoResetDays(sensor.serial, daysValue)
+                                                    }
+                                                },
+                                                enabled = daysValue > 1,
+                                                modifier = Modifier.size(40.dp),
+                                                shapes = IconButtonDefaults.shapes(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Remove,
+                                                    contentDescription = stringResource(R.string.outbound_api_decrease_value),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                         }
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
@@ -2728,27 +2737,29 @@ fun SensorCard(
                                         ) {
                                             Text(
                                                 text = stringResource(R.string.auto_reset_days, daysValue),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.labelLargeEmphasized,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
                                         }
-                                        IconButton(
-                                            onClick = {
-                                                if (daysValue < 22) {
-                                                    daysValue++
-                                                    viewModel.setAutoResetDays(sensor.serial, daysValue)
-                                                }
-                                            },
-                                            enabled = daysValue < 22,
-                                            modifier = Modifier.size(40.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = stringResource(R.string.outbound_api_increase_value),
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                        IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (daysValue < 22) {
+                                                        daysValue++
+                                                        viewModel.setAutoResetDays(sensor.serial, daysValue)
+                                                    }
+                                                },
+                                                enabled = daysValue < 22,
+                                                modifier = Modifier.size(40.dp),
+                                                shapes = IconButtonDefaults.shapes(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = stringResource(R.string.outbound_api_increase_value),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -2768,11 +2779,12 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.SettingsBackupRestore,
@@ -2787,11 +2799,12 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -2812,13 +2825,14 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bloodtype,
@@ -2862,8 +2876,7 @@ fun SensorCard(
                         Column(modifier = Modifier.animateContentSize()) {
                             Text(
                                 text = stringResource(R.string.previous_calibrations),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMediumEmphasized,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
@@ -2978,11 +2991,12 @@ fun SensorCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        shape = RoundedCornerShape(28.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        ),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -3014,12 +3028,12 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                             contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         ),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
@@ -3039,12 +3053,12 @@ fun SensorCard(
                         enabled = sensor.isVendorConnected,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.History,
@@ -3064,12 +3078,12 @@ fun SensorCard(
                         enabled = hasExportableCredentials,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Key,
@@ -3094,13 +3108,14 @@ fun SensorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    )
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     Icon(
                         imageVector = Icons.Default.SettingsBackupRestore,
@@ -3127,8 +3142,9 @@ fun SensorCard(
                 val density = LocalDensity.current
                 val textMeasurer = rememberTextMeasurer()
                 val buttonTextStyle = MaterialTheme.typography.labelLarge
-                val buttonChromeWidth = 16.dp +
-                    8.dp +
+                // Icon (18) + gap (8) + the button's own padding.
+                val buttonIconWidth = 18.dp + 8.dp
+                val buttonChromeWidth = buttonIconWidth +
                     ButtonDefaults.ContentPadding.calculateLeftPadding(layoutDirection) +
                     ButtonDefaults.ContentPadding.calculateRightPadding(layoutDirection)
                 val reconnectPreferredWidth = with(density) {
@@ -3149,9 +3165,17 @@ fun SensorCard(
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val buttonSpacing = 8.dp
                     val equalButtonWidth = (maxWidth - buttonSpacing) / 2
-                    val prioritizeDisconnect =
-                        reconnectPreferredWidth > equalButtonWidth ||
-                        disconnectPreferredWidth > equalButtonWidth
+                    fun fitsHalf(width: Dp, withIcon: Boolean) =
+                        (if (withIcon) width else width - buttonIconWidth) <= equalButtonWidth
+                    // At large text the icons go first, so both labels stay whole in the
+                    // 50/50 row; only if the words alone still don't fit does Disconnect
+                    // take its full width and Reconnect ellipsize.
+                    val showButtonIcons = fitsHalf(reconnectPreferredWidth, true) &&
+                        fitsHalf(disconnectPreferredWidth, true)
+                    val prioritizeDisconnect = !showButtonIcons && !(
+                        fitsHalf(reconnectPreferredWidth, false) &&
+                            fitsHalf(disconnectPreferredWidth, false)
+                        )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3162,23 +3186,21 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showReconnectDialog = true },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 12.dp,
-                                bottomStart = 12.dp,
-                                topEnd = 4.dp,
-                                bottomEnd = 4.dp
-                            ),
+                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Leading, pressedShape = ConnectedButtonShapes.LeadingPressed),
+                            contentPadding = ButtonDefaults.ContentPadding,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.BluetoothConnected,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (showButtonIcons) {
+                                Icon(
+                                    imageVector = Icons.Default.BluetoothConnected,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
                                 reconnectLabel,
                                 maxLines = 1,
@@ -3189,23 +3211,21 @@ fun SensorCard(
                         FilledTonalButton(
                             onClick = { showTerminateDialog = true },
                             modifier = if (prioritizeDisconnect) Modifier else Modifier.weight(1f),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                bottomStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomEnd = 12.dp
-                            ),
+                            shapes = ButtonDefaults.shapes(shape = ConnectedButtonShapes.Trailing, pressedShape = ConnectedButtonShapes.TrailingPressed),
+                            contentPadding = ButtonDefaults.ContentPadding,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer
                             )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DeleteForever,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (showButtonIcons) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteForever,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
                                 disconnectLabel,
                                 maxLines = 1,
@@ -3222,15 +3242,10 @@ fun SensorCard(
 }
 
 /**
- * M3 Expressive split button, built by hand: `material3` 1.4.0 ships only the
- * `SplitButtonSmallTokens`, not the composable. Values follow those tokens — 40dp tall, 2dp
- * between the halves, 4dp inner corners that swell to 12dp while the trailing half is pressed,
- * a 22dp trailing glyph with 13dp either side. The outer corners stay at the 12dp this row
- * already uses on Reset, rather than the token's full pill, so the two buttons read as one row.
- *
- * Both halves share one container, as a split button does; the trailing key glyph alone
- * carries state — the app's in-range green while a verified key is held (tap: back it up),
- * error while none is (tap: restore one from a backup file).
+ * The pair/unpair split button. Both halves share one container, as a split button does; the
+ * trailing key glyph alone carries state: the app's in-range green while a verified key is held
+ * (tap: back it up), error while none is (tap: restore one from a backup file). The trailing
+ * half is an action of its own, not a menu, so it uses the plain-click [SplitButtonDefaults.TrailingButton].
  */
 @Composable
 private fun AiDexPairSplitButton(
@@ -3240,74 +3255,52 @@ private fun AiDexPairSplitButton(
     onKeyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val outer = 12.dp
-    val innerRest = 4.dp
-    val innerPressed = 12.dp
-    val keyInteraction = remember { MutableInteractionSource() }
-    val keyPressed by keyInteraction.collectIsPressedAsState()
-    val inner by animateDpAsState(
-        targetValue = if (keyPressed) innerPressed else innerRest,
-        label = "aidexSplitInnerCorner"
-    )
-
     val container = if (paired) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
     val onContainer = if (paired) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
-    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(isSystemInDarkTheme()))
+    val keyHeldColor = Color(tk.glucodata.GlucoseRangeColors.inRange(tk.glucodata.ui.isAppInDarkTheme()))
     val keyTint by animateColorAsState(
         targetValue = if (keyHeld) keyHeldColor else MaterialTheme.colorScheme.error,
         label = "aidexKeyTint"
     )
+    val height = SplitButtonDefaults.SmallContainerHeight
 
-    Row(
-        modifier = modifier.height(ButtonDefaults.MinHeight),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FilledTonalButton(
-            onClick = onLeadingClick,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-            shape = RoundedCornerShape(
-                topStart = outer,
-                bottomStart = outer,
-                topEnd = inner,
-                bottomEnd = inner,
-            ),
-            contentPadding = PaddingValues(start = 16.dp, end = 12.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = container,
-                contentColor = onContainer,
-            ),
-        ) {
-            Icon(
-                imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(if (paired) R.string.unpair else R.string.pair), maxLines = 1)
-        }
-        FilledTonalIconButton(
-            onClick = onKeyClick,
-            interactionSource = keyInteraction,
-            modifier = Modifier.width(48.dp).fillMaxHeight(),
-            shape = RoundedCornerShape(
-                topStart = inner,
-                bottomStart = inner,
-                topEnd = outer,
-                bottomEnd = outer,
-            ),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = container,
-                contentColor = keyTint,
-            ),
-        ) {
-            Icon(
-                imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
-                contentDescription = stringResource(
-                    if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
+    SplitButtonLayout(
+        modifier = modifier,
+        leadingButton = {
+            SplitButtonDefaults.TonalLeadingButton(
+                onClick = onLeadingClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = container,
+                    contentColor = onContainer,
                 ),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
+            ) {
+                Icon(
+                    imageVector = if (paired) Icons.Default.LinkOff else Icons.Default.Link,
+                    contentDescription = null,
+                    modifier = Modifier.size(SplitButtonDefaults.leadingButtonIconSizeFor(height)),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(if (paired) R.string.unpair else R.string.pair), maxLines = 1)
+            }
+        },
+        trailingButton = {
+            SplitButtonDefaults.TrailingButton(
+                onClick = onKeyClick,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = container,
+                    contentColor = keyTint,
+                ),
+                elevation = ButtonDefaults.filledTonalButtonElevation(),
+            ) {
+                Icon(
+                    imageVector = if (keyHeld) Icons.Default.Key else Icons.Default.KeyOff,
+                    contentDescription = stringResource(
+                        if (keyHeld) R.string.aidex_pairing_key_backup else R.string.aidex_restore_pairing_key
+                    ),
+                    modifier = Modifier.size(SplitButtonDefaults.trailingButtonIconSizeFor(height)),
+                )
+            }
+        },
+    )
 }

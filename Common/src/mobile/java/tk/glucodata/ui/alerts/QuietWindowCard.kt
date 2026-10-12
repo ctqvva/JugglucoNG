@@ -1,10 +1,13 @@
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.app.StatusBarManager
 import android.content.ComponentName
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.text.format.DateFormat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -24,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircleOutline
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import tk.glucodata.ui.components.IconTile
 import tk.glucodata.AlertDeliveryPolicy
 import tk.glucodata.R
 import tk.glucodata.alerts.QuietWindow
@@ -88,7 +93,7 @@ fun QuietWindowCard(
     position: CardPosition = CardPosition.SINGLE
 ) {
     val context = LocalContext.current
-    val state by QuietWindow.state.collectAsState()
+    val state by QuietWindow.state.collectAsStateWithLifecycle()
     val startMode = if (anySound) state.mode else AlertDeliveryPolicy.QUIET_NOTIFICATION_ONLY
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
     var openedByUser by rememberSaveable { mutableStateOf(false) }
@@ -113,15 +118,7 @@ fun QuietWindowCard(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(40.dp),
-                    color = accent.copy(alpha = 0.12f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.DoNotDisturbOn, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
-                    }
-                }
+                IconTile(icon = Icons.Default.DoNotDisturbOn, tint = accent)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -162,7 +159,9 @@ fun QuietWindowCard(
                     if (state.active) {
                         Button(
                             onClick = { QuietWindow.end(context) },
-                            modifier = inset.fillMaxWidth().heightIn(min = 56.dp)
+                            modifier = inset.fillMaxWidth().heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(stringResource(R.string.quiet_window_end_now))
                         }
@@ -186,7 +185,9 @@ fun QuietWindowCard(
                                 pair.forEach { (label, start) ->
                                     FilledTonalButton(
                                         onClick = start,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) {
                                         Text(label)
                                     }
@@ -236,7 +237,7 @@ fun QuietWindowCard(
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
             title = { Text(stringResource(R.string.quiet_window_select_end_time)) },
-            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth()) },
+            text = { TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth(), shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) },
             confirmButton = {
                 TextButton(onClick = {
                     val nowMs = System.currentTimeMillis()
@@ -247,12 +248,14 @@ fun QuietWindowCard(
                         nowMs = nowMs
                     )
                     showTimePicker = false
-                }) {
+                },
+                                        shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
+                TextButton(onClick = { showTimePicker = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -350,10 +353,12 @@ private fun QuietWindowAdvanced() {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { requestAddQuietWindowTile(context) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.AddCircleOutline, contentDescription = null)
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.quiet_window_add_tile))
                     }
                 } else {

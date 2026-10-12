@@ -18,9 +18,9 @@ import androidx.compose.animation.core.spring
  * small element moving a short distance, [defaultSpatial] for most container changes,
  * [slowSpatial] for something crossing a large part of the screen.
  *
- * The values follow `MotionScheme.expressive()` from material3 1.4. They are duplicated
- * here rather than read from `MaterialTheme.motionScheme` because that API is still
- * experimental; when it stabilises this object is what gets deleted.
+ * The values follow `MotionScheme.expressive()`, which the theme installs for the stock
+ * components. These copies are for hand-built animations that take a plain spring spec outside
+ * composition, where `MaterialTheme.motionScheme` cannot be read.
  */
 object ExpressiveMotion {
     fun <T> fastSpatial(): SpringSpec<T> = spring(dampingRatio = 0.6f, stiffness = 800f)

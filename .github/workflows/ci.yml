@@ -42,6 +42,21 @@ jobs:
       - name: Audit bootstrap state and restore available pinned inputs
         run: scripts/update-build-inputs.sh --ci
 
+  # The mechanical rules of docs/ui-style-guide.md, as a ratchet: each count in
+  # scripts/ui-guardrails-baseline.json may fall but not rise. Plain Python over
+  # the source tree, so it answers in seconds. A change that removes debt lowers
+  # the baseline with `python3 scripts/ui-guardrails.py --update`.
+  ui-guardrails:
+    name: UI guardrails
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check UI guardrail counts against the baseline
+        run: python3 scripts/ui-guardrails.py
+
   unit-tests:
     name: JVM unit tests
     runs-on: ubuntu-latest

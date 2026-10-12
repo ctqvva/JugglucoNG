@@ -80,7 +80,8 @@ fun CommonAlertSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = sectionHorizontalPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
@@ -363,7 +364,8 @@ fun CommonAlertSettings(
                             .fillMaxWidth()
                             .padding(horizontal = sectionHorizontalPadding)
                             .padding(bottom = 16.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
@@ -410,8 +412,7 @@ internal fun AdvancedSectionHeader(expanded: Boolean, onToggle: () -> Unit, modi
         ) {
             Text(
                 stringResource(R.string.advanced),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )

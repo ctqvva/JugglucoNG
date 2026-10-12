@@ -15,7 +15,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -238,13 +238,15 @@ fun ManualSensorEntryDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(batch + serial) },
-                enabled = batchValid && serialValid
+                enabled = batchValid && serialValid,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -278,6 +280,7 @@ fun ManualTransmitterEntryDialog(
                     value = code,
                     onValueChange = { code = it.uppercase().filter { c -> c.isLetterOrDigit() } },
                     label = { Text(stringResource(R.string.transmitter_id_label)) },
+                    // ui-guardrails: allow text_literal - an example transmitter ID
                     placeholder = { Text("TW6CCWHS9L7D", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
                     supportingText = { Text(stringResource(R.string.transmitter_id_supporting)) },
                     singleLine = true,
@@ -289,13 +292,15 @@ fun ManualTransmitterEntryDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(code) },
-                enabled = isValid
+                enabled = isValid,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -440,15 +445,11 @@ fun SibionicsSetupWizard(
     Scaffold(
         modifier = scaffoldModifier,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.sibionics_setup_title)) },
-                windowInsets = TopAppBarDefaults.windowInsets, // Ensure status bar padding
-                navigationIcon = {
-                    IconButton(onClick = handleBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                },
-                scrollBehavior = scrollBehavior
+            AppTopBar(
+                title = stringResource(R.string.sibionics_setup_title),
+                onNavigateBack = handleBack,
+                navigationContentDescription = stringResource(R.string.cancel),
+                scrollBehavior = scrollBehavior,
             )
         }
     ) { padding ->
@@ -548,7 +549,7 @@ fun ScanSensorStep(
 ) {
     val contentPadding = if (compact) 12.dp else 16.dp
     val sectionGap = if (compact) 8.dp else 12.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     var showManualEntry by remember { mutableStateOf(false) }
     var handledScan by remember { mutableStateOf(false) }
     var scanRejection by remember { mutableStateOf<String?>(null) }
@@ -696,12 +697,12 @@ fun ScanSensorStep(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                modifier = Modifier.padding(top = if (compact) 10.dp else 12.dp, bottom = if (compact) 16.dp else 20.dp)
+                modifier = Modifier.padding(top = if (compact) 8.dp else 12.dp, bottom = if (compact) 16.dp else 20.dp)
             )
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 8.dp),
             ) {
                 OutlinedButton(
                     onClick = {
@@ -711,7 +712,9 @@ fun ScanSensorStep(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(buttonHeight)
+                        .height(buttonHeight),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
                 ) {
                     if (bleProbeScanning) {
                         CircularProgressIndicator(
@@ -763,7 +766,7 @@ fun ScanSensorStep(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(if (compact) 14.dp else 16.dp))
+                            .clip(RoundedCornerShape(if (compact) 12.dp else 16.dp))
                             .clickable {
                                 selectedBleAddress = if (selected) null else item.address
                             },
@@ -776,6 +779,8 @@ fun ScanSensorStep(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Default.Bluetooth, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -798,7 +803,9 @@ fun ScanSensorStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -809,7 +816,9 @@ fun ScanSensorStep(
 
             TextButton(
                 onClick = { showManualEntry = true },
-                        modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
 
             ) {
                 Text(stringResource(R.string.enter_code_manually))
@@ -833,17 +842,16 @@ fun SelectTypeStep(
     val verticalPadding = if (compact) 12.dp else 16.dp
     val listGap = if (compact) 12.dp else 16.dp
     val cardPadding = if (compact) 16.dp else 20.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
-        Spacer(modifier = Modifier.height(if (compact) 12.dp else 18.dp))
+        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         Text(
             text = stringResource(R.string.select_sibionics_type),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.headlineSmallEmphasized,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -851,7 +859,7 @@ fun SelectTypeStep(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(if (compact) 10.dp else 12.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
         tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
 
@@ -892,7 +900,7 @@ fun SelectTypeStep(
                         animationSpec = androidx.compose.animation.core.tween(180),
                         label = "checkAlpha"
                     )
-                    val cardShape = RoundedCornerShape(if (compact) 18.dp else 20.dp)
+                    val cardShape = RoundedCornerShape(if (compact) 16.dp else 20.dp)
                 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -945,7 +953,8 @@ fun SelectTypeStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(buttonHeight),
-            shape = MaterialTheme.shapes.large
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
         ) {
             Text(
                 text = stringResource(R.string.continue_action),
@@ -959,6 +968,8 @@ fun SelectTypeStep(
         TextButton(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding,
 
             ) {
             Text(stringResource(R.string.cancel))
@@ -980,7 +991,7 @@ fun ScanTransmitterStep(
     var foundDevices by remember { mutableStateOf(setOf<String>()) }
     var showManualEntry by remember { mutableStateOf(false) }
     val contentPadding = if (compact) 12.dp else 16.dp
-    val buttonHeight = if (compact) 46.dp else 48.dp
+    val buttonHeight = 48.dp
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -1045,12 +1056,14 @@ fun ScanTransmitterStep(
                 style = MaterialTheme.typography.bodyMedium,
                  textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = if (compact) 14.dp else 18.dp)
+                modifier = Modifier.padding(bottom = if (compact) 12.dp else 16.dp)
             )
 
             OutlinedButton(
                 onClick = { isScanning = !isScanning },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isScanning) {
                     CircularProgressIndicator(
@@ -1145,14 +1158,16 @@ fun ScanTransmitterStep(
     
             Button(
                 onClick = onScanClick,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.scan_transmitter_button))
             }
             
-            Spacer(Modifier.height(if (compact) 6.dp else 8.dp))
+            Spacer(Modifier.height(if (compact) 8.dp else 8.dp))
 
             // Add Gallery Button (Transmitter)
             OutlinedButton(
@@ -1161,18 +1176,22 @@ fun ScanTransmitterStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.select_gallery_button))
             }
 
-            Spacer(Modifier.height(if (compact) 6.dp else 8.dp))
+            Spacer(Modifier.height(if (compact) 8.dp else 8.dp))
             
             TextButton(
                 onClick = { showManualEntry = true },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight)
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                  Text(stringResource(R.string.enter_code_manually))
             }

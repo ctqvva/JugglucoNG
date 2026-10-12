@@ -86,6 +86,12 @@ object StatsReportExporter {
         val shadowOffsetY: Float
     )
 
+    /** The colours a style prints with, for the style picker's preview. */
+    data class PdfStyleSwatch(val paper: Int, val text: Int, val primary: Int, val secondary: Int)
+
+    fun swatch(style: PdfVisualStyle): PdfStyleSwatch =
+        resolveVisualTheme(style).let { PdfStyleSwatch(it.paper, it.text, it.primary, it.secondary) }
+
     private fun resolveVisualTheme(style: PdfVisualStyle): PdfVisualTheme = when (style) {
         PdfVisualStyle.CURRENT -> PdfVisualTheme(
             paper = android.graphics.Color.rgb(245, 248, 253),
@@ -1279,7 +1285,7 @@ object StatsReportExporter {
                 cardHeight,
                 context.getString(R.string.time_in_range),
                 formatPercent(summary.tir.inRangePercent),
-                "${context.getString(R.string.gmi_target)} ${formatGlucose(uiState.targets.lowMgDl, false)}-${formatGlucose(uiState.targets.highMgDl, false)}",
+                "${context.getString(R.string.gmi_target)} ${formatGlucose(uiState.targets.lowMgDl, false)}–${formatGlucose(uiState.targets.highMgDl, false)}",
                 colorEmerald
             )
             drawMetricCard(
@@ -1552,12 +1558,12 @@ object StatsReportExporter {
                         canvas.drawRect(tableLeft, y, tableRight, y + agpRowHeight, fillPaint)
                     }
                     val iqrText = if (bin.p25MgDl != null && bin.p75MgDl != null) {
-                        "${formatGlucose(bin.p25MgDl, false)}-${formatGlucose(bin.p75MgDl, false)}"
+                        "${formatGlucose(bin.p25MgDl, false)}–${formatGlucose(bin.p75MgDl, false)}"
                     } else {
                         "-"
                     }
                     val p10p90Text = if (bin.p10MgDl != null && bin.p90MgDl != null) {
-                        "${formatGlucose(bin.p10MgDl, false)}-${formatGlucose(bin.p90MgDl, false)}"
+                        "${formatGlucose(bin.p10MgDl, false)}–${formatGlucose(bin.p90MgDl, false)}"
                     } else {
                         "-"
                     }

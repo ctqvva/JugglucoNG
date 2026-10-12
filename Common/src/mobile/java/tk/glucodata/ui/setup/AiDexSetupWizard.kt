@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
@@ -35,6 +34,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
@@ -78,13 +78,10 @@ fun AiDexSetupWizard(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.aidex_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.aidex_setup_title),
+                onNavigateBack = navigateBack,
+                navigationContentDescription = stringResource(R.string.cancel),
             )
         }
     ) { padding ->
@@ -294,7 +291,7 @@ fun AiDexScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         tk.glucodata.ui.CgmReadinessSetupBanner(
             modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
             onOpenReadiness = onNavigateToReadiness
@@ -312,7 +309,9 @@ fun AiDexScanStep(
                 style = MaterialTheme.typography.titleMedium
             )
             TextButton(
-                onClick = { showAllDevices = !showAllDevices }
+                onClick = { showAllDevices = !showAllDevices },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(
                     if (showAllDevices) {
@@ -363,7 +362,9 @@ fun AiDexScanStep(
                                 }
                             }
                         },
-                        modifier = Modifier.height(ui.buttonHeight)
+                        modifier = Modifier.height(ui.buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(buttonRes))
                     }

@@ -5901,7 +5901,7 @@ class AiDexBleManager(
             // storage. The history row was already persisted above.
             SuperGattCallback.processExternalCurrentReading(
                 SerialNumber,
-                catchUpDisplayGlucose,
+                tk.glucodata.LiveReadingLanes.stock(catchUpDisplayGlucose, Float.NaN),
                 0f,
                 catchUpTimestamp,
                 sensorgen
@@ -7130,7 +7130,7 @@ class AiDexBleManager(
             )
             SuperGattCallback.processExternalCurrentReading(
                 SerialNumber,
-                displayGlucose,
+                tk.glucodata.LiveReadingLanes.stock(displayGlucose, Float.NaN),
                 0f,
                 sampleTimestampMs,
                 sensorgen

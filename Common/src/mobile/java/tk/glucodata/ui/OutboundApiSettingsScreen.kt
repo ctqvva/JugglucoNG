@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -24,7 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
@@ -54,8 +56,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -96,6 +96,7 @@ import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.sms.SmsWatchdog
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SectionLabel
@@ -195,12 +196,12 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = { deleteDestination(destination) }) {
+                TextButton(onClick = { deleteDestination(destination) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
+                TextButton(onClick = { pendingDelete = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -210,17 +211,9 @@ fun OutboundApiSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.outbound_api_settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.outbound_api_settings_title),
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -264,12 +257,13 @@ fun OutboundApiSettingsScreen(navController: NavController) {
                     FilledTonalButton(
                         onClick = { showAddSheet = true },
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
                         Text(
                             text = stringResource(R.string.outbound_api_add_destination),
-                            modifier = Modifier.padding(start = 10.dp)
+                            modifier = Modifier.padding(start = 12.dp)
                         )
                     }
                 }
@@ -360,14 +354,18 @@ private fun DestinationCard(
                     checked = destination.enabled,
                     onCheckedChange = onEnabledChange
                 )
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                IconButtonTooltip(stringResource(R.string.delete)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                    }
                 }
-                IconButton(onClick = onToggleExpanded) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
+                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
+                        )
+                    }
                 }
             }
 
@@ -377,7 +375,7 @@ private fun DestinationCard(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                         .alpha(if (destination.enabled) 1f else 0.68f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
                     DestinationEditor(
@@ -407,12 +405,14 @@ private fun DestinationCard(
                                 TextButton(onClick = {
                                     confirmTestSms = false
                                     onSendTest()
-                                }) {
+                                },
+                        shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding) {
                                     Text(stringResource(R.string.sms_send_test))
                                 }
                             },
                             dismissButton = {
-                                TextButton(onClick = { confirmTestSms = false }) {
+                                TextButton(onClick = { confirmTestSms = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                                     Text(stringResource(R.string.cancel))
                                 }
                             }
@@ -423,7 +423,9 @@ private fun DestinationCard(
                         // always goes through a confirmation step.
                         onClick = { if (destination.isSms()) confirmTestSms = true else onSendTest() },
                         enabled = destination.isReady(),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(
                             if (destination.isSms()) Icons.Filled.Sms else Icons.Filled.Send,
@@ -541,11 +543,13 @@ private fun DestinationEditor(
             leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { onShowSecretChange(!showSecret) }) {
-                    Icon(
-                        if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                    IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                        )
+                    }
                 }
             },
             keyboardOptions = KeyboardOptions(
@@ -641,7 +645,7 @@ private fun DeliverySection(
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedTextField(
@@ -674,7 +678,7 @@ private fun PresetSummaryRow(
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -689,7 +693,7 @@ private fun PresetSummaryRow(
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
-            TextButton(onClick = onChangePreset) {
+            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
@@ -715,7 +719,7 @@ private fun TriggerPicker(
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clickable { showSheet = true }
-            .padding(horizontal = 2.dp, vertical = 6.dp),
+            .padding(horizontal = 2.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -731,7 +735,7 @@ private fun TriggerPicker(
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        TextButton(onClick = { showSheet = true }) {
+        TextButton(onClick = { showSheet = true }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
             Text(stringResource(R.string.outbound_api_change_trigger))
         }
     }
@@ -759,7 +763,7 @@ private fun TriggerEditorSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = stringResource(R.string.outbound_api_trigger),
@@ -934,7 +938,7 @@ internal fun ToggleRow(
                 role = Role.Switch,
                 onValueChange = onCheckedChange
             )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -970,7 +974,7 @@ internal fun NumberStepper(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -989,15 +993,18 @@ internal fun NumberStepper(
                 modifier = Modifier.height(48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
-                    enabled = value > range.first,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Remove,
-                        contentDescription = stringResource(R.string.outbound_api_decrease_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                    IconButton(
+                        onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
+                        enabled = value > range.first,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Remove,
+                            contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                        )
+                    }
                 }
                 Text(
                     text = value.toString(),
@@ -1006,15 +1013,18 @@ internal fun NumberStepper(
                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(
-                    onClick = { onChange((value + 1).coerceAtMost(range.last)) },
-                    enabled = value < range.last,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.outbound_api_increase_value)
-                    )
+                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                    IconButton(
+                        onClick = { onChange((value + 1).coerceAtMost(range.last)) },
+                        enabled = value < range.last,
+                        modifier = Modifier.size(48.dp),
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.outbound_api_increase_value)
+                        )
+                    }
                 }
             }
         }
@@ -1259,7 +1269,7 @@ private fun PresetSheetRow(
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
                 modifier = Modifier.size(42.dp),
@@ -1271,7 +1281,7 @@ private fun PresetSheetRow(
                         imageVector = spec.icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
