@@ -23,11 +23,8 @@ import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.alerts.AlertDisplayText
 import tk.glucodata.alerts.AlertRepository
-import tk.glucodata.alerts.AlertStateTracker
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.ui.util.GlucoseFormatter
-import tk.glucodata.alerts.SnoozeManager
-import tk.glucodata.logic.CustomAlertManager
 import tk.glucodata.logic.TrendEngine
 
 class AlarmActivity : ComponentActivity() {
@@ -54,17 +51,34 @@ class AlarmActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         Notify.setAlarmUiVisible(true)
+        observeAcknowledgement()
         turnScreenOnAndKeyguard()
     }
 
     override fun onStop() {
+        AlarmActivityAccess.removeObserver(this)
         Notify.setAlarmUiVisible(false)
         wakeHoldHandler.removeCallbacks(releaseWakeHold)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onStop()
     }
 
+    private fun observeAcknowledgement() {
+        AlarmActivityAccess.removeObserver(this)
+        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null) {
+            AlarmActivityAccess.observeAcknowledgement(this, intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)) { finish() }
+        }
+    }
+
     private fun showAlarmContent() {
+        val kind = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
+        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null &&
+            tk.glucodata.WearAlertSync.isSuppressed(kind) &&
+            AlertType.fromId(kind)?.let { !tk.glucodata.alerts.AlertStateTracker.isManualTestActive(it) } == true) {
+            finish()
+            return
+        }
+        observeAcknowledgement()
         val model = buildUiModel(intent)
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)
         val deliveryMode = intent.getStringExtra(Notify.EXTRA_ALERT_DELIVERY_MODE)
@@ -89,51 +103,15 @@ class AlarmActivity : ComponentActivity() {
                 trendResult = model.trendResult,
                 timeText = model.timeText,
                 onSnooze = {
-                    Notify.cancelQueuedAlarmActivityLaunch(
-                        Notify.resolveAlertKind(model.alertType?.id ?: -1),
-                        customAlertId,
-                        "alarm-activity-snooze"
+                    tk.glucodata.alerts.AlertActions.handle(
+                        model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId, model.snoozeMinutes
                     )
-                    var productionAction = true
-                    if (customAlertId != null) {
-                        CustomAlertManager.snoozeAlert(customAlertId, model.snoozeMinutes)
-                        Notify.cancelCurrentRetrySession("alarm-activity-snooze-custom-before-stop")
-                    } else {
-                        val alertType = AlertType.fromId(Notify.resolveAlertKind(model.alertType?.id ?: -1))
-                        productionAction = alertType?.let { !AlertStateTracker.consumeManualTestAction(it) } ?: true
-                        if (productionAction) {
-                            alertType?.let {
-                                SnoozeManager.snooze(it, model.snoozeMinutes)
-                                AlertStateTracker.resetState(it)
-                            }
-                            Notify.cancelCurrentRetrySession("alarm-activity-snooze-before-stop")
-                        }
-                    }
-                    Notify.stopalarm()
-                    if (productionAction) {
-                        Notify.cancelCurrentRetrySession("alarm-activity-snooze-after-stop")
-                    }
-                    cancelAlarmNotification()
                     leaveAlarmScreen()
                 },
                 onDismiss = {
-                    Notify.cancelQueuedAlarmActivityLaunch(
-                        Notify.resolveAlertKind(model.alertType?.id ?: -1),
-                        customAlertId,
-                        "alarm-activity-dismiss"
+                    tk.glucodata.alerts.AlertActions.handle(
+                        model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId
                     )
-                    Notify.stopalarm()
-                    if (customAlertId != null) {
-                        CustomAlertManager.dismissAlert(customAlertId)
-                    } else {
-                        AlertType.fromId(Notify.resolveAlertKind(model.alertType?.id ?: -1))?.let {
-                            if (AlertStateTracker.onAlertDismissed(it)) {
-                                SnoozeManager.clearSnooze(it)
-                                Notify.cancelCurrentRetrySession("alarm-activity-dismiss")
-                            }
-                        }
-                    }
-                    cancelAlarmNotification()
                     leaveAlarmScreen()
                 }
             )

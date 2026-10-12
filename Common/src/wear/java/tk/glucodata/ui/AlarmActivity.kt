@@ -67,16 +67,33 @@ class AlarmActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         Notify.setAlarmUiVisible(true)
+        observeAcknowledgement()
         turnScreenOnAndKeyguard()
     }
 
     override fun onStop() {
+        AlarmActivityAccess.removeObserver(this)
         Notify.setAlarmUiVisible(false)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onStop()
     }
 
+    private fun observeAcknowledgement() {
+        AlarmActivityAccess.removeObserver(this)
+        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null) {
+            AlarmActivityAccess.observeAcknowledgement(this, intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)) { finish() }
+        }
+    }
+
     private fun showAlarmContent() {
+        val kind = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
+        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null &&
+            tk.glucodata.WearAlertSync.isSuppressed(kind) &&
+            AlertType.fromId(kind)?.let { !tk.glucodata.alerts.AlertStateTracker.isManualTestActive(it) } == true) {
+            finish()
+            return
+        }
+        observeAcknowledgement()
         val model = buildUiModel()
         Notify.cancelQueuedAlarmActivityLaunch(
             Notify.resolveAlertKind(model.alertTypeId),

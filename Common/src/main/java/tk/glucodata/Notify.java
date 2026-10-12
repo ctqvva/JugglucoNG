@@ -986,6 +986,8 @@ public class Notify {
     private static final Object alertEffectLock = new Object();
     private static ScheduledFuture<?> retrySessionSchedule = null;
     private static AlertRetrySession activeRetrySession = null;
+    private static long retryGeneration = 0;
+    private static volatile int presentedStandardAlertKind = -1;
     private static volatile boolean alarmUiVisible = false;
     private static ScheduledFuture<?> delayedAlertEffectSchedule = null;
     private static long delayedAlertEffectGeneration = 0L;
@@ -1709,6 +1711,7 @@ public class Notify {
     }
 
     private static void cancelRetryScheduleLocked() {
+        retryGeneration++;
         if (retrySessionSchedule != null) {
             retrySessionSchedule.cancel(false);
             retrySessionSchedule = null;
@@ -1749,7 +1752,19 @@ public class Notify {
                 return activeRetrySession.kind;
             }
         }
-        return lastalarm >= 0 ? lastalarm : fallbackKind;
+        return lastalarm >= 0 ? lastalarm
+                : presentedStandardAlertKind >= 0 ? presentedStandardAlertKind : fallbackKind;
+    }
+
+    public static void refreshRetryReading(int kind, float glucoseValue, float rate, String message, long readingTimeMs) {
+        synchronized (retrySessionLock) {
+            if (activeRetrySession == null || activeRetrySession.kind != kind) return;
+            final notGlucose snapshot = copyGlucoseSnapshot(activeRetrySession.glucoseSnapshot, glucoseValue);
+            snapshot.time = readingTimeMs;
+            snapshot.value = format(usedlocale, pureglucoseformat, glucoseValue);
+            snapshot.rate = rate;
+            activeRetrySession.updateFrom(kind, glucoseValue, snapshot, message, activeRetrySession.notificationType);
+        }
     }
 
     public static void cancelRetrySession(int kind, String reason) {
@@ -1767,16 +1782,10 @@ public class Notify {
     }
 
     public static void cancelAlertNotification() {
+        presentedStandardAlertKind = -1;
         if (onenot != null && onenot.notificationManager != null) {
             onenot.notificationManager.cancel(glucosealarmid);
         }
-    }
-
-    private static boolean dismissCustomAlertById(String customAlertId) {
-        if (customAlertId == null || customAlertId.isEmpty()) {
-            return false;
-        }
-        return CustomAlertAccess.dismissAlert(customAlertId);
     }
 
     public static void acknowledgeCurrentAlert() {
@@ -1784,33 +1793,24 @@ public class Notify {
     }
 
     public static void acknowledgeCurrentAlert(String customAlertId) {
-        if (dismissCustomAlertById(customAlertId)) {
-            cancelCurrentRetrySession("notification-open-custom");
-            cancelAlertNotification();
-            stopalarm();
-            return;
-        }
-        final int kind = resolveAlertKind(-1);
-        boolean productionAction = true;
-        if (kind >= 0) {
-            final AlertType type = AlertType.Companion.fromId(kind);
-            if (type != null) {
-                productionAction = AlertStateTracker.INSTANCE.onAlertDismissed(type);
-                if (productionAction) {
-                    SnoozeManager.INSTANCE.clearSnooze(type);
-                }
-            }
-        }
-        if (productionAction) {
-            cancelCurrentRetrySession("notification-open");
-        }
-        cancelAlertNotification();
-        stopalarm();
+        tk.glucodata.alerts.AlertActions.handle(resolveAlertKind(-1), customAlertId);
     }
 
-    private static void fireRetrySession(int expectedKind) {
+    public static boolean isPresentedStandardAlert(int kind) {
+        return presentedStandardAlertKind == kind;
+    }
+
+    public static boolean isCurrentStandardAlert(int kind) {
+        final AlertType type = AlertType.Companion.fromId(kind);
+        return type != null && !AlertStateTracker.INSTANCE.isManualTestActive(type)
+                && presentedStandardAlertKind == kind;
+    }
+
+    private static void fireRetrySession(int expectedKind, long expectedGeneration) {
         final AlertRetrySession sessionSnapshot;
+        final AlertRetrySession owner;
         synchronized (retrySessionLock) {
+            if (retryGeneration != expectedGeneration) return;
             retrySessionSchedule = null;
             if (activeRetrySession == null || activeRetrySession.kind != expectedKind) {
                 return;
@@ -1830,6 +1830,7 @@ public class Notify {
                 cancelRetrySessionLocked("retry-limit-reached");
                 return;
             }
+            owner = activeRetrySession;
             activeRetrySession.retriesUsed += 1;
             activeRetrySession.lastFireStartedAtMs = System.currentTimeMillis();
             sessionSnapshot = new AlertRetrySession(
@@ -1847,6 +1848,11 @@ public class Notify {
         }
 
         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            synchronized (retrySessionLock) {
+                if (activeRetrySession != owner || retryGeneration != expectedGeneration) return;
+            }
+            // Actions and this delivery run on the main looper. Do not hold the retry
+            // lock while entering sound/UI code (which has its own lock ordering).
             if (onenot != null) {
                 onenot.deliverTriggeredAlert(
                         sessionSnapshot.kind,
@@ -1929,7 +1935,8 @@ public class Notify {
             }
             cancelRetryScheduleLocked();
             final long delayMs = computeRetryDelayMs(activeRetrySession, config, System.currentTimeMillis());
-            retrySessionSchedule = Applic.scheduler.schedule(() -> fireRetrySession(kind), delayMs,
+            final long generation = retryGeneration;
+            retrySessionSchedule = Applic.scheduler.schedule(() -> fireRetrySession(kind, generation), delayMs,
                     TimeUnit.MILLISECONDS);
             if (doLog) {
                 Log.i(LOG_ID, "Scheduled retry kind=" + kind + " delayMs=" + delayMs + " retriesUsed="
@@ -2871,6 +2878,7 @@ public class Notify {
         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
             if (onenot != null) {
                 int kind = isHigh ? 1 : 0;
+                presentedStandardAlertKind = -1;
 
                 final String defaultName = isTest
                         ? ("Test Custom " + (isHigh ? "High" : "Low"))
@@ -3175,6 +3183,7 @@ public class Notify {
     }
 
     private void deliverTriggeredAlert(int kind, float glvalue, String message, notGlucose strglucose, String type) {
+        presentedStandardAlertKind = kind;
         AlarmLaunchResult alarmLaunchResult = new AlarmLaunchResult(false, false);
         boolean skipBanner = false;
 

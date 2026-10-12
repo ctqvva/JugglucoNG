@@ -41,7 +41,10 @@ object SnoozeManager {
      * @param preemptive If true, this is a preemptive snooze before alert triggered
      */
     fun snooze(alertType: AlertType, durationMinutes: Int, preemptive: Boolean = false) {
-        val snoozeUntil = System.currentTimeMillis() + (durationMinutes * 60 * 1000L)
+        snoozeUntil(alertType, System.currentTimeMillis() + (durationMinutes * 60 * 1000L), preemptive)
+    }
+
+    fun snoozeUntil(alertType: AlertType, snoozeUntil: Long, preemptive: Boolean = false) {
         
         // Save snooze state
         prefs.edit()
@@ -58,7 +61,7 @@ object SnoozeManager {
         QuietWindow.clearSilencedEpisode(alertType.id)
         scheduleSnoozeExpirySafely(alertType, snoozeUntil)
         
-        Log.i(LOG_ID, "Snoozed ${alertType.name} for $durationMinutes minutes (preemptive=$preemptive)")
+        Log.i(LOG_ID, "Snoozed ${alertType.name} until $snoozeUntil (preemptive=$preemptive)")
     }
     
     /**
@@ -98,6 +101,7 @@ object SnoozeManager {
      * Clear snooze for an alert type (dismiss or expired).
      */
     fun clearSnooze(alertType: AlertType) {
+        tk.glucodata.WearAlertSync.onSnoozeCleared(alertType.id)
         prefs.edit()
             .remove(keySnoozeUntil(alertType))
             .remove(keyPreemptive(alertType))
@@ -112,6 +116,7 @@ object SnoozeManager {
      * Clear all snoozes.
      */
     fun clearAll() {
+        AlertType.entries.forEach { tk.glucodata.WearAlertSync.onSnoozeCleared(it.id) }
         prefs.edit().clear().apply()
         AlertType.entries.forEach { cancelSnoozeExpiry(it) }
         Log.i(LOG_ID, "Cleared all snoozes")

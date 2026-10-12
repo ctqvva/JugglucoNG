@@ -19,6 +19,27 @@ fun interface AlarmActivityHost {
 }
 
 object AlarmActivityAccess {
+    private var observerOwner: Any? = null
+    private var observerKind = -1
+    private var onAcknowledgement: (() -> Unit)? = null
+
+    fun observeAcknowledgement(owner: Any, kind: Int, callback: () -> Unit) {
+        observerOwner = owner
+        observerKind = kind
+        onAcknowledgement = callback
+    }
+
+    fun removeObserver(owner: Any) {
+        if (observerOwner === owner) {
+            observerOwner = null
+            onAcknowledgement = null
+        }
+    }
+
+    fun acknowledge(kind: Int) {
+        if (observerKind == kind) onAcknowledgement?.invoke()
+    }
+
     @Volatile
     private var host: AlarmActivityHost? = null
 

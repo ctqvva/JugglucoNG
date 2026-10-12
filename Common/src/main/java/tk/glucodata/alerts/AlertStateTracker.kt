@@ -53,7 +53,7 @@ object AlertStateTracker {
         }
 
         // 1. Snooze Check (Global priority)
-        if (SnoozeManager.isSnoozed(type)) {
+        if (SnoozeManager.isSnoozed(type) || tk.glucodata.WearAlertSync.isSuppressed(type.id)) {
             Log.i(LOG_ID, "${type.name}: Suppressed by snooze")
             return false
         }
@@ -110,11 +110,13 @@ object AlertStateTracker {
     }
 
     @Synchronized
-    fun onAlertDismissed(type: AlertType): Boolean {
+    @JvmOverloads
+    fun onAlertDismissed(type: AlertType, cooldownUntilMs: Long = System.currentTimeMillis() + DEFAULT_REARM_COOLDOWN_MS): Boolean {
         if (manualTests.consumeAction(type)) {
             return false
         }
         dismissedAlerts.add(type)
+        cooldownUntilTime[type] = maxOf(cooldownUntilTime[type] ?: 0L, cooldownUntilMs)
         lastFiringAcknowledged.replace(type, true)
         SmsWatchdog.onAlertAcknowledged(type.id)
         // Acknowledged: a quiet window's silenced episode must not break through now.
@@ -122,6 +124,9 @@ object AlertStateTracker {
         Log.i(LOG_ID, "Dismissed ${type.name} for current episode")
         return true
     }
+
+    @Synchronized
+    fun isManualTestActive(type: AlertType): Boolean = manualTests.isActive(type)
 
     @Synchronized
     fun consumeManualTestAction(type: AlertType): Boolean {

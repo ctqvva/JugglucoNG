@@ -253,6 +253,9 @@ object AlertRuntimeManager {
         val type = standardGlucoseAlertTypes.firstOrNull { it in activeTypes }
             ?: return AlertRuntimeEvaluation()
         val condition = activeConditions[type] ?: return AlertRuntimeEvaluation()
+        Notify.refreshRetryReading(type.id, condition.glucoseValue, rate,
+            buildStandardAlertMessage(type, condition, configs[type]),
+            lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs)
 
         // The opted-in alert would be shown beside a downward arrow, contradicting its own
         // sentence. It waits rather than resolves: the episode stays open, so a dismissal and
