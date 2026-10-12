@@ -454,6 +454,11 @@ public class Notify {
     // .build():null;
     static AudioFocusRequest audiofocusrequest;
 
+    /** Preview the same configured phone stream as actual alert playback. */
+    public static int getAlertSoundAudioUsage(boolean useAlarmStream) {
+        return (useAlarmStream ? ScanNfcV.audioattributes : notification_audio).getUsage();
+    }
+
     static public void makenotification_audio() {
         if (android.os.Build.VERSION.SDK_INT >= 21) {
             int type = Natives.getSoundType();

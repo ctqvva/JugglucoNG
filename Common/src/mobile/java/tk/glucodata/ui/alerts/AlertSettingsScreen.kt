@@ -582,7 +582,7 @@ fun AlertSettingsScreen(
                 currentUri = request.uri,
                 alertTypeId = request.typeId,
                 soundVolumePercent = request.volumePercent,
-                useAlarmStream = request.useAlarmStream,
+                audioUsage = request.audioUsage,
                 onSoundSelected = request.onSelect,
                 onDismiss = { soundPickerRequest = null }
             )
@@ -2302,22 +2302,27 @@ internal fun ClickableToggleRow(
     }
 }
 
-private data class AlertSoundPickerRequest(
+internal data class AlertSoundPickerRequest(
     val uri: String?,
     val typeId: Int,
     val volumePercent: Int,
-    val useAlarmStream: Boolean,
+    val audioUsage: Int,
     val onSelect: (String?) -> Unit
 )
 
-private fun AlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
+internal fun AlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
     customSoundUri, type.id, soundVolumePercent,
-    overrideDND || deliveryMode != AlertDeliveryMode.NOTIFICATION_ONLY, onSelect
+    Notify.getAlertSoundAudioUsage(
+        !AlertType.isLegacyOnlyId(type.id) &&
+            (overrideDND || deliveryMode != AlertDeliveryMode.NOTIFICATION_ONLY)
+    ), onSelect
 )
 
-private fun CustomAlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
+internal fun CustomAlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
     soundUri, if (type == CustomAlertType.HIGH) 1 else 0, soundVolumePercent,
-    tk.glucodata.AlertDeliveryPolicy.shouldUseAlarmAudioStream(
-        tk.glucodata.AlertDeliveryPolicy.normalize(style), overrideDnd
+    Notify.getAlertSoundAudioUsage(
+        tk.glucodata.AlertDeliveryPolicy.shouldUseAlarmAudioStream(
+            tk.glucodata.AlertDeliveryPolicy.normalize(style), overrideDnd
+        )
     ), onSelect
 )

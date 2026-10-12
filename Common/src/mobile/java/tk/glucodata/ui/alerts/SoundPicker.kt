@@ -104,7 +104,7 @@ fun SoundPicker(
     currentUri: String?,
     alertTypeId: Int = 0,
     soundVolumePercent: Int = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT,
-    useAlarmStream: Boolean = false,
+    audioUsage: Int = AudioAttributes.USAGE_NOTIFICATION,
     onSoundSelected: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -202,7 +202,7 @@ fun SoundPicker(
 
             player.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(if (useAlarmStream) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(audioUsage)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
