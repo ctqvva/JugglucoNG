@@ -763,11 +763,10 @@ class OttaiBleManager(
             OttaiCloudClient.CloudFailure("Timed out while fetching sensor credentials"),
         )
     }
-    /** True while a CN cloud session exists — the only profile that serves /cgmAuth/verify. */
-    private fun cnActiveAuthSessionAvailable(): Boolean {
+    /** True while a cloud session that can sign /cgmAuth/verify exists (CN phone, Syai, global). */
+    private fun activeAuthSessionAvailable(): Boolean {
         val ctx = Applic.app ?: return false
-        return OttaiRegistry.loadSessionProfile(ctx) == OttaiRegistry.SessionProfile.CN_PHONE &&
-            OttaiRegistry.loadAccessToken(ctx).isNotBlank()
+        return OttaiCloudClient.activeAuthSessionAvailable(ctx)
     }
 
     private fun v3CredentialBootstrapActive(): Boolean {
@@ -776,7 +775,7 @@ class OttaiBleManager(
         return ottaiAuthEntryMode(
             hasAuthKeys = authKeys != null,
             bootstrapPending = OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
-            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            activeAuthSessionAvailable = activeAuthSessionAvailable(),
             validatedDeviceVersion = OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id),
         ) == OttaiAuthEntryMode.V3_CREDENTIAL_BOOTSTRAP
     }
@@ -2055,7 +2054,7 @@ class OttaiBleManager(
             hasAuthKeys = authKeys != null,
             bootstrapPending = ctx != null && id != null &&
                 OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
-            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            activeAuthSessionAvailable = activeAuthSessionAvailable(),
             validatedDeviceVersion = if (ctx != null && id != null) {
                 OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id)
             } else {

@@ -317,6 +317,71 @@ class OttaiCloudHeadersTests {
         )
     }
 
+    @Test
+    fun activeAuthIsOfferedOnCnPhoneSyaiAndGlobalOnly() {
+        val phone = OttaiRegistry.SessionProfile.CN_PHONE
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, phone))
+        assertFalse(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE, watch))
+        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_SYAI, watch))
+        assertTrue(OttaiCloudClient.supportsActiveAuth(OttaiConstants.API_BASE_GLOBAL, watch))
+        assertFalse(OttaiCloudClient.supportsActiveAuth("https://example.invalid", watch))
+    }
+
+    @Test
+    fun syaiRetiredV2RouteFallsBackToV3() {
+        // Live Syai 2026-10-12: GET validateDeviceByMacV2 -> Spring 404 with no business code.
+        val retired = OttaiCloudClient.CloudFailure("http=404 biz=", "", 404)
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_SYAI, watch, retired))
+        assertTrue(OttaiCloudClient.shouldValidateViaV3(OttaiConstants.API_BASE_GLOBAL, watch, retired))
+    }
+
+    @Test
+    fun cnUpgradeVersionStillFallsBackToV3OnlyForThePhoneSession() {
+        val upgrade = OttaiCloudClient.CloudFailure(
+            "http=200 biz=AppDevice_Upgrade_Version",
+            OttaiCloudClient.BIZ_UPGRADE_VERSION,
+            200,
+        )
+        assertTrue(
+            OttaiCloudClient.shouldValidateViaV3(
+                OttaiConstants.API_BASE,
+                OttaiRegistry.SessionProfile.CN_PHONE,
+                upgrade,
+            ),
+        )
+        assertFalse(
+            OttaiCloudClient.shouldValidateViaV3(
+                OttaiConstants.API_BASE,
+                OttaiRegistry.SessionProfile.WATCH,
+                upgrade,
+            ),
+        )
+    }
+
+    @Test
+    fun otherV2FailuresDoNotReachV3() {
+        val watch = OttaiRegistry.SessionProfile.WATCH
+        val syai = OttaiConstants.API_BASE_SYAI
+        assertFalse(OttaiCloudClient.shouldValidateViaV3(syai, watch, null))
+        assertFalse(
+            OttaiCloudClient.shouldValidateViaV3(
+                syai,
+                watch,
+                OttaiCloudClient.CloudFailure("http=401 biz=AuthFailed_TokenInvalid", OttaiCloudClient.BIZ_TOKEN_INVALID, 401),
+            ),
+        )
+        assertFalse(
+            OttaiCloudClient.shouldValidateViaV3(
+                syai,
+                watch,
+                OttaiCloudClient.CloudFailure("http=200 biz=AppUser_AlreadyBinding", OttaiCloudClient.BIZ_ALREADY_BINDING, 200),
+            ),
+        )
+        assertFalse(OttaiCloudClient.shouldValidateViaV3(syai, watch, OttaiCloudClient.CloudFailure("network: timeout")))
+    }
+
     private fun deviceResponse(activeTime: Long) = OttaiCloudClient.DeviceResp(
         mac = "001122334455",
         keyA = "key",

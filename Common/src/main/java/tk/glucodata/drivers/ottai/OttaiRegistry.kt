@@ -921,8 +921,7 @@ object OttaiRegistry {
         if (canonical.isBlank() ||
             bleAddress == null ||
             loadLastValidatedDeviceVersion(context, canonical).isNullOrBlank() ||
-            loadSessionProfile(context) != SessionProfile.CN_PHONE ||
-            loadAccessToken(context).isBlank()
+            !OttaiCloudClient.activeAuthSessionAvailable(context)
         ) {
             return null
         }

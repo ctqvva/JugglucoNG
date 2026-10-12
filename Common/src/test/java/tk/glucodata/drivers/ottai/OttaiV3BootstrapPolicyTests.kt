@@ -11,7 +11,7 @@ class OttaiV3BootstrapPolicyTests {
             ottaiAuthEntryMode(
                 hasAuthKeys = true,
                 bootstrapPending = true,
-                cnSessionAvailable = true,
+                activeAuthSessionAvailable = true,
                 validatedDeviceVersion = "E1.1.4(V1.7.S2530.1)",
             ),
         )
@@ -24,7 +24,7 @@ class OttaiV3BootstrapPolicyTests {
             ottaiAuthEntryMode(
                 hasAuthKeys = false,
                 bootstrapPending = true,
-                cnSessionAvailable = true,
+                activeAuthSessionAvailable = true,
                 validatedDeviceVersion = "E1.1.4(V1.7.S2530.1)",
             ),
         )
