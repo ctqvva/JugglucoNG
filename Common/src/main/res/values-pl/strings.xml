@@ -2996,4 +2996,7 @@
     <string name="nightscout_secret_label">Sekret API lub token dostępu</string>
     <string name="nightscout_api_help">Dla v1 użyj sekretu API, a dla v3 tokenu dostępu Nightscout.</string>
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
+
+    <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
+    <string name="alert_sound_volume_desc">Niezależna od wibracji. Uwzględnia też głośność alarmów lub powiadomień telefonu.</string>
 </resources>

@@ -36,10 +36,9 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
  * The body every alert shares: master, standard and custom.
  *
  * What most people set sits first and needs no label to be read - the three
- * feedback toggles, the intensity under them, the notification/alarm choice,
- * the duration, the sound. Everything a typical user never touches is under
- * one collapsed "Advanced" row: silent-mode override, delayed sound, active
- * hours, retries, the default snooze, and whatever the alert adds through
+ * feedback toggles and separate sound volume. The notification/alarm choice,
+ * duration and vibration strength sit under one collapsed "Advanced" row,
+ * alongside delayed sound, retries, the default snooze, and whatever the alert adds through
  * [advancedContent].
  */
 @Composable
@@ -89,7 +88,7 @@ fun CommonAlertSettings(
             }
         }
 
-        // === Feedback: sound / vibrate / flash, and how hard ===
+        // === Feedback: sound / vibrate / flash ===
         // The buttons say what they are; a label over them repeated them.
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -153,6 +152,21 @@ fun CommonAlertSettings(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    DurationSlider(
+                        label = stringResource(R.string.alert_sound_volume),
+                        value = config.soundVolumePercent,
+                        range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..100,
+                        stepSize = 5,
+                        onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
+                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                        valueText = { "$it%" }
+                    )
+                    Text(
+                        stringResource(R.string.alert_sound_volume_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding)
+                    )
                     // Alert Sound Picker
                     Row(
                         modifier = Modifier
@@ -217,9 +231,10 @@ fun CommonAlertSettings(
             // still claim its 16dp gap and leave a blank band under the card.
             AnimatedVisibility(visible = advancedExpanded) {
                 Column(modifier = Modifier.padding(top = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // === Intensity: soft to escalating ===
-                    AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
+                    // === Vibration intensity ===
+                    AnimatedVisibility(visible = config.vibrationEnabled) {
                         Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
+                            Text(stringResource(R.string.vibrationname), style = MaterialTheme.typography.labelLarge)
                             run {
                                 val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
                                 ConnectedButtonGroup(

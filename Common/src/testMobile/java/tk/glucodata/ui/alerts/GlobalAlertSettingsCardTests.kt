@@ -68,6 +68,15 @@ class GlobalAlertSettingsCardTests {
         )
     }
 
+    @Test
+    fun independentVolumeEditEnablesApplyEvenWhenVibrationMatches() {
+        val applied = soundOnlyDraft()
+        val changed = applied.copy(soundVolumePercent = 55)
+        assertTrue(shouldEnableApplyToAll(changed, applied, mapOf(AlertType.LOW to changed)))
+        assertTrue(shouldEnableApplyToAll(applied, applied, mapOf(AlertType.LOW to changed)))
+        assertFalse(shouldEnableApplyToAll(changed, changed, mapOf(AlertType.LOW to changed)))
+    }
+
     private fun soundOnlyDraft(): AlertConfig {
         return AlertConfig(
             type = AlertType.LOW,

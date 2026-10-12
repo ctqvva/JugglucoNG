@@ -167,8 +167,8 @@ fun AlertSettingsScreen(
     // Track expanded states
     var expandedType by remember { mutableStateOf<AlertType?>(null) }
     var showPreemptiveSnooze by remember { mutableStateOf(false) }
-    // Track sound picker state (Generic: Current URI + AlertTypeId + Callback)
-    var soundPickerRequest by remember { mutableStateOf<Triple<String?, Int, (String?) -> Unit>?>(null) }
+    // Preview with the same gain and stream as the alert.
+    var soundPickerRequest by remember { mutableStateOf<AlertSoundPickerRequest?>(null) }
     var sameDirectionSuppressionMinutes by remember {
         mutableStateOf(AlertRepository.loadSameDirectionSuppressionMinutes())
     }
@@ -214,6 +214,7 @@ fun AlertSettingsScreen(
                         configs.values.toList().forEach { config ->
                             val updated = config.copy(
                                 soundEnabled = draft.soundEnabled,
+                                soundVolumePercent = draft.soundVolumePercent,
                                 vibrationEnabled = draft.vibrationEnabled,
                                 flashEnabled = draft.flashEnabled,
                                 deliveryMode = draft.deliveryMode,
@@ -240,6 +241,7 @@ fun AlertSettingsScreen(
                         val updatedCustomAlerts = customAlerts.map { alert ->
                             alert.copy(
                                 sound = draft.soundEnabled,
+                                soundVolumePercent = draft.soundVolumePercent,
                                 vibrate = draft.vibrationEnabled,
                                 flash = draft.flashEnabled,
                                 style = when (draft.deliveryMode) {
@@ -265,7 +267,7 @@ fun AlertSettingsScreen(
                         saveCustomAlerts(updatedCustomAlerts)
                     },
                     onPickSound = { draft, updateDraft ->
-                        soundPickerRequest = Triple(draft.customSoundUri, draft.type.id) { uri ->
+                        soundPickerRequest = draft.soundPickerRequest { uri ->
                             updateDraft(draft.copy(customSoundUri = uri))
                             soundPickerRequest = null
                         }
@@ -314,7 +316,7 @@ fun AlertSettingsScreen(
                         persistConfigIfChanged(updated)
                     },
                     onPickSound = {
-                        soundPickerRequest = Triple(config.customSoundUri, config.type.id) { uri ->
+                        soundPickerRequest = config.soundPickerRequest { uri ->
                             persistConfigIfChanged(config.copy(customSoundUri = uri))
                             soundPickerRequest = null
                         }
@@ -346,7 +348,7 @@ fun AlertSettingsScreen(
                             removeCustomAlert(alert.id)
                         },
                         onPickSound = { config ->
-                            soundPickerRequest = Triple(config.soundUri, if (config.type == CustomAlertType.HIGH) 1 else 0) { uri ->
+                            soundPickerRequest = config.soundPickerRequest { uri ->
                                 val updated = config.copy(soundUri = uri)
                                 upsertCustomAlert(updated)
                                 soundPickerRequest = null
@@ -391,7 +393,7 @@ fun AlertSettingsScreen(
                         persistConfigIfChanged(updated)
                     },
                     onPickSound = {
-                        soundPickerRequest = Triple(config.customSoundUri, config.type.id) { uri ->
+                        soundPickerRequest = config.soundPickerRequest { uri ->
                             persistConfigIfChanged(config.copy(customSoundUri = uri))
                             soundPickerRequest = null
                         }
@@ -423,7 +425,7 @@ fun AlertSettingsScreen(
                             removeCustomAlert(alert.id)
                         },
                         onPickSound = { config ->
-                            soundPickerRequest = Triple(config.soundUri, if (config.type == CustomAlertType.LOW) 0 else 1) { uri ->
+                            soundPickerRequest = config.soundPickerRequest { uri ->
                                 val updated = config.copy(soundUri = uri)
                                 upsertCustomAlert(updated)
                                 soundPickerRequest = null
@@ -465,7 +467,7 @@ fun AlertSettingsScreen(
                         persistConfigIfChanged(updated)
                     },
                     onPickSound = {
-                        soundPickerRequest = Triple(config.customSoundUri, config.type.id) { uri ->
+                        soundPickerRequest = config.soundPickerRequest { uri ->
                             persistConfigIfChanged(config.copy(customSoundUri = uri))
                             soundPickerRequest = null
                         }
@@ -521,7 +523,7 @@ fun AlertSettingsScreen(
                         persistConfigIfChanged(updated)
                     },
                     onPickSound = {
-                        soundPickerRequest = Triple(config.customSoundUri, config.type.id) { uri ->
+                        soundPickerRequest = config.soundPickerRequest { uri ->
                             persistConfigIfChanged(config.copy(customSoundUri = uri))
                             soundPickerRequest = null
                         }
@@ -575,11 +577,13 @@ fun AlertSettingsScreen(
 
         // Sound Picker Dialog
         if (soundPickerRequest != null) {
-            val (current, alertTypeId, callback) = soundPickerRequest!!
+            val request = soundPickerRequest!!
             SoundPicker(
-                currentUri = current,
-                alertTypeId = alertTypeId,
-                onSoundSelected = callback,
+                currentUri = request.uri,
+                alertTypeId = request.typeId,
+                soundVolumePercent = request.volumePercent,
+                useAlarmStream = request.useAlarmStream,
+                onSoundSelected = request.onSelect,
                 onDismiss = { soundPickerRequest = null }
             )
         }
@@ -738,6 +742,7 @@ fun CustomAlertCard(
                         enabled = alert.enabled,
                         threshold = alert.threshold,
                         soundEnabled = alert.sound,
+                        soundVolumePercent = alert.soundVolumePercent,
                         customSoundUri = alert.soundUri,
                         vibrationEnabled = alert.vibrate,
                         flashEnabled = alert.flash,
@@ -785,6 +790,7 @@ fun CustomAlertCard(
                                 enabled = newConfig.enabled,
                                 threshold = newConfig.threshold ?: alert.threshold,
                                 sound = newConfig.soundEnabled,
+                                soundVolumePercent = newConfig.soundVolumePercent,
                                 soundUri = newConfig.customSoundUri,
                                 vibrate = newConfig.vibrationEnabled,
                                 flash = newConfig.flashEnabled,
@@ -818,7 +824,8 @@ fun CustomAlertCard(
                                 sanitizeAlertDurationSeconds(alert.durationSeconds),
                                 alert.overrideDnd,
                                 alert.id,
-                                alert.name
+                                alert.name,
+                                alert.soundVolumePercent
                             )
                         },
                         headerContent = {
@@ -2294,3 +2301,23 @@ internal fun ClickableToggleRow(
         )
     }
 }
+
+private data class AlertSoundPickerRequest(
+    val uri: String?,
+    val typeId: Int,
+    val volumePercent: Int,
+    val useAlarmStream: Boolean,
+    val onSelect: (String?) -> Unit
+)
+
+private fun AlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
+    customSoundUri, type.id, soundVolumePercent,
+    overrideDND || deliveryMode != AlertDeliveryMode.NOTIFICATION_ONLY, onSelect
+)
+
+private fun CustomAlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
+    soundUri, if (type == CustomAlertType.HIGH) 1 else 0, soundVolumePercent,
+    tk.glucodata.AlertDeliveryPolicy.shouldUseAlarmAudioStream(
+        tk.glucodata.AlertDeliveryPolicy.normalize(style), overrideDnd
+    ), onSelect
+)

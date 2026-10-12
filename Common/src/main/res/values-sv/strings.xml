@@ -2954,4 +2954,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API-hemlighet eller åtkomsttoken</string>
     <string name="nightscout_api_help">Använd API-hemligheten med v1 eller en Nightscout-åtkomsttoken med v3.</string>
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
+
+    <string name="alert_sound_volume">Volym för larmljud</string>
+    <string name="alert_sound_volume_desc">Oberoende av vibration. Följer även telefonens alarm- eller aviseringsvolym.</string>
 </resources>

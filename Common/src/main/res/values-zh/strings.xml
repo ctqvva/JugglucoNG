@@ -2969,4 +2969,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API 密钥或访问令牌</string>
     <string name="nightscout_api_help">v1 使用 API 密钥，v3 使用 Nightscout 访问令牌。</string>
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
+
+    <string name="alert_sound_volume">警报音量</string>
+    <string name="alert_sound_volume_desc">独立于振动。也受手机闹钟或通知音量影响。</string>
 </resources>

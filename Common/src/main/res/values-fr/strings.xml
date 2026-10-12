@@ -2960,4 +2960,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Secret API ou jeton d’accès</string>
     <string name="nightscout_api_help">Utilisez le secret API pour v1 ou un jeton d’accès Nightscout pour v3.</string>
     <string name="nightscout_iob_help">eIOB et COB sont envoyés dans le champ jugglucong de devicestatus, séparément de l’IOB standard.</string>
+
+    <string name="alert_sound_volume">Volume du son d’alerte</string>
+    <string name="alert_sound_volume_desc">Indépendant des vibrations. Dépend aussi du volume des alarmes ou des notifications du téléphone.</string>
 </resources>

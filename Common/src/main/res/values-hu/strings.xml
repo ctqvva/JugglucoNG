@@ -3029,4 +3029,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_secret_label">API-titok vagy hozzáférési token</string>
     <string name="nightscout_api_help">A v1-hez API-titkot, a v3-hoz Nightscout-hozzáférési tokent használj.</string>
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
+
+    <string name="alert_sound_volume">Riasztási hang hangereje</string>
+    <string name="alert_sound_volume_desc">A rezgéstől független. A telefon ébresztési vagy értesítési hangerejét is követi.</string>
 </resources>

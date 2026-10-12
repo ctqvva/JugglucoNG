@@ -1,11 +1,11 @@
 # JugglucoNG sound collections
 
-Six collections, nine cues each: **Contour**, **Porcelain**, **Halo**, **Timber**,
-**Ember**, and **Juggluco**. The original 27 synthesized sounds keep their names and URIs.
+Seven collections, nine cues each: **Contour**, **Porcelain**, **Halo**, **Timber**,
+**Ember**, **Juggluco**, and **xDrip-style**. The original 27 synthesized sounds keep their names and URIs.
 Timber and Ember add 18 recorded-acoustic cues; Juggluco remasters the nine original
 MP3/OGG recordings with the same melodies and durations: one linear gain to the
 shared mastering targets, DC removal, fixed hot peaks and click-free endpoints.
-All 54 cues ship as compact
+All 63 cues ship as compact
 AAC-LC 160 kbps mono 48 kHz M4A assets (about 5 MB total instead of ~26 MB of WAV)
 under the same `alert_<style>_<cue>` resource names, so saved selections keep working.
 Select a collection in an alert's sound picker; the alert determines the cue. Juggluco is listed first, directly below System Default;
@@ -64,7 +64,7 @@ Acoustic motifs return with breathing space and varied accents, then a longer fi
 the source recordings are never time-stretched. The three earlier synthesized sets keep
 all their original bytes, durations and levels.
 
-Acoustic masters sit between the quiet auditions and the rejected loud version:
+Timber masters sit between the quiet auditions and the rejected loud version:
 -17.5 dBFS active RMS for ordinary cues and -15.25 dBFS for urgent cues, with a -3 dBFS
 sample-peak ceiling. A single linear gain is
 applied; if the peak ceiling is reached first, the lower RMS is retained. There is no
@@ -90,7 +90,7 @@ Eight of the nine legacy originals are mono 48 kHz (highsoon is dual-mono stereo
 so mono is the faithful channel layout, not a downgrade — and the originals
 themselves were lossy (64 kbps MP3, ~40–60 kbps Vorbis, 256 kbps MP3). The canonical
 PCM WAVs never ship: `encode_assets.py` renders all three collection groups to a
-scratch directory and encodes the 54 cues to AAC-LC 160 kbps mono 48 kHz `.m4a`
+scratch directory and encodes the 63 cues to AAC-LC 160 kbps mono 48 kHz `.m4a`
 with macOS afconvert (byte-deterministic apart from MP4 wall-clock stamps, which
 the script zeroes, verified across wall-clock seconds). 160 kbps mono is roughly
 320 kbps stereo-equivalent — comfortably above the originals' compression.
@@ -143,13 +143,13 @@ pins the shipped files. Android builds use the committed M4A and do not require 
 Selections use `android.resource://<applicationId>/raw/<name>` so numeric resource-ID changes
 cannot retarget saved choices. `alert_sounds_keep.xml` preserves all six collections and legacy raw sounds during
 release shrinking. JVM tests cover selection, global remapping, external URIs, locale-independent
-names, all 54 manifest assets plus nine legacy files, and duration references. Verify actual APK resource tables too:
+names, all 63 manifest assets plus nine legacy files, and duration references. Verify actual APK resource tables too:
 
 ```sh
 python3 tools/alert-sounds/verify_apk.py --aapt2 "$ANDROID_HOME/build-tools/37.0.0/aapt2" path/to/app.apk
 ```
 
-This verifies all 54 named AAC resources, nine legacy originals, and the exact audio bytes they resolve to, even when
+This verifies all 63 named AAC resources, nine legacy originals, and the exact audio bytes they resolve to, even when
 release optimization shortens physical ZIP paths.
 
 ## Listening acceptance
@@ -158,3 +158,37 @@ Digital checks do not establish everyday preference, physical-speaker audibility
 alarm recognition. Audition on the target phone/watch with background noise and Bluetooth,
 repeated alarms, preview switching/cancellation and saved selections after restart/update.
 Physical-device listening acceptance of the new collections is still outstanding. Unset app-default sounds now resolve to Ember; explicit choices are not migrated.
+
+## Louder alerts and independent volume (issue #624)
+
+Sound volume is a separate 30–100% per-player gain for standard and custom alerts.
+Unset controls default to 100%, independently of vibration strength. Global Apply
+copies the volume; reset restores 100%. The existing Sound toggle handles muting.
+The phone’s alarm/notification stream volume still applies; no system volume is
+changed. Sound picker previews use the selected gain and the alert’s audio stream.
+Low/very-low playback starts at min(selected gain, 70%) and reaches the selected
+gain in 120 ms; other alerts start at min(selected gain, 45%) and ramp in 240 ms.
+
+Ember alone now requests +4.5 dB for low/urgent-low and +3 dB for other cues, capped
+by a -1.5 dBFS PCM peak ceiling. Actual gains are limited by each waveform’s
+headroom (low +3.61 dB, urgent low +1.55 dB). No compression or clipping is used.
+Other collections and legacy originals keep their committed audio bytes.
+
+**xDrip-style**, immediately above Juggluco in the picker, is a new original
+synthesis: sustained descending low sirens, a faster urgent-low siren, alternating
+high beeps, directional sweeps, and distinct signal/reminder/notice patterns.
+`render_xdrip.py` generates every sample from oscillators with smooth edges; it
+copies no xDrip recordings, melodies, or code. These assets and their generator
+use this repository’s GPL-3.0-or-later license. The name indicates an electronic
+alarm style, not official xDrip audio or identical phone loudness.
+
+For a scoped regeneration/check without re-encoding untouched collections:
+
+```sh
+python3 tools/alert-sounds/encode_assets.py --styles ember xdrip
+python3 tools/alert-sounds/encode_assets.py --styles ember xdrip --check
+python3 tools/alert-sounds/verify_loudness.py
+```
+
+Electrical gain and decoded-sample checks do not establish speaker loudness or
+wake-up reliability on the phones reported in #624; those need device listening.

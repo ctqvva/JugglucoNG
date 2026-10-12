@@ -171,18 +171,15 @@ public class Notify {
     }
 
     private static final class AlertSoundHandle {
-        private static final long SOUND_FADE_IN_MS = 1_200L;
         private static final int SOUND_FADE_STEPS = 8;
-        private static final float SOUND_START_VOLUME = 0.12f;
-        // Hard floor: sound must never accidentally go silent even if profile logic has a bug
-        private static final float MIN_PLAY_VOLUME = 0.3f;
 
         private final Ringtone ringtone;
         private final MediaPlayer mediaPlayer;
         private final String title;
         private boolean released = false;
         private int playGeneration = 0;
-        private float maxVolume = 1.0f;
+        private int volumePercent = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT;
+        private int alertKind = 0;
 
         AlertSoundHandle(Ringtone ringtone, MediaPlayer mediaPlayer, String title) {
             this.ringtone = ringtone;
@@ -198,8 +195,9 @@ public class Notify {
             return (title != null && !title.isEmpty()) ? title : "alert sound";
         }
 
-        synchronized void setMaxVolume(float vol) {
-            maxVolume = Math.max(MIN_PLAY_VOLUME, Math.min(1.0f, vol));
+        synchronized void configureVolume(int percent, int kind) {
+            volumePercent = tk.glucodata.alerts.AlertSoundVolume.sanitize(percent);
+            alertKind = kind;
         }
 
         private synchronized void setVolume(float volume) {
@@ -222,15 +220,15 @@ public class Notify {
         private void scheduleFadeIn(int generation) {
             for (int step = 1; step <= SOUND_FADE_STEPS; step++) {
                 final int finalStep = step;
-                final long delayMs = (SOUND_FADE_IN_MS * step) / SOUND_FADE_STEPS;
+                final long delayMs = (tk.glucodata.alerts.AlertSoundVolume.fadeMillis(alertKind) * step) / SOUND_FADE_STEPS;
                 Applic.scheduler.schedule(() -> {
                     synchronized (AlertSoundHandle.this) {
                         if (released || generation != playGeneration) {
                             return;
                         }
+                        final float progress = (float) finalStep / (float) SOUND_FADE_STEPS;
+                        setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, alertKind, progress));
                     }
-                    final float progress = (float) finalStep / (float) SOUND_FADE_STEPS;
-                    setVolume(SOUND_START_VOLUME + ((maxVolume - SOUND_START_VOLUME) * progress));
                 }, delayMs, TimeUnit.MILLISECONDS);
             }
         }
@@ -241,7 +239,7 @@ public class Notify {
             }
             try {
                 final int generation = ++playGeneration;
-                setVolume(SOUND_START_VOLUME);
+                setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, alertKind, 0.0f));
                 if (ringtone != null) {
                     ringtone.play();
                     scheduleFadeIn(generation);
@@ -2612,7 +2610,9 @@ public class Notify {
         }
 
         if (canPlaySound) {
-            soundHandle.setMaxVolume(soundVolumeForProfile(resolvedHapticProfile));
+            if (!customAlert) {
+                soundHandle.configureVolume(getSoundVolumePercent(kind), kind);
+            }
             if (soundDelayMs > 0L) {
                 // Delay only the play() call; the gradual fade-in lives inside
                 // play() and carries over unchanged, just starting later.
@@ -2702,14 +2702,13 @@ public class Notify {
         }
     }
 
-    // SOFT=0.4, STEADY=0.7, STRONG/ESCALATING=1.0 — matches the old dead getVolumeFromProfile() intent.
-    // Never returns below AlertSoundHandle.MIN_PLAY_VOLUME (enforced again in setMaxVolume as a safety net).
-    private static float soundVolumeForProfile(String profile) {
-        if (profile == null) return 1.0f;
-        switch (profile.toUpperCase()) {
-            case "SOFT":      case "LOW":      return 0.4f;
-            case "STEADY":    case "MEDIUM":   return 0.7f;
-            default:                           return 1.0f;
+    private int getSoundVolumePercent(int kind) {
+        try {
+            return Applic.app.getSharedPreferences("tk.glucodata.alerts", android.content.Context.MODE_PRIVATE)
+                    .getInt(tk.glucodata.alerts.AlertSoundVolume.preferenceKey(kind), tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT);
+        } catch (Exception e) {
+            Log.stack(LOG_ID, "getSoundVolumePercent()", e);
+            return tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT;
         }
     }
 
@@ -2838,18 +2837,18 @@ public class Notify {
 
     public static void triggerCustomAlert(String soundUri, boolean sound, boolean vibrate, boolean flash,
             boolean isHigh, float glucoseValue, String deliveryMode, String hapticProfile,
-            int durationSeconds, boolean overrideDnd, String customAlertId, String customAlertName, float rate) {
+            int durationSeconds, boolean overrideDnd, String customAlertId, String customAlertName, float rate, int soundVolumePercent) {
         triggerCustomAlertInternal(soundUri, sound, vibrate, flash, isHigh, glucoseValue, false, deliveryMode,
-                hapticProfile, durationSeconds, overrideDnd, customAlertId, customAlertName, rate);
+                hapticProfile, durationSeconds, overrideDnd, customAlertId, customAlertName, rate, soundVolumePercent);
     }
 
     public static void testCustomTrigger(String soundUri, boolean sound, boolean vibrate, boolean flash,
             boolean isHigh, String deliveryMode, String hapticProfile, int durationSeconds,
-            boolean overrideDnd, String customAlertId, String customAlertName) {
+            boolean overrideDnd, String customAlertId, String customAlertName, int soundVolumePercent) {
         boolean isMmol = tk.glucodata.Applic.unit == 1;
         float dummyValue = isHigh ? (isMmol ? 12.0f : 216f) : (isMmol ? 3.5f : 63f);
         triggerCustomAlertInternal(soundUri, sound, vibrate, flash, isHigh, dummyValue, true, deliveryMode,
-                hapticProfile, durationSeconds, overrideDnd, customAlertId, customAlertName, Float.NaN);
+                hapticProfile, durationSeconds, overrideDnd, customAlertId, customAlertName, Float.NaN, soundVolumePercent);
     }
 
     private static long lastCustomTriggerTime = 0;
@@ -2857,7 +2856,7 @@ public class Notify {
     private static void triggerCustomAlertInternal(String soundUri, boolean sound, boolean vibrate, boolean flash,
             boolean isHigh, float glucoseValue, boolean isTest, String deliveryMode,
             String hapticProfile, int durationSeconds, boolean overrideDnd, String customAlertId,
-            String customAlertName, float rate) {
+            String customAlertName, float rate, int soundVolumePercent) {
 
         long now = System.currentTimeMillis();
         // Debounce only for test mode to prevent accidental double-clicks
@@ -2932,6 +2931,7 @@ public class Notify {
 
                     final boolean useAlarmStream = AlertDeliveryPolicy.shouldUseAlarmAudioStream(mode, disturb);
                     AlertSoundHandle soundHandle = onenot.buildAlertSoundHandle(actualUri, kind, useAlarmStream);
+                    if (soundHandle != null) soundHandle.configureVolume(soundVolumePercent, kind);
                     final long effectDurationMs = estimateAlertEffectDurationMs(actualUri, kind, sound, flash,
                             vibrate, hapticProfile, finalDuration);
 

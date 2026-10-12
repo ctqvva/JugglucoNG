@@ -3206,4 +3206,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API secret or access token</string>
     <string name="nightscout_api_help">Use an API secret with v1, or a Nightscout access token with v3.</string>
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
+
+    <string name="alert_sound_volume">Alert sound volume</string>
+    <string name="alert_sound_volume_desc">Independent of vibration. Also follows your phone’s alarm or notification volume.</string>
 </resources>

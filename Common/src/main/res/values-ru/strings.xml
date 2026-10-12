@@ -3005,4 +3005,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Секрет API или токен доступа</string>
     <string name="nightscout_api_help">Для v1 используйте секрет API, для v3 — токен доступа Nightscout.</string>
     <string name="nightscout_iob_help">eIOB и COB передаются в поле jugglucong объекта devicestatus отдельно от обычного IOB.</string>
+
+    <string name="alert_sound_volume">Громкость звука тревоги</string>
+    <string name="alert_sound_volume_desc">Не зависит от вибрации. Также учитывает громкость будильника или уведомлений телефона.</string>
 </resources>

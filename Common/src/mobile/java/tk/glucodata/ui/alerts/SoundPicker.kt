@@ -103,6 +103,8 @@ object CustomSoundRepository {
 fun SoundPicker(
     currentUri: String?,
     alertTypeId: Int = 0,
+    soundVolumePercent: Int = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT,
+    useAlarmStream: Boolean = false,
     onSoundSelected: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -200,13 +202,17 @@ fun SoundPicker(
 
             player.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(if (useAlarmStream) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
             player.setDataSource(context, actualUri)
             player.setOnPreparedListener { prepared ->
-                if (mediaPlayer === prepared) prepared.start()
+                if (mediaPlayer === prepared) {
+                    val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent)
+                    prepared.setVolume(gain, gain)
+                    prepared.start()
+                }
             }
             player.setOnCompletionListener { completed ->
                 if (mediaPlayer === completed) stopSound()

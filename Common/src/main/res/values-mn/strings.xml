@@ -3055,4 +3055,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
     <string name="nightscout_api_help">v1-д API нууц, v3-д Nightscout хандалтын токен ашиглана уу.</string>
     <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
+
+    <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
+    <string name="alert_sound_volume_desc">Чичиргээнээс үл хамаарна. Утасны сэрүүлэг эсвэл мэдэгдлийн дууны түвшнээс мөн хамаарна.</string>
 </resources>

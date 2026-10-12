@@ -39,6 +39,7 @@ object AlertRepository {
     private fun keyDuration(type: AlertType) = "alert_${type.id}_duration"
     private fun keyForecast(type: AlertType) = "alert_${type.id}_forecast"
     private fun keyDeliveryMode(type: AlertType) = "alert_${type.id}_delivery"
+    private fun keySoundVolume(type: AlertType) = AlertSoundVolume.preferenceKey(type.id)
     private fun keyHapticProfile(type: AlertType) = "alert_${type.id}_haptic"
     private fun keyOverrideDND(type: AlertType) = "alert_${type.id}_dnd"
     private fun keySoundEnabled(type: AlertType) = "alert_${type.id}_sound"
@@ -348,6 +349,7 @@ object AlertRepository {
             forecastMinutes = prefs.getInt(keyForecast(type), base.forecastMinutes ?: 0)
                 .takeIf { it > 0 },
             deliveryMode = parseEnumPref(prefs.getString(keyDeliveryMode(type), null), base.deliveryMode),
+            soundVolumePercent = AlertSoundVolume.sanitize(prefs.getInt(keySoundVolume(type), AlertSoundVolume.DEFAULT_PERCENT)),
             hapticProfile = parseEnumPref(prefs.getString(keyHapticProfile(type), null), base.hapticProfile),
             overrideDND = prefs.getBoolean(keyOverrideDND(type), Natives.getalarmdisturb(type.id)),
             soundEnabled = prefs.getBoolean(keySoundEnabled(type), Natives.alarmhassound(type.id)),
@@ -407,6 +409,7 @@ object AlertRepository {
             durationMinutes = prefs.getInt(keyDuration(type), default.durationMinutes ?: 0).takeIf { it > 0 },
             forecastMinutes = prefs.getInt(keyForecast(type), default.forecastMinutes ?: 0).takeIf { it > 0 },
             deliveryMode = parseEnumPref(prefs.getString(keyDeliveryMode(type), default.deliveryMode.name), default.deliveryMode),
+            soundVolumePercent = AlertSoundVolume.sanitize(prefs.getInt(keySoundVolume(type), AlertSoundVolume.DEFAULT_PERCENT)),
             hapticProfile = parseEnumPref(prefs.getString(keyHapticProfile(type), default.hapticProfile.name), default.hapticProfile),
             overrideDND = prefs.getBoolean(keyOverrideDND(type), default.overrideDND),
             soundEnabled = prefs.getBoolean(keySoundEnabled(type), default.soundEnabled),
@@ -473,6 +476,7 @@ object AlertRepository {
             if (config.durationMinutes != null) putInt(keyDuration(config.type), config.durationMinutes) else remove(keyDuration(config.type))
             if (config.forecastMinutes != null) putInt(keyForecast(config.type), config.forecastMinutes) else remove(keyForecast(config.type))
             putString(keyDeliveryMode(config.type), config.deliveryMode.name)
+            putInt(keySoundVolume(config.type), AlertSoundVolume.sanitize(config.soundVolumePercent))
             putString(keyHapticProfile(config.type), config.hapticProfile.name)
             putBoolean(keyOverrideDND(config.type), config.overrideDND)
             putBoolean(keySoundEnabled(config.type), config.soundEnabled)
