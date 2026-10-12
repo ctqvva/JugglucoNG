@@ -5,7 +5,7 @@ Part of the AiDEX G9 (CGM3) static-RE toolkit (see docs/aidex-g9-cgm3-protocol.m
 Needs: pip install capstone. This is how the Cgm3 opcode map was extracted:
 each request builder calls the vtable send helper with w1 = raw wire opcode,
 so per-function immediates give the opcode table without reading every function.
-Usage: skim.py <so> <symbol-prefix> [symbol-prefix ...]
+Usage: blecomm_skim.py <so> <symbol-prefix> [symbol-prefix ...]
 Matches dynsym GLOBAL FUNC symbols starting with any prefix; prints per-function
 immediate histogram (mov/movz/movk/add/sub/cmp/and, imm<0x1000) and referenced strings."""
 import struct, sys, re
@@ -82,20 +82,66 @@ def main():
         except Exception as e:
             print(f'## {nm} disasm error {e}')
             continue
+        def slot(rid):
+            name = md.reg_name(rid)
+            digits = ''.join(c for c in name if c.isdigit())
+            return int(digits) if digits else None
+
         for ins in insns:
             if ins.mnemonic in ('mov', 'movz', 'movk', 'movn', 'add', 'adds',
                                 'sub', 'subs', 'cmp', 'and', 'ands', 'orr', 'eor'):
                 for op in ins.operands:
                     if op.type == 2 and 0 <= op.imm < 0x1000:
                         imms[op.imm] += 1
-            if ins.mnemonic == 'adrp' and len(ins.operands) == 2:
-                pages[ins.operands[0].reg] = ins.operands[1].imm
-            elif ins.mnemonic in ('ldr', 'adr', 'add') and len(ins.operands) == 2:
-                o = ins.operands[1]
-                if o.type == 3 and o.mem.base in pages and o.mem.index == 0:
-                    s = cstr(d, named, pages[o.mem.base] + o.mem.disp)
+            ops = ins.operands
+            # 1. Resolve loads against the pre-instruction register state.
+            if ins.mnemonic == 'ldr' and len(ops) == 2 and ops[1].type == 3:
+                base = slot(ops[1].mem.base)
+                if base is not None and base in pages and ops[1].mem.index == 0:
+                    s = cstr(d, named, pages[base] + ops[1].mem.disp)
                     if s and s not in strs:
                         strs.append(s)
+            # Snapshot sources before invalidating anything this insn writes.
+            src_vals = {}
+            for op in ops:
+                if op.type == 1:
+                    n = slot(op.reg)
+                    if n is not None and n in pages:
+                        src_vals[n] = pages[n]
+            # 2. Invalidate every register this instruction writes
+            # (destination operands with write access). Without this,
+            # `adrp x0..; add x0,x0,#off; ldr x1,[x0]` resolves against the
+            # old page base instead of page+off. (Note: capstone regs_write
+            # is unreliable here, so destinations are derived from operand
+            # access flags.)
+            for op in ops:
+                if op.type == 1 and (op.access & 2):
+                    n = slot(op.reg)
+                    if n is not None:
+                        pages.pop(n, None)
+            # Indexed writeback (`[...]!`) also rewrites the base register.
+            if ins.op_str.strip().endswith('!'):
+                for op in ops:
+                    if op.type == 3:
+                        n = slot(op.mem.base)
+                        if n is not None:
+                            pages.pop(n, None)
+            # 3. Track supported address constructions (incl. three-operand
+            # `add Rd, Rn, #imm`, which the old two-operand check skipped).
+            if ins.mnemonic == 'adrp' and len(ops) == 2:
+                n = slot(ops[0].reg)
+                if n is not None:
+                    pages[n] = ops[1].imm
+            elif ins.mnemonic == 'add' and len(ops) == 3:
+                dst = slot(ops[0].reg)
+                src = slot(ops[1].reg) if ops[1].type == 1 else None
+                if dst is not None and src is not None and src in src_vals and ops[2].type == 2:
+                    pages[dst] = src_vals[src] + ops[2].imm
+            elif ins.mnemonic == 'mov' and len(ops) == 2 and ops[1].type == 1:
+                dst = slot(ops[0].reg)
+                src = slot(ops[1].reg)
+                if dst is not None and src is not None and src in src_vals:
+                    pages[dst] = src_vals[src]
         short = nm[:110]
         print(f'### {short} @ {va:#x} sz {sz:#x}')
         if imms:

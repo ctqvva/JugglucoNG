@@ -118,6 +118,37 @@ class Cgm3ActivationCodeTests {
     }
 
     @Test
+    fun provisioning_unescapeJsonString() {
+        assertEquals("a/b", Cgm3Provisioning.unescapeJsonString("a\\/b"))
+        assertEquals("a\\b", Cgm3Provisioning.unescapeJsonString("a\\\\b"))
+        assertEquals("a\"b", Cgm3Provisioning.unescapeJsonString("a\\\"b"))
+        assertEquals("AB", Cgm3Provisioning.unescapeJsonString("\\u0041B"))
+        assertEquals("plain", Cgm3Provisioning.unescapeJsonString("plain"))
+        assertNull(Cgm3Provisioning.unescapeJsonString("trailing\\"))
+        assertNull(Cgm3Provisioning.unescapeJsonString("bad\\x"))
+        assertNull(Cgm3Provisioning.unescapeJsonString("bad\\u12"))
+    }
+
+    @Test
+    fun provisioning_decodeDynamicKeyReadsEscapedJson() {
+        // 0xFF,0xFF,... base64-encodes with '/' characters; org.json-style
+        // producers escape them as '\/'. The pre-fix decoder choked on the
+        // backslash and rejected the whole document.
+        val secret = ByteArray(16) { 0xFF.toByte() }
+        val iv = ByteArray(16) { 0x01 }
+        val enc = java.util.Base64.getEncoder()
+        val slashy = enc.encodeToString(secret).replace("/", "\\/")
+        val json = "{\"publicKey\":\"" + slashy + "\"," +
+            "\"communicationKey\":\"" + enc.encodeToString(iv) + "\"," +
+            "\"deviceSn\":\"SN-ESC\"}\n"
+        val parsed = Cgm3Provisioning.decodeDynamicKey(json)
+        assertNotNull(parsed)
+        assertEquals("SN-ESC", parsed!!.serial)
+        assertArrayEquals(secret, parsed.secret)
+        assertArrayEquals(iv, parsed.iv)
+    }
+
+    @Test
     fun parser_statusSplitsFlagsBigEndian() {
         // u16 BE 0x1234, u16 BE 0xABCD -> flags (>>14)&3 = 2, value &0x3FFF = 0x2BCD.
         val frame = byteArrayOf(0x12, 0x34, 0xAB.toByte(), 0xCD.toByte(), 0x01, 0x02)

@@ -6,7 +6,7 @@ Needs: pip install capstone. Example:
   tools/blecomm_dis.py /tmp/aidex/libblecomm-lib.so 0x737fc 0x47c
 Symbol addresses come from .dynsym (this lib keeps C++ symbols).
 
-Usage: bdis.py <so> <vaddr-hex> <size-hex>"""
+Usage: blecomm_dis.py <so> <vaddr-hex> <size-hex>"""
 import struct, sys
 from capstone import Cs, CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN
 
@@ -53,29 +53,75 @@ def read_cstr(d, named, va, limit=120):
         return t
     return None
 
+def reg_num(md, rid):
+    """Canonical register number (x8 and w8 both track slot 8)."""
+    name = md.reg_name(rid)
+    digits = ''.join(c for c in name if c.isdigit())
+    return int(digits) if digits else None
+
+
 def disasm(path, va, size):
     d, named = load(path)
     off = vaddr_to_off(d, named, va)
     code = d[off:off+size]
     md = Cs(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN)
     md.detail = True
-    pages = {}  # reg -> page base from adrp
+    pages = {}  # reg slot -> tracked address
     for ins in md.disasm(code, va):
         extra = ''
-        if ins.mnemonic == 'adrp' and len(ins.operands) == 2:
-            pages[ins.operands[0].reg] = ins.operands[1].imm
-        elif ins.mnemonic in ('ldr', 'adr') and ins.op_str:
-            # resolve [reg, #imm] loads -> cstring
-            ops = ins.operands
-            if len(ops) == 2 and ops[1].type == 3:  # mem
-                base = ops[1].mem.base
-                if base in pages:
-                    tgt = pages[base] + ops[1].mem.disp
-                    s = read_cstr(d, named, tgt)
-                    if s:
-                        extra = f'  ; "{s[:100]}"'
-                    else:
-                        extra = f'  ; -> {tgt:#x}'
+        ops = ins.operands
+        # 1. Resolve loads against the pre-instruction register state.
+        if ins.mnemonic == 'ldr' and len(ops) == 2 and ops[1].type == 3:  # mem
+            base = reg_num(md, ops[1].mem.base)
+            if base is not None and base in pages and ops[1].mem.index == 0:
+                tgt = pages[base] + ops[1].mem.disp
+                s = read_cstr(d, named, tgt)
+                if s:
+                    extra = f'  ; "{s[:100]}"'
+                else:
+                    extra = f'  ; -> {tgt:#x}'
+        # Snapshot sources before invalidating anything this insn writes.
+        src_vals = {}
+        for op in ops:
+            if op.type == 1:  # reg
+                n = reg_num(md, op.reg)
+                if n is not None and n in pages:
+                    src_vals[n] = pages[n]
+        # 2. Invalidate every register this instruction writes (kills stale
+        # entries: without this, `adrp x0..; add x0,x0,#off; ldr x1,[x0]`
+        # would resolve against the old page base).
+        # 2. Invalidate every register this instruction writes (destination
+        # operands with write access). Without this, `adrp x0..;
+        # add x0,x0,#off; ldr x1,[x0]` resolves against the old page base
+        # instead of page+off. (Note: capstone regs_write is unreliable
+        # here, so destinations are derived from operand access flags.)
+        for op in ops:
+            if op.type == 1 and (op.access & 2):
+                n = reg_num(md, op.reg)
+                if n is not None:
+                    pages.pop(n, None)
+        # Indexed writeback (`[...]!`) also rewrites the base register.
+        if ins.op_str.strip().endswith('!'):
+            for op in ops:
+                if op.type == 3:
+                    n = reg_num(md, op.mem.base)
+                    if n is not None:
+                        pages.pop(n, None)
+        # 3. Track supported address constructions.
+        if ins.mnemonic == 'adrp' and len(ops) == 2:
+            n = reg_num(md, ops[0].reg)
+            if n is not None:
+                pages[n] = ops[1].imm
+        elif ins.mnemonic == 'add' and len(ops) == 3:
+            dst = reg_num(md, ops[0].reg)
+            src = reg_num(md, ops[1].reg) if ops[1].type == 1 else None
+            if dst is not None and src is not None and src in src_vals and ops[2].type == 2:
+                pages[dst] = src_vals[src] + ops[2].imm
+        elif ins.mnemonic == 'mov' and len(ops) == 2 and ops[1].type == 1:
+            dst = reg_num(md, ops[0].reg)
+            src = reg_num(md, ops[1].reg)
+            if dst is not None and src is not None and src in src_vals:
+                pages[dst] = src_vals[src]
         print(f'{ins.address:#x}: {ins.mnemonic:10s} {ins.op_str}{extra}')
 
 if __name__ == '__main__':

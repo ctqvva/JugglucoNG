@@ -94,6 +94,62 @@ object Cgm3Provisioning {
             "\"${Cgm3Cloud.DynamicKeyJson.DEVICE_SN}\":\"${serial.trim()}\"}"
     }
 
+    /**
+     * Unescape a JSON string literal body (no surrounding quotes).
+     * Handles the escapes real producers emit (`org.json` writes `/` as
+     * `\/`, Gson writes `\uXXXX` for HTML-sensitive chars); anything
+     * malformed yields null instead of silently corrupting key bytes.
+     */
+    fun unescapeJsonString(body: String): String? {
+        if ('\\' !in body) return body
+        val out = StringBuilder(body.length)
+        var i = 0
+        while (i < body.length) {
+            val c = body[i]
+            if (c != '\\') {
+                out.append(c)
+                i++
+                continue
+            }
+            if (i + 1 >= body.length) return null
+            when (val e = body[i + 1]) {
+                '"', '\\', '/' -> {
+                    out.append(e)
+                    i += 2
+                }
+                'b' -> {
+                    out.append('\b')
+                    i += 2
+                }
+                'f' -> {
+                    out.append('\u000C')
+                    i += 2
+                }
+                'n' -> {
+                    out.append('\n')
+                    i += 2
+                }
+                'r' -> {
+                    out.append('\r')
+                    i += 2
+                }
+                't' -> {
+                    out.append('\t')
+                    i += 2
+                }
+                'u' -> {
+                    if (i + 5 >= body.length) return null
+                    val hex = body.substring(i + 2, i + 6)
+                    val code = hex.toIntOrNull(16) ?: return null
+                    out.append(code.toChar())
+                    i += 6
+                }
+                else -> return null
+            }
+        }
+        return out.toString()
+    }
+
     /** Decode a `PairDynamicKeyInfo` JSON blob (tolerates missing serial). */
     fun decodeDynamicKey(json: String): TransmitterMaterial? = runCatching {
         fun field(name: String): String? {
@@ -102,11 +158,30 @@ object Cgm3Provisioning {
             if (start < 0) return null
             val colon = json.indexOf(':', start + key.length)
             if (colon < 0) return null
-            val open = json.indexOf('"', colon + 1)
-            if (open < 0) return null
-            val close = json.indexOf('"', open + 1)
-            if (close < 0) return null
-            return json.substring(open + 1, close)
+            // Walk the quoted body honouring backslash escapes so an
+            // escaped quote cannot terminate the scan early.
+            var i = json.indexOf('"', colon + 1)
+            if (i < 0) return null
+            i++
+            val body = StringBuilder()
+            var closed = false
+            while (i < json.length) {
+                val c = json[i]
+                if (c == '\\') {
+                    if (i + 1 >= json.length) return null
+                    body.append(c).append(json[i + 1])
+                    i += 2
+                    continue
+                }
+                if (c == '"') {
+                    closed = true
+                    break
+                }
+                body.append(c)
+                i++
+            }
+            if (!closed) return null
+            return unescapeJsonString(body.toString())
         }
         val secret = decodeMaterial(
             field(Cgm3Cloud.DynamicKeyJson.PUBLIC_KEY).orEmpty(),
