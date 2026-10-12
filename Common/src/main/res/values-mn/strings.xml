@@ -1298,7 +1298,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_follow_status_idle">Nightscout дагагч идэвхгүй байна</string>
     <string name="nightscout_follow_status_following">Nightscout-ийг дагаж байна</string>
     <string name="nightscout_follow_use_v3_api">v3 API ашиглах</string>
-    <string name="nightscout_follow_use_v3_api_desc">API v3 дэмжлэг шаардлагатай</string>
+    <string name="nightscout_follow_use_v3_api_desc">Сервер v3 дэмжихгүй бол унтраана уу</string>
     <string name="nightscout_follow_status_syncing">Nightscout-ийг шинэчилж байна</string>
     <string name="nightscout_follow_status_paused">Nightscout дагагч түр зогссон</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL-г оруулна уу</string>
@@ -1308,7 +1308,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_response_413">Сүүлчийн хариу: HTTP 413, өгөгдөл хэт том байна</string>
     <string name="nightscout_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
     <string name="nightscout_status_last_success">Сүүлийн амжилт: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Таны тэмдэглэлээс</string>
+    <string name="nightscout_send_amounts_desc">Тэмдэглэл, өөрчлөлт, устгалтыг синхрончлох</string>
     <string name="nightscout_status_treatments_never">Эмчилгээ: одоогоор юу ч илгээгээгүй</string>
     <string name="nightscout_status_treatments_ok">Эмчилгээ: сүүлд илгээсэн %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй, сүүлд оролдсон %3$s (%2$s)</string>
@@ -1323,7 +1323,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_url_label">Серверийн хаяг</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3 API ашиглах</string>
-    <string name="nightscout_use_v3_api_desc">API v3 дэмжлэг шаардлагатай</string>
+    <string name="nightscout_use_v3_api_desc">Сервер v3 дэмжихгүй бол унтраана уу</string>
     <string name="nightscout_follow_desc">Энэ Nightscout URL-аас зөвхөн унших боломжтой виртуал мэдрэгч үүсгэх.</string>
     <string name="nightscout_follow_url_required">Эхлээд Nightscout URL-г оруулна уу</string>
     <string name="no_active_sensor_selected">No active sensor selected</string>
@@ -2315,7 +2315,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="calibration_import_replace_desc">Энэ мэдрэгчийн калибровкийн профайлыг солих.</string>
     <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="nightscout_receive_amounts">Инсулин, нүүрс ус хүлээн авах</string>
-    <string name="nightscout_receive_amounts_desc">Тэмдэглэлд нэмэх</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-ийн бүртгэлийг тэмдэглэлд импортлох</string>
     <string name="nightscout_test_testing">Шалгаж байна…</string>
     <string name="nightscout_refresh_token">Токен шинэчлэх</string>
     <string name="nightscout_token_refreshing">Токен шинэчилж байна…</string>
@@ -2575,7 +2575,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_handover_multiple_text">Мэдрэгчийн хугацаа дууссан ч хэд хэдэн залгамжлагч мэдрэгч идэвхтэй байна. Автомат шилжүүлгийг алгаслаа; гараар шилжүүлнэ үү.</string>
     <string name="sensor_handover_successor_ready">Залгамжлагч мэдрэгч бэлэн; хугацаа дуусахад автомат шилжүүлэг ажиллана</string>
     <string name="nightscout_upload_iob">Идэвхтэй инсулин илгээх</string>
-    <string name="nightscout_upload_iob_desc">Juggluco-ийн тооцоог ашиглах</string>
+    <string name="nightscout_upload_iob_desc">Nightscout-ийн IOB-ын оронд Juggluco-ийн IOB ашиглах</string>
     <string name="journal_iob_source_remote">Өгөгдөл илгээж буй төхөөрөмжийн утгууд (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Ottai бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Ottai дансны мэдрэгчүүд» хэсгийг нээж, мэдрэгчийг салгаад дахин оролдоно уу.</string>
     <string name="ottai_cloud_unbind_hint">Энэ үйлдэл зөвхөн үүлэн бүртгэлийг өөрчилнө. JugglucoNG сонгосон мэдрэгчтэй холбогдохгүй, зогсоохгүй, устгахгүй, өөрчлөхгүй.</string>
@@ -3051,9 +3051,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_smoothing_scope_graph_and_sent">График болон илгээх хэмжилт</string>
     <string name="data_smoothing_preserve_originals">Анхны хэмжилтүүд хадгалагдана</string>
     <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
-    <string name="nightscout_api_help">API v3 нь /api/v1-ийн оронд /api/v3 замыг ашиглана. Сервер v3 дэмждэггүй бол v1 ашиглана уу.</string>
-    <string name="nightscout_send_treatments_help">Тэмдэглэлийн инсулин, нүүрс усны бичлэгийг эмчилгээний мэдээлэл болгон илгээнэ. Өөрчлөлт болон устгал мөн синхрончлогдоно.</string>
-    <string name="nightscout_long_insulin_help">Суурь болон хэт удаан үйлчилдэг тунг оруулахын тулд инсулин, нүүрс ус илгээх тохиргоотой хамт идэвхжүүлнэ үү.</string>
-    <string name="nightscout_receive_treatments_help">Nightscout-ийн инсулин, нүүрс усны бичлэг таны тэмдэглэлд нэмэгдэнэ.</string>
-    <string name="nightscout_iob_help">Nightscout нь өөрийн профайлаар тооцоолохын оронд Juggluco-ийн IOB-ийг ашиглана. eIOB болон COB-ийг тусдаа талбарт илгээнэ.</string>
+    <string name="nightscout_api_help">v1-д API нууц, v3-д Nightscout хандалтын токен ашиглана уу.</string>
+    <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
 </resources>

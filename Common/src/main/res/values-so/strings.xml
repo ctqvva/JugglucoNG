@@ -1558,7 +1558,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_follow_status_idle">Nightscoout raaca</string>
     <string name="nightscout_follow_status_following">Ka dib Nightscout</string>
     <string name="nightscout_follow_use_v3_api">Adeegso API v3</string>
-    <string name="nightscout_follow_use_v3_api_desc">Waxay u baahan tahay taageerada API v3</string>
+    <string name="nightscout_follow_use_v3_api_desc">Dami haddii adeeguhu aanu taageerin v3</string>
     <string name="nightscout_follow_status_syncing">Nightscout oo soo kicinaysa</string>
     <string name="nightscout_follow_status_paused">Habeenimadii raacdayaashii waa hakad</string>
     <string name="nightscout_follow_status_config_needed">Geli Nightscout URL</string>
@@ -1568,7 +1568,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_response_413">Jawaabtii u dambaysay: HTTP 413, culayska la saaray oo aad u weyn</string>
     <string name="nightscout_status_last_attempt">Isku daygii ugu dambeeyay: %1$s</string>
     <string name="nightscout_status_last_success">Guushii u dambaysay: %1$s</string>
-    <string name="nightscout_send_amounts_desc">Laga soo qaado diiwaankaaga</string>
+    <string name="nightscout_send_amounts_desc">Isku waafaji diiwaanka, wax-ka-beddelka iyo tirtiridda</string>
     <string name="nightscout_status_treatments_never">Daawaynta: weli waxba lama dirin</string>
     <string name="nightscout_status_treatments_ok">Daawaynta: markii ugu dambeysay la diray %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Daaweynta: dirista way fashilmaysaa tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
@@ -1579,13 +1579,13 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_send_long_insulin">Ku dar insuliinta muddo dheer shaqaysa</string>
     <string name="nightscout_send_long_insulin_desc">Qiyaasaha basal iyo kuwa aad u dheer shaqeeya</string>
     <string name="nightscout_receive_amounts">Hel insuliin iyo karbohaydraytyo</string>
-    <string name="nightscout_receive_amounts_desc">Ku dar diiwaankaaga</string>
+    <string name="nightscout_receive_amounts_desc">Diiwaannada Nightscout ku soo geli buuggaaga</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Isku xidh falalka</string>
     <string name="nightscout_url_label">Cinwaanka server-ka</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Adeegso API v3</string>
-    <string name="nightscout_use_v3_api_desc">Waxay u baahan tahay taageerada API v3</string>
+    <string name="nightscout_use_v3_api_desc">Dami haddii adeeguhu aanu taageerin v3</string>
     <string name="nightscout_follow_desc">Ka samee dareemaha akhriska-kaliya ee URL-kan Nightscout.</string>
     <string name="nightscout_follow_url_required">Geli URL Nightscout marka hore</string>
     <string name="nightscout_mode_upload">Dir</string>
@@ -2659,7 +2659,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_handover_multiple_text">Dareemuhu wuu dhacay, laakiin dhowr dareeme oo beddel ah ayaa shaqaynaya. Wareejinta otomaatiga ah waa la dhaafay; fadlan gacanta ku beddel.</string>
     <string name="sensor_handover_successor_ready">Dareemaha beddelka ah wuu diyaar yahay; wareejinta otomaatiga ah ayaa la wareegaysa marka uu dhaco</string>
     <string name="nightscout_upload_iob">Dir insuliinta firfircoon</string>
-    <string name="nightscout_upload_iob_desc">Adeegso qiyaasta Juggluco</string>
+    <string name="nightscout_upload_iob_desc">Isticmaal IOB-ga Juggluco halkii kan Nightscout</string>
     <string name="journal_iob_source_remote">Qiimayaasha qalabka xogta diraya (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Akoonka Ottai weli waxaa ku xiran dareeme kale. Fur «Dareemayaasha xisaabta Ottai» oo ka fur dareemaha, dabadeed mar kale isku day.</string>
     <string name="ottai_cloud_unbind_hint">Tani waxay beddeshaa oo keliya koontada daruurta. JugglucoNG kuma xirmayo dareemaha la doortay, mana joojinayo, tirtirayo ama wax ka beddelayo.</string>
@@ -3135,9 +3135,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="data_smoothing_scope_graph_and_sent">Garaafka iyo cabbirrada la diro</string>
     <string name="data_smoothing_preserve_originals">Cabbirradii asalka ahaa waa la hayaa</string>
     <string name="nightscout_secret_label">Sirta API ama token-ka gelitaanka</string>
-    <string name="nightscout_api_help">API v3 wuxuu isticmaalaa /api/v3 halkii uu ka isticmaali lahaa /api/v1. Adeegso v1 haddii adeegahaagu uusan taageerin v3.</string>
-    <string name="nightscout_send_treatments_help">Qoraallada insulin iyo karbohaydraytka ee diiwaanka waxaa loo diraa sidii daaweyn. Wax-ka-beddelka iyo tirtiridda sidoo kale waa la waafajiyaa.</string>
-    <string name="nightscout_long_insulin_help">Daar tan iyo dirista insulin iyo karbohaydraytka si loogu daro qiyaasaha basal iyo kuwa aad u dheer shaqeeya.</string>
-    <string name="nightscout_receive_treatments_help">Qoraallada insulin iyo karbohaydraytka ee Nightscout waxaa lagu daraa diiwaankaaga.</string>
-    <string name="nightscout_iob_help">Nightscout wuxuu isticmaalaa IOB-ga Juggluco halkii uu ka xisaabin lahaa astaantiisa. eIOB iyo COB waxaa lagu diraa meel xogeed gaar ah.</string>
+    <string name="nightscout_api_help">v1 u isticmaal sirta API, v3-na token-ka gelitaanka Nightscout.</string>
+    <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
 </resources>

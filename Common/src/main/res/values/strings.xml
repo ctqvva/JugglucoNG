@@ -1650,7 +1650,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_status_idle">Nightscout follower idle</string>
     <string name="nightscout_follow_status_following">Following Nightscout</string>
     <string name="nightscout_follow_use_v3_api">Use v3 API</string>
-    <string name="nightscout_follow_use_v3_api_desc">Requires API v3 support</string>
+    <string name="nightscout_follow_use_v3_api_desc">Turn off for servers without v3 support</string>
     <string name="nightscout_follow_status_syncing">Refreshing Nightscout</string>
     <string name="nightscout_follow_status_paused">Nightscout follower paused</string>
     <string name="nightscout_follow_status_config_needed">Enter Nightscout URL</string>
@@ -1660,7 +1660,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_response_413">Last response: HTTP 413, payload too large</string>
     <string name="nightscout_status_last_attempt">Last attempt: %1$s</string>
     <string name="nightscout_status_last_success">Last success: %1$s</string>
-    <string name="nightscout_send_amounts_desc">From your journal</string>
+    <string name="nightscout_send_amounts_desc">Sync journal entries, edits and deletions</string>
     <string name="nightscout_status_treatments_never">Treatments: nothing sent yet</string>
     <string name="nightscout_status_treatments_ok">Treatments: last sent %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Treatments: sending has failed since %1$s, last tried %3$s (%2$s)</string>
@@ -1671,15 +1671,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_send_long_insulin">Include long-acting insulin</string>
     <string name="nightscout_send_long_insulin_desc">Basal and ultra-long-acting doses</string>
     <string name="nightscout_receive_amounts">Receive insulin and carbs</string>
-    <string name="nightscout_receive_amounts_desc">Add to your journal</string>
+    <string name="nightscout_receive_amounts_desc">Import Nightscout entries into your journal</string>
     <string name="nightscout_upload_iob">Send insulin on board</string>
-    <string name="nightscout_upload_iob_desc">Use Juggluco’s estimate</string>
+    <string name="nightscout_upload_iob_desc">Replace Nightscout’s IOB with Juggluco’s</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Sync actions</string>
     <string name="nightscout_url_label">Server address</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Use v3 API</string>
-    <string name="nightscout_use_v3_api_desc">Requires API v3 support</string>
+    <string name="nightscout_use_v3_api_desc">Turn off for servers without v3 support</string>
     <string name="nightscout_follow_desc">Create a read-only virtual sensor from this Nightscout URL.</string>
     <string name="nightscout_follow_interval_title">Check interval</string>
     <string name="nightscout_follow_interval_desc">Shorter intervals fetch readings sooner but use more battery. Longer intervals can delay alerts.</string>
@@ -3202,9 +3202,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_graph_and_sent">Chart and sent readings</string>
     <string name="data_smoothing_preserve_originals">Original readings are kept</string>
     <string name="nightscout_secret_label">API secret or access token</string>
-    <string name="nightscout_api_help">API v3 uses /api/v3 instead of /api/v1. Use v1 if your server does not support v3.</string>
-    <string name="nightscout_send_treatments_help">Journal insulin and carb entries are uploaded as treatments. Edits and deletions are synced too.</string>
-    <string name="nightscout_long_insulin_help">Enable this together with insulin and carb uploads to include basal and ultra-long-acting doses.</string>
-    <string name="nightscout_receive_treatments_help">Insulin and carb entries from Nightscout are added to your journal.</string>
-    <string name="nightscout_iob_help">Nightscout uses Juggluco’s IOB instead of calculating it from its profile. eIOB and COB are sent in a separate field.</string>
+    <string name="nightscout_api_help">Use an API secret with v1, or a Nightscout access token with v3.</string>
+    <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 </resources>

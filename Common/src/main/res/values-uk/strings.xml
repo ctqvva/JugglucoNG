@@ -1294,16 +1294,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Довідка Newlabel</string>
     <string name="nightnumhelp">Допомога Nightnum</string>
     <string name="nightscout_enable_upload">Увімкнути завантаження Nightscout</string>
-    <string name="nightscout_send_amounts_desc">З вашого журналу</string>
+    <string name="nightscout_send_amounts_desc">Синхронізувати щоденник, зміни й видалення</string>
     <string name="nightscout_send_long_insulin">Включати тривалий інсулін</string>
     <string name="nightscout_send_long_insulin_desc">Дози базального й надтривалого інсуліну</string>
     <string name="nightscout_receive_amounts">Отримувати інсулін і вуглеводи</string>
-    <string name="nightscout_receive_amounts_desc">Додавати до вашого журналу</string>
+    <string name="nightscout_receive_amounts_desc">Імпортувати записи Nightscout до щоденника</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_url_label">Адреса сервера</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Використовувати API v3</string>
-    <string name="nightscout_use_v3_api_desc">Потребує підтримки API v3</string>
+    <string name="nightscout_use_v3_api_desc">Вимкніть, якщо сервер не підтримує v3</string>
     <string name="nightscout_follow_desc">Створити віртуальний датчик лише для читання з цієї URL-адреси Nightscout.</string>
     <string name="nightscout_follow_url_required">Спочатку введіть URL Nightscout</string>
     <string name="nightscout_test_testing">Перевірка…</string>
@@ -1502,7 +1502,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_status_idle">Джерело Nightscout очікує</string>
     <string name="nightscout_follow_status_following">Отримання з Nightscout</string>
     <string name="nightscout_follow_use_v3_api">Використовувати API v3</string>
-    <string name="nightscout_follow_use_v3_api_desc">Потребує підтримки API v3</string>
+    <string name="nightscout_follow_use_v3_api_desc">Вимкніть, якщо сервер не підтримує v3</string>
     <string name="nightscout_follow_status_syncing">Оновлення Nightscout</string>
     <string name="nightscout_follow_status_paused">Джерело Nightscout призупинено</string>
     <string name="nightscout_follow_status_config_needed">Введіть URL Nightscout</string>
@@ -2540,7 +2540,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Сенсор завершився, але активні кілька сенсорів-наступників. Автоматичну передачу пропущено; перемкніться вручну.</string>
     <string name="sensor_handover_successor_ready">Сенсор-наступник готовий; автоматична передача спрацює після завершення</string>
     <string name="nightscout_upload_iob">Надсилати активний інсулін</string>
-    <string name="nightscout_upload_iob_desc">Використовувати розрахунок Juggluco</string>
+    <string name="nightscout_upload_iob_desc">Використовувати IOB Juggluco замість Nightscout</string>
     <string name="journal_iob_source_remote">Значення з пристрою, що надсилає дані (Nightscout)</string>
     <string name="ottai_cloud_already_binding">До облікового запису Ottai досі прив’язаний інший сенсор. Відкрийте «Датчики акаунта Ottai» та відв’яжіть його, а потім повторіть спробу.</string>
     <string name="ottai_cloud_unbind_hint">Дія лише з хмарним обліковим записом. JugglucoNG не підключатиметься до вибраного сенсора, не зупинятиме, не видалятиме й не змінюватиме його.</string>
@@ -3030,9 +3030,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_graph_and_sent">Графік і передані показання</string>
     <string name="data_smoothing_preserve_originals">Початкові показання зберігаються</string>
     <string name="nightscout_secret_label">Секрет API або токен доступу</string>
-    <string name="nightscout_api_help">API v3 використовує /api/v3 замість /api/v1. Виберіть v1, якщо сервер не підтримує v3.</string>
-    <string name="nightscout_send_treatments_help">Записи інсуліну й вуглеводів із журналу надсилаються як записи терапії. Зміни й видалення також синхронізуються.</string>
-    <string name="nightscout_long_insulin_help">Увімкніть разом із надсиланням інсуліну й вуглеводів, щоб додавати дози базального й надтривалого інсуліну.</string>
-    <string name="nightscout_receive_treatments_help">Записи інсуліну й вуглеводів із Nightscout додаються до вашого журналу.</string>
-    <string name="nightscout_iob_help">Nightscout використовує IOB із Juggluco замість розрахунку за своїм профілем. eIOB і COB надсилаються в окремому полі.</string>
+    <string name="nightscout_api_help">Для v1 використовуйте секрет API, для v3 — токен доступу Nightscout.</string>
+    <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
 </resources>

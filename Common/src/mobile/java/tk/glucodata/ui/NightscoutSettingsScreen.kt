@@ -973,12 +973,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         NightscoutHelp.GENERAL -> {
                             Text(stringResource(R.string.nightscout_api_help))
                             if (mode == NightscoutModePreference.Mode.UPLOAD) {
-                                NightscoutHelpParagraph(R.string.nightscout_send_treatments, R.string.nightscout_send_treatments_help)
-                                NightscoutHelpParagraph(R.string.nightscout_send_long_insulin, R.string.nightscout_long_insulin_help)
-                                NightscoutHelpParagraph(R.string.nightscout_receive_amounts, R.string.nightscout_receive_treatments_help)
-                                NightscoutHelpParagraph(R.string.nightscout_upload_iob, R.string.nightscout_iob_help)
-                            } else {
-                                Text(stringResource(R.string.nightscout_follow_desc))
+                                Text(stringResource(R.string.nightscout_iob_help))
                             }
                             if (useV3) {
                                 Text(
@@ -1020,13 +1015,5 @@ private fun NightscoutCardHeading(title: String, modifier: Modifier = Modifier, 
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         NightscoutHelpButton(title, onHelp)
-    }
-}
-
-@Composable
-private fun NightscoutHelpParagraph(title: Int, description: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
-        Text(stringResource(description))
     }
 }

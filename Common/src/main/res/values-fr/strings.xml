@@ -1286,16 +1286,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newlabelhelp">Aide Newlabel</string>
     <string name="nightnumhelp">Aide Nightnum</string>
     <string name="nightscout_enable_upload">Activer le téléchargement Nightscout</string>
-    <string name="nightscout_send_amounts_desc">Depuis votre journal</string>
+    <string name="nightscout_send_amounts_desc">Synchroniser le journal, ses modifications et suppressions</string>
     <string name="nightscout_send_long_insulin">Inclure l’insuline à action prolongée</string>
     <string name="nightscout_send_long_insulin_desc">Doses basales et à action ultra-longue</string>
     <string name="nightscout_receive_amounts">Recevoir l’insuline et les glucides</string>
-    <string name="nightscout_receive_amounts_desc">Ajouter à votre journal</string>
+    <string name="nightscout_receive_amounts_desc">Importer les entrées Nightscout dans le journal</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_url_label">Adresse du serveur</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">Utiliser l’API v3</string>
-    <string name="nightscout_use_v3_api_desc">Nécessite la prise en charge de l’API v3</string>
+    <string name="nightscout_use_v3_api_desc">Désactiver si le serveur ne prend pas en charge v3</string>
     <string name="nightscout_follow_desc">Crée un capteur virtuel en lecture seule à partir de cette URL Nightscout.</string>
     <string name="nightscout_follow_url_required">Saisissez d\'abord une URL Nightscout</string>
     <string name="nightscout_test_testing">Test…</string>
@@ -1494,7 +1494,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_follow_status_idle">Suivi Nightscout inactif</string>
     <string name="nightscout_follow_status_following">Suivi de Nightscout</string>
     <string name="nightscout_follow_use_v3_api">Utiliser l’API v3</string>
-    <string name="nightscout_follow_use_v3_api_desc">Nécessite la prise en charge de l’API v3</string>
+    <string name="nightscout_follow_use_v3_api_desc">Désactiver si le serveur ne prend pas en charge v3</string>
     <string name="nightscout_follow_status_syncing">Actualisation de Nightscout</string>
     <string name="nightscout_follow_status_paused">Suivi Nightscout en pause</string>
     <string name="nightscout_follow_status_config_needed">Saisir l’URL Nightscout</string>
@@ -2474,7 +2474,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_multiple_text">Le capteur a expiré, mais plusieurs capteurs successeurs sont actifs. Transfert automatique ignoré ; veuillez changer manuellement.</string>
     <string name="sensor_handover_successor_ready">Le capteur successeur est prêt ; le transfert automatique prendra le relais à l\'expiration</string>
     <string name="nightscout_upload_iob">Envoyer l’insuline active</string>
-    <string name="nightscout_upload_iob_desc">Utiliser l’estimation de Juggluco</string>
+    <string name="nightscout_upload_iob_desc">Utiliser l’IOB de Juggluco plutôt que celui de Nightscout</string>
     <string name="journal_iob_source_remote">Valeurs de l’appareil émetteur (Nightscout)</string>
     <string name="ottai_cloud_already_binding">Un autre capteur est encore associé au compte Ottai. Ouvrez « Capteurs du compte Ottai » et dissociez-le, puis réessayez.</string>
     <string name="ottai_cloud_unbind_hint">Action sur le compte cloud uniquement. JugglucoNG ne se connectera pas au capteur sélectionné et ne l’arrêtera, ne le supprimera ni ne le modifiera.</string>
@@ -2956,9 +2956,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_scope_graph_and_sent">Graphique et valeurs envoyées</string>
     <string name="data_smoothing_preserve_originals">Les valeurs d’origine sont conservées</string>
     <string name="nightscout_secret_label">Secret API ou jeton d’accès</string>
-    <string name="nightscout_api_help">L’API v3 utilise /api/v3 au lieu de /api/v1. Utilisez v1 si votre serveur ne prend pas en charge v3.</string>
-    <string name="nightscout_send_treatments_help">Les entrées d’insuline et de glucides du journal sont envoyées comme traitements. Les modifications et suppressions sont aussi synchronisées.</string>
-    <string name="nightscout_long_insulin_help">Activez cette option avec l’envoi d’insuline et de glucides pour inclure les doses basales et à action ultra-longue.</string>
-    <string name="nightscout_receive_treatments_help">Les entrées d’insuline et de glucides de Nightscout sont ajoutées à votre journal.</string>
-    <string name="nightscout_iob_help">Nightscout utilise l’IOB de Juggluco au lieu de le calculer à partir de son profil. eIOB et COB sont envoyés dans un champ distinct.</string>
+    <string name="nightscout_api_help">Utilisez le secret API pour v1 ou un jeton d’accès Nightscout pour v3.</string>
+    <string name="nightscout_iob_help">eIOB et COB sont envoyés dans le champ jugglucong de devicestatus, séparément de l’IOB standard.</string>
 </resources>

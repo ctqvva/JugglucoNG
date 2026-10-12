@@ -1526,7 +1526,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_follow_status_idle">Nightscout-követő tétlen</string>
     <string name="nightscout_follow_status_following">Nightscout követése</string>
     <string name="nightscout_follow_use_v3_api">v3 API használata</string>
-    <string name="nightscout_follow_use_v3_api_desc">API v3 támogatás szükséges</string>
+    <string name="nightscout_follow_use_v3_api_desc">Kapcsold ki, ha a szerver nem támogatja a v3-at</string>
     <string name="nightscout_follow_status_syncing">Nightscout frissítése</string>
     <string name="nightscout_follow_status_paused">Nightscout-követő szüneteltetve</string>
     <string name="nightscout_follow_status_config_needed">Nightscout URL megadása</string>
@@ -1536,7 +1536,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_status_response_413">Utolsó válasz: HTTP 413, az adatcsomag túl nagy</string>
     <string name="nightscout_status_last_attempt">Utolsó kísérlet: %1$s</string>
     <string name="nightscout_status_last_success">Utolsó siker: %1$s</string>
-    <string name="nightscout_send_amounts_desc">A naplódból</string>
+    <string name="nightscout_send_amounts_desc">Naplóbejegyzések, módosítások és törlések szinkronizálása</string>
     <string name="nightscout_status_treatments_never">Kezelések: még nem történt küldés</string>
     <string name="nightscout_status_treatments_ok">Kezelések: utolsó küldés %1$s</string>
     <string name="nightscout_status_treatments_upload_failing">Kezelések: a küldés sikertelen %1$s óta, utolsó kísérlet %3$s (%2$s)</string>
@@ -1547,15 +1547,15 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_send_long_insulin">Hosszú hatású inzulin hozzáadása</string>
     <string name="nightscout_send_long_insulin_desc">Bázis- és ultrahosszú hatású adagok</string>
     <string name="nightscout_receive_amounts">Inzulin és szénhidrát fogadása</string>
-    <string name="nightscout_receive_amounts_desc">Hozzáadás a naplóhoz</string>
+    <string name="nightscout_receive_amounts_desc">Nightscout-bejegyzések importálása a naplóba</string>
     <string name="nightscout_upload_iob">Aktív inzulin küldése</string>
-    <string name="nightscout_upload_iob_desc">A Juggluco becslésének használata</string>
+    <string name="nightscout_upload_iob_desc">A Nightscout IOB helyett a Juggluco értékét használja</string>
     <string name="nightscout_settings_title">Nightscout</string>
     <string name="nightscout_sync_actions_title">Szinkronizálási műveletek</string>
     <string name="nightscout_url_label">Szerver címe</string>
     <string name="nightscout_url_placeholder">https://nightscout.example.com</string>
     <string name="nightscout_use_v3_api">v3 API használata</string>
-    <string name="nightscout_use_v3_api_desc">API v3 támogatás szükséges</string>
+    <string name="nightscout_use_v3_api_desc">Kapcsold ki, ha a szerver nem támogatja a v3-at</string>
     <string name="nightscout_follow_desc">Csak olvasható virtuális szenzor létrehozása erről a Nightscout URL-ről.</string>
     <string name="nightscout_follow_interval_title">Ellenőrzési időköz</string>
     <string name="nightscout_follow_interval_desc">A rövidebb időközök hamarabb lekérik a méréseket, de több akkumulátort fogyasztanak. A hosszabbak késleltethetik a riasztásokat.</string>
@@ -3036,9 +3036,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="data_smoothing_scope_graph_and_sent">Grafikon és küldött értékek</string>
     <string name="data_smoothing_preserve_originals">Az eredeti mérési értékek megmaradnak</string>
     <string name="nightscout_secret_label">API-titok vagy hozzáférési token</string>
-    <string name="nightscout_api_help">Az API v3 a /api/v3 útvonalat használja a /api/v1 helyett. Válaszd a v1-et, ha a szerver nem támogatja a v3-at.</string>
-    <string name="nightscout_send_treatments_help">A napló inzulin- és szénhidrátbejegyzései kezelésként kerülnek feltöltésre. A módosítások és törlések is szinkronizálódnak.</string>
-    <string name="nightscout_long_insulin_help">Az inzulin- és szénhidrátfeltöltéssel együtt kapcsold be, hogy a bázis- és ultrahosszú hatású adagok is bekerüljenek.</string>
-    <string name="nightscout_receive_treatments_help">A Nightscout inzulin- és szénhidrátbejegyzései hozzáadódnak a naplódhoz.</string>
-    <string name="nightscout_iob_help">A Nightscout a Juggluco IOB-értékét használja a profilból számolt érték helyett. Az eIOB és a COB külön mezőben kerül elküldésre.</string>
+    <string name="nightscout_api_help">A v1-hez API-titkot, a v3-hoz Nightscout-hozzáférési tokent használj.</string>
+    <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 </resources>

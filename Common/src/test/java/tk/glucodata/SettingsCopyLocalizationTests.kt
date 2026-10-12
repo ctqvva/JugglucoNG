@@ -29,8 +29,7 @@ class SettingsCopyLocalizationTests {
         "nightscout_mode_upload", "nightscout_mode_follow", "nightscout_permissions_title", "nightscout_permissions_summary",
         "nightscout_permissions_upload", "nightscout_permissions_follow", "nightscout_resend_data",
         "nightscout_status_response_invalid_url", "close", "nightscout_follow_desc",
-        "nightscout_api_help", "nightscout_send_treatments_help", "nightscout_long_insulin_help",
-        "nightscout_receive_treatments_help", "nightscout_iob_help"
+        "nightscout_api_help", "nightscout_iob_help"
     )
 
     private fun value(file: File, key: String): String? =
@@ -96,14 +95,10 @@ class SettingsCopyLocalizationTests {
     }
 
     @Test
-    fun detailedHelpRetainsApiPathsAndExtraIobFields() {
+    fun technicalHelpRetainsIobFieldNames() {
         for (file in files) {
-            val apiHelp = value(file, "nightscout_api_help")!!
             val iobHelp = value(file, "nightscout_iob_help")!!
-            for (path in listOf("/api/v1", "/api/v3")) {
-                assertTrue("${file.parentFile.name}: API help lost $path", apiHelp.contains(path))
-            }
-            for (field in listOf("eIOB", "COB")) {
+            for (field in listOf("eIOB", "COB", "jugglucong", "devicestatus")) {
                 assertTrue("${file.parentFile.name}: IOB help lost $field", iobHelp.contains(field))
             }
         }
