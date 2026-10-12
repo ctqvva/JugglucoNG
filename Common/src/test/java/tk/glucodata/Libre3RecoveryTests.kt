@@ -28,4 +28,7 @@ class Libre3RecoveryTests {
 
     @Test fun nfcResponseParsingIsDeterministicAndBounded() =
         regression("test-libre3-nfc-response.py")
+
+    @Test fun finishedBackfillCopiesTheGapIntoRoom() =
+        regression("test-libre3-backfill-room-sync.py")
 }

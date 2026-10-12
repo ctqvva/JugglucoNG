@@ -744,6 +744,7 @@ private void access1100(byte[] value) {
     wrotecharacter=false;
     if(sendqueue.isEmpty()) {
         Log.i(LOG_ID,"access1100 !fromqueue");
+        syncBackfillToRoom();
        if(isWearable) {
             if(Natives.getDisconnectSensor())
                 disconnect();  
@@ -1065,7 +1066,25 @@ private boolean fromqueue() {
 
 
 private boolean backFillInProgress=false;
-private void fillHistory(int backFillStartHistoricLifeCount) {
+/* Backfill lands in native storage only. The app's history (Room) copies a few
+   minutes behind each live reading, and its catch-up sync starts from Room's newest
+   row, which the first reading after a gap has already moved past. So once the
+   sensor has sent everything, copy from where the backfill started (#620). */
+private long backfillRoomSyncFromMsec=0L;
+private void noteBackfill(int fromLifeCount,int currentLifeCount) {
+    final long fromMsec=System.currentTimeMillis()-(currentLifeCount-fromLifeCount+5)*60_000L;
+    if(backfillRoomSyncFromMsec==0L||fromMsec<backfillRoomSyncFromMsec)
+        backfillRoomSyncFromMsec=fromMsec;
+    }
+private void syncBackfillToRoom() {
+    final long fromMsec=backfillRoomSyncFromMsec;
+    if(fromMsec==0L)
+        return;
+    backfillRoomSyncFromMsec=0L;
+    {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"backfill done, Room sync from "+fromMsec);};};
+    HistorySyncAccess.syncSensorWindowFromNative(SerialNumber,fromMsec);
+    }
+private void fillHistory(int backFillStartHistoricLifeCount,int currentLifeCount) {
         int lastHistoricLifeCountReceived=Natives.getlastHistoricLifeCountReceived(sensorptr);
         if(backFillStartHistoricLifeCount<=lastHistoricLifeCountReceived) {
             {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"no history needed  lastHistoricLifeCountReceived ("+lastHistoricLifeCountReceived+")>=backFillStartHistoricLifeCount ("+backFillStartHistoricLifeCount +")");};};
@@ -1074,6 +1093,7 @@ private void fillHistory(int backFillStartHistoricLifeCount) {
             {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"get History: lastHistoricLifeCountReceived ("+lastHistoricLifeCountReceived+")<backFillStartHistoricLifeCount ("+backFillStartHistoricLifeCount +")");};};
             int takelast=Math.max(lastHistoricLifeCountReceived,5);
             byte[] command=Natives.libre3ControlHistory(1, takelast);
+            noteBackfill(takelast,currentLifeCount);
             if(qsendcommand(command))
                 backFillInProgress=true;
             }
@@ -1084,6 +1104,7 @@ private void    fillClinical(int backFillStartLifeCount) {
 
       if(lastLifeCountReceived<backFillStartLifeCount) {
         var command=Natives.libre3ClinicalControl(1,lastLifeCountReceived);
+        noteBackfill(lastLifeCountReceived,backFillStartLifeCount);
         if(qsendcommand(command))
             backFillInProgress=true;
         }
@@ -1102,7 +1123,7 @@ private void receivedpatchstatus(byte[] value) {
     if(!backFillInProgress) {
         int backFillStartLifeCount=currentLifeCount;
         int backFillStartHistoricLifeCount= ((backFillStartLifeCount-16)/5)*5;
-        fillHistory(backFillStartHistoricLifeCount);
+        fillHistory(backFillStartHistoricLifeCount,backFillStartLifeCount);
         fillClinical(backFillStartLifeCount);
     if(!doTEST) {    
         int getevent=index+1;
