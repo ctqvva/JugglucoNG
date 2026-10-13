@@ -830,6 +830,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scheduled_backup_run_success">Backup completed successfully</string>
     <string name="scheduled_backup_run_failed">Backup failed. Check the status below.</string>
     <string name="scheduled_backup_still_running">Backup is still running. Its status will update here when it finishes.</string>
+    <string name="scheduled_backup_stopped_by_system">Android stopped the backup before it finished. It will try again later.</string>
     <string name="scheduled_backup_last_success">Last successful backup: %1$s</string>
     <string name="scheduled_backup_never">No successful backup yet</string>
     <string name="scheduled_backup_last_error">Last error: %1$s</string>

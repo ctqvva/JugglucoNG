@@ -11,6 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
@@ -113,11 +114,26 @@ class ScheduledBackupWorker(
                     )
                 }
             }
-            Log.i(TAG, "Scheduled backup completed: $fileName (${backup.byteSize} bytes)")
+            Log.i(
+                TAG,
+                "Scheduled backup completed: $fileName (${backup.byteSize} bytes, " +
+                    "${System.currentTimeMillis() - startedAt} ms)"
+            )
             if (!forced) appendNextRun(context, ScheduledBackupSettings.load(context))
             Result.success(Data.Builder().putString(KEY_OUTPUT_FILE, fileName).build())
         } catch (cancelled: CancellationException) {
-            Log.i(TAG, "Scheduled backup cancelled")
+            // WorkManager stops a run after ten minutes or when its constraints lapse. Unrecorded,
+            // that looked like a backup that never produced a result (#627). The app's own cancel
+            // (settings changed, schedule turned off) is not a failure.
+            val reason = stopReason
+            if (isStopped && reason != WorkInfo.STOP_REASON_CANCELLED_BY_APP) {
+                ScheduledBackupSettings.recordFailure(
+                    context,
+                    System.currentTimeMillis(),
+                    context.getString(R.string.scheduled_backup_stopped_by_system)
+                )
+            }
+            Log.i(TAG, "Scheduled backup cancelled after ${System.currentTimeMillis() - startedAt} ms (stop reason $reason)")
             throw cancelled
         } catch (exception: Throwable) {
             // An OutOfMemoryError is how a full-history export used to fail (#627). Escaping as

@@ -10,6 +10,7 @@ import org.json.JSONObject
 import tk.glucodata.BuildConfig
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.HistorySourceProvenance
+import tk.glucodata.Log
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
@@ -26,10 +27,12 @@ import java.util.concurrent.TimeUnit
 
 object ExportPackageExporter {
     internal const val SCHEMA = "tk.glucodata.export-package"
+    private const val TAG = "ExportPackage"
     private const val SCHEMA_VERSION = 2
     private const val SQLITE_BIND_CHUNK = 900
     private const val EXPORT_PAGE_SIZE = 2_000
     private const val IMPORT_CHUNK = 2_000
+    private const val PROGRESS_LOG_READINGS = 100_000
     private const val HISTORY_READINGS = "history.readings"
     private const val HISTORY_DELETED_READINGS = "history.deletedReadings"
 
@@ -577,6 +580,7 @@ object ExportPackageExporter {
             val historyDao = database.historyDao()
             var afterTimestamp = Long.MIN_VALUE
             var afterSerial = ""
+            val startedAt = System.currentTimeMillis()
             while (true) {
                 val page = historyDao.getReadingsPageSince(
                     startMillis,
@@ -593,6 +597,9 @@ object ExportPackageExporter {
                     sealedByKey[sealedDisplayKey(reading.timestamp)]
                 }
                 page.forEach { emit(it.toJson(isMmol, viewModeOf, sealedOf)) }
+                if ((exportedReadings + page.size) / PROGRESS_LOG_READINGS > exportedReadings / PROGRESS_LOG_READINGS) {
+                    Log.i(TAG, "Exported ${exportedReadings + page.size} readings in ${System.currentTimeMillis() - startedAt} ms")
+                }
                 exportedReadings += page.size
                 afterTimestamp = page.last().timestamp
                 afterSerial = page.last().sensorSerial
