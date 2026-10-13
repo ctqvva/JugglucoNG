@@ -1806,9 +1806,20 @@ public class Notify {
                 && presentedStandardAlertKind == kind;
     }
 
+    private static void runOnAlertThread(Runnable task) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            task.run();
+        } else {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(task);
+        }
+    }
+
     private static void fireRetrySession(int expectedKind, long expectedGeneration) {
+        runOnAlertThread(() -> deliverRetrySession(expectedKind, expectedGeneration));
+    }
+
+    private static void deliverRetrySession(int expectedKind, long expectedGeneration) {
         final AlertRetrySession sessionSnapshot;
-        final AlertRetrySession owner;
         synchronized (retrySessionLock) {
             if (retryGeneration != expectedGeneration) return;
             retrySessionSchedule = null;
@@ -1830,7 +1841,6 @@ public class Notify {
                 cancelRetrySessionLocked("retry-limit-reached");
                 return;
             }
-            owner = activeRetrySession;
             activeRetrySession.retriesUsed += 1;
             activeRetrySession.lastFireStartedAtMs = System.currentTimeMillis();
             sessionSnapshot = new AlertRetrySession(
@@ -1847,20 +1857,31 @@ public class Notify {
             Log.i(LOG_ID, "Timed retry firing kind=" + sessionSnapshot.kind + " retry=" + sessionSnapshot.retriesUsed);
         }
 
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-            synchronized (retrySessionLock) {
-                if (activeRetrySession != owner || retryGeneration != expectedGeneration) return;
+        // Session creation/replacement and the entire delivery execute on this same
+        // looper. A background runtime evaluation can enqueue a newer alarm, but
+        // cannot replace the owner or start its sound halfway through this delivery.
+        if (onenot != null) {
+            onenot.deliverTriggeredAlert(
+                    sessionSnapshot.kind,
+                    sessionSnapshot.glucoseValue,
+                    sessionSnapshot.message,
+                    sessionSnapshot.glucoseSnapshot,
+                    sessionSnapshot.notificationType);
+        }
+    }
+
+    private void deliverInitialAlert(int kind, float value, String message, notGlucose glucose,
+            String channel, AlertConfig config, boolean productionTrigger) {
+        runOnAlertThread(() -> {
+            final AlertType type = AlertType.Companion.fromId(kind);
+            final boolean manual = type != null && AlertStateTracker.INSTANCE.isManualTestActive(type);
+            if (productionTrigger && type != null && !AlertStateTracker.INSTANCE.isEpisodeActive(type)) return;
+            if (!manual && type != null && (AlertStateTracker.INSTANCE.isDismissed(type)
+                    || SnoozeManager.INSTANCE.isSnoozed(type) || WearAlertSync.isSuppressed(kind))) return;
+            if (productionTrigger) {
+                syncRetrySession(kind, value, message, glucose, channel, config, true);
             }
-            // Actions and this delivery run on the main looper. Do not hold the retry
-            // lock while entering sound/UI code (which has its own lock ordering).
-            if (onenot != null) {
-                onenot.deliverTriggeredAlert(
-                        sessionSnapshot.kind,
-                        sessionSnapshot.glucoseValue,
-                        sessionSnapshot.message,
-                        sessionSnapshot.glucoseSnapshot,
-                        sessionSnapshot.notificationType);
-            }
+            deliverTriggeredAlert(kind, value, message, glucose, channel);
         });
     }
 
@@ -2379,7 +2400,7 @@ public class Notify {
                 final long generation = ++delayedAlertEffectGeneration;
                 final Notify target = this;
                 final int finalDuration = duration;
-                delayedAlertEffectSchedule = Applic.scheduler.schedule(() -> {
+                delayedAlertEffectSchedule = Applic.scheduler.schedule(() -> runOnAlertThread(() -> {
                     synchronized (alertEffectLock) {
                         if (generation != delayedAlertEffectGeneration) {
                             return;
@@ -2390,7 +2411,7 @@ public class Notify {
                     }
                     target.playringhier(soundHandle, finalDuration, sound, flash, vibrate, disturb, kind,
                             hapticProfile, effectDurationMs, customAlert);
-                }, delayMs, TimeUnit.MILLISECONDS);
+                }), delayMs, TimeUnit.MILLISECONDS);
                 if (doLog) {
                     Log.i(LOG_ID, "Delaying alert effects kind=" + kind + " by " + delayMs + "ms");
                 }
@@ -2654,7 +2675,10 @@ public class Notify {
 
         // Auto-stop counts the sound's play time from when it actually begins, so
         // a delayed sound still plays for its full duration.
-        stopschedule = Applic.scheduler.schedule(runstopalarm, stopDelayMs + soundDelayMs, TimeUnit.MILLISECONDS);
+        final Runnable expectedStop = runstopalarm;
+        stopschedule = Applic.scheduler.schedule(() -> runOnAlertThread(() -> {
+            if (runstopalarm == expectedStop) expectedStop.run();
+        }), stopDelayMs + soundDelayMs, TimeUnit.MILLISECONDS);
 
     }
     private String getDeliveryMode(int kind) {
@@ -2986,6 +3010,7 @@ public class Notify {
         alarmIntent.putExtra("EXTRA_ALARM_TYPE", "ALARM");
         alarmIntent.putExtra("EXTRA_ALARM_MESSAGE", alarmMessage);
         alarmIntent.putExtra("EXTRA_ALERT_TYPE_ID", alertTypeId);
+        alarmIntent.putExtra(WearAlertSync.EXTRA_PRESENTED_AT_MS, System.currentTimeMillis());
         alarmIntent.putExtra("EXTRA_RATE", rate);
         if (deliveryMode != null && !deliveryMode.isEmpty()) {
             alarmIntent.putExtra(EXTRA_ALERT_DELIVERY_MODE, deliveryMode);
@@ -3223,6 +3248,16 @@ public class Notify {
     }
 
     private void lossofsignalalarm(int kind, int draw, String message, String type, boolean alarm) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            runOnAlertThread(() -> lossofsignalalarm(kind, draw, message, type, alarm));
+            return;
+        }
+        if (alarm) {
+            final AlertType alertType = AlertType.Companion.fromId(kind);
+            if (alertType != null && !AlertStateTracker.INSTANCE.isManualTestActive(alertType)
+                    && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return;
+            presentedStandardAlertKind = kind;
+        }
         {
             if (doLog) {
                 Log.i(LOG_ID, "glucose alarm kind=" + kind + " " + message + " alarm=" + alarm);
@@ -3292,6 +3327,7 @@ public class Notify {
 
         AlertType alertType = null;
         AlertConfig config = null;
+        boolean productionTrigger = false;
 
         // Resolve AlertType early
         try {
@@ -3313,10 +3349,7 @@ public class Notify {
                             Log.i(LOG_ID, "Alert suppressed by alert state: kind=" + kind);
                         alarm = false;
                     } else {
-                        final boolean productionTrigger = AlertStateTracker.INSTANCE.onAlertTriggered(alertType, config);
-                        if (productionTrigger) {
-                            syncRetrySession(kind, glvalue, message, strglucose, type, config, true);
-                        }
+                        productionTrigger = AlertStateTracker.INSTANCE.onAlertTriggered(alertType, config);
                     }
                 }
             } catch (Exception e) {
@@ -3324,7 +3357,7 @@ public class Notify {
             }
 
             if (alarm) {
-                deliverTriggeredAlert(kind, glvalue, message, strglucose, type);
+                deliverInitialAlert(kind, glvalue, message, strglucose, type, config, productionTrigger);
             }
         } else {
             // This call only refreshes the displayed reading. A silent delivery is

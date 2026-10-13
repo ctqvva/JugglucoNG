@@ -50,6 +50,7 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        if (closeIfAcknowledged()) return
         Notify.setAlarmUiVisible(true)
         observeAcknowledgement()
         turnScreenOnAndKeyguard()
@@ -70,14 +71,14 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    private fun closeIfAcknowledged(): Boolean {
+        if (!AlarmActivityAccess.isAcknowledged(intent)) return false
+        finish()
+        return true
+    }
+
     private fun showAlarmContent() {
-        val kind = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
-        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null &&
-            tk.glucodata.WearAlertSync.isSuppressed(kind) &&
-            AlertType.fromId(kind)?.let { !tk.glucodata.alerts.AlertStateTracker.isManualTestActive(it) } == true) {
-            finish()
-            return
-        }
+        if (closeIfAcknowledged()) return
         observeAcknowledgement()
         val model = buildUiModel(intent)
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)

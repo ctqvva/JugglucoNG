@@ -61,8 +61,22 @@ object AlertActions {
             SnoozeManager.snoozeUntil(type, action.untilMs)
             AlertStateTracker.resetState(type)
         } else {
-            AlertStateTracker.onAlertDismissed(type, action.untilMs)
-            SnoozeManager.clearSnooze(type)
+            // A peer can acknowledge before this device has entered the condition.
+            // Only an existing local episode can own an episode-long dismissal.
+            if (AlertStateTracker.isEpisodeActive(type)) {
+                AlertStateTracker.onAlertDismissed(type, action.untilMs)
+            }
+            SnoozeManager.clearSnooze(type, recordCancellation = false)
+        }
+    }
+
+    fun applyExpiredRemote(action: WearAlertAcknowledgement, previous: WearAlertAcknowledgement?) {
+        val type = AlertType.fromId(action.kind) ?: return
+        // Reconcile the old shared snooze only. A newer local/preemptive snooze, and
+        // the sound/notification/episode of a fresh alarm, belong to another action.
+        if (previous?.snoozed == true &&
+            SnoozeManager.getSnoozeState(type)?.snoozeUntilMillis == previous.untilMs) {
+            SnoozeManager.clearSnooze(type, recordCancellation = false)
         }
     }
 }

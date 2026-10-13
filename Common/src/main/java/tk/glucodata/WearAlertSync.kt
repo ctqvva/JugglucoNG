@@ -8,6 +8,7 @@ import tk.glucodata.alerts.AlertType
 
 /** Two-way acknowledgements. Retain the newest action per kind across process death/reconnect. */
 object WearAlertSync {
+    const val EXTRA_PRESENTED_AT_MS = "alert_presented_at_ms"
     private val prefs get() = Applic.app?.getSharedPreferences("wear_alert_ack", Context.MODE_PRIVATE)
 
     private fun current(kind: Int): WearAlertAcknowledgement? {
@@ -33,30 +34,39 @@ object WearAlertSync {
 
     /** Explicitly clearing a snooze must also clear its persisted Wear quiet deadline. */
     fun onSnoozeCleared(kind: Int) {
-        current(kind)?.takeIf { it.snoozed }?.let { save(it.copy(untilMs = 0)) }
+        current(kind)?.takeIf { it.snoozed }?.let {
+            val now = nextActionTimeMillis(kind)
+            // A zero-duration action is a valid, ordered cancellation tombstone.
+            record(WearAlertAcknowledgement(kind, false, now, now))
+        }
     }
 
     @JvmStatic
     fun isSuppressed(kind: Int): Boolean = (current(kind)?.untilMs ?: 0) > System.currentTimeMillis()
+
+    @JvmStatic
+    fun shouldCloseAlarm(kind: Int, presentedAtMs: Long): Boolean = isSuppressed(kind) ||
+        (presentedAtMs > 0 && (current(kind)?.actedAtMs ?: 0) >= presentedAtMs)
 
     fun onMessage(data: ByteArray?) {
         val action = WearAlertAcknowledgement.decode(data, System.currentTimeMillis()) ?: return
         Handler(Looper.getMainLooper()).post {
             // Expired messages must not dismiss a fresh episode. Keep the timestamp as a
             // tombstone so an older, reordered message cannot replace this action either.
-            if (action.supersedes(current(action.kind))) {
+            val previous = current(action.kind)
+            if (action.supersedes(previous)) {
                 save(action)
                 if (action.untilMs > System.currentTimeMillis()) AlertActions.applyRemote(action)
+                else AlertActions.applyExpiredRemote(action, previous)
             }
         }
     }
 
     /** Discovery sends a snapshot, so an acknowledgement made while disconnected is not lost. */
+    internal fun snapshot(): List<WearAlertAcknowledgement> =
+        AlertType.settingsEntries.mapNotNull { current(it.id) }
+
     fun pushTo(nodeId: String) {
-        AlertType.settingsEntries.forEach { type ->
-            current(type.id)?.takeIf { it.untilMs > System.currentTimeMillis() }?.let {
-                MessageSender.sendAlertAcknowledgement(nodeId, it.encode())
-            }
-        }
+        snapshot().forEach { MessageSender.sendAlertAcknowledgement(nodeId, it.encode()) }
     }
 }

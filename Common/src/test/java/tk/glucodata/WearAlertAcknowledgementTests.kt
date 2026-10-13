@@ -37,7 +37,7 @@ class WearAlertAcknowledgementTests {
             assertNull(WearAlertAcknowledgement.decode(ByteArray(size), now))
         }
         for (invalid in listOf(action(99), action(AlertType.AVAILABLE.id), action().copy(actedAtMs = 0),
-            action().copy(actedAtMs = now + 60_001), action().copy(untilMs = now),
+            action().copy(actedAtMs = now + 60_001), action().copy(untilMs = now - 1),
             action().copy(untilMs = now + WearAlertAcknowledgement.MAX_DURATION_MS + 1))) {
             assertNull(WearAlertAcknowledgement.decode(invalid.encode(), now))
         }

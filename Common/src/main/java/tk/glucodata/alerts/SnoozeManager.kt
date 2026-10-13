@@ -100,8 +100,9 @@ object SnoozeManager {
     /**
      * Clear snooze for an alert type (dismiss or expired).
      */
-    fun clearSnooze(alertType: AlertType) {
-        tk.glucodata.WearAlertSync.onSnoozeCleared(alertType.id)
+    @JvmOverloads
+    fun clearSnooze(alertType: AlertType, recordCancellation: Boolean = true) {
+        if (recordCancellation) tk.glucodata.WearAlertSync.onSnoozeCleared(alertType.id)
         prefs.edit()
             .remove(keySnoozeUntil(alertType))
             .remove(keyPreemptive(alertType))
@@ -219,9 +220,9 @@ object SnoozeManager {
                 val alertTypeId = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
                 val alertType = AlertType.fromId(alertTypeId)
                 
-                if (alertType != null) {
+                if (alertType != null && !isSnoozed(alertType)) {
                     Log.i(LOG_ID, "Snooze expired for ${alertType.name}")
-                    clearSnooze(alertType)
+                    clearSnooze(alertType, recordCancellation = false)
                     
                     // Optionally show a notification that snooze ended
                     // The next glucose reading will trigger the alert if still in range

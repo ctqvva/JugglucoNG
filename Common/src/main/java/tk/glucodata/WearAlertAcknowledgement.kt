@@ -6,7 +6,7 @@ import tk.glucodata.alerts.AlertType
 /** An absolute quiet deadline, never a duration restarted on message receipt. */
 data class WearAlertAcknowledgement(val kind: Int, val snoozed: Boolean, val actedAtMs: Long, val untilMs: Long) {
     fun isValid(nowMs: Long): Boolean = AlertType.fromId(kind) in AlertType.settingsEntries &&
-        actedAtMs > 0 && actedAtMs <= nowMs + 60_000 && untilMs > actedAtMs &&
+        actedAtMs > 0 && actedAtMs <= nowMs + 60_000 && untilMs >= actedAtMs &&
         untilMs - actedAtMs <= MAX_DURATION_MS
 
     fun supersedes(previous: WearAlertAcknowledgement?): Boolean = previous == null ||
