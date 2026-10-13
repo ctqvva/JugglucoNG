@@ -19,6 +19,33 @@ from render_body_crisp import SCORES as BODY_CRISP
 from mastering import REFERENCES, master, metrics as measure
 
 CUES = ('low', 'high', 'urgent_low', 'urgent_high', 'falling', 'rising', 'signal', 'reminder', 'notice')
+
+def ember_note(sample, cue):
+    """Fixed note envelopes, not signal-dependent compression or waveshaping."""
+    x = sample.copy()
+    # Keep the same recordings and phrase. A gentler strike frees headroom for
+    # the resonating body instead of spending it on a very brief attack peak.
+    attack_ms = 60 if cue in ('urgent_low', 'falling') else 40
+    if cue == 'reminder':
+        attack_ms = 0
+    attack = min(round(attack_ms * RATE / 1000), len(x))
+    x[:attack] *= np.sin(np.linspace(0, np.pi/2, attack))**2
+    if cue in ('high', 'urgent_high', 'rising'):
+        # Support the existing recorded decay, without adding/repeating notes.
+        x *= 1 + 3 * (1 - np.exp(-np.arange(len(x)) / (RATE * .16)))
+    return x
+
+
+def ember_phone_body(out, cue):
+    """Linear bass reduction: leave more peak budget for audible upper partials."""
+    if cue not in ('low', 'urgent_low', 'falling', 'reminder', 'notice'):
+        return out
+    # Symmetric finite impulse response, approximately a 600 Hz high-pass.
+    # No phase shifts, nonlinear limiting, or discontinuous frequency bins.
+    n = np.arange(-192, 193)
+    lowpass = np.exp(-2 * np.pi * 600 * np.abs(n) / RATE)
+    lowpass /= lowpass.sum()
+    return out - np.convolve(out, lowpass, mode='same')
 # Develop the auditioned Timber and Ember phrases into full-length arrangements. Entries: onset, recording, level, decay seconds.
 SCORES = {
     'timber': {
@@ -67,6 +94,8 @@ def render(style, cue, samples):
             duration += final_tail if final else .12
             at = round((start+onset)*RATE)
             x = samples[name][:min(round(duration*RATE),len(out)-at)].copy()
+            if style == 'ember':
+                x = ember_note(x, cue)
             release = min(round((.65 if final else .30)*RATE),len(x))
             x[-release:] *= np.cos(np.linspace(0,np.pi/2,release))**2
             # Subtle alternation keeps the returning phrase from sounding stamped.
@@ -75,10 +104,12 @@ def render(style, cue, samples):
     # Continuous, gentle ending even when a short source has already decayed.
     release = min(round(.60*RATE),len(out))
     out[-release:] *= np.cos(np.linspace(0,np.pi/2,release))**2
-    # Raise the default Ember with one linear gain, retaining 1.5 dB peak
-    # headroom. Timber and every other collection keep their existing masters.
-    boost = (4.5 if cue in ('low', 'urgent_low') else 3.0) if style == 'ember' else 0.0
-    return master(out, cue, boost_db=boost, peak_db=-1.5 if style == 'ember' else -3.0)
+    if style == 'ember':
+        out = ember_phone_body(out, cue)
+    # One final linear gain. The fixed arrangement/EQ changes above make room
+    # for more audible body; the master still accepts lower RMS at its ceiling.
+    return master(out, cue, boost_db=9.0 if style == 'ember' else 0.0,
+                  peak_db=-1.0 if style == 'ember' else -3.0)
 
 
 def save_or_check(path, data, check):

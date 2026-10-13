@@ -247,7 +247,7 @@ fun CommonAlertSettings(
                         DurationSlider(
                             label = stringResource(R.string.alert_sound_volume),
                             value = config.soundVolumePercent,
-                            range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..100,
+                            range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..tk.glucodata.alerts.AlertSoundVolume.MAX_PERCENT,
                             stepSize = 5,
                             onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
                             modifier = Modifier.padding(horizontal = sectionHorizontalPadding),

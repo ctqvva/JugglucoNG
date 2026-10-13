@@ -5,7 +5,8 @@ import java.util.Locale;
 /** Per-player gain; never changes the phone's alarm/notification stream volume. */
 public final class AlertSoundVolume {
     public static final int MIN_PERCENT = 30;
-    public static final int DEFAULT_PERCENT = 100;
+    public static final int DEFAULT_PERCENT = 80;
+    public static final int MAX_PERCENT = 100;
 
     private AlertSoundVolume() {}
 
@@ -14,14 +15,14 @@ public final class AlertSoundVolume {
     }
 
     public static int sanitize(int percent) {
-        return Math.max(MIN_PERCENT, Math.min(DEFAULT_PERCENT, percent));
+        return Math.max(MIN_PERCENT, Math.min(MAX_PERCENT, percent));
     }
 
     public static float gain(int percent) {
         return sanitize(percent) / 100.0f;
     }
 
-    /** Preserve the original overall-intensity sound levels; the slider trims them. */
+    /** Scale the original overall-intensity sound levels, with room above the default. */
     public static float gain(int percent, String profile) {
         return gain(percent) * profileGain(profile);
     }

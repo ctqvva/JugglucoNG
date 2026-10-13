@@ -219,55 +219,55 @@
     },
     "alert_ember_low": {
       "file": "alert_ember_low.m4a",
-      "sha256": "f57656196e6e675a6327a47fd2061bfce6f103643e110deb9c19811e5a530762",
+      "sha256": "0fe27e8909170cd11eb011b08aa51fdf2e93cf5d9d9521a0063462b130a99208",
       "frames": 756864,
       "seconds": 15.768
     },
     "alert_ember_high": {
       "file": "alert_ember_high.m4a",
-      "sha256": "6a57b9d5d209b5f51978d7756397cbd0a0add44fe569b34a92c53a4672e7d695",
+      "sha256": "74d24d9d37ff725aa58a11e5077b515f7d5fdf86ee87e723a287483e3f0a6466",
       "frames": 385920,
       "seconds": 8.04
     },
     "alert_ember_urgent_low": {
       "file": "alert_ember_urgent_low.m4a",
-      "sha256": "4f6b2337561e48095cd79d580335f045d3a10c2c9b818028447429ca3d677f04",
+      "sha256": "4c34d262d66a47dad6eed54de2b9354cf1403e9dd5d6e176e8be541e88bc2748",
       "frames": 372096,
       "seconds": 7.752
     },
     "alert_ember_urgent_high": {
       "file": "alert_ember_urgent_high.m4a",
-      "sha256": "798b346e5e329c0a8136b0b2bed22dc90bf241442c24f33c5bb988e17c60fa30",
+      "sha256": "0a0df063339db93d3834db43e90919beef716125aba9010aa0eed2c4afd7ff79",
       "frames": 235008,
       "seconds": 4.896
     },
     "alert_ember_falling": {
       "file": "alert_ember_falling.m4a",
-      "sha256": "dc8036c24a2bb3ab1a4e81b734185d74c462aca6ef72da25dcdc02c6f767859d",
+      "sha256": "153941d7cc6bf99dee3ace3a499496f321f5bea14f5126c3b8775d235f70fac9",
       "frames": 452736,
       "seconds": 9.432
     },
     "alert_ember_rising": {
       "file": "alert_ember_rising.m4a",
-      "sha256": "ceee709b64cf164fa1909339c874e1bfbee28736f41928b402b0b14520d17f0d",
+      "sha256": "5e081e689681e7f5ebee2d31cfb36035aaf9cc6666b21d4b5d9105cdaa2ae56c",
       "frames": 371147,
       "seconds": 7.7322291666666665
     },
     "alert_ember_signal": {
       "file": "alert_ember_signal.m4a",
-      "sha256": "f3c59c2953b1835ef70660f63416a7c1776d033984dbca9c967ecd143ece7e36",
+      "sha256": "6779875a627affda6bad09bfde62330b37e0c3f63e23fa2a8f2360f611cccfde",
       "frames": 198002,
       "seconds": 4.125041666666666
     },
     "alert_ember_reminder": {
       "file": "alert_ember_reminder.m4a",
-      "sha256": "6e3e2a2b6cd25b67cac116a7928abed5f34c0a5b0ab6bd13f725b24d5d280354",
+      "sha256": "f4600ea1af65d89fc293a621b6330e02e279333223f7e033040111d8504ccbf9",
       "frames": 306412,
       "seconds": 6.383583333333333
     },
     "alert_ember_notice": {
       "file": "alert_ember_notice.m4a",
-      "sha256": "1b41414c0b5e92c92470ff8b139593d4c70a34e81536b096ef63a893a26962d1",
+      "sha256": "bc5265fa88b1335dd55bf8662ffb9a3bdef5b3076e26acc2d3f29ba3a38b562f",
       "frames": 427991,
       "seconds": 8.916479166666667
     },

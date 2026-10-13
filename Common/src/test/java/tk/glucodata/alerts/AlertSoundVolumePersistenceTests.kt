@@ -33,8 +33,10 @@ class AlertSoundVolumePersistenceTests {
             val restored = load.invoke(AlertRepository, type, defaults) as AlertConfig
             assertEquals(55, restored.soundVolumePercent)
             assertEquals(HapticProfile.SOFT, restored.hapticProfile)
-            prefs.edit().remove(AlertSoundVolume.preferenceKey(type.id)).commit()
+            save.invoke(AlertRepository, defaults.copy(soundVolumePercent = 100))
             assertEquals(100, (load.invoke(AlertRepository, type, defaults) as AlertConfig).soundVolumePercent)
+            prefs.edit().remove(AlertSoundVolume.preferenceKey(type.id)).commit()
+            assertEquals(80, (load.invoke(AlertRepository, type, defaults) as AlertConfig).soundVolumePercent)
             prefs.edit().putInt(AlertSoundVolume.preferenceKey(type.id), 0).commit()
             assertEquals(30, (load.invoke(AlertRepository, type, defaults) as AlertConfig).soundVolumePercent)
         }

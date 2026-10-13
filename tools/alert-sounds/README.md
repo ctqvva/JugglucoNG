@@ -162,19 +162,30 @@ Physical-device listening acceptance of the new collections is still outstanding
 ## Louder alerts and volume adjustment (issue #624)
 
 The existing Soft/Steady/Strong/Escalating overall alert intensity retains its
-original sound levels (40%, 70%, 100%, 100%) and vibration behavior. The original
+sound-level ratios (40%, 70%, 100%, 100%) and vibration behavior. The original
 1.2-second sound fade from 12% is retained. A 30–100% sound-volume slider sits in
 Advanced directly below those options and scales the selected intensity's sound
-level. At the default 100%, the profile's original playback gain is unchanged;
-the modest Ember mastering increase below supplies the louder audio. Global Apply
-copies the volume, and reset restores 100%. The Sound toggle handles muting.
-The phone’s media/alarm/notification stream volume still applies. Picker previews
-use the same intensity, volume adjustment and resolved audio usage as real alerts.
+level. The default is **80%**, leaving a genuine 25% increase in player amplitude
+(1.94 dB) available manually at 100% for every profile. Global Apply copies the
+volume, and reset restores 80%. Missing preferences also use 80%; existing saved
+values, including an explicitly selected 100%, are preserved. The Sound toggle
+handles muting. The phone's media/alarm/notification stream volume still applies.
+Picker previews use the same intensity, volume adjustment and resolved audio usage
+as real alerts. Player gain remains bounded by 1.0; the slider never requests
+unsupported amplification or changes the shared phone stream volume.
 
-Ember alone now requests +4.5 dB for low/urgent-low and +3 dB for other cues, capped
-by a -1.5 dBFS PCM peak ceiling. Actual gains are limited by each waveform’s
-headroom (low +3.61 dB, urgent low +1.55 dB). No compression or clipping is used.
-Other collections and legacy originals keep their committed audio bytes.
+Ember keeps its recordings, notes, timing, and duration. Fixed smooth strike/decay
+envelopes support the resonating body; a linear 600 Hz bass reduction for the
+bass-heavy low/urgent-low/falling/reminder/notice cues frees peak budget for upper
+partials. A single final linear gain is capped at -1 dBFS PCM, with decoded AAC
+headroom checked separately. There is no signal-dependent compression, clipping,
+or waveshaping. The resulting 500–4000 Hz energy at the **80% default** is +2.47 dB
+for low and +4.80 dB for urgent low versus the previous PR master at 100%. At the
+manual maximum those increases are +4.41 dB and +6.74 dB. These are electrical band
+measurements, not measured phone loudness; total broadband RMS is not a useful
+proxy for this bass-to-upper-partial rebalance. Higher cues remain approximately
+at their previous band energy at 80%. Other collections and legacy originals keep
+their committed audio bytes.
 
 **xDrip-style**, immediately above Juggluco in the picker, is a new original
 synthesis: sustained descending low sirens, a faster urgent-low siren, alternating
