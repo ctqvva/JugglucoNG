@@ -1,5 +1,7 @@
 package tk.glucodata.ui.stats
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -1650,21 +1652,24 @@ private fun MetricSheetRow(
             color = spec.tone.copy(alpha = if (selected) 1f else 0.55f),
             maxLines = 1
         )
-        IconButton(
-            onClick = onTogglePinned,
-            enabled = pinEnabled,
-            modifier = Modifier.size(38.dp)
-        ) {
-            Icon(
-                imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                contentDescription = stringResource(R.string.stats_arrange_pin),
-                tint = when {
-                    pinned -> MaterialTheme.colorScheme.primary
-                    pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
-                },
-                modifier = Modifier.size(20.dp)
-            )
+        IconButtonTooltip(stringResource(R.string.stats_arrange_pin)) {
+            IconButton(
+                onClick = onTogglePinned,
+                enabled = pinEnabled,
+                modifier = Modifier.size(38.dp),
+                shapes = IconButtonDefaults.shapes()
+            ) {
+                Icon(
+                    imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    contentDescription = stringResource(R.string.stats_arrange_pin),
+                    tint = when {
+                        pinned -> MaterialTheme.colorScheme.primary
+                        pinEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

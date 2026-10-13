@@ -42,6 +42,7 @@ class SuperGattCallback {
     static String LOG_ID="test";
     static final Object app=new Object();
     boolean stop=false, connectPending=false, ownership=false;
+    int timeoutPolicyUpdates;
     long dataptr=1L, foundtime=0L, connectTime=0L, reconnectGeneration=0L;
     String SerialNumber="synthetic", mActiveDeviceAddress="synthetic", mDeviceName;
     final Object gattLock=new Object();
@@ -82,6 +83,7 @@ class SuperGattCallback {
         public long getDelay(TimeUnit u){return 0;}public int compareTo(Delayed d){return 0;}
     }
     boolean useAutoConnect(){return autoconnect;}
+    void onConnectionAttemptTimeout(){timeoutPolicyUpdates++;}
     boolean allowConnectWithoutDataptr(){return false;}
     void armConnectCallbackLatency(){} void setpriority(BluetoothGatt g){} void setGattOptions(BluetoothGatt g){}
 '''
@@ -97,6 +99,7 @@ body += r'''
         SuperGattCallback cb=fresh();BluetoothGatt old=cb.mBluetoothGatt;
         Applic.scheduler.advance(119999);check(cb.mActiveBluetoothDevice.calls==1,"deadline too early");
         Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2&&old.closed==1,"silent attempt must close and retry before first glucose");
+        check(cb.timeoutPolicyUpdates==1,"driver policy not notified before retry");
         BluetoothGatt current=cb.mBluetoothGatt;
         check(!cb.result(old,0),"retired disconnected callback accepted");
         check(!cb.result(old,2),"retired connected callback accepted");
@@ -118,7 +121,9 @@ if ng:
     body += r'''
         cb=fresh();cb.setPause(true);cb.setPause(false);Applic.scheduler.advance(120000);check(cb.mActiveBluetoothDevice.calls==1,"pause cancellation resurrected by resume");
         cb=fresh();CloneSensorRegistry.clone=true;Applic.scheduler.advance(120000);check(cb.mActiveBluetoothDevice.calls==1,"clone ownership ignored");
+        check(cb.timeoutPolicyUpdates==0,"clone timeout mutated driver policy");
         cb=fresh();SensorOwnershipRuntime.blocked=true;Applic.scheduler.advance(120000);check(cb.mActiveBluetoothDevice.calls==1,"released ownership ignored");
+        check(cb.timeoutPolicyUpdates==0,"released timeout mutated driver policy");
 '''
 body += '\n System.out.println("PASS: production connect/deadline/close lifecycle, stale callbacks, cancellation and stop guards");\n}\n}\n'
 with tempfile.TemporaryDirectory(prefix='libre3-connect-') as d:

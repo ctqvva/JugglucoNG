@@ -61,8 +61,8 @@ public    void handlealarm() {
                     long lasttime=Natives.lastglucosetime( );
                     if(lasttime!=0L)
                         wastime=lasttime;
-                    Notify.onenot.lossalarm(wastime);
-                    saidloss = true;
+                    // A suppressed outage remains pending for the next scheduled check.
+                    saidloss = Notify.onenot.lossalarm(wastime);
                     }
                else {
                     if(doLog) {Log.i(LOG_ID, "handlealarm saidloss==true");};

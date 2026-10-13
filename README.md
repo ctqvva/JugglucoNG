@@ -2,7 +2,7 @@
 
 # JugglucoNG
 
-JugglucoNG is an experimental continuous glucose monitoring app for Android. JugglucoNG is an experimental continuous glucose monitoring app for Android.
+JugglucoNG is an experimental continuous glucose monitoring app for Android.
 
 Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap Korthals Altes, it continues to evolve with a modern Compose UI using Material 3, a sensor-independent data layer, support for multiple CGM systems, a treatment journal with IOB/eIOB/COB tracking, predictive simulation, a redesigned alarm engine, and bidirectional Nightscout integration.
 

@@ -2,6 +2,14 @@
 
 package tk.glucodata.ui.alerts
 
+import androidx.compose.material3.TimePickerDefaults
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import android.media.AudioAttributes
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Doorbell
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Message
@@ -128,6 +137,7 @@ fun TalkerSettingsScreen(navController: NavController) {
     var scheduleEnd by remember { mutableStateOf(SpeakSchedule.getEndMinutes(activity)) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -254,6 +264,19 @@ fun TalkerSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
                 )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_chime_title),
+                    subtitle = stringResource(R.string.voice_chime_desc),
+                    checked = chimeBeforeGlucose,
+                    onCheckedChange = {
+                        chimeBeforeGlucose = it
+                        Talker.setChimeBeforeGlucose(activity, it)
+                    },
+                    icon = Icons.Default.Doorbell,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE,
+                    enabled = uiState.speakGlucose
+                )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),
 //                    checked = uiState.talkTouch,
@@ -315,22 +338,27 @@ fun TalkerSettingsScreen(navController: NavController) {
                 ) {
                     voiceNames.forEachIndexed { index, label ->
                         val isPreviewing = previewingVoiceIndex == index
-                        DropdownMenuItem(
+                        SelectableDropdownMenuItem(
+                            selected = index == uiState.selectedVoiceIndex,
+                            shapes = MenuDefaults.itemShape(index, voiceNames.size),
                             text = { Text(label) },
-                            trailingIcon = {
-                                IconButton(onClick = {
-                                    if (isPreviewing) {
-                                        Talker.stopPreview()
-                                        previewingVoiceIndex = -1
-                                    } else {
-                                        previewingVoiceIndex = index
-                                        Talker.previewVoice(index)
+                            trailingContent = {
+                                IconButtonTooltip(if (isPreviewing) stringResource(R.string.stop) else stringResource(R.string.preview)) {
+                                    IconButton(onClick = {
+                                        if (isPreviewing) {
+                                            Talker.stopPreview()
+                                            previewingVoiceIndex = -1
+                                        } else {
+                                            previewingVoiceIndex = index
+                                            Talker.previewVoice(index)
+                                        }
+                                    },
+                                    shapes = IconButtonDefaults.shapes()) {
+                                        Icon(
+                                            if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = if (isPreviewing) stringResource(R.string.stop) else stringResource(R.string.preview)
+                                        )
                                     }
-                                }) {
-                                    Icon(
-                                        if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = null
-                                    )
                                 }
                             },
                             onClick = {
@@ -470,7 +498,8 @@ fun TalkerSettingsScreen(navController: NavController) {
                     Talker.testCurrentValue(activity)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
@@ -587,11 +616,13 @@ private fun DropdownSettingsCard(
             iconTint = iconTint,
             position = position
         )
-        DropdownMenu(
+        DropdownMenuPopup(
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) }
         ) {
-            content()
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                content()
+            }
         }
     }
 }
@@ -743,15 +774,15 @@ private fun ScheduleTimePickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onConfirm(state.hour, state.minute) }) {
+            TextButton(onClick = { onConfirm(state.hour, state.minute) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(android.R.string.cancel))
             }
         },
-        text = { TimePicker(state = state) }
+        text = { TimePicker(state = state, shapes = TimePickerDefaults.shapes(), colors = TimePickerDefaults.colors()) }
     )
 }

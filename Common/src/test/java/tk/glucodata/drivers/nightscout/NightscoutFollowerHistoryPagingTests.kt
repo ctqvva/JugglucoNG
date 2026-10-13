@@ -25,9 +25,24 @@ class NightscoutFollowerHistoryPagingTests {
         val lowerBound = NightscoutFollowerHistoryPaging.lowerBoundMs(
             latestStoredMs = latestStoredMs,
             bootstrap = false,
+            nowMs = nowMs,
         )
 
         assertEquals(latestStoredMs - 5L * 60L * 1000L, lowerBound)
+    }
+
+    @Test
+    fun futureDatedStoredReadingDoesNotPushTheFetchPastNow() {
+        // One reading from an uploader whose clock ran ten minutes ahead must not make every
+        // later fetch ask only for readings newer than that, which the server does not have.
+        val nowMs = 1_800_000_000_000L
+        val lowerBound = NightscoutFollowerHistoryPaging.lowerBoundMs(
+            latestStoredMs = nowMs + 10L * 60_000L,
+            bootstrap = false,
+            nowMs = nowMs,
+        )
+
+        assertEquals(nowMs - 5L * 60L * 1000L, lowerBound)
     }
 
     @Test

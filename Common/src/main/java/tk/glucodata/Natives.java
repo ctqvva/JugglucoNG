@@ -1031,6 +1031,8 @@ public class Natives {
 
         public static native boolean removeSensorById(String sensorId);
 
+        public static native boolean finishSensorById(String sensorId);
+
         public static native void unfinishSensor(long dataptr);
 
         public static native long manualLibreAccountIDnumber();

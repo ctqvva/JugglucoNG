@@ -57,6 +57,72 @@ class NightscoutFollowerPollPolicyTests {
         assertEquals(30L * 60_000L, NightscoutFollowerPollPolicy.intervalMillis(45))
     }
 
+    // ---------- changing the interval ----------
+
+    private val minute = 60_000L
+
+    @Test
+    fun shorterIntervalMovesThePollForward() {
+        // Thirty minutes to one, twenty seconds after the last refresh: the next poll is
+        // forty seconds away, not the rest of the thirty.
+        val delay = NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+            lastCompletedElapsed = 1_000_000L,
+            nextPollElapsed = 1_000_000L + 30 * minute,
+            nowElapsed = 1_020_000L,
+            newIntervalMillis = minute,
+            failing = false,
+        )
+        assertEquals(40_000L, delay)
+    }
+
+    @Test
+    fun aNewIntervalAlreadyOverduePollsNow() {
+        val delay = NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+            lastCompletedElapsed = 1_000_000L,
+            nextPollElapsed = 1_000_000L + 30 * minute,
+            nowElapsed = 1_000_000L + 4 * minute,
+            newIntervalMillis = 2 * minute,
+            failing = false,
+        )
+        assertEquals(0L, delay)
+    }
+
+    @Test
+    fun longerIntervalPushesThePollOut() {
+        val delay = NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+            lastCompletedElapsed = 1_000_000L,
+            nextPollElapsed = 1_000_000L + minute,
+            nowElapsed = 1_030_000L,
+            newIntervalMillis = 10 * minute,
+            failing = false,
+        )
+        assertEquals(10 * minute - 30_000L, delay)
+    }
+
+    @Test
+    fun aSoonerRetryAfterAFailureKeepsItsPlace() {
+        val delay = NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+            lastCompletedElapsed = 1_000_000L,
+            nextPollElapsed = 1_030_000L,
+            nowElapsed = 1_010_000L,
+            newIntervalMillis = 15 * minute,
+            failing = true,
+        )
+        assertEquals(20_000L, delay)
+    }
+
+    @Test
+    fun noCompletedRefreshYetPollsNow() {
+        val delay = NightscoutFollowerPollPolicy.delayAfterIntervalChange(
+            lastCompletedElapsed = 0L,
+            nextPollElapsed = 0L,
+            nowElapsed = 1_000_000L,
+            newIntervalMillis = 5 * minute,
+            failing = false,
+        )
+        assertEquals(0L, delay)
+    }
+
     @Test
     fun onlyIntervalsUnderTheDozeFloorAreWarnedAbout() {
         assertTrue(NightscoutFollowerPollPolicy.isThrottledByDoze(1))

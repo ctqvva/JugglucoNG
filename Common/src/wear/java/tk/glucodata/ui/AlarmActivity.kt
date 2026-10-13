@@ -66,17 +66,35 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        if (closeIfAcknowledged()) return
         Notify.setAlarmUiVisible(true)
+        observeAcknowledgement()
         turnScreenOnAndKeyguard()
     }
 
     override fun onStop() {
+        AlarmActivityAccess.removeObserver(this)
         Notify.setAlarmUiVisible(false)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onStop()
     }
 
+    private fun observeAcknowledgement() {
+        AlarmActivityAccess.removeObserver(this)
+        if (intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID) == null) {
+            AlarmActivityAccess.observeAcknowledgement(this, intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)) { finish() }
+        }
+    }
+
+    private fun closeIfAcknowledged(): Boolean {
+        if (!AlarmActivityAccess.isAcknowledged(intent)) return false
+        finish()
+        return true
+    }
+
     private fun showAlarmContent() {
+        if (closeIfAcknowledged()) return
+        observeAcknowledgement()
         val model = buildUiModel()
         Notify.cancelQueuedAlarmActivityLaunch(
             Notify.resolveAlertKind(model.alertTypeId),

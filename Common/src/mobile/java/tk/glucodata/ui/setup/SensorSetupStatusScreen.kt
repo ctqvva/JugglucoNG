@@ -1,5 +1,6 @@
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -267,21 +267,15 @@ private fun SensorSetupStatusScreen(
         Spacer(modifier = Modifier.height(ui.spacerLarge))
 
         if (tone == SensorSetupStatusTone.Success) {
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { completionProgress },
-                modifier = Modifier
-                    .fillMaxWidth(0.42f)
-                    .height(6.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.fillMaxWidth(0.42f),
                 color = accentColor,
                 trackColor = accentColor.copy(alpha = 0.18f)
             )
         } else {
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth(0.42f)
-                    .height(6.dp)
-                    .clip(CircleShape),
+            LinearWavyProgressIndicator(
+                modifier = Modifier.fillMaxWidth(0.42f),
                 color = accentColor,
                 trackColor = accentColor.copy(alpha = 0.18f)
             )

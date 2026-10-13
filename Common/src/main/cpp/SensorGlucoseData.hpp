@@ -64,7 +64,7 @@ inline int getpagesize(void) {
 #include "maxsendtohost.h"
 #include "settings/settings.hpp"
 #include "timevalues.h"
-inline constexpr const int maxdexcount = 3025;
+#include "dexcom/ScanIdentity.hpp"
 inline constexpr const int youngsensorsecs = 2 * 60 * 60;
 inline constexpr const char rawstream[] = "rawstream.dat";
 #include <string_view>
@@ -76,8 +76,6 @@ extern int getgetsendnr();
 
 constexpr const int maxcaliNr = 50;
 constexpr int maxdays = 46;
-
-constexpr const int maxdaysDex = 12;
 
 constexpr const int maxdaysAccu = 15;
 constexpr const int maxdaysAir = 16;
@@ -628,7 +626,11 @@ private:
     if (isSibionics())
       return 4 * elsize;
     //   if(isDexcom()) return 4*elsize;
-    const auto days = getinfo()->days;
+    // Reserve both supported Dexcom geometries before any pointer is handed to
+    // a driver. A rescan can correct an old 10-day record without remapping it.
+    const auto days = isDexcom()
+                          ? std::max<int>(getinfo()->days, dexcom::maximumStorageDays)
+                          : getinfo()->days;
     if (elsize < 10 || elsize > 20 || days < 10 || days > maxdays) {
       LOGGER("%s: historybytes error elsize=%d days=%d\n",
              shortsensorname()->data(), elsize, days);
@@ -758,8 +760,10 @@ public:
     // Managed Sibionics shells also need to reach their day-22 reset without
     // changing the native shell's lifecycle metadata.
     const bool sibionics = (info && info->sibionics) || managedSibionics;
+    const bool dexcomSensor = info && info->dexcom;
     const size_t defaultRecords =
         sibionics ? static_cast<size_t>(maxminutes)
+                  : dexcomSensor ? static_cast<size_t>(dexcom::maximumStorageDays * 24 * 12)
                   : static_cast<size_t>(std::max(maxstreampos(), 0));
     // A sensor that negotiates a life longer than its shell geometry — Ottai's
     // 15-day rating extending to 28/30 — outgrows the poll map mid-wear:
@@ -771,7 +775,7 @@ public:
     // is only ever recomputed in the constructor, where extending the file is
     // safe and repairPollMetadata() preserves the records already written.
     const size_t wearRecords =
-        (!sibionics && info && info->wearduration2)
+        (!sibionics && !dexcomSensor && info && info->wearduration2)
             ? (static_cast<size_t>(info->wearduration2) *
                static_cast<size_t>(std::max(streamperhour(), 1))) /
                   60u
@@ -871,6 +875,14 @@ public:
     return 14 * 24 * 60;
   }
   int getweardurationSEC() const { return getweardurationMIN() * 60; }
+
+  int getDexWearMinutes() const {
+    const auto *info = getinfo();
+    return info && info->wearduration == dexcom::wearMinutes(15)
+               ? dexcom::wearMinutes(15) : dexcom::wearMinutes(10);
+  }
+  int getmaxdexcount() const { return dexcom::maximumCount(getDexWearMinutes()); }
+  int getDexMaxSecs() const { return dexcom::maximumSeconds(getDexWearMinutes()); }
 
   int getWarmupMIN() const {
     auto *info = getinfo();
@@ -1555,8 +1567,10 @@ bool libreviewable() const {
 
 #ifdef DEXCOM
   static bool mkdatabaseDex(string_view sensordir, string_view sensorgegs,
-                            uint32_t now) {
-    LOGGER("mkdatabaseDex %s,%s\n", sensordir.data(), sensorgegs.data());
+                            uint32_t now, int wearDays = 10) {
+    if ((wearDays != 10 && wearDays != 15) || sensorgegs.size() > sizeof(Info::siId))
+      return false;
+    LOGGER("mkdatabaseDex %s payload length=%zu\n", sensordir.data(), sensorgegs.size());
     mkdir(sensordir.data(), 0700);
     pathconcat infoname(sensordir, infopdat);
     if (access(infoname, F_OK) != -1) {
@@ -1578,9 +1592,9 @@ bool libreviewable() const {
              .interval = interval5,
              .dupl = 3,
              .dexcom = true,
-             .days = maxdaysDex,
+             .days = static_cast<uint8_t>(wearDays + 2),
              .warmup = 30,
-             .wearduration = 14400,
+             .wearduration = static_cast<uint16_t>(dexcom::wearMinutes(wearDays)),
              .lastLifeCountReceived = 1,
              .pollcount = 0};
     inf.siIdlen = sensorgegs.size();
@@ -1705,11 +1719,26 @@ private:
   pathconcat trendspath;
 
   static constexpr const char trendsdat[] = "trends.dat";
+  int initialHistoryBytes() {
+    auto *info = getinfo();
+    if (!info) { haserror = true; return 0; }
+    if (info->dexcom && info->siIdlen <= sizeof(info->siId)) {
+      // Recover 15-day metadata from a barcode stored by an older app. Do this
+      // before constructing history/poll maps, preserving their existing data.
+      const auto scan = dexcom::parseScan(std::string_view(
+          reinterpret_cast<const char *>(info->siId), info->siIdlen));
+      if (scan) {
+        info->wearduration = std::max<uint16_t>(info->wearduration,
+            static_cast<uint16_t>(dexcom::wearMinutes(scan->days)));
+        info->days = std::max<uint8_t>(info->days, scan->days + 2);
+      }
+    }
+    return historybytes(perhour());
+  }
   SensorGlucoseData(string_view sensordir, int spec, string_view baseuit,
                     int sensorindex, size_t minimumPollRecords = 0)
       : sensordir(sensordir), meminfo(sensordir, infopdat, sizeof(struct Info)),
-        historydata(sensordir, "data.dat",
-                    getinfo() ? historybytes(perhour()) : (haserror = true, 0)),
+        historydata(sensordir, "data.dat", initialHistoryBytes()),
         scansize(maxscansize()), scans(sensordir, "current.dat", scansize),
         polls(sensordir, "polls.dat", pollStorageSize(minimumPollRecords)),
         rawpolls(sensordir, "rawpolls.dat",
@@ -3199,7 +3228,7 @@ public:
         return false;
     } else {
       if (isDexcom()) {
-        if (pollcount() >= maxdexcount)
+        if (pollcount() >= getmaxdexcount())
           return false;
       } else if (isAir()) {
         if (pollcount() > 4320)

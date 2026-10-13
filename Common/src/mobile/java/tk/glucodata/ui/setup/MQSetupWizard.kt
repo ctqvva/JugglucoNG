@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui.setup
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ButtonDefaults
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.os.Build
@@ -36,7 +38,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -376,7 +377,7 @@ private fun MQScanStep(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -400,7 +401,7 @@ private fun MQScanStep(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    TextButton(onClick = { showAllDevices = !showAllDevices }) {
+                    TextButton(onClick = { showAllDevices = !showAllDevices }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                         Text(
                             if (showAllDevices) stringResource(R.string.show_sensors_only)
                             else stringResource(R.string.see_all_devices)
@@ -459,7 +460,9 @@ private fun MQScanStep(
                         }
                         OutlinedButton(
                             onClick = onShowManualQrEntry,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(stringResource(R.string.enter_code_manually))
                         }
@@ -523,7 +526,9 @@ private fun MQScanStep(
                                         }
                                     }
                                 },
-                                modifier = Modifier.height(ui.buttonHeight)
+                                modifier = Modifier.height(ui.buttonHeight),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) {
                                 Text(stringResource(buttonRes))
                             }
@@ -575,12 +580,12 @@ private fun MQManualQrEntryDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(normalized) }, enabled = isValid) {
+            TextButton(onClick = { onConfirm(normalized) }, enabled = isValid, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         },

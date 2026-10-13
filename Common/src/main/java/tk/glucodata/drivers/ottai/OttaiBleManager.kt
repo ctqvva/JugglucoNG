@@ -91,6 +91,115 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
     }
 }
 
+/**
+ * Lowers a confirmed stream start that dates live records after they arrive.
+ *
+ * Every anchor is floored to its frame's arrival minute, so it overshoots the true start by up
+ * to one record whenever that frame crossed a minute boundary in transit: a sensor whose records
+ * land at :45 is then dated :00 of the next minute, 15 s ahead, for the rest of the session. A
+ * prompt record's arrival bound (OttaiBleManager.arrivalBoundStartMs) is the correction.
+ *
+ * Fed ACCEPTED live frames only, and guarded three ways because the continuity gate checks
+ * glucose, not counters, so a frame whose dataNo runs ahead with a plausible value is accepted:
+ *  - two consecutive accepted frames, with increasing counters and arrivals no more than
+ *    [MAX_PENDING_AGE_MS] apart, must imply the same start; any accepted frame the anchor did not
+ *    date ahead of arrival drops the candidate;
+ *  - the start may fall at most one record below the anchor it was seeded at, in total. That is
+ *    the most flooring can overshoot by;
+ *  - nor so far that the live frame the anchor was seeded from, or any accepted live frame
+ *    since, would be dated more than [MAX_CORRECTED_LAG_MS] before it arrived. The anchor may
+ *    already lag — a monitor time is accepted up to two minutes behind arrival, and flooring
+ *    adds up to one more — and a record on top of that would leave every later reading stale
+ *    and unpublished. The seed frame's lag is how far the anchor dated it behind its own
+ *    arrival, which does not depend on its counter, so a corrupt pair cannot vouch for itself.
+ *    An anchor seeded from anything but a live arrival (history, activeTime) has no such
+ *    measure and is never corrected; its records are still dated no later than arrival;
+ *  - nothing is persisted. The next session seeds a fresh anchor and corrects it again.
+ *
+ * A false correction that fits these bounds still dates the genuine frames a record early, so
+ * the one after a corrupt frame can share its minute and miss publication once.
+ */
+internal class OttaiArrivalStartCorrection {
+    companion object {
+        private const val RECORD_INTERVAL_MS = 60_000L
+        // Genuine frames are a minute apart; a missed frame or a quick reconnect stays within this.
+        internal const val MAX_PENDING_AGE_MS = 3L * RECORD_INTERVAL_MS
+        // A minute inside the 180 s freshness window (OttaiBleManager.isFreshLiveSample).
+        internal const val MAX_CORRECTED_LAG_MS = 2L * RECORD_INTERVAL_MS
+    }
+
+    private var lowestStartMs = 0L
+    // Latest start a live arrival implies, unfloored: arrival - dataNo records. Set by a live
+    // seed, 0 after any other seed; accepted frames can only raise it, so a counter running
+    // ahead never loosens it.
+    private var latestArrivalStartMs = 0L
+    private var pendingStartMs = 0L
+    private var pendingDataNo = -1
+    private var pendingReceivedAtMs = 0L
+
+    /**
+     * The anchor was (re)seeded at [startMs]: the correction budget starts over from it.
+     * [seedArrivalStartMs] is arrival - dataNo records of the live frame it was seeded from, or 0
+     * when it came from anything else.
+     */
+    @Synchronized
+    fun onAnchorSeeded(startMs: Long, seedArrivalStartMs: Long) {
+        lowestStartMs = startMs - RECORD_INTERVAL_MS
+        latestArrivalStartMs = seedArrivalStartMs.coerceAtLeast(0L)
+        clearPending()
+    }
+
+    /**
+     * Offer an accepted live frame dated from [anchorStartMs]. Returns the start the anchor
+     * should move to, or 0 to leave it.
+     */
+    @Synchronized
+    fun onAcceptedLive(anchorStartMs: Long, dataNo: Int, receivedAtMs: Long): Long {
+        if (anchorStartMs <= 0L || dataNo < 0 || receivedAtMs <= 0L) {
+            clearPending()
+            return 0L
+        }
+        if (latestArrivalStartMs > 0L) {
+            latestArrivalStartMs = maxOf(latestArrivalStartMs, receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS)
+        }
+        val startMs = OttaiBleManager.arrivalBoundStartMs(dataNo, receivedAtMs)
+        if (startMs >= anchorStartMs) {
+            clearPending()
+            return 0L
+        }
+        val agrees = pendingDataNo in 0 until dataNo &&
+            receivedAtMs - pendingReceivedAtMs in 1..MAX_PENDING_AGE_MS &&
+            abs(pendingStartMs - startMs) <= RECORD_INTERVAL_MS
+        if (!agrees) {
+            pendingStartMs = startMs
+            pendingDataNo = dataNo
+            pendingReceivedAtMs = receivedAtMs
+            return 0L
+        }
+        // The later of the two: a counter one ahead that still lands inside the agreement window
+        // cannot pull the start further than the genuine frame does.
+        val agreedMs = maxOf(pendingStartMs, startMs)
+        clearPending()
+        val floorMs = floorMs()
+        return if (floorMs > 0L && agreedMs >= floorMs) agreedMs else 0L
+    }
+
+    /** Lowest start a correction may still reach, or 0 when the anchor may not be corrected. */
+    @Synchronized
+    fun floorMs(): Long =
+        if (lowestStartMs > 0L && latestArrivalStartMs > 0L) {
+            maxOf(lowestStartMs, latestArrivalStartMs - MAX_CORRECTED_LAG_MS)
+        } else {
+            0L
+        }
+
+    private fun clearPending() {
+        pendingStartMs = 0L
+        pendingDataNo = -1
+        pendingReceivedAtMs = 0L
+    }
+}
+
 @SuppressLint("MissingPermission")
 class OttaiBleManager(
     serial: String,
@@ -313,6 +422,33 @@ class OttaiBleManager(
             receivedAtMs > 0L &&
                 sampleMs > 0L &&
                 abs(receivedAtMs - sampleMs) <= CURRENT_SAMPLE_FRESH_MS + CURRENT_SAMPLE_FLOOR_GRACE_MS
+
+        /**
+         * The latest stream start a live record allows: the one that dates it at its arrival
+         * minute. A record cannot be measured after it arrives, so any later anchor puts this
+         * record — and every later record dated from that anchor — in the future.
+         */
+        internal fun arrivalBoundStartMs(dataNo: Int, receivedAtMs: Long): Long =
+            (receivedAtMs / RECORD_INTERVAL_MS - dataNo) * RECORD_INTERVAL_MS
+
+        /**
+         * A live record's time from a confirmed stream start, never later than its arrival
+         * minute: an anchor that would date it after it arrived is wrong, and so is that date.
+         */
+        internal fun anchoredLiveSampleMs(startMs: Long, dataNo: Int, receivedAtMs: Long): Long =
+            minOf(startMs + dataNo.toLong() * RECORD_INTERVAL_MS, (receivedAtMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS)
+
+        /**
+         * Whether a live record's monitor time (activeTime + runtime) may anchor the stream. It
+         * may lag arrival by the freshness window but must not date the record after arrival:
+         * the first live frame of a session anchors the whole session on it, so an activeTime
+         * a minute late passed the old two-sided check and dated every reading until the next
+         * reconnect up to two minutes in the future.
+         */
+        internal fun isUsableLiveMonitorTime(monitorMs: Long, receivedAtMs: Long): Boolean =
+            monitorMs > 0L &&
+                (monitorMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS <= receivedAtMs &&
+                receivedAtMs - monitorMs <= CURRENT_SAMPLE_FRESH_MS
 
         /**
          * Whether the one-shot live read after a history payload is worth its round-trip.
@@ -687,6 +823,9 @@ class OttaiBleManager(
 
     private val handlerThread = HandlerThread("Ottai-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
+    // BLE binder callbacks and the handler both write native storage. Permanent shutdown
+    // drains this lock before the registry can finish the shell and remove its owner record.
+    private val nativeMirrorLock = Any()
     private val nativeGlucoseMirror = OttaiNativeGlucoseMirror(
         writeNative = { timestampSec, glucose, temperatureC, sensorId ->
             Natives.addGlucoseStreamWithTemp(timestampSec, glucose, temperatureC, sensorId)
@@ -763,11 +902,10 @@ class OttaiBleManager(
             OttaiCloudClient.CloudFailure("Timed out while fetching sensor credentials"),
         )
     }
-    /** True while a CN cloud session exists — the only profile that serves /cgmAuth/verify. */
-    private fun cnActiveAuthSessionAvailable(): Boolean {
+    /** True while a cloud session that can sign /cgmAuth/verify exists (CN phone, Syai, global). */
+    private fun activeAuthSessionAvailable(): Boolean {
         val ctx = Applic.app ?: return false
-        return OttaiRegistry.loadSessionProfile(ctx) == OttaiRegistry.SessionProfile.CN_PHONE &&
-            OttaiRegistry.loadAccessToken(ctx).isNotBlank()
+        return OttaiCloudClient.activeAuthSessionAvailable(ctx)
     }
 
     private fun v3CredentialBootstrapActive(): Boolean {
@@ -776,7 +914,7 @@ class OttaiBleManager(
         return ottaiAuthEntryMode(
             hasAuthKeys = authKeys != null,
             bootstrapPending = OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
-            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            activeAuthSessionAvailable = activeAuthSessionAvailable(),
             validatedDeviceVersion = OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id),
         ) == OttaiAuthEntryMode.V3_CREDENTIAL_BOOTSTRAP
     }
@@ -999,6 +1137,8 @@ class OttaiBleManager(
     @Volatile private var streamStartReliable = false
     // First reliable activation start seen this session, held until a second one corroborates it.
     @Volatile private var pendingConfirmedStartMs = 0L
+    // Corrects a stream start that dates live records after they arrive; fed accepted frames only.
+    private val arrivalStartCorrection = OttaiArrivalStartCorrection()
     @Volatile private var lastBleActivityAtMs = 0L
     // When the sensor last pushed a live frame on its own. The poll below is a safety net for
     // notifications stopping, not a second data path, so it stands down while they are flowing.
@@ -1182,21 +1322,24 @@ class OttaiBleManager(
      * 2000, and rebase deliberately clears the unusable zero-era stream window.
      */
     private fun repairSecondsUnitNativeStart(id: String) {
-        val correctedStartSec = materials.activeTimeMs / 1_000L
-        if (correctedStartSec < 946_684_800L) return
-        runCatching {
-            val minimumRecords = OttaiConstants.EXTENDED_LIFETIME_DAYS * 24 * 60
-            val sensorPtr = Natives.ensureSensorShellWithCapacity(id, correctedStartSec, minimumRecords)
-                .takeIf { it != 0L }
-                ?: Natives.ensureSensorShell(id, correctedStartSec)
-            if (sensorPtr == 0L) return@runCatching
-            Natives.setSensorManagedFamily(id, ManagedSensorUiFamily.OTTAI.nativeCode)
-            val nativeStartSec = Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1_000L
-            if (nativeStartSec in 1L until 946_684_800L) {
-                Log.w(TAG, "repairing seconds-unit native start for $id")
-                Natives.rebaseDirectStreamWindow(id, correctedStartSec)
-            }
-        }.onFailure { Log.stack(TAG, "repair seconds-unit native start", it) }
+        synchronized(nativeMirrorLock) {
+            if (stop) return
+            val correctedStartSec = materials.activeTimeMs / 1_000L
+            if (correctedStartSec < 946_684_800L) return
+            runCatching {
+                val minimumRecords = OttaiConstants.EXTENDED_LIFETIME_DAYS * 24 * 60
+                val sensorPtr = Natives.ensureSensorShellWithCapacity(id, correctedStartSec, minimumRecords)
+                    .takeIf { it != 0L }
+                    ?: Natives.ensureSensorShell(id, correctedStartSec)
+                if (sensorPtr == 0L) return@runCatching
+                Natives.setSensorManagedFamily(id, ManagedSensorUiFamily.OTTAI.nativeCode)
+                val nativeStartSec = Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1_000L
+                if (nativeStartSec in 1L until 946_684_800L) {
+                    Log.w(TAG, "repairing seconds-unit native start for $id")
+                    Natives.rebaseDirectStreamWindow(id, correctedStartSec)
+                }
+            }.onFailure { Log.stack(TAG, "repair seconds-unit native start", it) }
+        }
     }
 
     private val reconnectRunnable = Runnable {
@@ -1452,7 +1595,18 @@ class OttaiBleManager(
         connectDevice(0)
     }
 
+    /** Stop before the registry retires the shell; close() waits for native writes to finish. */
+    internal fun stopForRemoval() {
+        stop = true
+        close()
+    }
+
     override fun close() {
+        if (stop) {
+            // Do not hold this lock while closing GATT: its lifecycle uses the callback monitor.
+            // The stopped flag is checked under the same lock by every native writing path.
+            synchronized(nativeMirrorLock) { }
+        }
         advertisementProbe.stop()
         resetServerActiveAuthState()
         if (stop) {
@@ -2055,7 +2209,7 @@ class OttaiBleManager(
             hasAuthKeys = authKeys != null,
             bootstrapPending = ctx != null && id != null &&
                 OttaiRegistry.isV3CredentialBootstrapPending(ctx, id),
-            cnSessionAvailable = cnActiveAuthSessionAvailable(),
+            activeAuthSessionAvailable = activeAuthSessionAvailable(),
             validatedDeviceVersion = if (ctx != null && id != null) {
                 OttaiRegistry.loadLastValidatedDeviceVersion(ctx, id)
             } else {
@@ -3047,6 +3201,7 @@ class OttaiBleManager(
     }
 
     private fun handleGlucosePayload(cipher: ByteArray, live: Boolean, source: String) {
+        if (stop) return
         if (sessionKeyHex.isBlank()) { Log.w(TAG, "payload before session key"); return }
         if (live && commandStatus >= 4) {
             handleEndedLiveBuffer(cipher, source)
@@ -3245,9 +3400,11 @@ class OttaiBleManager(
             },
         )
         rememberAcceptedReading(r, mmol, sampleMs)
+        if (live) correctStreamStartFromArrival(r.record.dataNo, receivedAtMs)
         if (advancesDataNo) noteSeenDataNo(r.record.dataNo)
-        Log.i(TAG, "BG dataNo=${r.record.dataNo} mmol=%.2f mgdl=%.0f raw=%d T=%.1f".format(
-            mmol, mgdl, r.record.rawCurrent, r.record.temperatureC))
+        // lag = arrival minus sample time: tells a late delivery from a misdated record.
+        Log.i(TAG, "BG dataNo=${r.record.dataNo} mmol=%.2f mgdl=%.0f raw=%d T=%.1f lag=%ds".format(
+            mmol, mgdl, r.record.rawCurrent, r.record.temperatureC, (receivedAtMs - sampleMs) / 1000L))
         val shouldPersist = !live ||
             (freshLiveSample && sampleMs > currentDecision.previousDisplayedHighWaterMs)
         return EmittedReading(
@@ -3559,43 +3716,49 @@ class OttaiBleManager(
      * reached Nightscout no matter how long it had been running.
      */
     private fun mirrorHistoryIntoNative(id: String, readings: List<EmittedReading>) {
-        if (readings.isEmpty()) return
-        runCatching {
-            ensureNativePresenceShell("history-mirror")
-            val stored = nativeGlucoseMirror.mirrorHistory(
-                id,
-                LongArray(readings.size) { readings[it].sampleMs },
-                FloatArray(readings.size) { readings[it].mgdl },
-                FloatArray(readings.size) { readings[it].temperatureC },
-            )
-            if (stored > 0) {
-                applyActivatedWearToNative(id)
-                Natives.wakebackup()
-                Log.i(TAG, "mirrored $stored/${readings.size} history readings into native")
-            }
-        }.onFailure { Log.stack(TAG, "mirrorHistoryIntoNative", it) }
+        synchronized(nativeMirrorLock) {
+            if (stop) return
+            if (readings.isEmpty()) return
+            runCatching {
+                ensureNativePresenceShell("history-mirror")
+                val stored = nativeGlucoseMirror.mirrorHistory(
+                    id,
+                    LongArray(readings.size) { readings[it].sampleMs },
+                    FloatArray(readings.size) { readings[it].mgdl },
+                    FloatArray(readings.size) { readings[it].temperatureC },
+                )
+                if (stored > 0) {
+                    applyActivatedWearToNative(id)
+                    Natives.wakebackup()
+                    Log.i(TAG, "mirrored $stored/${readings.size} history readings into native")
+                }
+            }.onFailure { Log.stack(TAG, "mirrorHistoryIntoNative", it) }
+        }
     }
 
     private fun mirrorLiveReadingIntoNative(
         id: String,
         reading: EmittedReading,
     ) {
-        runCatching {
-            ensureNativePresenceShell("glucose-mirror")
-            val stored = nativeGlucoseMirror.mirrorLive(
-                id,
-                reading.sampleMs,
-                reading.mgdl,
-                reading.temperatureC,
-            )
-            if (stored) {
-                applyActivatedWearToNative(id)
-                Natives.wakebackup()
-                // The shell is sized and the start is known by the time a live write lands, so
-                // this is the first safe moment to close whatever native is missing.
-                handler.post { reconcileNativeFromRoom(id) }
-            }
-        }.onFailure { Log.stack(TAG, "mirrorLiveReadingIntoNative", it) }
+        synchronized(nativeMirrorLock) {
+            if (stop) return
+            runCatching {
+                ensureNativePresenceShell("glucose-mirror")
+                val stored = nativeGlucoseMirror.mirrorLive(
+                    id,
+                    reading.sampleMs,
+                    reading.mgdl,
+                    reading.temperatureC,
+                )
+                if (stored) {
+                    applyActivatedWearToNative(id)
+                    Natives.wakebackup()
+                    // The shell is sized and the start is known by the time a live write lands, so
+                    // this is the first safe moment to close whatever native is missing.
+                    handler.post { reconcileNativeFromRoom(id) }
+                }
+            }.onFailure { Log.stack(TAG, "mirrorLiveReadingIntoNative", it) }
+        }
     }
 
     // Once per sensor per process. See reconcileNativeFromRoom.
@@ -3617,6 +3780,7 @@ class OttaiBleManager(
      * missing costs some writes and produces no resend.
      */
     private fun reconcileNativeFromRoom(id: String) {
+        if (stop) return
         if (nativeReconciledFor == id) return
         val startMs = nativePresenceStartTimeMs()
         if (startMs <= 0L) return
@@ -3632,14 +3796,21 @@ class OttaiBleManager(
                 it.timestamp > 0L && it.value.isFinite() && it.value > 0f
             }
             if (usable.isEmpty()) return@runCatching
-            ensureNativePresenceShell("room-reconcile")
-            val written = nativeGlucoseMirror.mirrorHistory(
-                id,
-                LongArray(usable.size) { usable[it].timestamp },
-                FloatArray(usable.size) { usable[it].value },
-                FloatArray(usable.size) { 0f },
-            )
-            Log.i(TAG, "reconciled native from Room for $id: wrote $written/${usable.size}")
+            // Query Room outside the write lock; shutdown only needs to drain native writes.
+            synchronized(nativeMirrorLock) {
+                if (stop) {
+                    nativeReconciledFor = null
+                    return@runCatching
+                }
+                ensureNativePresenceShell("room-reconcile")
+                val written = nativeGlucoseMirror.mirrorHistory(
+                    id,
+                    LongArray(usable.size) { usable[it].timestamp },
+                    FloatArray(usable.size) { usable[it].value },
+                    FloatArray(usable.size) { 0f },
+                )
+                Log.i(TAG, "reconciled native from Room for $id: wrote $written/${usable.size}")
+            }
         }.onFailure {
             nativeReconciledFor = null
             Log.stack(TAG, "reconcileNativeFromRoom", it)
@@ -3701,19 +3872,27 @@ class OttaiBleManager(
         // While the start is reliable-but-unconfirmed, live records must keep flowing through the
         // anchor path; an unreliable anchor is still overridden by them, as before.
         if (streamStartTimeMs > 0L && (materials.activeTimeMs > 0L || !live)) {
-            return streamStartTimeMs + r.record.dataNo.toLong() * RECORD_INTERVAL_MS
+            val anchoredMs = streamStartTimeMs + r.record.dataNo.toLong() * RECORD_INTERVAL_MS
+            if (live && receivedAtMs > 0L && anchoredMs > receivedAtMs) {
+                // Dating only: this frame may still be rejected, so the anchor itself is left to
+                // correctStreamStartFromArrival once it is accepted.
+                Log.w(TAG, "live dataNo=${r.record.dataNo} anchored ${(anchoredMs - receivedAtMs) / 1000L}s " +
+                    "after arrival; dated at arrival")
+                return anchoredLiveSampleMs(streamStartTimeMs, r.record.dataNo, receivedAtMs)
+            }
+            return anchoredMs
         }
 
         if (live && receivedAtMs > 0L && r.record.dataNo >= 0) {
             val monitorMs = r.monitorTimeMs
-            if (monitorMs > 0L && kotlin.math.abs(receivedAtMs - monitorMs) <= CURRENT_SAMPLE_FRESH_MS) {
-                return seedStreamTimeAnchor(r.record.dataNo, monitorMs, "monitor-live", reliable = true)
+            if (isUsableLiveMonitorTime(monitorMs, receivedAtMs)) {
+                return seedStreamTimeAnchor(r.record.dataNo, monitorMs, "monitor-live", reliable = true, receivedAtMs)
             }
             if (monitorMs > 0L) {
-                val deltaSec = kotlin.math.abs(receivedAtMs - monitorMs) / 1000L
-                Log.w(TAG, "ignore stale live monitor timestamp dataNo=${r.record.dataNo} monitor=${monitorMs / 1000L} live=${receivedAtMs / 1000L} delta=${deltaSec}s")
+                val deltaSec = (receivedAtMs - monitorMs) / 1000L
+                Log.w(TAG, "ignore live monitor timestamp dataNo=${r.record.dataNo} monitor=${monitorMs / 1000L} live=${receivedAtMs / 1000L} lag=${deltaSec}s")
             }
-            return seedStreamTimeAnchor(r.record.dataNo, receivedAtMs, "live", reliable = true)
+            return seedStreamTimeAnchor(r.record.dataNo, receivedAtMs, "live", reliable = true, receivedAtMs)
         }
 
         r.monitorTimeMs.takeIf { it > 0L }?.let { monitorMs ->
@@ -3730,12 +3909,41 @@ class OttaiBleManager(
         return r.monitorTimeMs
     }
 
+    /**
+     * Lower the stream start once two consecutive accepted live frames show it dates records
+     * after they arrive (OttaiArrivalStartCorrection). Runs after the frame has passed every
+     * gate: a rejected frame must leave no trace on the anchor.
+     */
+    private fun correctStreamStartFromArrival(dataNo: Int, receivedAtMs: Long) {
+        val anchorMs = streamStartTimeMs
+        val correctedMs = arrivalStartCorrection.onAcceptedLive(anchorMs, dataNo, receivedAtMs)
+        if (correctedMs <= 0L) {
+            val impliedMs = arrivalBoundStartMs(dataNo, receivedAtMs)
+            val floorMs = arrivalStartCorrection.floorMs()
+            if (anchorMs > 0L && floorMs > 0L && impliedMs < floorMs) {
+                Log.w(TAG, "live dataNo=$dataNo implies start ${impliedMs / 1000L}, below the lowest " +
+                    "correction ${floorMs / 1000L} of anchor ${anchorMs / 1000L}; anchor kept")
+            }
+            return
+        }
+        // Not reliable-flagged anew and not persisted: the confirmed activeTime is untouched.
+        streamStartTimeMs = correctedMs
+        Log.w(TAG, "stream anchor ${anchorMs / 1000L} -> ${correctedMs / 1000L} from live arrival dataNo=$dataNo")
+    }
+
     // reliable = the sampleHint is an independent wall-clock/monitor timestamp (live poll or a
     // record's own monitor time), so start = hint - dataNo*interval is the true activation. Such
     // a start is committed as the effective active time (persisted) so the dashboard and native
     // record stop showing the bogus cgm-info "just now" provisional. Sources whose hint is itself
     // derived from effectiveActiveTimeMs (active/initial-history/ended-live) must NOT set reliable.
-    private fun seedStreamTimeAnchor(dataNo: Int, sampleHintMs: Long, reason: String, reliable: Boolean = false): Long {
+    // receivedAtMs is the arrival of the live frame the hint came from, 0 for any other source.
+    private fun seedStreamTimeAnchor(
+        dataNo: Int,
+        sampleHintMs: Long,
+        reason: String,
+        reliable: Boolean = false,
+        receivedAtMs: Long = 0L,
+    ): Long {
         if (dataNo < 0 || sampleHintMs <= 0L) return sampleHintMs
         val sampleMs = floorToRecordMinute(sampleHintMs)
         val start = sampleMs - dataNo.toLong() * RECORD_INTERVAL_MS
@@ -3749,6 +3957,10 @@ class OttaiBleManager(
             }
             streamStartTimeMs = start
             streamStartReliable = reliable
+            arrivalStartCorrection.onAnchorSeeded(
+                start,
+                if (receivedAtMs > 0L) receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS else 0L,
+            )
             if (old == 0L || kotlin.math.abs(old - start) > RECORD_INTERVAL_MS) {
                 Log.i(TAG, "stream time anchor dataNo=$dataNo start=${start / 1000L} sample=${sampleMs / 1000L} source=$reason reliable=$reliable")
             }
@@ -3778,25 +3990,28 @@ class OttaiBleManager(
     @Volatile private var nativeCapacityCheckedFor: String? = null
 
     private fun ensureNativePresenceShell(reason: String) {
-        val id = SerialNumber ?: return
-        val startMs = nativePresenceStartTimeMs()
-        if (id.isBlank() || startMs <= 0L) return
-        runCatching {
-            val startSec = (startMs / 1000L).coerceAtLeast(1L)
-            val minimumRecords = OttaiConstants.EXTENDED_LIFETIME_DAYS * 24 * 60
-            if (Natives.ensureSensorShellWithCapacity(id, startSec, minimumRecords) == 0L) {
-                Natives.ensureSensorShell(id, startSec)
-            }
-            Natives.setSensorManagedFamily(id, ManagedSensorUiFamily.OTTAI.nativeCode)
-            applyActivatedWearToNative(id)
-            if (nativeCapacityCheckedFor != id) {
-                if (!Natives.hasSensorStreamCapacity(id, minimumRecords)) {
-                    Log.e(TAG, "native poll capacity below $minimumRecords for $id ($reason); " +
-                        "live readings past the mapped window will not reach Nightscout")
+        synchronized(nativeMirrorLock) {
+            if (stop) return
+            val id = SerialNumber ?: return
+            val startMs = nativePresenceStartTimeMs()
+            if (id.isBlank() || startMs <= 0L) return
+            runCatching {
+                val startSec = (startMs / 1000L).coerceAtLeast(1L)
+                val minimumRecords = OttaiConstants.EXTENDED_LIFETIME_DAYS * 24 * 60
+                if (Natives.ensureSensorShellWithCapacity(id, startSec, minimumRecords) == 0L) {
+                    Natives.ensureSensorShell(id, startSec)
                 }
-                nativeCapacityCheckedFor = id
-            }
-        }.onFailure { Log.stack(TAG, "ensureNativePresenceShell($reason)", it) }
+                Natives.setSensorManagedFamily(id, ManagedSensorUiFamily.OTTAI.nativeCode)
+                applyActivatedWearToNative(id)
+                if (nativeCapacityCheckedFor != id) {
+                    if (!Natives.hasSensorStreamCapacity(id, minimumRecords)) {
+                        Log.e(TAG, "native poll capacity below $minimumRecords for $id ($reason); " +
+                            "live readings past the mapped window will not reach Nightscout")
+                    }
+                    nativeCapacityCheckedFor = id
+                }
+            }.onFailure { Log.stack(TAG, "ensureNativePresenceShell($reason)", it) }
+        }
     }
 
     /** Real activated lifetime in whole days (rounded), or 0 if unknown. */
@@ -3807,10 +4022,13 @@ class OttaiBleManager(
 
     /** Push the real activated lifetime to the native sensor record (main-graph end). */
     private fun applyActivatedWearToNative(id: String) {
-        val days = activatedLifetimeDays()
-        if (days <= 0 || id.isBlank()) return
-        runCatching { Natives.setSensorWearDays(id, days) }
-            .onFailure { Log.stack(TAG, "setSensorWearDays", it) }
+        synchronized(nativeMirrorLock) {
+            if (stop) return
+            val days = activatedLifetimeDays()
+            if (days <= 0 || id.isBlank()) return
+            runCatching { Natives.setSensorWearDays(id, days) }
+                .onFailure { Log.stack(TAG, "setSensorWearDays", it) }
+        }
     }
 
     /**

@@ -26,6 +26,8 @@
 #include "jniclass.hpp"
 #include "streamdata.hpp"
 #include <algorithm>
+#include <cstring>
+#include <string_view>
 #include <time.h>
 /*
 bed-datatype:
@@ -52,7 +54,6 @@ Composed(19,19,0,11,[
 // drivers built without the Dexcom flavour can share it.
 int rate2changeindex(float rate) { return ratetolegacytrendindex(rate); }
 
-constexpr const int dexmaxtime = 907500; //  907385
 constexpr const int DEXSECONDS = 5 * 60;
 
 extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
@@ -131,6 +132,7 @@ struct glucoseinput {
 #endif
     const auto wastime = nowsec - age;
 
+    const int dexmaxtime = sens->getDexMaxSecs();
     if (secsSinceStart <= dexmaxtime && mgdL >= 39 && mgdL <= 501 &&
         secsSinceStart >= sens->getWarmupSEC() &&
         index < sens->maxstreampos()) {
@@ -155,7 +157,7 @@ struct glucoseinput {
       }
     } else {
       if (secsSinceStart > dexmaxtime &&
-          sens->getinfo()->lastLifeCountReceived < maxdexcount) {
+          sens->getinfo()->lastLifeCountReceived < sens->getmaxdexcount()) {
         LOGGER("over endtime and only %d received\n",
                sens->getinfo()->lastLifeCountReceived);
         sensor *sensor = sensors->getsensor(sensorindex);
@@ -285,8 +287,9 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
     return mkbackfillcmd(envin, start, end);
   } else {
     auto now = time(nullptr);
+    const int dexmaxtime = sens->getDexMaxSecs();
     if ((now - starttime) > dexmaxtime) {
-      if (was < maxdexcount) {
+      if (was < sens->getmaxdexcount()) {
         int start;
         if (was > 0) {
           time_t starts = sens->getstream(was)->gettime() + 60;
@@ -356,23 +359,47 @@ void showdata(const uint32_t sensorstart) const {
 } __attribute__((packed));
 extern "C" JNIEXPORT jboolean JNICALL fromjava(dexbackfill)(
     JNIEnv *envin, jclass cl, jlong dataptr, jbyteArray bluetoothdata) {
-  const auto arlen = envin->GetArrayLength(bluetoothdata);
-  if (arlen < sizeof(struct dexbackfill)) {
-    LOGGER("dexbackffill: too small %d<%d\n", arlen,
-           sizeof(struct dexbackfill));
+  if (!dataptr || !bluetoothdata) {
+    LOGAR("dexbackfill null input");
+    return false;
+  }
+  constexpr jsize recordsize = sizeof(struct dexbackfill);
+  static_assert(recordsize == 9, "Unexpected Dexcom backfill record size");
+  const jsize arlen = envin->GetArrayLength(bluetoothdata);
+  if (arlen < recordsize || arlen % recordsize != 0) {
+    LOGGER("dexbackfill invalid length=%d; expected a multiple of %d\n",
+           arlen, recordsize);
     return false;
   }
   dexcomstream *sdata = reinterpret_cast<dexcomstream *>(dataptr);
   SensorGlucoseData *sens = sdata->hist;
-  const CritAr bluedata(envin, bluetoothdata);
-  const dexbackfill *back = reinterpret_cast<decltype(back)>(bluedata.data());
-  if (!back->usable()) {
-    LOGAR("dexbackfill unusable");
+  if (!sens) {
+    LOGAR("dexbackfill SensorGlucoseData==null");
     return false;
   }
-  back->backfill(sens);
-  LOGAR("dexbackfill saved");
-  return true;
+  const CritAr bluedata(envin, bluetoothdata);
+  const auto *bytes = reinterpret_cast<const unsigned char *>(bluedata.data());
+  int saved = 0;
+  // A notification can carry multiple consecutive nine-byte records.
+  for (jsize offset = 0; offset < arlen; offset += recordsize) {
+    struct dexbackfill back;
+    std::memcpy(&back, bytes + offset, sizeof(back));
+    if (!back.usable()) {
+      LOGGER("dexbackfill unusable offset=%d type=%u\n", offset,
+             static_cast<unsigned>(back.type));
+      continue;
+    }
+    const int id = back.getindex();
+    if (back.secsSinceStart < 0 || id >= sens->maxstreampos()) {
+      LOGGER("dexbackfill invalid offset=%d secsSinceStart=%d index=%d\n",
+             offset, back.secsSinceStart, id);
+      continue;
+    }
+    back.backfill(sens);
+    ++saved;
+  }
+  LOGGER("dexbackfill saved=%d records=%d\n", saved, arlen / recordsize);
+  return saved != 0;
 }
 extern bool validate12(const PCert &cert); // 01?
 extern bool validate3(const EC_POINT *g1, const EC_POINT *g2,
@@ -597,15 +624,11 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(dexKnownSensor)(JNIEnv *env,
 }
 
 static bool isG7(const char *deviceName) {
-  if (memcmp(deviceName, "DX", 2))
+  if (!deviceName)
     return false;
-  const char *const rest = deviceName + 2;
-  const char conti[][3] = {"CM", "02", "01"};
-  for (const char *el : conti) {
-    if (!memcmp(el, rest, 2))
-      return true;
-  }
-  return false;
+  const std::string_view name(deviceName);
+  return name.starts_with("DXCM") || name.starts_with("DX02") ||
+         name.starts_with("DX01") || name.starts_with("DX04");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

@@ -86,6 +86,25 @@ class OttaiCloudUnbindTests {
         assertEquals("http=503 biz=", result.failure?.text)
     }
 
+    @Test
+    fun retiredRouteKeepsItsHttpStatusForTheV3Fallback() {
+        // Syai's answer to validateDeviceByMacV2 since October 2026: Spring's default error body,
+        // which carries no business code — only the status tells a retired route apart.
+        val failure = request(
+            404,
+            """{"timestamp":"2026-10-12T11:21:34.252+00:00","status":404,"error":"Not Found","path":"/device/validateDeviceByMacV2"}""",
+        ).failure!!
+        assertEquals("", failure.code)
+        assertEquals(404, failure.httpStatus)
+        assertTrue(
+            OttaiCloudClient.shouldValidateViaV3(
+                OttaiConstants.API_BASE_SYAI,
+                OttaiRegistry.SessionProfile.WATCH,
+                failure,
+            ),
+        )
+    }
+
     private fun request(
         status: Int,
         json: String,

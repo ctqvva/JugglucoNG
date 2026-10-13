@@ -253,6 +253,9 @@ object AlertRuntimeManager {
         val type = standardGlucoseAlertTypes.firstOrNull { it in activeTypes }
             ?: return AlertRuntimeEvaluation()
         val condition = activeConditions[type] ?: return AlertRuntimeEvaluation()
+        Notify.refreshRetryReading(type.id, condition.glucoseValue, rate,
+            buildStandardAlertMessage(type, condition, configs[type]),
+            lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs)
 
         // The opted-in alert would be shown beside a downward arrow, contradicting its own
         // sentence. It waits rather than resolves: the episode stays open, so a dismissal and
@@ -262,9 +265,10 @@ object AlertRuntimeManager {
             FallSuppressionPolicy.highFallingSuppresses(rate, configs[type]?.fallRateSuppress)
         ) {
             Notify.cancelRetrySession(type.id, "high-falling")
-            if (transition.shouldTryFire(type)) {
-                standardEpisodes.markPendingDelivery(type)
-            }
+            // A queued first delivery can have been invalidated before it fired.
+            // Keep the condition eligible once the fall ends; the tracker still
+            // suppresses an episode that really did fire before the fall.
+            standardEpisodes.markPendingDelivery(type)
             return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
 

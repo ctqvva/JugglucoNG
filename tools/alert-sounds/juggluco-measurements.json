@@ -2,73 +2,73 @@
   "alert_juggluco_low.wav": {
     "frames": 756864,
     "seconds": 15.768,
-    "peak_dbfs": -4.4,
-    "rms_dbfs": -17.93,
-    "active_rms_dbfs": -17.5,
-    "sha256": "bea5f2e7761b9d96357185a80a84075dd553b54d2ac1c52bf9b528499cac74ff"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -14.53,
+    "active_rms_dbfs": -14.1,
+    "sha256": "b9a0a07228329c5cf13526856d468e58d0cb5a2041ff6c2b8cac61cc6f34d934"
   },
   "alert_juggluco_high.wav": {
     "frames": 385920,
     "seconds": 8.04,
-    "peak_dbfs": -7.46,
-    "rms_dbfs": -19.65,
-    "active_rms_dbfs": -17.5,
-    "sha256": "5e4a20d65632092148e53c7140607b3efd012ac012c0efd831b8668f2921484d"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -13.2,
+    "active_rms_dbfs": -11.04,
+    "sha256": "877bbe7f30be8bb629a047fe21e0b5bd9042bd7abf637cf35e1c0dce5b9f3436"
   },
   "alert_juggluco_urgent_low.wav": {
     "frames": 372096,
     "seconds": 7.752,
-    "peak_dbfs": -4.82,
-    "rms_dbfs": -15.45,
-    "active_rms_dbfs": -15.25,
-    "sha256": "44b7c27e61303153a8bc4547e95146f59c1190ef890c1be7dc80a05569ea9762"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -11.63,
+    "active_rms_dbfs": -11.43,
+    "sha256": "54b53b5e67e8bcf2f1783890c1aa7825dcac7331b0df91622572a22b4ed1938c"
   },
   "alert_juggluco_urgent_high.wav": {
     "frames": 235008,
     "seconds": 4.896,
-    "peak_dbfs": -3.95,
-    "rms_dbfs": -15.57,
-    "active_rms_dbfs": -15.25,
-    "sha256": "7b019b8d35022202ac47cfc2dcaa1e4bda47894565fa9ff5e85ba7d7158d05df"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -12.61,
+    "active_rms_dbfs": -12.3,
+    "sha256": "ec5ee48375972f7d134890ffceb977ef08e751113f9c3bbcdc630039bec9cab5"
   },
   "alert_juggluco_falling.wav": {
     "frames": 452736,
     "seconds": 9.432,
-    "peak_dbfs": -7.21,
-    "rms_dbfs": -17.65,
-    "active_rms_dbfs": -17.5,
-    "sha256": "5cdf982ec90bbe7a17e9a34a174321d07fc5e807b9a3b6369d6156287eac7124"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -11.44,
+    "active_rms_dbfs": -11.29,
+    "sha256": "656963bfd307c3855bbf9bae7f8f819b2b7d68d0a555749ad9e171620b85404a"
   },
   "alert_juggluco_rising.wav": {
     "frames": 371147,
     "seconds": 7.7322291666666665,
-    "peak_dbfs": -4.6,
-    "rms_dbfs": -17.67,
-    "active_rms_dbfs": -17.5,
-    "sha256": "6b871c58cffda710aa22fe73e8901cd451df10882cee2a0431a9c8fd6df3cf4d"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -14.07,
+    "active_rms_dbfs": -13.9,
+    "sha256": "4899d55e14c9187ba9a631a55ec52c6f087f2f56253441c723b4e5c2bf38baa6"
   },
   "alert_juggluco_signal.wav": {
     "frames": 198002,
     "seconds": 4.125041666666666,
-    "peak_dbfs": -3.0,
-    "rms_dbfs": -25.07,
-    "active_rms_dbfs": -22.45,
-    "sha256": "2bf15a645bab8dea6fa9fbf1eb376e894965ffcd3ed6be6961625b476c6a2b82"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -23.07,
+    "active_rms_dbfs": -20.44,
+    "sha256": "b8b3d9b5a34b4935cf65a11ed003bca8234053b4f44d1b202e5c1b6c982b71c4"
   },
   "alert_juggluco_reminder.wav": {
     "frames": 306412,
     "seconds": 6.383583333333333,
-    "peak_dbfs": -6.11,
-    "rms_dbfs": -24.15,
-    "active_rms_dbfs": -17.5,
-    "sha256": "c060bbd4bd622ef87e50051eb32fbac93d102bfe78363a046d97840380158edb"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -19.04,
+    "active_rms_dbfs": -12.39,
+    "sha256": "f4350dcf1ca4859c89f7b1b33c082c21b6de027e3dd9ae4b30d2bed71c4a5c05"
   },
   "alert_juggluco_notice.wav": {
     "frames": 427991,
     "seconds": 8.916479166666667,
-    "peak_dbfs": -4.41,
-    "rms_dbfs": -20.35,
-    "active_rms_dbfs": -17.5,
-    "sha256": "2b16debf6b96892cf9ae98f60a520cbea3e5769bfdfbc90f444baf12933b87d8"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -16.94,
+    "active_rms_dbfs": -14.08,
+    "sha256": "783cabb854000567f5e0afece6540a8937df3e2af48722ba6068f1d28d66c8eb"
   }
 }

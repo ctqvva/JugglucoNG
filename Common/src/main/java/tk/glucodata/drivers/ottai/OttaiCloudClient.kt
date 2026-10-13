@@ -85,9 +85,10 @@ object OttaiCloudClient {
     /**
      * A non-secret cloud failure: [text] is what the UI appends, [code] is the backend's business
      * code (see the BIZ_ constants) for the callers that act on a specific one. [code] is blank
-     * for the failures we raise ourselves, before any response exists.
+     * for the failures we raise ourselves, before any response exists. [httpStatus] is 0 when no
+     * HTTP response arrived.
      */
-    data class CloudFailure(val text: String, val code: String = "") {
+    data class CloudFailure(val text: String, val code: String = "", val httpStatus: Int = 0) {
         /** The backend no longer accepts the stored session; the caller must sign in again. */
         val isTokenInvalid: Boolean get() = code.equals(BIZ_TOKEN_INVALID, ignoreCase = true)
     }
@@ -135,7 +136,7 @@ object OttaiCloudClient {
 
     data class DeviceValidation(
         val device: DeviceResp,
-        /** New CN firmware exposes metadata through V3, then supplies keyA only from bindV3. */
+        /** New CN firmware and every Syai sensor expose metadata through V3; keyA comes only from bindV3. */
         val requiresV3Bind: Boolean,
     )
 
@@ -211,6 +212,41 @@ object OttaiCloudClient {
     private fun activeProfile(ctx: Context, apiBase: String): OttaiRegistry.SessionProfile =
         if (apiBase == OttaiConstants.API_BASE) OttaiRegistry.loadSessionProfile(ctx)
         else OttaiRegistry.SessionProfile.WATCH
+
+    /**
+     * Backends whose session can sign /cgmAuth/verify and bindV3. CN accepts only the current
+     * phone identity there. Syai and Ottai global retired validateDeviceByMacV2 and legacy
+     * composite/bind (Spring 404, 2026-10-12) and serve the same V3 routes to the watch identity
+     * they issue tokens to — on Syai, a watch-signed verify got past the signature check to
+     * DEVICE_AUTH_KEY_INDEX_ERROR on a dummy challenge, where a wrong sign is User_SignatureInvalid.
+     */
+    internal fun supportsActiveAuth(apiBase: String, profile: OttaiRegistry.SessionProfile): Boolean =
+        when (apiBase) {
+            OttaiConstants.API_BASE -> profile == OttaiRegistry.SessionProfile.CN_PHONE
+            OttaiConstants.API_BASE_SYAI, OttaiConstants.API_BASE_GLOBAL -> true
+            else -> false
+        }
+
+    /** A signed-in session on a backend that can run the V3 Active Auth bootstrap. */
+    fun activeAuthSessionAvailable(ctx: Context): Boolean {
+        if (OttaiRegistry.loadAccessToken(ctx).isBlank()) return false
+        val apiBase = base(ctx)
+        return supportsActiveAuth(apiBase, activeProfile(ctx, apiBase))
+    }
+
+    /**
+     * Read-only V2 validation has to give way to V3 when the backend answers
+     * AppDevice_Upgrade_Version (CN, new firmware) or no longer routes V2 at all (HTTP 404, every
+     * Syai sensor since October 2026).
+     */
+    internal fun shouldValidateViaV3(
+        apiBase: String,
+        profile: OttaiRegistry.SessionProfile,
+        v2Failure: CloudFailure?,
+    ): Boolean {
+        if (v2Failure == null || !supportsActiveAuth(apiBase, profile)) return false
+        return v2Failure.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true) || v2Failure.httpStatus == 404
+    }
 
     private fun requestDeviceId(ctx: Context, profile: OttaiRegistry.SessionProfile): String =
         if (profile == OttaiRegistry.SessionProfile.CN_PHONE) {
@@ -514,8 +550,9 @@ object OttaiCloudClient {
 
     /**
      * Read-only validation. Existing sensors retain the proven V2 GET flow. Current CN firmware
-     * answers V2 with AppDevice_Upgrade_Version and requires a V3 JSON POST; that response carries
-     * authoritative device metadata but deliberately no keyA.
+     * answers V2 with AppDevice_Upgrade_Version, and Syai no longer routes V2 at all; both require
+     * a V3 JSON POST ([shouldValidateViaV3]). That response carries authoritative device metadata
+     * but deliberately no keyA.
      */
     fun validateForSetup(ctx: Context, mac: String): DeviceValidation? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
@@ -525,17 +562,15 @@ object OttaiCloudClient {
         val profile = activeProfile(ctx, apiBase)
         val deviceId = requestDeviceId(ctx, profile)
         Log.i(TAG, "validate session profile=${profile.name.lowercase(Locale.ROOT)}")
-        val resp = httpGet(
+        val v2 = httpGetWithResult(
             apiBase + OttaiConstants.EP_VALIDATE_BY_MAC,
             mapOf("mac" to canonical, "signature" to signForProfile(profile, deviceId, ts, canonical)),
             headers(ctx, ts, apiBase, profileOverride = profile),
         )
-        if (resp != null) {
+        v2.body?.let { resp ->
             parseDeviceResp(resp)?.let { return DeviceValidation(it, requiresV3Bind = false) }
         }
-        if (apiBase != OttaiConstants.API_BASE || profile != OttaiRegistry.SessionProfile.CN_PHONE ||
-            !lastFailure?.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true)
-        ) return null
+        if (!shouldValidateViaV3(apiBase, profile, v2.failure)) return null
 
         val v3Ts = now()
         val body = JSONObject().apply {
@@ -548,7 +583,7 @@ object OttaiCloudClient {
             headers(ctx, v3Ts, apiBase, profileOverride = profile),
         ) ?: return null
         val device = parseDeviceResp(v3, requireKeyA = false) ?: return null
-        Log.i(TAG, "CN V3 validation ok mac=$canonical version=${device.deviceVersion}")
+        Log.i(TAG, "V3 validation ok mac=$canonical version=${device.deviceVersion}")
         // The BLE Active Auth chain binds later, on its own connection; keep the version the
         // server validated so bindV3 can repeat it exactly.
         OttaiRegistry.saveLastValidatedDeviceVersion(ctx, canonical, device.deviceVersion)
@@ -1315,7 +1350,7 @@ object OttaiCloudClient {
                 ?.toString().orEmpty().takeIf { it != "null" }.orEmpty()
             val bizOk = bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true)
             val failure = if (code !in 200..299 || !bizOk) {
-                CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
+                CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode, code)
             } else null
             // Keep the legacy diagnostic for older callers, but return this request's own value.
             lastFailure = failure

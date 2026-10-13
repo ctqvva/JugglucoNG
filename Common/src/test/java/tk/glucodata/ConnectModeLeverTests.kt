@@ -68,12 +68,14 @@ class ConnectModeLeverTests {
         // driver now connects in a mode the 2026-08-01 dataset never measured. The Anytime
         // files are listed because the 2026-09-09 CT5 trace did measure it — see the next test
         // for what that override is still held to. Libre 2's fresh direct connections follow the
-        // same-sensor classic Juggluco recovery trace reported in issue #519.
+        // same-sensor classic Juggluco recovery trace reported in issue #519. Dexcom's
+        // timeout/background-connect comparison is reported in issue #594 and its linked commit.
         val measured = setOf(
             "AnytimeBleManager.kt",
             "AnytimeConnectRetryPolicy.kt",
             "AnytimeConnectRetryPolicyTests.kt",
             "Libre2GattCallback.java",
+            "DexGattCallback.java",
         )
         val overriders = sources("Common/src")
             .filter { it.name != "SuperGattCallback.java" && it.name != "ConnectModeLeverTests.kt" }

@@ -50,7 +50,7 @@ SCORES = {
 }
 
 
-def render(style, cue, samples):
+def render(style, cue, samples, peak_normalize=True):
     score = SCORES[style][cue]
     length = REFERENCES[cue]['frames'] / RATE
     phrase = max(t+d for t,_,_,d in score)
@@ -75,7 +75,13 @@ def render(style, cue, samples):
     # Continuous, gentle ending even when a short source has already decayed.
     release = min(round(.60*RATE),len(out))
     out[-release:] *= np.cos(np.linspace(0,np.pi/2,release))**2
-    return master(out, cue)
+    # Only the final constant gain changes; recordings, score and envelopes stay
+    # intact. The reference mode reproduces the pre-normalization PCM for checks.
+    boost = (4.5 if cue in ('low', 'urgent_low') else 3.0) if style == 'ember' else 0.0
+    if peak_normalize:
+        return master(out, cue, peak_db=-.75 if style == 'ember' else -1.0,
+                      peak_normalize=True)
+    return master(out, cue, boost_db=boost, peak_db=-1.5 if style == 'ember' else -3.0)
 
 
 def save_or_check(path, data, check):

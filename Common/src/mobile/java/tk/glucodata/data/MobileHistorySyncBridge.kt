@@ -13,6 +13,9 @@ object MobileHistorySyncBridge : HistorySyncBridge {
     override fun syncRecentSensorFromNative(serial: String, anchorTimeMs: Long) =
         HistorySync.syncRecentSensorFromNative(serial, anchorTimeMs)
 
+    override fun syncSensorWindowFromNative(serial: String, startTimeMs: Long) =
+        HistorySync.syncSensorWindowFromNative(serial, startTimeMs)
+
     override fun forceFullSyncForSensor(serial: String) = HistorySync.forceFullSyncForSensor(serial)
 
     override fun mergeFullSyncForSensor(serial: String) = HistorySync.mergeFullSyncForSensor(serial)

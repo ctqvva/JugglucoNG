@@ -36,10 +36,9 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
  * The body every alert shares: master, standard and custom.
  *
  * What most people set sits first and needs no label to be read - the three
- * feedback toggles, the intensity under them, the notification/alarm choice,
- * the duration, the sound. Everything a typical user never touches is under
- * one collapsed "Advanced" row: silent-mode override, delayed sound, active
- * hours, retries, the default snooze, and whatever the alert adds through
+ * feedback toggles and the sound choice. Overall intensity, sound volume,
+ * notification/alarm choice and duration sit under one collapsed "Advanced" row,
+ * alongside delayed sound, retries, the default snooze, and whatever the alert adds through
  * [advancedContent].
  */
 @Composable
@@ -80,7 +79,8 @@ fun CommonAlertSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = sectionHorizontalPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 8.dp),
+                shapes = ButtonDefaults.shapes()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
@@ -88,7 +88,7 @@ fun CommonAlertSettings(
             }
         }
 
-        // === Feedback: sound / vibrate / flash, and how hard ===
+        // === Feedback: sound / vibrate / flash ===
         // The buttons say what they are; a label over them repeated them.
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -216,7 +216,7 @@ fun CommonAlertSettings(
             // still claim its 16dp gap and leave a blank band under the card.
             AnimatedVisibility(visible = advancedExpanded) {
                 Column(modifier = Modifier.padding(top = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // === Intensity: soft to escalating ===
+                    // === Overall alert intensity ===
                     AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
                         Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
                             run {
@@ -241,6 +241,18 @@ fun CommonAlertSettings(
                                 )
                             }
                         }
+                    }
+
+                    AnimatedVisibility(visible = config.soundEnabled) {
+                        DurationSlider(
+                            label = stringResource(R.string.alert_sound_volume),
+                            value = config.soundVolumePercent,
+                            range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..tk.glucodata.alerts.AlertSoundVolume.MAX_PERCENT,
+                            stepSize = 5,
+                            onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
+                            modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                            valueText = { "$it%" }
+                        )
                     }
 
                     // === Notification / alarm / both ===
@@ -363,7 +375,8 @@ fun CommonAlertSettings(
                             .fillMaxWidth()
                             .padding(horizontal = sectionHorizontalPadding)
                             .padding(bottom = 16.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        shapes = ButtonDefaults.shapes()
                     ) {
                         Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))

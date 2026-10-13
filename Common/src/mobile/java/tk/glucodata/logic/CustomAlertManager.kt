@@ -229,7 +229,8 @@ object CustomAlertManager {
             config.overrideDnd,
             config.id,
             config.name,
-            rate
+            rate,
+            config.soundVolumePercent
         )
     }
 

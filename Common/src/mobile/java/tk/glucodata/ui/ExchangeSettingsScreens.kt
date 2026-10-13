@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -138,8 +141,10 @@ fun WatchSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.watches),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { showHelp = true }) {
-                        Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                    IconButtonTooltip(stringResource(R.string.helpname)) {
+                        IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                        }
                     }
                 },
             )
@@ -463,8 +468,10 @@ fun WearOsConfigScreen(navController: NavController) {
                 title = stringResource(R.string.wearos_config_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshNodes() }, enabled = !refreshingNodes, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.refresh))
+                        }
                     }
                 },
             )
@@ -665,6 +672,8 @@ fun WearOsConfigScreen(navController: NavController) {
                         },
                         enabled = selectedAppInstalled,
                         modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Filled.Sync, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -689,6 +698,8 @@ fun WearOsConfigScreen(navController: NavController) {
                         },
                         enabled = selectedAppInstalled,
                         modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -713,6 +724,8 @@ fun WearOsConfigScreen(navController: NavController) {
                         },
                         enabled = selectedAppInstalled,
                         modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Filled.Settings, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -721,6 +734,8 @@ fun WearOsConfigScreen(navController: NavController) {
                     TextButton(
                         onClick = { uriHandler.openUri("https://www.juggluco.nl/JugglucoWearOS/intro/index.html") },
                         modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding,
                     ) {
                         Text(stringResource(R.string.helpname))
                     }
@@ -749,8 +764,10 @@ fun GarminStatusScreen(navController: NavController) {
                 title = stringResource(R.string.garmin_status_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshSnapshot() }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshSnapshot() }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.refresh))
+                        }
                     }
                 },
             )
@@ -817,7 +834,9 @@ fun GarminStatusScreen(navController: NavController) {
                             ).show()
                             refreshSnapshot()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -833,7 +852,9 @@ fun GarminStatusScreen(navController: NavController) {
                             ).show()
                             refreshSnapshot()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Sync, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -849,7 +870,9 @@ fun GarminStatusScreen(navController: NavController) {
                             ).show()
                             refreshSnapshot()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -873,7 +896,9 @@ fun GarminStatusScreen(navController: NavController) {
                                 Toast.makeText(context, context.getString(R.string.wentwrong), Toast.LENGTH_SHORT).show()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.OpenInNew, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -881,7 +906,9 @@ fun GarminStatusScreen(navController: NavController) {
                     }
                     OutlinedButton(
                         onClick = { uriHandler.openUri("https://www.juggluco.nl/Jugglucohelp/garminconfig.html") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Info, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -1162,8 +1189,10 @@ fun WebServerSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.webserver),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { showHelp = true }) {
-                        Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                    IconButtonTooltip(stringResource(R.string.helpname)) {
+                        IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.helpname))
+                        }
                     }
                 },
             )
@@ -1213,11 +1242,13 @@ fun WebServerSettingsScreen(navController: NavController) {
                         onDone = { applyCurrentInputs(showErrors = true) }
                     ),
                     trailingIcon = {
-                        IconButton(enabled = childEnabled, onClick = { showSecret = !showSecret }) {
-                            Icon(
-                                imageVector = if (showSecret) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                contentDescription = null
-                            )
+                        IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                            IconButton(enabled = childEnabled, onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    imageVector = if (showSecret) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                )
+                            }
                         }
                     }
                 )
@@ -1403,24 +1434,32 @@ fun WebServerSettingsScreen(navController: NavController) {
                                         Button(
                                             onClick = onPrimary,
                                             enabled = primaryEnabled,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
+                                            shapes = ButtonDefaults.shapes(),
+                                            contentPadding = ButtonDefaults.ContentPadding
                                         ) { Text(primaryLabel) }
                                     } else {
                                         FilledTonalButton(
                                             onClick = onPrimary,
                                             enabled = primaryEnabled,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
+                                            shapes = ButtonDefaults.shapes(),
+                                            contentPadding = ButtonDefaults.ContentPadding
                                         ) { Text(primaryLabel) }
                                     }
                                     OutlinedButton(
                                         onClick = { showCertificateExport = true },
                                         enabled = primaryEnabled && installed != null,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) { Text(stringResource(R.string.webserver_cert_export)) }
                                     OutlinedButton(
                                         onClick = { showCertificateImport = true },
                                         enabled = primaryEnabled,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
                                     ) { Text(stringResource(R.string.webserver_cert_import)) }
                                 }
                                 Row(
@@ -1549,11 +1588,14 @@ fun WebServerSettingsScreen(navController: NavController) {
                                     )
                                 }
                             }
-                            IconButton(
-                                enabled = childEnabled,
-                                onClick = { shareUrl(rootUrl) }
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.sendto))
+                            IconButtonTooltip(stringResource(R.string.sendto)) {
+                                IconButton(
+                                    enabled = childEnabled,
+                                    onClick = { shareUrl(rootUrl) },
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.sendto))
+                                }
                             }
                         }
 
@@ -1561,17 +1603,23 @@ fun WebServerSettingsScreen(navController: NavController) {
                             OutlinedButton(
                                 onClick = { openUrl(currentUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_current)) }
                             OutlinedButton(
                                 onClick = { openUrl(entriesUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_entries)) }
                             OutlinedButton(
                                 onClick = { openUrl(reportUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_report)) }
                         }
                     }
@@ -1591,7 +1639,9 @@ fun WebServerSettingsScreen(navController: NavController) {
                     )
                     OutlinedButton(
                         onClick = { exportCertificate(includePrivateKey = false) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Shield, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -1600,7 +1650,9 @@ fun WebServerSettingsScreen(navController: NavController) {
                     Spacer(Modifier.height(4.dp))
                     OutlinedButton(
                         onClick = { exportCertificate(includePrivateKey = true) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Key, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -1614,7 +1666,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCertificateExport = false }) {
+                TextButton(onClick = { showCertificateExport = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -1632,7 +1684,9 @@ fun WebServerSettingsScreen(navController: NavController) {
                     )
                     OutlinedButton(
                         onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Key, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -1640,7 +1694,9 @@ fun WebServerSettingsScreen(navController: NavController) {
                     }
                     OutlinedButton(
                         onClick = { fullChainPicker.launch(arrayOf("*/*")) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Filled.Shield, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -1649,7 +1705,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCertificateImport = false }) {
+                TextButton(onClick = { showCertificateImport = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -1668,12 +1724,12 @@ fun WebServerSettingsScreen(navController: NavController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showHelp = false }) {
+                TextButton(onClick = { showHelp = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.close))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { uriHandler.openUri("https://www.juggluco.nl/Juggluco/webserver.html") }) {
+                TextButton(onClick = { uriHandler.openUri("https://www.juggluco.nl/Juggluco/webserver.html") }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.helpname))
                 }
             }
@@ -1701,7 +1757,7 @@ private fun InAppHelpDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.close))
             }
         }

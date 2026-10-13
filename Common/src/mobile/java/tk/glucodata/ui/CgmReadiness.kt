@@ -2,6 +2,8 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
@@ -197,11 +199,13 @@ fun CgmReadinessScreen(navController: NavController) {
                 title = stringResource(R.string.cgm_readiness_title),
                 onNavigateBack = { navController.popBackStack() },
                 actions = {
-                    IconButton(onClick = { refreshTick++ }) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.refresh)
-                        )
+                    IconButtonTooltip(stringResource(R.string.refresh)) {
+                        IconButton(onClick = { refreshTick++ }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.refresh)
+                            )
+                        }
                     }
                 },
             )
@@ -485,12 +489,14 @@ private fun CgmReadinessSummaryCard(
                         color = supportingColor
                     )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
-                        tint = supportingColor
-                    )
+                IconButtonTooltip(stringResource(R.string.cgm_readiness_dismiss_action)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp), shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cgm_readiness_dismiss_action),
+                            tint = supportingColor
+                        )
+                    }
                 }
             }
 
@@ -509,12 +515,14 @@ private fun CgmReadinessSummaryCard(
                 topAction?.let { (action, labelRes) ->
                     Button(
                         onClick = { onAction(action) },
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(stringResource(labelRes))
                     }
                 }
-                OutlinedButton(onClick = onOpenReadiness) {
+                OutlinedButton(onClick = onOpenReadiness, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Text(stringResource(R.string.cgm_readiness_review_action))
                 }
             }
@@ -557,7 +565,7 @@ private fun CgmReadinessDetailRow(
                 )
                 if (item.action != null && item.actionLabelRes != null) {
                     Spacer(Modifier.height(12.dp))
-                    FilledTonalButton(onClick = { onAction(item.action) }) {
+                    FilledTonalButton(onClick = { onAction(item.action) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                         Text(stringResource(item.actionLabelRes))
                         Spacer(Modifier.width(8.dp))
                         Icon(

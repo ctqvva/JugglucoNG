@@ -19,6 +19,36 @@ fun interface AlarmActivityHost {
 }
 
 object AlarmActivityAccess {
+    fun isAcknowledged(intent: Intent): Boolean {
+        if (intent.getStringExtra(tk.glucodata.Notify.EXTRA_CUSTOM_ALERT_ID) != null) return false
+        val kind = intent.getIntExtra("EXTRA_ALERT_TYPE_ID", -1)
+        val type = tk.glucodata.alerts.AlertType.fromId(kind) ?: return false
+        if (tk.glucodata.alerts.AlertStateTracker.isManualTestActive(type)) return false
+        return tk.glucodata.WearAlertSync.shouldCloseAlarm(kind,
+            intent.getLongExtra(tk.glucodata.WearAlertSync.EXTRA_PRESENTED_AT_MS, 0))
+    }
+
+    private var observerOwner: Any? = null
+    private var observerKind = -1
+    private var onAcknowledgement: (() -> Unit)? = null
+
+    fun observeAcknowledgement(owner: Any, kind: Int, callback: () -> Unit) {
+        observerOwner = owner
+        observerKind = kind
+        onAcknowledgement = callback
+    }
+
+    fun removeObserver(owner: Any) {
+        if (observerOwner === owner) {
+            observerOwner = null
+            onAcknowledgement = null
+        }
+    }
+
+    fun acknowledge(kind: Int) {
+        if (observerKind == kind) onAcknowledgement?.invoke()
+    }
+
     @Volatile
     private var host: AlarmActivityHost? = null
 

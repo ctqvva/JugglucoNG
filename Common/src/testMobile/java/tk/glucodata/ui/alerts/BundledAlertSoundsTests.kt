@@ -13,6 +13,13 @@ class BundledAlertSoundsTests {
     private val packageName = "tk.glucodata"
 
     @Test
+    fun xdripStyleIsDirectlyAboveJuggluco() {
+        assertEquals(listOf("xDrip-style", "Juggluco"), BundledAlertSounds.styles.take(2))
+        assertEquals("android.resource://$packageName/raw/alert_xdrip_urgent_low",
+            BundledAlertSounds.uri(packageName, "xDrip-style", AlertType.VERY_LOW.id))
+    }
+
+    @Test
     fun everyAlertRetainsItsMeaningInEveryCollection() {
         val expected = mapOf(
             AlertType.LOW to "low", AlertType.HIGH to "high",
@@ -28,7 +35,7 @@ class BundledAlertSoundsTests {
             val selected = BundledAlertSounds.uri(packageName, style, AlertType.LOW.id)
             expected.forEach { (type, cue) ->
                 val uri = BundledAlertSounds.forAlert(selected, packageName, type.id)!!
-                assertEquals("android.resource://$packageName/raw/alert_${style.lowercase(Locale.ROOT)}_$cue", uri)
+                assertEquals("android.resource://$packageName/raw/alert_${BundledAlertSounds.resourceStyle(style)}_$cue", uri)
                 assertEquals(style, BundledAlertSounds.styleFor(uri, packageName))
             }
         }
@@ -93,7 +100,7 @@ class BundledAlertSoundsTests {
         val raw = rawDir()
         val manifest = JSONObject(toolsFile("asset-manifest.json").readText())
         val assets = manifest.getJSONObject("assets")
-        assertEquals(54, assets.length())
+        assertEquals(63, assets.length())
         assets.keys().forEach { name ->
             val entry = assets.getJSONObject(name)
             val file = File(raw, entry.getString("file"))
@@ -168,7 +175,7 @@ class BundledAlertSoundsTests {
         val names = BundledAlertSounds.styles.flatMap { style ->
             AlertType.entries.map { BundledAlertSounds.uri(packageName, style, it.id).substringAfterLast('/') }
         }.toSet()
-        assertEquals(54, names.size)
+        assertEquals(63, names.size)
         names.forEach { name ->
             assertTrue("$name has no manifest entry", assets.has(name))
             val entry = assets.getJSONObject(name)
@@ -177,6 +184,6 @@ class BundledAlertSoundsTests {
             assertEquals("$name.m4a", entry.getString("file"))
             assertTrue("$name missing from res/raw", File(rawDir(), entry.getString("file")).isFile)
         }
-        assertEquals(54, assets.length())
+        assertEquals(63, assets.length())
     }
 }

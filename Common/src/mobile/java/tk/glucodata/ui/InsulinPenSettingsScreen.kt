@@ -5,6 +5,8 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
@@ -201,6 +203,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                             TextButton(
                                 onClick = { showBackgroundDetails = !showBackgroundDetails },
                                 contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                                shapes = ButtonDefaults.shapes(),
                             ) {
                                 Text(
                                     stringResource(
@@ -307,10 +310,12 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                 TextButton(onClick = {
                     InsulinPenManager.forget(pen.serial)
                     forgetTarget = null
-                }) { Text(stringResource(R.string.remove)) }
+                },
+                                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.remove)) }
             },
             dismissButton = {
-                TextButton(onClick = { forgetTarget = null }) {
+                TextButton(onClick = { forgetTarget = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -354,10 +359,10 @@ private fun DuplicateCleanupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(R.string.remove)) }
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.remove)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -453,6 +458,8 @@ private fun PenDetailSheet(
                         selected = preset.id == pen.insulinPresetId,
                         onClick = { onSelected(preset) },
                         label = { Text(preset.displayName) },
+                        shapes = FilterChipDefaults.shapes(),
+                        colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
             }
@@ -462,6 +469,8 @@ private fun PenDetailSheet(
                 onClick = onArmFullRead,
                 enabled = !pen.fullReadArmed,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(
                     stringResource(
@@ -485,6 +494,8 @@ private fun PenDetailSheet(
                 onClick = { onCleanup(found) },
                 enabled = found.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(
                     if (found.isEmpty()) {
@@ -507,7 +518,7 @@ private fun PenDetailSheet(
             )
 
             Spacer(Modifier.size(8.dp))
-            TextButton(onClick = onForget, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = onForget, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(
                     stringResource(R.string.insulin_pen_forget),
                     color = MaterialTheme.colorScheme.error,

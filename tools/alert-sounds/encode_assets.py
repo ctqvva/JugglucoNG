@@ -29,10 +29,10 @@ RAW = ROOT / 'Common/src/main/res/raw'
 MANIFEST = HERE / 'asset-manifest.json'
 ENCODER = ('afconvert m4af aacl@48000 mono -b 160000 -r 127 -q 127, '
            'MP4 creation/modification timestamps zeroed')
-STYLES = ('contour', 'porcelain', 'halo', 'timber', 'ember', 'juggluco')
+STYLES = ('contour', 'porcelain', 'halo', 'timber', 'ember', 'juggluco', 'xdrip')
 CUES = ('low', 'high', 'urgent_low', 'urgent_high', 'falling', 'rising',
         'signal', 'reminder', 'notice')
-RENDERERS = ('render.py', 'render_acoustic.py', 'render_juggluco.py')
+RENDERERS = ('render.py', 'render_acoustic.py', 'render_juggluco.py', 'render_xdrip.py')
 
 
 CONTAINERS = {b'moov', b'trak', b'edts', b'mdia', b'minf', b'dinf',
@@ -93,12 +93,21 @@ def valid_frames(path: Path) -> int:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--styles', nargs='+', choices=STYLES,
+                        help='Regenerate selected collections while retaining other committed bytes')
     args = parser.parse_args()
+    styles = args.styles or STYLES
+    def renderer_for(style):
+        return ('render' if style in ('contour', 'porcelain', 'halo')
+                else 'render_acoustic' if style in ('timber', 'ember')
+                else 'render_xdrip' if style == 'xdrip' else 'render_juggluco')
+    renderers = [script for script in RENDERERS
+                 if Path(script).stem in {renderer_for(style) for style in styles}]
     with tempfile.TemporaryDirectory() as temp_dir:
         temp = Path(temp_dir)
         # WAV stage: each renderer writes (identically, when deterministic) and
         # then verifies its WAVs, previews and measurements against the commit.
-        for script in RENDERERS:
+        for script in renderers:
             wav_dir = temp / Path(script).stem
             wav_dir.mkdir()
             subprocess.run([sys.executable, str(HERE / script),
@@ -108,15 +117,13 @@ def main():
         # Encode stage: scratch WAVs become committed M4A assets.
         pcm_stats = {}
         for path in (HERE / 'measurements.json', HERE / 'acoustic-measurements.json',
-                     HERE / 'juggluco-measurements.json'):
+                     HERE / 'juggluco-measurements.json', HERE / 'xdrip-measurements.json'):
             pcm_stats.update(json.loads(path.read_text()))
-        assets = {}
-        for style in STYLES:
+        assets = json.loads(MANIFEST.read_text())['assets'] if args.styles else {}
+        for style in styles:
             for cue in CUES:
                 wav_name = f'alert_{style}_{cue}.wav'
-                renderer = ('render' if style in ('contour', 'porcelain', 'halo')
-                            else 'render_acoustic' if style in ('timber', 'ember')
-                            else 'render_juggluco')
+                renderer = renderer_for(style)
                 source = temp / renderer / wav_name
                 assert source.is_file(), f'missing rendered {wav_name}'
                 dest = RAW / f'alert_{style}_{cue}.m4a'
@@ -148,7 +155,7 @@ def main():
             assert MANIFEST.read_text() == manifest, 'asset-manifest.json differs'
         else:
             MANIFEST.write_text(manifest)
-    print(f'{"Verified" if args.check else "Encoded"} {len(assets)} AAC assets, '
+    print(f'{"Verified" if args.check else "Encoded"} {len(styles)*len(CUES)} AAC assets, '
           f'{len(legacy)} legacy files referenced, manifest '
           f'{"verified" if args.check else "written"}')
 

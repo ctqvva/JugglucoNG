@@ -51,6 +51,7 @@ class MessageReceiver: WearableListenerService() {
         }
         Log.i(LOG_ID,"onMessageReceived start $path"  )
         when(WearMessagePath.fromWire(path)) {
+            WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
             WearMessagePath.DEFAULTS ->  {
                 val sender = tk.glucodata.MessageSender.getMessageSender()
                 if (sender == null) {
@@ -73,6 +74,7 @@ class MessageReceiver: WearableListenerService() {
                 // Each side advertises its protocol version on the handshake; a mismatch is logged
                 // here instead of the peers silently disagreeing about message shapes.
                 WearProtocol.onPeerVersionReport(data)
+                WearAlertSync.pushTo(messageEvent.sourceNodeId)
                 }
             WearMessagePath.DATA   -> {
                 // Phone-to-phone mirroring only. On the watch this legacy

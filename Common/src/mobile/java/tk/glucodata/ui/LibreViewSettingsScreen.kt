@@ -1,5 +1,8 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -257,7 +260,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                         OutlinedButton(
                             onClick = { saveManualAccountId() },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isBusy
+                            enabled = !isBusy,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             Text(saveText)
                         }
@@ -289,15 +294,17 @@ fun LibreViewSettingsScreen(navController: NavController) {
                 },
                 trailingIcon = {
                     val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(
-                            imageVector = image,
-                            contentDescription = if (showPassword) {
-                                stringResource(R.string.hide_password)
-                            } else {
-                                stringResource(R.string.show_password)
-                            }
-                        )
+                    IconButtonTooltip(if (showPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                        IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                imageVector = image,
+                                contentDescription = if (showPassword) {
+                                    stringResource(R.string.hide_password)
+                                } else {
+                                    stringResource(R.string.show_password)
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -330,7 +337,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSendData
+                enabled = canSendData,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isSendingNow) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -368,7 +377,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSendData
+                enabled = canSendData,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isResendingData) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -412,7 +423,9 @@ fun LibreViewSettingsScreen(navController: NavController) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = hasCredentials && !isBusy
+                enabled = hasCredentials && !isBusy,
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 if (isFetchingAccountId) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

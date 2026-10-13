@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -164,7 +168,7 @@ private fun SmsNoticeCard(text: String, action: String?, onAction: () -> Unit) {
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
             if (action != null) {
-                TextButton(onClick = onAction) { Text(action) }
+                TextButton(onClick = onAction, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(action) }
             }
         }
     }
@@ -223,7 +227,9 @@ private fun SmsContactsSection(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
                     onChange(policy.copy(contacts = policy.contacts + added))
                     expandedId = added.id
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
             ) {
                 Icon(Icons.Filled.PersonAdd, contentDescription = null)
                 Text(
@@ -295,17 +301,21 @@ private fun SmsContactCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.sms_remove_contact)
-                    )
+                IconButtonTooltip(stringResource(R.string.sms_remove_contact)) {
+                    IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.sms_remove_contact)
+                        )
+                    }
                 }
-                IconButton(onClick = onToggleExpanded) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null
-                    )
+                IconButtonTooltip(if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)) {
+                    IconButton(onClick = onToggleExpanded, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (expanded) stringResource(R.string.show_less) else stringResource(R.string.show_more)
+                        )
+                    }
                 }
             }
 
@@ -494,7 +504,9 @@ private fun SmsAlertTypePicker(policy: SmsPolicy, onChange: (SmsPolicy) -> Unit)
                         }
                         onChange(policy.copy(alarmAlertIds = next))
                     },
-                    label = { Text(stringResource(type.nameResId)) }
+                    label = { Text(stringResource(type.nameResId)) },
+                    shapes = FilterChipDefaults.shapes(),
+                    colors = FilterChipDefaults.filterChipColors()
                 )
             }
         }

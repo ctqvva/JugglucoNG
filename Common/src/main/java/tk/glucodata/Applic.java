@@ -519,6 +519,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         SensorBluetooth.destructor();
+        // The teardown frees every callback, including a Nightscout follower that never used
+        // Bluetooth, and cancels its poll alarm with it.
+        tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE.ensureFollowerRunning(app);
         if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }

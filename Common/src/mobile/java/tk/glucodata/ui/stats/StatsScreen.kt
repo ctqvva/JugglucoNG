@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui.stats
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -91,7 +95,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
@@ -541,7 +544,9 @@ fun StatsScreen(
                     )
                     androidx.compose.material3.FilledTonalButton(
                         onClick = { showPatientInfo = !showPatientInfo },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(
                             text = if (showPatientInfo) {
@@ -604,7 +609,9 @@ fun StatsScreen(
                             pdfLauncher.launch("cgm_report_$reportDate.pdf")
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = parsedReportDays != null
+                        enabled = parsedReportDays != null,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = stringResource(R.string.export_readable_report))
                     }
@@ -656,7 +663,9 @@ fun StatsScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isPublishing && workerUrl.isNotBlank() && parsedReportDays != null
+                        enabled = !isPublishing && workerUrl.isNotBlank() && parsedReportDays != null,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Text(text = if (isPublishing) stringResource(R.string.loading_data) else stringResource(R.string.export))
                     }
@@ -830,7 +839,7 @@ private fun ArrangeSheet(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Button(onClick = onDismiss) {
+                Button(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
@@ -1185,12 +1194,14 @@ private fun HeaderBlock(
     onShareClick: () -> Unit
 ) {
     TabScreenHeader(title = stringResource(R.string.statistics_title)) {
-        IconButton(onClick = onShareClick) {
-            Icon(
-                imageVector = Icons.Filled.Share,
-                contentDescription = stringResource(R.string.export),
-                tint = MaterialTheme.colorScheme.primary
-            )
+        IconButtonTooltip(stringResource(R.string.export)) {
+            IconButton(onClick = onShareClick, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = stringResource(R.string.export),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
@@ -1259,7 +1270,7 @@ private fun RangeLoadingCard() {
                     style = MaterialTheme.typography.labelLarge
                 )
             }
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest

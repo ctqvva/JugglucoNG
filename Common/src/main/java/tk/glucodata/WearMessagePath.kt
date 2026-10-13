@@ -19,6 +19,7 @@ package tk.glucodata
  * existing guard noticing.
  */
 enum class WearMessagePath(val wire: String) {
+    ALERT_ACK("/alertack"),
     ASKFORSTART("/askforstart"),
     BLUETOOTH("/bluetooth"),
     CALIBRATE("/calibrate"),

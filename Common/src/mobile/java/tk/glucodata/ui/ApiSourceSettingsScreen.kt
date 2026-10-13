@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -272,11 +275,13 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                         PasswordVisualTransformation()
                                     },
                                     trailingIcon = {
-                                        IconButton(onClick = { showSecret = !showSecret }) {
-                                            Icon(
-                                                if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                                contentDescription = null
-                                            )
+                                        IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                            IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                                Icon(
+                                                    if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                    contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                                )
+                                            }
                                         }
                                     },
                                     keyboardOptions = KeyboardOptions(
@@ -444,7 +449,7 @@ private fun SourcePresetRow(
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
-            TextButton(onClick = onChangePreset) {
+            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
