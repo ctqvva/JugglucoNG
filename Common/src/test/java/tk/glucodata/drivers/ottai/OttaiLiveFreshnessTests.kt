@@ -158,65 +158,157 @@ class OttaiLiveFreshnessTests {
         assertEquals((receivedAtMs / 60_000L) * 60_000L, start + 100 * 60_000L)
     }
 
+    private val trueStartMinuteMs = 1_785_605_640_000L
+
+    /**
+     * One sensor's live path as the manager runs it: dated from the stream start, published
+     * through the current-reading state, and only then — accepted frames only — offered to the
+     * arrival correction, which may move the start.
+     */
+    private class LiveStream(var startMs: Long) {
+        val correction = OttaiArrivalStartCorrection().also { it.onAnchorSeeded(startMs) }
+        val state = OttaiCurrentReadingState()
+        var unpublished = 0
+        var stale = 0
+
+        fun frame(dataNo: Int, receivedAtMs: Long, accepted: Boolean = true): Long {
+            val sampleMs = OttaiBleManager.anchoredLiveSampleMs(startMs, dataNo, receivedAtMs)
+            assertTrue("dataNo=$dataNo dated after arrival", sampleMs <= receivedAtMs)
+            if (!accepted) return sampleMs
+            if (!OttaiBleManager.isFreshLiveSample(receivedAtMs, sampleMs)) stale++
+            if (!state.accept(live = true, receivedAtMs = receivedAtMs, sampleMs = sampleMs).publishCurrent) unpublished++
+            correction.onAcceptedLive(startMs, dataNo, receivedAtMs).takeIf { it > 0L }?.let { startMs = it }
+            return sampleMs
+        }
+
+        fun prompt(range: IntRange, measuredAt: (Int) -> Long) {
+            for (dataNo in range) frame(dataNo, measuredAt(dataNo) + 1_000L)
+        }
+    }
+
     /**
      * The +15 s report: the frame the anchor came from reached the phone 20 s late, after the
-     * minute had turned, so the floored anchor sits 15 s past the true start and a promptly
-     * delivered record is dated 15 s after it arrived. Its own arrival bound is earlier and
-     * dates it no later than arrival.
+     * minute had turned, so the floored anchor sits a record past the start and every promptly
+     * delivered record would be dated 15 s after it arrived.
      */
     @Test
-    fun aPromptRecordLowersAnAnchorFlooredFromALateOne() {
-        val anchor = OttaiBleManager.arrivalBoundStartMs(10, measuredAtMs(10) + 20_000L)
-        val promptAtMs = measuredAtMs(11) + 1_000L
-        assertEquals(14_000L, anchor + 11 * 60_000L - promptAtMs)
+    fun twoPromptFramesCorrectAnAnchorFlooredFromALateOne() {
+        val stream = LiveStream(OttaiBleManager.arrivalBoundStartMs(10, measuredAtMs(10) + 20_000L))
+        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
 
-        val lowered = OttaiBleManager.arrivalBoundStartMs(11, promptAtMs)
-        assertTrue(lowered < anchor)
-        assertTrue(lowered + 11 * 60_000L <= promptAtMs)
-        // Never past the true start: a record is not received before it is measured.
-        assertTrue(lowered <= trueStartMs)
+        assertEquals(measuredAtMs(11) - 45_000L, stream.frame(11, measuredAtMs(11) + 1_000L))
+        assertEquals("one frame is not enough", trueStartMinuteMs + 60_000L, stream.startMs)
+        stream.prompt(12..30, ::measuredAtMs)
+
+        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(0, stream.unpublished)
+        assertEquals(0, stream.stale)
     }
 
     /**
-     * The review case: one frame whose counter runs four ahead implies a start four minutes
-     * early. Alone it must not move the shared start, or every later frame is dated four minutes
-     * old and fails the freshness window for the rest of the connection.
+     * The review replay: two counters four ahead, both refused by the continuity gate. A refused
+     * frame is dated at arrival and goes no further, so the anchor and every later frame are
+     * untouched.
      */
     @Test
-    fun aSingleFrameCannotLowerTheSharedStart() {
-        val corrupt = OttaiBleManager.arrivalBoundStartMs(15, measuredAtMs(11) + 1_000L)
-        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(0L, -1, corrupt, 15))
+    fun rejectedFramesLeaveTheAnchorAlone() {
+        val stream = LiveStream(trueStartMinuteMs)
+        stream.prompt(5..10, ::measuredAtMs)
+        stream.frame(15, measuredAtMs(11) + 1_000L, accepted = false)
+        stream.frame(16, measuredAtMs(12) + 1_000L, accepted = false)
+        stream.prompt(13..30, ::measuredAtMs)
+
+        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(0, stream.unpublished)
+        assertEquals(0, stream.stale)
     }
 
+    /**
+     * The continuity gate compares glucose, not counters, so the same pair with plausible values
+     * is ACCEPTED. Four records is more than flooring can overshoot by, so the anchor stays.
+     */
     @Test
-    fun aCorruptCounterAndAGenuineFrameDoNotAgree() {
-        val corrupt = OttaiBleManager.arrivalBoundStartMs(15, measuredAtMs(11) + 1_000L)
-        val genuine = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(12) + 1_000L)
-        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(corrupt, 15, genuine, 12))
+    fun anAcceptedCorruptPairCannotMoveTheAnchorFurtherThanARecord() {
+        val stream = LiveStream(trueStartMinuteMs)
+        stream.prompt(5..10, ::measuredAtMs)
+        stream.frame(15, measuredAtMs(11) + 1_000L)
+        stream.frame(16, measuredAtMs(12) + 1_000L)
+        stream.prompt(17..40, ::measuredAtMs)
+
+        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(0, stream.stale)
     }
 
+    /**
+     * A pair one ahead is inside the budget and does lower the anchor a record — and that is the
+     * worst a corrupt counter can do: genuine frames then lag their arrival by under two minutes,
+     * still fresh and still published, and a second pair finds the budget spent.
+     */
     @Test
-    fun twoPromptFramesAgreeOnTheStart() {
-        val first = OttaiBleManager.arrivalBoundStartMs(11, measuredAtMs(11) + 1_000L)
-        val second = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(12) + 2_000L)
-        assertEquals(first, OttaiBleManager.agreedArrivalStartMs(first, 11, second, 12))
+    fun theWorstCorruptCorrectionKeepsReadingsFreshAndIsSpentOnce() {
+        val stream = LiveStream(trueStartMinuteMs)
+        stream.prompt(5..10, ::measuredAtMs)
+        stream.frame(12, measuredAtMs(11) + 1_000L)
+        stream.frame(13, measuredAtMs(12) + 1_000L)
+        assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
+
+        stream.prompt(14..20, ::measuredAtMs)
+        stream.frame(23, measuredAtMs(21) + 1_000L)
+        stream.frame(24, measuredAtMs(22) + 1_000L)
+        stream.prompt(25..40, ::measuredAtMs)
+
+        assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
+        assertEquals(0, stream.stale)
+    }
+
+    /** A candidate from before a reconnect gap cannot be corroborated by a frame after it. */
+    @Test
+    fun aCandidateExpiresAcrossAGap() {
+        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        stream.frame(11, measuredAtMs(11) + 1_000L)
+        stream.frame(21, measuredAtMs(21) + 1_000L)
+        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+
+        stream.frame(22, measuredAtMs(22) + 1_000L)
+        assertEquals(trueStartMinuteMs, stream.startMs)
+    }
+
+    /** The two frames must be consecutive: an accepted frame dated on time drops the candidate. */
+    @Test
+    fun anOnTimeFrameDropsTheCandidate() {
+        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        stream.frame(11, measuredAtMs(11) + 1_000L)
+        stream.frame(12, measuredAtMs(12) + 20_000L)
+        stream.frame(13, measuredAtMs(13) + 1_000L)
+        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
     }
 
     /** A replay of the same record is not a second, independent observation. */
     @Test
     fun theSameCounterTwiceDoesNotAgree() {
-        val start = OttaiBleManager.arrivalBoundStartMs(11, measuredAtMs(11) + 1_000L)
-        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(start, 11, start, 11))
+        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        stream.frame(11, measuredAtMs(11) + 1_000L)
+        stream.frame(11, measuredAtMs(11) + 2_000L)
+        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
     }
 
-    /** A counter one ahead lands inside the agreement window; the genuine, later start wins. */
+    /** A counter one ahead paired with a genuine frame: the genuine, later start wins. */
     @Test
     fun aCounterOneAheadCannotPullTheStartPastTheGenuineFrame() {
-        val oneAhead = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(11) + 1_000L)
-        val genuine = OttaiBleManager.arrivalBoundStartMs(13, measuredAtMs(13) + 1_000L)
-        assertTrue(oneAhead < genuine)
-        assertEquals(genuine, OttaiBleManager.agreedArrivalStartMs(oneAhead, 12, genuine, 13))
-        assertTrue(genuine <= trueStartMs)
+        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        stream.frame(12, measuredAtMs(11) + 1_000L)
+        stream.frame(13, measuredAtMs(13) + 1_000L)
+        assertEquals(trueStartMinuteMs, stream.startMs)
+    }
+
+    /** Reseeding the anchor drops a candidate taken against the old one. */
+    @Test
+    fun reseedingDropsTheCandidate() {
+        val correction = OttaiArrivalStartCorrection()
+        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L)
+        assertEquals(0L, correction.onAcceptedLive(trueStartMinuteMs + 60_000L, 11, measuredAtMs(11) + 1_000L))
+        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L)
+        assertEquals(0L, correction.onAcceptedLive(trueStartMinuteMs + 60_000L, 12, measuredAtMs(12) + 1_000L))
     }
 
     @Test

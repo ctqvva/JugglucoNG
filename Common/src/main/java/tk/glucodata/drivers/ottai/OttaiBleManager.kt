@@ -91,6 +91,86 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
     }
 }
 
+/**
+ * Lowers a confirmed stream start that dates live records after they arrive.
+ *
+ * Every anchor is floored to its frame's arrival minute, so it overshoots the true start by up
+ * to one record whenever that frame crossed a minute boundary in transit: a sensor whose records
+ * land at :45 is then dated :00 of the next minute, 15 s ahead, for the rest of the session. A
+ * prompt record's arrival bound (OttaiBleManager.arrivalBoundStartMs) is the correction.
+ *
+ * Fed ACCEPTED live frames only, and guarded three ways because the continuity gate checks
+ * glucose, not counters, so a frame whose dataNo runs ahead with a plausible value is accepted:
+ *  - two consecutive accepted frames, with increasing counters and arrivals no more than
+ *    [MAX_PENDING_AGE_MS] apart, must imply the same start; any accepted frame the anchor did not
+ *    date ahead of arrival drops the candidate;
+ *  - the start may fall at most one record below the anchor it was seeded at, in total. That is
+ *    the most flooring can overshoot by, and it is what keeps a false correction harmless: a
+ *    record then lags its arrival by under two minutes, inside the freshness window, so
+ *    publication carries on;
+ *  - nothing is persisted. The next session seeds a fresh anchor and corrects it again.
+ */
+internal class OttaiArrivalStartCorrection {
+    companion object {
+        private const val RECORD_INTERVAL_MS = 60_000L
+        // Genuine frames are a minute apart; a missed frame or a quick reconnect stays within this.
+        internal const val MAX_PENDING_AGE_MS = 3L * RECORD_INTERVAL_MS
+    }
+
+    private var lowestStartMs = 0L
+    private var pendingStartMs = 0L
+    private var pendingDataNo = -1
+    private var pendingReceivedAtMs = 0L
+
+    /** The anchor was (re)seeded at [startMs]: the correction budget starts over from it. */
+    @Synchronized
+    fun onAnchorSeeded(startMs: Long) {
+        lowestStartMs = startMs - RECORD_INTERVAL_MS
+        clearPending()
+    }
+
+    /**
+     * Offer an accepted live frame dated from [anchorStartMs]. Returns the start the anchor
+     * should move to, or 0 to leave it.
+     */
+    @Synchronized
+    fun onAcceptedLive(anchorStartMs: Long, dataNo: Int, receivedAtMs: Long): Long {
+        if (anchorStartMs <= 0L || dataNo < 0 || receivedAtMs <= 0L) {
+            clearPending()
+            return 0L
+        }
+        val startMs = OttaiBleManager.arrivalBoundStartMs(dataNo, receivedAtMs)
+        if (startMs >= anchorStartMs) {
+            clearPending()
+            return 0L
+        }
+        val agrees = pendingDataNo in 0 until dataNo &&
+            receivedAtMs - pendingReceivedAtMs in 1..MAX_PENDING_AGE_MS &&
+            abs(pendingStartMs - startMs) <= RECORD_INTERVAL_MS
+        if (!agrees) {
+            pendingStartMs = startMs
+            pendingDataNo = dataNo
+            pendingReceivedAtMs = receivedAtMs
+            return 0L
+        }
+        // The later of the two: a counter one ahead that still lands inside the agreement window
+        // cannot pull the start further than the genuine frame does.
+        val agreedMs = maxOf(pendingStartMs, startMs)
+        clearPending()
+        return if (lowestStartMs > 0L && agreedMs >= lowestStartMs) agreedMs else 0L
+    }
+
+    /** Lowest start a correction may still reach, for logging. */
+    @Synchronized
+    fun lowestStartMs(): Long = lowestStartMs
+
+    private fun clearPending() {
+        pendingStartMs = 0L
+        pendingDataNo = -1
+        pendingReceivedAtMs = 0L
+    }
+}
+
 @SuppressLint("MissingPermission")
 class OttaiBleManager(
     serial: String,
@@ -236,10 +316,6 @@ class OttaiBleManager(
         internal const val CONFIRMED_START_AGREEMENT_MS = 2L * RECORD_INTERVAL_MS
         private const val CURRENT_SAMPLE_FRESH_MS = 120_000L
         private const val CURRENT_SAMPLE_FLOOR_GRACE_MS = RECORD_INTERVAL_MS
-        // Largest arrival-bound correction written back to the confirmed activeTime. A floored
-        // anchor overshoots by under a minute and a monitor-time seed by up to two more; anything
-        // larger is a phone clock step, which may move this session's dating but not the record.
-        private const val MAX_PERSISTED_ARRIVAL_CORRECTION_MS = 5L * RECORD_INTERVAL_MS
         private const val MAX_REASONABLE_DATA_NO_AHEAD = 120
         private const val MGDL_PER_MMOLL = 18.0f
         // Consecutive continuity rejections after which the gate yields and re-baselines onto the
@@ -327,28 +403,11 @@ class OttaiBleManager(
             (receivedAtMs / RECORD_INTERVAL_MS - dataNo) * RECORD_INTERVAL_MS
 
         /**
-         * The stream start two future-dated live frames agree on, or 0 while they don't. One
-         * frame's counter is not enough: the live ceiling lets a dataNo run up to
-         * MAX_REASONABLE_DATA_NO_AHEAD records ahead, and lowering the shared start on a counter
-         * four ahead would date every later frame four minutes old — past the freshness window,
-         * so nothing would publish for the rest of the connection. Two frames with different
-         * counters must imply the same start; the later of the two is taken, so a corrupt
-         * counter that happens to land within the agreement window still cannot pull the start
-         * further than the genuine frame does.
+         * A live record's time from a confirmed stream start, never later than its arrival
+         * minute: an anchor that would date it after it arrived is wrong, and so is that date.
          */
-        internal fun agreedArrivalStartMs(
-            pendingStartMs: Long,
-            pendingDataNo: Int,
-            startMs: Long,
-            dataNo: Int,
-        ): Long =
-            if (pendingStartMs > 0L && startMs > 0L && dataNo != pendingDataNo &&
-                abs(pendingStartMs - startMs) <= CONFIRMED_START_AGREEMENT_MS
-            ) {
-                maxOf(pendingStartMs, startMs)
-            } else {
-                0L
-            }
+        internal fun anchoredLiveSampleMs(startMs: Long, dataNo: Int, receivedAtMs: Long): Long =
+            minOf(startMs + dataNo.toLong() * RECORD_INTERVAL_MS, (receivedAtMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS)
 
         /**
          * Whether a live record's monitor time (activeTime + runtime) may anchor the stream. It
@@ -1049,10 +1108,8 @@ class OttaiBleManager(
     @Volatile private var streamStartReliable = false
     // First reliable activation start seen this session, held until a second one corroborates it.
     @Volatile private var pendingConfirmedStartMs = 0L
-    // Arrival-bound start implied by a live frame the anchor dated after it arrived, and that
-    // frame's counter, held until a second frame agrees (agreedArrivalStartMs).
-    @Volatile private var pendingArrivalStartMs = 0L
-    @Volatile private var pendingArrivalDataNo = -1
+    // Corrects a stream start that dates live records after they arrive; fed accepted frames only.
+    private val arrivalStartCorrection = OttaiArrivalStartCorrection()
     @Volatile private var lastBleActivityAtMs = 0L
     // When the sensor last pushed a live frame on its own. The poll below is a safety net for
     // notifications stopping, not a second data path, so it stands down while they are flowing.
@@ -3314,6 +3371,7 @@ class OttaiBleManager(
             },
         )
         rememberAcceptedReading(r, mmol, sampleMs)
+        if (live) correctStreamStartFromArrival(r.record.dataNo, receivedAtMs)
         if (advancesDataNo) noteSeenDataNo(r.record.dataNo)
         // lag = arrival minus sample time: tells a late delivery from a misdated record.
         Log.i(TAG, "BG dataNo=${r.record.dataNo} mmol=%.2f mgdl=%.0f raw=%d T=%.1f lag=%ds".format(
@@ -3787,7 +3845,11 @@ class OttaiBleManager(
         if (streamStartTimeMs > 0L && (materials.activeTimeMs > 0L || !live)) {
             val anchoredMs = streamStartTimeMs + r.record.dataNo.toLong() * RECORD_INTERVAL_MS
             if (live && receivedAtMs > 0L && anchoredMs > receivedAtMs) {
-                return lowerStreamAnchorToArrival(r.record.dataNo, anchoredMs, receivedAtMs)
+                // Dating only: this frame may still be rejected, so the anchor itself is left to
+                // correctStreamStartFromArrival once it is accepted.
+                Log.w(TAG, "live dataNo=${r.record.dataNo} anchored ${(anchoredMs - receivedAtMs) / 1000L}s " +
+                    "after arrival; dated at arrival")
+                return anchoredLiveSampleMs(streamStartTimeMs, r.record.dataNo, receivedAtMs)
             }
             return anchoredMs
         }
@@ -3819,61 +3881,24 @@ class OttaiBleManager(
     }
 
     /**
-     * The anchor dated a live record after it arrived. Flooring the anchor's own frame to its
-     * arrival minute overshoots the true start by up to a minute whenever that frame crossed a
-     * minute boundary in transit, so a sensor whose records land at :45 is then dated :00 of the
-     * next minute — 15 s ahead — for the rest of the session, and the confirmed activeTime that
-     * commit wrote carries the same overshoot into every later session.
-     *
-     * This frame is dated at its arrival minute either way, so no future timestamp leaves the
-     * driver. The shared start only moves once a second frame agrees (agreedArrivalStartMs): a
-     * single frame may carry a corrupt counter, and its arrival bound would then date every
-     * later frame stale. Once moved it only ever moves earlier and never past the true start (a
-     * record is not received before it is measured), so it settles instead of oscillating.
+     * Lower the stream start once two consecutive accepted live frames show it dates records
+     * after they arrive (OttaiArrivalStartCorrection). Runs after the frame has passed every
+     * gate: a rejected frame must leave no trace on the anchor.
      */
-    private fun lowerStreamAnchorToArrival(dataNo: Int, anchoredMs: Long, receivedAtMs: Long): Long {
-        val arrivalMinuteMs = floorToRecordMinute(receivedAtMs)
-        val start = arrivalBoundStartMs(dataNo, receivedAtMs)
-        if (start <= 0L) return arrivalMinuteMs
-        val agreed = agreedArrivalStartMs(pendingArrivalStartMs, pendingArrivalDataNo, start, dataNo)
-        if (agreed <= 0L || agreed >= streamStartTimeMs) {
-            if (dataNo != pendingArrivalDataNo) {
-                pendingArrivalStartMs = start
-                pendingArrivalDataNo = dataNo
+    private fun correctStreamStartFromArrival(dataNo: Int, receivedAtMs: Long) {
+        val anchorMs = streamStartTimeMs
+        val correctedMs = arrivalStartCorrection.onAcceptedLive(anchorMs, dataNo, receivedAtMs)
+        if (correctedMs <= 0L) {
+            val impliedMs = arrivalBoundStartMs(dataNo, receivedAtMs)
+            if (anchorMs > 0L && impliedMs < arrivalStartCorrection.lowestStartMs()) {
+                Log.w(TAG, "live dataNo=$dataNo implies start ${impliedMs / 1000L}, more than a record " +
+                    "below anchor ${anchorMs / 1000L}; anchor kept")
             }
-            Log.w(TAG, "live dataNo=$dataNo dated ${(anchoredMs - receivedAtMs) / 1000L}s after arrival; " +
-                "dated at arrival, anchor ${streamStartTimeMs / 1000L} held until a second frame agrees")
-            return arrivalMinuteMs
-        }
-        Log.w(TAG, "live dataNo=$dataNo dated ${(anchoredMs - receivedAtMs) / 1000L}s after arrival; " +
-            "stream anchor ${streamStartTimeMs / 1000L} -> ${agreed / 1000L}")
-        pendingArrivalStartMs = 0L
-        pendingArrivalDataNo = -1
-        streamStartTimeMs = agreed
-        streamStartReliable = true
-        lowerConfirmedActiveTime(agreed)
-        return minOf(agreed + dataNo.toLong() * RECORD_INTERVAL_MS, arrivalMinuteMs)
-    }
-
-    /**
-     * Carry an arrival-bound correction into the confirmed activeTime, so the next session's
-     * monitor-time anchor and any history dated before its first live frame start on the
-     * corrected grid. Earlier only, like the native shell's own start.
-     */
-    private fun lowerConfirmedActiveTime(startMs: Long) {
-        val current = materials.activeTimeMs
-        if (current <= 0L || startMs >= current) return
-        if (current - startMs > MAX_PERSISTED_ARRIVAL_CORRECTION_MS) {
-            Log.w(TAG, "arrival bound ${startMs / 1000L} is ${(current - startMs) / 1000L}s before " +
-                "confirmed activeTime=${current / 1000L}; not persisted")
             return
         }
-        val id = SerialNumber.orEmpty()
-        if (id.isBlank()) return
-        materials = materials.copy(activeTimeMs = startMs)
-        Applic.app?.let { OttaiRegistry.saveActiveTimeMs(it, id, startMs) }
-        Log.i(TAG, "confirmed activeTime ${current / 1000L} -> ${startMs / 1000L} from live arrival bound")
-        ensureNativePresenceShell("arrival-bound")
+        // Not reliable-flagged anew and not persisted: the confirmed activeTime is untouched.
+        streamStartTimeMs = correctedMs
+        Log.w(TAG, "stream anchor ${anchorMs / 1000L} -> ${correctedMs / 1000L} from live arrival dataNo=$dataNo")
     }
 
     // reliable = the sampleHint is an independent wall-clock/monitor timestamp (live poll or a
@@ -3895,6 +3920,7 @@ class OttaiBleManager(
             }
             streamStartTimeMs = start
             streamStartReliable = reliable
+            arrivalStartCorrection.onAnchorSeeded(start)
             if (old == 0L || kotlin.math.abs(old - start) > RECORD_INTERVAL_MS) {
                 Log.i(TAG, "stream time anchor dataNo=$dataNo start=${start / 1000L} sample=${sampleMs / 1000L} source=$reason reliable=$reliable")
             }
