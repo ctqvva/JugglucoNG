@@ -162,37 +162,29 @@ Physical-device listening acceptance of the new collections is still outstanding
 ## Louder alerts and volume adjustment (issue #624)
 
 The existing Soft/Steady/Strong/Escalating overall alert intensity retains its
-original player gains (40%, 70%, 100%, 100%), vibration behavior, and 1.2-second
-sound fade from 12%. A 30–100% sound-volume slider sits in Advanced directly below
-those options. It selects the **actual Android stream volume index** during
-playback, rather than merely attenuating the player's output relative to an
-already-low phone setting. The default/reset is **60%**; 100% selects the device's
-maximum index. The volume curve, safe-volume restrictions and physical output
-limit are controlled by Android/the device. Missing preferences use 60%; saved
-values are preserved. Global Apply, custom alerts and retries use this setting.
-
-Both alerts and picker previews derive the stream from their resolved
-AudioAttributes. The original intensity gain remains a separate player setting;
-no audio effects, above-unity player gain, EQ or altered note envelopes are used.
-The selected stream volume is shared with other audio using that Android stream
-while the alert/preview plays. A shared lease controller keeps the loudest active
-request until its owner stops and restores the pre-playback index when the last
-owner ends. It relinquishes control when it observes a hardware/external volume
-change, mute/ringer-mode change or DND transition, so it does not undo that action.
-Silent notification playback and active DND do not raise the stream. The existing
-explicit override-DND path still decides whether an alarm may play. Write failures
-leave normal playback available at the existing system volume. Volume restoration
-is journaled before writes; interrupted sessions are recovered on app restart
-only if the saved written index is still current and policy allows restoration.
-A killed process cannot restore volume until it runs again.
+sound-level ratios (40%, 70%, 100%, 100%), vibration behavior, and 1.2-second sound
+fade from 12%. A 30–100% sound-volume slider sits in Advanced directly below those
+options. It is a per-player gain, with default/reset 80% and 100% selecting full
+player gain for the chosen intensity. That remaining 1.94 dB is modest; it is not
+an above-unity amplifier and does not overcome a low phone stream setting. The
+phone's media/alarm/notification volume still applies. No shared Android stream
+volume is changed. Missing preferences use 80%; existing saved choices are
+preserved. Global Apply, custom alerts, retries and picker previews use the same
+volume; previews also use the same resolved AudioAttributes usage as real alerts.
 
 The rejected Ember EQ/strike/decay changes are fully reverted. The nine Ember AACs,
-renderer, measurements and preview reel exactly match the preceding accepted
-version (`8cbac74e2`); there is no fresh lossy encode or timbre change. That version
-uses one linear mastering gain, with +4.5 dB requested for low/urgent-low and +3 dB
-for other cues, capped by a -1.5 dBFS PCM peak ceiling (actual low +3.61 dB and urgent
-low +1.55 dB versus the original quiet master). All other sound assets also retain
-their bytes. Decoded AAC headroom remains checked separately.
+renderer, measurements and preview reel exactly match the preceding version
+(`8cbac74e2`); there is no fresh lossy encode or timbre change. That version uses one
+linear mastering gain, with +4.5 dB requested for low/urgent-low and +3 dB for other
+cues, capped by a -1.5 dBFS PCM peak ceiling (actual low +3.61 dB and urgent low
++1.55 dB versus the original quiet master). All other sound assets retain their
+bytes. Decoded AAC headroom remains checked separately.
+
+There is currently no larger isolated boost: Android MediaPlayer scalars stop at
+1.0, and its per-session LoudnessEnhancer can compress signals beyond the supported
+sample range. A shared-stream volume change would affect other alarms during
+playback. Neither is a substitute for the requested unchanged sound quality and
+independent per-alert volume. No such stream change or processing effect is shipped.
 
 **xDrip-style**, immediately above Juggluco in the picker, is a new original
 synthesis: sustained descending low sirens, a faster urgent-low siren, alternating

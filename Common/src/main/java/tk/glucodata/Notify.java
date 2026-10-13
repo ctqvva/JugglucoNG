@@ -180,26 +180,11 @@ public class Notify {
         private int playGeneration = 0;
         private int volumePercent = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT;
         private String intensityProfile = "STRONG";
-        private final AudioAttributes audioAttributes;
-        private tk.glucodata.alerts.AlertStreamVolume.Lease streamVolume;
 
         AlertSoundHandle(Ringtone ringtone, MediaPlayer mediaPlayer, String title) {
-            this(ringtone, mediaPlayer, title,
-                    ringtone != null ? ringtone.getAudioAttributes() : notification_audio);
-        }
-
-        AlertSoundHandle(Ringtone ringtone, MediaPlayer mediaPlayer, String title, AudioAttributes attributes) {
             this.ringtone = ringtone;
             this.mediaPlayer = mediaPlayer;
             this.title = title;
-            this.audioAttributes = attributes;
-            if (mediaPlayer != null) {
-                mediaPlayer.setOnErrorListener((failed, what, extra) -> {
-                    stop();
-                    Log.w(LOG_ID, "Alert sound failed: " + what + "/" + extra);
-                    return true;
-                });
-            }
         }
 
         boolean isPresent() {
@@ -242,7 +227,7 @@ public class Notify {
                             return;
                         }
                         final float progress = (float) finalStep / (float) SOUND_FADE_STEPS;
-                        setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(intensityProfile, progress));
+                        setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, intensityProfile, progress));
                     }
                 }, delayMs, TimeUnit.MILLISECONDS);
             }
@@ -254,10 +239,7 @@ public class Notify {
             }
             try {
                 final int generation = ++playGeneration;
-                setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(intensityProfile, 0.0f));
-                if (streamVolume == null && audioAttributes != null) {
-                    streamVolume = tk.glucodata.alerts.AlertStreamVolume.acquire(Applic.app, audioAttributes, volumePercent);
-                }
+                setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, intensityProfile, 0.0f));
                 if (ringtone != null) {
                     ringtone.play();
                     scheduleFadeIn(generation);
@@ -272,15 +254,7 @@ public class Notify {
                     scheduleFadeIn(generation);
                 }
             } catch (Throwable th) {
-                releaseStreamVolume();
                 Log.stack(LOG_ID, "AlertSoundHandle.play()", th);
-            }
-        }
-
-        private void releaseStreamVolume() {
-            if (streamVolume != null) {
-                streamVolume.close();
-                streamVolume = null;
             }
         }
 
@@ -314,7 +288,6 @@ public class Notify {
                     Log.stack(LOG_ID, "AlertSoundHandle.mediaPlayer.release()", th);
                 }
             }
-            releaseStreamVolume();
         }
     }
 
@@ -375,8 +348,7 @@ public class Notify {
             }
             player.setLooping(true);
             player.prepare();
-            return new AlertSoundHandle(null, player, resolveSoundTitle(uri, null),
-                    useAlarmStream ? ScanNfcV.audioattributes : notification_audio);
+            return new AlertSoundHandle(null, player, resolveSoundTitle(uri, null));
         } catch (Throwable th) {
             if (afd != null) {
                 try {

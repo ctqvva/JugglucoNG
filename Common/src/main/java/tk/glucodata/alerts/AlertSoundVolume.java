@@ -2,10 +2,10 @@ package tk.glucodata.alerts;
 
 import java.util.Locale;
 
-/** Alert stream setting and the original, independent overall-intensity gain. */
+/** Per-player gain; never changes the phone's alarm/notification stream volume. */
 public final class AlertSoundVolume {
     public static final int MIN_PERCENT = 30;
-    public static final int DEFAULT_PERCENT = 60;
+    public static final int DEFAULT_PERCENT = 80;
     public static final int MAX_PERCENT = 100;
 
     private AlertSoundVolume() {}
@@ -18,9 +18,13 @@ public final class AlertSoundVolume {
         return Math.max(MIN_PERCENT, Math.min(MAX_PERCENT, percent));
     }
 
-    public static int streamIndex(int percent, int minimum, int maximum) {
-        return Math.max(minimum, Math.min(maximum,
-                Math.round(maximum * sanitize(percent) / 100.0f)));
+    public static float gain(int percent) {
+        return sanitize(percent) / 100.0f;
+    }
+
+    /** Scale the original overall-intensity sound levels, with room above the default. */
+    public static float gain(int percent, String profile) {
+        return gain(percent) * profileGain(profile);
     }
 
     public static float profileGain(String profile) {
@@ -36,8 +40,8 @@ public final class AlertSoundVolume {
         return 1_200L;
     }
 
-    public static float fadeGain(String profile, float progress) {
-        float target = profileGain(profile);
+    public static float fadeGain(int percent, String profile, float progress) {
+        float target = gain(percent, profile);
         float start = Math.min(target, 0.12f);
         return start + (target - start) * Math.max(0.0f, Math.min(1.0f, progress));
     }

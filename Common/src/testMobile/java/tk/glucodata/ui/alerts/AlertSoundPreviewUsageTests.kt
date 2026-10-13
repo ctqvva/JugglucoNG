@@ -70,12 +70,10 @@ class AlertSoundPreviewUsageTests {
         val standard = AlertConfig(AlertType.LOW, hapticProfile = HapticProfile.SOFT,
             soundVolumePercent = 55).soundPickerRequest {}
         assertEquals("SOFT", standard.intensityProfile)
-        assertEquals(55, standard.volumePercent)
-        assertEquals(.4f, AlertSoundVolume.profileGain(standard.intensityProfile), .000001f)
+        assertEquals(.22f, AlertSoundVolume.gain(standard.volumePercent, standard.intensityProfile), .000001f)
         val custom = CustomAlertConfig(hapticProfile = "steady", soundVolumePercent = 55).soundPickerRequest {}
         assertEquals("steady", custom.intensityProfile)
-        assertEquals(55, custom.volumePercent)
-        assertEquals(.7f, AlertSoundVolume.profileGain(custom.intensityProfile), .000001f)
+        assertEquals(.385f, AlertSoundVolume.gain(custom.volumePercent, custom.intensityProfile), .000001f)
     }
 
     @Test fun legacyNotificationOnlyKindsKeepTheirConfiguredUsage() {
