@@ -987,6 +987,8 @@ public class Notify {
     private static ScheduledFuture<?> retrySessionSchedule = null;
     private static AlertRetrySession activeRetrySession = null;
     private static long retryGeneration = 0;
+    private static final java.util.Map<Integer, Long> initialDeliveryGenerations = new java.util.HashMap<>();
+    private static long initialDeliveryEpoch = 0;
     private static volatile int presentedStandardAlertKind = -1;
     private static volatile boolean alarmUiVisible = false;
     private static ScheduledFuture<?> delayedAlertEffectSchedule = null;
@@ -1769,6 +1771,8 @@ public class Notify {
 
     public static void cancelRetrySession(int kind, String reason) {
         synchronized (retrySessionLock) {
+            // A first delivery may be queued before its retry session exists.
+            initialDeliveryGenerations.merge(kind, 1L, Long::sum);
             if (activeRetrySession != null && activeRetrySession.kind == kind) {
                 cancelRetrySessionLocked(reason);
             }
@@ -1777,6 +1781,7 @@ public class Notify {
 
     public static void cancelCurrentRetrySession(String reason) {
         synchronized (retrySessionLock) {
+            initialDeliveryEpoch++;
             cancelRetrySessionLocked(reason);
         }
     }
@@ -1872,14 +1877,27 @@ public class Notify {
 
     private void deliverInitialAlert(int kind, float value, String message, notGlucose glucose,
             String channel, AlertConfig config, boolean productionTrigger) {
+        final long expectedGeneration;
+        final long expectedEpoch;
+        synchronized (retrySessionLock) {
+            expectedGeneration = initialDeliveryGenerations.getOrDefault(kind, 0L);
+            expectedEpoch = initialDeliveryEpoch;
+        }
         runOnAlertThread(() -> {
+            synchronized (retrySessionLock) {
+                if (expectedEpoch != initialDeliveryEpoch ||
+                        expectedGeneration != initialDeliveryGenerations.getOrDefault(kind, 0L)) return;
+            }
             final AlertType type = AlertType.Companion.fromId(kind);
             final boolean manual = type != null && AlertStateTracker.INSTANCE.isManualTestActive(type);
-            if (productionTrigger && type != null && !AlertStateTracker.INSTANCE.isEpisodeActive(type)) return;
             if (!manual && type != null && (AlertStateTracker.INSTANCE.isDismissed(type)
                     || SnoozeManager.INSTANCE.isSnoozed(type) || WearAlertSync.isSuppressed(kind))) return;
-            if (productionTrigger) {
-                syncRetrySession(kind, value, message, glucose, channel, config, true);
+            if (productionTrigger && type != null) {
+                // Record a firing only when delivery commits, not while it is queued.
+                if (!AlertStateTracker.INSTANCE.shouldTrigger(type, config)) return;
+                if (AlertStateTracker.INSTANCE.onAlertTriggered(type, config)) {
+                    syncRetrySession(kind, value, message, glucose, channel, config, true);
+                }
             }
             deliverTriggeredAlert(kind, value, message, glucose, channel);
         });
@@ -2851,7 +2869,9 @@ public class Notify {
                 allowNextAlertEffectsForTest();
 
                 if (kind == 4) {
-                    onenot.lossofsignalalarm(kind, R.drawable.loss, message, typeStr, true);
+                    // LOSS bypasses arrowglucosealarm, so consume its pending test here.
+                    AlertStateTracker.INSTANCE.shouldTrigger(alertType, config);
+                    onenot.lossofsignalalarm(kind, R.drawable.loss, message, typeStr, true, true);
                 } else {
                     notGlucose dummyGlucose = new notGlucose(System.currentTimeMillis(), String.valueOf(dummyValue), 0f,
                             0);
@@ -3247,15 +3267,17 @@ public class Notify {
         sendLegacyWatchAlert(kind, glvalue, message, strglucose);
     }
 
-    private void lossofsignalalarm(int kind, int draw, String message, String type, boolean alarm) {
+    private boolean lossofsignalalarm(int kind, int draw, String message, String type, boolean alarm, boolean manualTest) {
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            runOnAlertThread(() -> lossofsignalalarm(kind, draw, message, type, alarm));
-            return;
+            runOnAlertThread(() -> lossofsignalalarm(kind, draw, message, type, alarm, manualTest));
+            return false;
         }
         if (alarm) {
             final AlertType alertType = AlertType.Companion.fromId(kind);
-            if (alertType != null && !AlertStateTracker.INSTANCE.isManualTestActive(alertType)
-                    && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return;
+            final boolean manual = manualTest && alertType != null && AlertStateTracker.INSTANCE.isManualTestActive(alertType);
+            if (!manual && alertType != null
+                    && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return false;
+            if (!manual && alertType != null) AlertStateTracker.INSTANCE.supersedeManualTest(alertType);
             presentedStandardAlertKind = kind;
         }
         {
@@ -3301,6 +3323,7 @@ public class Notify {
             lossofsensornotification(draw, message, GLUCOSENOTIFICATION, false);
         else
             soundalarm(kind, draw, message, type, alarm);
+        return true;
     }
 
     private boolean arrowglucosealarm(int kind, float glvalue, String message, notGlucose strglucose, String type,
@@ -3349,7 +3372,7 @@ public class Notify {
                             Log.i(LOG_ID, "Alert suppressed by alert state: kind=" + kind);
                         alarm = false;
                     } else {
-                        productionTrigger = AlertStateTracker.INSTANCE.onAlertTriggered(alertType, config);
+                        productionTrigger = !AlertStateTracker.INSTANCE.isManualTestActive(alertType);
                     }
                 }
             } catch (Exception e) {
@@ -5264,7 +5287,7 @@ public class Notify {
     }
 
     // final private int lossalarmid=77332;
-    public void lossalarm(long time) {
+    public boolean lossalarm(long time) {
         {
             if (doLog) {
                 Log.i(LOG_ID, "lossalarm");
@@ -5276,7 +5299,7 @@ public class Notify {
         final String message = "***  " + Applic.getContext().getString(R.string.nonewvalue) + tformat + " ***";
 
         // oldfloatmessage(tformat, true) ;
-        lossofsignalalarm(4, R.drawable.loss, message, alertChannelForKind(4), true);
+        return lossofsignalalarm(4, R.drawable.loss, message, alertChannelForKind(4), true, false);
     }
 
 }

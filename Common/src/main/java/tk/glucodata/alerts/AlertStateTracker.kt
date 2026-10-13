@@ -128,6 +128,12 @@ object AlertStateTracker {
     @Synchronized
     fun isManualTestActive(type: AlertType): Boolean = manualTests.isActive(type)
 
+    /** LOSS does not use shouldTrigger for production; retire its test only on real delivery. */
+    @Synchronized
+    fun supersedeManualTest(type: AlertType) {
+        manualTests.supersede(type)
+    }
+
     @Synchronized
     fun consumeManualTestAction(type: AlertType): Boolean {
         return manualTests.consumeAction(type)

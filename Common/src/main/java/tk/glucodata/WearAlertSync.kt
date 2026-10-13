@@ -42,11 +42,15 @@ object WearAlertSync {
     }
 
     @JvmStatic
-    fun isSuppressed(kind: Int): Boolean = (current(kind)?.untilMs ?: 0) > System.currentTimeMillis()
+    fun isSuppressed(kind: Int): Boolean = current(kind)?.let {
+        !it.isCancellation && it.untilMs > System.currentTimeMillis()
+    } ?: false
 
     @JvmStatic
-    fun shouldCloseAlarm(kind: Int, presentedAtMs: Long): Boolean = isSuppressed(kind) ||
-        (presentedAtMs > 0 && (current(kind)?.actedAtMs ?: 0) >= presentedAtMs)
+    fun shouldCloseAlarm(kind: Int, presentedAtMs: Long): Boolean = current(kind)?.let {
+        !it.isCancellation && (it.untilMs > System.currentTimeMillis() ||
+            (presentedAtMs > 0 && it.actedAtMs >= presentedAtMs))
+    } ?: false
 
     fun onMessage(data: ByteArray?) {
         val action = WearAlertAcknowledgement.decode(data, System.currentTimeMillis()) ?: return
@@ -56,7 +60,7 @@ object WearAlertSync {
             val previous = current(action.kind)
             if (action.supersedes(previous)) {
                 save(action)
-                if (action.untilMs > System.currentTimeMillis()) AlertActions.applyRemote(action)
+                if (!action.isCancellation && action.untilMs > System.currentTimeMillis()) AlertActions.applyRemote(action)
                 else AlertActions.applyExpiredRemote(action, previous)
             }
         }

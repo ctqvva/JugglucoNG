@@ -259,6 +259,25 @@ class WearAlertSyncTests {
         assertEquals(1, app.launchedAlarms.size)
     }
 
+    @Test fun futureClockCancellationClearsTheSharedSnoozeWithoutAcknowledgingAFreshAlarm() {
+        val now = System.currentTimeMillis()
+        receive(WearAlertAcknowledgement(AlertType.HIGH.id, true, now - 60_000, now + 3_540_000))
+        AlertStateTracker.onAlertTriggered(AlertType.HIGH)
+        AlarmSink.calls.clear()
+        val cancellation = WearAlertAcknowledgement(AlertType.HIGH.id, false, now + 10_000, now + 10_000)
+        receive(cancellation)
+        assertFalse(SnoozeManager.isSnoozed(AlertType.HIGH))
+        assertFalse(AlertStateTracker.isDismissed(AlertType.HIGH))
+        assertTrue(AlertStateTracker.isEpisodeActive(AlertType.HIGH))
+        assertTrue(AlarmSink.calls.isEmpty())
+        assertFalse(WearAlertSync.isSuppressed(AlertType.HIGH.id))
+        assertFalse(WearAlertSync.shouldCloseAlarm(AlertType.HIGH.id, now - 1000))
+        val intent = android.content.Intent().putExtra("EXTRA_ALERT_TYPE_ID", AlertType.HIGH.id)
+            .putExtra(WearAlertSync.EXTRA_PRESENTED_AT_MS, now - 1000)
+        assertFalse(tk.glucodata.ui.AlarmActivityAccess.isAcknowledged(intent))
+        assertEquals(cancellation, WearAlertSync.snapshot().first { it.kind == AlertType.HIGH.id })
+    }
+
     @Test fun reconnectSnapshotRetainsExpiredActionsAndSnoozeCancellationTombstones() {
         val now = System.currentTimeMillis()
         val expired = WearAlertAcknowledgement(AlertType.HIGH.id, false, now - 300_000, now - 1)
