@@ -143,4 +143,50 @@ class OttaiLiveFreshnessTests {
             ),
         )
     }
+
+    // A sensor started at :45 past the minute, so record n is measured at start + n minutes + 45 s.
+    private val trueStartMs = 1_785_605_640_000L + 45_000L
+
+    private fun measuredAtMs(dataNo: Int) = trueStartMs + dataNo * 60_000L
+
+    @Test
+    fun arrivalBoundDatesTheRecordAtItsArrivalMinute() {
+        val receivedAtMs = measuredAtMs(100) + 3_000L
+        val start = OttaiBleManager.arrivalBoundStartMs(100, receivedAtMs)
+
+        assertEquals(0L, start % 60_000L)
+        assertEquals((receivedAtMs / 60_000L) * 60_000L, start + 100 * 60_000L)
+    }
+
+    /**
+     * The +15 s report: the frame the anchor came from reached the phone 20 s late, after the
+     * minute had turned, so the floored anchor sits 15 s past the true start and a promptly
+     * delivered record is dated 15 s after it arrived. Its own arrival bound is earlier and
+     * dates it no later than arrival.
+     */
+    @Test
+    fun aPromptRecordLowersAnAnchorFlooredFromALateOne() {
+        val anchor = OttaiBleManager.arrivalBoundStartMs(10, measuredAtMs(10) + 20_000L)
+        val promptAtMs = measuredAtMs(11) + 1_000L
+        assertEquals(14_000L, anchor + 11 * 60_000L - promptAtMs)
+
+        val lowered = OttaiBleManager.arrivalBoundStartMs(11, promptAtMs)
+        assertTrue(lowered < anchor)
+        assertTrue(lowered + 11 * 60_000L <= promptAtMs)
+        // Never past the true start: a record is not received before it is measured.
+        assertTrue(lowered <= trueStartMs)
+    }
+
+    @Test
+    fun monitorTimeMayLagArrivalButNotLeadIt() {
+        val receivedAtMs = 1_785_605_688_000L
+        assertTrue(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs - 100_000L, receivedAtMs))
+        // Ahead of arrival, but inside the same minute: floored, it still dates no later than arrival.
+        assertTrue(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 5_000L, receivedAtMs))
+        // The case the old two-sided check let through: floored into the next minute.
+        assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 15_000L, receivedAtMs))
+        assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 100_000L, receivedAtMs))
+        assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs - 121_000L, receivedAtMs))
+        assertFalse(OttaiBleManager.isUsableLiveMonitorTime(0L, receivedAtMs))
+    }
 }
