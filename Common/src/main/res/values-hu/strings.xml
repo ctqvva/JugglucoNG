@@ -3031,5 +3031,4 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
-    <string name="alert_sound_volume_desc">A rezgéstől független. A telefon ébresztési vagy értesítési hangerejét is követi.</string>
 </resources>

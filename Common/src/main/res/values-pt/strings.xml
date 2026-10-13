@@ -2957,5 +2957,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB são enviados no campo jugglucong de devicestatus, separados da IOB padrão.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
-    <string name="alert_sound_volume_desc">Independente da vibração. Também segue o volume dos alarmes ou das notificações do telemóvel.</string>
 </resources>

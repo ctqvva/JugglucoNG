@@ -3036,5 +3036,4 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
-    <string name="alert_sound_volume_desc">Не залежить від вібрації. Також враховує гучність будильника або сповіщень телефона.</string>
 </resources>

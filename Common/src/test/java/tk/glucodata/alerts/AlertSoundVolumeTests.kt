@@ -5,15 +5,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AlertSoundVolumeTests {
-    @Test fun oldConfigsDefaultToFullSoundRegardlessOfVibration() {
-        for (type in AlertType.entries) for (profile in HapticProfile.entries) {
+    @Test fun defaultSliderPreservesOriginalOverallIntensityLevels() {
+        val levels = mapOf(HapticProfile.SOFT to .4f, HapticProfile.STEADY to .7f,
+            HapticProfile.STRONG to 1f, HapticProfile.ESCALATING to 1f)
+        for (type in AlertType.entries) for ((profile, originalGain) in levels) {
             val config = AlertDefaults.defaultConfig(type, false).copy(hapticProfile = profile)
-            assertEquals(1f, AlertSoundVolume.gain(config.soundVolumePercent), 0f)
+            assertEquals(originalGain, AlertSoundVolume.gain(config.soundVolumePercent, profile.name), 0f)
         }
         val saved = CustomAlertConfig(hapticProfile = "soft").toJson().apply {
             remove("soundVolumePercent")
         }
-        assertEquals(100, CustomAlertConfig.fromJson(saved).soundVolumePercent)
+        val restored = CustomAlertConfig.fromJson(saved)
+        assertEquals(100, restored.soundVolumePercent)
+        assertEquals(.4f, AlertSoundVolume.gain(restored.soundVolumePercent, restored.hapticProfile), 0f)
+        assertEquals(.4f, AlertSoundVolume.gain(100, "low"), 0f)
+        assertEquals(.7f, AlertSoundVolume.gain(100, "medium"), 0f)
+    }
+
+    @Test fun sliderScalesEveryOverallIntensityWithoutMutingOrOverdriving() {
+        for (profile in HapticProfile.entries) {
+            val originalGain = AlertSoundVolume.gain(100, profile.name)
+            assertEquals(originalGain * .55f, AlertSoundVolume.gain(55, profile.name), 0f)
+            assertEquals(originalGain * .3f, AlertSoundVolume.gain(-999, profile.name), 0f)
+            assertEquals(originalGain, AlertSoundVolume.gain(999, profile.name), 0f)
+        }
     }
 
     @Test fun customVolumeSurvivesSaveReloadAndReset() {
@@ -36,21 +51,29 @@ class AlertSoundVolumeTests {
         }
     }
 
-    @Test fun fadeNeverExceedsUserVolumeAndReachesItBeforeShortAlarmsStop() {
-        for (type in AlertType.entries) for (percent in listOf(30, 40, 55, 70, 100)) {
-            val target = AlertSoundVolume.gain(percent)
+    @Test fun originalFadeIsPreservedAtDefaultVolumeForAllProfiles() {
+        assertEquals(1200L, AlertSoundVolume.fadeMillis())
+        for (profile in HapticProfile.entries) {
+            val target = AlertSoundVolume.gain(100, profile.name)
+            assertEquals(.12f, AlertSoundVolume.fadeGain(100, profile.name, 0f), 0f)
+            assertEquals(.12f + (target - .12f) * .5f,
+                AlertSoundVolume.fadeGain(100, profile.name, .5f), 0f)
+            assertEquals(target, AlertSoundVolume.fadeGain(100, profile.name, 1f), .000001f)
+        }
+    }
+
+    @Test fun fadeNeverExceedsTheAdjustedProfileGain() {
+        for (profile in HapticProfile.entries) for (percent in listOf(30, 40, 55, 70, 100)) {
+            val target = AlertSoundVolume.gain(percent, profile.name)
             var previous = 0f
             for (step in 0..8) {
-                val gain = AlertSoundVolume.fadeGain(percent, type.id, step / 8f)
+                val gain = AlertSoundVolume.fadeGain(percent, profile.name, step / 8f)
                 assertTrue(gain >= previous)
-                assertTrue(gain <= target)
-                assertTrue(gain >= .3f)
+                assertTrue(gain <= target + .000001f)
+                assertTrue(gain >= .12f)
                 previous = gain
             }
-            assertEquals(target, previous, 0f)
-            assertTrue(AlertSoundVolume.fadeMillis(type.id) < 1000L)
+            assertEquals(target, previous, .000001f)
         }
-        assertEquals(.7f, AlertSoundVolume.fadeGain(100, AlertType.LOW.id, 0f), 0f)
-        assertEquals(120L, AlertSoundVolume.fadeMillis(AlertType.VERY_LOW.id))
     }
 }

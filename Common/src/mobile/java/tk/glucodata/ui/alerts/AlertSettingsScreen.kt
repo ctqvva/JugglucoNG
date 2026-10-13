@@ -582,6 +582,7 @@ fun AlertSettingsScreen(
                 currentUri = request.uri,
                 alertTypeId = request.typeId,
                 soundVolumePercent = request.volumePercent,
+                intensityProfile = request.intensityProfile,
                 audioUsage = request.audioUsage,
                 onSoundSelected = request.onSelect,
                 onDismiss = { soundPickerRequest = null }
@@ -2306,12 +2307,13 @@ internal data class AlertSoundPickerRequest(
     val uri: String?,
     val typeId: Int,
     val volumePercent: Int,
+    val intensityProfile: String,
     val audioUsage: Int,
     val onSelect: (String?) -> Unit
 )
 
 internal fun AlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
-    customSoundUri, type.id, soundVolumePercent,
+    customSoundUri, type.id, soundVolumePercent, hapticProfile.name,
     Notify.getAlertSoundAudioUsage(
         !AlertType.isLegacyOnlyId(type.id) &&
             (overrideDND || deliveryMode != AlertDeliveryMode.NOTIFICATION_ONLY)
@@ -2319,7 +2321,7 @@ internal fun AlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = Alert
 )
 
 internal fun CustomAlertConfig.soundPickerRequest(onSelect: (String?) -> Unit) = AlertSoundPickerRequest(
-    soundUri, if (type == CustomAlertType.HIGH) 1 else 0, soundVolumePercent,
+    soundUri, if (type == CustomAlertType.HIGH) 1 else 0, soundVolumePercent, hapticProfile,
     Notify.getAlertSoundAudioUsage(
         tk.glucodata.AlertDeliveryPolicy.shouldUseAlarmAudioStream(
             tk.glucodata.AlertDeliveryPolicy.normalize(style), overrideDnd

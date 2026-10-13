@@ -2999,5 +2999,4 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_iob_help">eIOB en COB worden in het veld jugglucong van devicestatus verstuurd, los van de standaard-IOB.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
-    <string name="alert_sound_volume_desc">Onafhankelijk van trillingen. Volgt ook het alarm- of meldingsvolume van je telefoon.</string>
 </resources>

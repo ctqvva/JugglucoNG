@@ -104,6 +104,7 @@ fun SoundPicker(
     currentUri: String?,
     alertTypeId: Int = 0,
     soundVolumePercent: Int = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT,
+    intensityProfile: String = "STRONG",
     audioUsage: Int = AudioAttributes.USAGE_NOTIFICATION,
     onSoundSelected: (String?) -> Unit,
     onDismiss: () -> Unit
@@ -209,7 +210,7 @@ fun SoundPicker(
             player.setDataSource(context, actualUri)
             player.setOnPreparedListener { prepared ->
                 if (mediaPlayer === prepared) {
-                    val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent)
+                    val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent, intensityProfile)
                     prepared.setVolume(gain, gain)
                     prepared.start()
                 }

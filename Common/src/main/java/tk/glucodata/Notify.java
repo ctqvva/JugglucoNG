@@ -179,7 +179,7 @@ public class Notify {
         private boolean released = false;
         private int playGeneration = 0;
         private int volumePercent = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT;
-        private int alertKind = 0;
+        private String intensityProfile = "STRONG";
 
         AlertSoundHandle(Ringtone ringtone, MediaPlayer mediaPlayer, String title) {
             this.ringtone = ringtone;
@@ -195,9 +195,9 @@ public class Notify {
             return (title != null && !title.isEmpty()) ? title : "alert sound";
         }
 
-        synchronized void configureVolume(int percent, int kind) {
+        synchronized void configureVolume(int percent, String profile) {
             volumePercent = tk.glucodata.alerts.AlertSoundVolume.sanitize(percent);
-            alertKind = kind;
+            intensityProfile = profile;
         }
 
         private synchronized void setVolume(float volume) {
@@ -220,14 +220,14 @@ public class Notify {
         private void scheduleFadeIn(int generation) {
             for (int step = 1; step <= SOUND_FADE_STEPS; step++) {
                 final int finalStep = step;
-                final long delayMs = (tk.glucodata.alerts.AlertSoundVolume.fadeMillis(alertKind) * step) / SOUND_FADE_STEPS;
+                final long delayMs = (tk.glucodata.alerts.AlertSoundVolume.fadeMillis() * step) / SOUND_FADE_STEPS;
                 Applic.scheduler.schedule(() -> {
                     synchronized (AlertSoundHandle.this) {
                         if (released || generation != playGeneration) {
                             return;
                         }
                         final float progress = (float) finalStep / (float) SOUND_FADE_STEPS;
-                        setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, alertKind, progress));
+                        setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, intensityProfile, progress));
                     }
                 }, delayMs, TimeUnit.MILLISECONDS);
             }
@@ -239,7 +239,7 @@ public class Notify {
             }
             try {
                 final int generation = ++playGeneration;
-                setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, alertKind, 0.0f));
+                setVolume(tk.glucodata.alerts.AlertSoundVolume.fadeGain(volumePercent, intensityProfile, 0.0f));
                 if (ringtone != null) {
                     ringtone.play();
                     scheduleFadeIn(generation);
@@ -2616,7 +2616,7 @@ public class Notify {
 
         if (canPlaySound) {
             if (!customAlert) {
-                soundHandle.configureVolume(getSoundVolumePercent(kind), kind);
+                soundHandle.configureVolume(getSoundVolumePercent(kind), resolvedHapticProfile);
             }
             if (soundDelayMs > 0L) {
                 // Delay only the play() call; the gradual fade-in lives inside
@@ -2936,7 +2936,10 @@ public class Notify {
 
                     final boolean useAlarmStream = AlertDeliveryPolicy.shouldUseAlarmAudioStream(mode, disturb);
                     AlertSoundHandle soundHandle = onenot.buildAlertSoundHandle(actualUri, kind, useAlarmStream);
-                    if (soundHandle != null) soundHandle.configureVolume(soundVolumePercent, kind);
+                    if (soundHandle != null) {
+                        soundHandle.configureVolume(soundVolumePercent,
+                                hapticProfile != null ? hapticProfile : onenot.getHapticProfile(kind));
+                    }
                     final long effectDurationMs = estimateAlertEffectDurationMs(actualUri, kind, sound, flash,
                             vibrate, hapticProfile, finalDuration);
 

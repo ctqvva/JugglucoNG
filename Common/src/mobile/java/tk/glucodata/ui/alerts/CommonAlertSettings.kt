@@ -36,8 +36,8 @@ import tk.glucodata.ui.util.ConnectedButtonGroup
  * The body every alert shares: master, standard and custom.
  *
  * What most people set sits first and needs no label to be read - the three
- * feedback toggles and separate sound volume. The notification/alarm choice,
- * duration and vibration strength sit under one collapsed "Advanced" row,
+ * feedback toggles and the sound choice. Overall intensity, sound volume,
+ * notification/alarm choice and duration sit under one collapsed "Advanced" row,
  * alongside delayed sound, retries, the default snooze, and whatever the alert adds through
  * [advancedContent].
  */
@@ -152,21 +152,6 @@ fun CommonAlertSettings(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DurationSlider(
-                        label = stringResource(R.string.alert_sound_volume),
-                        value = config.soundVolumePercent,
-                        range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..100,
-                        stepSize = 5,
-                        onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
-                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
-                        valueText = { "$it%" }
-                    )
-                    Text(
-                        stringResource(R.string.alert_sound_volume_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = sectionHorizontalPadding)
-                    )
                     // Alert Sound Picker
                     Row(
                         modifier = Modifier
@@ -231,10 +216,9 @@ fun CommonAlertSettings(
             // still claim its 16dp gap and leave a blank band under the card.
             AnimatedVisibility(visible = advancedExpanded) {
                 Column(modifier = Modifier.padding(top = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // === Vibration intensity ===
-                    AnimatedVisibility(visible = config.vibrationEnabled) {
+                    // === Overall alert intensity ===
+                    AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
                         Column(modifier = Modifier.padding(horizontal = sectionHorizontalPadding)) {
-                            Text(stringResource(R.string.vibrationname), style = MaterialTheme.typography.labelLarge)
                             run {
                                 val hapticProfileLabels = HapticProfile.entries.associateWith { it.localizedName() }
                                 ConnectedButtonGroup(
@@ -257,6 +241,18 @@ fun CommonAlertSettings(
                                 )
                             }
                         }
+                    }
+
+                    AnimatedVisibility(visible = config.soundEnabled) {
+                        DurationSlider(
+                            label = stringResource(R.string.alert_sound_volume),
+                            value = config.soundVolumePercent,
+                            range = tk.glucodata.alerts.AlertSoundVolume.MIN_PERCENT..100,
+                            stepSize = 5,
+                            onValueChange = { onConfigChange(config.copy(soundVolumePercent = it)) },
+                            modifier = Modifier.padding(horizontal = sectionHorizontalPadding),
+                            valueText = { "$it%" }
+                        )
                     }
 
                     // === Notification / alarm / both ===

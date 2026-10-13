@@ -2984,5 +2984,4 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
-    <string name="alert_sound_volume_desc">Titreşimden bağımsızdır. Telefonun alarm veya bildirim ses düzeyine de bağlıdır.</string>
 </resources>

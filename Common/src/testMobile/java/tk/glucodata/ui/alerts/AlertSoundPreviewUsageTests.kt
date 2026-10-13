@@ -66,6 +66,16 @@ class AlertSoundPreviewUsageTests {
         assertEquals(AudioAttributes.USAGE_NOTIFICATION, config.soundPickerRequest {}.audioUsage)
     }
 
+    @Test fun previewUsesTheSelectedOverallIntensityAndVolumeAdjustment() {
+        val standard = AlertConfig(AlertType.LOW, hapticProfile = HapticProfile.SOFT,
+            soundVolumePercent = 55).soundPickerRequest {}
+        assertEquals("SOFT", standard.intensityProfile)
+        assertEquals(.22f, AlertSoundVolume.gain(standard.volumePercent, standard.intensityProfile), .000001f)
+        val custom = CustomAlertConfig(hapticProfile = "steady", soundVolumePercent = 55).soundPickerRequest {}
+        assertEquals("steady", custom.intensityProfile)
+        assertEquals(.385f, AlertSoundVolume.gain(custom.volumePercent, custom.intensityProfile), .000001f)
+    }
+
     @Test fun legacyNotificationOnlyKindsKeepTheirConfiguredUsage() {
         configureUsage(AudioAttributes.USAGE_MEDIA)
         for (type in listOf(AlertType.AVAILABLE, AlertType.AMOUNT)) {

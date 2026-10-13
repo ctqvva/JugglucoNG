@@ -159,15 +159,17 @@ alarm recognition. Audition on the target phone/watch with background noise and 
 repeated alarms, preview switching/cancellation and saved selections after restart/update.
 Physical-device listening acceptance of the new collections is still outstanding. Unset app-default sounds now resolve to Ember; explicit choices are not migrated.
 
-## Louder alerts and independent volume (issue #624)
+## Louder alerts and volume adjustment (issue #624)
 
-Sound volume is a separate 30–100% per-player gain for standard and custom alerts.
-Unset controls default to 100%, independently of vibration strength. Global Apply
-copies the volume; reset restores 100%. The existing Sound toggle handles muting.
-The phone’s alarm/notification stream volume still applies; no system volume is
-changed. Sound picker previews use the selected gain and the alert’s audio stream.
-Low/very-low playback starts at min(selected gain, 70%) and reaches the selected
-gain in 120 ms; other alerts start at min(selected gain, 45%) and ramp in 240 ms.
+The existing Soft/Steady/Strong/Escalating overall alert intensity retains its
+original sound levels (40%, 70%, 100%, 100%) and vibration behavior. The original
+1.2-second sound fade from 12% is retained. A 30–100% sound-volume slider sits in
+Advanced directly below those options and scales the selected intensity's sound
+level. At the default 100%, the profile's original playback gain is unchanged;
+the modest Ember mastering increase below supplies the louder audio. Global Apply
+copies the volume, and reset restores 100%. The Sound toggle handles muting.
+The phone’s media/alarm/notification stream volume still applies. Picker previews
+use the same intensity, volume adjustment and resolved audio usage as real alerts.
 
 Ember alone now requests +4.5 dB for low/urgent-low and +3 dB for other cues, capped
 by a -1.5 dBFS PCM peak ceiling. Actual gains are limited by each waveform’s

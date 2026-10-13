@@ -3072,5 +3072,4 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
-    <string name="alert_sound_volume_desc">Unabhängig von der Vibration. Berücksichtigt auch die Wecker- oder Benachrichtigungslautstärke des Telefons.</string>
 </resources>
