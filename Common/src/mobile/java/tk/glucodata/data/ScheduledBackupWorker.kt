@@ -119,7 +119,10 @@ class ScheduledBackupWorker(
         } catch (cancelled: CancellationException) {
             Log.i(TAG, "Scheduled backup cancelled")
             throw cancelled
-        } catch (exception: Exception) {
+        } catch (exception: Throwable) {
+            // Unlike manual export, this always builds the whole history in memory, so an
+            // OutOfMemoryError is a real outcome. Escaping as an Error would skip the failure
+            // record and the log, and a failed run never appends the next scheduled one.
             val message = exception.localizedMessage ?: exception.javaClass.simpleName
             ScheduledBackupSettings.recordFailure(context, System.currentTimeMillis(), message)
             Log.stack(TAG, "Scheduled backup failed", exception)
