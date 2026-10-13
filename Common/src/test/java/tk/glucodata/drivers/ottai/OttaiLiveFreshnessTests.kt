@@ -240,9 +240,10 @@ class OttaiLiveFreshnessTests {
     }
 
     /**
-     * A pair one ahead is inside the budget and does lower the anchor a record — and that is the
-     * worst a corrupt counter can do: genuine frames then lag their arrival by under two minutes,
-     * still fresh and still published, and a second pair finds the budget spent.
+     * A pair one ahead fits both bounds and does lower the anchor a record — the worst a corrupt
+     * counter can do. Genuine frames then lag their arrival by under two minutes and stay fresh,
+     * but are dated a record early, so the one after each corrupt pair lands on the minute that
+     * pair already published and misses publication once. A second pair finds the budget spent.
      */
     @Test
     fun theWorstCorruptCorrectionKeepsReadingsFreshAndIsSpentOnce() {
@@ -252,13 +253,42 @@ class OttaiLiveFreshnessTests {
         stream.frame(13, measuredAtMs(12) + 1_000L)
         assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
 
-        stream.prompt(14..20, ::measuredAtMs)
+        stream.prompt(13..20, ::measuredAtMs)
+        assertEquals(1, stream.unpublished)
         stream.frame(23, measuredAtMs(21) + 1_000L)
         stream.frame(24, measuredAtMs(22) + 1_000L)
-        stream.prompt(25..40, ::measuredAtMs)
+        stream.prompt(23..40, ::measuredAtMs)
 
         assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
+        assertEquals(2, stream.unpublished)
         assertEquals(0, stream.stale)
+    }
+
+    /**
+     * The second review replay: a monitor time 116 s behind arrival is usable, and flooring puts
+     * the anchor 166 s behind. A corrupt pair three ahead implies a start exactly one record
+     * lower — inside the budget — but that would date every genuine frame 226 s before arrival,
+     * stale and unpublished for the rest of the session. The anchor stays; the corrupt pair's own
+     * minutes hold back the two genuine frames they claimed, then publication carries on.
+     */
+    @Test
+    fun aCorrectionCannotPushAnAlreadyLaggingAnchorPastFreshness() {
+        val monitorMs = measuredAtMs(5) + 1_000L - 116_000L
+        assertTrue(OttaiBleManager.isUsableLiveMonitorTime(monitorMs, measuredAtMs(5) + 1_000L))
+        val seedMs = (monitorMs / 60_000L) * 60_000L - 5 * 60_000L
+        val stream = LiveStream(seedMs)
+        stream.prompt(5..10, ::measuredAtMs)
+        val lagMs = measuredAtMs(10) + 1_000L - OttaiBleManager.anchoredLiveSampleMs(seedMs, 10, measuredAtMs(10) + 1_000L)
+        assertEquals(166_000L, lagMs)
+        assertEquals(seedMs - 60_000L, OttaiBleManager.arrivalBoundStartMs(14, measuredAtMs(11) + 1_000L))
+
+        stream.frame(14, measuredAtMs(11) + 1_000L)
+        stream.frame(15, measuredAtMs(12) + 1_000L)
+        stream.prompt(13..40, ::measuredAtMs)
+
+        assertEquals(seedMs, stream.startMs)
+        assertEquals(0, stream.stale)
+        assertEquals(2, stream.unpublished)
     }
 
     /** A candidate from before a reconnect gap cannot be corroborated by a frame after it. */

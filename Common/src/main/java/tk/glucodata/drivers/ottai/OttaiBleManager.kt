@@ -105,19 +105,30 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
  *    [MAX_PENDING_AGE_MS] apart, must imply the same start; any accepted frame the anchor did not
  *    date ahead of arrival drops the candidate;
  *  - the start may fall at most one record below the anchor it was seeded at, in total. That is
- *    the most flooring can overshoot by, and it is what keeps a false correction harmless: a
- *    record then lags its arrival by under two minutes, inside the freshness window, so
- *    publication carries on;
+ *    the most flooring can overshoot by;
+ *  - nor so far that any accepted live frame of this manager would be dated more than
+ *    [MAX_CORRECTED_LAG_MS] before it arrived. The anchor may already lag — a monitor time is
+ *    accepted up to two minutes behind arrival, and flooring adds up to one more — and a record
+ *    on top of that would leave every later reading stale and unpublished. Genuine frames have
+ *    the delays already seen, so they stay inside the freshness window;
  *  - nothing is persisted. The next session seeds a fresh anchor and corrects it again.
+ *
+ * A false correction that fits these bounds still dates the genuine frames a record early, so
+ * the one after a corrupt frame can share its minute and miss publication once.
  */
 internal class OttaiArrivalStartCorrection {
     companion object {
         private const val RECORD_INTERVAL_MS = 60_000L
         // Genuine frames are a minute apart; a missed frame or a quick reconnect stays within this.
         internal const val MAX_PENDING_AGE_MS = 3L * RECORD_INTERVAL_MS
+        // A minute inside the 180 s freshness window (OttaiBleManager.isFreshLiveSample).
+        internal const val MAX_CORRECTED_LAG_MS = 2L * RECORD_INTERVAL_MS
     }
 
     private var lowestStartMs = 0L
+    // Latest start an accepted live frame's own arrival implies, unfloored: arrival - dataNo
+    // records. Absolute, so it outlives reseeds; a counter running ahead only lowers its own.
+    private var latestArrivalStartMs = 0L
     private var pendingStartMs = 0L
     private var pendingDataNo = -1
     private var pendingReceivedAtMs = 0L
@@ -139,6 +150,7 @@ internal class OttaiArrivalStartCorrection {
             clearPending()
             return 0L
         }
+        latestArrivalStartMs = maxOf(latestArrivalStartMs, receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS)
         val startMs = OttaiBleManager.arrivalBoundStartMs(dataNo, receivedAtMs)
         if (startMs >= anchorStartMs) {
             clearPending()
@@ -157,12 +169,12 @@ internal class OttaiArrivalStartCorrection {
         // cannot pull the start further than the genuine frame does.
         val agreedMs = maxOf(pendingStartMs, startMs)
         clearPending()
-        return if (lowestStartMs > 0L && agreedMs >= lowestStartMs) agreedMs else 0L
+        return if (lowestStartMs > 0L && agreedMs >= floorMs()) agreedMs else 0L
     }
 
-    /** Lowest start a correction may still reach, for logging. */
+    /** Lowest start a correction may still reach. */
     @Synchronized
-    fun lowestStartMs(): Long = lowestStartMs
+    fun floorMs(): Long = maxOf(lowestStartMs, latestArrivalStartMs - MAX_CORRECTED_LAG_MS)
 
     private fun clearPending() {
         pendingStartMs = 0L
@@ -3890,9 +3902,10 @@ class OttaiBleManager(
         val correctedMs = arrivalStartCorrection.onAcceptedLive(anchorMs, dataNo, receivedAtMs)
         if (correctedMs <= 0L) {
             val impliedMs = arrivalBoundStartMs(dataNo, receivedAtMs)
-            if (anchorMs > 0L && impliedMs < arrivalStartCorrection.lowestStartMs()) {
-                Log.w(TAG, "live dataNo=$dataNo implies start ${impliedMs / 1000L}, more than a record " +
-                    "below anchor ${anchorMs / 1000L}; anchor kept")
+            val floorMs = arrivalStartCorrection.floorMs()
+            if (anchorMs > 0L && impliedMs < floorMs) {
+                Log.w(TAG, "live dataNo=$dataNo implies start ${impliedMs / 1000L}, below the lowest " +
+                    "correction ${floorMs / 1000L} of anchor ${anchorMs / 1000L}; anchor kept")
             }
             return
         }
