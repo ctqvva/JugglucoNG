@@ -32,10 +32,11 @@ final class LeadIn {
      * Queue the lead-in, the chime if wanted, then the words. The first item to reach the engine
      * flushes what was queued before, as the words alone used to.
      *
+     * @param wordsId utterance id of the words, which the progress listener tracks focus by.
      * @return the engine's result for the words. The lead-in and chime are best effort: if they
      *         are refused the words still go out, flushing in their place.
      */
-    static int queue(Engine engine, String message, boolean chime) {
+    static int queue(Engine engine, String message, String wordsId, boolean chime) {
         int queueMode = TextToSpeech.QUEUE_FLUSH;
         if (engine.playEarcon(SILENCE_EARCON, queueMode, ID) == TextToSpeech.SUCCESS) {
             queueMode = TextToSpeech.QUEUE_ADD;
@@ -43,7 +44,7 @@ final class LeadIn {
         if (chime && engine.playEarcon(CHIME_EARCON, queueMode, ID) == TextToSpeech.SUCCESS) {
             queueMode = TextToSpeech.QUEUE_ADD;
         }
-        return engine.speak(message, queueMode, message);
+        return engine.speak(message, queueMode, wordsId);
     }
 
     static boolean isLeadIn(String utteranceId) {

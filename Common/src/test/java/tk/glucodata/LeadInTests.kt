@@ -36,11 +36,11 @@ class LeadInTests {
     @Test
     fun wordsFollowTheLeadInWhichFlushesTheQueue() {
         val engine = FakeEngine()
-        assertEquals(TextToSpeech.SUCCESS, LeadIn.queue(engine, "5.8", false))
+        assertEquals(TextToSpeech.SUCCESS, LeadIn.queue(engine, "5.8", "5.8#1", false))
         assertEquals(
             listOf(
                 Queued(LeadIn.SILENCE_EARCON, TextToSpeech.QUEUE_FLUSH, LeadIn.ID),
-                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8"),
+                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8#1"),
             ),
             engine.queued,
         )
@@ -49,12 +49,12 @@ class LeadInTests {
     @Test
     fun chimeSitsBetweenTheLeadInAndTheWords() {
         val engine = FakeEngine()
-        LeadIn.queue(engine, "5.8", true)
+        LeadIn.queue(engine, "5.8", "5.8#1", true)
         assertEquals(
             listOf(
                 Queued(LeadIn.SILENCE_EARCON, TextToSpeech.QUEUE_FLUSH, LeadIn.ID),
                 Queued(LeadIn.CHIME_EARCON, TextToSpeech.QUEUE_ADD, LeadIn.ID),
-                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8"),
+                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8#1"),
             ),
             engine.queued,
         )
@@ -64,18 +64,18 @@ class LeadInTests {
     fun refusedLeadInStillLetsTheWordsFlushTheOldQueue() {
         // QUEUE_ADD here would leave a stale announcement playing ahead of the new value.
         val engine = FakeEngine(refused = setOf(LeadIn.SILENCE_EARCON))
-        assertEquals(TextToSpeech.SUCCESS, LeadIn.queue(engine, "5.8", false))
-        assertEquals(listOf(Queued("5.8", TextToSpeech.QUEUE_FLUSH, "5.8")), engine.queued)
+        assertEquals(TextToSpeech.SUCCESS, LeadIn.queue(engine, "5.8", "5.8#1", false))
+        assertEquals(listOf(Queued("5.8", TextToSpeech.QUEUE_FLUSH, "5.8#1")), engine.queued)
     }
 
     @Test
     fun chimeTakesOverTheFlushWhenTheLeadInIsRefused() {
         val engine = FakeEngine(refused = setOf(LeadIn.SILENCE_EARCON))
-        LeadIn.queue(engine, "5.8", true)
+        LeadIn.queue(engine, "5.8", "5.8#1", true)
         assertEquals(
             listOf(
                 Queued(LeadIn.CHIME_EARCON, TextToSpeech.QUEUE_FLUSH, LeadIn.ID),
-                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8"),
+                Queued("5.8", TextToSpeech.QUEUE_ADD, "5.8#1"),
             ),
             engine.queued,
         )
@@ -86,13 +86,13 @@ class LeadInTests {
         // Talker charges the separation interval and engine health on this result; a lead-in
         // that queued fine must not make refused words look spoken.
         val engine = FakeEngine(wordsResult = TextToSpeech.ERROR)
-        assertEquals(TextToSpeech.ERROR, LeadIn.queue(engine, "5.8", true))
+        assertEquals(TextToSpeech.ERROR, LeadIn.queue(engine, "5.8", "5.8#1", true))
     }
 
     @Test
     fun onlyTheLeadInIdIsIgnoredByTheProgressListener() {
         assertTrue(LeadIn.isLeadIn(LeadIn.ID))
-        assertFalse(LeadIn.isLeadIn("5.8"))
+        assertFalse(LeadIn.isLeadIn("5.8#1"))
         assertFalse(LeadIn.isLeadIn("voice_preview"))
         assertFalse(LeadIn.isLeadIn(null))
     }

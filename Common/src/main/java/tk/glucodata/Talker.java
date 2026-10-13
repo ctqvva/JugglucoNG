@@ -368,6 +368,8 @@ void destruct() {
 if(!DontTalk) {
     engineReady = false;
     if(engine!=null) {
+        // No progress callback follows shutdown(), so words still holding focus would keep it.
+        focus.release(lastWordsId);
         engine.shutdown();
         engine=null;
         }
@@ -463,12 +465,23 @@ if(!DontTalk) {
             if(LeadIn.isLeadIn(utteranceId))
                 return;
             if(!notifyfocus)
-                doTurnFocusoff();
+                focus.release(utteranceId);
             if ("voice_preview".equals(utteranceId)) {
                 var cb = previewDoneCallback;
                 if (cb != null) Applic.RunOnUiThread(cb);
             }
         }
+
+        // stop(), or a later QUEUE_FLUSH, ends an utterance with this instead of onDone/onError -
+        // also when it is flushed while its lead-in plays, before its words ever start.
+        @Override
+        public void onStop(String utteranceId,boolean interrupted) {
+            if(doLog) {Log.i(LOG_ID,"onStop "+utteranceId+" interrupted="+interrupted);};
+            if(LeadIn.isLeadIn(utteranceId))
+                return;
+            if(!notifyfocus)
+                focus.release(utteranceId);
+            }
 
         @Override
         public void onError(String utteranceId) {
@@ -477,7 +490,7 @@ if(!DontTalk) {
             if(LeadIn.isLeadIn(utteranceId))
                 return;
             if(!notifyfocus)
-                doTurnFocusoff();
+                focus.release(utteranceId);
             if ("voice_preview".equals(utteranceId)) {
                 var cb = previewDoneCallback;
                 if (cb != null) Applic.RunOnUiThread(cb);
@@ -486,12 +499,13 @@ if(!DontTalk) {
         @Override
         public void onStart(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onStart "+utteranceId);};
-            // speak() already owns focus for the lead-in, and releases it itself when the words
-            // are refused - taking it again here would leave it held with no onDone to free it.
+            // Words from speak() already hold focus from before their lead-in, so this only
+            // re-confirms them; it is what takes focus for utterances that bypass speak(), such
+            // as the voice preview.
             if(LeadIn.isLeadIn(utteranceId))
                 return;
             if(!notifyfocus)
-                doTurnFocuson() ;
+                focus.claim(utteranceId);
             }
 
     });
@@ -551,18 +565,24 @@ public boolean speak(String message) {
 boolean speak(String message,boolean chime) {
     if(!DontTalk) {
         final boolean ownsFocus=!notifyfocus;
+        // Unique, so a callback for an earlier utterance of the same value cannot release this
+        // one's focus.
+        final String wordsId=message+"#"+utteranceSeq.incrementAndGet();
         boolean queued=false;
         try {
             // One read: destruct() nulls the field from another thread, and this makes three calls.
             final TextToSpeech gine=engine;
             ensureMinStreamVolume();
-            if(ownsFocus)
-                doTurnFocuson();
             final int speakResult;
             // An utterance is now several queue calls. Unlocked, a second speak() could flush
             // between this one's lead-in and its words, and these older words would then be
-            // appended after the newer ones instead of being replaced by them.
+            // appended after the newer ones instead of being replaced by them. Claiming inside
+            // the lock keeps the focus owner the utterance that was queued last.
             synchronized(queueLock) {
+            if(ownsFocus) {
+                lastWordsId=wordsId;
+                focus.claim(wordsId);
+                }
             speakResult=LeadIn.queue(new LeadIn.Engine() {
                 @Override
                 public int playEarcon(String earcon,int queueMode,String utteranceId) {
@@ -572,7 +592,7 @@ boolean speak(String message,boolean chime) {
                 public int speak(String text,int queueMode,String utteranceId) {
                     return gine.speak(text,queueMode,null,utteranceId);
                     }
-                },message,chime);
+                },message,wordsId,chime);
                 }
             if(speakResult==TextToSpeech.SUCCESS) {
                 queued=true;
@@ -596,7 +616,7 @@ boolean speak(String message,boolean chime) {
             // Nothing will call onDone for words that were never queued, and the listener
             // ignores the lead-in, so the focus taken above is ours to give back.
             if(ownsFocus&&!queued)
-                doTurnFocusoff();
+                focus.release(wordsId);
             }
         }
     return false;
@@ -604,6 +624,21 @@ boolean speak(String message,boolean chime) {
 
 /** Held across every write to the engine's queue, so one utterance's items stay together. */
 private final Object queueLock=new Object();
+
+/** Static, as the focus it tracks is: a replaced Talker's late callbacks must not release it. */
+private static final SpeechFocus focus=new SpeechFocus(new SpeechFocus.Audio() {
+    @Override
+    public void request() {
+        doTurnFocuson();
+        }
+    @Override
+    public void abandon() {
+        doTurnFocusoff();
+        }
+    });
+private static final java.util.concurrent.atomic.AtomicLong utteranceSeq=new java.util.concurrent.atomic.AtomicLong();
+/** The words this Talker last claimed focus for, released by destruct(). */
+private volatile String lastWordsId;
 
 private static final String PREFS="tk.glucodata_preferences";
 private static final String KEY_CHIME="voice_chime_before_glucose";
