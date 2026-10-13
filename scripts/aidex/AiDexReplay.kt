@@ -8,6 +8,7 @@ object AiDexReplay {
     fun main(args: Array<String>) {
         require(args.size == 2) { "Usage: AiDexReplay input.tsv output.csv" }
         val models = mutableMapOf<Pair<String, String>, AiDexAdaptiveV2>()
+        val pendingReferences = mutableMapOf<Pair<String, String>, MutableList<AiDexReference>>()
         File(args[1]).bufferedWriter().use { output ->
             output.appendLine("sensor,timestampMs,sessionStartMs,model,factoryMmol,rawProxyMmol,referenceMmol,preReferenceMmol,glucoseMmol,lower90Mmol,upper90Mmol,normalizedRawMmol,scale,rate,artifactProbability,driftProbability")
             File(args[0]).useLines { lines ->
@@ -24,15 +25,19 @@ object AiDexReplay {
                         val model = models.getOrPut(sensor to name) {
                             AiDexAdaptiveV2(if (name == "reference_only") AiDexNormalization.REFERENCE_ONLY else AiDexNormalization.FACTORY_ASSISTED)
                         }
-                        val applied = if (name == "factory_assisted") emptyList() else references
+                        val pending = pendingReferences.getOrPut(sensor to name) { mutableListOf() }
+                        if (name != "factory_assisted") pending.addAll(references)
+                        pending.removeAll { it.timestampMs < sample.sessionStartMs || sample.timestampMs - it.timestampMs > 60_000L }
+                        val applied = pending.filter { it.timestampMs <= sample.timestampMs }
                         // Score BEFORE this reference has reached the estimator.
                         // A cloned checkpoint avoids advancing the real model twice.
-                        val prediction = if (applied.isNotEmpty()) {
+                        val prediction = if (references.isNotEmpty() && name != "factory_assisted") {
                             AiDexAdaptiveV2(model.normalization).also {
                                 check(it.restore(model.snapshot()))
-                            }.process(sample)
+                            }.process(sample, applied.filterNot { it in references })
                         } else null
                         val result = model.process(sample, applied)
+                        if (result != null) pending.removeAll(applied.toSet())
                         output.appendLine(listOf(
                             sensor, sample.timestampMs, sample.sessionStartMs, name,
                             sample.factoryMgDl / AiDexAdaptiveV2.MGDL_PER_MMOL,

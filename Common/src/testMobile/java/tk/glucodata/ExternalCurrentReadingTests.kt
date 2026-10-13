@@ -27,6 +27,7 @@ class ExternalCurrentReadingTests {
         companion object {
             var value = Float.NaN
             var timestamp = 0L
+            var sensorStart = 0L
 
             @JvmStatic
             @Implementation
@@ -34,6 +35,7 @@ class ExternalCurrentReadingTests {
                 time: Long, start: Long, timeout: Long, generation: Int, reading: LiveReadingLanes) {
                 value = glucose
                 timestamp = time
+                sensorStart = start
             }
         }
     }
@@ -81,6 +83,11 @@ class ExternalCurrentReadingTests {
                         SuperGattCallback.processExternalCurrentReading(serial, lanes, 0f, time, 0)
                         assertEquals(expected, PublicationSink.value, 0.001f)
                         assertEquals(time, PublicationSink.timestamp)
+                        val start = time - 4 * 24 * 3600_000L
+                        SuperGattCallback.processExternalCurrentReading(serial, lanes, 0f, time, 0, start)
+                        assertEquals(expected, PublicationSink.value, 0.001f)
+                        assertEquals(time, PublicationSink.timestamp)
+                        assertEquals(start, PublicationSink.sensorStart)
                     }
                 }
             }

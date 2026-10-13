@@ -44,7 +44,7 @@ internal class AiDexAlgorithmController(
     @Volatile var appliedSelection = initial
         private set
     private var generation = 0L
-    private var closed = false
+    @Volatile private var closed = false
     private var context: AiDexAlgorithmContext? = if (initial.adaptive) null else AiDexAlgorithmContext(initial)
     private var lastProcessedTime = 0L
     private var replayNeeded = initial.adaptive
@@ -65,7 +65,8 @@ internal class AiDexAlgorithmController(
 
     fun invalidateReferences() = synchronized(lock) { if (!closed) { generation++; replayNeeded = true } }
     fun needsReplay(): Boolean = synchronized(lock) { !closed && replayNeeded }
-    fun isClosed(): Boolean = synchronized(lock) { closed }
+    // Enqueuing from a Bluetooth callback must never wait for a Room writer.
+    fun isClosed(): Boolean = closed
 
     fun record(sources: Collection<AiDexSourceSample>): Boolean = synchronized(lock) {
         if (closed) return@synchronized false
@@ -105,16 +106,9 @@ internal class AiDexAlgorithmController(
     /** Computation has no side effects and can be abandoned at any point. */
     fun compute(ticket: Ticket): Replay {
         val model = AiDexAlgorithmContext(ticket.selection)
-        val refs = ticket.references.sortedBy { it.timestampMs }
-        var cursor = 0
-        val readings = ticket.sources.map { source ->
-            val current = ArrayList<AiDexReference>()
-            while (cursor < refs.size && refs[cursor].timestampMs <= source.timestampMs) {
-                val ref = refs[cursor++]
-                if (ref.timestampMs >= source.sessionStartMs && source.timestampMs - ref.timestampMs <= 60_000L) current += ref
-            }
-            model.process(source, current)
-        }
+        // Use the same reference window as live. The estimator consumes accepted
+        // references once; a rawless/invalid minute must not consume its anchor.
+        val readings = ticket.sources.map { source -> model.process(source, ticket.references) }
         return Replay(model, readings)
     }
 

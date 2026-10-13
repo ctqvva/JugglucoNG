@@ -81,6 +81,33 @@ class AiDexAlgorithmControllerTest {
         assertEquals(live, replayed)
     }
 
+    @Test fun `rawless or unusable reference minute keeps its reference for the next usable sample`() {
+        for (missingRaw in listOf(Float.NaN, 0f, 6500f)) {
+            val model = controller(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED)
+            seed(model)
+            replay(model)
+            val refs = listOf(AiDexReference(start + 181 * 60_000L, 130f))
+            assertNull(model.live(sample(181, raw = missingRaw), refs)!!.uncertainty)
+            val live = model.live(sample(182), refs)!!
+            assertTrue(live.glucoseMgDl > 115f)
+            assertEquals("raw=$missingRaw, replay must retain the unaccepted anchor", live, replay(model, refs).last())
+            val restarted = AiDexAlgorithmController(model.journal, model.appliedSelection)
+            assertEquals(live, replay(restarted, refs).last())
+            assertEquals(model.live(sample(183), refs), restarted.live(sample(183), refs))
+        }
+    }
+
+    @Test fun `unaccepted rawless reference expires after its one minute window`() {
+        val model = controller(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED)
+        seed(model)
+        replay(model)
+        val refs = listOf(AiDexReference(start + 181 * 60_000L, 130f))
+        model.live(sample(181, raw = Float.NaN), refs)
+        val live = model.live(sample(183), refs)!!
+        assertEquals(live, replay(model, refs).last())
+        assertEquals(live, model.compute(model.ticket(emptyList())!!).readings.last())
+    }
+
     @Test fun `a revised stock minute publishes the revised factory value`() {
         val model = controller()
         assertEquals(100f, model.live(sample(0), emptyList())!!.glucoseMgDl, 0f)

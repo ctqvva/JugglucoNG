@@ -531,6 +531,12 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      */
     public static void processExternalCurrentReading(String sensorSerial, LiveReadingLanes reading, float rate,
             long timmsec, int sensorgen) {
+        processExternalCurrentReading(sensorSerial, reading, rate, timmsec, sensorgen, 0L);
+    }
+
+    /** Managed drivers with a known activation preserve it for the exchange feeds. */
+    public static void processExternalCurrentReading(String sensorSerial, LiveReadingLanes reading, float rate,
+            long timmsec, int sensorgen, long sensorStartMs) {
         if (reading == null || !reading.getHasValue() || timmsec <= 0L) {
             return;
         }
@@ -564,7 +570,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         final int mgdlValue = Math.round(glucoseValue * (Applic.unit == 1 ? mgdLmult : 1.0f));
         dowithglucose(resolvedSensorSerial, mgdlValue, glucoseValue, rate, 0, timmsec,
-                0L, Notify.glucosetimeout, sensorgen, reading);
+                sensorStartMs, Notify.glucosetimeout, sensorgen, reading);
     }
 
     private static float stockPrimaryValue(LiveReadingLanes reading) {

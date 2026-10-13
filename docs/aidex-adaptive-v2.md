@@ -36,13 +36,31 @@ native shell. Imported historical sessions have an explicit age proxy where
 their activation time is unknown. The current native window uses its reported
 start, and a sensor reset starts a separate estimator session.
 
-Live Room writes finish under the same ownership lock as replay commits, so a
+Live source, Room and publication work runs on a serial worker, under the same
+ownership lock as replay commits, so a
 previous Adaptive write cannot overwrite a later Stock restoration. The new
 managed snapshot is installed before exchange publication; rate stays in mg/dL
-per minute regardless of glucose display units. Calibration revision callbacks
+per minute regardless of glucose display units. GATT notifications/read values
+are copied and dispatched off the platform callback; protocol responses stay on
+the control handler so replay cannot delay authentication ACK handling. Queued
+live work rechecks the GATT identity and cannot write after removal closes
+ownership. Publication carries the reported sensor start to the exchange feeds.
+Calibration revision callbacks
 compare actual references and fit fingerprints, so completion/cache-only
 notifications do not schedule another replay. A rejected reset releases the
 algorithm wait and retries any pending selection.
+
+Keeping history on removal also keeps its applied calibration ownership in the
+retained native preferences. Without a driver, single-value and series
+calibration queries consult that applied mode; requested but unfinished choices
+cannot change ownership. Stock-restored history remains eligible for generic
+calibration, while internally corrected Auto history bypasses it. Raw remains
+independent. This state travels in settings/full backups.
+
+Live and replay use the same causal one-minute reference window. An anchor on a
+rawless or unusable minute remains available to the next usable sample within
+that window; the estimator consumes accepted references once. Restart and the
+standalone replay retain the same behavior.
 
 Brief/broadcast readings without usable raw retain factory output without an
 invented uncertainty interval. With internal calibration enabled, those fallback
@@ -203,7 +221,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 3,959 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 3,966 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Four Python replay
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -214,10 +232,14 @@ exclusion, explicit resets and pre-reference scoring.
 Integration tests cover source-journal CRC/recovery/backup, Stock restoration,
 calibration toggling, causal reference ordering, restart continuation, late and
 revised minutes, stale-worker rejection, failed commits and removal ownership.
-Six Android runtime/manager regressions exercise completion notification
+Eleven Android runtime/manager regressions exercise completion notification
 termination, real reference/fit changes, delayed live-write ordering, current
-managed-minute publication, rate units and rejected-reset recovery. Those tests
-replace Room, JNI and final publication side effects; they do not constitute
+managed-minute publication, rate units, rejected-reset recovery, retained
+ownership, nonblocking callbacks and queued removal/transport checks. Controller
+tests cover rawless/unusable reference minutes, expiry and restart continuation.
+The retained-history tests also exercise the real calibration manager's
+single-value/series ownership gates. Other adapter tests replace history Room,
+JNI, crypto and final publication side effects; they do not constitute
 device or native-storage validation. UI guardrails pass without a baseline change.
 The actual Compose sheet was checked in a JNI-free emulator harness, including
 selection/toggle changes and portrait/landscape layouts. This harness does not

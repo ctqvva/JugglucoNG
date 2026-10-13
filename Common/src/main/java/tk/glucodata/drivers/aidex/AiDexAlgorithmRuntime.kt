@@ -89,6 +89,20 @@ internal class AiDexAlgorithmRuntime(
     }
     fun isRebuilding(): Boolean = running.get()
 
+    /** Only enqueue on the caller; journal, Room and publication run on the serial worker. */
+    fun enqueue(work: () -> Unit): Boolean {
+        if (controller.isClosed()) return false
+        return runCatching {
+            worker.execute {
+                synchronized(controller.lock) {
+                    if (controller.isClosed()) return@execute
+                    runCatching(work).onFailure { Log.stack("AiDexAlgorithm", "queued sensor work", it) }
+                }
+            }
+            true
+        }.onFailure { Log.stack("AiDexAlgorithm", "cannot queue sensor work", it) }.getOrDefault(false)
+    }
+
     fun ephemeral(source: AiDexSourceSample): AiDexAlgorithmReading = synchronized(controller.lock) {
         val row = AiDexAlgorithmReading(source, source.factoryMgDl)
         calibrateFallbacks(listOf(row), controller.appliedSelection).single()

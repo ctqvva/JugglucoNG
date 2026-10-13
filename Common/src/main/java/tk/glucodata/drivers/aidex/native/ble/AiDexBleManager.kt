@@ -877,7 +877,7 @@ class AiDexBleManager(
         SuperGattCallback.processExternalCurrentReading(SerialNumber,
             tk.glucodata.LiveReadingLanes.stock(row.glucoseMgDl * factor,
                 row.source.rawMgDl.takeIf { it.isFinite() && it > 0f }?.times(factor) ?: Float.NaN),
-            rate, row.source.timestampMs, sensorgen)
+            rate, row.source.timestampMs, sensorgen, sensorstartmsec)
         if (live) {
             completeManagedLiveReading(row.source.timestampMs)
         }
@@ -2656,17 +2656,30 @@ class AiDexBleManager(
             return
         }
         val uuid = characteristic.uuid
-        val data = characteristic.value ?: return
+        val data = characteristic.value?.copyOf() ?: return
         if (data.isEmpty()) return
+        val receivedAtMs = System.currentTimeMillis()
 
         // Lazy: this fires per notification and the hex preview copies + formats bytes.
         logi(TAG) { "onCharacteristicChanged: uuid=$uuid len=${data.size} hex=${AiDexParser.hexString(data.copyOfRange(0, minOf(data.size, 8)))}" }
 
-        when (uuid) {
-            CHAR_F003 -> handleF003(data)
-            CHAR_F001 -> handleF001Response(data, gatt)
-            CHAR_F002 -> handleF002Response(data, gatt)
-            else -> Log.w(TAG, "onCharacteristicChanged: unexpected uuid=$uuid")
+        enqueueGattReadingWork(gatt) {
+            when (uuid) {
+                CHAR_F003 -> handleF003(data, receivedAtMs, gatt)
+                CHAR_F001 -> handleF001Response(data, gatt)
+                CHAR_F002 -> handleF002Response(data, gatt)
+                else -> Log.w(TAG, "onCharacteristicChanged: unexpected uuid=$uuid")
+            }
+        }
+    }
+
+    private fun enqueueGattReadingWork(gatt: BluetoothGatt, work: () -> Unit) {
+        // Protocol responses stay on the control handler, so a history replay
+        // cannot delay authentication ACK handling. Parsed reading work is
+        // subsequently enqueued on the algorithm's serial worker.
+        handler.post {
+            if (gatt !== mBluetoothGatt || stop) return@post
+            work()
         }
     }
 
@@ -2702,10 +2715,11 @@ class AiDexBleManager(
             return
         }
         val uuid = characteristic.uuid
-        val data = characteristic.value
+        val data = characteristic.value?.copyOf()
 
         if (gattOpActive) {
             handler.post {
+                if (gatt !== mBluetoothGatt || stop) return@post
                 handler.removeCallbacks(gattOpWatchdog)
                 currentGattOp = null
                 gattOpActive = false
@@ -2718,6 +2732,12 @@ class AiDexBleManager(
             return
         }
 
+        enqueueGattReadingWork(gatt) {
+            handleCharacteristicReadValue(uuid, data, gatt)
+        }
+    }
+
+    private fun handleCharacteristicReadValue(uuid: UUID, data: ByteArray, gatt: BluetoothGatt) {
         when (uuid) {
             CHAR_F002 -> {
                 if (!bondDataRead && phase == Phase.KEY_EXCHANGE) {
@@ -2876,6 +2896,7 @@ class AiDexBleManager(
         if (sensorstartmsec <= 0L || kotlin.math.abs(sensorstartmsec - startMs) > 60_000L) {
             Log.i(TAG, "Updating sensorstartmsec from $source: $sensorstartmsec → $startMs")
             synchronized(algorithmRuntime.controller.lock) {
+                if (algorithmRuntime.controller.isClosed()) return
                 algorithmRuntime.controller.invalidateReferences()
                 sensorstartmsec = startMs
                 Natives.aidexSetStartTime(dataptr, startMs)
@@ -4291,8 +4312,7 @@ class AiDexBleManager(
     // F003 Data Handling
     // =========================================================================
 
-    private fun handleF003(encryptedData: ByteArray) {
-        val now = System.currentTimeMillis()
+    private fun handleF003(encryptedData: ByteArray, now: Long, gatt: BluetoothGatt) {
         lastF003FrameTimeMs = now
         handler.removeCallbacks(noStreamWatchdog)
         logi(TAG) { "handleF003: len=${encryptedData.size}, raw=${AiDexParser.hexString(encryptedData.copyOfRange(0, minOf(encryptedData.size, 8)))}" }
@@ -4392,25 +4412,28 @@ class AiDexBleManager(
             setBondValidatedByStreaming(true, "direct-live")
         }
 
-        val (trustedOffsetMinutes, offsetResolutionNote) = resolveTrustedLiveOffsetMinutes(frame, now)
-        offsetResolutionNote?.let {
-            Log.w(
-                TAG,
-                "F003 timing: $it " +
-                    "(wireOffset=${frame.timeOffsetMinutes} glucose=${frame.glucoseMgDl} i1=${frame.i1} i2=${frame.i2})"
+        algorithmRuntime.enqueue {
+            if (gatt !== mBluetoothGatt || stop) return@enqueue
+            val (trustedOffsetMinutes, offsetResolutionNote) = resolveTrustedLiveOffsetMinutes(frame, now)
+            offsetResolutionNote?.let {
+                Log.w(
+                    TAG,
+                    "F003 timing: $it " +
+                        "(wireOffset=${frame.timeOffsetMinutes} glucose=${frame.glucoseMgDl} i1=${frame.i1} i2=${frame.i2})"
+                )
+            }
+
+            handleParsedLiveReading(
+                now = now,
+                source = "native",
+                autoValue = frame.glucoseMgDl,
+                trustedTimeOffsetMinutes = trustedOffsetMinutes,
+                rawValue = frame.i1 * 10f,
+                sensorGlucose = frame.i1 * 18.0182f,
+                rawI1 = frame.i1,
+                rawI2 = frame.i2,
             )
         }
-
-        handleParsedLiveReading(
-            now = now,
-            source = "native",
-            autoValue = frame.glucoseMgDl,
-            trustedTimeOffsetMinutes = trustedOffsetMinutes,
-            rawValue = frame.i1 * 10f,
-            sensorGlucose = frame.i1 * 18.0182f,
-            rawI1 = frame.i1,
-            rawI2 = frame.i2,
-        )
     }
 
     /**
@@ -7065,8 +7088,20 @@ class AiDexBleManager(
         source: String,
         stopActiveScanAfterHandling: Boolean,
     ) {
+        val immutablePayload = payload.copyOf()
+        val receivedAtMs = System.currentTimeMillis()
+        algorithmRuntime.enqueue {
+            if (!stop) processBroadcastPayload(immutablePayload, source, stopActiveScanAfterHandling, receivedAtMs)
+        }
+    }
+
+    private fun processBroadcastPayload(
+        payload: ByteArray,
+        source: String,
+        stopActiveScanAfterHandling: Boolean,
+        now: Long,
+    ) {
         markStartupControlComplete("broadcast-$source")
-        val now = System.currentTimeMillis()
         val waitingForFirstDirectLive = waitingForFirstDirectLive()
         val hadRecentLiveDataBeforeBroadcast = hasRecentLiveData(now)
         val parsed = parseBroadcastSamplePayload(payload)
@@ -7213,7 +7248,7 @@ class AiDexBleManager(
                     SuperGattCallback.processExternalCurrentReading(SerialNumber,
                         tk.glucodata.LiveReadingLanes.stock(row.glucoseMgDl /
                             if (Applic.unit == 1) AiDexAdaptiveV2.MGDL_PER_MMOL else 1f, Float.NaN),
-                        0f, sampleTimestampMs, sensorgen)
+                        0f, sampleTimestampMs, sensorgen, sensorstartmsec)
                 }
             }
             maybePromoteFallbackReadingToHistory(now, source)
