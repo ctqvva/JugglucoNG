@@ -320,6 +320,29 @@ object HistorySyncAccess {
     }
 
     @JvmStatic
+    fun storeSensorHistoryBatchWithCompletionAsync(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank() || timestamps.isEmpty()) {
+            val valid = timestamps.isEmpty() && !sensorSerial.isNullOrBlank()
+            completion.complete(valid)
+            return valid
+        }
+        HistoryRepositoryAccess.storeHistoryBatchWithCompletionAsync(
+            sensorSerial,
+            timestamps,
+            valuesMgdl,
+            rawValuesMgdl,
+            completion,
+        )
+        return true
+    }
+
+    @JvmStatic
     fun storeSensorHistoryBatchBlocking(
         sensorSerial: String?,
         timestamps: LongArray,
@@ -374,5 +397,29 @@ object HistorySyncAccess {
     fun deleteReadingsForSensorAfter(sensorSerial: String?, timestampExclusive: Long): Int {
         if (sensorSerial.isNullOrBlank() || timestampExclusive <= 0L) return 0
         return HistoryRepositoryAccess.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive)
+    }
+
+    @JvmStatic
+    fun replaceProvisionalHistoryAsync(
+        sensorSerial: String?,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank() || provisionalTimestamps.isEmpty()) {
+            completion.complete(false)
+            return false
+        }
+        HistoryRepositoryAccess.replaceProvisionalHistoryAsync(
+            sensorSerial,
+            provisionalTimestamps,
+            correctedTimestamps,
+            valuesMgdl,
+            rawValuesMgdl,
+            completion,
+        )
+        return true
     }
 }

@@ -2,6 +2,7 @@ package tk.glucodata.data
 
 import tk.glucodata.GlucosePoint
 import tk.glucodata.HistoryRepositoryBridge
+import tk.glucodata.HistoryOperationCompletion
 import tk.glucodata.chart.MainSensorOwnership
 
 /**
@@ -46,6 +47,20 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         rawValuesMgdl: FloatArray,
     ) = HistoryRepository.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
 
+    override fun storeHistoryBatchWithCompletionAsync(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ) = HistoryRepository.storeHistoryBatchWithCompletionAsync(
+        sensorSerial,
+        timestamps,
+        valuesMgdl,
+        rawValuesMgdl,
+        completion,
+    )
+
     override fun storeHistoryBatchBlocking(
         sensorSerial: String,
         timestamps: LongArray,
@@ -80,6 +95,22 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         sensorSerial: String,
         timestampExclusive: Long,
     ): Int = HistoryRepository.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive)
+
+    override fun replaceProvisionalHistoryAsync(
+        sensorSerial: String,
+        provisionalTimestamps: LongArray,
+        correctedTimestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        completion: HistoryOperationCompletion,
+    ) = HistoryRepository.replaceProvisionalHistoryAsync(
+        sensorSerial,
+        provisionalTimestamps,
+        correctedTimestamps,
+        valuesMgdl,
+        rawValuesMgdl,
+        completion,
+    )
 
     override fun getMainSensorOwnershipForNotification(startTimeMs: Long): MainSensorOwnership =
         HistoryRepository.getMainSensorOwnershipForNotification(startTimeMs)

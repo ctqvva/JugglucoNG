@@ -40,13 +40,34 @@ class OttaiLiveFreshnessTests {
         val receivedAtMs = 1_782_823_566_000L
         val state = OttaiCurrentReadingState()
 
-        assertFalse(state.accept(live = false, receivedAtMs = receivedAtMs, sampleMs = provisionalHistoryMs).publishCurrent)
-        val firstLive = state.accept(live = true, receivedAtMs = receivedAtMs, sampleMs = reliableLiveMs)
-        assertEquals(provisionalHistoryMs, firstLive.previousDisplayedHighWaterMs)
-        assertFalse(firstLive.displayAdvanced)
-        assertTrue(firstLive.publishCurrent)
         assertFalse(
-            state.accept(live = true, receivedAtMs = receivedAtMs, sampleMs = reliableLiveMs).publishCurrent,
+            state.accept(
+                live = false,
+                receivedAtMs = receivedAtMs,
+                sampleMs = provisionalHistoryMs,
+                dataNo = 42,
+            ).publishCurrent,
+        )
+        val firstLive = state.accept(
+            live = true,
+            receivedAtMs = receivedAtMs,
+            sampleMs = reliableLiveMs,
+            dataNo = 42,
+        )
+        assertEquals(provisionalHistoryMs, firstLive.previousDisplayedHighWaterMs)
+        assertTrue(firstLive.displayAdvanced)
+        assertTrue(firstLive.publishCurrent)
+        assertTrue(firstLive.persistReading)
+        assertTrue(firstLive.replacesProvisionalTail)
+        assertEquals(provisionalHistoryMs, firstLive.provisionalTimestampToReplaceMs)
+        state.completePublication(reliableLiveMs, delivered = true)
+        assertFalse(
+            state.accept(
+                live = true,
+                receivedAtMs = receivedAtMs,
+                sampleMs = reliableLiveMs,
+                dataNo = 42,
+            ).publishCurrent,
         )
     }
 
@@ -55,10 +76,45 @@ class OttaiLiveFreshnessTests {
         val newestMs = 1_782_823_440_000L
         val state = OttaiCurrentReadingState(initialPublishedHighWaterMs = newestMs)
 
-        assertFalse(state.accept(live = false, receivedAtMs = newestMs, sampleMs = newestMs).publishCurrent)
         assertFalse(
-            state.accept(live = true, receivedAtMs = newestMs, sampleMs = newestMs - 60_000L).publishCurrent,
+            state.accept(live = false, receivedAtMs = newestMs, sampleMs = newestMs, dataNo = 42).publishCurrent,
         )
+        val olderDifferentRecord = state.accept(
+            live = true,
+            receivedAtMs = newestMs,
+            sampleMs = newestMs - 60_000L,
+            dataNo = 41,
+        )
+        assertFalse(olderDifferentRecord.publishCurrent)
+        assertFalse(olderDifferentRecord.displayAdvanced)
+        assertFalse(olderDifferentRecord.persistReading)
+        assertFalse(olderDifferentRecord.replacesProvisionalTail)
+        assertEquals(0L, olderDifferentRecord.provisionalTimestampToReplaceMs)
+    }
+
+    @Test
+    fun newerLiveRecordCanReplaceALaterProvisionalHistoryTail() {
+        val provisionalTailMs = 1_782_823_500_000L
+        val correctedLiveMs = 1_782_823_440_000L
+        val state = OttaiCurrentReadingState()
+
+        state.accept(
+            live = false,
+            receivedAtMs = provisionalTailMs,
+            sampleMs = provisionalTailMs,
+            dataNo = 41,
+        )
+        val live = state.accept(
+            live = true,
+            receivedAtMs = correctedLiveMs,
+            sampleMs = correctedLiveMs,
+            dataNo = 42,
+        )
+
+        assertTrue(live.displayAdvanced)
+        assertTrue(live.publishCurrent)
+        assertTrue(live.persistReading)
+        assertTrue(live.replacesProvisionalTail)
     }
 
     @Test
@@ -67,23 +123,53 @@ class OttaiLiveFreshnessTests {
         val persistedClaims = mutableListOf<Long>()
         val firstManager = OttaiCurrentReadingState()
 
-        assertTrue(
-            firstManager.accept(
-                live = true,
-                receivedAtMs = publishedMs,
-                sampleMs = publishedMs,
-                persist = { persistedClaims += it },
-            ).publishCurrent,
+        val publication = firstManager.accept(
+            live = true,
+            receivedAtMs = publishedMs,
+            sampleMs = publishedMs,
+            dataNo = 42,
         )
+        assertTrue(publication.publishCurrent)
+        assertTrue(persistedClaims.isEmpty())
+        firstManager.completePublication(publishedMs, delivered = true) { persistedClaims += it }
         assertEquals(listOf(publishedMs), persistedClaims)
 
         val recreatedManager = OttaiCurrentReadingState()
         recreatedManager.restorePublishedHighWater(persistedClaims.single())
         assertFalse(
-            recreatedManager.accept(live = false, receivedAtMs = publishedMs, sampleMs = publishedMs).publishCurrent,
+            recreatedManager.accept(
+                live = false,
+                receivedAtMs = publishedMs,
+                sampleMs = publishedMs,
+                dataNo = 42,
+            ).publishCurrent,
         )
         assertFalse(
-            recreatedManager.accept(live = true, receivedAtMs = publishedMs, sampleMs = publishedMs).publishCurrent,
+            recreatedManager.accept(
+                live = true,
+                receivedAtMs = publishedMs,
+                sampleMs = publishedMs,
+                dataNo = 42,
+            ).publishCurrent,
+        )
+    }
+
+    @Test
+    fun rejectedRealtimeDeliveryDoesNotPersistOrConsumePublicationClaim() {
+        val sampleMs = 1_782_823_440_000L
+        val persistedClaims = mutableListOf<Long>()
+        val state = OttaiCurrentReadingState()
+
+        assertTrue(
+            state.accept(live = true, receivedAtMs = sampleMs, sampleMs = sampleMs, dataNo = 42).publishCurrent,
+        )
+        assertFalse(
+            state.accept(live = true, receivedAtMs = sampleMs, sampleMs = sampleMs, dataNo = 42).publishCurrent,
+        )
+        state.completePublication(sampleMs, delivered = false) { persistedClaims += it }
+        assertTrue(persistedClaims.isEmpty())
+        assertTrue(
+            state.accept(live = true, receivedAtMs = sampleMs, sampleMs = sampleMs, dataNo = 42).publishCurrent,
         )
     }
 
