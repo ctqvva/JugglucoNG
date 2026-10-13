@@ -3187,4 +3187,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">SSL port</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Offset: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Stock calibration</string>
+    <string name="aidex_stock_calibration_desc">Use the sensor’s glucose readings</string>
+    <string name="aidex_adaptive_v2_desc">Adaptive raw-signal estimate with a likely range</string>
+    <string name="aidex_algorithm_rebuilding">Rebuilding sensor history</string>
+    <string name="aidex_algorithm_failed">Unable to rebuild sensor history</string>
 </resources>

@@ -1021,6 +1021,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (health != null) health.writeAll(sensorptr, SerialNumber);
     }
 
+    /** Finish the accepted live path for a managed driver that publishes explicit lanes. */
+    protected final void completeManagedLiveReading(long timestampMs) {
+        markLocalReadingAccepted(timestampMs);
+        charcha[0] = timestampMs;
+        exportToHealthConnect();
+        SensorBluetooth.othersworking(this, timestampMs);
+    }
+
     protected void handleGlucoseResult(long res, long timmsec) {
         handleGlucoseResultInternal(res, timmsec, 0, Float.NaN);
     }

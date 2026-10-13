@@ -3051,4 +3051,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ssl_port">SSL-Port</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Versatz: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Werkskalibrierung</string>
+    <string name="aidex_stock_calibration_desc">Glukosewerte des Sensors verwenden</string>
+    <string name="aidex_adaptive_v2_desc">Adaptive Schätzung aus dem Rohsignal mit wahrscheinlichem Bereich</string>
+    <string name="aidex_algorithm_rebuilding">Sensorverlauf wird neu berechnet</string>
+    <string name="aidex_algorithm_failed">Sensorverlauf konnte nicht neu berechnet werden</string>
 </resources>

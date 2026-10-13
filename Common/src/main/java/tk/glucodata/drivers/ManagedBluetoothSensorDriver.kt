@@ -164,6 +164,9 @@ interface ManagedBluetoothSensorDriver {
     /** True when this driver consumes calibration for the requested display mode. */
     fun integratesUserCalibration(isRawMode: Boolean): Boolean = false
 
+    /** A replay changes Auto values even when calibration is disabled or Stock is restored. */
+    fun rewritesAutoHistory(): Boolean = false
+
     /** Calibration points or policy changed; stateful managed models may rebuild locally. */
     fun onUserCalibrationRevisionChanged(revision: Long) {}
 

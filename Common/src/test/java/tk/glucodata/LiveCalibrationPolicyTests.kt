@@ -25,27 +25,29 @@ class LiveCalibrationPolicyTests {
     }
 
     @Test
-    fun aidexLeavesGenericCalibrationToTheApp() {
-        // Default false is what makes handleGlucoseResult apply getCalibratedValue.
-        // AiDEX does not override the flag, so its direct live path stays on that gate.
-        // Ottai resolves its stock formula glucose through CurrentDisplaySource
-        // before using the external resolved-value API.
+    fun aidexIntegratesOnlyTheCalibratedAdaptiveAutoLane() {
         val contract = source("Common/src/main/java/tk/glucodata/drivers/ManagedBluetoothSensorDriver.kt")
         assertTrue(
             contract.contains("fun integratesUserCalibration(isRawMode: Boolean): Boolean = false"),
         )
-        for (path in listOf(
-            "Common/src/main/java/tk/glucodata/drivers/aidex/AiDexDriver.kt",
-            "Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt",
-        )) {
-            assertFalse(path, source(path).contains("fun integratesUserCalibration"))
+        for (mode in tk.glucodata.drivers.aidex.AiDexAlgorithmSelection.entries) {
+            assertEquals(mode == tk.glucodata.drivers.aidex.AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED,
+                mode.calibration)
         }
+        val manager = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
+        assertTrue(manager.contains("!isRawMode && algorithmRuntime.controller.appliedSelection.calibration"))
     }
 
     @Test
     fun aidexDirectLivePassesItsRawLaneIntoTheSharedPublishPath() {
         val aidex = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
-        assertTrue(aidex.contains("handleGlucoseResult(res, sampleTimestampMs, normalizedRawValue ?: Float.NaN)"))
+        val incoming = aidex.substringAfter("private fun handleParsedLiveReading(").substringBefore("private fun resolveTrustedLiveOffsetMinutes")
+        assertTrue(incoming.contains("normalizedRawValue ?: Float.NaN"))
+        assertTrue(incoming.contains("algorithmRuntime.live(input) { storeAlgorithmLive(it) }"))
+        val publish = aidex.substringAfter("private fun publishAlgorithmReading(").substringBefore("private fun storeAlgorithmLive(")
+        assertTrue(publish.contains("LiveReadingLanes.stock("))
+        assertTrue(publish.contains("row.source.rawMgDl.takeIf"))
+        assertFalse(publish.contains("LiveReadingLanes.resolved("))
     }
 
     @Test

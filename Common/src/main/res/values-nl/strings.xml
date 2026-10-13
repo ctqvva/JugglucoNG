@@ -2978,4 +2978,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ssl_port">SSL-poort</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Offset: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Fabriekskalibratie</string>
+    <string name="aidex_stock_calibration_desc">Gebruik de glucosemetingen van de sensor</string>
+    <string name="aidex_adaptive_v2_desc">Adaptieve schatting uit het ruwe signaal met een waarschijnlijk bereik</string>
+    <string name="aidex_algorithm_rebuilding">Sensorgeschiedenis wordt opnieuw berekend</string>
+    <string name="aidex_algorithm_failed">Sensorgeschiedenis kon niet opnieuw worden berekend</string>
 </resources>

@@ -146,6 +146,8 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
             rssi = callback.readrssi,
             dataptr = dataptr,
             viewMode = viewMode,
+            customAlgorithmEnabled = isCustomAlgorithmEnabled(),
+            customAlgorithmMode = getCustomAlgorithmMode(),
             supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = supportsManualCalibration(),
             supportsHardwareReset = runCatching { supportsResetAction() }.getOrDefault(true),

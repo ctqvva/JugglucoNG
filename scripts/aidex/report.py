@@ -60,7 +60,7 @@ body{font-family:var(--font-sans,system-ui);color:var(--foreground,#ddd);margin:
 <svg id="chart" viewBox="0 0 700 320" role="img" aria-label="Interactive glucose comparison in mmol per litre"></svg>
 <div class="readout" id="readout" aria-live="polite"></div><label><input id="band" type="checkbox"> Show model 90% interval (clinical coverage unvalidated)</label>
 <p>The factory overshoot is reduced. There are no independent references on KUFY, so this establishes a behavioral difference, not improved glucose accuracy.</p>
-__EVALUATION__<p><small>The candidate is outside the live display and alarm path. This run did not establish an accuracy gain on the aging sensor.</small></p>
+__EVALUATION__<p><small>Adaptive V2 is an opt-in experimental AiDex Auto mode. This replay did not establish an accuracy gain on the aging sensor.</small></p>
 <script>
 const data=__DATA__,svg=document.getElementById('chart'),H=320,L=42,R=10,T=12,B=30;let W=700;
 const first=data[0][1],last=data.at(-1)[1];let min=2,max=12;

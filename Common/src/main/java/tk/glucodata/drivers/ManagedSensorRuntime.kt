@@ -72,6 +72,10 @@ object ManagedSensorRuntime {
     }
 
     @JvmStatic
+    fun rewritesAutoHistory(sensorId: String?): Boolean =
+        runCatching { resolveDriver(sensorId)?.rewritesAutoHistory() == true }.getOrDefault(false)
+
+    @JvmStatic
     fun notifyUserCalibrationRevisionChanged(revision: Long) {
         runCatching {
             SensorBluetooth.mygatts()

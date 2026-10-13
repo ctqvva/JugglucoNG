@@ -2936,4 +2936,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">Porta SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Deslocamento: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Calibração de fábrica</string>
+    <string name="aidex_stock_calibration_desc">Usar as leituras de glicose do sensor</string>
+    <string name="aidex_adaptive_v2_desc">Estimativa adaptativa do sinal bruto com um intervalo provável</string>
+    <string name="aidex_algorithm_rebuilding">A recalcular o histórico do sensor</string>
+    <string name="aidex_algorithm_failed">Não foi possível recalcular o histórico do sensor</string>
 </resources>

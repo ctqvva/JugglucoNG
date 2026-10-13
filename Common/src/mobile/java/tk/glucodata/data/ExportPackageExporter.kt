@@ -19,6 +19,8 @@ import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
 import tk.glucodata.drivers.sibionics.SibionicsSourceJournalBackup
+import tk.glucodata.drivers.aidex.AiDexSourceJournalBackup
+import tk.glucodata.drivers.aidex.AiDexSampleJournal
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -560,6 +562,10 @@ object ExportPackageExporter {
                     .put("base64", android.util.Base64.encodeToString(file.readBytes(), android.util.Base64.NO_WRAP))
             )
         }
+        AiDexSourceJournalBackup.collect(context.filesDir).forEach { (relativePath, bytes) ->
+            result.put(relativePath, JSONObject().put("byteCount", bytes.size)
+                .put("base64", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)))
+        }
         return result
     }
 
@@ -573,7 +579,9 @@ object ExportPackageExporter {
             val entry = journals.optJSONObject(relativePath) ?: continue
             val encoded = entry.optString("base64").takeIf { it.isNotBlank() } ?: continue
             val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
-            imported += SibionicsSourceJournalBackup.restore(context.filesDir, relativePath, bytes)
+            imported += if (AiDexSourceJournalBackup.isJournalPath(relativePath)) {
+                AiDexSourceJournalBackup.restore(context.filesDir, relativePath, bytes)
+            } else SibionicsSourceJournalBackup.restore(context.filesDir, relativePath, bytes)
         }
         return imported
     }
@@ -583,14 +591,15 @@ object ExportPackageExporter {
         val names = journals.keys()
         while (names.hasNext()) {
             val relativePath = names.next()
-            require(SibionicsSourceJournalBackup.isJournalPath(relativePath)) {
+            require(SibionicsSourceJournalBackup.isJournalPath(relativePath) || AiDexSourceJournalBackup.isJournalPath(relativePath)) {
                 "Backup contains an unsupported sensor journal: $relativePath"
             }
             val entry = journals.optJSONObject(relativePath)
                 ?: error("Invalid sensor journal entry: $relativePath")
             val encoded = entry.optString("base64")
             require(encoded.isNotBlank()) { "Sensor journal data is missing: $relativePath" }
-            android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+            val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+            if (AiDexSourceJournalBackup.isJournalPath(relativePath)) AiDexSampleJournal.decode(bytes)
         }
     }
 

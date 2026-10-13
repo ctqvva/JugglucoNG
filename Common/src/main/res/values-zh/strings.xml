@@ -2950,4 +2950,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">SSL 端口</string>
     <string name="calibration_cf_value">CF：%1$s</string>
     <string name="calibration_offset_value">偏移量：%1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">出厂校准</string>
+    <string name="aidex_stock_calibration_desc">使用传感器的葡萄糖读数</string>
+    <string name="aidex_adaptive_v2_desc">根据原始信号进行自适应估计并显示可能范围</string>
+    <string name="aidex_algorithm_rebuilding">正在重新计算传感器历史记录</string>
+    <string name="aidex_algorithm_failed">无法重新计算传感器历史记录</string>
 </resources>

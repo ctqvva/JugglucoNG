@@ -422,6 +422,7 @@ fun SensorCard(
 
     // Sibionics Calibration Bottom Sheet
     var showSibionicsCalSheet by remember { mutableStateOf(false) }
+    var showAiDexAlgorithmSheet by remember { mutableStateOf(false) }
     var showColorSheet by remember { mutableStateOf(false) }
 
     // AiDex Maintenance Dialogs
@@ -1055,6 +1056,12 @@ fun SensorCard(
                 showColorSheet = false
             },
         )
+    }
+
+    if (showAiDexAlgorithmSheet && sensor.isAidex && sensor.viewMode != 1) {
+        AiDexAlgorithmSheet(sensor.serial, sensor.customCalIndex,
+            onSelect = { viewModel.setAiDexAlgorithmMode(sensor.serial, it) },
+            onDismiss = { showAiDexAlgorithmSheet = false })
     }
 
     // Independent, immediately applied sensor-algorithm features.
@@ -2303,10 +2310,12 @@ fun SensorCard(
                 )
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Auto-calibration entry — Sibionics only, hidden when Raw mode selected (viewMode == 1)
-                if (sensor.isSibionics && sensor.viewMode != 1) {
+                // Both managed algorithms replace the Auto lane; pure Raw hides this entry.
+                if ((sensor.isSibionics || sensor.isAidex) && sensor.viewMode != 1) {
                     val calibrationEnabled = sensor.customCalIndex and 1 != 0
-                    val baseAlgorithm = stringResource(
+                    val baseAlgorithm = if (sensor.isAidex) stringResource(
+                        if (sensor.customCalIndex and 8 != 0) R.string.sibionics_adaptive_v2 else R.string.aidex_stock_calibration
+                    ) else stringResource(
                         when (sensor.customCalIndex and 14) {
                             2 -> R.string.sibionics_state_algorithm
                             4 -> R.string.sibionics_balanced_algorithm
@@ -2319,7 +2328,9 @@ fun SensorCard(
                         "$baseAlgorithm • ${stringResource(R.string.calibration)}"
                     } else baseAlgorithm
                     Surface(
-                        onClick = { showSibionicsCalSheet = true },
+                        onClick = {
+                            if (sensor.isAidex) showAiDexAlgorithmSheet = true else showSibionicsCalSheet = true
+                        },
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         modifier = Modifier.fillMaxWidth()

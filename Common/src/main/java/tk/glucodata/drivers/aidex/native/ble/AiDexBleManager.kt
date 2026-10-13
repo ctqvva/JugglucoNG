@@ -44,6 +44,11 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.aidex.AiDexScanReceiver
 import tk.glucodata.drivers.aidex.AiDexDriver
+import tk.glucodata.drivers.aidex.AiDexAlgorithmRuntime
+import tk.glucodata.drivers.aidex.AiDexAlgorithmReading
+import tk.glucodata.drivers.aidex.AiDexAlgorithmSelection
+import tk.glucodata.drivers.aidex.AiDexSourceSample
+import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
 import tk.glucodata.drivers.aidex.AiDexTemperatureStore
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
@@ -830,6 +835,78 @@ class AiDexBleManager(
     }
 
     // -- SharedPreferences for per-sensor state persistence --
+    private val algorithmRuntime by lazy {
+        AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { sensorstartmsec },
+            { historyDownloading }) { row, live ->
+                if (live) storeAlgorithmLive(row) else publishAlgorithmReading(row, false)
+            }
+    }
+
+    override fun resetdataptr(): Long = synchronized(algorithmRuntime.controller.lock) {
+        if (algorithmRuntime.controller.isClosed()) 0L else {
+            algorithmRuntime.controller.invalidateReferences()
+            super.resetdataptr()
+        }
+    }
+
+    override fun supportsCustomAlgorithm(): Boolean = true
+    override fun isCustomAlgorithmEnabled(): Boolean = algorithmRuntime.controller.requestedSelection.adaptive
+    override fun getCustomAlgorithmMode(): Int = algorithmRuntime.controller.requestedSelection.storageId
+    override fun setCustomAlgorithmEnabled(enabled: Boolean): Boolean = setCustomAlgorithmMode(if (enabled) 8 else 0)
+    override fun setCustomAlgorithmMode(mode: Int): Boolean = algorithmRuntime.select(mode)
+    override fun integratesUserCalibration(isRawMode: Boolean): Boolean =
+        !isRawMode && algorithmRuntime.controller.appliedSelection.calibration
+    override fun rewritesAutoHistory(): Boolean = algorithmRuntime.rewritingHistory
+    override fun onUserCalibrationRevisionChanged(revision: Long) = algorithmRuntime.calibrationChanged(revision)
+
+    override fun getManagedCurrentSnapshot(maxAgeMillis: Long): tk.glucodata.drivers.ManagedSensorCurrentSnapshot? {
+        val row = algorithmRuntime.latestPublished ?: return null
+        if (stop || System.currentTimeMillis() - row.source.timestampMs > maxAgeMillis) return null
+        val factor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
+        return tk.glucodata.drivers.ManagedSensorCurrentSnapshot(row.source.timestampMs,
+            row.glucoseMgDl * factor, row.source.rawMgDl * factor,
+            rate = row.rateMgDlPerMinute.takeIf { it.isFinite() }?.times(factor) ?: 0f, sensorGen = sensorgen)
+    }
+
+    private fun publishAlgorithmReading(row: AiDexAlgorithmReading, live: Boolean) {
+        if (algorithmRuntime.controller.isClosed()) return
+        if (!live && (stop || row.source.timestampMs < lastGlucoseTimeMs ||
+            System.currentTimeMillis() - row.source.timestampMs > tk.glucodata.Notify.glucosetimeout)) return
+        val factor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
+        val rate = row.rateMgDlPerMinute.takeIf { it.isFinite() } ?: 0f
+        if (algorithmRuntime.controller.appliedSelection.adaptive) ExchangeTrend.clearAiDexTrend(SerialNumber)
+        SuperGattCallback.processExternalCurrentReading(SerialNumber,
+            tk.glucodata.LiveReadingLanes.stock(row.glucoseMgDl * factor,
+                row.source.rawMgDl.takeIf { it.isFinite() && it > 0f }?.times(factor) ?: Float.NaN),
+            rate * factor, row.source.timestampMs, sensorgen)
+        if (live) {
+            completeManagedLiveReading(row.source.timestampMs)
+        }
+    }
+
+    private fun storeAlgorithmLive(row: AiDexAlgorithmReading, trend: Int = Natives.AIDEX_TREND_UNKNOWN): AiDexAlgorithmReading {
+        markLocalReadingAccepted(row.source.timestampMs)
+        val raw = row.source.rawMgDl.takeIf { it.isFinite() } ?: 0f
+        if (dataptr != 0L) runCatching {
+            val result = Natives.aidexProcessData(dataptr, byteArrayOf(0), row.source.timestampMs,
+                row.glucoseMgDl, raw, 1f,
+                if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
+            if (result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
+        }.onFailure { Log.stack(TAG, "selected live native write", it) }
+        val previous = algorithmRuntime.latestPublished
+        val rate = when {
+            !algorithmRuntime.controller.appliedSelection.adaptive && trend != Natives.AIDEX_TREND_UNKNOWN -> trend.toByte() / 10f
+            previous != null && row.source.timestampMs > previous.source.timestampMs && row.source.sessionStartMs == previous.source.sessionStartMs ->
+                (row.glucoseMgDl - previous.glucoseMgDl) / ((row.source.timestampMs - previous.source.timestampMs) / 60_000f)
+            else -> row.rateMgDlPerMinute.takeIf { it.isFinite() } ?: 0f
+        }
+        val output = row.copy(rateMgDlPerMinute = rate)
+        tk.glucodata.HistorySyncAccess.storeCurrentReadingAsync(row.source.timestampMs, row.glucoseMgDl,
+            raw, rate, SerialNumber)
+        publishAlgorithmReading(output, true)
+        return output
+    }
+
     private val prefs by lazy {
         Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
     }
@@ -1010,6 +1087,7 @@ class AiDexBleManager(
             // Persist current offsets so next reconnect resumes where we stopped
             writeIntPref("historyRawNextIndex", historyRawNextIndex)
             writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
+            algorithmRuntime.historyComplete()
             Log.i(TAG, "History download aborted. Will resume on next connection from raw=$historyRawNextIndex, brief=$historyBriefNextIndex")
         }
     }
@@ -2793,8 +2871,11 @@ class AiDexBleManager(
 
         if (sensorstartmsec <= 0L || kotlin.math.abs(sensorstartmsec - startMs) > 60_000L) {
             Log.i(TAG, "Updating sensorstartmsec from $source: $sensorstartmsec → $startMs")
-            sensorstartmsec = startMs
-            Natives.aidexSetStartTime(dataptr, startMs)
+            synchronized(algorithmRuntime.controller.lock) {
+                algorithmRuntime.controller.invalidateReferences()
+                sensorstartmsec = startMs
+                Natives.aidexSetStartTime(dataptr, startMs)
+            }
         }
         if (lastGlucoseTimeMs < startMs) {
             armFirstValidReadingWait(startMs, "$source-authoritative-start")
@@ -3687,40 +3768,13 @@ class AiDexBleManager(
         onGlucoseReading?.invoke(reading)
         appendSkinTemperature(sampleTimestampMs, rawI2)
 
-        if (dataptr != 0L) {
-            try {
-                val res = Natives.aidexProcessData(
-                    dataptr,
-                    byteArrayOf(0),
-                    sampleTimestampMs,
-                    autoValue,
-                    normalizedRawValue ?: 0f,
-                    1.0f,
-                    // The direct F003 live frame carries no trend byte.
-                    Natives.AIDEX_TREND_UNKNOWN
-                )
-                handleGlucoseResult(res, sampleTimestampMs, normalizedRawValue ?: Float.NaN)
-                if (constatstatusstr == "Connected") {
-                    constatstatusstr = ""
-                }
-                maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, source)
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "F003($source): Native library mismatch: $e")
-                val mgdlInt = autoValue.toInt().coerceIn(0, 0xFFFF) * 10
-                handleGlucoseResult(mgdlInt.toLong() and 0xFFFFFFFFL, sampleTimestampMs, normalizedRawValue ?: Float.NaN)
-                maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, "$source-fallback")
-            } catch (e: Throwable) {
-                Log.e(TAG, "F003($source): aidexProcessData failed: $e")
-                val mgdlInt = autoValue.toInt().coerceIn(0, 0xFFFF) * 10
-                handleGlucoseResult(mgdlInt.toLong() and 0xFFFFFFFFL, sampleTimestampMs, normalizedRawValue ?: Float.NaN)
-                maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, "$source-fallback")
-            }
-        } else {
-            Log.w(TAG, "F003($source): dataptr is 0 — cannot store reading")
-            val mgdlInt = autoValue.toInt().coerceIn(0, 0xFFFF) * 10
-            handleGlucoseResult(mgdlInt.toLong() and 0xFFFFFFFFL, sampleTimestampMs, normalizedRawValue ?: Float.NaN)
-            maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, "$source-no-dataptr")
-        }
+        runCatching {
+            val input = algorithmRuntime.source(sampleTimestampMs, autoValue, normalizedRawValue ?: Float.NaN,
+                rawI2 ?: Float.NaN, AiDexSourceSample.LIVE)
+            algorithmRuntime.live(input) { storeAlgorithmLive(it) }
+        }.onFailure { Log.stack(TAG, "selected F003 reading", it) }
+        if (constatstatusstr == "Connected") constatstatusstr = ""
+        maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, source)
     }
 
     private fun resolveTrustedLiveOffsetMinutes(frame: GlucoseFrame, now: Long): Pair<Int?, String?> {
@@ -5688,16 +5742,18 @@ class AiDexBleManager(
      * - Never overwrite an authoritative session start with a live-derived offset
      * - If we still have no trustworthy start anchor, leave it unset instead of fabricating "now"
      */
-    private fun ensureSensorStartTime(now: Long, trustedOffsetMinutes: Int? = null) {
+    private fun ensureSensorStartTime(now: Long, trustedOffsetMinutes: Int? = null) = synchronized(algorithmRuntime.controller.lock) {
+        if (algorithmRuntime.controller.isClosed()) return@synchronized
         if (hasAuthoritativeSessionStart && sensorstartmsec > 0L) {
             updateSensorExpiredFromStart(now)
-            return
+            return@synchronized
         }
 
         val effectiveOffsetMinutes = trustedOffsetMinutes ?: lastOffsetMinutes.takeIf { it > 0 }
         if (effectiveOffsetMinutes != null && effectiveOffsetMinutes > 0) {
             val inferredStart = now - (effectiveOffsetMinutes.toLong() * 60_000L)
             if (sensorstartmsec == 0L || kotlin.math.abs(sensorstartmsec - inferredStart) > (10L * 60_000L)) {
+                algorithmRuntime.controller.invalidateReferences()
                 sensorstartmsec = inferredStart
                 Log.i(TAG, "Updated sensorstartmsec from offset: ${effectiveOffsetMinutes}min → $inferredStart")
                 if (dataptr != 0L) {
@@ -5730,7 +5786,8 @@ class AiDexBleManager(
      * - Leaves UI/current-reading refresh to the single catch-up update after download completion
      * - Leaves Room merge to a single non-destructive sync after download completion
      */
-    private fun storeHistoryEntries(entries: List<HistoryStoreEntry>) {
+    private fun storeHistoryEntries(entries: List<HistoryStoreEntry>) = synchronized(algorithmRuntime.controller.lock) {
+        if (algorithmRuntime.controller.isClosed()) return@synchronized
         // Ensure start time is available before computing timestamps.
         // History download can begin before 0x21 succeeds or before any F003 arrives.
         if (sensorstartmsec <= 0L) {
@@ -5738,11 +5795,11 @@ class AiDexBleManager(
         }
         if (sensorstartmsec <= 0L) {
             Log.w(TAG, "storeHistoryEntries: sensorstartmsec still not set after ensureSensorStartTime — skipping ${entries.size} entries")
-            return
+            return@synchronized
         }
         if (dataptr == 0L) {
             Log.w(TAG, "storeHistoryEntries: dataptr is 0 — cannot store")
-            return
+            return@synchronized
         }
 
         val now = System.currentTimeMillis()
@@ -5752,6 +5809,7 @@ class AiDexBleManager(
         var skippedWearDuration = 0
         var newestStoredTimeMs = 0L
         val temperatureRecords = ArrayList<AiDexTemperatureStore.TemperatureRecord>()
+        val originals = ArrayList<AiDexSourceSample>()
 
         for (entry in entries) {
             // Filter invalid
@@ -5797,10 +5855,8 @@ class AiDexBleManager(
             // Store via JNI — quiet history path, no per-entry UI wakeups
             try {
                 val rawForStore = HistoryMerge.normalizeRawMgDl(entry.rawMgDl) ?: 0f
-                Natives.aidexStoreHistoryData(dataptr, historicalTimeMs, entry.glucoseMgDl, rawForStore)
-                pendingRoomHistoryTimestamps.add(historicalTimeMs)
-                pendingRoomHistoryValues.add(entry.glucoseMgDl)
-                pendingRoomHistoryRawValues.add(rawForStore)
+                originals += algorithmRuntime.source(historicalTimeMs, entry.glucoseMgDl, rawForStore,
+                    entry.temperatureC, AiDexSourceSample.HISTORY)
                 if (AiDexTemperatureStore.isPlausibleSkinTemperatureC(entry.temperatureC)) {
                     temperatureRecords.add(
                         AiDexTemperatureStore.TemperatureRecord(historicalTimeMs, entry.temperatureC)
@@ -5820,6 +5876,16 @@ class AiDexBleManager(
                 break  // Don't keep hammering a broken JNI
             }
 
+        }
+
+        algorithmRuntime.record(originals)
+        if (!algorithmRuntime.controller.appliedSelection.adaptive) {
+            originals.forEach { row ->
+                Natives.aidexStoreHistoryData(dataptr, row.timestampMs, row.factoryMgDl, row.rawMgDl)
+                pendingRoomHistoryTimestamps.add(row.timestampMs)
+                pendingRoomHistoryValues.add(row.factoryMgDl)
+                pendingRoomHistoryRawValues.add(row.rawMgDl)
+            }
         }
 
         if (skippedWearDuration > 0) {
@@ -5844,7 +5910,8 @@ class AiDexBleManager(
     /**
      * Called when all history pages (both raw and brief) have been downloaded.
      */
-    private fun onHistoryDownloadComplete() {
+    private fun onHistoryDownloadComplete() = synchronized(algorithmRuntime.controller.lock) {
+        if (algorithmRuntime.controller.isClosed()) return@synchronized
         handler.removeCallbacks(historyPageWatchdog)  // History done — cancel any pending page timeout
         historyDownloading = false
         historyPhase = HistoryPhase.IDLE
@@ -5885,7 +5952,10 @@ class AiDexBleManager(
         // so the stream resumes immediately without waiting for the next F003 (~60s).
         // Uses manual pack (not aidexProcessData) to avoid double-writing data
         // that was already stored by storeHistoryEntries().
-        if (AiDexHistoryPolicy.shouldEmitCatchUpBroadcast(
+        algorithmRuntime.historyComplete()
+        if (!algorithmRuntime.controller.requestedSelection.adaptive &&
+            !algorithmRuntime.controller.appliedSelection.adaptive &&
+            AiDexHistoryPolicy.shouldEmitCatchUpBroadcast(
                 lastHistoryNewestGlucose = lastHistoryNewestGlucose,
                 lastHistoryNewestOffset = lastHistoryNewestOffset,
                 liveOffsetCutoff = liveOffsetCutoff,
@@ -5962,6 +6032,8 @@ class AiDexBleManager(
     fun getLastDefaultParamDiagnosticsSummary(): String? = lastDefaultParamDiagnostics?.summaryLine()
 
     override fun getDetailedBleStatus(): String {
+        if (algorithmRuntime.failed) return Applic.app.getString(R.string.aidex_algorithm_failed)
+        if (algorithmRuntime.isRebuilding()) return Applic.app.getString(R.string.aidex_algorithm_rebuilding)
         val now = System.currentTimeMillis()
 
         fun connectedWarmupStatus(connectionPart: String): String? {
@@ -6099,6 +6171,7 @@ class AiDexBleManager(
 
     override fun forgetVendor() {
         Log.i(TAG, "forgetVendor: tearing down native driver for $SerialNumber")
+        algorithmRuntime.close()
         stop = true
         pendingInvalidSetupRecovery = PendingInvalidSetupRecovery.NONE
         pendingStaleConnectionRecovery = false
@@ -6210,6 +6283,7 @@ class AiDexBleManager(
             return false
         }
 
+        algorithmRuntime.resetRequested()
         handler.removeCallbacks(clearStorageQuietWindowReconnect)
         handler.removeCallbacks(postResetDisconnectFallback)
         val resetRequestedAt = System.currentTimeMillis()
@@ -6245,6 +6319,7 @@ class AiDexBleManager(
 
     override fun startNewSensor(): Boolean {
         Log.i(TAG, "startNewSensor: activating sensor $SerialNumber")
+        algorithmRuntime.resetRequested()
         val now = System.currentTimeMillis()
         autoActivationAttemptedThisConnection = true
         hasAuthoritativeSessionStart = false
@@ -7070,7 +7145,8 @@ class AiDexBleManager(
             }
             return
         }
-        ExchangeTrend.cacheAiDexTrend(SerialNumber, sampleTimestampMs, sample.trend)
+        if (!algorithmRuntime.controller.appliedSelection.adaptive)
+            ExchangeTrend.cacheAiDexTrend(SerialNumber, sampleTimestampMs, sample.trend)
 
         val fallbackActive = AiDexRuntimePolicy.shouldAcceptBroadcastFallback(
             broadcastOnlyMode = reconnect.isBroadcastOnlyMode,
@@ -7119,22 +7195,21 @@ class AiDexBleManager(
         // ephemeral; true broadcast-only mode still persists broadcasts because it
         // has no connected history/live backfill to rely on.
         if (source == "connected-broadcast" && waitingForFirstDirectLive && !reconnect.isBroadcastOnlyMode) {
-            val displayGlucose = if (Applic.unit == 1) {
-                sample.glucoseMgDl / 18.0f
-            } else {
-                sample.glucoseMgDl.toFloat()
-            }
             Log.i(
                 TAG,
                 "Connected broadcast bootstrap bridge: offset=${sample.offsetMinutes} glucose=${sample.glucoseMgDl} mg/dL (ephemeral; persistence deferred to history/direct live)"
             )
-            SuperGattCallback.processExternalCurrentReading(
-                SerialNumber,
-                tk.glucodata.LiveReadingLanes.stock(displayGlucose, Float.NaN),
-                0f,
-                sampleTimestampMs,
-                sensorgen
-            )
+            synchronized(algorithmRuntime.controller.lock) {
+                if (!algorithmRuntime.controller.isClosed()) {
+                    val input = algorithmRuntime.source(sampleTimestampMs, sample.glucoseMgDl.toFloat(),
+                        Float.NaN, Float.NaN, AiDexSourceSample.BROADCAST)
+                    val row = algorithmRuntime.ephemeral(input)
+                    SuperGattCallback.processExternalCurrentReading(SerialNumber,
+                        tk.glucodata.LiveReadingLanes.stock(row.glucoseMgDl /
+                            if (Applic.unit == 1) AiDexAdaptiveV2.MGDL_PER_MMOL else 1f, Float.NaN),
+                        0f, sampleTimestampMs, sensorgen)
+                }
+            }
             maybePromoteFallbackReadingToHistory(now, source)
             lastBroadcastStoredTime = now
             lastBroadcastStoredOffsetMinutes = sample.offsetMinutes
@@ -7144,42 +7219,15 @@ class AiDexBleManager(
             return
         }
 
-        // Store via JNI
-        if (dataptr != 0L) {
-            try {
-                val res = Natives.aidexProcessData(
-                    dataptr,
-                    byteArrayOf(0),
-                    sampleTimestampMs,
-                    sample.glucoseMgDl.toFloat(),
-                    0f,
-                    1.0f,
-                    // Broadcast samples do carry the sensor's own trend byte — the same
-                    // value cached into ExchangeTrend above. Prefer it over a derived rate.
-                    sample.trend
-                )
-                handleGlucoseResult(res, sampleTimestampMs)
-                maybePromoteFallbackReadingToHistory(now, source)
-                lastBroadcastStoredTime = now
-                lastBroadcastStoredOffsetMinutes = sample.offsetMinutes
-                maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, source)
-            } catch (e: Throwable) {
-                Log.e(TAG, "$source: aidexProcessData failed: $e")
-                val mgdlPacked = (sample.glucoseMgDl * 10).toLong() and 0xFFFFFFFFL
-                handleGlucoseResult(mgdlPacked, sampleTimestampMs)
-                maybePromoteFallbackReadingToHistory(now, "$source-fallback")
-                lastBroadcastStoredTime = now
-                lastBroadcastStoredOffsetMinutes = sample.offsetMinutes
-                maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, "$source-fallback")
-            }
-        } else {
-            val mgdlPacked = (sample.glucoseMgDl * 10).toLong() and 0xFFFFFFFFL
-            handleGlucoseResult(mgdlPacked, sampleTimestampMs)
-            maybePromoteFallbackReadingToHistory(now, "$source-no-dataptr")
-            lastBroadcastStoredTime = now
-            lastBroadcastStoredOffsetMinutes = sample.offsetMinutes
-            maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, "$source-no-dataptr")
-        }
+        runCatching {
+            val input = algorithmRuntime.source(sampleTimestampMs, sample.glucoseMgDl.toFloat(), Float.NaN,
+                Float.NaN, AiDexSourceSample.BROADCAST)
+            algorithmRuntime.live(input) { storeAlgorithmLive(it, sample.trend) }
+        }.onFailure { Log.stack(TAG, "selected broadcast reading", it) }
+        maybePromoteFallbackReadingToHistory(now, source)
+        lastBroadcastStoredTime = now
+        lastBroadcastStoredOffsetMinutes = sample.offsetMinutes
+        maybeRequestHistoryContinuitySyncAfterLive(sampleTimestampMs, source)
 
         if (stopActiveScanAfterHandling) {
             stopBroadcastScan("broadcast-received", found = true)
@@ -7194,6 +7242,7 @@ class AiDexBleManager(
      * Release all resources. Call when sensor is removed from gattcallbacks list.
      */
     override fun destroy() {
+        algorithmRuntime.close()
         stop = true
         cancelBroadcastScan()
         close()

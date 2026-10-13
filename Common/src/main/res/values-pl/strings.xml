@@ -2977,4 +2977,11 @@
     <string name="ssl_port">Port SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Przesunięcie: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Kalibracja fabryczna</string>
+    <string name="aidex_stock_calibration_desc">Używaj odczytów glukozy z czujnika</string>
+    <string name="aidex_adaptive_v2_desc">Adaptacyjne oszacowanie surowego sygnału z prawdopodobnym zakresem</string>
+    <string name="aidex_algorithm_rebuilding">Ponowne przeliczanie historii czujnika</string>
+    <string name="aidex_algorithm_failed">Nie udało się przeliczyć historii czujnika</string>
 </resources>

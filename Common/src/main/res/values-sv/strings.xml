@@ -2935,4 +2935,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">SSL-port</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Offset: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Fabrikskalibrering</string>
+    <string name="aidex_stock_calibration_desc">Använd sensorns glukosavläsningar</string>
+    <string name="aidex_adaptive_v2_desc">Adaptiv uppskattning från råsignalen med ett sannolikt intervall</string>
+    <string name="aidex_algorithm_rebuilding">Räknar om sensorhistoriken</string>
+    <string name="aidex_algorithm_failed">Kunde inte räkna om sensorhistoriken</string>
 </resources>

@@ -855,7 +855,8 @@ class HistoryRepository(context: Context = Applic.app) {
     ): Int {
         if (rewritten.isEmpty()) return 0
         val autoIntegrated = runCatching {
-            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, false)
+            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, false) ||
+                tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(driverSerial)
         }.getOrDefault(false)
         val rawIntegrated = runCatching {
             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, true)

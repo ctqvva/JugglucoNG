@@ -3015,4 +3015,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ssl_port">Порт SSL</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Зсув: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Заводське калібрування</string>
+    <string name="aidex_stock_calibration_desc">Використовувати показники глюкози датчика</string>
+    <string name="aidex_adaptive_v2_desc">Адаптивна оцінка за сирим сигналом з імовірним діапазоном</string>
+    <string name="aidex_algorithm_rebuilding">Перерахунок історії датчика</string>
+    <string name="aidex_algorithm_failed">Не вдалося перерахувати історію датчика</string>
 </resources>

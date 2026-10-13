@@ -1,0 +1,138 @@
+package tk.glucodata.drivers.aidex
+
+import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveSample
+import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
+import tk.glucodata.drivers.aidex.adaptive2.AiDexReference
+import tk.glucodata.drivers.aidex.adaptive2.ProbabilisticGlucoseEstimate
+
+internal data class AiDexAlgorithmReading(
+    val source: AiDexSourceSample,
+    val glucoseMgDl: Float,
+    val uncertainty: ProbabilisticGlucoseEstimate? = null,
+    val rateMgDlPerMinute: Float = Float.NaN,
+)
+
+internal class AiDexAlgorithmContext(val selection: AiDexAlgorithmSelection) {
+    private val model = AiDexAdaptiveV2()
+    private var previous: AiDexAlgorithmReading? = null
+    fun process(source: AiDexSourceSample, references: List<AiDexReference>): AiDexAlgorithmReading {
+        val result = if (selection.adaptive) model.process(
+            AiDexAdaptiveSample(source.timestampMs, source.sessionStartMs, source.rawMgDl, source.factoryMgDl, source.temperatureC),
+            if (selection.calibration) references.filter { it.timestampMs <= source.timestampMs &&
+                it.timestampMs >= source.sessionStartMs && source.timestampMs - it.timestampMs <= 60_000L } else emptyList(),
+        ) else null
+        // Broadcasts and brief-only backfill have no raw signal. Keep a clearly
+        // defined factory fallback, with no fabricated estimate or interval.
+        val reading = AiDexAlgorithmReading(source,
+            result?.estimate?.glucoseMmol?.times(AiDexAdaptiveV2.MGDL_PER_MMOL) ?: source.factoryMgDl,
+            result?.estimate,
+        )
+        val rate = previous?.takeIf { it.source.sessionStartMs == source.sessionStartMs && source.timestampMs > it.source.timestampMs }
+            ?.let { (reading.glucoseMgDl - it.glucoseMgDl) / ((source.timestampMs - it.source.timestampMs) / 60_000f) } ?: Float.NaN
+        return reading.copy(rateMgDlPerMinute = rate).also { previous = it }
+    }
+}
+
+/** One ownership lock covers source changes, selection and every storage/publication commit. */
+internal class AiDexAlgorithmController(
+    val journal: AiDexSampleJournal,
+    initial: AiDexAlgorithmSelection,
+) {
+    val lock = Any()
+    @Volatile var requestedSelection = initial
+        private set
+    @Volatile var appliedSelection = initial
+        private set
+    private var generation = 0L
+    private var closed = false
+    private var context: AiDexAlgorithmContext? = if (initial.adaptive) null else AiDexAlgorithmContext(initial)
+    private var lastProcessedTime = 0L
+    private var replayNeeded = initial.adaptive
+    var latest: AiDexAlgorithmReading? = null
+        private set
+
+    data class Ticket(val generation: Long, val selection: AiDexAlgorithmSelection,
+        val sources: List<AiDexSourceSample>, val references: List<AiDexReference>)
+    data class Replay(val context: AiDexAlgorithmContext, val readings: List<AiDexAlgorithmReading>)
+
+    fun request(selection: AiDexAlgorithmSelection): Boolean = synchronized(lock) {
+        if (closed) return@synchronized false
+        requestedSelection = selection
+        generation++
+        replayNeeded = true
+        true
+    }
+
+    fun invalidateReferences() = synchronized(lock) { if (!closed) { generation++; replayNeeded = true } }
+    fun needsReplay(): Boolean = synchronized(lock) { !closed && replayNeeded }
+    fun isClosed(): Boolean = synchronized(lock) { closed }
+
+    fun record(sources: Collection<AiDexSourceSample>): Boolean = synchronized(lock) {
+        if (closed) return@synchronized false
+        val changed = journal.appendAll(sources) > 0
+        if (changed) {
+            generation++
+            if (lastProcessedTime > 0L && sources.any { it.minute <= lastProcessedTime / 60_000L }) replayNeeded = true
+        }
+        changed
+    }
+
+    /** Must be called with storage/publication in the same lock scope by the adapter. */
+    fun live(source: AiDexSourceSample, references: List<AiDexReference>): AiDexAlgorithmReading? = synchronized(lock) {
+        if (closed) return@synchronized null
+        val changed = record(listOf(source))
+        if (source.timestampMs <= lastProcessedTime || latest?.source?.minute == source.minute) {
+            if (changed && latest?.source?.minute == source.minute) {
+                if (appliedSelection.adaptive) return@synchronized null // replay a revised minute from original inputs
+                val current = journal.atMinute(source.minute) ?: return@synchronized null
+                return@synchronized AiDexAlgorithmReading(current, current.factoryMgDl).also {
+                    latest = it; lastProcessedTime = maxOf(lastProcessedTime, current.timestampMs)
+                }
+            }
+            return@synchronized latest?.takeIf { it.source.minute == source.minute }
+        }
+        val active = context ?: return@synchronized null
+        val reading = active.process(source, references)
+        lastProcessedTime = source.timestampMs
+        latest = reading
+        reading
+    }
+
+    fun ticket(references: List<AiDexReference>): Ticket? = synchronized(lock) {
+        if (closed) null else Ticket(generation, requestedSelection, journal.snapshot(), references.toList())
+    }
+
+    /** Computation has no side effects and can be abandoned at any point. */
+    fun compute(ticket: Ticket): Replay {
+        val model = AiDexAlgorithmContext(ticket.selection)
+        val refs = ticket.references.sortedBy { it.timestampMs }
+        var cursor = 0
+        val readings = ticket.sources.map { source ->
+            val current = ArrayList<AiDexReference>()
+            while (cursor < refs.size && refs[cursor].timestampMs <= source.timestampMs) {
+                val ref = refs[cursor++]
+                if (ref.timestampMs >= source.sessionStartMs && source.timestampMs - ref.timestampMs <= 60_000L) current += ref
+            }
+            model.process(source, current)
+        }
+        return Replay(model, readings)
+    }
+
+    /** Validate BEFORE either store is touched, while live writes/removal are excluded. */
+    fun commit(ticket: Ticket, replay: Replay, write: (List<AiDexAlgorithmReading>) -> Boolean): Boolean = synchronized(lock) {
+        if (closed || generation != ticket.generation || requestedSelection != ticket.selection || journal.snapshot() != ticket.sources)
+            return@synchronized false
+        val previous = appliedSelection
+        appliedSelection = ticket.selection
+        val stored = try { write(replay.readings) } catch (error: Throwable) { appliedSelection = previous; throw error }
+        if (!stored) { appliedSelection = previous; return@synchronized false }
+        context = replay.context
+        latest = replay.readings.lastOrNull()
+        lastProcessedTime = latest?.source?.timestampMs ?: 0L
+        replayNeeded = false
+        true
+    }
+
+    /** Drain all writers before a native shell can be finished/deleted. */
+    fun close() = synchronized(lock) { closed = true; generation++; context = null }
+}

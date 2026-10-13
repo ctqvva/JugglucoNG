@@ -3021,4 +3021,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ssl_port">SSL-port</string>
     <string name="calibration_cf_value">CF: %1$s</string>
     <string name="calibration_offset_value">Eltolás: %1$s</string>
+
+    <!-- AiDex Auto algorithm selection -->
+    <string name="aidex_stock_calibration">Gyári kalibráció</string>
+    <string name="aidex_stock_calibration_desc">Az érzékelő glükózértékeinek használata</string>
+    <string name="aidex_adaptive_v2_desc">Adaptív becslés a nyers jelből, valószínű tartománnyal</string>
+    <string name="aidex_algorithm_rebuilding">Az érzékelő előzményeinek újraszámítása</string>
+    <string name="aidex_algorithm_failed">Az érzékelő előzményeit nem sikerült újraszámítani</string>
 </resources>

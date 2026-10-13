@@ -1,9 +1,53 @@
 # AiDex Adaptive V2 experiment
 
-Status: implemented and replayable, **not connected to live display, alerts,
-exports or therapy integrations**. The initial evaluation reduced the reported
+Status: selectable on the phone as an **experimental** AiDex Auto algorithm.
+Stock calibration remains the default. The initial evaluation reduced the reported
 factory excursion but did not establish better agreement on the aging sensor.
-There is no new selectable phone/Wear algorithm in this change.
+
+## Use in the app
+
+Open the AiDex sensor card in an Auto-containing display mode, then **Sensor
+algorithm**. Choose **Stock calibration** or **Adaptive V2**. Adaptive V2 also
+shows the **Calibration** switch for reference correction inside the estimator,
+and the existing uncertainty-ribbon switch. The pure Raw display has no Auto
+algorithm selector. The choice is saved per sensor on the device.
+
+With internal calibration enabled, enabled manual references from either lane
+are supplied to the estimator in canonical units, using only references at or
+before the sample timestamp. The generic Auto calibration layer is then bypassed
+to avoid applying the same correction twice. With it disabled, the usual external
+calibration behavior remains available, as with Sibionics. Raw values and their
+separate calibration path remain independent.
+
+Changing the algorithm or its active references rebuilds retained history from
+original factory/raw samples. While rebuilding, the last applied selection owns
+live output. The rebuilt selection then supplies Auto history, current readings
+and downstream display/export/alert paths through the existing reading lanes.
+Returning to Stock restores original factory values before the usual external
+calibration. Status reports rebuilding or failure rather than silently claiming
+that an unfinished selection has been applied.
+
+Original samples are saved to a CRC-protected, per-sensor source journal before
+derived output is written. Full export/import includes this journal. History
+backfill upgrades missing raw inputs and triggers replay; a restart reconstructs
+the estimator from the journal. Selection/reference/source revisions invalidate
+stale workers before storage, and removal drains writers before deleting the
+native shell. Imported historical sessions have an explicit age proxy where
+their activation time is unknown. The current native window uses its reported
+start, and a sensor reset starts a separate estimator session.
+
+Brief/broadcast readings without usable raw retain factory output without an
+invented uncertainty interval. With internal calibration enabled, those fallback
+points use the existing integrated calibration series. Actual live samples
+deferred during reconstruction are published through the normal live hooks once
+the rebuilt result is committed; startup replay alone does not count as a new
+sensor packet.
+
+The menu is a phone UI. Wear sources compile with the shared driver integration;
+standalone watch selection, handover and physical-sensor behavior have not been
+verified. An export without original journals cannot reliably reconstruct factory
+inputs after Adaptive values have replaced Auto history; incomplete originals
+cause replay to fail rather than being treated as factory data.
 
 ## Model and isolation
 
@@ -11,8 +55,8 @@ There is no new selectable phone/Wear algorithm in this change.
 `tk.glucodata.drivers.aidex.adaptive2`. The five estimator/math files originate
 from the existing Sibionics Adaptive V2 implementation; changes are confined to
 the AiDex package. No Sibionics source, configuration, native code or selection
-logic changed. The prototype has no Android/JNI dependency and does not mutate
-sensor history or settings.
+logic changed. The model itself has no Android/JNI dependency; a separate AiDex
+runtime adapter handles selection, source persistence and history/publication.
 
 It retains the four-mode interacting multiple model, seven-state EKFs,
 Student-t observation likelihood, adapted measurement noise, dynamics/artifact/
@@ -149,20 +193,32 @@ scores from its adjacent `summary.json`. It does not interpolate across gaps.
 An independently established reset may be supplied as
 `--reset X-serial=EPOCH_MILLISECONDS`; no automatic reset inference is performed.
 
-## Verification and next integration boundary
+## Verification
 
-The focused AiDex package, existing Sibionics V2 suites and selection suite pass
-under mobile Gradle/JVM verification: 512 tests, zero failures/errors/skips,
-including 25 new AiDex model tests and 61 existing Sibionics V2/selection tests.
-Four Python replay contract tests also pass. New model tests cover explicit units,
+The full mobile Gradle/JVM suite passes: 3,821 tests, zero failures/errors/skips.
+Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Four Python replay
+contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
 reset/stale input, gaps and exact/corrupt snapshot restoration. Python replay
 contract tests cover unit conversion, no future-reference leakage, private-field
 exclusion, explicit resets and pre-reference scoring.
 
-Before a live selector is implemented, establish improved chronological results
-with independently verified reference readings and reset boundaries. An eventual
-integration must preserve original factory/raw source history, replay consistently
-after selection/reference changes, and resolve the same value for live display,
-history, alerts, phone/Wear handover and exports without double calibration.
-That behavior is not implemented or claimed by this experiment.
+Integration tests cover source-journal CRC/recovery/backup, Stock restoration,
+calibration toggling, causal reference ordering, restart continuation, late and
+revised minutes, stale-worker rejection, failed commits and removal ownership.
+The actual Compose sheet was checked in a JNI-free emulator harness, including
+selection/toggle changes and portrait/landscape layouts. This harness does not
+exercise BLE, native history storage or physical-sensor accuracy.
+
+For reproducible UI inspection on an explicitly named disposable emulator:
+
+```sh
+ANDROID_HOME=/path/to/android/sdk python3 scripts/aidex/preview-ui.py \
+  --emulator emulator-PORT
+```
+
+The script temporarily adds a debug-only Activity, removes its sources on exit,
+and installs a UI-only APK on that emulator. Do not distribute that harness APK
+as the application. Clinical accuracy, real-sensor reset behavior and phone/Wear
+handover remain unverified; the historical reference comparison above remains
+the available accuracy evidence.
