@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Original xDrip-style electronic alarms; no third-party samples or melodies.
 
-Additive, band-limited sirens and beeps, one linear gain, -1.5 dBFS PCM peak
+Additive, band-limited sirens and beeps, one linear gain, -1 dBFS PCM peak
 ceiling. The name describes a functional style, not official xDrip recordings.
 """
 import argparse
@@ -17,7 +17,7 @@ CUES = ('low', 'high', 'urgent_low', 'urgent_high', 'falling', 'rising',
         'signal', 'reminder', 'notice')
 
 
-def render(cue):
+def render(cue, peak_normalize=True):
     seconds = 3 if cue == 'notice' else 4 if cue == 'reminder' else 6
     t = np.arange(seconds * RATE) / RATE
     if cue in ('low', 'urgent_low'):
@@ -54,10 +54,12 @@ def render(cue):
     out[-fade:] *= np.cos(np.linspace(0, np.pi / 2, fade)) ** 2
     active = out[np.abs(out) > .01 * np.max(np.abs(out))]
     target = -9.5 if cue.startswith('urgent') else -11.5
-    out *= min(10 ** (target / 20) / np.sqrt(np.mean(active ** 2)),
-               10 ** (-1.5 / 20) / np.max(np.abs(out)))
+    peak_db = -1.0 if peak_normalize else -1.5
+    peak_gain = 10 ** (peak_db / 20) / np.max(np.abs(out))
+    out *= peak_gain if peak_normalize else min(
+        10 ** (target / 20) / np.sqrt(np.mean(active ** 2)), peak_gain)
     out[0] = out[-1] = 0
-    assert np.max(np.abs(out)) <= 10 ** (-1.5 / 20) + 1e-12
+    assert np.max(np.abs(out)) <= 10 ** (peak_db / 20) + 1e-12
     return np.rint(out * 32767).astype('<i2')
 
 

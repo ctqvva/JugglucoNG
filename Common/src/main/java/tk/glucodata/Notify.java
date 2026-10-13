@@ -180,11 +180,20 @@ public class Notify {
         private int playGeneration = 0;
         private int volumePercent = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT;
         private String intensityProfile = "STRONG";
+        private tk.glucodata.alerts.AlertSoundBoost soundBoost;
+        private boolean boostAttempted;
 
         AlertSoundHandle(Ringtone ringtone, MediaPlayer mediaPlayer, String title) {
             this.ringtone = ringtone;
             this.mediaPlayer = mediaPlayer;
             this.title = title;
+            if (mediaPlayer != null) {
+                mediaPlayer.setOnErrorListener((failed, what, extra) -> {
+                    stop();
+                    Log.w(LOG_ID, "Alert sound failed: " + what + "/" + extra);
+                    return true;
+                });
+            }
         }
 
         boolean isPresent() {
@@ -246,6 +255,10 @@ public class Notify {
                     return;
                 }
                 if (mediaPlayer != null) {
+                    if (!boostAttempted) {
+                        boostAttempted = true;
+                        soundBoost = tk.glucodata.alerts.AlertSoundBoost.attach(mediaPlayer.getAudioSessionId(), volumePercent);
+                    }
                     try {
                         mediaPlayer.seekTo(0);
                     } catch (Throwable ignored) {
@@ -254,7 +267,15 @@ public class Notify {
                     scheduleFadeIn(generation);
                 }
             } catch (Throwable th) {
+                releaseBoost();
                 Log.stack(LOG_ID, "AlertSoundHandle.play()", th);
+            }
+        }
+
+        private void releaseBoost() {
+            if (soundBoost != null) {
+                soundBoost.close();
+                soundBoost = null;
             }
         }
 
@@ -264,6 +285,7 @@ public class Notify {
             }
             released = true;
             playGeneration++;
+            releaseBoost();
             if (ringtone != null) {
                 try {
                     ringtone.stop();

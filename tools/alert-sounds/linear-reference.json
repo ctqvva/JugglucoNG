@@ -1,0 +1,191 @@
+{
+  "alert_contour_low.wav": {
+    "sha256": "320e01d624df48ca9e1aba9d0cc79497d2716810d4d36699812cbfd2a1e3f244"
+  },
+  "alert_contour_high.wav": {
+    "sha256": "6bd04ac8e8e24a4b3eaba928d05aa82f5163b3c6be3ce16afa9df1ab40c68175"
+  },
+  "alert_contour_urgent_low.wav": {
+    "sha256": "2c75dcdccce79d8169b9db8c517b465fd51687d61e46078c3b995fcf9538ea7d"
+  },
+  "alert_contour_urgent_high.wav": {
+    "sha256": "e0395009cfb0825eea61aee99360da51347156ce25e56a9935f9bc564eedaf03"
+  },
+  "alert_contour_falling.wav": {
+    "sha256": "470c74e9506a5308ee4bb29e738fb36f21195e2f11014df43366426f0d906a39"
+  },
+  "alert_contour_rising.wav": {
+    "sha256": "d64c4c53d886efc287611db2947f03b297e4e7dad2473c901e9a45e6aff2dbda"
+  },
+  "alert_contour_signal.wav": {
+    "sha256": "71ea89a9fcc1115ffee6ab7392c02c4bb282cf1e36d0a79528f8feeab6b412d5"
+  },
+  "alert_contour_reminder.wav": {
+    "sha256": "8e2b37401169ca97ee87d153bff92e57dbeeed36391e5512ee80d548e8fa4a21"
+  },
+  "alert_contour_notice.wav": {
+    "sha256": "10886a33a51857c1cf67d9dba9be830d6b436066a588ffa3d541b659b8d97589"
+  },
+  "alert_porcelain_low.wav": {
+    "sha256": "f6e942d3c8916bd6409f4121f9c0b4745d6c507d5f44c9aa213ba66ca721de0d"
+  },
+  "alert_porcelain_high.wav": {
+    "sha256": "3b93eef524c6f64cba2623e0f61e8dd7576d77c1c7a2b4bc8d2c4a6efa7831d4"
+  },
+  "alert_porcelain_urgent_low.wav": {
+    "sha256": "879503231ba903530f39ed9c02776cb90aeecd85651da0dff70b9500493cc79f"
+  },
+  "alert_porcelain_urgent_high.wav": {
+    "sha256": "a9a8c517e07b43383871b81c07afc926a502aef9c81d4d8844c5e3be4524f6bd"
+  },
+  "alert_porcelain_falling.wav": {
+    "sha256": "c253d4f1ea9e9b1a0d02a660270a51c8db403d1d4c6eb80aef188205c34c2d6d"
+  },
+  "alert_porcelain_rising.wav": {
+    "sha256": "1d150de49017ce0f00d9e557b3c3365330aadce463024b38ea427211525ef3bb"
+  },
+  "alert_porcelain_signal.wav": {
+    "sha256": "9dfcaae0bf88fa85c67ca3bedc6de8c2dc9a9a73dff759e626eaa459b402e994"
+  },
+  "alert_porcelain_reminder.wav": {
+    "sha256": "35488993cffb497123b919f98d10870a86ffa18f145cf63e38be87c8e17f9291"
+  },
+  "alert_porcelain_notice.wav": {
+    "sha256": "bc84ddbf6c8b33a5f739985e7191f4aefb195533ebc5abe230e04156f53aa5ea"
+  },
+  "alert_halo_low.wav": {
+    "sha256": "b721886205ddf673e986a35f66bb5ee9a68f580efd917fb13943498cbfabd03f"
+  },
+  "alert_halo_high.wav": {
+    "sha256": "4d47e0e4cbfa0902ccad21ba54fe677a2d7dd06901aca3ca64eb2e04734a2053"
+  },
+  "alert_halo_urgent_low.wav": {
+    "sha256": "52c75603fce72edf503f51624af395e0b5ade1b1b81e6b534f659f6ca419555c"
+  },
+  "alert_halo_urgent_high.wav": {
+    "sha256": "7a231d9ddf3d48a1d614b873ecc4b35166d6b4f4b276b1e8825400ef3866a642"
+  },
+  "alert_halo_falling.wav": {
+    "sha256": "3d731c4028555eb06f07e005d6fe6f57c4cddec637807d2a4f252d1571fab681"
+  },
+  "alert_halo_rising.wav": {
+    "sha256": "d2d3a33e34c0c060d317196a8fb9acfbc3e7264298cdaf693db2a98f05503cda"
+  },
+  "alert_halo_signal.wav": {
+    "sha256": "ea94f86e1ccecd1d43e5fd9230302c1f79bca62a46f813669f52320abc09cb82"
+  },
+  "alert_halo_reminder.wav": {
+    "sha256": "2337371fb6722fdf869e7a2bf8bf085fbc86a446cf63ae8ab4d43c3578d63276"
+  },
+  "alert_halo_notice.wav": {
+    "sha256": "1e73c5a8f1ee56a26769164f1f8a175ea821548a803449151dbc53eb04e95fd4"
+  },
+  "alert_timber_low.wav": {
+    "sha256": "cfc197e1c16e915c722b3ba963f0e776c435d9be3999ac2a7553f2772ba83e5b"
+  },
+  "alert_timber_high.wav": {
+    "sha256": "762bba9b39948e37748c675b62babc0bf6d64e21dc10b2a4ca0d6cd88f077ec2"
+  },
+  "alert_timber_urgent_low.wav": {
+    "sha256": "bc800b24a00e09bd818286db1e1e0638f58b5b4eee034307ac5f72b1d6e6e63c"
+  },
+  "alert_timber_urgent_high.wav": {
+    "sha256": "95e395fed5cebc16f7ef84d9ab2733e27683c99cf1eac3d9d7771d12df006c23"
+  },
+  "alert_timber_falling.wav": {
+    "sha256": "68fd149875ffdf7408783ef0a5b2a2e820222f7e25a97d70e810f03f778d105f"
+  },
+  "alert_timber_rising.wav": {
+    "sha256": "784af6cd31ff88760b41db56b13936dcc368774836dd8617a64436aa4af0d730"
+  },
+  "alert_timber_signal.wav": {
+    "sha256": "5d2ee8a1060ebaf35977b4a9ea1720ea550942b765ba8bdf8ea057eb8aeab307"
+  },
+  "alert_timber_reminder.wav": {
+    "sha256": "7a335bd5faa223d4ea8f0ac0bb224af691f6ccba76ef572a6022c3d81a017176"
+  },
+  "alert_timber_notice.wav": {
+    "sha256": "ef9daa3a8f944d38f554a31c9bf8cdd7140c17134060498dc2961243dcb27da6"
+  },
+  "alert_ember_low.wav": {
+    "sha256": "461cefb3165b5e7797550733691b1f0804e81ff0d9fe565f04688171e68c4bbb"
+  },
+  "alert_ember_high.wav": {
+    "sha256": "21cf5e3637933ae78b9d47af5c974d5e5980f0f2c8fbcf8ce356542f4a3385c6"
+  },
+  "alert_ember_urgent_low.wav": {
+    "sha256": "380990c4840d8b2a3cf044a37e38092e9a05bb5d8071a53e73d71bcb0d34794d"
+  },
+  "alert_ember_urgent_high.wav": {
+    "sha256": "6f65bf17e962920cc2485f2726d2ad751b971c2b06c12d50c767828ea7df52a5"
+  },
+  "alert_ember_falling.wav": {
+    "sha256": "fc9829f835896edb1f5268e1c23ee41f028ced8f42fc051c502de9d8e4653394"
+  },
+  "alert_ember_rising.wav": {
+    "sha256": "b6b30c830b0ad12948b03b2cae7b92e70b45b233c47ea50522056352f5d44248"
+  },
+  "alert_ember_signal.wav": {
+    "sha256": "9ceb7fa492acbb1b33e067f6a747b67d57f0564df9bfcaa070092e38a9a35adf"
+  },
+  "alert_ember_reminder.wav": {
+    "sha256": "40afa409cbb3afe292ec32efd78d50138605f405ae86ae896f051d55efa4396e"
+  },
+  "alert_ember_notice.wav": {
+    "sha256": "8753d75146b21caba4c06a43968a61b9a4b3b1f376caaaeb4e79e16ce314dbf2"
+  },
+  "alert_juggluco_low.wav": {
+    "sha256": "bea5f2e7761b9d96357185a80a84075dd553b54d2ac1c52bf9b528499cac74ff"
+  },
+  "alert_juggluco_high.wav": {
+    "sha256": "5e4a20d65632092148e53c7140607b3efd012ac012c0efd831b8668f2921484d"
+  },
+  "alert_juggluco_urgent_low.wav": {
+    "sha256": "44b7c27e61303153a8bc4547e95146f59c1190ef890c1be7dc80a05569ea9762"
+  },
+  "alert_juggluco_urgent_high.wav": {
+    "sha256": "7b019b8d35022202ac47cfc2dcaa1e4bda47894565fa9ff5e85ba7d7158d05df"
+  },
+  "alert_juggluco_falling.wav": {
+    "sha256": "5cdf982ec90bbe7a17e9a34a174321d07fc5e807b9a3b6369d6156287eac7124"
+  },
+  "alert_juggluco_rising.wav": {
+    "sha256": "6b871c58cffda710aa22fe73e8901cd451df10882cee2a0431a9c8fd6df3cf4d"
+  },
+  "alert_juggluco_signal.wav": {
+    "sha256": "2bf15a645bab8dea6fa9fbf1eb376e894965ffcd3ed6be6961625b476c6a2b82"
+  },
+  "alert_juggluco_reminder.wav": {
+    "sha256": "c060bbd4bd622ef87e50051eb32fbac93d102bfe78363a046d97840380158edb"
+  },
+  "alert_juggluco_notice.wav": {
+    "sha256": "2b16debf6b96892cf9ae98f60a520cbea3e5769bfdfbc90f444baf12933b87d8"
+  },
+  "alert_xdrip_low.wav": {
+    "sha256": "e12d8ab45362e52cfb05cdfbb19cbc033461349323599b2c8874b12723b47cf4"
+  },
+  "alert_xdrip_high.wav": {
+    "sha256": "80b09ae2d1a83e89e2db7831fe7fa3b838196f8d5487517a985beb3125b09ad8"
+  },
+  "alert_xdrip_urgent_low.wav": {
+    "sha256": "e6a33c8935b3593274fa30cd98136858b98634a1b8f4f4fb84889231e7b8a563"
+  },
+  "alert_xdrip_urgent_high.wav": {
+    "sha256": "e8d04dcaf0ad820d69af732b8d5ff5015ed6e8815cfedbee1f51cbd697017185"
+  },
+  "alert_xdrip_falling.wav": {
+    "sha256": "5ef4d36fc6d2bacc9403e3d4c7f5a85f1fef9f34a11eb817f11e983930d0337b"
+  },
+  "alert_xdrip_rising.wav": {
+    "sha256": "94b6a22e89ea1067762e07574c47c63bc35ddb08935e9f8b23b1463a2fb645f1"
+  },
+  "alert_xdrip_signal.wav": {
+    "sha256": "fab0a167250bd5591b54f9ff4f3f1e9167cf50f334c599277d56312bcdcd3fc3"
+  },
+  "alert_xdrip_reminder.wav": {
+    "sha256": "8acd40433feb7fcf711c7914feac7ca869015b0999e92dafa2f24e2a62dcf860"
+  },
+  "alert_xdrip_notice.wav": {
+    "sha256": "07a3b3230b2916199b5607a1e9ce932dfd3aab1f905351df3cce82aeedd73848"
+  }
+}

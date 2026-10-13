@@ -2,73 +2,73 @@
   "alert_xdrip_low.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -8.12,
-    "rms_dbfs": -11.53,
-    "active_rms_dbfs": -11.5,
-    "sha256": "e12d8ab45362e52cfb05cdfbb19cbc033461349323599b2c8874b12723b47cf4"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -4.41,
+    "active_rms_dbfs": -4.38,
+    "sha256": "d79af37202c622c8b6df76f7c1484a9265f89ab156075ade1bf76993c4258f91"
   },
   "alert_xdrip_high.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -8.04,
-    "rms_dbfs": -15.83,
-    "active_rms_dbfs": -11.5,
-    "sha256": "80b09ae2d1a83e89e2db7831fe7fa3b838196f8d5487517a985beb3125b09ad8"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -8.78,
+    "active_rms_dbfs": -4.46,
+    "sha256": "8777ee1bff6633d516e69bbf440f7467c157dd6dc01c0b0e726a9fcfb0cdb989"
   },
   "alert_xdrip_urgent_low.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -6.12,
-    "rms_dbfs": -9.52,
-    "active_rms_dbfs": -9.5,
-    "sha256": "e6a33c8935b3593274fa30cd98136858b98634a1b8f4f4fb84889231e7b8a563"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -4.41,
+    "active_rms_dbfs": -4.39,
+    "sha256": "623eb98d36cf808f5a2b3c532afe542fdbe1fb9b02a46a005c585eaf787b7a8e"
   },
   "alert_xdrip_urgent_high.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -6.01,
-    "rms_dbfs": -11.16,
-    "active_rms_dbfs": -9.5,
-    "sha256": "e8d04dcaf0ad820d69af732b8d5ff5015ed6e8815cfedbee1f51cbd697017185"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.15,
+    "active_rms_dbfs": -4.49,
+    "sha256": "a869d1286ab6e8d3863afeaff311579aabb502421e3cfdc206c3d17d38e4e6f6"
   },
   "alert_xdrip_falling.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -8.09,
-    "rms_dbfs": -13.57,
-    "active_rms_dbfs": -11.5,
-    "sha256": "5ef4d36fc6d2bacc9403e3d4c7f5a85f1fef9f34a11eb817f11e983930d0337b"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.49,
+    "active_rms_dbfs": -4.42,
+    "sha256": "a9408e01a3adfc9339fb83ecfcbc2eded31d0a13b463cbaa9ad6e56d392c026b"
   },
   "alert_xdrip_rising.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -8.09,
-    "rms_dbfs": -13.58,
-    "active_rms_dbfs": -11.5,
-    "sha256": "94b6a22e89ea1067762e07574c47c63bc35ddb08935e9f8b23b1463a2fb645f1"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.49,
+    "active_rms_dbfs": -4.41,
+    "sha256": "16cf7ec12f1e37b71c84c5ac78ba6325e0c44f78cc5a0eb84af70a355663abbe"
   },
   "alert_xdrip_signal.wav": {
     "frames": 288000,
     "seconds": 6.0,
-    "peak_dbfs": -7.95,
-    "rms_dbfs": -22.19,
-    "active_rms_dbfs": -11.5,
-    "sha256": "fab0a167250bd5591b54f9ff4f3f1e9167cf50f334c599277d56312bcdcd3fc3"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -15.24,
+    "active_rms_dbfs": -4.56,
+    "sha256": "84dd31f8a34ab45b317e8fcd0ca9da8640261320188b2bae56c9a55680496a22"
   },
   "alert_xdrip_reminder.wav": {
     "frames": 192000,
     "seconds": 4.0,
-    "peak_dbfs": -8.02,
-    "rms_dbfs": -17.16,
-    "active_rms_dbfs": -11.5,
-    "sha256": "8acd40433feb7fcf711c7914feac7ca869015b0999e92dafa2f24e2a62dcf860"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -10.14,
+    "active_rms_dbfs": -4.48,
+    "sha256": "054d170d0a34ca8f8866287ce22e37155d7ab6cf0bcb9bfcea08c5ca427bfa23"
   },
   "alert_xdrip_notice.wav": {
     "frames": 144000,
     "seconds": 3.0,
-    "peak_dbfs": -7.98,
-    "rms_dbfs": -17.3,
-    "active_rms_dbfs": -11.5,
-    "sha256": "07a3b3230b2916199b5607a1e9ce932dfd3aab1f905351df3cce82aeedd73848"
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -10.32,
+    "active_rms_dbfs": -4.52,
+    "sha256": "6a239aa756d675c0291a15d7196bea80eb16293800000f7c1f10d0b9d90d25b9"
   }
 }

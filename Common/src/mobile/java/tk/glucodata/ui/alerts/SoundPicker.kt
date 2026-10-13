@@ -116,6 +116,7 @@ fun SoundPicker(
     var isPlaying by remember { mutableStateOf(false) }
     var playingUri by remember { mutableStateOf<String?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var soundBoost by remember { mutableStateOf<tk.glucodata.alerts.AlertSoundBoost?>(null) }
 
     // Preview what choosing App Default will save, not the previous native selection.
     val appDefaultUri = remember(alertTypeId, context.packageName) {
@@ -127,7 +128,10 @@ fun SoundPicker(
         // in some MediaPlayer states, including a preview that has not prepared yet.
         val previous = mediaPlayer
         mediaPlayer = null
-        previous?.release()
+        try { previous?.release() } finally {
+            soundBoost?.close()
+            soundBoost = null
+        }
         isPlaying = false
         playingUri = null
     }
@@ -136,7 +140,10 @@ fun SoundPicker(
         onDispose {
             val previous = mediaPlayer
             mediaPlayer = null
-            previous?.release()
+            try { previous?.release() } finally {
+                soundBoost?.close()
+                soundBoost = null
+            }
         }
     }
 
@@ -212,7 +219,11 @@ fun SoundPicker(
                 if (mediaPlayer === prepared) {
                     val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent, intensityProfile)
                     prepared.setVolume(gain, gain)
-                    prepared.start()
+                    soundBoost = tk.glucodata.alerts.AlertSoundBoost.attach(prepared.audioSessionId, soundVolumePercent)
+                    try { prepared.start() } catch (e: Exception) {
+                        android.util.Log.w("SoundPicker", "Could not start preview", e)
+                        stopSound()
+                    }
                 }
             }
             player.setOnCompletionListener { completed ->

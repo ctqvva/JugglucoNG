@@ -5,16 +5,17 @@ import numpy as np
 RATE = 48000
 REFERENCES = json.loads((Path(__file__).parent/'original-reference.json').read_text())
 
-def master(out, cue, boost_db=0.0, peak_db=-3.0):
+def master(out, cue, boost_db=0.0, peak_db=-3.0, peak_normalize=False):
     assert len(out) == REFERENCES[cue]['frames']
     out = out - np.mean(out)
-    # Midway between the quiet audition and the rejected loud master. ONE gain: no
-    # waveshaping, saturation, compression, or iterative loudness normalization.
-    # If a recorded strike reaches the peak ceiling first, accept lower RMS.
+    # ONE gain: no waveshaping, saturation, compression or envelope changes.
+    # The RMS mode retains the pinned reference masters; peak mode uses their
+    # remaining headroom without claiming equal perceptual loudness.
     target = (-15.25 if cue.startswith('urgent') else -17.5) + boost_db
     active = out[np.abs(out) > .01*np.max(np.abs(out))]
-    gain = min(10**(target/20)/np.sqrt(np.mean(active**2)),
-               10**(peak_db/20)/np.max(np.abs(out)))
+    peak_gain = 10**(peak_db/20)/np.max(np.abs(out))
+    gain = peak_gain if peak_normalize else min(
+        10**(target/20)/np.sqrt(np.mean(active**2)), peak_gain)
     out *= gain
     out[:240] *= np.sin(np.linspace(0,np.pi/2,240))**2
     out[-240:] *= np.cos(np.linspace(0,np.pi/2,240))**2

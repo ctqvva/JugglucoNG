@@ -8,7 +8,7 @@ shared mastering targets, DC removal, fixed hot peaks and click-free endpoints.
 All 63 cues ship as compact
 AAC-LC 160 kbps mono 48 kHz M4A assets (about 5 MB total instead of ~26 MB of WAV)
 under the same `alert_<style>_<cue>` resource names, so saved selections keep working.
-Select a collection in an alert's sound picker; the alert determines the cue. Juggluco is listed first, directly below System Default;
+Select a collection in an alert's sound picker; the alert determines the cue. xDrip-style is listed first, directly above Juggluco;
 tapping a row confirms it immediately (Cancel dismisses without changing anything). Global **Apply to all** selects the matching cue
 for each standard and custom glucose alert. **Ember is the app default** for unset sounds, including Wear playback. Explicit collection,
 external, system-default and saved native sound choices are retained. Choosing App Default
@@ -62,19 +62,19 @@ high=classic, notice=ghost, reminder=nudge, signal=elves, urgent low=verylow,
 urgent high=veryhigh, falling=lowsoon, rising=highsoon. Durations range from 4.125 to 15.768 s.
 Acoustic motifs return with breathing space and varied accents, then a longer final decay;
 the source recordings are never time-stretched. The three earlier synthesized sets keep
-all their original bytes, durations and levels.
+their original compositions and durations; only final mastering gain changes.
 
-Timber masters sit between the quiet auditions and the rejected loud version:
--17.5 dBFS active RMS for ordinary cues and -15.25 dBFS for urgent cues, with a -3 dBFS
-sample-peak ceiling. A single linear gain is
+Timber now uses a single peak-normalizing gain with a -1 dBFS PCM ceiling.
+The older -17.5/-15.25 dBFS active-RMS masters are pinned as waveform references.
+A single linear gain is
 applied; if the peak ceiling is reached first, the lower RMS is retained. There is no
 waveshaping, compression or saturation. This preserves recorded transients instead of
 forcing them into a loudness target. Active RMS excludes samples below 1% of peak and
 is not a claim of matched perceived loudness. The longer arrangements and releases remain.
 
 The Juggluco remasters decode those same MP3/OGG sources to the exact reference
-frame counts, then apply one linear gain with the same targets (ordinary -17.5 dBFS,
-urgent -15.25 dBFS, -3 dBFS peak ceiling), DC removal, 5 ms fades and zero endpoints.
+frame counts, then apply one linear peak-normalizing gain (-1 dBFS PCM ceiling),
+DC removal, the existing 5 ms fades and zero endpoints.
 Interior samples match the originals up to that single gain (≤0.001 full scale):
 no compression, saturation, pitch or time changes. This fixes the hot masters
 (nudge peaked at -1.9 dBFS), the click-prone onsets (elves, ghost), the DC offset
@@ -164,27 +164,37 @@ Physical-device listening acceptance of the new collections is still outstanding
 The existing Soft/Steady/Strong/Escalating overall alert intensity retains its
 sound-level ratios (40%, 70%, 100%, 100%), vibration behavior, and 1.2-second sound
 fade from 12%. A 30–100% sound-volume slider sits in Advanced directly below those
-options. It is a per-player gain, with default/reset 80% and 100% selecting full
-player gain for the chosen intensity. That remaining 1.94 dB is modest; it is not
-an above-unity amplifier and does not overcome a low phone stream setting. The
-phone's media/alarm/notification volume still applies. No shared Android stream
-volume is changed. Missing preferences use 80%; existing saved choices are
-preserved. Global Apply, custom alerts, retries and picker previews use the same
-volume; previews also use the same resolved AudioAttributes usage as real alerts.
+options, with **default/reset 80%**. Through 80%, it is strictly player-local
+attenuation; no playback effect is created. **Above 80%**, an isolated
+LoudnessEnhancer on that player's nonzero audio session progressively adds up to
+6 dB at 100%, in addition to the player gain change. The nominal change from 80%
+to 100% is therefore 7.94 dB before any peak compression. The effect may compress
+peaks at these manually boosted levels, as authorized; it never affects the global
+output mix or another player's session. Stop, error, preview replacement and picker
+dismissal release it. Unsupported effects and the Ringtone-only fallback retain
+normal playback without the extra boost. Phone stream volume is never changed.
+Missing preferences use 80%; saved choices, global Apply, custom alerts and retries
+retain their volume. Picker previews use the same gain, booster and resolved audio
+usage as real alerts. Existing saved values above 80% now select the boosted region.
 
-The rejected Ember EQ/strike/decay changes are fully reverted. The nine Ember AACs,
-renderer, measurements and preview reel exactly match the preceding version
-(`8cbac74e2`); there is no fresh lossy encode or timbre change. That version uses one
-linear mastering gain, with +4.5 dB requested for low/urgent-low and +3 dB for other
-cues, capped by a -1.5 dBFS PCM peak ceiling (actual low +3.61 dB and urgent low
-+1.55 dB versus the original quiet master). All other sound assets retain their
-bytes. Decoded AAC headroom remains checked separately.
+The rejected Ember EQ/strike/decay changes stay removed. **All 63 source masters
+now change only by one constant gain**, rendered from their original synthesis or
+recordings rather than transcoding the previous AAC. Ember uses a -0.75 dBFS PCM
+ceiling; the other collections use -1 dBFS. Relative to the preceding version,
+source gains range from +0.75–1.54 dB for Ember, +2–5.23 dB for Timber,
++5.48–10.51 dB for Contour, +2.93–8.18 dB for Porcelain, +2.96–8.13 dB for Halo,
++2–6.46 dB for Juggluco remasters, and +5.01–7.12 dB for xDrip-style. Ember has
+less unused headroom; no EQ, new envelopes or baked-in compressor is used to force
+it higher. Legacy originals remain byte-identical.
 
-There is currently no larger isolated boost: Android MediaPlayer scalars stop at
-1.0, and its per-session LoudnessEnhancer can compress signals beyond the supported
-sample range. A shared-stream volume change would affect other alarms during
-playback. Neither is a substitute for the requested unchanged sound quality and
-independent per-alert volume. No such stream change or processing effect is shipped.
+`linear-reference.json` pins the 63 preceding PCM WAV hashes. The reference-mode
+render must reproduce each hash, then `verify_waveforms.py` checks that the new
+PCM is proportional to it within independent 16-bit rounding error, with identical
+frames/endpoints. This rejects accidental changes to notes, timbre, timing,
+envelopes or nonlinear processing in the masters. `verify_loudness.py` checks all
+63 shipped AACs after decoding, including an independent 192 kHz (4x) reconstruction
+for inter-sample overshoot. These digital checks do not establish physical-speaker
+loudness or subjective listening quality, especially at boosted settings.
 
 **xDrip-style**, immediately above Juggluco in the picker, is a new original
 synthesis: sustained descending low sirens, a faster urgent-low siren, alternating
@@ -194,11 +204,12 @@ copies no xDrip recordings, melodies, or code. These assets and their generator
 use this repository’s GPL-3.0-or-later license. The name indicates an electronic
 alarm style, not official xDrip audio or identical phone loudness.
 
-For a scoped regeneration/check without re-encoding untouched collections:
+For regeneration and waveform/decoded-headroom verification:
 
 ```sh
-python3 tools/alert-sounds/encode_assets.py --styles ember xdrip
-python3 tools/alert-sounds/encode_assets.py --styles ember xdrip --check
+python3 tools/alert-sounds/encode_assets.py
+python3 tools/alert-sounds/encode_assets.py --check
+python3 tools/alert-sounds/verify_waveforms.py
 python3 tools/alert-sounds/verify_loudness.py
 ```
 

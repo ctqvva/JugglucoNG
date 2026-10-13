@@ -7,6 +7,7 @@ public final class AlertSoundVolume {
     public static final int MIN_PERCENT = 30;
     public static final int DEFAULT_PERCENT = 80;
     public static final int MAX_PERCENT = 100;
+    public static final int MAX_BOOST_MILLIBELS = 600;
 
     private AlertSoundVolume() {}
 
@@ -20,6 +21,12 @@ public final class AlertSoundVolume {
 
     public static float gain(int percent) {
         return sanitize(percent) / 100.0f;
+    }
+
+    /** Processing is opt-in through the slider's region above its normal default. */
+    public static int boostMillibels(int percent) {
+        return Math.max(0, sanitize(percent) - DEFAULT_PERCENT) * MAX_BOOST_MILLIBELS
+                / (MAX_PERCENT - DEFAULT_PERCENT);
     }
 
     /** Scale the original overall-intensity sound levels, with room above the default. */
