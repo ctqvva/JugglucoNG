@@ -560,6 +560,7 @@
     <string name="scheduled_backup_run_success">备份成功完成</string>
     <string name="scheduled_backup_run_failed">备份失败。请检查下方状态。</string>
     <string name="scheduled_backup_still_running">备份仍在运行。完成后，状态将在此处更新。</string>
+    <string name="scheduled_backup_stopped_by_system">Android 在备份完成前停止了备份。稍后将重试。</string>
     <string name="scheduled_backup_last_success">上次成功备份：%1$s</string>
     <string name="scheduled_backup_never">尚无成功备份</string>
     <string name="scheduled_backup_last_error">上次错误：%1$s</string>

@@ -751,6 +751,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="scheduled_backup_run_success">Нөөцлөлт амжилттай дууслаа</string>
     <string name="scheduled_backup_run_failed">Нөөцлөлт амжилтгүй боллоо. Доорх төлөвийг шалгана уу.</string>
     <string name="scheduled_backup_still_running">Нөөцлөлт үргэлжилж байна. Дуусмагц төлөв энд шинэчлэгдэнэ.</string>
+    <string name="scheduled_backup_stopped_by_system">Android нөөцлөлтийг дуусахаас нь өмнө зогсоосон. Дараа дахин оролдоно.</string>
     <string name="scheduled_backup_last_success">Сүүлийн амжилттай нөөц: %1$s</string>
     <string name="scheduled_backup_never">Амжилттай нөөц хараахан алга</string>
     <string name="scheduled_backup_last_error">Сүүлийн алдаа: %1$s</string>

@@ -809,6 +809,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="scheduled_backup_run_success">Kaydka si guul leh ayaa loo dhammeeyay</string>
     <string name="scheduled_backup_run_failed">Kaydku wuu fashilmay. Hoos ka eeg xaaladda.</string>
     <string name="scheduled_backup_still_running">Kaydku weli wuu socdaa. Xaaladdiisa halkan ayaa lagu cusboonaysiin doonaa marka uu dhammaado.</string>
+    <string name="scheduled_backup_stopped_by_system">Android ayaa joojiyay kaydinta ka hor intaanay dhammaan. Mar kale ayaa la isku dayi doonaa goor dambe.</string>
     <string name="scheduled_backup_last_success">Kaydkii ugu dambeeyay ee guulaystay: %1$s</string>
     <string name="scheduled_backup_never">Weli kayd guulaystay ma jiro</string>
     <string name="scheduled_backup_last_error">Khaladkii ugu dambeeyay: %1$s</string>

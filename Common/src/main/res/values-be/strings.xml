@@ -495,6 +495,7 @@
     <string name="scheduled_backup_run_success">Рэзервовая копія паспяхова створана</string>
     <string name="scheduled_backup_run_failed">Не ўдалося стварыць копію. Праверце стан ніжэй.</string>
     <string name="scheduled_backup_still_running">Рэзервовае капіраванне яшчэ выконваецца. Пасля завяршэння стан абновіцца тут.</string>
+    <string name="scheduled_backup_stopped_by_system">Android спыніў рэзервовае капіраванне да яго завяршэння. Пазней спроба будзе паўторана.</string>
     <string name="scheduled_backup_last_success">Апошняя паспяховая копія: %1$s</string>
     <string name="scheduled_backup_never">Паспяховых копій пакуль няма</string>
     <string name="scheduled_backup_last_error">Апошняя памылка: %1$s</string>

@@ -753,6 +753,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="scheduled_backup_run_success">A biztonsági mentés sikeresen befejeződött</string>
     <string name="scheduled_backup_run_failed">A biztonsági mentés sikertelen. Ellenőrizze az alábbi állapotot.</string>
     <string name="scheduled_backup_still_running">A biztonsági mentés még folyamatban van. Befejezéskor az állapota itt frissül.</string>
+    <string name="scheduled_backup_stopped_by_system">Az Android leállította a biztonsági mentést, mielőtt az befejeződött volna. Később újra megpróbálja.</string>
     <string name="scheduled_backup_last_success">Legutóbbi sikeres mentés: %1$s</string>
     <string name="scheduled_backup_never">Még nincs sikeres mentés</string>
     <string name="scheduled_backup_last_error">Legutóbbi hiba: %1$s</string>

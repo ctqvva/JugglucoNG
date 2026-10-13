@@ -500,6 +500,7 @@
     <string name="scheduled_backup_run_success">Sauvegarde terminée avec succès</string>
     <string name="scheduled_backup_run_failed">Échec de la sauvegarde. Vérifiez l’état ci-dessous.</string>
     <string name="scheduled_backup_still_running">La sauvegarde est toujours en cours. Son état sera actualisé ici lorsqu’elle sera terminée.</string>
+    <string name="scheduled_backup_stopped_by_system">Android a arrêté la sauvegarde avant la fin. Une nouvelle tentative sera effectuée plus tard.</string>
     <string name="scheduled_backup_last_success">Dernière sauvegarde réussie : %1$s</string>
     <string name="scheduled_backup_never">Aucune sauvegarde réussie</string>
     <string name="scheduled_backup_last_error">Dernière erreur : %1$s</string>
