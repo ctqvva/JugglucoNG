@@ -327,6 +327,30 @@ class OttaiBleManager(
             (receivedAtMs / RECORD_INTERVAL_MS - dataNo) * RECORD_INTERVAL_MS
 
         /**
+         * The stream start two future-dated live frames agree on, or 0 while they don't. One
+         * frame's counter is not enough: the live ceiling lets a dataNo run up to
+         * MAX_REASONABLE_DATA_NO_AHEAD records ahead, and lowering the shared start on a counter
+         * four ahead would date every later frame four minutes old — past the freshness window,
+         * so nothing would publish for the rest of the connection. Two frames with different
+         * counters must imply the same start; the later of the two is taken, so a corrupt
+         * counter that happens to land within the agreement window still cannot pull the start
+         * further than the genuine frame does.
+         */
+        internal fun agreedArrivalStartMs(
+            pendingStartMs: Long,
+            pendingDataNo: Int,
+            startMs: Long,
+            dataNo: Int,
+        ): Long =
+            if (pendingStartMs > 0L && startMs > 0L && dataNo != pendingDataNo &&
+                abs(pendingStartMs - startMs) <= CONFIRMED_START_AGREEMENT_MS
+            ) {
+                maxOf(pendingStartMs, startMs)
+            } else {
+                0L
+            }
+
+        /**
          * Whether a live record's monitor time (activeTime + runtime) may anchor the stream. It
          * may lag arrival by the freshness window but must not date the record after arrival:
          * the first live frame of a session anchors the whole session on it, so an activeTime
@@ -1025,6 +1049,10 @@ class OttaiBleManager(
     @Volatile private var streamStartReliable = false
     // First reliable activation start seen this session, held until a second one corroborates it.
     @Volatile private var pendingConfirmedStartMs = 0L
+    // Arrival-bound start implied by a live frame the anchor dated after it arrived, and that
+    // frame's counter, held until a second frame agrees (agreedArrivalStartMs).
+    @Volatile private var pendingArrivalStartMs = 0L
+    @Volatile private var pendingArrivalDataNo = -1
     @Volatile private var lastBleActivityAtMs = 0L
     // When the sensor last pushed a live frame on its own. The poll below is a safety net for
     // notifications stopping, not a second data path, so it stands down while they are flowing.
@@ -3797,19 +3825,34 @@ class OttaiBleManager(
      * next minute — 15 s ahead — for the rest of the session, and the confirmed activeTime that
      * commit wrote carries the same overshoot into every later session.
      *
-     * Lower the anchor to this record's arrival bound. It only ever moves earlier and never past
-     * the true start (a record is not received before it is measured), so it settles on the
-     * earliest-delivered frame instead of oscillating.
+     * This frame is dated at its arrival minute either way, so no future timestamp leaves the
+     * driver. The shared start only moves once a second frame agrees (agreedArrivalStartMs): a
+     * single frame may carry a corrupt counter, and its arrival bound would then date every
+     * later frame stale. Once moved it only ever moves earlier and never past the true start (a
+     * record is not received before it is measured), so it settles instead of oscillating.
      */
     private fun lowerStreamAnchorToArrival(dataNo: Int, anchoredMs: Long, receivedAtMs: Long): Long {
+        val arrivalMinuteMs = floorToRecordMinute(receivedAtMs)
         val start = arrivalBoundStartMs(dataNo, receivedAtMs)
-        if (start <= 0L) return floorToRecordMinute(receivedAtMs)
+        if (start <= 0L) return arrivalMinuteMs
+        val agreed = agreedArrivalStartMs(pendingArrivalStartMs, pendingArrivalDataNo, start, dataNo)
+        if (agreed <= 0L || agreed >= streamStartTimeMs) {
+            if (dataNo != pendingArrivalDataNo) {
+                pendingArrivalStartMs = start
+                pendingArrivalDataNo = dataNo
+            }
+            Log.w(TAG, "live dataNo=$dataNo dated ${(anchoredMs - receivedAtMs) / 1000L}s after arrival; " +
+                "dated at arrival, anchor ${streamStartTimeMs / 1000L} held until a second frame agrees")
+            return arrivalMinuteMs
+        }
         Log.w(TAG, "live dataNo=$dataNo dated ${(anchoredMs - receivedAtMs) / 1000L}s after arrival; " +
-            "stream anchor ${streamStartTimeMs / 1000L} -> ${start / 1000L}")
-        streamStartTimeMs = start
+            "stream anchor ${streamStartTimeMs / 1000L} -> ${agreed / 1000L}")
+        pendingArrivalStartMs = 0L
+        pendingArrivalDataNo = -1
+        streamStartTimeMs = agreed
         streamStartReliable = true
-        lowerConfirmedActiveTime(start)
-        return start + dataNo.toLong() * RECORD_INTERVAL_MS
+        lowerConfirmedActiveTime(agreed)
+        return minOf(agreed + dataNo.toLong() * RECORD_INTERVAL_MS, arrivalMinuteMs)
     }
 
     /**

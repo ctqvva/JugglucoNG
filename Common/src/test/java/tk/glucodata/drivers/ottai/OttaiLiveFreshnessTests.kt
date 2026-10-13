@@ -177,6 +177,48 @@ class OttaiLiveFreshnessTests {
         assertTrue(lowered <= trueStartMs)
     }
 
+    /**
+     * The review case: one frame whose counter runs four ahead implies a start four minutes
+     * early. Alone it must not move the shared start, or every later frame is dated four minutes
+     * old and fails the freshness window for the rest of the connection.
+     */
+    @Test
+    fun aSingleFrameCannotLowerTheSharedStart() {
+        val corrupt = OttaiBleManager.arrivalBoundStartMs(15, measuredAtMs(11) + 1_000L)
+        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(0L, -1, corrupt, 15))
+    }
+
+    @Test
+    fun aCorruptCounterAndAGenuineFrameDoNotAgree() {
+        val corrupt = OttaiBleManager.arrivalBoundStartMs(15, measuredAtMs(11) + 1_000L)
+        val genuine = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(12) + 1_000L)
+        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(corrupt, 15, genuine, 12))
+    }
+
+    @Test
+    fun twoPromptFramesAgreeOnTheStart() {
+        val first = OttaiBleManager.arrivalBoundStartMs(11, measuredAtMs(11) + 1_000L)
+        val second = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(12) + 2_000L)
+        assertEquals(first, OttaiBleManager.agreedArrivalStartMs(first, 11, second, 12))
+    }
+
+    /** A replay of the same record is not a second, independent observation. */
+    @Test
+    fun theSameCounterTwiceDoesNotAgree() {
+        val start = OttaiBleManager.arrivalBoundStartMs(11, measuredAtMs(11) + 1_000L)
+        assertEquals(0L, OttaiBleManager.agreedArrivalStartMs(start, 11, start, 11))
+    }
+
+    /** A counter one ahead lands inside the agreement window; the genuine, later start wins. */
+    @Test
+    fun aCounterOneAheadCannotPullTheStartPastTheGenuineFrame() {
+        val oneAhead = OttaiBleManager.arrivalBoundStartMs(12, measuredAtMs(11) + 1_000L)
+        val genuine = OttaiBleManager.arrivalBoundStartMs(13, measuredAtMs(13) + 1_000L)
+        assertTrue(oneAhead < genuine)
+        assertEquals(genuine, OttaiBleManager.agreedArrivalStartMs(oneAhead, 12, genuine, 13))
+        assertTrue(genuine <= trueStartMs)
+    }
+
     @Test
     fun monitorTimeMayLagArrivalButNotLeadIt() {
         val receivedAtMs = 1_785_605_688_000L
