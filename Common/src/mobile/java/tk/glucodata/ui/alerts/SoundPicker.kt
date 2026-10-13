@@ -116,6 +116,7 @@ fun SoundPicker(
     var isPlaying by remember { mutableStateOf(false) }
     var playingUri by remember { mutableStateOf<String?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var streamVolume by remember { mutableStateOf<tk.glucodata.alerts.AlertStreamVolume.Lease?>(null) }
 
     // Preview what choosing App Default will save, not the previous native selection.
     val appDefaultUri = remember(alertTypeId, context.packageName) {
@@ -127,7 +128,12 @@ fun SoundPicker(
         // in some MediaPlayer states, including a preview that has not prepared yet.
         val previous = mediaPlayer
         mediaPlayer = null
-        previous?.release()
+        try {
+            previous?.release()
+        } finally {
+            streamVolume?.close()
+            streamVolume = null
+        }
         isPlaying = false
         playingUri = null
     }
@@ -136,7 +142,12 @@ fun SoundPicker(
         onDispose {
             val previous = mediaPlayer
             mediaPlayer = null
-            previous?.release()
+            try {
+                previous?.release()
+            } finally {
+                streamVolume?.close()
+                streamVolume = null
+            }
         }
     }
 
@@ -201,18 +212,23 @@ fun SoundPicker(
                 else -> Uri.parse(uri)
             } ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-            player.setAudioAttributes(
-                AudioAttributes.Builder()
+            val attributes = AudioAttributes.Builder()
                     .setUsage(audioUsage)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
-            )
+            player.setAudioAttributes(attributes)
             player.setDataSource(context, actualUri)
             player.setOnPreparedListener { prepared ->
                 if (mediaPlayer === prepared) {
-                    val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent, intensityProfile)
+                    val gain = tk.glucodata.alerts.AlertSoundVolume.profileGain(intensityProfile)
                     prepared.setVolume(gain, gain)
-                    prepared.start()
+                    streamVolume = tk.glucodata.alerts.AlertStreamVolume.acquire(context, attributes, soundVolumePercent)
+                    try {
+                        prepared.start()
+                    } catch (e: Exception) {
+                        android.util.Log.w("SoundPicker", "Could not start preview", e)
+                        stopSound()
+                    }
                 }
             }
             player.setOnCompletionListener { completed ->

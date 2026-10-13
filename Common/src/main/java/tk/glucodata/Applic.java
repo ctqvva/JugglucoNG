@@ -1114,6 +1114,7 @@ public class Applic extends Application implements androidx.work.Configuration.P
         // The field was filled when this object was constructed, before any bridge
         // existed, so on the phone it still holds the no-op. Take the registered hub.
         numdata = NumberDataAccess.get();
+        tk.glucodata.alerts.AlertStreamVolume.recoverInterrupted(this);
         enlargeCursorWindow();
         updateWearMessageReceiverComponent();
         if (DiskSpace.check(this)) {

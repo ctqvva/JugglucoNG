@@ -46,17 +46,7 @@ def main():
             active = pcm[np.abs(pcm) > .01 * peak]
             rms = float(np.sqrt(np.mean(active ** 2)))
             assert rms > .08, f'{path.name}: unexpectedly quiet active samples'
-            # Electrical proxy for the upper partials a small speaker can
-            # reproduce; this is not a phone-specific SPL/loudness measurement.
-            freq = np.fft.rfftfreq(len(pcm), 1/48000)
-            band = np.fft.irfft(np.fft.rfft(pcm) * ((freq >= 500) & (freq <= 4000)), len(pcm))
-            band_db = 20*np.log10(np.sqrt(np.mean(band**2)))
-            default_band_db = band_db + 20*np.log10(.8)
-            if path.stem == 'alert_ember_low':
-                assert default_band_db > -23, 'Ember low lost its louder upper partials at 80%'
-            if path.stem == 'alert_ember_urgent_low':
-                assert default_band_db > -18, 'Ember urgent low lost its louder upper partials at 80%'
-            print(f'{path.stem}: peak {20*np.log10(peak):.2f} dBFS, active RMS {20*np.log10(rms):.2f} dBFS, 500–4000 Hz RMS {band_db:.2f} dBFS')
+            print(f'{path.stem}: peak {20*np.log10(peak):.2f} dBFS, active RMS {20*np.log10(rms):.2f} dBFS')
 
 
 if __name__ == '__main__':

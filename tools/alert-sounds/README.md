@@ -162,30 +162,37 @@ Physical-device listening acceptance of the new collections is still outstanding
 ## Louder alerts and volume adjustment (issue #624)
 
 The existing Soft/Steady/Strong/Escalating overall alert intensity retains its
-sound-level ratios (40%, 70%, 100%, 100%) and vibration behavior. The original
-1.2-second sound fade from 12% is retained. A 30–100% sound-volume slider sits in
-Advanced directly below those options and scales the selected intensity's sound
-level. The default is **80%**, leaving a genuine 25% increase in player amplitude
-(1.94 dB) available manually at 100% for every profile. Global Apply copies the
-volume, and reset restores 80%. Missing preferences also use 80%; existing saved
-values, including an explicitly selected 100%, are preserved. The Sound toggle
-handles muting. The phone's media/alarm/notification stream volume still applies.
-Picker previews use the same intensity, volume adjustment and resolved audio usage
-as real alerts. Player gain remains bounded by 1.0; the slider never requests
-unsupported amplification or changes the shared phone stream volume.
+original player gains (40%, 70%, 100%, 100%), vibration behavior, and 1.2-second
+sound fade from 12%. A 30–100% sound-volume slider sits in Advanced directly below
+those options. It selects the **actual Android stream volume index** during
+playback, rather than merely attenuating the player's output relative to an
+already-low phone setting. The default/reset is **60%**; 100% selects the device's
+maximum index. The volume curve, safe-volume restrictions and physical output
+limit are controlled by Android/the device. Missing preferences use 60%; saved
+values are preserved. Global Apply, custom alerts and retries use this setting.
 
-Ember keeps its recordings, notes, timing, and duration. Fixed smooth strike/decay
-envelopes support the resonating body; a linear 600 Hz bass reduction for the
-bass-heavy low/urgent-low/falling/reminder/notice cues frees peak budget for upper
-partials. A single final linear gain is capped at -1 dBFS PCM, with decoded AAC
-headroom checked separately. There is no signal-dependent compression, clipping,
-or waveshaping. The resulting 500–4000 Hz energy at the **80% default** is +2.47 dB
-for low and +4.80 dB for urgent low versus the previous PR master at 100%. At the
-manual maximum those increases are +4.41 dB and +6.74 dB. These are electrical band
-measurements, not measured phone loudness; total broadband RMS is not a useful
-proxy for this bass-to-upper-partial rebalance. Higher cues remain approximately
-at their previous band energy at 80%. Other collections and legacy originals keep
-their committed audio bytes.
+Both alerts and picker previews derive the stream from their resolved
+AudioAttributes. The original intensity gain remains a separate player setting;
+no audio effects, above-unity player gain, EQ or altered note envelopes are used.
+The selected stream volume is shared with other audio using that Android stream
+while the alert/preview plays. A shared lease controller keeps the loudest active
+request until its owner stops and restores the pre-playback index when the last
+owner ends. It relinquishes control when it observes a hardware/external volume
+change, mute/ringer-mode change or DND transition, so it does not undo that action.
+Silent notification playback and active DND do not raise the stream. The existing
+explicit override-DND path still decides whether an alarm may play. Write failures
+leave normal playback available at the existing system volume. Volume restoration
+is journaled before writes; interrupted sessions are recovered on app restart
+only if the saved written index is still current and policy allows restoration.
+A killed process cannot restore volume until it runs again.
+
+The rejected Ember EQ/strike/decay changes are fully reverted. The nine Ember AACs,
+renderer, measurements and preview reel exactly match the preceding accepted
+version (`8cbac74e2`); there is no fresh lossy encode or timbre change. That version
+uses one linear mastering gain, with +4.5 dB requested for low/urgent-low and +3 dB
+for other cues, capped by a -1.5 dBFS PCM peak ceiling (actual low +3.61 dB and urgent
+low +1.55 dB versus the original quiet master). All other sound assets also retain
+their bytes. Decoded AAC headroom remains checked separately.
 
 **xDrip-style**, immediately above Juggluco in the picker, is a new original
 synthesis: sustained descending low sirens, a faster urgent-low siren, alternating
