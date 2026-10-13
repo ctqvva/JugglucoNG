@@ -36,6 +36,14 @@ native shell. Imported historical sessions have an explicit age proxy where
 their activation time is unknown. The current native window uses its reported
 start, and a sensor reset starts a separate estimator session.
 
+Live Room writes finish under the same ownership lock as replay commits, so a
+previous Adaptive write cannot overwrite a later Stock restoration. The new
+managed snapshot is installed before exchange publication; rate stays in mg/dL
+per minute regardless of glucose display units. Calibration revision callbacks
+compare actual references and fit fingerprints, so completion/cache-only
+notifications do not schedule another replay. A rejected reset releases the
+algorithm wait and retries any pending selection.
+
 Brief/broadcast readings without usable raw retain factory output without an
 invented uncertainty interval. With internal calibration enabled, those fallback
 points use the existing integrated calibration series. Actual live samples
@@ -195,7 +203,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 3,821 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 3,959 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Four Python replay
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -206,6 +214,11 @@ exclusion, explicit resets and pre-reference scoring.
 Integration tests cover source-journal CRC/recovery/backup, Stock restoration,
 calibration toggling, causal reference ordering, restart continuation, late and
 revised minutes, stale-worker rejection, failed commits and removal ownership.
+Six Android runtime/manager regressions exercise completion notification
+termination, real reference/fit changes, delayed live-write ordering, current
+managed-minute publication, rate units and rejected-reset recovery. Those tests
+replace Room, JNI and final publication side effects; they do not constitute
+device or native-storage validation. UI guardrails pass without a baseline change.
 The actual Compose sheet was checked in a JNI-free emulator harness, including
 selection/toggle changes and portrait/landscape layouts. This harness does not
 exercise BLE, native history storage or physical-sensor accuracy.

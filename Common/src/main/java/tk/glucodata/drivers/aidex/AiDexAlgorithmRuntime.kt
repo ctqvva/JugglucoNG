@@ -14,6 +14,7 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
 import tk.glucodata.drivers.aidex.adaptive2.AiDexReference
 import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Android storage adapter. Source history always precedes selected output. */
@@ -23,7 +24,9 @@ internal class AiDexAlgorithmRuntime(
     private val nativePointer: () -> Long,
     private val sensorStart: () -> Long,
     private val historyActive: () -> Boolean,
+    private val storeLive: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading,
     private val publish: (AiDexAlgorithmReading, Boolean) -> Unit,
+    private val worker: ExecutorService = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "AiDexAlgorithm-$serial") },
 ) {
     private val prefs = context.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
     private fun key(name: String) = "${name}_$serial"
@@ -31,7 +34,6 @@ internal class AiDexAlgorithmRuntime(
         AiDexSampleJournal(AiDexSourceJournalBackup.file(context.filesDir, serial)),
         AiDexAlgorithmSelection.fromStorage(prefs.getInt(key("algorithmAppliedMode"), prefs.getInt(key("algorithmMode"), 0))),
     )
-    private val worker = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "AiDexAlgorithm-$serial") }
     private val running = AtomicBoolean(false)
     private val replayRequested = AtomicBoolean(false)
     private var bootstrapped = prefs.getBoolean(key("algorithmSourceBootstrapped"), false)
@@ -44,7 +46,9 @@ internal class AiDexAlgorithmRuntime(
     @Volatile var failed = false
         private set
     private var calibrationRevision = -1L
-    private var resetWaiting = false
+    private data class CalibrationInputs(val references: List<AiDexReference>, val rawFit: Long, val autoFit: Long)
+    private var appliedCalibrationInputs: CalibrationInputs? = null
+    @Volatile private var resetWaiting = false
     private var pendingLiveTime = 0L
 
     init {
@@ -76,6 +80,13 @@ internal class AiDexAlgorithmRuntime(
 
     fun record(sources: Collection<AiDexSourceSample>) = controller.record(sources)
     fun resetRequested() = synchronized(controller.lock) { resetWaiting = true; controller.invalidateReferences() }
+    fun resetAbandoned() {
+        synchronized(controller.lock) {
+            if (controller.isClosed()) return
+            resetWaiting = false
+        }
+        if (controller.needsReplay()) requestReplay()
+    }
     fun isRebuilding(): Boolean = running.get()
 
     fun ephemeral(source: AiDexSourceSample): AiDexAlgorithmReading = synchronized(controller.lock) {
@@ -83,7 +94,8 @@ internal class AiDexAlgorithmRuntime(
         calibrateFallbacks(listOf(row), controller.appliedSelection).single()
     }
 
-    fun live(source: AiDexSourceSample, storeAndPublish: (AiDexAlgorithmReading) -> AiDexAlgorithmReading): Boolean {
+    fun live(source: AiDexSourceSample,
+        store: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading = storeLive): Boolean {
         val stored = synchronized(controller.lock) {
             if (controller.isClosed()) return@synchronized false
             val reading = controller.live(source, references(controller.appliedSelection))
@@ -93,9 +105,12 @@ internal class AiDexAlgorithmRuntime(
             }
             val output = calibrateFallbacks(listOf(reading), controller.appliedSelection).single()
             recordBaseline(output)
-            latestPublished = storeAndPublish(output)
+            // Storage may derive a rate from the previous reading. Install the
+            // resulting snapshot BEFORE exchange resolution can consult it.
+            latestPublished = store(output, latestPublished)
             if (pendingLiveTime <= output.source.timestampMs) pendingLiveTime = 0L
             storeUncertainty(listOf(output))
+            publish(latestPublished!!, true)
             true
         }
         if (controller.needsReplay() && (everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive)) requestReplay()
@@ -121,6 +136,9 @@ internal class AiDexAlgorithmRuntime(
             if (calibrationRevision == revision) return
             calibrationRevision = revision
             if (!controller.requestedSelection.calibration) return
+            // Completion/cache invalidations also raise the global revision.
+            // Only actual reference/fit changes require another history replay.
+            if (CalibrationAccess.isCalibrationStateLoaded() && calibrationInputs() == appliedCalibrationInputs) return
             controller.invalidateReferences()
         }
         requestReplay()
@@ -140,6 +158,12 @@ internal class AiDexAlgorithmRuntime(
         return AiDexAlgorithmReferences.decode(CalibrationAccess.getActiveCalibrationAnchors(serial, true),
             CalibrationAccess.getActiveCalibrationAnchors(serial, false), Applic.unit == 1)
     }
+
+    private fun calibrationInputs() = CalibrationInputs(
+        references(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED),
+        CalibrationAccess.getIntegratedCalibrationFingerprint(serial, true),
+        CalibrationAccess.getIntegratedCalibrationFingerprint(serial, false),
+    )
 
     private fun bootstrap() = synchronized(controller.lock) {
         if (bootstrapped || everAdaptive || controller.isClosed()) return@synchronized
@@ -194,7 +218,10 @@ internal class AiDexAlgorithmRuntime(
                             FloatArray(original.size) { index -> original[index].factoryMgDl * displayFactor },
                             LongArray(original.size) { index -> original[index].timestampMs }, false, serial,
                         )
-                        val ticket = controller.ticket(references(controller.requestedSelection)) ?: return@execute
+                        val (ticket, inputs) = synchronized(controller.lock) {
+                            val inputs = if (controller.requestedSelection.calibration) calibrationInputs() else null
+                            (controller.ticket(inputs?.references ?: emptyList()) ?: return@execute) to inputs
+                        }
                         val expectedPointer = nativePointer()
                         val expectedStart = sensorStart()
                         val computed = controller.compute(ticket)
@@ -248,13 +275,17 @@ internal class AiDexAlgorithmRuntime(
                                 GlucoseUncertaintyAccess.clearForSensor(serial)
                                 storeUncertainty(output)
                                 output.takeLast(1500).forEach(::recordBaseline)
-                                latestPublished = output.lastOrNull { row -> retained == null || row.source.minute in retained }
+                                val newest = output.lastOrNull { row -> retained == null || row.source.minute in retained }
+                                val deferredLive = newest != null && pendingLiveTime == newest.source.timestampMs
+                                latestPublished = if (deferredLive) storeLive(newest!!, latestPublished) else newest
+                                // Set before the completion revision is announced,
+                                // so our own notification cannot restart this replay.
+                                appliedCalibrationInputs = inputs
                                 // A requested choice and the values already committed
                                 // to Room have separate restart identities.
                                 if (!prefs.edit().putInt(key("algorithmAppliedMode"), ticket.selection.storageId).commit())
                                     Log.e("AiDexAlgorithm", "Could not persist applied algorithm mode for $serial")
                                 latestPublished?.let { row ->
-                                    val deferredLive = pendingLiveTime == row.source.timestampMs
                                     runCatching { publish(row, deferredLive) }.onFailure { error -> Log.stack("AiDexAlgorithm", "rebuilt current publication", error) }
                                     if (deferredLive) pendingLiveTime = 0L
                                 }

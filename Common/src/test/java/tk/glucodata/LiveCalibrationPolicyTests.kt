@@ -43,7 +43,7 @@ class LiveCalibrationPolicyTests {
         val aidex = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
         val incoming = aidex.substringAfter("private fun handleParsedLiveReading(").substringBefore("private fun resolveTrustedLiveOffsetMinutes")
         assertTrue(incoming.contains("normalizedRawValue ?: Float.NaN"))
-        assertTrue(incoming.contains("algorithmRuntime.live(input) { storeAlgorithmLive(it) }"))
+        assertTrue(incoming.contains("algorithmRuntime.live(input)"))
         val publish = aidex.substringAfter("private fun publishAlgorithmReading(").substringBefore("private fun storeAlgorithmLive(")
         assertTrue(publish.contains("LiveReadingLanes.stock("))
         assertTrue(publish.contains("row.source.rawMgDl.takeIf"))
