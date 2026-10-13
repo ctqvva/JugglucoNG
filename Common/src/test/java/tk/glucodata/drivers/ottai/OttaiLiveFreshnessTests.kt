@@ -163,10 +163,11 @@ class OttaiLiveFreshnessTests {
     /**
      * One sensor's live path as the manager runs it: dated from the stream start, published
      * through the current-reading state, and only then — accepted frames only — offered to the
-     * arrival correction, which may move the start.
+     * arrival correction, which may move the start. [seedArrivalStartMs] is what a live seed
+     * hands the correction, 0 for a history seed.
      */
-    private class LiveStream(var startMs: Long) {
-        val correction = OttaiArrivalStartCorrection().also { it.onAnchorSeeded(startMs) }
+    private class LiveStream(var startMs: Long, seedArrivalStartMs: Long) {
+        val correction = OttaiArrivalStartCorrection().also { it.onAnchorSeeded(startMs, seedArrivalStartMs) }
         val state = OttaiCurrentReadingState()
         var unpublished = 0
         var stale = 0
@@ -186,6 +187,16 @@ class OttaiLiveFreshnessTests {
         }
     }
 
+    /** Seeded the way the manager's "live" source does it, from [dataNo]'s arrival. */
+    private fun liveSeeded(dataNo: Int, receivedAtMs: Long) =
+        LiveStream(OttaiBleManager.arrivalBoundStartMs(dataNo, receivedAtMs), receivedAtMs - dataNo * 60_000L)
+
+    /** A prompt frame seeded the stream at the true start minute. */
+    private fun onTimeStream() = liveSeeded(5, measuredAtMs(5) + 1_000L)
+
+    /** A frame 20 s late, past the minute, seeded the stream a record after the true start. */
+    private fun overshotStream() = liveSeeded(10, measuredAtMs(10) + 20_000L)
+
     /**
      * The +15 s report: the frame the anchor came from reached the phone 20 s late, after the
      * minute had turned, so the floored anchor sits a record past the start and every promptly
@@ -193,7 +204,7 @@ class OttaiLiveFreshnessTests {
      */
     @Test
     fun twoPromptFramesCorrectAnAnchorFlooredFromALateOne() {
-        val stream = LiveStream(OttaiBleManager.arrivalBoundStartMs(10, measuredAtMs(10) + 20_000L))
+        val stream = overshotStream()
         assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
 
         assertEquals(measuredAtMs(11) - 45_000L, stream.frame(11, measuredAtMs(11) + 1_000L))
@@ -212,7 +223,7 @@ class OttaiLiveFreshnessTests {
      */
     @Test
     fun rejectedFramesLeaveTheAnchorAlone() {
-        val stream = LiveStream(trueStartMinuteMs)
+        val stream = onTimeStream()
         stream.prompt(5..10, ::measuredAtMs)
         stream.frame(15, measuredAtMs(11) + 1_000L, accepted = false)
         stream.frame(16, measuredAtMs(12) + 1_000L, accepted = false)
@@ -229,7 +240,7 @@ class OttaiLiveFreshnessTests {
      */
     @Test
     fun anAcceptedCorruptPairCannotMoveTheAnchorFurtherThanARecord() {
-        val stream = LiveStream(trueStartMinuteMs)
+        val stream = onTimeStream()
         stream.prompt(5..10, ::measuredAtMs)
         stream.frame(15, measuredAtMs(11) + 1_000L)
         stream.frame(16, measuredAtMs(12) + 1_000L)
@@ -247,7 +258,7 @@ class OttaiLiveFreshnessTests {
      */
     @Test
     fun theWorstCorruptCorrectionKeepsReadingsFreshAndIsSpentOnce() {
-        val stream = LiveStream(trueStartMinuteMs)
+        val stream = onTimeStream()
         stream.prompt(5..10, ::measuredAtMs)
         stream.frame(12, measuredAtMs(11) + 1_000L)
         stream.frame(13, measuredAtMs(12) + 1_000L)
@@ -276,7 +287,7 @@ class OttaiLiveFreshnessTests {
         val monitorMs = measuredAtMs(5) + 1_000L - 116_000L
         assertTrue(OttaiBleManager.isUsableLiveMonitorTime(monitorMs, measuredAtMs(5) + 1_000L))
         val seedMs = (monitorMs / 60_000L) * 60_000L - 5 * 60_000L
-        val stream = LiveStream(seedMs)
+        val stream = LiveStream(seedMs, measuredAtMs(5) + 1_000L - 5 * 60_000L)
         stream.prompt(5..10, ::measuredAtMs)
         val lagMs = measuredAtMs(10) + 1_000L - OttaiBleManager.anchoredLiveSampleMs(seedMs, 10, measuredAtMs(10) + 1_000L)
         assertEquals(166_000L, lagMs)
@@ -291,10 +302,43 @@ class OttaiLiveFreshnessTests {
         assertEquals(2, stream.unpublished)
     }
 
+    /**
+     * The third review replay: the same lagging anchor seeded from history before any live frame,
+     * so the corrupt pair would be the only arrivals the bound has seen and would vouch for its
+     * own correction. A history seed has no lag of its own to measure, so it is never corrected.
+     */
+    @Test
+    fun aHistorySeededAnchorIsNotCorrectedByTheFirstLiveFrames() {
+        val seedMs = trueStartMinuteMs - 120_000L
+        val stream = LiveStream(seedMs, 0L)
+        stream.frame(14, measuredAtMs(11) + 1_000L)
+        stream.frame(15, measuredAtMs(12) + 1_000L)
+        stream.prompt(13..40, ::measuredAtMs)
+
+        assertEquals(seedMs, stream.startMs)
+        assertEquals(0, stream.stale)
+        assertEquals(2, stream.unpublished)
+    }
+
+    /**
+     * The cost of that: a history-seeded anchor a record past the start keeps it for the session.
+     * Every prompt record is then dated at its arrival minute instead — never in the future, and
+     * still published.
+     */
+    @Test
+    fun aHistorySeededOvershootIsDatedAtArrivalInstead() {
+        val stream = LiveStream(trueStartMinuteMs + 60_000L, 0L)
+        stream.prompt(11..30, ::measuredAtMs)
+
+        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(0, stream.unpublished)
+        assertEquals(0, stream.stale)
+    }
+
     /** A candidate from before a reconnect gap cannot be corroborated by a frame after it. */
     @Test
     fun aCandidateExpiresAcrossAGap() {
-        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        val stream = overshotStream()
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(21, measuredAtMs(21) + 1_000L)
         assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
@@ -306,7 +350,7 @@ class OttaiLiveFreshnessTests {
     /** The two frames must be consecutive: an accepted frame dated on time drops the candidate. */
     @Test
     fun anOnTimeFrameDropsTheCandidate() {
-        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        val stream = overshotStream()
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(12, measuredAtMs(12) + 20_000L)
         stream.frame(13, measuredAtMs(13) + 1_000L)
@@ -316,7 +360,7 @@ class OttaiLiveFreshnessTests {
     /** A replay of the same record is not a second, independent observation. */
     @Test
     fun theSameCounterTwiceDoesNotAgree() {
-        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        val stream = overshotStream()
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(11, measuredAtMs(11) + 2_000L)
         assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
@@ -325,7 +369,7 @@ class OttaiLiveFreshnessTests {
     /** A counter one ahead paired with a genuine frame: the genuine, later start wins. */
     @Test
     fun aCounterOneAheadCannotPullTheStartPastTheGenuineFrame() {
-        val stream = LiveStream(trueStartMinuteMs + 60_000L)
+        val stream = overshotStream()
         stream.frame(12, measuredAtMs(11) + 1_000L)
         stream.frame(13, measuredAtMs(13) + 1_000L)
         assertEquals(trueStartMinuteMs, stream.startMs)
@@ -335,9 +379,9 @@ class OttaiLiveFreshnessTests {
     @Test
     fun reseedingDropsTheCandidate() {
         val correction = OttaiArrivalStartCorrection()
-        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L)
+        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L, measuredAtMs(10) + 20_000L - 600_000L)
         assertEquals(0L, correction.onAcceptedLive(trueStartMinuteMs + 60_000L, 11, measuredAtMs(11) + 1_000L))
-        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L)
+        correction.onAnchorSeeded(trueStartMinuteMs + 60_000L, measuredAtMs(10) + 20_000L - 600_000L)
         assertEquals(0L, correction.onAcceptedLive(trueStartMinuteMs + 60_000L, 12, measuredAtMs(12) + 1_000L))
     }
 

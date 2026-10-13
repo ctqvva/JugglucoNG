@@ -106,11 +106,14 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
  *    date ahead of arrival drops the candidate;
  *  - the start may fall at most one record below the anchor it was seeded at, in total. That is
  *    the most flooring can overshoot by;
- *  - nor so far that any accepted live frame of this manager would be dated more than
- *    [MAX_CORRECTED_LAG_MS] before it arrived. The anchor may already lag — a monitor time is
- *    accepted up to two minutes behind arrival, and flooring adds up to one more — and a record
- *    on top of that would leave every later reading stale and unpublished. Genuine frames have
- *    the delays already seen, so they stay inside the freshness window;
+ *  - nor so far that the live frame the anchor was seeded from, or any accepted live frame
+ *    since, would be dated more than [MAX_CORRECTED_LAG_MS] before it arrived. The anchor may
+ *    already lag — a monitor time is accepted up to two minutes behind arrival, and flooring
+ *    adds up to one more — and a record on top of that would leave every later reading stale
+ *    and unpublished. The seed frame's lag is how far the anchor dated it behind its own
+ *    arrival, which does not depend on its counter, so a corrupt pair cannot vouch for itself.
+ *    An anchor seeded from anything but a live arrival (history, activeTime) has no such
+ *    measure and is never corrected; its records are still dated no later than arrival;
  *  - nothing is persisted. The next session seeds a fresh anchor and corrects it again.
  *
  * A false correction that fits these bounds still dates the genuine frames a record early, so
@@ -126,17 +129,23 @@ internal class OttaiArrivalStartCorrection {
     }
 
     private var lowestStartMs = 0L
-    // Latest start an accepted live frame's own arrival implies, unfloored: arrival - dataNo
-    // records. Absolute, so it outlives reseeds; a counter running ahead only lowers its own.
+    // Latest start a live arrival implies, unfloored: arrival - dataNo records. Set by a live
+    // seed, 0 after any other seed; accepted frames can only raise it, so a counter running
+    // ahead never loosens it.
     private var latestArrivalStartMs = 0L
     private var pendingStartMs = 0L
     private var pendingDataNo = -1
     private var pendingReceivedAtMs = 0L
 
-    /** The anchor was (re)seeded at [startMs]: the correction budget starts over from it. */
+    /**
+     * The anchor was (re)seeded at [startMs]: the correction budget starts over from it.
+     * [seedArrivalStartMs] is arrival - dataNo records of the live frame it was seeded from, or 0
+     * when it came from anything else.
+     */
     @Synchronized
-    fun onAnchorSeeded(startMs: Long) {
+    fun onAnchorSeeded(startMs: Long, seedArrivalStartMs: Long) {
         lowestStartMs = startMs - RECORD_INTERVAL_MS
+        latestArrivalStartMs = seedArrivalStartMs.coerceAtLeast(0L)
         clearPending()
     }
 
@@ -150,7 +159,9 @@ internal class OttaiArrivalStartCorrection {
             clearPending()
             return 0L
         }
-        latestArrivalStartMs = maxOf(latestArrivalStartMs, receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS)
+        if (latestArrivalStartMs > 0L) {
+            latestArrivalStartMs = maxOf(latestArrivalStartMs, receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS)
+        }
         val startMs = OttaiBleManager.arrivalBoundStartMs(dataNo, receivedAtMs)
         if (startMs >= anchorStartMs) {
             clearPending()
@@ -169,12 +180,18 @@ internal class OttaiArrivalStartCorrection {
         // cannot pull the start further than the genuine frame does.
         val agreedMs = maxOf(pendingStartMs, startMs)
         clearPending()
-        return if (lowestStartMs > 0L && agreedMs >= floorMs()) agreedMs else 0L
+        val floorMs = floorMs()
+        return if (floorMs > 0L && agreedMs >= floorMs) agreedMs else 0L
     }
 
-    /** Lowest start a correction may still reach. */
+    /** Lowest start a correction may still reach, or 0 when the anchor may not be corrected. */
     @Synchronized
-    fun floorMs(): Long = maxOf(lowestStartMs, latestArrivalStartMs - MAX_CORRECTED_LAG_MS)
+    fun floorMs(): Long =
+        if (lowestStartMs > 0L && latestArrivalStartMs > 0L) {
+            maxOf(lowestStartMs, latestArrivalStartMs - MAX_CORRECTED_LAG_MS)
+        } else {
+            0L
+        }
 
     private fun clearPending() {
         pendingStartMs = 0L
@@ -3869,13 +3886,13 @@ class OttaiBleManager(
         if (live && receivedAtMs > 0L && r.record.dataNo >= 0) {
             val monitorMs = r.monitorTimeMs
             if (isUsableLiveMonitorTime(monitorMs, receivedAtMs)) {
-                return seedStreamTimeAnchor(r.record.dataNo, monitorMs, "monitor-live", reliable = true)
+                return seedStreamTimeAnchor(r.record.dataNo, monitorMs, "monitor-live", reliable = true, receivedAtMs)
             }
             if (monitorMs > 0L) {
                 val deltaSec = (receivedAtMs - monitorMs) / 1000L
                 Log.w(TAG, "ignore live monitor timestamp dataNo=${r.record.dataNo} monitor=${monitorMs / 1000L} live=${receivedAtMs / 1000L} lag=${deltaSec}s")
             }
-            return seedStreamTimeAnchor(r.record.dataNo, receivedAtMs, "live", reliable = true)
+            return seedStreamTimeAnchor(r.record.dataNo, receivedAtMs, "live", reliable = true, receivedAtMs)
         }
 
         r.monitorTimeMs.takeIf { it > 0L }?.let { monitorMs ->
@@ -3903,7 +3920,7 @@ class OttaiBleManager(
         if (correctedMs <= 0L) {
             val impliedMs = arrivalBoundStartMs(dataNo, receivedAtMs)
             val floorMs = arrivalStartCorrection.floorMs()
-            if (anchorMs > 0L && impliedMs < floorMs) {
+            if (anchorMs > 0L && floorMs > 0L && impliedMs < floorMs) {
                 Log.w(TAG, "live dataNo=$dataNo implies start ${impliedMs / 1000L}, below the lowest " +
                     "correction ${floorMs / 1000L} of anchor ${anchorMs / 1000L}; anchor kept")
             }
@@ -3919,7 +3936,14 @@ class OttaiBleManager(
     // a start is committed as the effective active time (persisted) so the dashboard and native
     // record stop showing the bogus cgm-info "just now" provisional. Sources whose hint is itself
     // derived from effectiveActiveTimeMs (active/initial-history/ended-live) must NOT set reliable.
-    private fun seedStreamTimeAnchor(dataNo: Int, sampleHintMs: Long, reason: String, reliable: Boolean = false): Long {
+    // receivedAtMs is the arrival of the live frame the hint came from, 0 for any other source.
+    private fun seedStreamTimeAnchor(
+        dataNo: Int,
+        sampleHintMs: Long,
+        reason: String,
+        reliable: Boolean = false,
+        receivedAtMs: Long = 0L,
+    ): Long {
         if (dataNo < 0 || sampleHintMs <= 0L) return sampleHintMs
         val sampleMs = floorToRecordMinute(sampleHintMs)
         val start = sampleMs - dataNo.toLong() * RECORD_INTERVAL_MS
@@ -3933,7 +3957,10 @@ class OttaiBleManager(
             }
             streamStartTimeMs = start
             streamStartReliable = reliable
-            arrivalStartCorrection.onAnchorSeeded(start)
+            arrivalStartCorrection.onAnchorSeeded(
+                start,
+                if (receivedAtMs > 0L) receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS else 0L,
+            )
             if (old == 0L || kotlin.math.abs(old - start) > RECORD_INTERVAL_MS) {
                 Log.i(TAG, "stream time anchor dataNo=$dataNo start=${start / 1000L} sample=${sampleMs / 1000L} source=$reason reliable=$reliable")
             }
