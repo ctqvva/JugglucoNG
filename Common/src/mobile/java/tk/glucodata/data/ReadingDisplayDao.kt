@@ -79,6 +79,9 @@ interface ReadingDisplayDao {
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getAllSince(startTime: Long): List<ReadingDisplay>
 
+    @Query("SELECT * FROM reading_display WHERE timestamp > :afterTimestamp ORDER BY timestamp ASC LIMIT :limit")
+    suspend fun getPageAfter(afterTimestamp: Long, limit: Int): List<ReadingDisplay>
+
     @Query(
         "SELECT * FROM reading_display WHERE timestamp >= :startTime AND timestamp <= :endTime " +
             "ORDER BY timestamp ASC"

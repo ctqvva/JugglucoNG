@@ -151,6 +151,22 @@ interface HistoryDao {
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getReadingsSince(startTime: Long): List<HistoryReading>
 
+    /** Keyset page on the unique (timestamp, sensorSerial) index; start after (Long.MIN_VALUE, ""). */
+    @Query("""
+        SELECT * FROM history_readings
+        WHERE timestamp >= :startTime
+          AND (timestamp > :afterTimestamp
+               OR (timestamp = :afterTimestamp AND sensorSerial > :afterSensorSerial))
+        ORDER BY timestamp ASC, sensorSerial ASC
+        LIMIT :limit
+    """)
+    suspend fun getReadingsPageSince(
+        startTime: Long,
+        afterTimestamp: Long,
+        afterSensorSerial: String,
+        limit: Int
+    ): List<HistoryReading>
+
     @Query("""
         SELECT * FROM history_readings
         WHERE timestamp >= :startTime
