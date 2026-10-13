@@ -605,6 +605,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="scheduled_backup_run_success">Yedekleme başarıyla tamamlandı</string>
     <string name="scheduled_backup_run_failed">Yedekleme başarısız oldu. Aşağıdaki durumu kontrol edin.</string>
     <string name="scheduled_backup_still_running">Yedekleme hâlâ sürüyor. Tamamlandığında durum burada güncellenecek.</string>
+    <string name="scheduled_backup_stopped_by_system">Android, yedekleme tamamlanmadan işlemi durdurdu. Daha sonra yeniden denenecek.</string>
     <string name="scheduled_backup_last_success">Son başarılı yedekleme: %1$s</string>
     <string name="scheduled_backup_never">Henüz başarılı yedekleme yok</string>
     <string name="scheduled_backup_last_error">Son hata: %1$s</string>

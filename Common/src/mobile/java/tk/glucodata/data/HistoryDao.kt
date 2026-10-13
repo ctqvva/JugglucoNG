@@ -151,6 +151,26 @@ interface HistoryDao {
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getReadingsSince(startTime: Long): List<HistoryReading>
 
+    /**
+     * Keyset page on the unique (timestamp, sensorSerial) index; start after (Long.MIN_VALUE, "").
+     * The MAX() is what SQLite seeks to. Given only `timestamp >= :startTime` it walked the index
+     * from the start of history on every page, so a full backup grew with the square of its size.
+     */
+    @Query("""
+        SELECT * FROM history_readings
+        WHERE timestamp >= MAX(:startTime, :afterTimestamp)
+          AND (timestamp > :afterTimestamp
+               OR (timestamp = :afterTimestamp AND sensorSerial > :afterSensorSerial))
+        ORDER BY timestamp ASC, sensorSerial ASC
+        LIMIT :limit
+    """)
+    suspend fun getReadingsPageSince(
+        startTime: Long,
+        afterTimestamp: Long,
+        afterSensorSerial: String,
+        limit: Int
+    ): List<HistoryReading>
+
     @Query("""
         SELECT * FROM history_readings
         WHERE timestamp >= :startTime

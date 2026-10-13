@@ -657,6 +657,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="scheduled_backup_run_success">Sicherung erfolgreich abgeschlossen</string>
     <string name="scheduled_backup_run_failed">Sicherung fehlgeschlagen. Prüfen Sie den Status unten.</string>
     <string name="scheduled_backup_still_running">Die Sicherung läuft noch. Der Status wird hier nach Abschluss aktualisiert.</string>
+    <string name="scheduled_backup_stopped_by_system">Android hat die Sicherung vorzeitig beendet. Sie wird später erneut versucht.</string>
     <string name="scheduled_backup_last_success">Letzte erfolgreiche Sicherung: %1$s</string>
     <string name="scheduled_backup_never">Noch keine erfolgreiche Sicherung</string>
     <string name="scheduled_backup_last_error">Letzter Fehler: %1$s</string>

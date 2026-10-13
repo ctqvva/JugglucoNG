@@ -628,6 +628,7 @@
     <string name="scheduled_backup_run_success">Kopia zapasowa utworzona pomyślnie</string>
     <string name="scheduled_backup_run_failed">Tworzenie kopii nie powiodło się. Sprawdź stan poniżej.</string>
     <string name="scheduled_backup_still_running">Tworzenie kopii nadal trwa. Stan zostanie tutaj zaktualizowany po zakończeniu.</string>
+    <string name="scheduled_backup_stopped_by_system">Android zatrzymał tworzenie kopii zapasowej przed jego zakończeniem. Próba zostanie ponowiona później.</string>
     <string name="scheduled_backup_last_success">Ostatnia udana kopia: %1$s</string>
     <string name="scheduled_backup_never">Brak udanej kopii zapasowej</string>
     <string name="scheduled_backup_last_error">Ostatni błąd: %1$s</string>

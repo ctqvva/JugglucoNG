@@ -645,6 +645,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="scheduled_backup_run_success">Back-up voltooid</string>
     <string name="scheduled_backup_run_failed">Back-up mislukt. Controleer de status hieronder.</string>
     <string name="scheduled_backup_still_running">De back-up wordt nog uitgevoerd. De status wordt hier bijgewerkt zodra deze klaar is.</string>
+    <string name="scheduled_backup_stopped_by_system">Android heeft de back-up gestopt voordat deze was voltooid. Er wordt later opnieuw geprobeerd.</string>
     <string name="scheduled_backup_last_success">Laatste geslaagde back-up: %1$s</string>
     <string name="scheduled_backup_never">Nog geen geslaagde back-up</string>
     <string name="scheduled_backup_last_error">Laatste fout: %1$s</string>

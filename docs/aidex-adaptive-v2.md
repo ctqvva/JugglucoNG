@@ -221,7 +221,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 3,966 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 3,999 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Four Python replay
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,

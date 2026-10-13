@@ -751,16 +751,28 @@ fun ScheduledBackupSettingsSheet(
         val workId = ScheduledBackupWorker.runNow(context)
         Toast.makeText(context, context.getString(R.string.scheduled_backup_queued), Toast.LENGTH_SHORT).show()
         scope.launch {
+            // A full history can take minutes. Watching for as long as the sheet is open is
+            // what lets the status below actually update, as the still-running toast promises.
             var terminalState: WorkInfo.State? = null
-            for (attempt in 0 until 240) {
+            var attempt = 0
+            while (terminalState == null) {
                 val info = withContext(Dispatchers.IO) {
                     WorkManager.getInstance(context).getWorkInfoById(workId).get()
                 }
-                if (info != null && info.state.isFinished) {
-                    terminalState = info.state
-                    break
+                when {
+                    info == null -> break
+                    info.state.isFinished -> terminalState = info.state
+                    else -> {
+                        if (++attempt == 240) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.scheduled_backup_still_running),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        delay(500)
+                    }
                 }
-                delay(500)
             }
             config = ScheduledBackupSettings.load(context)
             onConfigurationChanged(config)
@@ -768,7 +780,7 @@ fun ScheduledBackupSettingsSheet(
             val message = when (terminalState) {
                 WorkInfo.State.SUCCEEDED -> R.string.scheduled_backup_run_success
                 WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> R.string.scheduled_backup_run_failed
-                else -> R.string.scheduled_backup_still_running
+                else -> return@launch
             }
             Toast.makeText(context, context.getString(message), Toast.LENGTH_LONG).show()
         }

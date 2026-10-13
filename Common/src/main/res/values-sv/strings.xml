@@ -553,6 +553,7 @@
     <string name="scheduled_backup_run_success">Säkerhetskopieringen slutfördes</string>
     <string name="scheduled_backup_run_failed">Säkerhetskopieringen misslyckades. Kontrollera statusen nedan.</string>
     <string name="scheduled_backup_still_running">Säkerhetskopieringen pågår fortfarande. Statusen uppdateras här när den är klar.</string>
+    <string name="scheduled_backup_stopped_by_system">Android stoppade säkerhetskopieringen innan den var klar. Ett nytt försök görs senare.</string>
     <string name="scheduled_backup_last_success">Senaste lyckade säkerhetskopiering: %1$s</string>
     <string name="scheduled_backup_never">Ingen lyckad säkerhetskopiering ännu</string>
     <string name="scheduled_backup_last_error">Senaste fel: %1$s</string>

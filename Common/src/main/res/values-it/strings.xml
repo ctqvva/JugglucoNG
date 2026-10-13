@@ -426,6 +426,7 @@
     <string name="scheduled_backup_run_success">Backup completato correttamente</string>
     <string name="scheduled_backup_run_failed">Backup non riuscito. Controlla lo stato qui sotto.</string>
     <string name="scheduled_backup_still_running">Il backup è ancora in corso. Lo stato verrà aggiornato qui al termine.</string>
+    <string name="scheduled_backup_stopped_by_system">Android ha interrotto il backup prima del completamento. Verrà effettuato un nuovo tentativo più tardi.</string>
     <string name="scheduled_backup_last_success">Ultimo backup riuscito: %1$s</string>
     <string name="scheduled_backup_never">Nessun backup riuscito</string>
     <string name="scheduled_backup_last_error">Ultimo errore: %1$s</string>

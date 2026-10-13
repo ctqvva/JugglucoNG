@@ -453,6 +453,7 @@
     <string name="scheduled_backup_run_success">Cópia concluída com sucesso</string>
     <string name="scheduled_backup_run_failed">A cópia falhou. Verifique o estado abaixo.</string>
     <string name="scheduled_backup_still_running">A cópia ainda está em curso. O estado será atualizado aqui quando terminar.</string>
+    <string name="scheduled_backup_stopped_by_system">O Android interrompeu a cópia de segurança antes de terminar. Será feita uma nova tentativa mais tarde.</string>
     <string name="scheduled_backup_last_success">Última cópia bem-sucedida: %1$s</string>
     <string name="scheduled_backup_never">Ainda não há cópias bem-sucedidas</string>
     <string name="scheduled_backup_last_error">Último erro: %1$s</string>
