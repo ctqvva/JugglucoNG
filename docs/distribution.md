@@ -210,12 +210,12 @@ prereleases cannot become that changelog baseline. Nightly notes keep their
 separate previous-nightly comparison.
 
 After successful versioned publication, the workflow refreshes the README's
-marked download links and version/channel text. The primary download is the newest
+marked download links and version button. The primary download is the newest
 published versioned release, **including prereleases** and excluding nightlies or
 drafts; all four links use the existing versioned APK names from that release.
 The download button shows that release's version. A secondary button links to
-nightly builds; the latest non-prerelease appears in small text as the
-auto-update channel.
+nightly builds. Promoting a prerelease keeps the same version and APK links,
+so the README needs no change for promotion.
 
 The existing updater filters out GitHub prereleases but scans **all** non-prereleases,
 not just GitHub's "Latest" release. Keeping a version prerelease is the compatible
@@ -224,6 +224,10 @@ way to hold it back from installed clients while offering it for manual download
 because older clients can fall back to APK filenames. README selection does not
 change release flags or updater eligibility. Release-note comparison continues to
 use the last non-prerelease, independently of manual download selection.
+
+To promote an existing release, open GitHub Releases, edit it, clear **This is a
+pre-release**, and choose **Update release**. This makes the same APK eligible for
+the app updater without rebuilding or renaming it.
 
 **Refresh README downloads** handles manual publication/promotion and independent
 retries. Both update paths read the README and version button at the same main

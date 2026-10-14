@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh README manual downloads and show the separate in-app update channel."""
+"""Refresh the README's versioned manual download links and button."""
 import argparse
 import base64
 import json
@@ -27,16 +27,15 @@ def api(path, payload=None, paginate=False, method='PUT'):
                       input=json.dumps(payload) if payload is not None else None))
 
 
-def newest_versioned(releases, include_previews=True):
+def newest_versioned(releases):
     candidates = [r for r in releases if not r['draft'] and r['published_at']
-                  and (include_previews or not r['prerelease'])
                   and re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', r['tag_name'])]
     if not candidates:
         raise ValueError('No published versioned release is available')
     return max(candidates, key=lambda r: r['published_at'])
 
 
-def links(release, automatic):
+def links(release):
     tag = release['tag_name']
     if (release['draft'] or not release['published_at']
             or not re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', tag)):
@@ -51,7 +50,6 @@ def links(release, automatic):
             raise ValueError(f'Missing or invalid download asset: {name}')
         result.append(f'[download-{key}]: {url}')
     result.append(f'[download-release]: https://github.com/{REPO}/releases/tag/{tag}')
-    result.append(f'[download-update-channel]: https://github.com/{REPO}/releases/tag/{automatic["tag_name"]}')
     return '\n'.join(result)
 
 
@@ -64,14 +62,13 @@ def replace_region(readme, start, end, content):
     return before + start + '\n' + content + '\n' + end + after
 
 
-def rewrite(readme, release, automatic):
+def rewrite(readme, release):
     tag = release['tag_name']
     info = (f'[![Download JugglucoNG {tag} for Android]({BUTTON_PATH}?version={tag})][download-phone] '
             '[![Nightly builds](docs/assets/download-nightly.svg)]'
-            f'(https://github.com/{REPO}/releases?q=nightly-&expanded=true)\n\n'
-            f'<sub>Auto-update channel: [{automatic["tag_name"]}][download-update-channel]</sub>')
+            f'(https://github.com/{REPO}/releases?q=nightly-&expanded=true)')
     readme = replace_region(readme, INFO_START, INFO_END, info)
-    return replace_region(readme, START, END, links(release, automatic))
+    return replace_region(readme, START, END, links(release))
 
 
 def rewrite_button(svg, tag):
@@ -106,11 +103,10 @@ def update(local=False):
     pages = api('releases?per_page=100', paginate=True)
     releases = [r for page in pages for r in page]
     release = newest_versioned(releases)
-    automatic = newest_versioned(releases, include_previews=False)
     if local:
         path = ROOT / 'README.md'
         button = ROOT / BUTTON_PATH
-        updated = rewrite(path.read_text(), release, automatic)
+        updated = rewrite(path.read_text(), release)
         updated_button = rewrite_button(button.read_text(), release['tag_name'])
         path.write_text(updated)
         button.write_text(updated_button)
@@ -121,7 +117,7 @@ def update(local=False):
         current_button = api(f'contents/{BUTTON_PATH}?ref={head}')
         readme = base64.b64decode(current['content']).decode()
         svg = base64.b64decode(current_button['content']).decode()
-        updated = rewrite(readme, release, automatic)
+        updated = rewrite(readme, release)
         updated_button = rewrite_button(svg, release['tag_name'])
         if updated == readme and updated_button == svg:
             print('README download links already match the latest versioned release')

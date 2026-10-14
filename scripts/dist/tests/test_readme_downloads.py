@@ -21,9 +21,9 @@ def release(tag='1.2.4-Alpha', **changes):
     return dict(value, **changes)
 
 
-AUTOMATIC = release('1.2.2-Alpha', published_at='2026-09-26T00:00:00Z')
+OLDER_RELEASE = release('1.2.2-Alpha', published_at='2026-09-26T00:00:00Z')
 PREVIEW = release(prerelease=True)
-PAGES = [[AUTOMATIC, PREVIEW]]
+PAGES = [[OLDER_RELEASE, PREVIEW]]
 README = ('# Original header\n' + helper.INFO_START + '\nold version\n' + helper.INFO_END
           + '\nUnrelated explanation\n' + helper.START + '\nold links\n' + helper.END + '\nUnrelated footer\n')
 BUTTON = (helper.ROOT / helper.BUTTON_PATH).read_text()
@@ -39,42 +39,45 @@ def remote_responses(readme=README, button=BUTTON):
 
 
 class Downloads(unittest.TestCase):
-    def test_manual_download_includes_preview_but_update_channel_excludes_it(self):
-        items = [AUTOMATIC, PREVIEW, release('1.2.3-Alpha', prerelease=True, published_at='2026-10-07T00:00:00Z'),
+    def test_manual_download_includes_previews_but_excludes_drafts_and_nightlies(self):
+        items = [OLDER_RELEASE, PREVIEW, release('1.2.3-Alpha', prerelease=True, published_at='2026-10-07T00:00:00Z'),
                  release('1.2.5-Alpha', draft=True, published_at='2026-10-15T00:00:00Z'),
                  release('nightly-2026-10-15-abc', prerelease=True, published_at='2026-10-15T00:00:00Z')]
         self.assertEqual(helper.newest_versioned(items)['tag_name'], '1.2.4-Alpha')
-        self.assertEqual(helper.newest_versioned(items, include_previews=False)['tag_name'], '1.2.2-Alpha')
+        self.assertEqual(helper.newest_versioned([PREVIEW])['tag_name'], '1.2.4-Alpha')
         with self.assertRaises(ValueError):
-            helper.newest_versioned([PREVIEW], include_previews=False)
+            helper.newest_versioned([])
 
-    def test_promotion_changes_channel_label_without_changing_apk_link(self):
+    def test_promotion_needs_no_readme_or_apk_changes(self):
         promoted = release()
-        before = helper.rewrite(README, PREVIEW, AUTOMATIC)
-        after = helper.rewrite(README, promoted, promoted)
+        before = helper.rewrite(README, PREVIEW)
+        after = helper.rewrite(README, promoted)
         for text in [before, after]:
             self.assertNotIn('Preview release', text)
             self.assertNotIn('Released build', text)
             self.assertNotIn('held back', text)
-            self.assertIn('<sub>Auto-update channel:', text)
+            self.assertNotIn('Auto-update channel', text)
+            self.assertNotIn('download-update-channel', text)
             self.assertIn('Download JugglucoNG 1.2.4-Alpha for Android', text)
             self.assertIn('[![Nightly builds]', text)
         phone = '[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha.apk'
         self.assertIn(phone, before)
         self.assertIn(phone, after)
-        self.assertIn('[1.2.4-Alpha][download-update-channel]', after)
+        self.assertEqual(before, after)
+        self.assertEqual(helper.rewrite_button(BUTTON, PREVIEW['tag_name']),
+                         helper.rewrite_button(BUTTON, promoted['tag_name']))
 
     def test_links_select_standard_phone_and_each_other_variant(self):
-        links = helper.links(PREVIEW, AUTOMATIC)
+        links = helper.links(PREVIEW)
         self.assertIn('[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha.apk\n', links)
         for key, suffix in [('wear', '-wear'), ('phone-dub', '-dub'), ('wear-dub', '-wear-dub')]:
             self.assertIn(f'[download-{key}]: https://github.com/{helper.REPO}/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha{suffix}.apk', links)
-        self.assertIn('[download-update-channel]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.2-Alpha', links)
+        self.assertNotIn('download-update-channel', links)
 
     def test_draft_nightly_and_unpublished_never_generate_default_downloads(self):
         for changes in [{'draft': True}, {'published_at': None}, {'tag_name': 'nightly-2026-10-14-abc'}]:
             with self.subTest(changes=changes), self.assertRaises(ValueError):
-                helper.links(release(**changes), AUTOMATIC)
+                helper.links(release(**changes))
 
     def test_missing_duplicate_or_untrusted_asset_fails_closed(self):
         for kind in ['missing', 'duplicate', 'url', 'state', 'empty']:
@@ -88,22 +91,22 @@ class Downloads(unittest.TestCase):
                               'state': ('state', 'new'), 'empty': ('size', 0)}[kind]
                 value['assets'][0][key] = wrong
             with self.subTest(kind=kind), self.assertRaises(ValueError):
-                helper.links(value, AUTOMATIC)
+                helper.links(value)
 
     def test_rewrite_preserves_unrelated_content_and_is_idempotent(self):
-        updated = helper.rewrite(README, PREVIEW, AUTOMATIC)
+        updated = helper.rewrite(README, PREVIEW)
         self.assertTrue(updated.startswith('# Original header\n'))
         self.assertTrue(updated.endswith('\nUnrelated footer\n'))
         self.assertNotIn('old links', updated)
         self.assertIn('Unrelated explanation', updated)
         self.assertNotIn('**Preview release**', updated)
-        self.assertIn('[1.2.2-Alpha][download-update-channel]', updated)
-        self.assertEqual(helper.rewrite(updated, PREVIEW, AUTOMATIC), updated)
+        self.assertNotIn('download-update-channel', updated)
+        self.assertEqual(helper.rewrite(updated, PREVIEW), updated)
 
     def test_bad_markers_never_truncate_readme(self):
         for value in ['plain README', README + helper.START, helper.END + helper.START]:
             with self.subTest(value=value), self.assertRaises(ValueError):
-                helper.rewrite(value, PREVIEW, AUTOMATIC)
+                helper.rewrite(value, PREVIEW)
 
     def test_remote_update_publishes_readme_and_version_button_at_one_current_head(self):
         with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=remote_responses()) as api, \
@@ -117,11 +120,20 @@ class Downloads(unittest.TestCase):
         tree = api.call_args_list[5].args[1]
         self.assertEqual(tree['base_tree'], 'current-tree')
         files = {f['path']: f['content'] for f in tree['tree']}
-        self.assertEqual(files['README.md'], helper.rewrite(README, PREVIEW, AUTOMATIC))
+        self.assertEqual(files['README.md'], helper.rewrite(README, PREVIEW))
         self.assertEqual(files[helper.BUTTON_PATH], helper.rewrite_button(BUTTON, PREVIEW['tag_name']))
         self.assertEqual(api.call_args_list[6].args[1]['parents'], ['current-head'])
         self.assertEqual(api.call_args_list[7].args, ('git/refs/heads/main', {'sha': 'new-commit', 'force': False}))
         self.assertEqual(api.call_args_list[7].kwargs['method'], 'PATCH')
+
+    def test_refresh_works_when_only_a_preview_has_been_published(self):
+        replies = remote_responses()
+        replies[1] = [[PREVIEW]]
+        with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=replies) as api, \
+             patch.object(helper, 'ensure_ci'):
+            helper.update()
+        files = {f['path']: f['content'] for f in api.call_args_list[5].args[1]['tree']}
+        self.assertEqual(files['README.md'], helper.rewrite(README, PREVIEW))
 
     def test_concurrent_main_update_is_rejected_without_force_or_ci_dispatch(self):
         replies = remote_responses()
@@ -140,7 +152,7 @@ class Downloads(unittest.TestCase):
             (root / helper.BUTTON_PATH).parent.mkdir(parents=True)
             (root / helper.BUTTON_PATH).write_text(BUTTON)
             (root / 'README.md').write_text(README)
-            with patch.object(helper, 'ROOT', root), patch.object(helper, 'api', return_value=[[AUTOMATIC, newer]]):
+            with patch.object(helper, 'ROOT', root), patch.object(helper, 'api', return_value=[[OLDER_RELEASE, newer]]):
                 helper.update(local=True)
             text = (root / 'README.md').read_text()
             self.assertIn('Download JugglucoNG 1.2.5-Alpha for Android', text)
@@ -158,7 +170,7 @@ class Downloads(unittest.TestCase):
                 self.assertEqual(api.call_count, 4)
 
     def test_noop_and_superseded_release_do_not_commit(self):
-        updated = helper.rewrite(README, PREVIEW, AUTOMATIC)
+        updated = helper.rewrite(README, PREVIEW)
         replies = remote_responses(readme=updated)[:4]
         with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=replies) as api, \
              patch.object(helper, 'ensure_ci') as ci:

@@ -25,7 +25,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - name: Refresh versioned manual downloads and update-channel status
+      - name: Refresh versioned manual downloads
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/dist/update-readme-downloads.py
