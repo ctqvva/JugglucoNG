@@ -15,7 +15,7 @@ jobs:
     if: >-
       github.repository == 'ctqvva/JugglucoNG' &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'release' && github.event.release.prerelease == false))
+      github.event_name == 'release')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -23,7 +23,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - name: Refresh links from the latest published non-prerelease
+      - name: Refresh versioned manual downloads and update-channel status
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/dist/update-readme-downloads.py

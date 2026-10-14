@@ -17,21 +17,45 @@ def release(tag='1.2.4-Alpha', **changes):
     return dict(value, **changes)
 
 
-README = '# Original header\n' + helper.START + '\nold links\n' + helper.END + '\nUnrelated footer\n'
+AUTOMATIC = release('1.2.2-Alpha', published_at='2026-09-26T00:00:00Z')
+PREVIEW = release(prerelease=True)
+PAGES = [[AUTOMATIC, PREVIEW]]
+README = ('# Original header\n' + helper.INFO_START + '\nold version\n' + helper.INFO_END
+          + '\nUnrelated explanation\n' + helper.START + '\nold links\n' + helper.END + '\nUnrelated footer\n')
 
 
 class Downloads(unittest.TestCase):
+    def test_manual_download_includes_preview_but_update_channel_excludes_it(self):
+        items = [AUTOMATIC, PREVIEW, release('1.2.3-Alpha', prerelease=True, published_at='2026-10-07T00:00:00Z'),
+                 release('1.2.5-Alpha', draft=True, published_at='2026-10-15T00:00:00Z'),
+                 release('nightly-2026-10-15-abc', prerelease=True, published_at='2026-10-15T00:00:00Z')]
+        self.assertEqual(helper.newest_versioned(items)['tag_name'], '1.2.4-Alpha')
+        self.assertEqual(helper.newest_versioned(items, include_previews=False)['tag_name'], '1.2.2-Alpha')
+        with self.assertRaises(ValueError):
+            helper.newest_versioned([PREVIEW], include_previews=False)
+
+    def test_promotion_changes_channel_label_without_changing_apk_link(self):
+        promoted = release()
+        before = helper.rewrite(README, PREVIEW, AUTOMATIC)
+        after = helper.rewrite(README, promoted, promoted)
+        self.assertIn('**Released build**', after)
+        self.assertNotIn('**Preview release**', after)
+        phone = '[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha.apk'
+        self.assertIn(phone, before)
+        self.assertIn(phone, after)
+        self.assertIn('[1.2.4-Alpha][download-update-channel]', after)
+
     def test_links_select_standard_phone_and_each_other_variant(self):
-        links = helper.links(release())
+        links = helper.links(PREVIEW, AUTOMATIC)
         self.assertIn('[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha.apk\n', links)
         for key, suffix in [('wear', '-wear'), ('phone-dub', '-dub'), ('wear-dub', '-wear-dub')]:
             self.assertIn(f'[download-{key}]: https://github.com/{helper.REPO}/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha{suffix}.apk', links)
-        self.assertIn('Latest_regular_release-1.2.4--Alpha-blue', links)
+        self.assertIn('[download-update-channel]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.2-Alpha', links)
 
-    def test_prerelease_draft_nightly_and_unpublished_never_generate_default_downloads(self):
-        for changes in [{'prerelease': True}, {'draft': True}, {'published_at': None}, {'tag_name': 'nightly-2026-10-14-abc'}]:
+    def test_draft_nightly_and_unpublished_never_generate_default_downloads(self):
+        for changes in [{'draft': True}, {'published_at': None}, {'tag_name': 'nightly-2026-10-14-abc'}]:
             with self.subTest(changes=changes), self.assertRaises(ValueError):
-                helper.links(release(**changes))
+                helper.links(release(**changes), AUTOMATIC)
 
     def test_missing_duplicate_or_untrusted_asset_fails_closed(self):
         for kind in ['missing', 'duplicate', 'url', 'state', 'empty']:
@@ -45,23 +69,26 @@ class Downloads(unittest.TestCase):
                               'state': ('state', 'new'), 'empty': ('size', 0)}[kind]
                 value['assets'][0][key] = wrong
             with self.subTest(kind=kind), self.assertRaises(ValueError):
-                helper.links(value)
+                helper.links(value, AUTOMATIC)
 
     def test_rewrite_preserves_unrelated_content_and_is_idempotent(self):
-        updated = helper.rewrite(README, release())
+        updated = helper.rewrite(README, PREVIEW, AUTOMATIC)
         self.assertTrue(updated.startswith('# Original header\n'))
         self.assertTrue(updated.endswith('\nUnrelated footer\n'))
         self.assertNotIn('old links', updated)
-        self.assertEqual(helper.rewrite(updated, release()), updated)
+        self.assertIn('Unrelated explanation', updated)
+        self.assertIn('**Preview release**', updated)
+        self.assertIn('[1.2.2-Alpha][download-update-channel]', updated)
+        self.assertEqual(helper.rewrite(updated, PREVIEW, AUTOMATIC), updated)
 
     def test_bad_markers_never_truncate_readme(self):
         for value in ['plain README', README + helper.START, helper.END + helper.START]:
             with self.subTest(value=value), self.assertRaises(ValueError):
-                helper.rewrite(value, release())
+                helper.rewrite(value, PREVIEW, AUTOMATIC)
 
     def test_remote_update_reads_current_main_and_uses_its_sha(self):
         current = {'sha': 'current-file-sha', 'content': base64.b64encode(README.encode()).decode()}
-        with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=[release(), current, {}]) as api, \
+        with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=[PAGES, current, {}]) as api, \
              patch.object(helper, 'ensure_ci') as ci:
             helper.update()
             ci.assert_called_once()
@@ -69,19 +96,19 @@ class Downloads(unittest.TestCase):
         payload = api.call_args_list[2].args[1]
         self.assertEqual(payload['sha'], 'current-file-sha')
         self.assertEqual(payload['branch'], 'main')
-        self.assertEqual(base64.b64decode(payload['content']).decode(), helper.rewrite(README, release()))
+        self.assertEqual(base64.b64decode(payload['content']).decode(), helper.rewrite(README, PREVIEW, AUTOMATIC))
 
     def test_noop_and_superseded_release_do_not_commit(self):
-        updated = helper.rewrite(README, release())
+        updated = helper.rewrite(README, PREVIEW, AUTOMATIC)
         current = {'sha': 'sha', 'content': base64.b64encode(updated.encode()).decode()}
-        with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=[release(), current]) as api, \
+        with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=[PAGES, current]) as api, \
              patch.object(helper, 'ensure_ci') as ci:
             helper.update()
             self.assertEqual(api.call_count, 2)
             ci.assert_called_once()
-        with patch.dict('os.environ', {'TAG': '1.2.3-Alpha'}, clear=True), patch.object(helper, 'api', return_value=release()) as api:
+        with patch.dict('os.environ', {'TAG': '1.2.3-Alpha'}, clear=True), patch.object(helper, 'api', side_effect=[PAGES, current]) as api, patch.object(helper, 'ensure_ci'):
             helper.update()
-            self.assertEqual(api.call_count, 1)
+            self.assertEqual(api.call_count, 2)
 
     def test_foreign_repository_never_reads_or_writes_github(self):
         with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'someone/fork'}, clear=True), patch.object(helper, 'api') as api:

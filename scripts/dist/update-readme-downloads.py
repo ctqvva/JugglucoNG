@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh only README download links from the latest published regular release."""
+"""Refresh README manual downloads and show the separate in-app update channel."""
 import argparse
 import base64
 import json
@@ -12,21 +12,34 @@ ROOT = Path(__file__).resolve().parents[2]
 REPO = 'ctqvva/JugglucoNG'
 START = '<!-- download-links:start -->'
 END = '<!-- download-links:end -->'
+INFO_START = '<!-- download-info:start -->'
+INFO_END = '<!-- download-info:end -->'
 
 
-def api(path, payload=None):
+def api(path, payload=None, paginate=False):
     args = ['gh', 'api', f'repos/{REPO}/{path}']
+    if paginate:
+        args += ['--paginate', '--slurp']
     if payload is not None:
         args += ['--method', 'PUT', '--input', '-']
     return json.loads(subprocess.check_output(args, text=True,
                       input=json.dumps(payload) if payload is not None else None))
 
 
-def links(release):
+def newest_versioned(releases, include_previews=True):
+    candidates = [r for r in releases if not r['draft'] and r['published_at']
+                  and (include_previews or not r['prerelease'])
+                  and re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', r['tag_name'])]
+    if not candidates:
+        raise ValueError('No published versioned release is available')
+    return max(candidates, key=lambda r: r['published_at'])
+
+
+def links(release, automatic):
     tag = release['tag_name']
-    if (release['draft'] or release['prerelease'] or not release['published_at']
+    if (release['draft'] or not release['published_at']
             or not re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', tag)):
-        raise ValueError('Downloads require a published regular versioned release')
+        raise ValueError('Downloads require a published versioned release')
     result = []
     for key, suffix in [('phone', ''), ('wear', '-wear'), ('phone-dub', '-dub'), ('wear-dub', '-wear-dub')]:
         name = f'JugglucoNG-{tag}{suffix}.apk'
@@ -37,19 +50,28 @@ def links(release):
             raise ValueError(f'Missing or invalid download asset: {name}')
         result.append(f'[download-{key}]: {url}')
     result.append(f'[download-release]: https://github.com/{REPO}/releases/tag/{tag}')
-    # Static version badge and links advance together, with no latest-tag cache race.
-    result.append('[download-version-badge]: https://img.shields.io/badge/Latest_regular_release-'
-                  + tag.replace('-', '--') + '-blue')
+    result.append(f'[download-update-channel]: https://github.com/{REPO}/releases/tag/{automatic["tag_name"]}')
     return '\n'.join(result)
 
 
-def rewrite(readme, release):
-    if (readme.count(START) != 1 or readme.count(END) != 1
-            or readme.index(START) >= readme.index(END)):
+def replace_region(readme, start, end, content):
+    if (readme.count(start) != 1 or readme.count(end) != 1
+            or readme.index(start) >= readme.index(end)):
         raise ValueError('README download link markers are missing or duplicated')
-    before, _, rest = readme.partition(START)
-    _, _, after = rest.partition(END)
-    return before + START + '\n' + links(release) + '\n' + END + after
+    before, _, rest = readme.partition(start)
+    _, _, after = rest.partition(end)
+    return before + start + '\n' + content + '\n' + end + after
+
+
+def rewrite(readme, release, automatic):
+    info = f'### [{release["tag_name"]}][download-release]\n\n'
+    if release['prerelease']:
+        info += '**Preview release** · Manual installation; held back from the in-app updater.\n\n'
+    else:
+        info += '**Released build** · Available for manual installation and through the in-app updater.\n\n'
+    info += f'<sub>In-app update channel: [{automatic["tag_name"]}][download-update-channel].</sub>'
+    readme = replace_region(readme, INFO_START, INFO_END, info)
+    return replace_region(readme, START, END, links(release, automatic))
 
 
 def ensure_ci():
@@ -67,19 +89,19 @@ def ensure_ci():
 def update(local=False):
     if os.environ.get('GITHUB_REPOSITORY', REPO) != REPO:
         raise ValueError('README download updates require the official repository')
-    release = api('releases/latest')
-    if os.environ.get('TAG') and release['tag_name'] != os.environ['TAG']:
-        print('Skipping README update: this release is no longer the latest regular release')
-        return
+    pages = api('releases?per_page=100', paginate=True)
+    releases = [r for page in pages for r in page]
+    release = newest_versioned(releases)
+    automatic = newest_versioned(releases, include_previews=False)
     if local:
         path = ROOT / 'README.md'
-        path.write_text(rewrite(path.read_text(), release))
+        path.write_text(rewrite(path.read_text(), release, automatic))
     else:
         current = api('contents/README.md?ref=main')
         readme = base64.b64decode(current['content']).decode()
-        updated = rewrite(readme, release)
+        updated = rewrite(readme, release, automatic)
         if updated == readme:
-            print('README download links already match the latest regular release')
+            print('README download links already match the latest versioned release')
             ensure_ci()  # Retry a previous failed dispatch without another commit.
             return
         # Read the current main file and use its SHA: concurrent edits fail safely.

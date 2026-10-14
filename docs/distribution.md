@@ -209,20 +209,27 @@ including when the new version is marked prerelease. Nightlies and other
 prereleases cannot become that changelog baseline. Nightly notes keep their
 separate previous-nightly comparison.
 
-After successful regular publication, the workflow refreshes only the README's
-marked download-link definitions, including its version badge. The main button
-downloads the standard phone APK directly; smaller links download the three other
-variants from the same release. The existing versioned filenames and five-asset
-release format are preserved. Prereleases/nightlies do not advance these links.
-Manual publication/promotion is covered by **Refresh README downloads**, which can
-also be dispatched independently to retry a failed README update. Both paths read
-GitHub's latest non-prerelease and the current README on main; unrelated README
-edits are preserved and a concurrent file change fails safely. The update uses the
-publication token's `contents: write`, with no signing secrets or extra credential.
-It also uses `actions: write` to dispatch the existing read-only main CI for the
-README commit, since `GITHUB_TOKEN` writes do not trigger push CI. Nightlies still
-require passing CI at their exact main SHA. For a local documentation edit, run
-`python3 scripts/dist/update-readme-downloads.py --local`.
+After successful versioned publication, the workflow refreshes the README's
+marked download links and version/channel text. The primary download is the newest
+published versioned release, **including prereleases** and excluding nightlies or
+drafts; all four links use the existing versioned APK names from that release.
+The README separately shows the latest non-prerelease for the in-app update channel.
+
+The existing updater filters out GitHub prereleases but scans **all** non-prereleases,
+not just GitHub's "Latest" release. Keeping a version prerelease is the compatible
+way to hold it back from installed clients while offering it for manual download.
+`--latest=false` is not an updater holdback, and removing the manifest is insufficient
+because older clients can fall back to APK filenames. README selection does not
+change release flags or updater eligibility. Release-note comparison continues to
+use the last non-prerelease, independently of manual download selection.
+
+**Refresh README downloads** handles manual publication/promotion and independent
+retries. Both update paths read the current README on main, preserve unrelated
+edits, and use its file SHA so concurrent modifications fail safely. They use
+`contents: write` and `actions: write` to dispatch the existing read-only main CI
+for a bot README commit; no new credentials or signing secrets are involved.
+Nightlies still require passing CI at the exact main SHA. For a local documentation
+edit, run `python3 scripts/dist/update-readme-downloads.py --local`.
 
 Signing has `contents: read`. Only the separate approved publication job has
 `contents: write`. That job creates a draft at the captured SHA, uploads the four

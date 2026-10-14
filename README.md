@@ -17,50 +17,53 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 
 ## Download
 
-**Start here for an Android phone:** the standard JugglucoNG app, for Android 8.0
-or newer. The APK supports both 64-bit and 32-bit ARM phones.
+<!-- download-info:start -->
+### [1.2.4-Alpha][download-release]
 
-[![Download for Android — standard phone APK](https://img.shields.io/badge/Download_for_Android-Phone_APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)][download-phone]
-[![Latest regular release][download-version-badge]][download-release]
+**Preview release** · Manual installation; held back from the in-app updater.
 
-The download button gets the **latest regular release**, excluding prereleases
-and nightlies. These alpha releases are still experimental; see the warning above.
+<sub>In-app update channel: [1.2.2-Alpha][download-update-channel].</sub>
+<!-- download-info:end -->
 
-1. Download the APK and open it on your phone.
-2. If Android asks, allow installation from the browser or file manager you used.
-3. For an existing standard JugglucoNG installation, it updates the app and keeps
-   its data. Back up your settings and data before updating.
+[![Download JugglucoNG for Android](docs/assets/download-android.svg)][download-phone]
 
-<sub>[Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub] · [Nightly test builds](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true) · [All releases](https://github.com/ctqvva/JugglucoNG/releases)</sub>
+**Android 8.0 or newer** · Standard phone app
+
+<sub>[Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub] · [Nightly builds](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)</sub>
 
 <details>
-<summary>Other versions: Wear OS, DUB and nightlies</summary>
+<summary>Installation and other versions</summary>
 
-The smaller download links above get these variants from the same regular release:
+Open the downloaded APK on your phone. If Android asks, allow installation from
+the browser or file manager you used. Back up settings and data before updating;
+the matching APK updates your existing installation. One phone APK supports both
+32-bit and 64-bit ARM devices.
 
-| Version | Use it for | APK filename |
-| --- | --- | --- |
-| **[Standard phone][download-phone]** | Most Android phone users | `JugglucoNG-<version>.apk` |
-| [Wear OS][download-wear] | A Wear OS watch | `JugglucoNG-<version>-wear.apk` |
-| [Phone DUB][download-phone-dub] | A second, separate phone app with its own data | `JugglucoNG-<version>-dub.apk` |
-| [Wear OS DUB][download-wear-dub] | The matching separate app on a Wear OS watch | `JugglucoNG-<version>-wear-dub.apk` |
+| Download | Use it for |
+| --- | --- |
+| **[Android phone][download-phone]** | The standard phone app; the right choice for most people |
+| [Wear OS][download-wear] | A Wear OS watch |
+| [Phone DUB][download-phone-dub] | A second, separate phone app with its own data |
+| [Wear OS DUB][download-wear-dub] | The matching separate app on a Wear OS watch |
 
-Use the standard phone APK to update the standard app, and a DUB APK to update
-an existing DUB installation. The watch APKs are installed on the watch.
+Standard and DUB installations update with their matching APK. Watch APKs are
+installed on the watch. [Nightlies](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
+are test builds from recent main changes; choose the file ending in `-phone.apk`
+for a standard phone.
 
-[Nightlies](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
-are experimental test builds for trying recent changes. Choose the file ending
-in `-phone.apk` for a standard phone; use the other variants only when needed.
+A preview can be downloaded here without being offered by the in-app updater.
+Promoting it to a non-prerelease makes it eligible for that updater. Browse
+[all releases](https://github.com/ctqvva/JugglucoNG/releases) for older versions.
 
 </details>
 
 <!-- download-links:start -->
-[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.2-Alpha/JugglucoNG-1.2.2-Alpha.apk
-[download-wear]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.2-Alpha/JugglucoNG-1.2.2-Alpha-wear.apk
-[download-phone-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.2-Alpha/JugglucoNG-1.2.2-Alpha-dub.apk
-[download-wear-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.2-Alpha/JugglucoNG-1.2.2-Alpha-wear-dub.apk
-[download-release]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.2-Alpha
-[download-version-badge]: https://img.shields.io/badge/Latest_regular_release-1.2.2--Alpha-blue
+[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha.apk
+[download-wear]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha-wear.apk
+[download-phone-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha-dub.apk
+[download-wear-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.4-Alpha/JugglucoNG-1.2.4-Alpha-wear-dub.apk
+[download-release]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.4-Alpha
+[download-update-channel]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.2-Alpha
 <!-- download-links:end -->
 
 ## Sensor and data-source support

@@ -64,9 +64,7 @@ jobs:
           PRERELEASE: ${{ inputs.prerelease }}
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/dist/publish-release.py
-      - name: Refresh README download links after regular publication
-        if: inputs.prerelease == false
+      - name: Refresh README manual downloads after publication
         env:
-          TAG: ${{ inputs.tag }}
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/dist/update-readme-downloads.py
