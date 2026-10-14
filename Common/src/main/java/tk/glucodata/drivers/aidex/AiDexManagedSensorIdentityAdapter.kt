@@ -70,6 +70,13 @@ object AiDexManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
             ?.let { return it }
         val context = Applic.app
         if (context != null) {
+            // Retained native short names still belong to the managed writer
+            // after the BLE registration and saved sensor entry are removed.
+            val retained = "$PREFIX${normalized.uppercase()}"
+            if (context.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
+                    .contains("algorithmAppliedMode_$retained") ||
+                AiDexSourceJournalBackup.file(context.filesDir, retained).isFile
+            ) return retained
             persistedSensorIds(context)
                 .firstOrNull { matchesCallbackId(it, normalized) }
                 ?.let { return it }
@@ -125,5 +132,5 @@ object AiDexManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
         isManagedSensorId(sensorId)
 
     override fun shouldUseNativeHistorySync(sensorId: String?): Boolean? =
-        if (resolveCanonicalSensorId(sensorId) != null) true else null
+        if (resolveCanonicalSensorId(sensorId) != null) false else null
 }

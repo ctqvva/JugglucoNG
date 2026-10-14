@@ -79,12 +79,12 @@ internal class AiDexAlgorithmController(
     }
 
     /** Must be called with storage/publication in the same lock scope by the adapter. */
-    fun live(source: AiDexSourceSample, references: List<AiDexReference>): AiDexAlgorithmReading? = synchronized(lock) {
+    fun live(source: AiDexSourceSample, references: List<AiDexReference>, allowFactoryFallback: Boolean = false): AiDexAlgorithmReading? = synchronized(lock) {
         if (closed) return@synchronized null
         val changed = record(listOf(source))
         if (source.timestampMs <= lastProcessedTime || latest?.source?.minute == source.minute) {
             if (changed && latest?.source?.minute == source.minute) {
-                if (appliedSelection.adaptive) return@synchronized null // replay a revised minute from original inputs
+                if (appliedSelection.adaptive && context != null) return@synchronized null // replay a revised minute from original inputs
                 val current = journal.atMinute(source.minute) ?: return@synchronized null
                 return@synchronized AiDexAlgorithmReading(current, current.factoryMgDl).also {
                     latest = it; lastProcessedTime = maxOf(lastProcessedTime, current.timestampMs)
@@ -92,8 +92,11 @@ internal class AiDexAlgorithmController(
             }
             return@synchronized latest?.takeIf { it.source.minute == source.minute }
         }
-        val active = context ?: return@synchronized null
-        val reading = active.process(source, references)
+        val reading = context?.process(source, references) ?: if (allowFactoryFallback) {
+            // A historical hole must not stop fresh factory readings. Ownership
+            // remains the applied mode until a complete restoration commits.
+            AiDexAlgorithmReading(source, source.factoryMgDl)
+        } else return@synchronized null
         lastProcessedTime = source.timestampMs
         latest = reading
         reading

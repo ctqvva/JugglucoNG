@@ -789,13 +789,16 @@ class SensorViewModel : ViewModel() {
     }
 
     fun setAiDexAlgorithmMode(serial: String, mode: Int) {
-        val driver = findGatt(serial) as? tk.glucodata.drivers.aidex.AiDexDriver ?: return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val gatt = findGatt(serial) ?: return
+        val driver = gatt as? tk.glucodata.drivers.aidex.AiDexDriver ?: return
+        aiDexAlgorithmChoices.submit(gatt.SerialNumber) {
             val success = runCatching { driver.setCustomAlgorithmMode(mode) }.getOrDefault(false)
             android.util.Log.i("SensorVM", "AiDex algorithm mode=$mode result=$success serial=$serial")
             refreshSensors()
         }
     }
+
+    private val aiDexAlgorithmChoices by lazy { OrderedSensorActions(viewModelScope) }
 
     fun setSibionicsAlgorithmSensitivity(serial: String, sensitivity: Float?) {
         val gatt = findGatt(serial) ?: return

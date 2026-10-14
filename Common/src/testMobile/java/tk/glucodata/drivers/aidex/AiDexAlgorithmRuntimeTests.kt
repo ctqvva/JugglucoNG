@@ -33,6 +33,8 @@ import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
+import tk.glucodata.data.SettingsExporter
+import org.json.JSONObject
 
 /** Actual Android runtime/manager; JNI, crypto and final side effects/history Room are replaced. */
 @RunWith(RobolectricTestRunner::class)
@@ -122,6 +124,7 @@ class AiDexAlgorithmRuntimeTests {
     private var revision = 0L
     private var completionNotifications = 0
     private var roomWrites = 0
+    private var seriesTransform: ((FloatArray, LongArray) -> FloatArray)? = null
     private val sourceHistoryRequests = ArrayList<Long?>()
     private var beforeRoomWrite: () -> Unit = {}
     private var previousApp: Applic? = null
@@ -181,7 +184,7 @@ class AiDexAlgorithmRuntimeTests {
             override fun getActiveCalibrationAnchors(sensorId: String?, isRawMode: Boolean) = if (isRawMode) DoubleArray(0) else references
             override fun getIntegratedCalibrationFingerprint(sensorId: String?, isRawMode: Boolean) = if (isRawMode) rawFit else autoFit
             override fun getIntegratedCalibratedSeries(values: FloatArray, timestamps: LongArray, isRawMode: Boolean, sensorId: String?) =
-                FloatArray(values.size) { values[it] + 40f / if (Applic.unit == 1) 18.0182f else 1f }
+                seriesTransform?.invoke(values, timestamps) ?: FloatArray(values.size) { values[it] + 40f / if (Applic.unit == 1) 18.0182f else 1f }
             override fun notifyExternalCalibrationPipelineChanged() {
                 completionNotifications++
                 runtime.calibrationChanged(++revision)
@@ -238,11 +241,12 @@ class AiDexAlgorithmRuntimeTests {
 
         // Live/UI triggers neither recompute/commit history nor repeat downloads.
         val incoming = sample(4, 115f)
-        assertFalse(runtime.live(incoming))
+        assertTrue(runtime.live(incoming))
+        assertEquals(155f, room[incoming.timestampMs]!!, 0f)
         executor.runNext()
         choose(0)
         assertEquals(1, sourceHistoryRequests.size)
-        assertEquals(1, roomWrites)
+        assertEquals(2, roomWrites)
         assertTrue(driver.integratesUserCalibration(false))
 
         runtime.record(listOf(missed)) // Authentic 0x23/0x24 recovery.
@@ -369,6 +373,111 @@ class AiDexAlgorithmRuntimeTests {
         runtime.calibrationChanged(++revision) // another cache-only invalidation
         assertTrue(executor.pending.isEmpty())
         assertEquals(1, roomWrites)
+    }
+
+    @Test fun genericNativeSyncIsDisabledForLiveAndRetainedAiDexInEveryMode() {
+        assertFalse(driver.shouldUseNativeHistorySync())
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))
+        choose(0)
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))
+        removeKeepingHistory()
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))
+        assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial.removePrefix("X-")))
+        assertEquals(serial, SensorIdentity.resolveRoomStorageSensorId(serial.removePrefix("X-")))
+    }
+
+    @Test fun irrecoverableOriginalMinuteNeverStopsNewFactoryReadingsOrPublication() {
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        val lost = sample(2)
+        room[lost.timestampMs] = 100f
+        runtime.close()
+        installRuntime()
+        executor.runNext()
+        runtime.sourceHistoryUnavailable(lost.timestampMs)
+        choose(0) // Historical ownership stays calibrated while Stock is pending.
+        assertTrue(runtime.failed)
+        for (index in 3..5) {
+            val source = sample(index, 110f + index)
+            assertTrue(runtime.live(source))
+            executor.runNext()
+            assertEquals(source.timestampMs, runtime.latestPublished!!.source.timestampMs)
+            assertEquals(source.factoryMgDl + 40f, room[source.timestampMs]!!, 0f)
+            assertNull(runtime.latestPublished!!.uncertainty)
+            assertTrue(driver.integratesUserCalibration(false))
+        }
+        assertTrue(executor.pending.isEmpty())
+        assertNull(runtime.controller.journal.atMinute(lost.minute))
+    }
+
+    @Test fun stockRestartOwnsMissingFactoryHistoryBeforeFirstAdaptiveSelection() {
+        runtime.record(listOf(sample(1)))
+        Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("algorithmSourceBootstrapped_$serial", true).commit()
+        val collectedByStockRelease = sample(2, 110f)
+        room[collectedByStockRelease.timestampMs] = 110f
+        runtime.close()
+        installRuntime()
+        executor.runNext()
+        assertEquals(110f, runtime.controller.journal.atMinute(collectedByStockRelease.minute)!!.factoryMgDl, 0f)
+        assertEquals(100f, room[sample(1).timestampMs]!!, 0f)
+        choose(9)
+        assertEquals(150f, room[collectedByStockRelease.timestampMs]!!, 0f)
+    }
+
+    private fun stockSettingsPreferences() = JSONObject().put("AiDexNativePrefs", JSONObject().put("values",
+        JSONObject().put("algorithmMode_$serial", JSONObject().put("type", "int").put("value", 0))
+            .put("algorithmAppliedMode_$serial", JSONObject().put("type", "int").put("value", 0))
+            .put("algorithmEverAdaptive_$serial", JSONObject().put("type", "boolean").put("value", false))))
+
+    @Test fun stockSettingsImportPreservesRetainedInternallyCalibratedHistoryOwnership() {
+        saveRealAutoReference()
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        val last = room.entries.last()
+        removeKeepingHistory()
+        SettingsExporter.importSharedPreferences(Applic.app, stockSettingsPreferences())
+        val prefs = Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
+        assertEquals(0, prefs.getInt("algorithmMode_$serial", -1))
+        assertEquals(9, prefs.getInt("algorithmAppliedMode_$serial", -1))
+        assertTrue(prefs.getBoolean("algorithmEverAdaptive_$serial", false))
+        assertTrue(ManagedSensorRuntime.integratesUserCalibration(serial, false))
+        assertEquals(140f, CalibrationManager.getCalibratedValue(last.value, last.key, false, false, serial), 0f)
+        assertEquals(140f, room[last.key]!!, 0f)
+    }
+
+    @Test fun historyRestoringImportCanRestoreMatchingOwnershipFromBackup() {
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        runtime.close()
+        SettingsExporter.importSharedPreferences(Applic.app, stockSettingsPreferences(), preserveAiDexHistoryState = false)
+        assertEquals(0, Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
+            .getInt("algorithmAppliedMode_$serial", -1))
+    }
+
+    @Test fun calibratedReplayFallbackFitUsesFactoryMinutesWithUsableRawToo() {
+        val anchor = sample(1, 100f, 100f)
+        val estimated = AiDexAlgorithmContext(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED).process(anchor, emptyList())
+        assertNotNull(estimated.uncertainty)
+        val fallbacks = listOf(sample(10, 120f), sample(11, 130f)).map { AiDexAlgorithmReading(it, it.factoryMgDl) }
+        // A legacy reference stored Adaptive=200, unknown Stock, user=140.
+        // Its usable-raw factory minute must be available to rebase the fit.
+        seriesTransform = { values, times ->
+            val position = times.indexOf(anchor.timestampMs)
+            val stock = if (position >= 0) values[position] else 200f
+            FloatArray(values.size) { values[it] * 140f / stock }
+        }
+        val method = AiDexAlgorithmRuntime::class.java.getDeclaredMethod("calibrateFallbacks", List::class.java,
+            AiDexAlgorithmSelection::class.java).apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val rows = method.invoke(runtime, listOf(estimated) + fallbacks,
+            AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED) as List<AiDexAlgorithmReading>
+        assertEquals(estimated.glucoseMgDl, rows[0].glucoseMgDl, 0f)
+        assertEquals(168f, rows[1].glucoseMgDl, 0f)
+        assertEquals(182f, rows[2].glucoseMgDl, 0f)
     }
 
     @Test fun changedReferencesAndFallbackFitEachScheduleOneReplay() {

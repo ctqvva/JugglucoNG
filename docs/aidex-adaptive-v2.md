@@ -46,6 +46,11 @@ resume after authentic originals arrive. Repeated live/UI triggers do not
 repeat a repair for the same hole or compute the full estimator while waiting.
 An incomplete/expired repair stops until reconnect, restart or new originals;
 history outside the sensor's available range still requires the original journal.
+That failure does not stop fresh readings: until the estimator is reconstructed,
+live Auto uses the sensor's factory value, with the applied mode's internal
+correction when enabled. It publishes without an invented uncertainty interval.
+The applied mode remains unchanged while a Stock restoration is pending, so
+already-corrected retained history cannot become eligible for a second correction.
 
 Live source, Room and publication work runs on a serial worker, under the same
 ownership lock as replay commits, so a
@@ -56,6 +61,10 @@ are copied and dispatched off the platform callback; protocol responses stay on
 the control handler so replay cannot delay authentication ACK handling. Queued
 live work rechecks the GATT identity and cannot write after removal closes
 ownership. Publication carries the reported sensor start to the exchange feeds.
+AiDex disables generic native-to-Room history sync in every mode, including after
+removal. Stock startup bootstrap and failed direct-history writes use the same
+owned journal/replay writer. Algorithm choices enter a per-sensor FIFO before
+switching to IO; choices blocked by a write preserve tap order.
 Calibration revision callbacks
 compare actual references and fit fingerprints, so completion/cache-only
 notifications do not schedule another replay. A rejected reset releases the
@@ -66,7 +75,9 @@ retained native preferences. Without a driver, single-value and series
 calibration queries consult that applied mode; requested but unfinished choices
 cannot change ownership. Stock-restored history remains eligible for generic
 calibration, while internally corrected Auto history bypasses it. Raw remains
-independent. This state travels in settings/full backups.
+independent. Settings-only imports preserve local applied mode and original-input
+provenance rather than replacing them with the backup's requested configuration.
+A backup import that includes glucose history can restore its matching state.
 
 Live and replay use the same causal one-minute reference window. An anchor on a
 rawless or unusable minute remains available to the next usable sample within
@@ -76,9 +87,10 @@ standalone replay retain the same behavior.
 Brief/broadcast readings without usable raw retain factory output without an
 invented uncertainty interval. With internal calibration enabled, those fallback
 points use the existing integrated calibration series. Actual live samples
-deferred during reconstruction are published through the normal live hooks once
-the rebuilt result is committed; startup replay alone does not count as a new
-sensor packet.
+remain publishable during reconstruction. Replay evaluates calibration against
+the full factory series, including usable-raw minutes, and replaces only fallback
+outputs with that correction. Startup replay alone does not count as a new sensor
+packet.
 
 The menu is a phone UI. Wear sources compile with the shared driver integration;
 standalone watch selection, handover and physical-sensor behavior have not been
@@ -88,6 +100,11 @@ refetched where the sensor still has them; unavailable originals cause replay
 to fail rather than being treated as factory data.
 
 ## Model and isolation
+
+The model intentionally follows raw changes while learning a slow factory scale.
+When that scale is near one and no artifact/reference correction is needed,
+Auto can closely track Raw. A similar-looking curve does not establish an
+accuracy gain or mean that calibration/drift handling was bypassed.
 
 `AiDexAdaptiveV2` is a separate Kotlin implementation in
 `tk.glucodata.drivers.aidex.adaptive2`. The five estimator/math files originate
@@ -233,8 +250,8 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 3,999 tests, zero failures/errors/skips.
-Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Four Python replay
+The full mobile Gradle/JVM suite passes: 4,014 tests, zero failures/errors/skips.
+Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
 reset/stale input, gaps and exact/corrupt snapshot restoration. Python replay
@@ -248,7 +265,12 @@ Android runtime/manager regressions exercise release-switch and empty-journal
 recovery, interrupted repair/restart, completion notification
 termination, real reference/fit changes, delayed live-write ordering, current
 managed-minute publication, rate units, rejected-reset recovery, retained
-ownership, nonblocking callbacks and queued removal/transport checks. Controller
+ownership, nonblocking callbacks and queued removal/transport checks. Runtime
+tests also cover disabled generic sync, settings-only import over
+retained calibrated history, forward factory publication with irrecoverable
+originals, Stock startup repair, full-series fallback fits and blocked tap ordering.
+Report tests verify separately closed interval bands for each continuous run,
+using the same gap threshold as the glucose lines. Controller
 tests cover rawless/unusable reference minutes, expiry and restart continuation.
 The retained-history tests also exercise the real calibration manager's
 single-value/series ownership gates. Other adapter tests replace history Room,

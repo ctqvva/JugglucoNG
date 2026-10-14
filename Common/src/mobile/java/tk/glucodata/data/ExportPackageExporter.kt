@@ -334,7 +334,9 @@ object ExportPackageExporter {
                 }
 
                 val settingsResult = payload.optJSONObject("settings")?.let { settings ->
-                    SettingsExporter.importPayload(appContext, settings).getOrThrow()
+                    SettingsExporter.importPayload(appContext, settings,
+                        preserveAiDexHistoryState = (payload.optJSONObject("history")?.optJSONArray("readings")?.length() ?: 0) == 0
+                    ).getOrThrow()
                 }
                 val historySummary = payload.optJSONObject("history")?.let { history ->
                     importHistorySection(appContext, uri, history)

@@ -877,6 +877,7 @@ class AiDexBleManager(
     }
 
     override fun supportsCustomAlgorithm(): Boolean = true
+    override fun shouldUseNativeHistorySync(): Boolean = false
     override fun isCustomAlgorithmEnabled(): Boolean = algorithmRuntime.controller.requestedSelection.adaptive
     override fun getCustomAlgorithmMode(): Int = algorithmRuntime.controller.requestedSelection.storageId
     override fun setCustomAlgorithmEnabled(enabled: Boolean): Boolean = setCustomAlgorithmMode(if (enabled) 8 else 0)
@@ -6008,15 +6009,11 @@ class AiDexBleManager(
                 false
             }
             if (!storedDirectly) {
-                try {
-                    tk.glucodata.HistorySyncAccess.mergeFullSyncForSensor(SerialNumber)
-                } catch (t: Throwable) {
-                    Log.e(TAG, "HistorySync.mergeFullSyncForSensor fallback failed: $t")
-                    try {
-                        tk.glucodata.HistorySyncAccess.syncSensorFromNative(SerialNumber, forceFull = true)
-                    } catch (_: Throwable) {}
-                }
-                clearPendingRoomHistory("merge-fallback")
+                // Retry from the journal through the same owner, never through
+                // a generic writer that can race a subsequent mode change.
+                algorithmRuntime.controller.invalidateReferences()
+                algorithmRuntime.requestReplay()
+                clearPendingRoomHistory("owned-replay-fallback")
             }
         }
 

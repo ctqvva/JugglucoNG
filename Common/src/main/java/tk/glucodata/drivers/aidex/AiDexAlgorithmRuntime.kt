@@ -37,7 +37,6 @@ internal class AiDexAlgorithmRuntime(
     )
     private val running = AtomicBoolean(false)
     private val replayRequested = AtomicBoolean(false)
-    private var bootstrapped = prefs.getBoolean(key("algorithmSourceBootstrapped"), false)
     private var everAdaptive = prefs.getBoolean(key("algorithmEverAdaptive"), false)
     private var epoch = 0L
     @Volatile var rewritingHistory = false
@@ -57,7 +56,7 @@ internal class AiDexAlgorithmRuntime(
     init {
         val requested = AiDexAlgorithmSelection.fromStorage(prefs.getInt(key("algorithmMode"), 0))
         if (requested != controller.appliedSelection) controller.request(requested)
-        if (everAdaptive || requested.adaptive) {
+        if (everAdaptive || requested.adaptive || nativePointer() != 0L || controller.journal.first() != null) {
             // Reconstruct continuation and finish an interrupted Stock restoration
             // as well as an Adaptive replay after process recreation.
             controller.invalidateReferences()
@@ -122,13 +121,13 @@ internal class AiDexAlgorithmRuntime(
         store: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading = storeLive): Boolean {
         val stored = synchronized(controller.lock) {
             if (controller.isClosed()) return@synchronized false
-            val reading = controller.live(source, references(controller.appliedSelection))
+            val reading = controller.live(source, references(controller.appliedSelection), allowFactoryFallback = true)
             if (reading == null) {
                 if (source.timestampMs >= (latestPublished?.source?.timestampMs ?: 0L)) pendingLiveTime = source.timestampMs
                 return@synchronized false
             }
+            recordBaseline(reading)
             val output = calibrateFallbacks(listOf(reading), controller.appliedSelection).single()
-            recordBaseline(output)
             // Storage may derive a rate from the previous reading. Install the
             // resulting snapshot BEFORE exchange resolution can consult it.
             latestPublished = store(output, latestPublished)
@@ -169,7 +168,7 @@ internal class AiDexAlgorithmRuntime(
     }
 
     fun historyComplete() {
-        if (everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive) {
+        if (everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive || controller.needsReplay()) {
             // One completed attempt per unchanged hole. If the sensor no longer
             // has that minute, keep failing closed without a download/replay loop.
             awaitingSourceHistory = false
@@ -218,7 +217,9 @@ internal class AiDexAlgorithmRuntime(
     )
 
     private fun bootstrap() = synchronized(controller.lock) {
-        if (bootstrapped || everAdaptive || controller.isClosed()) return@synchronized
+        // Until the first Adaptive write, native/Room still contain authentic
+        // factory values, including holes collected by a stock-only release.
+        if (everAdaptive || controller.isClosed()) return@synchronized
         val held = controller.journal.snapshot().mapTo(HashSet()) { it.minute }
         val room = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)
         val native = if (nativePointer() != 0L) {
@@ -244,7 +245,6 @@ internal class AiDexAlgorithmRuntime(
             }
         controller.record(sources)
         if (room != null || native != null) {
-            bootstrapped = true
             check(prefs.edit().putBoolean(key("algorithmSourceBootstrapped"), true).commit())
         }
     }
@@ -379,12 +379,12 @@ internal class AiDexAlgorithmRuntime(
         if (fallback.isEmpty()) return readings
         val factor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
         val calibrated = CalibrationAccess.getIntegratedCalibratedSeries(
-            FloatArray(fallback.size) { fallback[it].source.factoryMgDl * factor },
-            LongArray(fallback.size) { fallback[it].source.timestampMs }, false, serial,
+            FloatArray(readings.size) { readings[it].source.factoryMgDl * factor },
+            LongArray(readings.size) { readings[it].source.timestampMs }, false, serial,
         )
-        val byTime = fallback.indices.associate { index ->
-            val value = calibrated.getOrNull(index)?.div(factor)?.takeIf { it.isFinite() && it > 0f } ?: fallback[index].source.factoryMgDl
-            fallback[index].source.timestampMs to value
+        val byTime = readings.indices.filter { readings[it].uncertainty == null }.associate { index ->
+            val value = calibrated.getOrNull(index)?.div(factor)?.takeIf { it.isFinite() && it > 0f } ?: readings[index].source.factoryMgDl
+            readings[index].source.timestampMs to value
         }
         return readings.map { row -> byTime[row.source.timestampMs]?.let { row.copy(glucoseMgDl = it) } ?: row }
     }
