@@ -30,8 +30,7 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 
 Open the downloaded APK on your phone. If Android asks, allow installation from
 the browser or file manager you used. Back up settings and data before updating;
-the matching APK updates your existing installation. One phone APK supports both
-32-bit and 64-bit ARM devices.
+the matching APK updates your existing installation.
 
 | Download | Use it for |
 | --- | --- |

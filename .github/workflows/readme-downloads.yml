@@ -7,11 +7,13 @@ on:
 permissions:
   contents: write
   actions: write # Start read-only CI for the README commit made by GITHUB_TOKEN.
-concurrency:
-  group: readme-downloads
-  cancel-in-progress: false
 jobs:
   update:
+    # Shared with Release's post-publication refresh. Select releases only after
+    # this job acquires the lock; queued older events then select the newest one.
+    concurrency:
+      group: readme-downloads
+      cancel-in-progress: false
     if: >-
       github.repository == 'ctqvva/JugglucoNG' &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||

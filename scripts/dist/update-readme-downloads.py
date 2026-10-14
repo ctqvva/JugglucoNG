@@ -89,9 +89,10 @@ def ensure_ci():
     # read-only main CI so nightly signing still requires this exact head to pass.
     sha = api('commits/main')['sha']
     runs = api(f'actions/workflows/ci.yml/runs?head_sha={sha}&branch=main&per_page=10')['workflow_runs']
-    if any(r['head_sha'] == sha and r['head_branch'] == 'main'
-           and r['event'] in ('push', 'workflow_dispatch')
-           and (r['status'] != 'completed' or r['conclusion'] == 'success') for r in runs):
+    # Match nightly.decision(): an older success must not hide a newer failure.
+    runs = [r for r in runs if r['head_sha'] == sha and r['head_branch'] == 'main'
+            and r['event'] in ('push', 'workflow_dispatch')]
+    if runs and (runs[0]['status'] != 'completed' or runs[0]['conclusion'] == 'success'):
         return
     subprocess.run(['gh', 'workflow', 'run', 'ci.yml', '--repo', REPO, '--ref', 'main'], check=True)
 
@@ -99,6 +100,9 @@ def ensure_ci():
 def update(local=False):
     if os.environ.get('GITHUB_REPOSITORY', REPO) != REPO:
         raise ValueError('README download updates require the official repository')
+    # Actions callers share a job lock. Anchor main before release selection as
+    # well, so an external writer cannot slip newer links into our base snapshot.
+    head = None if local else api('git/ref/heads/main')['object']['sha']
     pages = api('releases?per_page=100', paginate=True)
     releases = [r for page in pages for r in page]
     release = newest_versioned(releases)
@@ -113,7 +117,6 @@ def update(local=False):
     else:
         # Read both files at one immutable head and publish one commit. A racing
         # main commit rejects the non-fast-forward ref update without overwriting it.
-        head = api('git/ref/heads/main')['object']['sha']
         current = api(f'contents/README.md?ref={head}')
         current_button = api(f'contents/{BUTTON_PATH}?ref={head}')
         readme = base64.b64decode(current['content']).decode()

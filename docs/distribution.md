@@ -234,6 +234,13 @@ for a bot README commit; no new credentials or signing secrets are involved.
 Nightlies still require passing CI at the exact main SHA. For a local documentation
 edit, run `python3 scripts/dist/update-readme-downloads.py --local`.
 
+The post-publication refresh and standalone refresh share the `readme-downloads`
+job concurrency group. Each selects the latest release after acquiring that
+lock, so a delayed older event cannot roll links back after a newer refresh.
+The helper also captures main before reading releases. CI retry uses the newest
+matching main push/dispatch run, as nightly selection does: a newer failed or
+cancelled run requires a retry even when an older run succeeded.
+
 Signing has `contents: read`. Only the separate approved publication job has
 `contents: write`. That job creates a draft at the captured SHA, uploads the four
 APKs plus `update-manifest.json`, then publishes. If an upload fails, the draft

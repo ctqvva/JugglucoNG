@@ -1,6 +1,7 @@
 import base64
 import importlib.util
 from pathlib import Path
+import re
 import unittest
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
@@ -33,7 +34,7 @@ def encoded(text):
 
 
 def remote_responses(readme=README, button=BUTTON):
-    return [PAGES, {'object': {'sha': 'current-head'}}, encoded(readme), encoded(button),
+    return [{'object': {'sha': 'current-head'}}, PAGES, encoded(readme), encoded(button),
             {'tree': {'sha': 'current-tree'}}, {'sha': 'new-tree'}, {'sha': 'new-commit'}, {}]
 
 
@@ -110,6 +111,8 @@ class Downloads(unittest.TestCase):
             helper.update()
             ci.assert_called_once()
         self.assertEqual(api.call_args_list[2].args[0], 'contents/README.md?ref=current-head')
+        self.assertEqual(api.call_args_list[0].args[0], 'git/ref/heads/main')
+        self.assertEqual(api.call_args_list[1].args[0], 'releases?per_page=100')
         self.assertEqual(api.call_args_list[3].args[0], f'contents/{helper.BUTTON_PATH}?ref=current-head')
         tree = api.call_args_list[5].args[1]
         self.assertEqual(tree['base_tree'], 'current-tree')
@@ -187,3 +190,45 @@ class Downloads(unittest.TestCase):
                  patch.object(helper.subprocess, 'run') as dispatch:
                 helper.ensure_ci()
                 dispatch.assert_called_once_with(['gh', 'workflow', 'run', 'ci.yml', '--repo', helper.REPO, '--ref', 'main'], check=True)
+
+    def test_newest_failed_or_cancelled_main_run_is_not_hidden_by_older_success(self):
+        success = {'head_sha': 'head', 'head_branch': 'main', 'event': 'push',
+                   'status': 'completed', 'conclusion': 'success'}
+        unrelated = [dict(success, event='pull_request'), dict(success, head_sha='old'),
+                     dict(success, head_branch='feature')]
+        for conclusion in ['failure', 'cancelled', 'timed_out']:
+            latest = dict(success, event='workflow_dispatch', conclusion=conclusion)
+            with self.subTest(conclusion=conclusion), \
+                 patch.object(helper, 'api', side_effect=[{'sha': 'head'}, {'workflow_runs': unrelated + [latest, success]}]), \
+                 patch.object(helper.subprocess, 'run') as dispatch:
+                helper.ensure_ci()
+                dispatch.assert_called_once()
+
+    def test_newest_pending_or_successful_main_run_prevents_redundant_dispatch(self):
+        failed = {'head_sha': 'head', 'head_branch': 'main', 'event': 'push',
+                  'status': 'completed', 'conclusion': 'failure'}
+        for status, conclusion in [('in_progress', None), ('queued', None), ('completed', 'success')]:
+            latest = dict(failed, status=status, conclusion=conclusion)
+            with self.subTest(status=status), \
+                 patch.object(helper, 'api', side_effect=[{'sha': 'head'}, {'workflow_runs': [latest, failed]}]), \
+                 patch.object(helper.subprocess, 'run') as dispatch:
+                helper.ensure_ci()
+                dispatch.assert_not_called()
+
+    def test_both_automated_refresh_paths_select_releases_under_the_same_job_lock(self):
+        locks = []
+        for name in ['release.yml', 'readme-downloads.yml']:
+            text = (helper.ROOT / '.github/workflows' / name).read_text().split('\njobs:\n', 1)[1]
+            jobs = dict(re.findall(r'^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)', text, re.M | re.S))
+            refresh_jobs = [(key, body) for key, body in jobs.items()
+                            if 'run: python3 scripts/dist/update-readme-downloads.py' in body]
+            self.assertEqual(len(refresh_jobs), 1, name)
+            key, job = refresh_jobs[0]
+            match = re.search(r'^    concurrency:\n      group: ([\w-]+)\n      cancel-in-progress: false$', job, re.M)
+            self.assertIsNotNone(match, name)
+            locks.append(match[1])
+            self.assertIn('          ref: main\n', job)
+            if name == 'release.yml':
+                self.assertIn('    needs: publish\n', job)
+                self.assertNotIn('update-readme-downloads.py', jobs['publish'])
+        self.assertEqual(locks[0], locks[1])
