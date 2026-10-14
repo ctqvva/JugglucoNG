@@ -18,18 +18,12 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 ## Download
 
 <!-- download-info:start -->
-### [1.2.4-Alpha][download-release]
+[![Download JugglucoNG 1.2.4-Alpha for Android](docs/assets/download-android.svg?version=1.2.4-Alpha)][download-phone] [![Nightly builds](docs/assets/download-nightly.svg)](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
 
-**Preview release** · Manual installation; held back from the in-app updater.
-
-<sub>In-app update channel: [1.2.2-Alpha][download-update-channel].</sub>
+<sub>Auto-update channel: [1.2.2-Alpha][download-update-channel]</sub>
 <!-- download-info:end -->
 
-[![Download JugglucoNG for Android](docs/assets/download-android.svg)][download-phone]
-
-**Android 8.0 or newer** · Standard phone app
-
-<sub>[Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub] · [Nightly builds](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)</sub>
+<sub>Android 8.0 or newer · [Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub]</sub>
 
 <details>
 <summary>Installation and other versions</summary>
@@ -51,9 +45,7 @@ installed on the watch. [Nightlies](https://github.com/ctqvva/JugglucoNG/release
 are test builds from recent main changes; choose the file ending in `-phone.apk`
 for a standard phone.
 
-A preview can be downloaded here without being offered by the in-app updater.
-Promoting it to a non-prerelease makes it eligible for that updater. Browse
-[all releases](https://github.com/ctqvva/JugglucoNG/releases) for older versions.
+Browse [all releases](https://github.com/ctqvva/JugglucoNG/releases) for older versions.
 
 </details>
 

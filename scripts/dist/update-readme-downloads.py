@@ -14,14 +14,15 @@ START = '<!-- download-links:start -->'
 END = '<!-- download-links:end -->'
 INFO_START = '<!-- download-info:start -->'
 INFO_END = '<!-- download-info:end -->'
+BUTTON_PATH = 'docs/assets/download-android.svg'
 
 
-def api(path, payload=None, paginate=False):
+def api(path, payload=None, paginate=False, method='PUT'):
     args = ['gh', 'api', f'repos/{REPO}/{path}']
     if paginate:
         args += ['--paginate', '--slurp']
     if payload is not None:
-        args += ['--method', 'PUT', '--input', '-']
+        args += ['--method', method, '--input', '-']
     return json.loads(subprocess.check_output(args, text=True,
                       input=json.dumps(payload) if payload is not None else None))
 
@@ -64,14 +65,23 @@ def replace_region(readme, start, end, content):
 
 
 def rewrite(readme, release, automatic):
-    info = f'### [{release["tag_name"]}][download-release]\n\n'
-    if release['prerelease']:
-        info += '**Preview release** · Manual installation; held back from the in-app updater.\n\n'
-    else:
-        info += '**Released build** · Available for manual installation and through the in-app updater.\n\n'
-    info += f'<sub>In-app update channel: [{automatic["tag_name"]}][download-update-channel].</sub>'
+    tag = release['tag_name']
+    info = (f'[![Download JugglucoNG {tag} for Android]({BUTTON_PATH}?version={tag})][download-phone] '
+            '[![Nightly builds](docs/assets/download-nightly.svg)]'
+            f'(https://github.com/{REPO}/releases?q=nightly-&expanded=true)\n\n'
+            f'<sub>Auto-update channel: [{automatic["tag_name"]}][download-update-channel]</sub>')
     readme = replace_region(readme, INFO_START, INFO_END, info)
     return replace_region(readme, START, END, links(release, automatic))
+
+
+def rewrite_button(svg, tag):
+    if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', tag):
+        raise ValueError('Download button requires a versioned release')
+    updated, count = re.subn(r'(<text id="download-version"[^>]*>)[^<]*(</text>)',
+                            lambda m: m[1] + f'Download {tag}' + m[2], svg)
+    if count != 1:
+        raise ValueError('Download button version marker is missing or duplicated')
+    return updated
 
 
 def ensure_ci():
@@ -95,19 +105,33 @@ def update(local=False):
     automatic = newest_versioned(releases, include_previews=False)
     if local:
         path = ROOT / 'README.md'
-        path.write_text(rewrite(path.read_text(), release, automatic))
+        button = ROOT / BUTTON_PATH
+        updated = rewrite(path.read_text(), release, automatic)
+        updated_button = rewrite_button(button.read_text(), release['tag_name'])
+        path.write_text(updated)
+        button.write_text(updated_button)
     else:
-        current = api('contents/README.md?ref=main')
+        # Read both files at one immutable head and publish one commit. A racing
+        # main commit rejects the non-fast-forward ref update without overwriting it.
+        head = api('git/ref/heads/main')['object']['sha']
+        current = api(f'contents/README.md?ref={head}')
+        current_button = api(f'contents/{BUTTON_PATH}?ref={head}')
         readme = base64.b64decode(current['content']).decode()
+        svg = base64.b64decode(current_button['content']).decode()
         updated = rewrite(readme, release, automatic)
-        if updated == readme:
+        updated_button = rewrite_button(svg, release['tag_name'])
+        if updated == readme and updated_button == svg:
             print('README download links already match the latest versioned release')
             ensure_ci()  # Retry a previous failed dispatch without another commit.
             return
-        # Read the current main file and use its SHA: concurrent edits fail safely.
-        api('contents/README.md', {'branch': 'main', 'sha': current['sha'],
-            'message': f'docs: refresh downloads for {release["tag_name"]}',
-            'content': base64.b64encode(updated.encode()).decode()})
+        parent = api(f'git/commits/{head}')
+        tree = api('git/trees', {'base_tree': parent['tree']['sha'], 'tree': [
+            {'path': 'README.md', 'mode': '100644', 'type': 'blob', 'content': updated},
+            {'path': BUTTON_PATH, 'mode': '100644', 'type': 'blob', 'content': updated_button},
+        ]}, method='POST')
+        commit = api('git/commits', {'message': f'docs: refresh downloads for {release["tag_name"]}',
+                                   'tree': tree['sha'], 'parents': [head]}, method='POST')
+        api('git/refs/heads/main', {'sha': commit['sha'], 'force': False}, method='PATCH')
         ensure_ci()
     print(f'Updated README downloads for {release["tag_name"]}')
 

@@ -213,7 +213,9 @@ After successful versioned publication, the workflow refreshes the README's
 marked download links and version/channel text. The primary download is the newest
 published versioned release, **including prereleases** and excluding nightlies or
 drafts; all four links use the existing versioned APK names from that release.
-The README separately shows the latest non-prerelease for the in-app update channel.
+The download button shows that release's version. A secondary button links to
+nightly builds; the latest non-prerelease appears in small text as the
+auto-update channel.
 
 The existing updater filters out GitHub prereleases but scans **all** non-prereleases,
 not just GitHub's "Latest" release. Keeping a version prerelease is the compatible
@@ -224,8 +226,9 @@ change release flags or updater eligibility. Release-note comparison continues t
 use the last non-prerelease, independently of manual download selection.
 
 **Refresh README downloads** handles manual publication/promotion and independent
-retries. Both update paths read the current README on main, preserve unrelated
-edits, and use its file SHA so concurrent modifications fail safely. They use
+retries. Both update paths read the README and version button at the same main
+commit, preserve unrelated edits, and publish both files in one commit. A
+non-fast-forward ref update fails safely if main changes concurrently. They use
 `contents: write` and `actions: write` to dispatch the existing read-only main CI
 for a bot README commit; no new credentials or signing secrets are involved.
 Nightlies still require passing CI at the exact main SHA. For a local documentation
