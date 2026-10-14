@@ -877,6 +877,11 @@ class AiDexBleManager(
     }
 
     override fun supportsCustomAlgorithm(): Boolean = true
+    internal fun appliedHistorySelection(): AiDexAlgorithmSelection = algorithmRuntime.controller.appliedSelection
+    internal fun <T> withHistoryImportLock(work: () -> T): T = synchronized(algorithmRuntime.controller.lock) {
+        check(!algorithmRuntime.controller.isClosed()) { "AiDex sensor was removed during history import" }
+        work()
+    }
     override fun shouldUseNativeHistorySync(): Boolean = false
     override fun isCustomAlgorithmEnabled(): Boolean = algorithmRuntime.controller.requestedSelection.adaptive
     override fun getCustomAlgorithmMode(): Int = algorithmRuntime.controller.requestedSelection.storageId

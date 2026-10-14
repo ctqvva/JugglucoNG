@@ -37,6 +37,8 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.SettingsExporter
 import tk.glucodata.data.ExportPackageExporter
 import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.HistoryReading
+import tk.glucodata.data.AiDexHistoryImport
 import tk.glucodata.data.calibration.MobileCalibrationProvider
 import org.json.JSONArray
 import org.json.JSONObject
@@ -157,6 +159,10 @@ class AiDexAlgorithmRuntimeTests {
         ManagedCurrentSensor.clear()
         Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
         runBlocking { CalibrationDatabase.getInstance(Applic.app).calibrationDao().deleteAll() }
+        runBlocking {
+            HistoryDatabase.getInstance(Applic.app).historyDao().deleteAllReadings()
+            HistoryDatabase.getInstance(Applic.app).readingUncertaintyDao().deleteAll()
+        }
         CalibrationManager.init(Applic.app)
         runBlocking { CalibrationManager.loadCalibrations() }
         clearIntegratedFitCaches()
@@ -461,27 +467,172 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(140f, room[last.key]!!, 0f)
     }
 
-    @Test fun historyRestoringImportCanRestoreMatchingOwnershipFromBackup() {
-        runtime.record(listOf(sample(1)))
-        choose(9)
-        runtime.close()
-        SettingsExporter.importSharedPreferences(Applic.app, stockSettingsPreferences(), preserveAiDexHistoryState = false)
-        assertEquals(0, Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
-            .getInt("algorithmAppliedMode_$serial", -1))
-    }
-
     private fun packageSettings(preferences: JSONObject) = JSONObject()
         .put("schema", SettingsExporter.SCHEMA).put("schemaVersion", 1)
         .put("sharedPreferences", preferences).put("nativeSettingsFiles", JSONObject())
 
-    private fun importPackage(settings: JSONObject, readings: JSONArray?) = runBlocking {
+    private fun packagePayload(settings: JSONObject, readings: JSONArray?, journals: JSONObject? = null): JSONObject {
         val payload = JSONObject().put("schema", ExportPackageExporter.SCHEMA).put("schemaVersion", 1)
             .put("settings", settings)
         if (readings != null) payload.put("history", JSONObject().put("readings", readings)
             .put("journalEntries", JSONArray()).put("journalInsulinPresets", JSONArray()).put("journalFoods", JSONArray()))
+        if (journals != null) payload.getJSONObject("history").put("sensorSourceJournals", journals)
+        return payload
+    }
+
+    private fun importPackage(settings: JSONObject, readings: JSONArray?, journals: JSONObject? = null) = runBlocking {
+        val payload = packagePayload(settings, readings, journals)
         val file = java.io.File(Applic.app.cacheDir, "aidex-restore.json").apply { writeText(payload.toString()) }
         try { ExportPackageExporter.importFromJson(Applic.app, Uri.fromFile(file)).getOrThrow() }
         finally { file.delete() }
+    }
+
+    private fun backupSources(vararg sources: AiDexSourceSample): JSONObject {
+        val file = java.io.File(Applic.app.cacheDir, "aidex-source-fixture.bin")
+        file.delete()
+        val bytes = try { AiDexSampleJournal(file).apply { appendAll(sources.toList()) }.bytes() } finally { file.delete() }
+        val path = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).relativeTo(Applic.app.filesDir).invariantSeparatorsPath
+        return JSONObject().put(path, JSONObject().put("byteCount", bytes.size)
+            .put("base64", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)))
+    }
+
+    private fun backupReading(source: AiDexSourceSample, value: Float, sensor: String = serial) = JSONObject()
+        .put("timestamp", source.timestampMs).put("sensorSerial", sensor).put("valueMgDl", value).put("rawValueMgDl", 100f)
+
+    private fun putRetained(source: AiDexSourceSample, value: Float) = runBlocking {
+        HistoryDatabase.getInstance(Applic.app).historyDao().insertAll(listOf(
+            HistoryReading(timestamp = source.timestampMs, sensorSerial = serial, value = value, rawValue = 100f, rate = null)))
+    }
+
+    private fun retainedRows() = runBlocking { HistoryDatabase.getInstance(Applic.app).historyDao().getReadingsSinceForSensor(serial, 0L) }
+
+    @Test fun olderStockBackupKeepsNewerCalibratedRowsAndRebuildsIncomingFromBackupOriginals() {
+        saveRealAutoReference()
+        val late = sample(10)
+        runtime.record(listOf(sample(0), late))
+        choose(9)
+        putRetained(late, 180f)
+        removeKeepingHistory()
+        val early = sample(1)
+        runBlocking { HistoryDatabase.getInstance(Applic.app).readingUncertaintyDao().insertAll(listOf(
+            tk.glucodata.data.ReadingUncertainty(serial, late.minute * 60_000L, 170f, 190f, 0.9f, null, null),
+            tk.glucodata.data.ReadingUncertainty(serial, early.minute * 60_000L, 90f, 110f, 0.9f, null, null))) }
+        importPackage(packageSettings(stockSettingsPreferences()), JSONArray().put(backupReading(early, 100f)), backupSources(early))
+        val rows = retainedRows()
+        assertEquals(listOf(early.timestampMs, late.timestampMs), rows.map { it.timestamp })
+        assertEquals(140f, rows.first().value, 0.001f)
+        assertEquals(180f, rows.last().value, 0f)
+        val prefs = Applic.app.getSharedPreferences("AiDexNativePrefs", 0)
+        assertEquals(0, prefs.getInt("algorithmMode_$serial", -1))
+        assertEquals(9, prefs.getInt("algorithmAppliedMode_$serial", -1))
+        for (row in rows) assertEquals(row.value, CalibrationManager.getCalibratedValue(row.value, row.timestamp, false, false, serial), 0f)
+        assertNotNull(AiDexSampleJournal(AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)).atMinute(early.minute))
+        val intervals = runBlocking { HistoryDatabase.getInstance(Applic.app).readingUncertaintyDao().getForSensors(listOf(serial), 0L) }
+        assertEquals(listOf(late.minute * 60_000L), intervals.map { it.timestamp })
+        assertEquals(170f, intervals.single().lowerMgdl, 0f)
+    }
+
+    @Test fun adaptiveBackupOverLocalStockRebuildsIncomingFactoryValuesBeforeGenericCorrection() {
+        saveRealAutoReference()
+        val late = sample(10, 120f)
+        runtime.record(listOf(sample(0), late))
+        choose(0)
+        putRetained(late, 120f)
+        removeKeepingHistory()
+        val preferences = stockSettingsPreferences()
+        val values = preferences.getJSONObject("AiDexNativePrefs").getJSONObject("values")
+        values.getJSONObject("algorithmMode_$serial").put("value", 9)
+        values.getJSONObject("algorithmAppliedMode_$serial").put("value", 9)
+        val early = sample(1)
+        importPackage(packageSettings(preferences), JSONArray().put(backupReading(early, 200f)), backupSources(early))
+        val rows = retainedRows()
+        assertEquals(100f, rows.first().value, 0f)
+        assertEquals(120f, rows.last().value, 0f)
+        assertEquals(0, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
+        assertEquals(140f, CalibrationManager.getCalibratedValue(rows.first().value, early.timestampMs, false, false, serial), 0.001f)
+    }
+
+    @Test fun conflictingImportWithoutOriginalsFailsBeforeChangingSettingsOrHistory() {
+        val late = sample(10)
+        runtime.record(listOf(late))
+        choose(9)
+        putRetained(late, 180f)
+        removeKeepingHistory()
+        val result = runCatching { importPackage(packageSettings(stockSettingsPreferences()), JSONArray().put(backupReading(sample(1), 100f))) }
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()!!.message!!.contains("original factory/raw minute"))
+        val prefs = Applic.app.getSharedPreferences("AiDexNativePrefs", 0)
+        assertEquals(9, prefs.getInt("algorithmMode_$serial", -1))
+        assertEquals(9, prefs.getInt("algorithmAppliedMode_$serial", -1))
+        assertEquals(listOf(180f), retainedRows().map { it.value })
+    }
+
+    @Test fun anotherSensorsBackupReadingCannotReplaceRetainedAiDexOwnership() {
+        val late = sample(10)
+        runtime.record(listOf(late))
+        choose(9)
+        putRetained(late, 180f)
+        removeKeepingHistory()
+        importPackage(packageSettings(stockSettingsPreferences()), JSONArray().put(backupReading(sample(1), 100f, "OTHER-SENSOR")))
+        assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
+        assertEquals(listOf(180f), retainedRows().map { it.value })
+    }
+
+    @Test fun aNewAiDexSensorAdoptsBackupOwnershipWithoutChangingARetainedSensorsMode() {
+        val late = sample(10)
+        runtime.record(listOf(late))
+        choose(9)
+        putRetained(late, 180f)
+        removeKeepingHistory()
+        val other = "X-222227NEW1"
+        val preferences = stockSettingsPreferences()
+        val values = preferences.getJSONObject("AiDexNativePrefs").getJSONObject("values")
+        for (key in listOf("algorithmMode", "algorithmAppliedMode")) values.put("${key}_$other", JSONObject().put("type", "int").put("value", 9))
+        importPackage(packageSettings(preferences), JSONArray().put(backupReading(sample(1), 140f, other)))
+        val prefs = Applic.app.getSharedPreferences("AiDexNativePrefs", 0)
+        assertEquals(9, prefs.getInt("algorithmAppliedMode_$serial", -1))
+        assertEquals(9, prefs.getInt("algorithmAppliedMode_$other", -1))
+        assertEquals(listOf(180f), retainedRows().map { it.value })
+        assertTrue(ManagedSensorRuntime.integratesUserCalibration(other, false))
+    }
+
+    @Test fun historyOnlyMergeUsesTheSameOwnershipAndOriginalRebuildPolicy() {
+        saveRealAutoReference()
+        val late = sample(10)
+        runtime.record(listOf(sample(0), late))
+        choose(9)
+        putRetained(late, 180f)
+        removeKeepingHistory()
+        val early = sample(1)
+        val payload = packagePayload(packageSettings(stockSettingsPreferences()), JSONArray().put(backupReading(early, 100f)), backupSources(early))
+        val file = java.io.File(Applic.app.cacheDir, "aidex-history-only.json").apply { writeText(payload.toString()) }
+        try { assertEquals(1, runBlocking { ExportPackageExporter.importHistoryFromPackage(Applic.app, Uri.fromFile(file)).getOrThrow() }!!.readings) }
+        finally { file.delete() }
+        assertEquals(listOf(140f, 180f), retainedRows().map { it.value })
+        assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmMode_$serial", -1))
+    }
+
+    @Test fun staleImportPlanCannotOverwriteALaterStockOwnershipCommit() {
+        runtime.record(listOf(sample(0)))
+        choose(9)
+        val plan = runBlocking { AiDexHistoryImport.prepare(Applic.app,
+            packagePayload(packageSettings(stockSettingsPreferences()), JSONArray()), mapOf(serial to 1), listOf(driver)) }
+        choose(0)
+        assertTrue(runCatching { driver.withHistoryImportLock { plan.establishOwnership(listOf(driver)) } }.isFailure)
+        assertEquals(0, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
+    }
+
+    @Test fun revisedOriginalsInvalidateAComputedConflictImportWhileLaterLiveMinutesDoNot() {
+        val original = sample(0)
+        runtime.record(listOf(original))
+        choose(9)
+        val plan = runBlocking { AiDexHistoryImport.prepare(Applic.app,
+            packagePayload(packageSettings(stockSettingsPreferences()), JSONArray()), mapOf(serial to 1), listOf(driver)) }
+        runtime.record(listOf(sample(1)))
+        driver.withHistoryImportLock { plan.checkOwnership(listOf(driver)) }
+        runtime.record(listOf(original.copy(factoryMgDl = 110f)))
+        assertTrue(runCatching { driver.withHistoryImportLock { plan.checkOwnership(listOf(driver)) } }.isFailure)
+        assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
     }
 
     @Test fun streamedFullBackupRestoresAppliedOwnershipOnACleanDevice() {

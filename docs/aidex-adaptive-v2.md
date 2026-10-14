@@ -94,9 +94,16 @@ cannot change ownership. Stock-restored history remains eligible for generic
 calibration, while internally corrected Auto history bypasses it. Raw remains
 independent. Settings-only imports preserve local applied mode and original-input
 provenance rather than replacing them with the backup's requested configuration.
-A backup import that includes glucose history restores its matching state using
-the streamed valid-reading count. The large reading array is not retained in the
-parsed settings object; an absent or empty glucose section remains settings-only.
+Backup import counts streamed readings per sensor. A sensor with retained history,
+provenance or a live driver keeps its local applied mode; only a new sensor adopts
+the backup's history ownership. Conflicting incoming rows are rebuilt under the
+local mode from local/backup factory/raw originals and local references before
+merging. Existing rows outside the imported range remain unchanged. Missing
+original minutes reject the conflict before settings or glucose writes. History-only
+import uses the same policy. Requested settings may change, while applied ownership
+changes only through a completed driver rebuild. Import commits share active AiDex
+writer locks and recheck applied modes and original samples; concurrent imports
+are serialized. Originals are restored before new ownership becomes observable.
 
 Live and replay use the same causal one-minute reference window. An anchor on a
 rawless or unusable minute remains available to the next usable sample within
@@ -269,7 +276,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 4,033 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 4,040 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -289,7 +296,9 @@ tests also cover disabled generic sync, settings-only import over
 retained calibrated history, forward factory publication with irrecoverable
 originals, Stock startup repair, full-series fallback fits and blocked tap ordering.
 The real streamed importer is exercised for a clean-device full-history restore
-and history-free packages. A real integrated calibration fit with unknown stock
+and history-free packages. Merge regressions cover both Stock/Adaptive directions,
+untouched newer rows and intervals, missing-original rejection, unrelated/new sensors,
+history-only restore and a mode change during preflight. A real integrated calibration fit with unknown stock
 references verifies available-anchor seeding during blocked repair. Live Room
 failure tests cover Stock recovery, the three-attempt limit, a later Stock choice
 and termination after a failed redundant write following replay commit.
