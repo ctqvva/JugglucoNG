@@ -241,6 +241,10 @@ object DataSmoothing {
             val source = points[index]
             val point = GlucosePoint(source.timestamp, smoothedAuto[index], smoothedRaw[index])
             point.color = source.color
+            point.sensorSerial = source.sensorSerial
+            point.sealedDisplayValue = source.sealedDisplayValue
+            point.sealedDisplayViewMode = source.sealedDisplayViewMode
+            point.uncertainty = source.uncertainty?.shifted(point.value - source.value)
             smoothed.add(point)
         }
 

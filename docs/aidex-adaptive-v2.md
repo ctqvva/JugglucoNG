@@ -12,6 +12,14 @@ shows the **Calibration** switch for reference correction inside the estimator,
 and the existing uncertainty-ribbon switch. The pure Raw display has no Auto
 algorithm selector. The choice is saved per sensor on the device.
 
+Uncertainty is rendered from the same resolved Auto-lane bounds on the dashboard,
+notification and AOD charts, for both AiDex and Sibionics. Bounds follow display
+unit conversion, smoothing and calibration; Raw does not inherit Auto uncertainty.
+Missing intervals and sensor/time gaps break the ribbon. When predictive simulation
+meets a ribbon, its displayed envelope starts at those asymmetric bounds and adds
+forecast spread, fading into the lighter forecast shading over five minutes. This
+changes drawing only; the sensor estimate and predicted glucose values are unchanged.
+
 With internal calibration enabled, enabled manual references from either lane
 are supplied to the estimator in canonical units, using only references at or
 before the sample timestamp. The generic Auto calibration layer is then bypassed
@@ -250,7 +258,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 4,014 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 4,026 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -269,6 +277,10 @@ ownership, nonblocking callbacks and queued removal/transport checks. Runtime
 tests also cover disabled generic sync, settings-only import over
 retained calibrated history, forward factory publication with irrecoverable
 originals, Stock startup repair, full-series fallback fits and blocked tap ordering.
+Chart regressions cover both algorithm families, converted/recorded bounds, live
+tail metadata, Auto/Raw lane ownership and forecast widening. Robolectric native
+graphics tests check actual Compose and bitmap ribbon pixels, missing-minute gaps,
+forecast-join opacity and the shared toggle at notification/AOD bitmap sizes.
 Report tests verify separately closed interval bands for each continuous run,
 using the same gap threshold as the glucose lines. Controller
 tests cover rawless/unusable reference minutes, expiry and restart continuation.

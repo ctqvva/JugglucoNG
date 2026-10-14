@@ -1,6 +1,7 @@
 package tk.glucodata.ui
 
 import tk.glucodata.ui.components.IconButtonTooltip
+import tk.glucodata.ui.util.toSharedGlucosePoint
 import androidx.compose.material3.ButtonDefaults
 import android.annotation.SuppressLint
 import android.content.Context
@@ -230,12 +231,7 @@ private fun buildDashboardChartModel(
     hasCalibration: Boolean,
     hideInitialWhenCalibrated: Boolean,
 ): tk.glucodata.chart.HistoryChartModel {
-    fun toShared(point: GlucosePoint): tk.glucodata.GlucosePoint =
-        tk.glucodata.GlucosePoint(point.timestamp, point.value, point.rawValue).also {
-            it.sealedDisplayValue = point.sealedDisplayValue ?: Float.NaN
-            it.sealedDisplayViewMode = point.sealedDisplayViewMode ?: -1
-            it.sensorSerial = point.sensorSerial
-        }
+    fun toShared(point: GlucosePoint) = point.toSharedGlucosePoint()
     val primary = primarySerial?.trim()?.takeIf { it.isNotEmpty() }
         ?: renderData.lastOrNull()?.sensorSerial
         ?: return tk.glucodata.chart.HistoryChartModel.EMPTY
@@ -1512,6 +1508,17 @@ fun InteractiveGlucoseChart(
     )
     val minYAxisSpan = if (isMmol) 6f else 108f
 
+    fun predictionBand(series: GlucosePredictionSeries): tk.glucodata.chart.PredictionBand {
+        val first = series.points.first()
+        val isRawLane = series.kind == GlucosePredictionSeriesKind.RAW ||
+            (series.kind == GlucosePredictionSeriesKind.CALIBRATED && (viewMode == 1 || viewMode == 3))
+        val sourceLane = series.kind == GlucosePredictionSeriesKind.AUTO &&
+            (hasCalibration || viewMode == 3)
+        val interval = if (uncertaintyRibbonEnabled) chartModel.primary
+            ?.uncertaintyAt(first.timestamp, isRawLane, sourceLane) else null
+        return tk.glucodata.chart.PredictionBand(first.value, first.confidence, interval, first.timestamp)
+    }
+
     val visibleValueRange = remember(
         renderData,
         peerChartSeries,
@@ -1522,7 +1529,9 @@ fun InteractiveGlucoseChart(
         viewMode,
         hasCalibration,
         hideInitialWhenCalibrated,
-        chartModel
+        chartModel,
+        uncertaintyRibbonEnabled,
+        isMmol
     ) {
         val viewportStart = centerTime - visibleDuration / 2L
         val viewportEnd = centerTime + visibleDuration / 2L
@@ -1536,20 +1545,31 @@ fun InteractiveGlucoseChart(
             }
         }
 
-        val (modelMin, modelMax) = chartModel.visibleValueRange(viewportStart, viewportEnd)
+        val (modelMin, modelMax) = chartModel.visibleValueRange(viewportStart, viewportEnd, uncertaintyRibbonEnabled)
         modelMin?.let(::include)
         modelMax?.let(::include)
 
-        fun includePredictions(series: List<GlucosePredictionSeries>) {
+        fun includePredictions(series: List<GlucosePredictionSeries>, drawBands: Boolean = true) {
             series.forEach { prediction ->
+                if (prediction.points.isEmpty()) return@forEach
+                val band = predictionBand(prediction)
+                val main = prediction.kind == GlucosePredictionSeriesKind.CALIBRATED ||
+                    (prediction.kind == GlucosePredictionSeriesKind.RAW && (viewMode == 1 || viewMode == 3)) ||
+                    (prediction.kind == GlucosePredictionSeriesKind.AUTO && (viewMode == 0 || viewMode == 2))
                 prediction.points.forEach { point ->
-                    if (point.timestamp in viewportStart..viewportEnd) include(point.value)
+                    if (point.timestamp in viewportStart..viewportEnd) {
+                        include(point.value)
+                        if (drawBands && (main || band.isAnchored)) {
+                            val bounds = band.bounds(point.value, point.confidence, isMmol)
+                            include(bounds.lower); include(bounds.upper)
+                        }
+                    }
                 }
             }
         }
         includePredictions(resolvedPredictionSeries)
         peerChartSeries.forEach { peer ->
-            includePredictions(peerPredictionSeries[peer.sensorId].orEmpty())
+            includePredictions(peerPredictionSeries[peer.sensorId].orEmpty(), drawBands = false)
         }
 
         visibleMin.takeIf { it.isFinite() } to visibleMax.takeIf { it.isFinite() }
@@ -2802,6 +2822,29 @@ fun InteractiveGlucoseChart(
                     }
                 }
 
+                // Sensor intervals belong to Auto, including a secondary Auto
+                // lane in Raw+Auto. The model has already shifted their bounds.
+                if (uncertaintyRibbonEnabled) {
+                    chartModel.series.forEach { series ->
+                        val color = if (series.isPrimary) primaryColor else Color(series.colorArgb)
+                        val runs = series.runs + series.secondaryLanes
+                            .filter { it.kind == tk.glucodata.chart.ChartLaneKind.AUTO }.flatMap { it.runs }
+                        runs.forEach { run ->
+                            val from = (run.points.firstIndexAtOrAfter(viewportStart) - 1).coerceAtLeast(0)
+                            val to = (run.points.firstIndexAfter(viewportEnd) + 1).coerceAtMost(run.points.size)
+                            with(GlucoseUncertaintyRibbon) {
+                                drawUncertaintyRibbon(
+                                    renderData = run.points, startIndex = from, endIndex = to,
+                                    viewportStartMs = viewportStart, timeScale = dataWidth / animDur,
+                                    chartHeight = chartHeight, yMin = cYMin,
+                                    yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
+                                    gapThresholdMs = ChartGap.THRESHOLD_MS, color = color,
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // --- PEER LINES (from the resolved model) ---
                 if (chartModel.peers.isNotEmpty()) {
                     val peerStroke = 2.dp.toPx()
@@ -2879,34 +2922,6 @@ fun InteractiveGlucoseChart(
                                 }
                             }
                         }
-                    }
-                }
-
-                // --- 2b. UNCERTAINTY RIBBON (behind the lines) ---
-                // Drawn only for the algorithm lane, which is the only one an
-                // estimator attaches a credible interval to; raw-only mode has
-                // no interval and renders exactly as it always did.
-                if (endIdx > startIdx && uncertaintyRibbonEnabled &&
-                    (viewMode == 0 || viewMode == 2 || viewMode == 3)
-                ) {
-                    val ribbonIsRawMode = viewMode == 1 || viewMode == 3
-                    val ribbonHasCalibration = hasCalibration
-                    with(GlucoseUncertaintyRibbon) {
-                        drawUncertaintyRibbon(
-                            renderData = renderData,
-                            startIndex = startIdx,
-                            endIndex = endIdx,
-                            viewportStartMs = viewportStart,
-                            timeScale = dataWidth / animDur,
-                            chartHeight = chartHeight,
-                            yMin = cYMin,
-                            yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
-                            gapThresholdMs = ChartGap.THRESHOLD_MS,
-                            color = primaryColor,
-                            centerValueAt = { index ->
-                                chartModel.primary?.valueAt(renderData[index].timestamp) ?: renderData[index].value
-                            },
-                        )
                     }
                 }
 
@@ -3062,15 +3077,6 @@ fun InteractiveGlucoseChart(
                     path.lineTo(last.x, last.y)
                 }
 
-                fun predictionUncertainty(point: GlucosePredictionPoint): Float {
-                    val uncertainty = 1f - point.confidence.coerceIn(0f, 1f)
-                    return if (isMmol) {
-                        0.18f + (uncertainty * 1.3f)
-                    } else {
-                        3.2f + (uncertainty * 24f)
-                    }
-                }
-
                 val predictionRawColor = when {
                     hasCalibration && viewMode == 2 -> tertiaryColor
                     hasCalibration || viewMode == 2 -> secondaryColor
@@ -3114,26 +3120,31 @@ fun InteractiveGlucoseChart(
                     }
                     if (lineSamples.size < 2) return@forEach
 
+                    val band = predictionBand(series)
                     val upperSamples = visiblePredictionPoints.mapNotNull { point ->
                         val x = timeToDataX(point.timestamp)
-                        val y = valToY(point.value + predictionUncertainty(point))
+                        val y = valToY(band.bounds(point.value, point.confidence, isMmol).upper)
                         if (x.isFinite() && y.isFinite()) Offset(x, y) else null
                     }
                     val lowerSamples = visiblePredictionPoints.asReversed().mapNotNull { point ->
                         val x = timeToDataX(point.timestamp)
-                        val y = valToY(point.value - predictionUncertainty(point))
+                        val y = valToY(band.bounds(point.value, point.confidence, isMmol).lower)
                         if (x.isFinite() && y.isFinite()) Offset(x, y) else null
                     }
-                    if (isPrimaryPrediction && upperSamples.size >= 2 && lowerSamples.size >= 2) {
+                    if ((isPrimaryPrediction || band.isAnchored) && upperSamples.size >= 2 && lowerSamples.size >= 2) {
                         val bandPath = Path().apply {
                             addSmoothedPredictionOffsets(this, upperSamples, moveToFirst = true)
                             addSmoothedPredictionOffsets(this, lowerSamples, moveToFirst = false)
                             close()
                         }
-                        drawPath(
-                            path = bandPath,
-                            color = predictionTint.copy(alpha = 0.055f)
-                        )
+                        if (band.isAnchored) {
+                            drawPath(bandPath, Brush.horizontalGradient(
+                                colors = listOf(predictionTint.copy(alpha = tk.glucodata.chart.UncertaintyBands.FILL_ALPHA),
+                                    predictionTint.copy(alpha = tk.glucodata.chart.UncertaintyBands.FORECAST_ALPHA)),
+                                startX = timeToDataX(series.points.first().timestamp),
+                                endX = timeToDataX(series.points.first().timestamp + tk.glucodata.chart.UncertaintyBands.FORECAST_FADE_MS),
+                            ))
+                        } else drawPath(bandPath, predictionTint.copy(alpha = tk.glucodata.chart.UncertaintyBands.FORECAST_ALPHA))
                     }
                     val predictionPath = Path().apply {
                         addSmoothedPredictionOffsets(this, lineSamples, moveToFirst = true)

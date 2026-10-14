@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import tk.glucodata.ui.util.toSharedGlucosePoint
 import android.content.Context
 import android.util.Log
 import tk.glucodata.chart.MainSensorOwnership
@@ -324,7 +325,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.inDisplayUnit(isMmol).map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    p.toSharedGlucosePoint()
                 }
             }
         }
@@ -351,16 +352,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     .getHistoryForDisplaySensor(serial, startTime)
                     .inDisplayUnit(isMmol)
                     .map { p ->
-                        // Carry the record across. This bridge used to keep only
-                        // (timestamp, value, rawValue), so every consumer behind
-                        // it — the notification chart first among them — could
-                        // only draw today's derivation of a line the user had
-                        // already been shown.
-                        tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue).also { out ->
-                            out.sealedDisplayValue = p.sealedDisplayValue ?: Float.NaN
-                            out.sealedDisplayViewMode = p.sealedDisplayViewMode ?: -1
-                            out.sensorSerial = p.sensorSerial
-                        }
+                        p.toSharedGlucosePoint()
                     }
             }
         }
@@ -395,7 +387,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    p.toSharedGlucosePoint()
                 }
             }
         }

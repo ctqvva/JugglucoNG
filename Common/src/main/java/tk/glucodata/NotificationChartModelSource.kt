@@ -23,6 +23,7 @@ object NotificationChartModelSource {
                     it.sealedDisplayValue = source.sealedDisplayValue
                     it.sealedDisplayViewMode = source.sealedDisplayViewMode
                     it.color = source.color
+                    it.uncertainty = source.uncertainty?.shifted(auto - source.value)
                 }
             },
         )

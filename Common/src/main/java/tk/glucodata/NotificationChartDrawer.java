@@ -681,12 +681,37 @@ public class NotificationChartDrawer {
         return isDark ? 0x80FFFFFF : 0x80000000;
     }
 
-    private static float predictionUncertainty(NotificationPredictionPoint point, boolean isMmol) {
-        float confidence = Math.max(0f, Math.min(1f, point.confidence));
-        float uncertainty = 1f - confidence;
-        return isMmol
-                ? 0.18f + (uncertainty * 1.3f)
-                : 3.2f + (uncertainty * 24f);
+    private static tk.glucodata.chart.PredictionBand predictionBand(NotificationPredictionSeries series) {
+        if (series.band != null) return series.band;
+        NotificationPredictionPoint first = series.points.get(0);
+        return new tk.glucodata.chart.PredictionBand(first.value, first.confidence, null, first.timestamp);
+    }
+
+    private static tk.glucodata.chart.PredictionBand anchorPredictionBand(
+            NotificationPredictionSeries series, tk.glucodata.chart.ChartSeriesModel model,
+            List<GlucosePoint> rendered, int viewMode, boolean hasCalibration,
+            String sensorId, boolean ribbonEnabled) {
+        NotificationPredictionPoint first = series.points.get(0);
+        GlucoseUncertainty interval = null;
+        boolean raw = series.kind == NotificationPredictionSeries.KIND_RAW ||
+                (series.kind == NotificationPredictionSeries.KIND_CALIBRATED && (viewMode == 1 || viewMode == 3));
+        boolean source = series.kind == NotificationPredictionSeries.KIND_AUTO && (hasCalibration || viewMode == 3);
+        if (ribbonEnabled && !raw) {
+            if (model != null) interval = model.uncertaintyAt(first.timestamp, false, source);
+            else if (rendered != null) {
+                GlucosePoint nearest = null;
+                for (GlucosePoint point : rendered) {
+                    if (point.timestamp / 60_000L != first.timestamp / 60_000L) continue;
+                    if (nearest == null || Math.abs(point.timestamp - first.timestamp) < Math.abs(nearest.timestamp - first.timestamp)) nearest = point;
+                }
+                if (nearest != null && nearest.uncertainty != null && nearest.uncertainty.isUsable()) {
+                    float center = series.kind == NotificationPredictionSeries.KIND_CALIBRATED
+                            ? resolveCalibratedValue(nearest, false, sensorId) : nearest.value;
+                    interval = nearest.uncertainty.shifted(center - nearest.value);
+                }
+            }
+        }
+        return new tk.glucodata.chart.PredictionBand(first.value, first.confidence, interval, first.timestamp);
     }
 
     private static boolean isPrimaryPrediction(NotificationPredictionSeries series, int viewMode) {
@@ -771,7 +796,7 @@ public class NotificationChartDrawer {
         return new PointF(x, y);
     }
 
-    private static void drawPredictionSeries(
+    static void drawPredictionSeries(
             Canvas canvas,
             Paint baseLinePaint,
             DisplayMetrics dm,
@@ -825,6 +850,8 @@ public class NotificationChartDrawer {
         }
 
         boolean isPrimary = !forcePeer && isPrimaryPrediction(series, viewMode);
+        tk.glucodata.chart.PredictionBand band = predictionBand(series);
+        boolean drawBand = !forcePeer && (isPrimary || band.isAnchored());
         int tint = forcePeer
                 ? lineColor
                 : predictionTint(series, viewMode, hasCalibration, lineColor, lineColorSecondary, lineColorTertiary);
@@ -852,11 +879,11 @@ public class NotificationChartDrawer {
             }
             lineSamples.add(lineSample);
 
-            if (isPrimary) {
-                float uncertainty = predictionUncertainty(point, isMmol);
+            if (drawBand) {
+                GlucoseUncertainty bounds = band.bounds(point.value, point.confidence, isMmol);
                 PointF upper = predictionPointToOffset(
                         point.timestamp,
-                        point.value + uncertainty,
+                        bounds.getUpper(),
                         startTime,
                         chartDuration,
                         chartLeft,
@@ -867,7 +894,7 @@ public class NotificationChartDrawer {
                         yRange);
                 PointF lower = predictionPointToOffset(
                         point.timestamp,
-                        point.value - uncertainty,
+                        bounds.getLower(),
                         startTime,
                         chartDuration,
                         chartLeft,
@@ -886,7 +913,7 @@ public class NotificationChartDrawer {
             return;
         }
 
-        if (isPrimary && upperSamples.size() >= 2 && lowerSamples.size() >= 2) {
+        if (drawBand && upperSamples.size() >= 2 && lowerSamples.size() >= 2) {
             Path bandPath = new Path();
             addSmoothedPredictionPoints(bandPath, upperSamples, true);
             addSmoothedPredictionPoints(bandPath, lowerSamples, false);
@@ -894,7 +921,16 @@ public class NotificationChartDrawer {
 
             Paint bandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             bandPaint.setStyle(Paint.Style.FILL);
-            bandPaint.setColor(withAlpha(tint, 0.055f));
+            bandPaint.setColor(withAlpha(tint, tk.glucodata.chart.UncertaintyBands.FORECAST_ALPHA));
+            if (band.isAnchored()) {
+                // The shader carries alpha; Paint alpha would multiply it again.
+                bandPaint.setAlpha(255);
+                float anchorX = chartLeft + ((band.getStartTimestamp() - startTime) / (float) chartDuration) * chartWidth;
+                float fadeX = anchorX + (tk.glucodata.chart.UncertaintyBands.FORECAST_FADE_MS / (float) chartDuration) * chartWidth;
+                bandPaint.setShader(new LinearGradient(anchorX, 0f, fadeX, 0f,
+                        withAlpha(tint, tk.glucodata.chart.UncertaintyBands.FILL_ALPHA),
+                        withAlpha(tint, tk.glucodata.chart.UncertaintyBands.FORECAST_ALPHA), Shader.TileMode.CLAMP));
+            }
             canvas.drawPath(bandPath, bandPaint);
         }
 
@@ -950,6 +986,59 @@ public class NotificationChartDrawer {
             return secondary;
         }
         return secondary;
+    }
+
+    /** Exact stored bounds, with the same missing-interval and sensor-gap rule as Compose. */
+    static void drawUncertaintyRibbon(Canvas canvas, List<tk.glucodata.chart.ChartPointModel> points,
+            long startTime, long duration, float left, float bottom, float width, float height,
+            float minY, float yRange, int color) {
+        for (List<tk.glucodata.chart.ChartPointModel> run : tk.glucodata.chart.UncertaintyBands.runs(points)) {
+            Path fill = new Path();
+            Path upper = new Path();
+            Path lower = new Path();
+            float maxHeight = 0f;
+            for (int i = 0; i < run.size(); i++) {
+                tk.glucodata.chart.ChartPointModel point = run.get(i);
+                PointF high = predictionPointToOffset(point.getTimestamp(), point.getUncertainty().getUpper(),
+                        startTime, duration, left, bottom, width, height, minY, yRange);
+                PointF low = predictionPointToOffset(point.getTimestamp(), point.getUncertainty().getLower(),
+                        startTime, duration, left, bottom, width, height, minY, yRange);
+                if (high == null || low == null) continue;
+                if (i == 0) { fill.moveTo(high.x, high.y); upper.moveTo(high.x, high.y); lower.moveTo(low.x, low.y); }
+                else { fill.lineTo(high.x, high.y); upper.lineTo(high.x, high.y); lower.lineTo(low.x, low.y); }
+                maxHeight = Math.max(maxHeight, low.y - high.y);
+            }
+            if (maxHeight < 1.2f) continue;
+            for (int i = run.size() - 1; i >= 0; i--) {
+                tk.glucodata.chart.ChartPointModel point = run.get(i);
+                PointF low = predictionPointToOffset(point.getTimestamp(), point.getUncertainty().getLower(),
+                        startTime, duration, left, bottom, width, height, minY, yRange);
+                if (low != null) fill.lineTo(low.x, low.y);
+            }
+            fill.close();
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(withAlpha(color, tk.glucodata.chart.UncertaintyBands.FILL_ALPHA));
+            canvas.drawPath(fill, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(1.5f);
+            paint.setColor(withAlpha(color, tk.glucodata.chart.UncertaintyBands.EDGE_ALPHA));
+            canvas.drawPath(upper, paint);
+            canvas.drawPath(lower, paint);
+        }
+    }
+
+    private static List<tk.glucodata.chart.ChartPointModel> legacyRibbonPoints(List<GlucosePoint> points,
+            int viewMode, boolean hasCalibration, String sensorId) {
+        if (viewMode == 1) return Collections.emptyList();
+        ArrayList<tk.glucodata.chart.ChartPointModel> out = new ArrayList<>();
+        for (GlucosePoint point : points) {
+            boolean autoMain = viewMode == 0 || viewMode == 2;
+            float center = autoMain && hasCalibration ? resolveCalibratedValue(point, false, sensorId) : point.value;
+            GlucoseUncertainty interval = point.uncertainty != null ? point.uncertainty.shifted(center - point.value) : null;
+            out.add(new tk.glucodata.chart.ChartPointModel(point.timestamp, center, point.sensorSerial,
+                    tk.glucodata.chart.ChartLook.MAIN, interval));
+        }
+        return out;
     }
 
     /**
@@ -1761,6 +1850,7 @@ public class NotificationChartDrawer {
         // When a resolved model drives the primary line, the auto/raw lanes are
         // only ever the source lanes behind a calibration. Without one they
         // would be the main line, and the model already is.
+        final boolean ribbonEnabled = tk.glucodata.chart.UncertaintyBands.isEnabled(context);
         final boolean modelDrivesPrimary = model != null && model.getPrimary() != null && !model.getPrimary().isEmpty();
         final boolean modelDrivesPeers = model != null && !model.getPeers().isEmpty();
         sTrafficLineColors = context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
@@ -2015,7 +2105,9 @@ public class NotificationChartDrawer {
                 visibleSeriesPoints.add(validSeriesPoints.get(index));
             }
             if (visibleSeriesPoints.size() >= 2) {
-                visiblePredictionSeries.add(new NotificationPredictionSeries(series.kind, visibleSeriesPoints));
+                visiblePredictionSeries.add(new NotificationPredictionSeries(series.kind, visibleSeriesPoints,
+                        anchorPredictionBand(series, modelDrivesPrimary ? model.getPrimary() : null,
+                                renderSource, viewMode, hasCalibration, calibrationSensorId, ribbonEnabled)));
             }
         }
 
@@ -2056,9 +2148,15 @@ public class NotificationChartDrawer {
             boolean primaryPrediction = isPrimaryPrediction(series, viewMode);
             for (NotificationPredictionPoint point : series.points) {
                 if (point.value > 0) {
-                    float uncertainty = primaryPrediction ? predictionUncertainty(point, isMmol) : 0f;
-                    minY = Math.min(minY, point.value - uncertainty);
-                    maxY = Math.max(maxY, point.value + uncertainty);
+                    tk.glucodata.chart.PredictionBand band = predictionBand(series);
+                    if (primaryPrediction || band.isAnchored()) {
+                        GlucoseUncertainty bounds = band.bounds(point.value, point.confidence, isMmol);
+                        minY = Math.min(minY, bounds.getLower());
+                        maxY = Math.max(maxY, bounds.getUpper());
+                    } else {
+                        minY = Math.min(minY, point.value);
+                        maxY = Math.max(maxY, point.value);
+                    }
                 }
             }
         }
@@ -2073,6 +2171,10 @@ public class NotificationChartDrawer {
                         if (p.getTimestamp() < startTime || p.getValue() <= 0.1f) continue;
                         minY = Math.min(minY, p.getValue());
                         maxY = Math.max(maxY, p.getValue());
+                        if (ribbonEnabled && p.getUncertainty() != null && p.getUncertainty().isUsable()) {
+                            minY = Math.min(minY, p.getUncertainty().getLower());
+                            maxY = Math.max(maxY, p.getUncertainty().getUpper());
+                        }
                     }
                 }
             }
@@ -2082,6 +2184,15 @@ public class NotificationChartDrawer {
                 if (calVal > 0.1f) {
                     minY = Math.min(minY, calVal);
                     maxY = Math.max(maxY, calVal);
+                }
+            }
+        }
+
+        if (ribbonEnabled && !modelDrivesPrimary) {
+            for (tk.glucodata.chart.ChartPointModel point : legacyRibbonPoints(visibleRenderPoints, viewMode, hasCalibration, calibrationSensorId)) {
+                if (point.getUncertainty() != null && point.getUncertainty().isUsable()) {
+                    minY = Math.min(minY, point.getUncertainty().getLower());
+                    maxY = Math.max(maxY, point.getUncertainty().getUpper());
                 }
             }
         }
@@ -2265,6 +2376,29 @@ public class NotificationChartDrawer {
             }
 
             cal.add(Calendar.HOUR_OF_DAY, 1);
+        }
+
+        if (ribbonEnabled) {
+            canvas.save();
+            canvas.clipRect(chartLeft, chartTop, chartRight, chartBottom);
+            if (model != null) {
+                for (tk.glucodata.chart.ChartSeriesModel series : model.getSeries()) {
+                    int tint = series.isPrimary() ? lineColor : series.getColorArgb();
+                    ArrayList<tk.glucodata.chart.ChartRun> runs = new ArrayList<>(series.getRuns());
+                    for (tk.glucodata.chart.ChartLane lane : series.getSecondaryLanes()) {
+                        if (lane.getKind() == tk.glucodata.chart.ChartLaneKind.AUTO) runs.addAll(lane.getRuns());
+                    }
+                    for (tk.glucodata.chart.ChartRun run : runs) drawUncertaintyRibbon(canvas, run.getPoints(),
+                            startTime, chartDuration, chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, tint);
+                }
+            }
+            if (!modelDrivesPrimary) drawUncertaintyRibbon(canvas,
+                    legacyRibbonPoints(visibleRenderPoints, viewMode, hasCalibration, calibrationSensorId),
+                    startTime, chartDuration, chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, lineColor);
+            if (!modelDrivesPeers) for (PeerSeries peer : visiblePeerSeries) drawUncertaintyRibbon(canvas,
+                    legacyRibbonPoints(peer.points, peer.viewMode, false, peer.sensorId),
+                    startTime, chartDuration, chartLeft, chartBottom, chartWidth, chartHeight, minY, yRange, peer.color);
+            canvas.restore();
         }
 
         if (modelDrivesPeers) {

@@ -21,6 +21,8 @@ public class GlucosePoint {
     public int sealedDisplayViewMode = -1;
     /** The sensor that produced this reading, when known. */
     public String sensorSerial;
+    /** Auto-lane interval, in the same unit as value; absent for stock readings. */
+    public GlucoseUncertainty uncertainty;
 
     public GlucosePoint(long timestamp, float value) {
         this.timestamp = timestamp;

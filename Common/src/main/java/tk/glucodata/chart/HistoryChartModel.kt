@@ -28,6 +28,8 @@ data class ChartPointModel(
     val sensorId: String? = null,
     /** A shared boundary point retains its own look in both adjacent runs. */
     val look: ChartLook = ChartLook.MAIN,
+    /** Bounds already displaced to this lane's resolved value, in display units. */
+    val uncertainty: tk.glucodata.GlucoseUncertainty? = null,
 )
 
 /**
@@ -86,6 +88,13 @@ data class ChartSeriesModel(
     }
 
     fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
+
+    /** Only the Auto lane owns sensor uncertainty. Never borrow an older interval. */
+    fun uncertaintyAt(timestamp: Long, isRawLane: Boolean, sourceLane: Boolean): tk.glucodata.GlucoseUncertainty? {
+        if (isRawLane) return null
+        val selected = if (sourceLane) secondaryLanes.firstOrNull { it.kind == ChartLaneKind.AUTO }?.runs ?: return null else runs
+        return nearestInMinute(selected, timestamp)?.uncertainty?.takeIf { it.isUsable }
+    }
 
     /**
      * Builds the lookup now, on the caller's thread. The first [valueAt] used
@@ -174,7 +183,7 @@ data class HistoryChartModel(
     val peers: List<ChartSeriesModel> get() = series.filter { !it.isPrimary }
 
     /** Includes every painted lane, so a preview or calibrated peer cannot be clipped. */
-    fun visibleValueRange(startTime: Long, endTime: Long): Pair<Float?, Float?> {
+    fun visibleValueRange(startTime: Long, endTime: Long, includeUncertainty: Boolean = false): Pair<Float?, Float?> {
         var low = Float.POSITIVE_INFINITY
         var high = Float.NEGATIVE_INFINITY
         for (s in series) {
@@ -188,6 +197,10 @@ data class HistoryChartModel(
                     if (value.isFinite() && value > 0.1f) {
                         low = minOf(low, value)
                         high = maxOf(high, value)
+                        if (includeUncertainty) pts[i].uncertainty?.takeIf { it.isUsable }?.let {
+                            low = minOf(low, it.lower)
+                            high = maxOf(high, it.upper)
+                        }
                     }
                 }
             }
