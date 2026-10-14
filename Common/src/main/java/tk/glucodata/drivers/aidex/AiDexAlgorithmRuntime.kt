@@ -52,6 +52,7 @@ internal class AiDexAlgorithmRuntime(
     private var pendingLiveTime = 0L
     @Volatile private var missingSourceTime: Long? = null
     @Volatile private var awaitingSourceHistory = false
+    @Volatile private var roomRepairNeeded = false
 
     init {
         val requested = AiDexAlgorithmSelection.fromStorage(prefs.getInt(key("algorithmMode"), 0))
@@ -117,6 +118,16 @@ internal class AiDexAlgorithmRuntime(
         calibrateFallbacks(listOf(row), controller.appliedSelection).single()
     }
 
+    /** The live source is already journaled; replay repairs it under current ownership. */
+    fun liveRoomWriteFailed() = synchronized(controller.lock) {
+        // A deferred live write during replay duplicates a batch that already
+        // committed. It must not create another completion/replay loop.
+        if (!controller.isClosed() && !rewritingHistory) {
+            roomRepairNeeded = true
+            controller.invalidateReferences()
+        }
+    }
+
     fun live(source: AiDexSourceSample,
         store: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading = storeLive): Boolean {
         val stored = synchronized(controller.lock) {
@@ -136,7 +147,7 @@ internal class AiDexAlgorithmRuntime(
             publish(latestPublished!!, true)
             true
         }
-        if (controller.needsReplay() && (everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive)) requestReplay()
+        if (controller.needsReplay() && (roomRepairNeeded || everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive)) requestReplay()
         return stored
     }
 
@@ -264,16 +275,18 @@ internal class AiDexAlgorithmRuntime(
                         if (controller.requestedSelection.calibration && !CalibrationAccess.isCalibrationStateLoaded()) return@execute
                         bootstrap()
                         val original = controller.journal.snapshot()
+                        val displayFactor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
+                        // Available factory anchors still own fallback fits even
+                        // when a different original minute blocks full replay.
+                        CalibrationAccess.seedIntegratedCalibrationBaseline(
+                            FloatArray(original.size) { index -> original[index].factoryMgDl * displayFactor },
+                            LongArray(original.size) { index -> original[index].timestampMs }, false, serial,
+                        )
                         // A stock release advances its download cursors without
                         // writing our journal. Fetch authentic originals before
                         // computing anything; stored Auto may already be derived.
                         if (recoverMissingSources(original)) return@execute
                         if (original.isEmpty()) return@execute
-                        val displayFactor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
-                        CalibrationAccess.seedIntegratedCalibrationBaseline(
-                            FloatArray(original.size) { index -> original[index].factoryMgDl * displayFactor },
-                            LongArray(original.size) { index -> original[index].timestampMs }, false, serial,
-                        )
                         val (ticket, inputs) = synchronized(controller.lock) {
                             val inputs = if (controller.requestedSelection.calibration) calibrationInputs() else null
                             (controller.ticket(inputs?.references ?: emptyList()) ?: return@execute) to inputs
@@ -303,6 +316,7 @@ internal class AiDexAlgorithmRuntime(
                                 val values = FloatArray(output.size) { index -> output[index].glucoseMgDl }
                                 val raws = FloatArray(output.size) { index -> output[index].source.rawMgDl.takeIf { it.isFinite() } ?: 0f }
                                 if (HistoryRepositoryAccess.isRegistered() && !HistorySyncAccess.storeSensorHistoryBatchBlocking(serial, times, values, raws)) return@commit false
+                                roomRepairNeeded = false
                                 val retained = if (HistoryRepositoryAccess.isRegistered()) {
                                     // Replays must not put tombstoned points back in the
                                     // native stream after Room correctly filtered them.
@@ -357,6 +371,12 @@ internal class AiDexAlgorithmRuntime(
                             UiRefreshBus.requestStatusRefresh()
                             return@execute
                         }
+                    }
+                    if (roomRepairNeeded) {
+                        // No self-rescheduling on database failure. The next
+                        // live/history event may retry these journaled minutes.
+                        failed = true
+                        UiRefreshBus.requestStatusRefresh()
                     }
                 } catch (error: Throwable) {
                     failed = true

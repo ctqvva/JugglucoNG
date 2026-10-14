@@ -935,8 +935,10 @@ class AiDexBleManager(
         // derived from the selected history, as for replay batches.
         if (tk.glucodata.HistoryRepositoryAccess.isRegistered() &&
             !tk.glucodata.HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber,
-                longArrayOf(row.source.timestampMs), floatArrayOf(row.glucoseMgDl), floatArrayOf(raw)))
+                longArrayOf(row.source.timestampMs), floatArrayOf(row.glucoseMgDl), floatArrayOf(raw))) {
             Log.e(TAG, "selected live Room write failed")
+            algorithmRuntime.liveRoomWriteFailed()
+        }
         return output
     }
 

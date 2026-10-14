@@ -326,7 +326,8 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val payload = readPayloadForImport(appContext, uri)
+                val imported = readPayloadForImport(appContext, uri)
+                val payload = imported.payload
                 require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
                 val schemaVersion = payload.optInt("schemaVersion", 0)
                 require(schemaVersion in 1..SCHEMA_VERSION) {
@@ -335,7 +336,7 @@ object ExportPackageExporter {
 
                 val settingsResult = payload.optJSONObject("settings")?.let { settings ->
                     SettingsExporter.importPayload(appContext, settings,
-                        preserveAiDexHistoryState = (payload.optJSONObject("history")?.optJSONArray("readings")?.length() ?: 0) == 0
+                        preserveAiDexHistoryState = imported.historyReadings == 0
                     ).getOrThrow()
                 }
                 val historySummary = payload.optJSONObject("history")?.let { history ->
@@ -368,7 +369,7 @@ object ExportPackageExporter {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val payload = readPayloadForImport(appContext, uri)
+                val payload = readPayloadForImport(appContext, uri).payload
                 require(payload.optString("schema") == SCHEMA) { "Unsupported export package" }
                 val schemaVersion = payload.optInt("schemaVersion", 0)
                 require(schemaVersion in 1..SCHEMA_VERSION) {
@@ -757,18 +758,22 @@ object ExportPackageExporter {
             ) to rows.size
     }
 
+    private data class ImportPayload(val payload: JSONObject, val historyReadings: Int)
+
     /**
      * Parses the whole package once with the large arrays discarded, so a truncated or corrupt
      * file fails before anything is written; [importHistorySection] streams them in a second pass.
      */
-    private suspend fun readPayloadForImport(context: Context, uri: Uri): JSONObject = readPayload(
-        context,
-        uri,
-        mapOf(
-            HISTORY_READINGS to StreamedArraySink {},
-            HISTORY_DELETED_READINGS to StreamedArraySink {}
-        )
-    )
+    private suspend fun readPayloadForImport(context: Context, uri: Uri): ImportPayload {
+        val readings = StreamedRecords { it.toHistoryReading() }
+        val payload = readPayload(context, uri, mapOf(
+            HISTORY_READINGS to readings.sink,
+            HISTORY_DELETED_READINGS to StreamedArraySink {},
+        ))
+        // The streamed array is absent from payload. Keep its valid reading
+        // count so full-history restore can restore the matching applied mode.
+        return ImportPayload(payload, readings.parsed)
+    }
 
     /** [history] comes from [readPayloadForImport]; its readings and tombstones are re-read from [uri]. */
     private suspend fun importHistorySection(

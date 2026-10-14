@@ -57,6 +57,10 @@ history outside the sensor's available range still requires the original journal
 That failure does not stop fresh readings: until the estimator is reconstructed,
 live Auto uses the sensor's factory value, with the applied mode's internal
 correction when enabled. It publishes without an invented uncertainty interval.
+Available original factory minutes seed that correction's reference anchors
+before an unrelated history hole stops replay. Imported references with unknown
+stock values therefore fit against their available factory minute rather than
+their saved Adaptive value; full historical repair remains blocked.
 The applied mode remains unchanged while a Stock restoration is pending, so
 already-corrected retained history cannot become eligible for a second correction.
 
@@ -73,6 +77,11 @@ AiDex disables generic native-to-Room history sync in every mode, including afte
 removal. Stock startup bootstrap and failed direct-history writes use the same
 owned journal/replay writer. Algorithm choices enter a per-sensor FIFO before
 switching to IO; choices blocked by a write preserve tap order.
+Failed live Room writes mark the journal for owned replay, including broadcast-only
+Stock operation. A repair makes at most three attempts, then waits for another
+live/history event. It uses the current algorithm request rather than a queued
+old output. A redundant live write after a successful replay batch cannot start
+another repair loop.
 Calibration revision callbacks
 compare actual references and fit fingerprints, so completion/cache-only
 notifications do not schedule another replay. A rejected reset releases the
@@ -85,7 +94,9 @@ cannot change ownership. Stock-restored history remains eligible for generic
 calibration, while internally corrected Auto history bypasses it. Raw remains
 independent. Settings-only imports preserve local applied mode and original-input
 provenance rather than replacing them with the backup's requested configuration.
-A backup import that includes glucose history can restore its matching state.
+A backup import that includes glucose history restores its matching state using
+the streamed valid-reading count. The large reading array is not retained in the
+parsed settings object; an absent or empty glucose section remains settings-only.
 
 Live and replay use the same causal one-minute reference window. An anchor on a
 rawless or unusable minute remains available to the next usable sample within
@@ -258,7 +269,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 4,026 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 4,033 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -277,6 +288,11 @@ ownership, nonblocking callbacks and queued removal/transport checks. Runtime
 tests also cover disabled generic sync, settings-only import over
 retained calibrated history, forward factory publication with irrecoverable
 originals, Stock startup repair, full-series fallback fits and blocked tap ordering.
+The real streamed importer is exercised for a clean-device full-history restore
+and history-free packages. A real integrated calibration fit with unknown stock
+references verifies available-anchor seeding during blocked repair. Live Room
+failure tests cover Stock recovery, the three-attempt limit, a later Stock choice
+and termination after a failed redundant write following replay commit.
 Chart regressions cover both algorithm families, converted/recorded bounds, live
 tail metadata, Auto/Raw lane ownership and forecast widening. Robolectric native
 graphics tests check actual Compose and bitmap ribbon pixels, missing-minute gaps,

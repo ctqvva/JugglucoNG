@@ -4,6 +4,7 @@ import android.content.Context
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGattCharacteristic
 import android.os.Handler
+import android.net.Uri
 import java.lang.reflect.Proxy
 import java.util.ArrayDeque
 import java.util.concurrent.AbstractExecutorService
@@ -34,6 +35,10 @@ import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.SettingsExporter
+import tk.glucodata.data.ExportPackageExporter
+import tk.glucodata.data.HistoryDatabase
+import tk.glucodata.data.calibration.MobileCalibrationProvider
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** Actual Android runtime/manager; JNI, crypto and final side effects/history Room are replaced. */
@@ -124,6 +129,7 @@ class AiDexAlgorithmRuntimeTests {
     private var revision = 0L
     private var completionNotifications = 0
     private var roomWrites = 0
+    private var roomAttempts = 0
     private var seriesTransform: ((FloatArray, LongArray) -> FloatArray)? = null
     private val sourceHistoryRequests = ArrayList<Long?>()
     private var beforeRoomWrite: () -> Unit = {}
@@ -149,6 +155,11 @@ class AiDexAlgorithmRuntimeTests {
         NativeInputs.start = System.currentTimeMillis() - 180_000L
         SensorBluetooth.gattcallbacks.clear()
         ManagedCurrentSensor.clear()
+        Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
+        runBlocking { CalibrationDatabase.getInstance(Applic.app).calibrationDao().deleteAll() }
+        CalibrationManager.init(Applic.app)
+        runBlocking { CalibrationManager.loadCalibrations() }
+        clearIntegratedFitCaches()
         driver = AiDexBleManager(serial, 0L, 4)
         SensorBluetooth.gattcallbacks.add(driver)
         SensorIdentity.invalidateCaches()
@@ -160,6 +171,7 @@ class AiDexAlgorithmRuntimeTests {
                 }
                 "getHistoryTimestampsForSensorBlocking" -> room.keys.toLongArray()
                 "storeHistoryBatchBlocking" -> {
+                    roomAttempts++
                     beforeRoomWrite()
                     val times = args!![1] as LongArray
                     val values = args[2] as FloatArray
@@ -458,6 +470,163 @@ class AiDexAlgorithmRuntimeTests {
             .getInt("algorithmAppliedMode_$serial", -1))
     }
 
+    private fun packageSettings(preferences: JSONObject) = JSONObject()
+        .put("schema", SettingsExporter.SCHEMA).put("schemaVersion", 1)
+        .put("sharedPreferences", preferences).put("nativeSettingsFiles", JSONObject())
+
+    private fun importPackage(settings: JSONObject, readings: JSONArray?) = runBlocking {
+        val payload = JSONObject().put("schema", ExportPackageExporter.SCHEMA).put("schemaVersion", 1)
+            .put("settings", settings)
+        if (readings != null) payload.put("history", JSONObject().put("readings", readings)
+            .put("journalEntries", JSONArray()).put("journalInsulinPresets", JSONArray()).put("journalFoods", JSONArray()))
+        val file = java.io.File(Applic.app.cacheDir, "aidex-restore.json").apply { writeText(payload.toString()) }
+        try { ExportPackageExporter.importFromJson(Applic.app, Uri.fromFile(file)).getOrThrow() }
+        finally { file.delete() }
+    }
+
+    @Test fun streamedFullBackupRestoresAppliedOwnershipOnACleanDevice() {
+        val time = sample(1).timestampMs
+        runtime.close()
+        SensorBluetooth.gattcallbacks.clear()
+        val preferences = stockSettingsPreferences()
+        val values = preferences.getJSONObject("AiDexNativePrefs").getJSONObject("values")
+        values.getJSONObject("algorithmMode_$serial").put("value", 9)
+        values.getJSONObject("algorithmAppliedMode_$serial").put("value", 9)
+        values.getJSONObject("algorithmEverAdaptive_$serial").put("value", true)
+        val readings = JSONArray().put(JSONObject().put("timestamp", time).put("sensorSerial", serial)
+            .put("valueMgDl", 140f).put("rawValueMgDl", 100f))
+        val summary = importPackage(packageSettings(preferences), readings)
+        assertEquals(1, summary.historyReadings)
+        assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
+            .getInt("algorithmAppliedMode_$serial", -1))
+        val restored = runBlocking { HistoryDatabase.getInstance(Applic.app).historyDao()
+            .getSensorReadingsAtTimestamps(serial, listOf(time)).single() }
+        saveRealAutoReference()
+        assertTrue(ManagedSensorRuntime.integratesUserCalibration(serial, false))
+        assertEquals(140f, restored.value, 0f)
+        assertEquals(restored.value, CalibrationManager.getCalibratedValue(restored.value, time, false, false, serial), 0f)
+    }
+
+    @Test fun packageWithNoGlucoseReadingsPreservesLocalAppliedOwnership() {
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        removeKeepingHistory()
+        for (readings in listOf(null, JSONArray())) {
+            val summary = importPackage(packageSettings(stockSettingsPreferences()), readings)
+            assertEquals(0, summary.historyReadings)
+            val prefs = Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
+            assertEquals(0, prefs.getInt("algorithmMode_$serial", -1))
+            assertEquals(9, prefs.getInt("algorithmAppliedMode_$serial", -1))
+            assertTrue(prefs.getBoolean("algorithmEverAdaptive_$serial", false))
+        }
+    }
+
+    private fun clearIntegratedFitCaches() {
+        for (name in listOf("integratedBaselineCache", "integratedContextCache")) {
+            val cache = CalibrationManager::class.java.getDeclaredField(name).apply { isAccessible = true }.get(null) as MutableMap<*, *>
+            synchronized(cache) { cache.clear() }
+        }
+    }
+
+    @Test fun blockedRestartSeedsAvailableFactoryAnchorsForRealIntegratedFallbackCalibration() {
+        val anchor = sample(0)
+        runtime.record(listOf(anchor))
+        choose(9)
+        val lost = sample(5)
+        room[lost.timestampMs] = 100f
+        runtime.close()
+        runBlocking { CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
+            CalibrationEntity(timestamp = anchor.timestampMs, sensorId = serial,
+                sensorValue = 200f, sensorValueRaw = 100f, userValue = 140f, sensorValueStock = 0f)) }
+        CalibrationAccess.register(MobileCalibrationProvider)
+        runBlocking { CalibrationManager.loadCalibrations() }
+        assertTrue(CalibrationManager.hasCalibrationPointsForMode(false, serial))
+        val fresh = sample(20, 110f)
+        clearIntegratedFitCaches()
+        CalibrationManager.seedIntegratedCalibrationBaseline(floatArrayOf(100f), longArrayOf(anchor.timestampMs), false, serial)
+        val expected = CalibrationManager.getIntegratedCalibratedSeries(floatArrayOf(110f), longArrayOf(fresh.timestampMs), false, serial).single()
+        clearIntegratedFitCaches()
+        val wrong = CalibrationManager.getIntegratedCalibratedSeries(floatArrayOf(110f), longArrayOf(fresh.timestampMs), false, serial).single()
+        assertTrue("Unknown Stock must materially change this fit", kotlin.math.abs(expected - wrong) > 1f)
+        clearIntegratedFitCaches() // Simulate process recreation with only the journal available.
+        installRuntime()
+        executor.runNext()
+        runtime.sourceHistoryUnavailable(lost.timestampMs)
+        choose(0) // Retained calibrated ownership stays active while Stock is pending.
+        assertTrue(runtime.failed)
+        assertTrue(runtime.live(fresh))
+        assertEquals(expected, room[fresh.timestampMs]!!, 0.001f)
+        assertEquals(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED, runtime.controller.appliedSelection)
+        assertNull(runtime.controller.journal.atMinute(lost.minute))
+        assertNull(runtime.latestPublished!!.uncertainty)
+        executor.runNext()
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun failedStockLiveRoomWriteIsRepairedFromItsJournalWithoutGenericSync() {
+        beforeRoomWrite = { if (roomAttempts == 1) error("busy database") }
+        val source = sample(1)
+        assertTrue(runtime.live(source))
+        assertFalse(room.containsKey(source.timestampMs))
+        assertNotNull(runtime.controller.journal.atMinute(source.minute))
+        assertEquals(source.timestampMs, runtime.latestPublished!!.source.timestampMs)
+        assertEquals(1, executor.pending.size)
+        executor.runNext()
+        assertEquals(100f, room[source.timestampMs]!!, 0f)
+        assertEquals(2, roomAttempts)
+        assertEquals(AiDexAlgorithmSelection.STOCK, runtime.controller.appliedSelection)
+        assertFalse(driver.shouldUseNativeHistorySync())
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun persistentRoomFailureRetriesThreeTimesThenWaitsForAnotherLiveEvent() {
+        beforeRoomWrite = { error("database unavailable") }
+        val first = sample(1)
+        assertTrue(runtime.live(first))
+        executor.runNext()
+        assertEquals(4, roomAttempts) // One live attempt, at most three owned replays.
+        assertTrue(runtime.failed)
+        assertTrue(executor.pending.isEmpty())
+        assertEquals(first.timestampMs, runtime.latestPublished!!.source.timestampMs)
+        beforeRoomWrite = {}
+        val second = sample(2, 110f)
+        assertTrue(runtime.live(second))
+        executor.runNext()
+        assertEquals(100f, room[first.timestampMs]!!, 0f)
+        assertEquals(110f, room[second.timestampMs]!!, 0f)
+        assertFalse(runtime.failed)
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun queuedRoomRepairUsesALaterStockChoiceInsteadOfAnOldAdaptiveValue() {
+        runtime.record(listOf(sample(0)))
+        choose(9)
+        beforeRoomWrite = { if (roomAttempts == 2) error("live write failed") }
+        val live = sample(1)
+        assertTrue(runtime.live(live))
+        assertEquals(140f, runtime.latestPublished!!.glucoseMgDl, 0f)
+        choose(0) // The queued repair observes the current selection under the same lock.
+        assertEquals(100f, room[live.timestampMs]!!, 0f)
+        assertEquals(AiDexAlgorithmSelection.STOCK, runtime.controller.appliedSelection)
+        assertFalse(driver.integratesUserCalibration(false))
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun failedDuplicateLiveWriteAfterReplayCommitDoesNotStartARepairLoop() {
+        runtime.record(listOf(sample(0, raw = 100f)))
+        choose(8)
+        val original = sample(1, raw = 100f)
+        assertTrue(runtime.live(original))
+        beforeRoomWrite = { if (roomAttempts == 4) error("duplicate live write failed") }
+        assertFalse(runtime.live(original.copy(rawMgDl = 110f)))
+        executor.runNext()
+        assertEquals(4, roomAttempts) // Initial, live, replay batch, redundant deferred live.
+        assertEquals(runtime.latestPublished!!.glucoseMgDl, room[original.timestampMs]!!, 0f)
+        assertFalse(runtime.failed)
+        assertFalse(runtime.controller.needsReplay())
+        assertTrue(executor.pending.isEmpty())
+    }
+
     @Test fun calibratedReplayFallbackFitUsesFactoryMinutesWithUsableRawToo() {
         val anchor = sample(1, 100f, 100f)
         val estimated = AiDexAlgorithmContext(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED).process(anchor, emptyList())
@@ -568,6 +737,7 @@ class AiDexAlgorithmRuntimeTests {
         CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
             CalibrationEntity(timestamp = NativeInputs.start, sensorId = serial,
                 sensorValue = 100f, sensorValueRaw = 100f, userValue = 140f))
+        CalibrationManager.loadCalibrations()
     }
 
     @Test fun removedCalibratedSensorKeepsAutoOwnershipForSingleAndSeriesCalibration() {
