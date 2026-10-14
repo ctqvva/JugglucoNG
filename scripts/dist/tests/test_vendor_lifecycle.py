@@ -202,6 +202,7 @@ class Publication(unittest.TestCase):
                 raise subprocess.CalledProcessError(1, args)
         with patch.object(dist, 'ROOT', root), patch.object(dist, 'version', return_value=('1.2.3-Alpha', 1023)), \
              patch.object(dist, 'verify_set'), patch.object(publisher, 'tracked_source'), patch.object(publisher, 'preflight'), \
+             patch.object(publisher, 'api', return_value={'tag_name': '1.2.2-Alpha', 'draft': False, 'prerelease': False, 'published_at': '2026-09-26T00:00:00Z'}), \
              patch.object(publisher.subprocess, 'check_output', return_value='{}'), patch.object(publisher.subprocess, 'run', side_effect=run), \
              patch.dict('os.environ', {'TAG': '1.2.3-Alpha', 'GITHUB_REPOSITORY': publisher.REPO, 'GITHUB_SHA': 'main'}, clear=True):
             if fail_upload or fail_tag:
@@ -217,6 +218,7 @@ class Publication(unittest.TestCase):
         self.assertEqual([args[1] for args, _ in gh], ['api', 'release', 'release', 'release'])
         self.assertEqual(json.loads(gh[0][1]['input']), {'ref': 'refs/tags/1.2.3-Alpha', 'sha': 'main'})
         self.assertIn('--draft', gh[1][0])
+        self.assertEqual(gh[1][0][-3:], ['--generate-notes', '--notes-start-tag', '1.2.2-Alpha'])
         self.assertEqual(len([p for p in gh[2][0] if p.endswith(('.apk', '.json'))]), 5)
         self.assertIn('--draft=false', gh[3][0])
 
@@ -224,6 +226,46 @@ class Publication(unittest.TestCase):
         for kwargs in [{'fail_upload': True}, {'fail_tag': True}]:
             calls = self.exercise_publish(**kwargs)
             self.assertFalse(any(args[:3] == ['gh', 'release', 'edit'] for args, _ in calls))
+
+
+class ReleaseNotes(unittest.TestCase):
+    def test_normal_and_prerelease_notes_use_latest_non_prerelease_endpoint(self):
+        stable = {'tag_name': '1.2.2-Alpha', 'draft': False, 'prerelease': False,
+                  'published_at': '2026-09-26T00:00:00Z'}
+        for prerelease in (False, True):
+            with self.subTest(prerelease=prerelease), \
+                 patch.dict('os.environ', {'GITHUB_REPOSITORY': publisher.REPO}, clear=True), \
+                 patch.object(publisher, 'api', return_value=stable) as api, \
+                 patch.object(publisher.subprocess, 'run') as run:
+                publisher.publish_assets('1.2.4-Alpha', 'head', '1.2.4-Alpha', prerelease=prerelease)
+                api.assert_called_once_with(f'repos/{publisher.REPO}/releases/latest')
+                create = run.call_args_list[1].args[0]
+                self.assertEqual(create[-3:], ['--generate-notes', '--notes-start-tag', '1.2.2-Alpha'])
+
+    def test_custom_nightly_notes_skip_generated_notes_and_baseline_lookup(self):
+        with patch.dict('os.environ', {'GITHUB_REPOSITORY': publisher.REPO}, clear=True), \
+             patch.object(publisher, 'api') as api, patch.object(publisher.subprocess, 'run') as run:
+            publisher.publish_assets('nightly-date-sha', 'head', 'Nightly', prerelease=True,
+                                     notes_file=Path('nightly-notes.md'))
+            api.assert_not_called()
+            self.assertEqual(run.call_args_list[1].args[0][-2:], ['--notes-file', 'nightly-notes.md'])
+
+    def test_invalid_or_unavailable_baseline_fails_before_reserving_tag(self):
+        invalid = {'tag_name': 'nightly-date-sha', 'draft': False, 'prerelease': True,
+                   'published_at': '2026-10-13T00:00:00Z'}
+        for value, error in [(invalid, ValueError),
+                             (dict(invalid, prerelease=False, draft=True), ValueError),
+                             (dict(invalid, prerelease=False, published_at=None), ValueError),
+                             (subprocess.CalledProcessError(1, ['gh', 'api']), subprocess.CalledProcessError)]:
+            with self.subTest(value=value), \
+                 patch.dict('os.environ', {'GITHUB_REPOSITORY': publisher.REPO}, clear=True), \
+                 patch.object(publisher, 'api', side_effect=lambda *args: value) as api, \
+                 patch.object(publisher.subprocess, 'run') as run:
+                if isinstance(value, Exception):
+                    api.side_effect = value
+                with self.assertRaises(error):
+                    publisher.publish_assets('1.2.4-Alpha', 'head', '1.2.4-Alpha')
+                run.assert_not_called()
 
 
 if __name__ == '__main__':

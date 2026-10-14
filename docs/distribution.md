@@ -204,6 +204,10 @@ existing `make-update-manifest.sh`, and validates manifest contents against APKs
 The schema remains 1, with only the two phone entries; Wear stays out of the
 phone updater. Names match existing releases exactly. The default release is
 latest even with an `-Alpha` name, matching 1.2.2; prerelease is explicit.
+Generated release notes compare against GitHub's latest published non-prerelease,
+including when the new version is marked prerelease. Nightlies and other
+prereleases cannot become that changelog baseline. Nightly notes keep their
+separate previous-nightly comparison.
 
 Signing has `contents: read`. Only the separate approved publication job has
 `contents: write`. That job creates a draft at the captured SHA, uploads the four

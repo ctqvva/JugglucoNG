@@ -66,12 +66,21 @@ def publish_assets(tag, sha, title, prerelease=False, notes_file=None, directory
     if repo != REPO:
         raise ValueError('Release repository mismatch')
     directory = directory if directory is not None else dist.ROOT / 'build/dist/all'
+    if notes_file:
+        notes = ['--notes-file', str(notes_file)]
+    else:
+        # GitHub's automatic baseline can be a nightly or other prerelease.
+        # /latest selects the published non-prerelease used by normal updates.
+        previous = api(f'repos/{repo}/releases/latest')
+        if previous['draft'] or previous['prerelease'] or not previous['published_at']:
+            raise ValueError('Release notes require a published non-prerelease baseline')
+        notes = ['--generate-notes', '--notes-start-tag', previous['tag_name']]
     # Reserve the exact SHA atomically; an existing/racing tag fails closed.
     subprocess.run(['gh', 'api', '--method', 'POST', f'repos/{repo}/git/refs', '--input', '-'],
                    input=json.dumps({'ref': 'refs/tags/' + tag, 'sha': sha}), text=True, cwd=dist.ROOT, check=True)
     create = ['gh', 'release', 'create', tag, '--repo', repo, '--verify-tag', '--target', sha,
               '--title', title, '--draft']
-    create += ['--notes-file', str(notes_file)] if notes_file else ['--generate-notes']
+    create += notes
     subprocess.run(create, cwd=dist.ROOT, check=True)
     assets = [str(p) for p in sorted(directory.glob('*.apk'))] + [str(directory / 'update-manifest.json')]
     subprocess.run(['gh', 'release', 'upload', tag, '--repo', repo, *assets], cwd=dist.ROOT, check=True)
