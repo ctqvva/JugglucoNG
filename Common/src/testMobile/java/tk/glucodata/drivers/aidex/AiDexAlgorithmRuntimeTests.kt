@@ -28,6 +28,7 @@ import tk.glucodata.*
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import tk.glucodata.drivers.aidex.native.protocol.AiDexKeyExchange
+import tk.glucodata.drivers.aidex.native.protocol.AiDexOpcodes
 import tk.glucodata.drivers.aidex.native.crypto.Crc16CcittFalse
 import tk.glucodata.data.calibration.CalibrationDatabase
 import tk.glucodata.data.calibration.CalibrationEntity
@@ -45,7 +46,16 @@ class AiDexAlgorithmRuntimeTests {
 
     @Implements(AiDexKeyExchange::class)
     class DecryptedFrames {
+        companion object {
+            var complete = false
+            val encryptedOpcodes = ArrayList<Int>()
+        }
         @Implementation fun decrypt(data: ByteArray): ByteArray = data.copyOf()
+        @Implementation fun isComplete(): Boolean = complete
+        @Implementation fun encrypt(data: ByteArray): ByteArray? {
+            encryptedOpcodes += data[0].toInt() and 0xFF
+            return null // Observe command attempts without real keys or a GATT queue.
+        }
     }
 
     @Implements(Natives::class)
@@ -112,6 +122,7 @@ class AiDexAlgorithmRuntimeTests {
     private var revision = 0L
     private var completionNotifications = 0
     private var roomWrites = 0
+    private val sourceHistoryRequests = ArrayList<Long?>()
     private var beforeRoomWrite: () -> Unit = {}
     private var previousApp: Applic? = null
     private var previousUnit = 0
@@ -127,6 +138,8 @@ class AiDexAlgorithmRuntimeTests {
         previousCalibrationProvider = calibrationField.get(null)
         Applic.app = RuntimeEnvironment.getApplication() as TestApplication
         Applic.unit = 0
+        DecryptedFrames.complete = false
+        DecryptedFrames.encryptedOpcodes.clear()
         Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE).edit().clear().commit()
         Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE).edit().clear().commit()
         AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).parentFile!!.deleteRecursively()
@@ -174,6 +187,12 @@ class AiDexAlgorithmRuntimeTests {
                 runtime.calibrationChanged(++revision)
             }
         })
+        installRuntime()
+        PublicationSink.rate = Float.NaN
+        PublicationSink.current = null
+    }
+
+    private fun installRuntime() {
         executor = QueuedExecutor()
         val store = AiDexBleManager::class.java.getDeclaredMethod("storeAlgorithmLive", AiDexAlgorithmReading::class.java,
             AiDexAlgorithmReading::class.java, Int::class.javaPrimitiveType).apply { isAccessible = true }
@@ -181,11 +200,10 @@ class AiDexAlgorithmRuntimeTests {
             Boolean::class.javaPrimitiveType).apply { isAccessible = true }
         runtime = AiDexAlgorithmRuntime(Applic.app, serial, { 0L }, { NativeInputs.start }, { false },
             storeLive = { row, previous -> store.invoke(driver, row, previous, Natives.AIDEX_TREND_UNKNOWN) as AiDexAlgorithmReading },
-            publish = { row, live -> publish.invoke(driver, row, live); Unit }, worker = executor)
+            publish = { row, live -> publish.invoke(driver, row, live); Unit }, worker = executor,
+            requestSourceHistory = { sourceHistoryRequests += it })
         AiDexBleManager::class.java.getDeclaredField("algorithmRuntime\$delegate").apply { isAccessible = true }
             .set(driver, lazyOf(runtime))
-        PublicationSink.rate = Float.NaN
-        PublicationSink.current = null
     }
 
     @After fun tearDown() {
@@ -203,6 +221,142 @@ class AiDexAlgorithmRuntimeTests {
         runtime.source(NativeInputs.start + index * 60_000L, factory, raw, Float.NaN, AiDexSourceSample.LIVE)
 
     private fun choose(mode: Int) { assertTrue(runtime.select(mode)); executor.runNext() }
+
+    @Test fun stockReleaseGapIsRefetchedBeforePendingStockRestoration() {
+        runtime.record(listOf(sample(1), sample(2)))
+        choose(9)
+        val missed = sample(3, 105f).copy(origin = AiDexSourceSample.HISTORY)
+        runtime.close()
+        room[missed.timestampMs] = 110f // Stock release wrote Auto without our journal.
+        installRuntime()
+        executor.runNext()
+        assertEquals(listOf(missed.timestampMs), sourceHistoryRequests)
+        assertNull(runtime.controller.journal.atMinute(missed.minute))
+        assertEquals(1, roomWrites)
+        assertTrue(runtime.isRebuilding())
+        assertFalse(runtime.failed)
+
+        // Live/UI triggers neither recompute/commit history nor repeat downloads.
+        val incoming = sample(4, 115f)
+        assertFalse(runtime.live(incoming))
+        executor.runNext()
+        choose(0)
+        assertEquals(1, sourceHistoryRequests.size)
+        assertEquals(1, roomWrites)
+        assertTrue(driver.integratesUserCalibration(false))
+
+        runtime.record(listOf(missed)) // Authentic 0x23/0x24 recovery.
+        runtime.historyComplete()
+        executor.runNext()
+        assertEquals(listOf(missed.timestampMs, null), sourceHistoryRequests)
+        assertEquals(105f, room[missed.timestampMs]!!, 0f)
+        assertEquals(115f, room[incoming.timestampMs]!!, 0f)
+        assertEquals(AiDexAlgorithmSelection.STOCK, runtime.controller.appliedSelection)
+        assertEquals(incoming.timestampMs, runtime.latestPublished!!.source.timestampMs)
+        assertFalse(driver.integratesUserCalibration(false))
+        assertFalse(runtime.isRebuilding())
+        assertFalse(runtime.failed)
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun incompleteRecoveryStopsRetryingAndRestartRequestsOriginalsAgain() {
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        val missed = sample(2, 110f)
+        runtime.close()
+        room[missed.timestampMs] = 110f
+        installRuntime()
+        executor.runNext()
+        runtime.historyComplete() // Timeout/expired raw page did not fill the hole.
+        executor.runNext()
+        assertTrue(runtime.failed)
+        assertFalse(runtime.isRebuilding())
+        repeat(3) { runtime.requestReplay(); executor.runNext() }
+        assertEquals(listOf(missed.timestampMs), sourceHistoryRequests)
+        assertEquals(1, roomWrites)
+        assertTrue(executor.pending.isEmpty())
+
+        runtime.close()
+        installRuntime()
+        executor.runNext()
+        assertEquals(listOf(missed.timestampMs, missed.timestampMs), sourceHistoryRequests)
+        runtime.sourceHistoryUnavailable(missed.timestampMs)
+        assertTrue(runtime.failed)
+        assertFalse(runtime.isRebuilding())
+        runtime.record(listOf(missed.copy(origin = AiDexSourceSample.HISTORY)))
+        runtime.historyComplete()
+        executor.runNext()
+        assertFalse(runtime.failed)
+        assertEquals(150f, room[missed.timestampMs]!!, 0f)
+        assertTrue(driver.integratesUserCalibration(false))
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun emptyJournalAfterRestoreAlsoRequestsAuthenticFactoryHistory() {
+        runtime.record(listOf(sample(1)))
+        choose(9)
+        val original = runtime.controller.journal.first()!!
+        runtime.close()
+        AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).delete()
+        installRuntime()
+        executor.runNext()
+        assertEquals(listOf(original.timestampMs), sourceHistoryRequests)
+        assertTrue(runtime.controller.journal.snapshot().isEmpty())
+        assertEquals(140f, room[original.timestampMs]!!, 0f)
+        assertEquals(1, roomWrites)
+    }
+
+    @Test fun managerRepairSurvivesInFlightRangeAndRewindsBothDownloadCursors() {
+        fun field(name: String) = AiDexBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }
+        val request = AiDexBleManager::class.java.getDeclaredMethod("requestOriginalHistoryRecovery", Long::class.javaObjectType)
+            .apply { isAccessible = true }
+        val range = AiDexBleManager::class.java.getDeclaredMethod("handleHistoryRangeResponse", ByteArray::class.java)
+            .apply { isAccessible = true }
+        val complete = AiDexBleManager::class.java.getDeclaredMethod("onHistoryDownloadComplete").apply { isAccessible = true }
+        val handler = field("handler").get(driver) as Handler
+        field("hasAuthoritativeSessionStart").setBoolean(driver, true)
+        field("historyRawNextIndex").setInt(driver, 2)
+        field("historyBriefNextIndex").setInt(driver, 2)
+        field("phase").set(driver, AiDexBleManager.Phase.STREAMING)
+        DecryptedFrames.complete = true
+        val bytes = byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 2, 0)
+        range.invoke(driver, bytes) // Ordinary download was planned before recovery.
+        val missingTime = sample(1).timestampMs
+        request.invoke(driver, missingTime)
+        Shadows.shadowOf(handler.looper).idle()
+        assertEquals(missingTime, field("sourceHistoryRepairTime").get(driver))
+        assertNull(field("activeHistoryRepairTime").get(driver))
+        assertEquals(0, DecryptedFrames.encryptedOpcodes.count { it == AiDexOpcodes.GET_HISTORY_RANGE })
+        complete.invoke(driver)
+        Shadows.shadowOf(handler.looper).idle()
+        assertEquals(1, DecryptedFrames.encryptedOpcodes.count { it == AiDexOpcodes.GET_HISTORY_RANGE })
+        range.invoke(driver, bytes) // Next range/reconnect incorporates the retained repair.
+        assertEquals(1, field("historyRawNextIndex").getInt(driver))
+        assertEquals(1, field("historyBriefNextIndex").getInt(driver))
+        assertEquals(missingTime, field("activeHistoryRepairTime").get(driver))
+        request.invoke(driver, null)
+        Shadows.shadowOf(handler.looper).idle()
+        assertNull(field("sourceHistoryRepairTime").get(driver))
+        runtime.close()
+        request.invoke(driver, missingTime)
+        Shadows.shadowOf(handler.looper).idle()
+        assertNull(field("sourceHistoryRepairTime").get(driver))
+    }
+
+    @Test fun pendingRepairDoesNotRetryQuarantinedPreResetHistory() {
+        fun field(name: String) = AiDexBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }
+        field("sourceHistoryRepairTime").set(driver, sample(1).timestampMs)
+        field("postResetRequestedAtMs").setLong(driver, System.currentTimeMillis())
+        field("phase").set(driver, AiDexBleManager.Phase.STREAMING)
+        DecryptedFrames.complete = true
+        AiDexBleManager::class.java.getDeclaredMethod("handleHistoryRangeResponse", ByteArray::class.java)
+            .apply { isAccessible = true }.invoke(driver,
+                byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 40, 0))
+        val handler = field("handler").get(driver) as Handler
+        Shadows.shadowOf(handler.looper).idle()
+        assertEquals(0, DecryptedFrames.encryptedOpcodes.count { it == AiDexOpcodes.GET_HISTORY_RANGE })
+        assertEquals(41, field("historyRawNextIndex").getInt(driver))
+    }
 
     @Test fun completionRevisionDoesNotScheduleAnotherCalibratedReplay() {
         runtime.record(listOf(sample(0), sample(1)))

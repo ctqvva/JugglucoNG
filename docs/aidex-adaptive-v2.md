@@ -36,6 +36,17 @@ native shell. Imported historical sessions have an explicit age proxy where
 their activation time is unknown. The current native window uses its reported
 start, and a sensor reset starts a separate estimator session.
 
+Returning from a stock release can leave holes in the original journal even
+though that release advanced both sensor-download cursors. Before replay, the
+runtime checks stored minutes against the journal and requests sensor history
+from the earliest missing minute. Both factory (0x23) and raw (0x24) cursors are
+rewound for that repair, including on reconnect. Stored Auto values are never
+substituted for missing factory inputs. Replay and any pending algorithm choice
+resume after authentic originals arrive. Repeated live/UI triggers do not
+repeat a repair for the same hole or compute the full estimator while waiting.
+An incomplete/expired repair stops until reconnect, restart or new originals;
+history outside the sensor's available range still requires the original journal.
+
 Live source, Room and publication work runs on a serial worker, under the same
 ownership lock as replay commits, so a
 previous Adaptive write cannot overwrite a later Stock restoration. The new
@@ -72,8 +83,9 @@ sensor packet.
 The menu is a phone UI. Wear sources compile with the shared driver integration;
 standalone watch selection, handover and physical-sensor behavior have not been
 verified. An export without original journals cannot reliably reconstruct factory
-inputs after Adaptive values have replaced Auto history; incomplete originals
-cause replay to fail rather than being treated as factory data.
+inputs after Adaptive values have replaced Auto history. Missing originals are
+refetched where the sensor still has them; unavailable originals cause replay
+to fail rather than being treated as factory data.
 
 ## Model and isolation
 
@@ -232,7 +244,8 @@ exclusion, explicit resets and pre-reference scoring.
 Integration tests cover source-journal CRC/recovery/backup, Stock restoration,
 calibration toggling, causal reference ordering, restart continuation, late and
 revised minutes, stale-worker rejection, failed commits and removal ownership.
-Eleven Android runtime/manager regressions exercise completion notification
+Android runtime/manager regressions exercise release-switch and empty-journal
+recovery, interrupted repair/restart, completion notification
 termination, real reference/fit changes, delayed live-write ordering, current
 managed-minute publication, rate units, rejected-reset recovery, retained
 ownership, nonblocking callbacks and queued removal/transport checks. Controller

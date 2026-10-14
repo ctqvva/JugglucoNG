@@ -853,7 +853,20 @@ class AiDexBleManager(
     private val algorithmRuntime by lazy {
         AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { sensorstartmsec },
             { historyDownloading }, storeLive = { row, previous -> storeAlgorithmLive(row, previous) },
-            publish = { row, live -> publishAlgorithmReading(row, live) })
+            publish = { row, live -> publishAlgorithmReading(row, live) },
+            requestSourceHistory = { time -> requestOriginalHistoryRecovery(time) })
+    }
+
+    // Retain the repair across reconnects; normal persisted cursors may have
+    // advanced in a release that did not journal the factory/raw inputs.
+    private var sourceHistoryRepairTime: Long? = null
+    private var activeHistoryRepairTime: Long? = null
+    private fun requestOriginalHistoryRecovery(time: Long?) {
+        handler.post {
+            if (stop || algorithmRuntime.controller.isClosed()) return@post
+            sourceHistoryRepairTime = time
+            if (time != null && phase == Phase.STREAMING && keyExchange.isComplete) requestHistoryBackfill()
+        }
     }
 
     override fun resetdataptr(): Long = synchronized(algorithmRuntime.controller.lock) {
@@ -4982,12 +4995,28 @@ class AiDexBleManager(
             clearPostResetHistoryBarrier("history-range-plausible-new-session")
         }
 
+        // Resolve activation before mapping a missing wall-clock minute to an
+        // offset. A newly registered native shell may still have "now" as start.
+        if (newest > 0) {
+            lastOffsetMinutes = newest
+            ensureSensorStartTime(now)
+        }
+        val repairTime = sourceHistoryRepairTime
+        val repairOffset = repairTime?.let {
+            AiDexHistoryPolicy.sourceRepairOffset(it, sensorstartmsec, briefStart, rawStart, newest)
+        }
+        activeHistoryRepairTime = repairTime
+        if (repairTime != null && repairOffset == null) {
+            Log.w(TAG, "Original history minute $repairTime is outside sensor range $rawStart/$briefStart..$newest")
+            algorithmRuntime.sourceHistoryUnavailable(repairTime)
+        }
         val downloadPlan = AiDexHistoryPolicy.planInitialDownload(
             briefStart = briefStart,
             rawStart = rawStart,
             newest = newest,
             persistedRawNextIndex = historyRawNextIndex,
             persistedBriefNextIndex = historyBriefNextIndex,
+            sourceRepairOffset = repairOffset,
         )
         historyRawNextIndex = downloadPlan.rawNextIndex
         historyBriefNextIndex = downloadPlan.briefNextIndex
@@ -5017,15 +5046,6 @@ class AiDexBleManager(
         if (liveOffsetCutoff == 0 && hasDirectLiveThisSession && newest > 0) {
             liveOffsetCutoff = newest
             Log.i(TAG, "History dedup: snapped liveOffsetCutoff to newest history offset $newest because direct live already arrived this session")
-        }
-
-        // Update sensorstartmsec from the newest offset.
-        // This is critical: SuperGattCallback constructor may have set sensorstartmsec to "now"
-        // (via Natives.getSensorStartmsec for a newly-registered sensor), but the sensor has
-        // been running for days. ensureSensorStartTime will override if >10min off.
-        if (newest > 0) {
-            lastOffsetMinutes = newest
-            ensureSensorStartTime(now)
         }
 
         Log.i(TAG, "History download: starting from raw=$historyRawNextIndex, brief=$historyBriefNextIndex (sensor range: $rawStart..$newest)")
@@ -6005,6 +6025,13 @@ class AiDexBleManager(
         // Uses manual pack (not aidexProcessData) to avoid double-writing data
         // that was already stored by storeHistoryEntries().
         algorithmRuntime.historyComplete()
+        // A repair request can arrive after an ordinary download's range was
+        // planned. Do not lose it just because that download was already busy.
+        val pendingRepair = sourceHistoryRepairTime
+        if (pendingRepair != null && pendingRepair != activeHistoryRepairTime && postResetRequestedAtMs <= 0L) {
+            requestOriginalHistoryRecovery(pendingRepair)
+        }
+        activeHistoryRepairTime = null
         if (!algorithmRuntime.controller.requestedSelection.adaptive &&
             !algorithmRuntime.controller.appliedSelection.adaptive &&
             AiDexHistoryPolicy.shouldEmitCatchUpBroadcast(

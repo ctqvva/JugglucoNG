@@ -27,6 +27,7 @@ internal class AiDexAlgorithmRuntime(
     private val storeLive: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading,
     private val publish: (AiDexAlgorithmReading, Boolean) -> Unit,
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "AiDexAlgorithm-$serial") },
+    private val requestSourceHistory: (Long?) -> Unit = {},
 ) {
     private val prefs = context.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE)
     private fun key(name: String) = "${name}_$serial"
@@ -50,6 +51,8 @@ internal class AiDexAlgorithmRuntime(
     private var appliedCalibrationInputs: CalibrationInputs? = null
     @Volatile private var resetWaiting = false
     private var pendingLiveTime = 0L
+    @Volatile private var missingSourceTime: Long? = null
+    @Volatile private var awaitingSourceHistory = false
 
     init {
         val requested = AiDexAlgorithmSelection.fromStorage(prefs.getInt(key("algorithmMode"), 0))
@@ -87,7 +90,14 @@ internal class AiDexAlgorithmRuntime(
         }
         if (controller.needsReplay()) requestReplay()
     }
-    fun isRebuilding(): Boolean = running.get()
+    fun isRebuilding(): Boolean = running.get() || awaitingSourceHistory
+
+    fun sourceHistoryUnavailable(time: Long) {
+        if (missingSourceTime != time || controller.isClosed()) return
+        awaitingSourceHistory = false
+        failed = true
+        UiRefreshBus.requestStatusRefresh()
+    }
 
     /** Only enqueue on the caller; journal, Room and publication run on the serial worker. */
     fun enqueue(work: () -> Unit): Boolean {
@@ -160,9 +170,37 @@ internal class AiDexAlgorithmRuntime(
 
     fun historyComplete() {
         if (everAdaptive || controller.requestedSelection.adaptive || controller.appliedSelection.adaptive) {
+            // One completed attempt per unchanged hole. If the sensor no longer
+            // has that minute, keep failing closed without a download/replay loop.
+            awaitingSourceHistory = false
             controller.invalidateReferences()
             requestReplay()
         }
+    }
+
+    private fun recoverMissingSources(original: List<AiDexSourceSample>): Boolean {
+        if (!everAdaptive) return false
+        val held = original.mapTo(HashSet()) { it.minute }
+        val missing = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)
+            ?.filter { it.value > 0f && it.timestamp / 60_000L !in held }
+            ?.minOfOrNull { it.timestamp }
+        if (missing == null) {
+            if (missingSourceTime != null) requestSourceHistory(null)
+            missingSourceTime = null
+            awaitingSourceHistory = false
+            return false
+        }
+        if (missing != missingSourceTime) {
+            missingSourceTime = missing
+            awaitingSourceHistory = true
+            failed = false
+            Log.i("AiDexAlgorithm", "Recovering original sensor history for $serial from $missing")
+            requestSourceHistory(missing)
+        } else if (!awaitingSourceHistory) {
+            failed = true
+        }
+        UiRefreshBus.requestStatusRefresh()
+        return true
     }
 
     private fun references(selection: AiDexAlgorithmSelection): List<AiDexReference> {
@@ -226,6 +264,10 @@ internal class AiDexAlgorithmRuntime(
                         if (controller.requestedSelection.calibration && !CalibrationAccess.isCalibrationStateLoaded()) return@execute
                         bootstrap()
                         val original = controller.journal.snapshot()
+                        // A stock release advances its download cursors without
+                        // writing our journal. Fetch authentic originals before
+                        // computing anything; stored Auto may already be derived.
+                        if (recoverMissingSources(original)) return@execute
                         if (original.isEmpty()) return@execute
                         val displayFactor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
                         CalibrationAccess.seedIntegratedCalibrationBaseline(
