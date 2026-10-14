@@ -6,7 +6,7 @@ JugglucoNG is an experimental continuous glucose monitoring app for Android.
 
 Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap Korthals Altes, it continues to evolve with a modern Compose UI using Material 3, a sensor-independent data layer, support for multiple CGM systems, a treatment journal with IOB/eIOB/COB tracking, predictive simulation, a redesigned alarm engine, and bidirectional Nightscout integration.
 
-![Screenshot](juggluco_screenshot.png)
+![Screenshot](docs/assets/juggluco_screenshot.png)
 
 <sub>English · Беларуская · 中文 · Deutsch · Français · Italiano · Nederlands · Polski · Português · Русский · Svenska · Soomaali · Türkçe · Українська · Монгол</sub>
 
@@ -103,6 +103,8 @@ git submodule update --init
 ```
 
 The app is localized into 15 languages; new user-facing strings go into `Common/src/main/res/values/strings.xml` and every `values-*` locale.
+
+Build helpers live in [scripts/](scripts/README.md), developer tools in `tools/`, and documentation images in `docs/assets/`. Historical root files are preserved in [tools/archive/root-cleanup/](tools/archive/root-cleanup/README.md).
 
 ## Version history
 
