@@ -50,6 +50,14 @@ class Selection(unittest.TestCase):
         self.assertIn('unchanged', result[3])
         self.assertEqual(api.call_count, 1)
 
+    def test_dispatched_main_ci_is_valid_but_pr_ci_never_is(self):
+        for event, accepted in [('workflow_dispatch', True), ('pull_request', False)]:
+            runs = ci()
+            runs['workflow_runs'][0]['event'] = event
+            result, api = self.decision([], [[], runs])
+            self.assertEqual(result[0], accepted)
+            self.assertIn('branch=main', api.call_args.args[0])
+
     def test_new_changes_build_and_behind_or_divergent_history_does_not(self):
         ref = {'object': {'sha': OLD_SHA, 'type': 'commit'}}
         result, _ = self.decision([release()], [ref, {'status': 'ahead'}, [], ci()])

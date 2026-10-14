@@ -140,7 +140,7 @@ The Actions App token needs the PR scope even though timeline comments use the
 
 **Nightly prerelease** runs daily at **00:23 UTC / 05:23 Asia/Yekaterinburg**.
 GitHub's scheduler can run late. Only the captured official main SHA is eligible;
-its push CI must have passed. If that SHA matches the last successfully published
+its push or manually dispatched CI must have passed. If that SHA matches the last successfully published
 nightly, the expensive build and signing jobs are skipped. A queued older snapshot
 is also skipped; divergent main history fails for inspection. All commits merged
 to main count as changes, including build/documentation changes. A failed build
@@ -208,6 +208,21 @@ Generated release notes compare against GitHub's latest published non-prerelease
 including when the new version is marked prerelease. Nightlies and other
 prereleases cannot become that changelog baseline. Nightly notes keep their
 separate previous-nightly comparison.
+
+After successful regular publication, the workflow refreshes only the README's
+marked download-link definitions, including its version badge. The main button
+downloads the standard phone APK directly; smaller links download the three other
+variants from the same release. The existing versioned filenames and five-asset
+release format are preserved. Prereleases/nightlies do not advance these links.
+Manual publication/promotion is covered by **Refresh README downloads**, which can
+also be dispatched independently to retry a failed README update. Both paths read
+GitHub's latest non-prerelease and the current README on main; unrelated README
+edits are preserved and a concurrent file change fails safely. The update uses the
+publication token's `contents: write`, with no signing secrets or extra credential.
+It also uses `actions: write` to dispatch the existing read-only main CI for the
+README commit, since `GITHUB_TOKEN` writes do not trigger push CI. Nightlies still
+require passing CI at their exact main SHA. For a local documentation edit, run
+`python3 scripts/dist/update-readme-downloads.py --local`.
 
 Signing has `contents: read`. Only the separate approved publication job has
 `contents: write`. That job creates a draft at the captured SHA, uploads the four

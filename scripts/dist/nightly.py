@@ -124,8 +124,9 @@ def decision(sha, day, items):
     refs = api('git/matching-refs/tags/' + tag)
     if any(r['ref'] == 'refs/tags/' + tag for r in refs):
         raise ValueError('Nightly tag already reserved; resolve the failed tag before retrying today')
-    runs = api(f'actions/workflows/ci.yml/runs?head_sha={sha}&event=push&per_page=10')['workflow_runs']
-    runs = [r for r in runs if r['head_sha'] == sha and r['head_branch'] == 'main' and r['event'] == 'push']
+    runs = api(f'actions/workflows/ci.yml/runs?head_sha={sha}&branch=main&per_page=10')['workflow_runs']
+    runs = [r for r in runs if r['head_sha'] == sha and r['head_branch'] == 'main'
+            and r['event'] in ('push', 'workflow_dispatch')]
     if not runs or runs[0]['status'] != 'completed' or runs[0]['conclusion'] != 'success':
         return False, tag, last, 'Exact main snapshot has not passed CI yet; retry after CI or on the next schedule.'
     return True, tag, last, 'New main changes with passing CI; build the canonical four APKs.'
