@@ -9,11 +9,12 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Explicit choices for the missing AiDex factory conversion.
- * FACTORY_ASSISTED learns a slow scale from raw/factory pairs; it is a hybrid,
- * not a reconstruction of the sensor's proprietary factory algorithm.
+ * FACTORY_ASSISTED learns a slow raw-to-glucose curve from raw/factory pairs; it is
+ * a hybrid, not a reconstruction of the sensor's proprietary factory algorithm.
  * REFERENCE_ONLY never reads factory glucose and waits for a timely reference.
  */
 enum class AiDexNormalization { FACTORY_ASSISTED, REFERENCE_ONLY }
@@ -42,10 +43,11 @@ data class AiDexAdaptiveResult(
  * Replay/driver-facing AiDex V2. All arithmetic uses mmol/L; transport and
  * storage adapters pass mg/dL explicitly. No shared Sibionics state is touched.
  *
- * A slow robust normalizer replaces the factory compensation available to
+ * A slow robust normaliser replaces the factory compensation available to
  * Sibionics. It deliberately cannot identify scale, offset, sensor aging and
- * true glucose from raw alone. References constrain the residual sensor states
- * in the IMM; factory-assisted mode retains dependence on the factory scale.
+ * true glucose from raw alone. In factory-assisted mode a reference corrects
+ * the learned factory curve at the output; the estimator's own sensor states
+ * never hold it, because the curve they would be relative to keeps moving.
  *
  * This is an experimental model. Mixture intervals are model uncertainty, not
  * validated clinical coverage. Selecting/publishing it in an app requires a
@@ -54,6 +56,7 @@ data class AiDexAdaptiveResult(
 class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization.FACTORY_ASSISTED) {
     private var estimator = AdaptiveV2Estimator().apply { configure(1f) }
     private var normalizer = AiDexSignalNormalizer(normalization)
+    private var correction = AiDexReferenceCorrection()
     private var sessionStartMs = 0L
     private var lastTimestampMs = 0L
     private var lastIndex = -1
@@ -62,6 +65,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
     fun reset() {
         estimator = AdaptiveV2Estimator().apply { configure(1f) }
         normalizer = AiDexSignalNormalizer(normalization)
+        correction = AiDexReferenceCorrection()
         sessionStartMs = 0L
         lastTimestampMs = 0L
         lastIndex = -1
@@ -89,7 +93,15 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
                 it.timestampMs >= sessionStartMs &&
                 abs(it.timestampMs - sample.timestampMs) <= 60_000L
         }.sortedBy { it.timestampMs }
-        val normalized = normalizer.process(sample, timely.firstOrNull()) ?: return null
+        val factoryAssisted = normalization == AiDexNormalization.FACTORY_ASSISTED
+        val bootstrapping = !normalizer.hasMapping
+        val normalized = normalizer.process(sample, timely.firstOrNull())
+        if (factoryAssisted && (normalized != null || bootstrapping)) {
+            // Measured against the curve the normaliser converges to, so the
+            // correction stays valid while that curve follows the sensor.
+            correction.accept(timely, normalizer.referenceTargetMmol(sample))
+        }
+        if (normalized == null) return null
         val core = estimator.process(
             AdaptiveV2Sample(
                 calibratedMmol = normalized.mmol,
@@ -97,7 +109,8 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
                 index = index,
                 timestampMs = sample.timestampMs,
             ),
-            timely.map { AdaptiveV2Reference(it.glucoseMgDl / MGDL_PER_MMOL, it.timestampMs) },
+            if (factoryAssisted) emptyList()
+            else timely.map { AdaptiveV2Reference(it.glucoseMgDl / MGDL_PER_MMOL, it.timestampMs) },
             stockComparisonMmol = sample.factoryMgDl / MGDL_PER_MMOL,
         ) ?: return null
         lastTimestampMs = sample.timestampMs
@@ -106,9 +119,12 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
         // Absolute scale uncertainty belongs in every component. Ignoring it
         // would report a precise answer even when only the scale is unknown.
         val scaleVariance = normalized.mmol * normalized.mmol * normalized.logScaleVariance
+        val shift = correction.offsetMmol(sample.timestampMs)
+        val shiftVariance = correction.varianceMmol2(sample.timestampMs)
         mixture = GaussianMixture1D(
-            source.weights.copyOf(), source.means.copyOf(),
-            FloatArray(source.size) { source.variances[it] + scaleVariance },
+            source.weights.copyOf(),
+            FloatArray(source.size) { (source.means[it] + shift).coerceIn(0.6f, 35f) },
+            FloatArray(source.size) { source.variances[it] + scaleVariance + shiftVariance },
         )
         val posterior = mixture!!
         val lower = posterior.quantile(0.05).coerceIn(0.6f, 35f)
@@ -138,6 +154,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
                 it.writeLong(lastTimestampMs)
                 it.writeInt(lastIndex)
                 normalizer.writeTo(it)
+                correction.writeTo(it)
                 estimator.writeTo(it)
                 val current = mixture
                 it.writeBoolean(current != null)
@@ -171,6 +188,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
                 candidate.lastTimestampMs = input.readLong()
                 candidate.lastIndex = input.readInt()
                 candidate.normalizer.readFrom(input)
+                candidate.correction.readFrom(input)
                 require(candidate.estimator.readFrom(input))
                 if (input.readBoolean()) {
                     candidate.mixture = GaussianMixture1D(
@@ -193,6 +211,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
         if (valid) {
             estimator = candidate.estimator
             normalizer = candidate.normalizer
+            correction = candidate.correction
             sessionStartMs = candidate.sessionStartMs
             lastTimestampMs = candidate.lastTimestampMs
             lastIndex = candidate.lastIndex
@@ -204,93 +223,295 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
     companion object {
         const val MGDL_PER_MMOL = 18.0182f
         private const val MAGIC = 0x4149_5632
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val MAX_SNAPSHOT_BYTES = 64 * 1024
     }
 }
 
-/** Robust slow scale; current factory excursions never become current glucose. */
-internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
-    data class Signal(val mmol: Float, val logScaleVariance: Float)
-    private var logScale = Double.NaN
-    private var lastTime = 0L
-    private var lastRaw = Float.NaN
-    private var lastFactory = Float.NaN
-    private val ratios = ArrayDeque<Pair<Long, Double>>()
-    val scale: Double get() = exp(logScale)
+/**
+ * Factory-assisted reference correction, applied at the output.
+ *
+ * Each reference is compared with the factory curve the normaliser is fitting,
+ * not with the normalised signal of that minute: the signal still trails a
+ * curve that is moving, and an error measured against it would be applied
+ * again after the curve had caught up. Errors are averaged with an age decay
+ * and shrink toward no correction as they age.
+ */
+internal class AiDexReferenceCorrection {
+    private val errors = ArrayDeque<Pair<Long, Double>>()
+    private var lastReferenceMs = 0L
 
-    fun process(sample: AiDexAdaptiveSample, firstReference: AiDexReference?): Signal? {
-        val factory = sample.factoryMgDl
-        val validFactory = factory.isFinite() && factory in (0.6f * AiDexAdaptiveV2.MGDL_PER_MMOL)..(35f * AiDexAdaptiveV2.MGDL_PER_MMOL)
-        if (!logScale.isFinite()) {
-            val anchor = when (mode) {
-                AiDexNormalization.FACTORY_ASSISTED -> factory.takeIf { validFactory }
-                AiDexNormalization.REFERENCE_ONLY -> firstReference?.glucoseMgDl
-            } ?: return null
-            logScale = ln(anchor.toDouble() / sample.rawProxyMgDl)
+    fun accept(references: List<AiDexReference>, targetMmol: Double?) {
+        if (targetMmol == null || !targetMmol.isFinite()) return
+        for (reference in references) {
+            if (reference.timestampMs <= lastReferenceMs) continue
+            errors.addLast(reference.timestampMs to (reference.glucoseMgDl / AiDexAdaptiveV2.MGDL_PER_MMOL - targetMmol))
+            lastReferenceMs = reference.timestampMs
         }
-        val preliminaryMmol = sample.rawProxyMgDl * scale / AiDexAdaptiveV2.MGDL_PER_MMOL
-        if (!preliminaryMmol.isFinite() || preliminaryMmol <= 0.0 || preliminaryMmol > 35.0) return null
-        val elapsed = if (lastTime > 0L) (sample.timestampMs - lastTime) / 60_000.0 else 1.0
-        while (ratios.isNotEmpty() && sample.timestampMs - ratios.first().first > WINDOW_MS) ratios.removeFirst()
-        if (mode == AiDexNormalization.FACTORY_ASSISTED) {
-            // A factory derivative/overshoot must not train the absolute scale.
-            val stable = validFactory && lastRaw.isFinite() && lastFactory.isFinite() &&
-                elapsed in 0.5..2.0 &&
-                abs(factory - lastFactory) / elapsed < 1.8 &&
-                abs(sample.rawProxyMgDl - lastRaw) * scale / elapsed < 1.8
-            if (stable) ratios.addLast(sample.timestampMs to ln(factory.toDouble() / sample.rawProxyMgDl))
-            if (ratios.size >= MIN_PAIRS) {
-                val ordered = ratios.map { it.second }.sorted()
-                val median = ordered[ordered.size / 2]
-                val fraction = 1.0 - exp(-ln(2.0) * elapsed.coerceAtMost(2.0) / HALF_LIFE_MINUTES)
-                logScale += ((median - logScale) * fraction).coerceIn(-0.002 * elapsed, 0.002 * elapsed)
-            }
+        while (errors.size > MAX_REFERENCES) errors.removeFirst()
+    }
+
+    private fun weights(timeMs: Long): Pair<Double, Double> {
+        var total = 0.0
+        var weighted = 0.0
+        for ((time, error) in errors) {
+            if (time > timeMs + 60_000L) continue
+            val weight = exp(-(timeMs - time).coerceAtLeast(0L) / TIME_CONSTANT_MS)
+            total += weight
+            weighted += weight * error
         }
-        lastTime = sample.timestampMs
-        lastRaw = sample.rawProxyMgDl
-        lastFactory = if (validFactory) factory else Float.NaN
-        val mmol = (sample.rawProxyMgDl * scale / AiDexAdaptiveV2.MGDL_PER_MMOL).toFloat()
-        if (!mmol.isFinite() || mmol <= 0f || mmol > 35f) return null
-        val scatter = if (ratios.size >= MIN_PAIRS) {
-            val residuals = ratios.map { abs(it.second - logScale) }.sorted()
-            max(0.08, 1.4826 * residuals[residuals.size / 2])
-        } else 0.15
-        return Signal(mmol, (scatter * scatter).toFloat())
+        return total to weighted
+    }
+
+    fun offsetMmol(timeMs: Long): Float {
+        val (total, weighted) = weights(timeMs)
+        if (total < 1e-6) return 0f
+        return (weighted / (PRIOR_WEIGHT + total)).coerceIn(-MAX_OFFSET_MMOL, MAX_OFFSET_MMOL).toFloat()
+    }
+
+    /** One reference's own noise, shared by the references still carrying weight. */
+    fun varianceMmol2(timeMs: Long): Float {
+        val (total, _) = weights(timeMs)
+        if (total < 1e-6) return 0f
+        return (REFERENCE_VARIANCE * min(1.0, total) / (PRIOR_WEIGHT + total)).toFloat()
     }
 
     fun writeTo(out: DataOutputStream) {
+        out.writeLong(lastReferenceMs)
+        out.writeInt(errors.size)
+        errors.forEach { out.writeLong(it.first); out.writeDouble(it.second) }
+    }
+
+    fun readFrom(input: DataInputStream) {
+        lastReferenceMs = input.readLong()
+        val count = input.readInt()
+        require(lastReferenceMs >= 0L && count in 0..MAX_REFERENCES)
+        errors.clear()
+        repeat(count) {
+            val time = input.readLong()
+            val error = input.readDouble()
+            require(time in 1..lastReferenceMs && error.isFinite() && abs(error) < 35.0)
+            require(errors.isEmpty() || time > errors.last().first)
+            errors.addLast(time to error)
+        }
+    }
+
+    companion object {
+        /** The estimator's own bias time constant: about a day and a half. */
+        private const val TIME_CONSTANT_MS = 1.5 * 24 * 60 * 60_000.0
+        /** A fresh single reference corrects 80% of its error. */
+        private const val PRIOR_WEIGHT = 0.25
+        private const val MAX_OFFSET_MMOL = 2.5
+        private const val REFERENCE_VARIANCE = 0.16
+        private const val MAX_REFERENCES = 32
+    }
+}
+
+/**
+ * Robust slow raw-to-glucose curve; factory excursions never become glucose.
+ *
+ * glucose = scale * raw + offset. The scale tracks the factory/raw ratio over
+ * an hour of stable pairs, as before, but starts from the median of the first
+ * pairs rather than from one: a first pair is often a warm-up artifact. The
+ * offset is the slow part an aging sensor develops, which a pure ratio turns
+ * into exaggerated lows. It is fitted only over at least a day of pairs, with
+ * a prior toward zero, so warm-up and short windows cannot invent one.
+ */
+internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
+    data class Signal(val mmol: Float, val logScaleVariance: Float)
+    private var logScale = Double.NaN
+    private var offset = 0.0
+    private var offsetTarget = 0.0
+    private var lastTime = 0L
+    private var lastRaw = Float.NaN
+    private var lastFactory = Float.NaN
+    private var stableCount = 0L
+    private val pairs = ArrayDeque<Triple<Long, Float, Float>>()
+    private val longPairs = ArrayDeque<Triple<Long, Float, Float>>()
+
+    /** mg/dL of glucose per raw-proxy mg/dL at the current mapping. */
+    val scale: Double get() = exp(logScale)
+    val hasMapping: Boolean get() = logScale.isFinite()
+
+    /** Where a reference is measured: the curve being converged to, else factory. */
+    fun referenceTargetMmol(sample: AiDexAdaptiveSample): Double? {
+        val target = targetLogScale()
+        if (target != null) {
+            return (exp(target) * sample.rawProxyMgDl + offsetTarget) / AiDexAdaptiveV2.MGDL_PER_MMOL
+        }
+        val factory = sample.factoryMgDl
+        return if (validFactory(factory)) factory / AiDexAdaptiveV2.MGDL_PER_MMOL.toDouble() else null
+    }
+
+    fun process(sample: AiDexAdaptiveSample, firstReference: AiDexReference?): Signal? {
+        if (lastTime > 0L && sample.timestampMs <= lastTime) return null
+        val raw = sample.rawProxyMgDl
+        if (mode == AiDexNormalization.REFERENCE_ONLY) {
+            val candidate = if (logScale.isFinite()) logScale
+                else firstReference?.glucoseMgDl?.let { ln(it.toDouble() / raw) } ?: return null
+            val mmol = (raw * exp(candidate) / AiDexAdaptiveV2.MGDL_PER_MMOL).toFloat()
+            if (!mmol.isFinite() || mmol <= 0f || mmol > 35f) return null
+            logScale = candidate
+            lastTime = sample.timestampMs
+            lastRaw = raw
+            return Signal(mmol, (DEFAULT_SCATTER * DEFAULT_SCATTER).toFloat())
+        }
+        // An unusable output must not move the continuation.
+        if (logScale.isFinite() && !usable(exp(logScale) * raw + offset)) return null
+        val factory = sample.factoryMgDl
+        val validFactory = validFactory(factory)
+        val elapsed = if (lastTime > 0L) (sample.timestampMs - lastTime) / 60_000.0 else 1.0
+        while (pairs.isNotEmpty() && sample.timestampMs - pairs.first().first > WINDOW_MS) pairs.removeFirst()
+        while (longPairs.isNotEmpty() && sample.timestampMs - longPairs.first().first > OFFSET_WINDOW_MS) longPairs.removeFirst()
+        val scaleGuess = if (logScale.isFinite()) exp(logScale) else if (validFactory) factory.toDouble() / raw else Double.NaN
+        // A factory derivative/overshoot must not train the curve.
+        val stable = validFactory && lastRaw.isFinite() && lastFactory.isFinite() &&
+            elapsed in 0.5..2.0 &&
+            abs(factory - lastFactory) / elapsed < 1.8 &&
+            abs(raw - lastRaw) * scaleGuess / elapsed < 1.8
+        val step = elapsed.coerceAtMost(2.0)
+        if (stable) {
+            pairs.addLast(Triple(sample.timestampMs, raw, factory))
+            if (stableCount++ % OFFSET_SUBSAMPLE == 0L) {
+                longPairs.addLast(Triple(sample.timestampMs, raw, factory))
+                while (longPairs.size > MAX_LONG_PAIRS) longPairs.removeFirst()
+                fitOffset()
+            }
+        }
+        offset += (offsetTarget - offset) * (1.0 - exp(-ln(2.0) * step / OFFSET_HALF_LIFE_MINUTES))
+        val target = targetLogScale()
+        if (target != null) {
+            if (!logScale.isFinite()) {
+                logScale = target
+            } else {
+                val fraction = 1.0 - exp(-ln(2.0) * step / HALF_LIFE_MINUTES)
+                logScale += ((target - logScale) * fraction).coerceIn(-MAX_LOG_STEP * elapsed, MAX_LOG_STEP * elapsed)
+            }
+        }
+        lastTime = sample.timestampMs
+        lastRaw = raw
+        lastFactory = if (validFactory) factory else Float.NaN
+        if (!logScale.isFinite()) return null
+        val glucose = exp(logScale) * raw + offset
+        if (!usable(glucose)) return null
+        return Signal((glucose / AiDexAdaptiveV2.MGDL_PER_MMOL).toFloat(), scatterSquared())
+    }
+
+    private fun ratios(): DoubleArray? {
+        if (pairs.size < MIN_PAIRS) return null
+        val values = pairs.mapNotNull { (_, r, f) -> (f - offsetTarget).takeIf { it > 0.0 }?.let { ln(it / r) } }
+        return if (values.size < MIN_PAIRS) null else values.sorted().toDoubleArray()
+    }
+
+    private fun targetLogScale(): Double? = ratios()?.let { it[it.size / 2] }
+
+    private fun scatterSquared(): Float {
+        val ordered = ratios() ?: return (DEFAULT_SCATTER * DEFAULT_SCATTER).toFloat()
+        val residuals = DoubleArray(ordered.size) { abs(ordered[it] - logScale) }.apply { sort() }
+        val scatter = max(MIN_SCATTER, 1.4826 * residuals[residuals.size / 2])
+        return (scatter * scatter).toFloat()
+    }
+
+    /** Huber-weighted affine fit over the long window, with a zero-mean prior on the offset. */
+    private fun fitOffset() {
+        val n = longPairs.size
+        if (n < 2 || longPairs.last().first - longPairs.first().first < MIN_OFFSET_SPAN_MS) return
+        val weights = DoubleArray(n) { 1.0 }
+        val residuals = DoubleArray(n)
+        var noise = MIN_NOISE_MGDL * MIN_NOISE_MGDL
+        var c = 0.0
+        repeat(FIT_ITERATIONS) {
+            var sw = 0.0; var sr = 0.0; var sf = 0.0; var srr = 0.0; var srf = 0.0
+            longPairs.forEachIndexed { i, (_, r, f) ->
+                val w = weights[i]
+                sw += w; sr += w * r; sf += w * f; srr += w * r * r; srf += w * r * f
+            }
+            val prior = noise / (OFFSET_PRIOR_SD_MGDL * OFFSET_PRIOR_SD_MGDL)
+            val det = srr * (sw + prior) - sr * sr
+            if (det <= 1e-9) return
+            var a = (srf * (sw + prior) - sr * sf) / det
+            c = ((srr * sf - sr * srf) / det).coerceIn(-MAX_OFFSET_MGDL, MAX_OFFSET_MGDL)
+            if (!a.isFinite() || !c.isFinite()) return
+            a = (srf - c * sr) / srr
+            if (a <= 0.0) return
+            longPairs.forEachIndexed { i, (_, r, f) -> residuals[i] = f - (a * r + c) }
+            val ordered = DoubleArray(n) { abs(residuals[it]) }.apply { sort() }
+            val spread = max(MIN_NOISE_MGDL, 1.4826 * ordered[n / 2])
+            noise = spread * spread
+            val threshold = HUBER_K * spread
+            for (i in 0 until n) weights[i] = if (abs(residuals[i]) <= threshold) 1.0 else threshold / abs(residuals[i])
+        }
+        offsetTarget = c
+    }
+
+    private fun usable(glucoseMgDl: Double): Boolean {
+        val mmol = glucoseMgDl / AiDexAdaptiveV2.MGDL_PER_MMOL
+        return mmol.isFinite() && mmol > 0.0 && mmol <= 35.0
+    }
+
+    private fun validFactory(factory: Float) = factory.isFinite() &&
+        factory in (0.6f * AiDexAdaptiveV2.MGDL_PER_MMOL)..(35f * AiDexAdaptiveV2.MGDL_PER_MMOL)
+
+    fun writeTo(out: DataOutputStream) {
         out.writeDouble(logScale)
+        out.writeDouble(offset)
+        out.writeDouble(offsetTarget)
         out.writeLong(lastTime)
         out.writeFloat(lastRaw)
         out.writeFloat(lastFactory)
-        out.writeInt(ratios.size)
-        ratios.forEach { out.writeLong(it.first); out.writeDouble(it.second) }
+        out.writeLong(stableCount)
+        for (deque in listOf(pairs, longPairs)) {
+            out.writeInt(deque.size)
+            deque.forEach { out.writeLong(it.first); out.writeFloat(it.second); out.writeFloat(it.third) }
+        }
     }
 
     fun readFrom(input: DataInputStream) {
         logScale = input.readDouble()
+        offset = input.readDouble()
+        offsetTarget = input.readDouble()
         lastTime = input.readLong()
         lastRaw = input.readFloat()
         lastFactory = input.readFloat()
+        stableCount = input.readLong()
         require(logScale.isNaN() || (logScale.isFinite() && abs(logScale) < 20))
+        require(offset.isFinite() && abs(offset) <= MAX_OFFSET_MGDL && offsetTarget.isFinite() && abs(offsetTarget) <= MAX_OFFSET_MGDL)
         require(lastTime >= 0L && (lastRaw.isNaN() || (lastRaw.isFinite() && lastRaw > 0f)))
         require(lastFactory.isNaN() || lastFactory.isFinite())
-        val count = input.readInt()
-        require(count in 0..120)
-        ratios.clear()
-        repeat(count) {
-            val time = input.readLong()
-            val ratio = input.readDouble()
-            require(time in 1..lastTime && ratio.isFinite() && abs(ratio) < 20)
-            require(ratios.isEmpty() || time > ratios.last().first)
-            ratios.addLast(time to ratio)
+        require(stableCount >= 0L)
+        for ((deque, limit) in listOf(pairs to MAX_PAIRS, longPairs to MAX_LONG_PAIRS)) {
+            val count = input.readInt()
+            require(count in 0..limit)
+            deque.clear()
+            repeat(count) {
+                val time = input.readLong()
+                val raw = input.readFloat()
+                val factory = input.readFloat()
+                require(time in 1..lastTime && raw.isFinite() && raw > 0f && factory.isFinite() && factory > 0f)
+                require(deque.isEmpty() || time > deque.last().first)
+                deque.addLast(Triple(time, raw, factory))
+            }
         }
     }
 
     companion object {
         private const val WINDOW_MS = 60 * 60_000L
+        private const val MAX_PAIRS = 120
         private const val MIN_PAIRS = 15
         private const val HALF_LIFE_MINUTES = 360.0
+        private const val MAX_LOG_STEP = 0.002
+        private const val OFFSET_WINDOW_MS = 48 * 60 * 60_000L
+        private const val MIN_OFFSET_SPAN_MS = 24 * 60 * 60_000L
+        private const val OFFSET_SUBSAMPLE = 5L
+        private const val MAX_LONG_PAIRS = 600
+        private const val OFFSET_HALF_LIFE_MINUTES = 12 * 60.0
+        private const val FIT_ITERATIONS = 3
+        private const val HUBER_K = 1.345
+        private const val MIN_NOISE_MGDL = 3.0
+        /** One mmol/L: an offset needs raw range across the window to be believed. */
+        private const val OFFSET_PRIOR_SD_MGDL = 18.0
+        private const val MAX_OFFSET_MGDL = 72.0
+        private const val DEFAULT_SCATTER = 0.15
+        private const val MIN_SCATTER = 0.08
     }
 }

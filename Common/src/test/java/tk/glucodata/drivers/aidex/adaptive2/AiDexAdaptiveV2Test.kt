@@ -10,14 +10,57 @@ class AiDexAdaptiveV2Test {
         session: Long = start, temperature: Float = 34f) =
         AiDexAdaptiveSample(session + index * 60_000L, session, raw, factory, temperature)
 
+    /** Bootstraps from a run of stable pairs, then must stay available. */
     private fun settled(): AiDexAdaptiveV2 = AiDexAdaptiveV2().apply {
-        repeat(180) { check(process(sample(it)) != null) }
+        var available = false
+        repeat(180) {
+            val produced = process(sample(it)) != null
+            check(produced || !available)
+            available = available || produced
+        }
+        check(available)
     }
 
     @Test fun `normalization keeps explicit transport units`() {
-        val result = AiDexAdaptiveV2().process(sample(0, 50f, 150f))!!
-        assertEquals(3f, result.rawToGlucoseScale, 0.00001f)
-        assertEquals(150f / AiDexAdaptiveV2.MGDL_PER_MMOL, result.estimate.glucoseMmol, 0.001f)
+        val model = AiDexAdaptiveV2()
+        var result: AiDexAdaptiveResult? = null
+        repeat(40) { result = model.process(sample(it, 50f, 150f)) ?: result }
+        assertEquals(3f, result!!.rawToGlucoseScale, 0.00001f)
+        assertEquals(150f / AiDexAdaptiveV2.MGDL_PER_MMOL, result!!.estimate.glucoseMmol, 0.01f)
+    }
+
+    @Test fun `a single warm-up pair cannot set the scale`() {
+        val model = AiDexAdaptiveV2()
+        assertNull(model.process(sample(0, raw = 200f, factory = 270f)))
+        var result: AiDexAdaptiveResult? = null
+        for (i in 1..40) result = model.process(sample(i)) ?: result
+        assertEquals(1f, result!!.rawToGlucoseScale, 0.01f)
+        assertEquals(100f / AiDexAdaptiveV2.MGDL_PER_MMOL, result!!.estimate.glucoseMmol, 0.1f)
+    }
+
+    @Test fun `a reference is not applied again once the factory curve has caught up`() {
+        // Factory moves to 1.2x raw and a reference confirms the factory value
+        // while the slow scale is still catching up. The scale's lag is not a
+        // sensor error: once it converges the output must sit on the reference.
+        val model = settled()
+        val referenceMinute = 260
+        var last: AiDexAdaptiveResult? = null
+        for (i in 180..2400) {
+            val refs = if (i == referenceMinute) listOf(AiDexReference(start + i * 60_000L, 120f)) else emptyList()
+            last = model.process(sample(i, factory = 120f), refs) ?: last
+        }
+        assertEquals(120f / AiDexAdaptiveV2.MGDL_PER_MMOL, last!!.estimate.glucoseMmol, 0.3f)
+    }
+
+    @Test fun `an aged sensor offset is learned and keeps lows from being exaggerated`() {
+        // factory = 0.8 * raw + 40 mg/dL. A pure ratio would put raw 60 near 60*1.0.
+        val model = AiDexAdaptiveV2()
+        fun raw(i: Int) = 130f + 70f * kotlin.math.sin(i * 2.0 * Math.PI / 360.0).toFloat()
+        for (i in 0 until 4 * 1440) model.process(sample(i, raw = raw(i), factory = 0.8f * raw(i) + 40f))
+        var result: AiDexAdaptiveResult? = null
+        val low = 4 * 1440
+        repeat(10) { result = model.process(sample(low + it, raw = 60f, factory = Float.NaN)) ?: result }
+        assertEquals((0.8f * 60f + 40f) / AiDexAdaptiveV2.MGDL_PER_MMOL, result!!.normalizedRawMmol, 0.4f)
     }
 
     @Test fun `factory overshoot does not become a glucose excursion`() {
@@ -70,10 +113,15 @@ class AiDexAdaptiveV2Test {
         }
     }
 
-    @Test fun `first minute reference is assimilated`() {
-        val noReference = AiDexAdaptiveV2().process(sample(0))!!
-        val anchored = AiDexAdaptiveV2().process(sample(0), listOf(AiDexReference(start, 130f)))!!
-        assertTrue(anchored.estimate.glucoseMmol > noReference.estimate.glucoseMmol)
+    @Test fun `a reference during bootstrap is assimilated`() {
+        val noReference = AiDexAdaptiveV2()
+        val anchored = AiDexAdaptiveV2()
+        assertNull(anchored.process(sample(0), listOf(AiDexReference(start, 130f))))
+        noReference.process(sample(0))
+        var a: AiDexAdaptiveResult? = null
+        var b: AiDexAdaptiveResult? = null
+        for (i in 1..40) { a = anchored.process(sample(i)) ?: a; b = noReference.process(sample(i)) ?: b }
+        assertTrue(a!!.estimate.glucoseMmol > b!!.estimate.glucoseMmol + 1f)
     }
 
     @Test fun `stale duplicate and old session do not mutate the checkpoint`() {
@@ -87,8 +135,9 @@ class AiDexAdaptiveV2Test {
     @Test fun `explicit reset starts fresh and rejects previous session packets`() {
         val model = settled()
         val reset = start + 200 * 60_000L
-        val fresh = model.process(sample(0, raw = 50f, factory = 100f, session = reset))!!
-        assertEquals(2f, fresh.rawToGlucoseScale, 0.0001f)
+        var fresh: AiDexAdaptiveResult? = null
+        for (i in 0..40) fresh = model.process(sample(i, raw = 50f, factory = 100f, session = reset)) ?: fresh
+        assertEquals(2f, fresh!!.rawToGlucoseScale, 0.0001f)
         val before = model.snapshot()
         assertNull(model.process(sample(201)))
         assertArrayEquals(before, model.snapshot())

@@ -105,6 +105,21 @@ changes only through a completed driver rebuild. Import commits share active AiD
 writer locks and recheck applied modes and original samples; concurrent imports
 are serialized. Originals are restored before new ownership becomes observable.
 
+With Stock requested and applied, a replay does not rewrite history: Room and
+native already hold the factory values through the direct writers. It writes
+only journal minutes Room lacks or holds a different number for (a failed live
+or history write, a native-only minute), with the same three-attempt bound.
+A rewrite of Auto history the driver does not calibrate voids a recorded
+display value only at minutes whose stored number actually changed; replaying
+the same factory numbers keeps every record. The original journal is an input
+to rebuilds, never a gate on a reading: a journal I/O failure publishes and
+stores the factory value under the applied mode, and an unreadable journal is
+moved aside (`.corrupt-<time>`) rather than failing every later load. Missing
+originals are then refetched or fail the rebuild closed, as before.
+A live rate is the difference between neighbouring readings of the same kind
+(model or factory fallback) at most five minutes apart, else unknown, which
+publishes as 0 as the trendless native result did; a Stock trend byte wins.
+
 Live and replay use the same causal one-minute reference window. An anchor on a
 rawless or unusable minute remains available to the next usable sample within
 that window; the estimator consumes accepted references once. Restart and the
@@ -153,15 +168,35 @@ AiDex adaptations:
   samples. The model accepts this proxy and factory glucose as separate inputs
   in mg/dL; internal glucose arithmetic uses mmol/L with `18.0182` mg/dL per
   mmol/L. It does not treat `i1` itself as mmol/L.
-- **Factory-assisted** normalization bootstraps an explicit scale from a valid
-  factory/raw pair. Subsequent learning uses stable pairs in a 60-minute window,
-  their robust median log ratio, and a six-hour adaptation half-life. Current
-  factory spikes do not directly change the glucose observation. This remains
-  a hybrid with a manufacturer-derived scale; it cannot correct arbitrary
-  manufacturer bias without independent references.
-- **Reference-only** normalization waits for a timely reference to establish
-  the scale and thereafter does not use factory glucose for estimation. Further
-  references update the residual sensitivity/bias states. Without a reference,
+- **Factory-assisted** normalization maps raw to glucose as
+  `scale * raw + offset`. The scale is the robust median ratio of stable
+  factory/raw pairs in a 60-minute window, with a six-hour adaptation half-life.
+  It starts from the median of the first 15 stable pairs, never from a single
+  pair: KT3T's first pair (15.3 / 11.5, a warm-up artifact) put the model 3–4
+  mmol/L high for hours. Until then the factory value is published.
+  The offset is fitted (Huber-weighted, zero-mean prior with a 1 mmol/L SD,
+  ±4 mmol/L bound) only over at least a day of pairs from a 48-hour window,
+  with a 12-hour half-life. A pure ratio cannot represent the offset an aging
+  sensor develops: on KT3T days 9–13 factory fits `a·raw + c` with c ≈ +2.1 to
+  +2.6 mmol/L at half the error of `k·raw`, and the ratio model turned low raw
+  values into exaggerated lows. A six-hour affine fit was tried and rejected:
+  on KUFY the offset swung between −2.4 and +4.0 mmol/L.
+  Current factory spikes do not directly change the glucose observation. This
+  remains a hybrid with a manufacturer-derived curve; it cannot correct
+  arbitrary manufacturer bias without independent references.
+- In factory-assisted mode, **references correct the output**, not the
+  estimator's residual sensitivity/bias states. Each reference's error is
+  measured against the curve the normaliser is converging to at that minute
+  (its current median-ratio target plus fitted offset), then averaged with a
+  1.5-day age decay and a prior weight of a quarter reference (a fresh single
+  reference corrects 80% of its error), bounded to ±2.5 mmol/L. Measuring
+  against the normalised signal instead, and holding the result in the
+  estimator's states, applied the curve's own lag a second time once it caught
+  up: on KT3T the calibrated model sat 1.1–1.7 mmol/L below factory for two
+  weeks, and S drifted to 1.24.
+- **Reference-only** normalization (replay only) waits for a timely reference to
+  establish the scale and thereafter does not use factory glucose for
+  estimation. Further references update the residual sensitivity/bias states. Without a reference,
   raw alone cannot establish absolute glucose. KUFY has none in this export.
 - Sibionics factory compensation, sensitivity constants, impedance semantics,
   vendor quality bits and deterministic lag correction are absent. Unknown
@@ -169,7 +204,10 @@ AiDex adaptations:
   of 12 min² are explicit modelling assumptions, not recovered factory values.
 - Absolute scale uncertainty is added to each output-mixture component. Its
   assumed log-scale SD floor is 8%, rising to 15% without enough stable pairs;
-  these bounds and the nominal interval coverage are not clinically validated.
+  reference corrections add their own variance. These bounds and the nominal
+  interval coverage are not clinically validated: the no-reference 90% band
+  contains 22 of 29 saved references (76%). It was deliberately not tuned to
+  those 29 points.
 - Real lows and sharp raw rises remain reachable; there is no 3–4 mmol/L floor.
   Missing/invalid raw yields no estimate instead of an invented raw observation.
   The inherited physical state bounds remain 0.6–35 mmol/L. Six KT3T samples
@@ -184,6 +222,30 @@ The inherited residual sensitivity bounds (roughly ±25%) and bias bounds
 operation cannot replace continuous independent references on a deteriorating
 sensor simply by estimating more latent states. These constraints, normalization
 adaptation speed and lack of sensor-state telemetry are remaining research issues.
+
+## Revision, 2026-10-15
+
+Re-scored with the same replay on the same private export after the
+normaliser and reference changes above. "False low" counts minutes where the
+displayed value (model, else factory fallback) is below 3.0 mmol/L while
+factory reads at least 3.9. No constant was optimised against the reference
+scores; the offset window was chosen against KUFY/KT3T factory agreement.
+
+| KT3T | Factory | Before | After |
+| --- | ---: | ---: | ---: |
+| Calibrated: false-low minutes | — | 3,062 | 510 |
+| Calibrated: minutes < 2.2 | 1,572 | 5,179 | 1,640 |
+| Calibrated: pre-reference MAE (29) | 0.686 | 0.912 | 0.853 |
+| Calibrated: worst pre-reference error | | −3.81 | −2.58 |
+| No references: MAE (29) | 0.686 | 1.273 | 1.117 |
+| No references: minutes < 2.2 | 1,572 | 2,100 | 2,366 |
+| First 12 h, median abs(model − factory) | | 2.47 | 0.65 |
+
+KUFY: 7 false-low minutes (before 0) and a first-12-hour median difference
+from factory of 1.08 (before 1.14). The calibrated model now reads low at
+higher glucose: mean pre-reference error −0.80 mmol/L at references of 5.5 or
+more (before −0.13). It is still less accurate than factory on these
+references; the conclusion below is unchanged.
 
 ## Private export evaluation, 2026-10-14
 
