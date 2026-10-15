@@ -2650,8 +2650,7 @@ private fun JournalPresetPill(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = preset.displayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)

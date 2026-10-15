@@ -409,7 +409,7 @@ fun CalibrationBottomSheet(
                                 Text(
                                     ":",
                                     style = MaterialTheme.typography.displayMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 8.dp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -628,7 +628,7 @@ fun CustomTimeField(
                 textStyle = MaterialTheme.typography.displayMedium.copy(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,

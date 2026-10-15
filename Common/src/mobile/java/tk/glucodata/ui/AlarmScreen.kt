@@ -428,9 +428,7 @@ private fun ActionDock(
                 ) {
                     Text(
                         text = stringResource(R.string.snooze),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        )
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }

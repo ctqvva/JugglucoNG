@@ -235,7 +235,7 @@ fun ReadingRow(
             val trendSlotWidth = 30.dp
             val timeStyle = MaterialTheme.typography.bodySmall
             val timeColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            val timeWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
             val cloneTransport = GlucoseReadingSource.cloneTransport(point.source)
             val isNightscoutSource = point.source == GlucoseReadingSource.NIGHTSCOUT
             val isRawModeRR = viewMode == 1 || viewMode == 3

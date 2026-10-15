@@ -4449,7 +4449,7 @@ fun InteractiveGlucoseChart(
                         }
                         val styledText = androidx.compose.ui.text.buildAnnotatedString {
                             // Primary Value
-                            withStyle(SpanStyle(color = primaryTooltipColor, fontWeight = FontWeight.Bold)) {
+                            withStyle(SpanStyle(color = primaryTooltipColor, fontWeight = FontWeight.SemiBold)) {
                                 append(dvs.primaryStr)
                             }
 
@@ -4458,7 +4458,7 @@ fun InteractiveGlucoseChart(
                                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
                                     append(" · ")
                                 }
-                                withStyle(SpanStyle(color = LocalContentColor.current.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)) {
+                                withStyle(SpanStyle(color = LocalContentColor.current.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold)) {
                                     append(sec)
                                 }
                             }

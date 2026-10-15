@@ -92,8 +92,7 @@ fun SensorTypePicker(
             item {
                 Text(
                     text = stringResource(R.string.select_sensor_type),
-                    style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = if (compact) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleLargeEmphasized,
                     modifier = Modifier.padding(bottom = if (compact) 2.dp else 4.dp)
                 )
             }

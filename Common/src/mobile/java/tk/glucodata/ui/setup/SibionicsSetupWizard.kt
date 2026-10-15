@@ -919,7 +919,7 @@ fun SelectTypeStep(
                             Text(
                                 text = stringResource(type.displayNameRes),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else null,
                                 color = if (isSelected)
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else

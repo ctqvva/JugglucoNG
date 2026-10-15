@@ -219,7 +219,7 @@ fun ImportHistoryCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.import_history),
-                    style = MaterialTheme.typography.titleSmallEmphasized,)
+                    style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = stringResource(R.string.import_history_desc),
                     style = MaterialTheme.typography.bodySmall,

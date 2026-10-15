@@ -759,7 +759,7 @@ private fun LibreSetupAdvancedSection(
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.SemiBold else null
                             )
                             Text(
                                 text = description,

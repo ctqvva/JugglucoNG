@@ -124,7 +124,6 @@ fun QuietWindowCard(
                     Text(
                         text = stringResource(R.string.quiet_window_title),
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
