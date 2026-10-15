@@ -437,4 +437,58 @@ class CombinedSensorIntegrationTests {
         assertEquals(id, tagged.sensorSerial)
     }
 
+    @Test fun defaultCombinedChartAndScrubberShowOneLineAndExplicitPeersRemainSeparate() {
+        CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+        val id = CombinedSensorRegistry.config().sensorId
+        val now = System.currentTimeMillis()
+        for (mmol in listOf(false, true)) {
+            val divisor = if (mmol) 18.0182f else 1f
+            val unit = if (mmol) "mmol/L" else "mg/dL"
+            val combined = (0..8).map { minute -> tk.glucodata.ui.GlucosePoint(
+                (if (minute == 4) 140f else 119f) / divisor, "", now - (8 - minute) * 60_000L,
+                sensorSerial = id, source = GlucoseReadingSource.COMBINED) }
+            fun resolve(peers: tk.glucodata.ui.MultiSensorDisplayData) = tk.glucodata.ui.resolveDashboardChart(
+                tk.glucodata.ui.ChartResolutionInputs(combined, peers, 5, false,
+                    tk.glucodata.chart.MainSensorOwnership.NONE, 0L, 3, true, false, id, 0))
+            val single = resolve(tk.glucodata.ui.MultiSensorDisplayData.EMPTY)
+            assertEquals(listOf(id), MultiSensorSelection.selectedOrder())
+            assertEquals(1, single.chartModel.series.size)
+            val primary = single.chartModel.primary!!
+            assertTrue(primary.secondaryLanes.isEmpty())
+            val point = combined[4]
+            val drawn = primary.cursorAt(point.timestamp)!!.line!!.value
+            assertNotEquals(point.value, drawn)
+            val scrub = tk.glucodata.ui.resolveChartScrubValues(point, 3, unit, drawn, true)
+            assertEquals(drawn, scrub.primaryValue, 0.001f)
+            assertNull(scrub.secondaryStr)
+            assertNull(scrub.tertiaryStr)
+
+            // Only an explicitly selected peer adds its independent trace and row.
+            MultiSensorSelection.setSelectedOrder(listOf(id, "b"))
+            val physical = combined.map { it.copy(value = 141f / divisor, sensorSerial = "b", source = GlucoseReadingSource.SENSOR) }
+            val peers = tk.glucodata.ui.MultiSensorDisplay.buildDisplayData(physical, listOf("b"), mapOf("b" to 0), listOf(id, "b"))
+            val withPeer = resolve(peers).chartModel
+            assertEquals(2, withPeer.series.size)
+            assertEquals(listOf("b"), withPeer.peers.map { it.sensorId })
+            assertTrue(withPeer.primary!!.secondaryLanes.isEmpty())
+            assertEquals(141f / divisor, withPeer.peers.single().cursorAt(point.timestamp)!!.line!!.value, 0.001f)
+            MultiSensorSelection.setSelectedOrder(listOf(id))
+        }
+    }
+
+    @Test fun physicalScrubberRetainsItsCalibrationAndRawLanes() {
+        val point = tk.glucodata.ui.GlucosePoint(100f, "", 1L, rawValue = 90f, sensorSerial = "a")
+        val calibration = tk.glucodata.data.calibration.CalibrationManager
+        val previous = calibration.shouldHideInitialWhenCalibrated()
+        try {
+            for (hide in listOf(false, true)) {
+                calibration.setHideInitialWhenCalibrated(hide)
+                val display = tk.glucodata.ui.resolveChartScrubValues(point, 2, "mg/dL", 105f, true)
+                assertEquals(105f, display.primaryValue)
+                assertEquals(if (hide) "90" else "100", display.secondaryStr)
+                assertEquals(if (hide) null else "90", display.tertiaryStr)
+            }
+        } finally { calibration.setHideInitialWhenCalibrated(previous) }
+    }
+
 }

@@ -23,6 +23,12 @@ the native history storage window is not a sensor lifetime. The dashboard uses t
 same resolved combined rate as alerts and integrations, leaving its arrow unavailable
 when continuity is unknown.
 
+The chart follows the display selection too: the default has one combined trace
+and one scrubber value taken from the line under the cursor, including after
+smoothing. An explicitly selected physical peer adds its own trace and scrubber
+row. Combined points never create raw, uncalibrated or calibration-preview lanes,
+including when they appear in a timeline whose current sensor uses a raw view mode.
+
 The Sensors screen contains the switch with one short active/waiting/fallback
 status. There is no separate dashboard-only estimate or combination switch in Alerts.
 The **Sensor disagreement** warning remains independently configurable under Alerts.
@@ -110,3 +116,5 @@ The dashboard header was also rendered in
 [English](images/combined-dashboard-en.png) and
 [Russian](images/combined-dashboard-ru.png), including a transition with an unavailable
 trend and stale physical-lifetime fields.
+The [combined chart scrubber](images/combined-chart-scrub.png) was also rendered
+from Compose with one trace and its matching cursor value.

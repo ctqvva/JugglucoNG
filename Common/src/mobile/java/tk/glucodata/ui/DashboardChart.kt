@@ -730,13 +730,33 @@ data class ChartTimelineTapSuggestion(
     val forceMenu: Boolean = false
 )
 
-/** A peer's row in the scrub tooltip: its smoothed point, and what its line drew there when that is not the point's own value. */
+/** A peer's row in the scrub tooltip, resolved from the line the cursor marks. */
 private class TooltipPeerRow(
-    val viewMode: Int,
     val color: Color,
-    val point: GlucosePoint,
-    val calibratedValue: Float?,
+    val displayValues: DisplayValues,
 )
+
+internal fun resolveChartScrubValues(
+    point: GlucosePoint,
+    viewMode: Int,
+    unit: String,
+    drawnValue: Float?,
+    hasCalibration: Boolean
+): DisplayValues {
+    val lineValue = drawnValue?.takeIf { it.isFinite() && it > 0.1f }
+    if (point.source == tk.glucodata.GlucoseReadingSource.COMBINED ||
+        tk.glucodata.combined.CombinedSensorRegistry.isCombined(point.sensorSerial)) {
+        // Smoothing can move the line away from the stored value. That is still
+        // one final combined value, not a second calibration/source lane.
+        return DisplayValueResolver.resolve(
+            lineValue ?: getDisplayValues(point, 0, unit).primaryValue,
+            Float.NaN, 0, if (unit.isNotEmpty()) GlucoseFormatter.isMmol(unit) else GlucoseFormatter.isMmolApp(), unit
+        )
+    }
+    val isRaw = viewMode == 1 || viewMode == 3
+    val calibrated = lineValue?.takeIf { hasCalibration || it != (if (isRaw) point.rawValue else point.value) }
+    return getDisplayValues(point, viewMode, unit, calibrated)
+}
 
 private fun List<GlucosePoint>.sliceByTimestampRange(startMillis: Long, endMillis: Long): List<GlucosePoint> {
     if (isEmpty()) return emptyList()
@@ -4328,12 +4348,8 @@ fun InteractiveGlucoseChart(
                 // AXIS TEXT MATCHING
                 val axisFontSize = 12.sp
 
-                // Compute calibrated value for tooltip
-                val isRawModeTT = viewMode == 1 || viewMode == 3
-                val calibratedValueTT = chartModel.primary?.valueAt(point.timestamp)
-                    ?.takeIf { it.isFinite() && it > 0.1f }
-                    ?.takeIf { hasCalibration || it != (if (isRawModeTT) point.rawValue else point.value) }
-                val dvs = getDisplayValues(point, viewMode, unit, calibratedValueTT)
+                val dvs = resolveChartScrubValues(point, viewMode, unit,
+                    chartModel.primary?.cursorAt(point.timestamp)?.line?.value, hasCalibration)
                 // Peer rows read what the peer's line drew — calibrated, smoothed,
                 // recorded — not the sensor's own point from before any of that.
                 val tooltipPeerRows = chartModel.peers.mapNotNull { series ->
@@ -4342,14 +4358,8 @@ fun InteractiveGlucoseChart(
                         ?.points
                         ?.let { tk.glucodata.chart.nearestInMinuteOf(it, point.timestamp) { p -> p.timestamp } }
                         ?: return@mapNotNull null
-                    val peerIsRaw = series.viewMode == 1 || series.viewMode == 3
-                    val calibrated = cursor.line?.value
-                        ?.takeIf { it.isFinite() && it > 0.1f }
-                        ?.takeIf {
-                            peerHasCalibration[series.sensorId] == true ||
-                                it != (if (peerIsRaw) source.rawValue else source.value)
-                        }
-                    TooltipPeerRow(series.viewMode, Color(series.colorArgb), source, calibrated)
+                    TooltipPeerRow(Color(series.colorArgb), resolveChartScrubValues(source,
+                        series.viewMode, unit, cursor.line?.value, peerHasCalibration[series.sensorId] == true))
                 }
 
                 // --- 1. INFO CARD (Top) ---
@@ -4523,11 +4533,10 @@ fun InteractiveGlucoseChart(
                                 peer.color,
                                 tk.glucodata.SensorVisuals.PEER_TEXT_BLEND
                             )
-                            val peerDvs = getDisplayValues(peer.point, peer.viewMode, unit, peer.calibratedValue)
                             Text(
                                 modifier = Modifier.padding(top = 4.dp),
                                 text = buildGlucoseString(
-                                    peerDvs,
+                                    peer.displayValues,
                                     peerTextColor,
                                     statusContentColor.copy(alpha = 0.68f),
                                     statusContentColor.copy(alpha = 0.48f),
