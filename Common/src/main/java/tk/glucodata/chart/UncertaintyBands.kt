@@ -7,8 +7,13 @@ import tk.glucodata.SensorIdentity
 /** Geometry shared by Compose and bitmap charts; missing intervals break a band. */
 object UncertaintyBands {
     const val PREFERENCE_KEY = "glucose_uncertainty_ribbon"
-    const val FILL_ALPHA = 0.26f
-    const val EDGE_ALPHA = 0.42f
+    /**
+     * Between the forecast shading and the line: 0.26/0.42 read as a second,
+     * heavier curve over the reading. The edge keeps the boundary legible where
+     * the target-range fill lies on top (a 0.16 fill without one disappeared).
+     */
+    const val FILL_ALPHA = 0.13f
+    const val EDGE_ALPHA = 0.26f
     const val FORECAST_ALPHA = 0.055f
     const val FORECAST_FADE_MS = 5 * 60_000L
 

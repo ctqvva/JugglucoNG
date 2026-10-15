@@ -57,8 +57,10 @@ class NotificationUncertaintyRibbonTests {
             true, 0, false, Color.WHITE, Color.GRAY, Color.GRAY,
             0L, 10 * 60_000L, 0f, 240f, 480f, 240f, 0f, 10f)
         // Near the lower edge, far outside the old narrow forecast band.
-        assertTrue("Historical edge remains visible", Color.alpha(bitmap.getPixel(238, 140)) > 50)
-        assertTrue("Forecast inherits the edge's opacity", Color.alpha(bitmap.getPixel(242, 140)) > 50)
+        // Tied to the band's own opacity, not to one particular tuning of it.
+        val visible = (UncertaintyBands.FILL_ALPHA * 255f * 0.8f).toInt()
+        assertTrue("Historical edge remains visible", Color.alpha(bitmap.getPixel(238, 140)) >= visible)
+        assertTrue("Forecast inherits the edge's opacity", Color.alpha(bitmap.getPixel(242, 140)) >= visible)
         val output = System.getProperty("juggluco.chartQaDir") ?: System.getenv("JUGGLUCO_CHART_QA_DIR")
         if (output != null) File(output).apply { mkdirs() }.resolve("forecast-join.png")
             .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
