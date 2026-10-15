@@ -4373,13 +4373,15 @@ public class Notify {
         GluNotBuilder.setOnlyAlertOnce(once);
 
         // Standard fields carry the value/status/unit fallback for TalkBack and system
-        // notification surfaces that ignore the custom content.
-        GluNotBuilder.setContentTitle(valueText != null && valueText.length() > 0
-                ? (customPhone ? valueText.toString() : valueText.toString() + " "
-                        + app.getString(isMmol ? R.string.mmolL : R.string.mgdL))
-                : message);
-        if (newStatusText != null && newStatusText.length() > 0) {
-            GluNotBuilder.setContentText(newStatusText.toString());
+        // notification surfaces that ignore the custom content. The ongoing phone
+        // notification leaves them empty (see CustomGlucoseNotification.apply).
+        if (!customPhone) {
+            GluNotBuilder.setContentTitle(valueText != null && valueText.length() > 0
+                    ? valueText.toString() + " " + app.getString(isMmol ? R.string.mmolL : R.string.mgdL)
+                    : message);
+            if (newStatusText != null && newStatusText.length() > 0) {
+                GluNotBuilder.setContentText(newStatusText.toString());
+            }
         }
 
         setIcon(GluNotBuilder, displayGlucoseValue, glucose.sensorgen2, peerValueItems);
@@ -4387,8 +4389,7 @@ public class Notify {
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
         if (customPhone) {
-            CustomGlucoseNotification.apply(GluNotBuilder, valueText, peerValueItems, newStatusText,
-                    remoteViews, remoteViewsExpanded);
+            CustomGlucoseNotification.apply(GluNotBuilder, remoteViews, remoteViewsExpanded);
         } else {
             GluNotBuilder.setStyle(new Notification.DecoratedCustomViewStyle());
             GluNotBuilder.setCustomContentView(remoteViews);

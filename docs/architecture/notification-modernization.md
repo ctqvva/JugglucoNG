@@ -66,6 +66,17 @@ clearing hidden bitmap payloads. Phone/Wear debug/release arm64 APK builds inclu
 R8 validation. These checks do not establish full-app lifecycle behavior, internal
 animation, TalkBack traversal, light-shade behavior or large accessibility settings.
 
+### No standard text on the ongoing phone notification
+
+[#645](https://github.com/ctqvva/JugglucoNG/issues/645): watch companion apps
+such as Haylou Fun forward any notification that has a standard title or text,
+treat every update as a new message, and offer no per-channel filter. #548 put the
+value and delta into those fields, so the watch buzzed on every reading. The
+ongoing phone glucose notification leaves them empty, as it did up to 1.2.2-Alpha.
+Its custom views already give TalkBack the value as native text or a content
+description, plus the arrow and status. Alarm, stale/status and Wear notifications
+keep their standard text, so alarms still reach the watch.
+
 Validation includes focused freshness, refresh coalescing, startup supersession,
 service ownership and publication-recovery tests on phone and Wear. Full-app
 stale transitions and Doze still require device checks; a standalone presentation

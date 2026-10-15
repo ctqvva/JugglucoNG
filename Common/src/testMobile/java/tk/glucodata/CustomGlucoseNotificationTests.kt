@@ -187,15 +187,16 @@ class CustomGlucoseNotificationTests {
         }
     }
 
-    @Test fun notificationKeepsCustomContentAndActualTimestampWithUnitlessFallback() {
+    @Test fun notificationKeepsCustomContentAndActualTimestampWithoutListenerText() {
         val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
             .setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
-        CustomGlucoseNotification.apply(builder, "5,7", listOf(NotificationChartDrawer.ValueItem("5,5", 0, 0f)),
-            "", values(expanded = false), values())
+        CustomGlucoseNotification.apply(builder, values(expanded = false), values())
         val notification = builder.build()
         assertNotNull(notification.contentView)
         assertNotNull(notification.bigContentView)
-        assertEquals("5,7 · 5,5", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        // Watch companion apps forward any notification with standard text (#645).
+        assertNull(notification.extras.getCharSequence(Notification.EXTRA_TITLE))
+        assertNull(notification.extras.getCharSequence(Notification.EXTRA_TEXT))
         assertEquals(123456L, notification.`when`)
     }
 }

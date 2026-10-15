@@ -148,20 +148,11 @@ final class CustomGlucoseNotification {
         views.setViewPadding(id, rtl ? 0 : pixels, 0, rtl ? pixels : 0, 0);
     }
 
-    private static String valueDescription(CharSequence primary,
-            java.util.List<NotificationChartDrawer.ValueItem> peers) {
-        StringBuilder text = new StringBuilder(primary == null ? "" : primary.toString());
-        if (peers != null) for (NotificationChartDrawer.ValueItem peer : peers) {
-            if (peer != null && !peer.text.isEmpty()) text.append(" · ").append(peer.text);
-        }
-        return text.toString();
-    }
-
-    static void apply(android.app.Notification.Builder builder, CharSequence primary,
-            java.util.List<NotificationChartDrawer.ValueItem> peers, CharSequence status,
-            RemoteViews compact, RemoteViews expanded) {
-        builder.setContentTitle(valueDescription(primary, peers)).setContentText(status == null ? "" : status)
-                .setStyle(new android.app.Notification.DecoratedCustomViewStyle())
+    /** No standard title/text: watch companion apps forward any notification that has
+     * them, so each per-reading update reached the watch (#645). The custom views
+     * already expose the readout to TalkBack as native text or content descriptions. */
+    static void apply(android.app.Notification.Builder builder, RemoteViews compact, RemoteViews expanded) {
+        builder.setStyle(new android.app.Notification.DecoratedCustomViewStyle())
                 .setCustomContentView(compact).setCustomBigContentView(expanded);
     }
 
