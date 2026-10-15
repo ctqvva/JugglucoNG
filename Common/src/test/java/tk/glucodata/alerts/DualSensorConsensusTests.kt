@@ -153,6 +153,103 @@ class DualSensorConsensusTests {
         assertTrue(evaluate(engine, 5, 100f, 150f).warningDue)
     }
 
+    private fun staggeredPair(minute: Int, secondValue: Float = 110f) = pair(minute, 100f, secondValue)
+        .mapIndexed { index, reading -> if (index == 1) reading.copy(timeMs = reading.timeMs + 30_000L) else reading }
+
+    @Test fun staggeredFiveMinuteUpdatesKeepPairedEvidenceForTheWarning() {
+        for (leadingIndex in 0..1) {
+            val engine = DualSensorConsensus()
+            var readings = staggeredPair(0, 150f)
+            assertFalse(engine.evaluate(readings, base + 30_000L, 20, 5).warningDue)
+            for (minute in listOf(5, 10, 15)) {
+                val completed = staggeredPair(minute, 150f)
+                readings = readings.toMutableList().also { it[leadingIndex] = completed[leadingIndex] }
+                repeat(2) { tick ->
+                    val waiting = engine.evaluate(readings, completed[leadingIndex].timeMs + tick * 15_000L, 20, 5)
+                    assertEquals(DualSensorConsensus.Status.WAITING_FOR_PEER, waiting.status)
+                    assertNull(waiting.estimateMgdl)
+                    assertFalse(waiting.warningDue)
+                }
+                readings = completed
+                assertTrue("Warning after completed pair, leading sensor $leadingIndex, minute $minute",
+                    engine.evaluate(readings, readings.maxOf { it.timeMs } + 30_000L, 20, 5).warningDue)
+            }
+        }
+    }
+
+    @Test fun staggeredFiveMinuteUpdatesLearnAndHideTheEstimateUntilThePeerArrives() {
+        for (leadingIndex in 0..1) {
+            val engine = DualSensorConsensus()
+            var readings = staggeredPair(0)
+            engine.evaluate(readings, base + 30_000L, 20, 5)
+            for (minute in listOf(5, 10, 15)) {
+                val completed = staggeredPair(minute)
+                readings = readings.toMutableList().also { it[leadingIndex] = completed[leadingIndex] }
+                repeat(2) { tick ->
+                    assertNull(engine.evaluate(readings, completed[leadingIndex].timeMs + tick * 15_000L, 20, 5).estimateMgdl)
+                }
+                readings = completed
+                val result = engine.evaluate(readings, readings.maxOf { it.timeMs } + 30_000L, 20, 5)
+                if (minute < 10) assertNull(result.estimateMgdl)
+                else assertEquals(105f, result.estimateMgdl!!, 0.001f)
+            }
+        }
+    }
+
+    @Test fun aPartialUpdateWithinTheTimingLimitCannotProveRecoveryOrProvideAnEstimate() {
+        val engine = DualSensorConsensus()
+        engine.evaluate(pair(0, 100f, 150f), base, 20, 1)
+        val partial = listOf(pair(1, 150f, 150f)[0], pair(0, 100f, 150f)[1])
+        val waiting = engine.evaluate(partial, base + 60_000L, 20, 1)
+        assertEquals(DualSensorConsensus.Status.WAITING_FOR_PEER, waiting.status)
+        assertNull(waiting.differencePercent)
+        val completed = listOf(partial[0], partial[1].copy(timeMs = base + 90_000L, mgdl = 225f))
+        assertTrue(engine.evaluate(completed, base + 90_000L, 20, 1).warningDue)
+
+        engine.reset()
+        for (minute in 0..2) evaluate(engine, minute)
+        val updating = listOf(pair(3, 105f)[0], pair(2)[1])
+        assertNull(engine.evaluate(updating, base + 180_000L, 20, 5).estimateMgdl)
+        assertNotNull(evaluate(engine, 3, 105f).estimateMgdl)
+    }
+
+    @Test fun waitingForPeerExpiresWithoutBridgingAMissedCycle() {
+        val engine = DualSensorConsensus()
+        val readings = staggeredPair(0, 150f)
+        engine.evaluate(readings, base + 30_000L, 20, 5)
+        val pending = listOf(staggeredPair(5, 150f)[0], readings[1])
+        assertEquals(DualSensorConsensus.Status.WAITING_FOR_PEER,
+            engine.evaluate(pending, base + 300_000L, 20, 5).status)
+        assertEquals(DualSensorConsensus.Status.UNAVAILABLE,
+            engine.evaluate(pending, base + 390_001L, 20, 5).status)
+        assertFalse(engine.evaluate(staggeredPair(10, 150f), base + 630_000L, 20, 5).warningDue)
+    }
+
+    @Test fun incompletePairsCannotHideInvalidationOfAcceptedEvidence() {
+        for (change in listOf<(DualSensorConsensus.Reading) -> DualSensorConsensus.Reading>(
+            { it.copy(sensorId = "c") }, { it.copy(lane = 1) },
+            { it.copy(mgdl = 151f) }, { it.copy(timeMs = it.timeMs - 1) },
+            { it.copy(mgdl = Float.NaN) }
+        )) {
+            val engine = DualSensorConsensus()
+            val previous = staggeredPair(0, 150f)
+            engine.evaluate(previous, base + 30_000L, 20, 5)
+            val pending = listOf(staggeredPair(5, 150f)[0], change(previous[1]))
+            assertEquals(DualSensorConsensus.Status.UNAVAILABLE,
+                engine.evaluate(pending, base + 300_000L, 20, 5).status)
+            assertFalse(engine.evaluate(staggeredPair(5, 150f), base + 330_000L, 20, 5).warningDue)
+        }
+    }
+
+    @Test fun twoNewButSkewedSamplesResetRatherThanResumeAnOldRun() {
+        val engine = DualSensorConsensus()
+        engine.evaluate(staggeredPair(0, 150f), base + 30_000L, 20, 5)
+        val input = listOf(staggeredPair(5, 150f)[0], staggeredPair(3, 150f)[1])
+        assertEquals(DualSensorConsensus.Status.UNAVAILABLE,
+            engine.evaluate(input, base + 300_000L, 20, 5).status)
+        assertFalse(engine.evaluate(staggeredPair(5, 150f), base + 330_000L, 20, 5).warningDue)
+    }
+
     @Test fun percentageSettingsAreBounded() {
         assertEquals(10, sanitizeDisagreementPercent(-1))
         assertEquals(50, sanitizeDisagreementPercent(999))

@@ -48,7 +48,8 @@ internal fun DualSensorComparisonCard(modifier: Modifier = Modifier) {
             }
             val status = when {
                 disagreeing -> R.string.sensor_disagreement_guidance
-                result.status == DualSensorConsensus.Status.UNAVAILABLE -> R.string.sensor_comparison_unavailable
+                result.status == DualSensorConsensus.Status.UNAVAILABLE ||
+                    result.status == DualSensorConsensus.Status.WAITING_FOR_PEER -> R.string.sensor_comparison_unavailable
                 result.status == DualSensorConsensus.Status.LEARNING -> R.string.sensor_comparison_learning
                 else -> R.string.sensor_comparison_help
             }

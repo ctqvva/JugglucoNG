@@ -28,7 +28,11 @@ calibration or treat one sensor as a reference.
 - Warn after five minutes of disagreeing paired evidence by default; the wait is
   adjustable using the standard duration control. Both timestamps must advance
   to accumulate evidence. Scheduler ticks and one repeatedly reused sensor
-  sample do not count as additional observations.
+  sample do not count as additional observations. When one sensor advances before
+  its peer, the incomplete pair hides the estimate while retaining
+  completed-pair evidence within the six-minute freshness limit. Waiting neither
+  advances the disagreement timer nor clears an existing warning episode or its
+  acknowledgement/retry state. Recovery or expiry still cancels pending retries.
 - Agreement, missing/stale/invalid data, sensor or display-lane changes, clock
   reversal, and recalibration reset the relevant evidence. Configuration changes
   restart learning. An outage longer than six minutes cannot bridge a run.
@@ -48,7 +52,8 @@ average's lag to the current estimate. It does not extrapolate either sensor.
 
 Withhold the estimate immediately while the current difference exceeds the
 configured threshold, without waiting for the warning delay. Invalid timing,
-values, or identity also withhold it and discard learned history. A stable bias
+values, or identity also withhold it and discard learned history, except for the
+bounded wait for an unchanged peer described above. A stable bias
 cannot be detected or corrected by this heuristic: two sensors can agree and
 both be wrong, and a quiet sensor can be less accurate than a noisy one. No
 confidence interval or claim of improved accuracy is shown.

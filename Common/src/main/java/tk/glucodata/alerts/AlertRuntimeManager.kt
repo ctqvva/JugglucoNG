@@ -612,6 +612,16 @@ object AlertRuntimeManager {
         val type = AlertType.SENSOR_DISAGREEMENT
         val config = AlertRepository.loadConfig(type)
         val result = DualSensorRuntime.evaluate(config, nowMs)
+        handleSensorDisagreementLocked(config, result)
+    }
+
+    private fun handleSensorDisagreementLocked(config: AlertConfig, result: DualSensorConsensus.Result) {
+        val type = AlertType.SENSOR_DISAGREEMENT
+        if (config.enabled && config.isActiveNow() && result.status == DualSensorConsensus.Status.WAITING_FOR_PEER) {
+            // An incomplete pair is not recovery. Preserve the last completed pair's
+            // delivery/retry and acknowledgement state until comparable data or expiry.
+            return
+        }
         if (!config.enabled || !config.isActiveNow() || !result.warningDue) {
             clearRuntimeAlert(type, "sensor-disagreement-cleared")
             return

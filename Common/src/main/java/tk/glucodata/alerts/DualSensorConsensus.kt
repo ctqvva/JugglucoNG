@@ -5,7 +5,7 @@ import kotlin.math.abs
 /** Experimental comparison only. Values are calibrated display lanes converted to mg/dL. */
 internal class DualSensorConsensus {
     data class Reading(val sensorId: String, val timeMs: Long, val mgdl: Float, val lane: Int = 0)
-    enum class Status { UNAVAILABLE, LEARNING, COMPARABLE, DISAGREEING }
+    enum class Status { UNAVAILABLE, WAITING_FOR_PEER, LEARNING, COMPARABLE, DISAGREEING }
     data class Result(
         val status: Status = Status.UNAVAILABLE,
         val first: Reading? = null,
@@ -34,7 +34,7 @@ internal class DualSensorConsensus {
         if (sorted.size != 2 || sorted[0].sensorId == sorted[1].sensorId || sorted.any {
                 !it.mgdl.isFinite() || it.mgdl !in 20f..600f || it.timeMs <= 0L ||
                     it.timeMs > nowMs || nowMs - it.timeMs > MAX_AGE_MS
-            } || abs(sorted[0].timeMs - sorted[1].timeMs) > MAX_SKEW_MS) {
+            }) {
             reset()
             return Result()
         }
@@ -56,6 +56,23 @@ internal class DualSensorConsensus {
             reset()
             pairKey = key
             previous = null
+        }
+        // Separate callbacks can briefly expose a new sample beside the previous peer.
+        // Preserve completed pairs while exactly one stream has advanced and the other
+        // still holds its accepted sample, even when that partial update is within the
+        // timing limit. It is not another pair and cannot prove recovery or disagreement.
+        if (previous != null &&
+            ((a.timeMs > previous.first.timeMs && b == previous.second) ||
+                (b.timeMs > previous.second.timeMs && a == previous.first))) {
+            if (nowMs - previous.timeMs > MAX_AGE_MS) {
+                reset()
+                return Result()
+            }
+            return Result(status = Status.WAITING_FOR_PEER)
+        }
+        if (abs(a.timeMs - b.timeMs) > MAX_SKEW_MS) {
+            reset()
+            return Result()
         }
         // Symmetric percentage; selecting the other primary cannot change the verdict.
         val difference = 200f * abs(a.mgdl - b.mgdl) / (a.mgdl + b.mgdl)
