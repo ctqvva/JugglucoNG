@@ -124,6 +124,7 @@ class AiDexAlgorithmRuntimeTests {
     private lateinit var runtime: AiDexAlgorithmRuntime
     private lateinit var executor: QueuedExecutor
     private val room = sortedMapOf<Long, Float>()
+    private val roomRaw = sortedMapOf<Long, Float>()
     private val queuedRoomWrites = ArrayList<() -> Unit>()
     private var references = DoubleArray(0)
     private var rawFit = 1L
@@ -174,7 +175,8 @@ class AiDexAlgorithmRuntimeTests {
             arrayOf(HistoryRepositoryBridge::class.java)) { _, method, args ->
             when (method.name) {
                 "getHistoryForNotificationForSensor" -> room.map { (time, value) ->
-                    GlucosePoint(time, value / if (args!![2] as Boolean) 18.0182f else 1f, 0f)
+                    val unit = if (args!![2] as Boolean) 18.0182f else 1f
+                    GlucosePoint(time, value / unit, (roomRaw[time] ?: 0f) / unit)
                 }
                 "getHistoryTimestampsForSensorBlocking" -> room.keys.toLongArray()
                 "storeHistoryBatchBlocking" -> {
@@ -183,7 +185,8 @@ class AiDexAlgorithmRuntimeTests {
                     val times = args!![1] as LongArray
                     val values = args[2] as FloatArray
                     lastRoomBatch = times.copyOf()
-                    times.indices.forEach { room[times[it]] = values[it] }
+                    val raws = args[3] as FloatArray
+                    times.indices.forEach { room[times[it]] = values[it]; roomRaw[times[it]] = raws[it] }
                     roomWrites++
                     true
                 }
@@ -637,6 +640,50 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
     }
 
+    @Test fun aReferenceEditDuringPreflightInvalidatesTheRebuiltImportRows() {
+        saveRealAutoReference()
+        runtime.record(listOf(sample(0)))
+        choose(9)
+        val plan = runBlocking { AiDexHistoryImport.prepare(Applic.app,
+            packagePayload(packageSettings(stockSettingsPreferences()), JSONArray()), mapOf(serial to 1), listOf(driver)) }
+        plan.rebuildConflicts()
+        driver.withHistoryImportLock { plan.checkOwnership(listOf(driver)) }
+        // The driver can commit rows corrected by the new reference before the
+        // import writes; rows fitted to the old one must not replace them.
+        runBlocking {
+            CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
+                CalibrationEntity(timestamp = NativeInputs.start + 60_000L, sensorId = serial,
+                    sensorValue = 100f, sensorValueRaw = 100f, userValue = 120f))
+            CalibrationManager.loadCalibrations()
+        }
+        val failure = runCatching { driver.withHistoryImportLock { plan.checkOwnership(listOf(driver)) } }.exceptionOrNull()
+        assertTrue(failure?.message.orEmpty().contains("calibration changed"))
+    }
+
+    @Test fun aBackupWithSeveralRevisionsOfAMinutePlansWhatRestoreWillWrite() {
+        runtime.record(listOf(sample(0)))
+        choose(9)
+        val broadcast = sample(5, 100f).copy(origin = AiDexSourceSample.BROADCAST)
+        val history = sample(5, 104f, raw = 95f).copy(origin = AiDexSourceSample.HISTORY)
+        val fixture = java.io.File(Applic.app.cacheDir, "aidex-revisions.bin").apply { delete() }
+        // Two appends keep both revisions in the exported bytes, in order.
+        val exported = try {
+            AiDexSampleJournal(fixture).apply { appendAll(listOf(broadcast)); appendAll(listOf(history)) }.bytes()
+        } finally { fixture.delete() }
+        assertEquals(2, AiDexSampleJournal.decode(exported).size)
+        val sourcePath = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).relativeTo(Applic.app.filesDir).invariantSeparatorsPath
+        val sources = JSONObject().put(sourcePath, JSONObject().put("byteCount", exported.size)
+            .put("base64", android.util.Base64.encodeToString(exported, android.util.Base64.NO_WRAP)))
+        val plan = runBlocking { AiDexHistoryImport.prepare(Applic.app,
+            packagePayload(packageSettings(stockSettingsPreferences()), JSONArray(), sources), mapOf(serial to 1), listOf(driver)) }
+        val path = sources.keys().next()
+        val bytes = android.util.Base64.decode(sources.getJSONObject(path).getString("base64"), android.util.Base64.DEFAULT)
+        AiDexSourceJournalBackup.restore(Applic.app.filesDir, path, bytes)
+        // The plan folded the backup like the restore did, so ownership still checks.
+        driver.withHistoryImportLock { plan.checkOwnership(listOf(driver)) }
+        assertEquals(104f, runtime.controller.journal.atMinute(history.minute)!!.factoryMgDl, 0f)
+    }
+
     @Test fun streamedFullBackupRestoresAppliedOwnershipOnACleanDevice() {
         val time = sample(1).timestampMs
         runtime.close()
@@ -749,6 +796,22 @@ class AiDexAlgorithmRuntimeTests {
         executor.runNext()
         assertEquals(1, roomAttempts)
         assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun stockRepairRestoresARawLaneWhoseAutoAlreadyMatches() {
+        // Backfill added Raw to a rawless minute and its Room write failed:
+        // Auto matches the journal, Raw does not exist yet.
+        val upgraded = sample(3, 105f, raw = 98f)
+        runtime.record(listOf(sample(3, 105f)))
+        runtime.record(listOf(upgraded))
+        room[upgraded.timestampMs] = 105f
+        runtime.requestRoomRepair()
+        executor.runNext()
+        assertArrayEquals(longArrayOf(upgraded.timestampMs), lastRoomBatch)
+        assertEquals(98f, roomRaw[upgraded.timestampMs]!!, 0f)
+        runtime.requestRoomRepair()
+        executor.runNext()
+        assertEquals(1, roomAttempts)
     }
 
     @Test fun stockStartupReplayDoesNotRewriteMatchingHistory() {

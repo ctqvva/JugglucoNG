@@ -1123,15 +1123,20 @@ class AiDexBleManager(
     private val historyPageWatchdog = Runnable {
         if (historyDownloading) {
             Log.e(TAG, "History page watchdog FIRED — no response in ${HISTORY_PAGE_TIMEOUT_MS}ms (phase=$historyPhase)")
-            historyDownloading = false
-            historyPhase = HistoryPhase.IDLE
-            clearPendingRoomHistory("history-watchdog")
-            // Persist current offsets so next reconnect resumes where we stopped
-            writeIntPref("historyRawNextIndex", historyRawNextIndex)
-            writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
-            algorithmRuntime.historyComplete()
-            Log.i(TAG, "History download aborted. Will resume on next connection from raw=$historyRawNextIndex, brief=$historyBriefNextIndex")
+            abortHistoryDownload("history-watchdog")
         }
+    }
+
+    private fun abortHistoryDownload(reason: String) {
+        handler.removeCallbacks(historyPageWatchdog)
+        historyDownloading = false
+        historyPhase = HistoryPhase.IDLE
+        clearPendingRoomHistory(reason)
+        // Persist current offsets so next reconnect resumes where we stopped
+        writeIntPref("historyRawNextIndex", historyRawNextIndex)
+        writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
+        algorithmRuntime.historyComplete()
+        Log.i(TAG, "History download aborted ($reason). Will resume on next connection from raw=$historyRawNextIndex, brief=$historyBriefNextIndex")
     }
 
     // -- History Merge Cache --
@@ -5146,7 +5151,13 @@ class AiDexBleManager(
 
             // Merge 0x24 raw ADC data with cached 0x23 calibrated glucose using extracted helper.
             val mergeResult = HistoryMerge.mergeHistoryEntries(entries, calibratedGlucoseCache, lastCalibratedGlucoseFallback)
-            storeHistoryEntries(mergeResult.entries)
+            if (!storeHistoryEntries(mergeResult.entries)) {
+                // Adaptive history reaches Room only through a replay of journaled
+                // originals. Keep this page pending rather than advancing past rows
+                // nothing stored; the raw cursor follows the brief one on resume.
+                abortHistoryDownload("source-journal-unavailable")
+                return
+            }
             // Persist the last known glucose for the next page
             if (mergeResult.lastKnownGlucose != null) lastCalibratedGlucoseFallback = mergeResult.lastKnownGlucose
 
@@ -5868,8 +5879,9 @@ class AiDexBleManager(
      * - Leaves UI/current-reading refresh to the single catch-up update after download completion
      * - Leaves Room merge to a single non-destructive sync after download completion
      */
-    private fun storeHistoryEntries(entries: List<HistoryStoreEntry>) = synchronized(algorithmRuntime.controller.lock) {
-        if (algorithmRuntime.controller.isClosed()) return@synchronized
+    /** False only when Adaptive owns history and these originals could not be journaled. */
+    private fun storeHistoryEntries(entries: List<HistoryStoreEntry>): Boolean = synchronized(algorithmRuntime.controller.lock) {
+        if (algorithmRuntime.controller.isClosed()) return@synchronized true
         // Ensure start time is available before computing timestamps.
         // History download can begin before 0x21 succeeds or before any F003 arrives.
         if (sensorstartmsec <= 0L) {
@@ -5877,11 +5889,11 @@ class AiDexBleManager(
         }
         if (sensorstartmsec <= 0L) {
             Log.w(TAG, "storeHistoryEntries: sensorstartmsec still not set after ensureSensorStartTime — skipping ${entries.size} entries")
-            return@synchronized
+            return@synchronized true
         }
         if (dataptr == 0L) {
             Log.w(TAG, "storeHistoryEntries: dataptr is 0 — cannot store")
-            return@synchronized
+            return@synchronized true
         }
 
         val now = System.currentTimeMillis()
@@ -5960,11 +5972,12 @@ class AiDexBleManager(
 
         }
 
-        // Journal failure must not cost Stock its history; the owned repair
-        // and the source recovery cover the originals later.
-        runCatching { algorithmRuntime.record(originals) }
-            .onFailure { Log.stack(TAG, "history source journal", it) }
-        if (!algorithmRuntime.controller.appliedSelection.adaptive) {
+        // Journal failure must not cost Stock its history (stored directly below).
+        // Adaptive stores nothing here, so the caller must keep the page pending.
+        val journaled = runCatching { algorithmRuntime.record(originals) }
+            .onFailure { Log.stack(TAG, "history source journal", it) }.isSuccess
+        val adaptiveOwned = algorithmRuntime.controller.appliedSelection.adaptive
+        if (!adaptiveOwned) {
             originals.forEach { row ->
                 Natives.aidexStoreHistoryData(dataptr, row.timestampMs, row.factoryMgDl, row.rawMgDl)
                 pendingRoomHistoryTimestamps.add(row.timestampMs)
@@ -5990,6 +6003,7 @@ class AiDexBleManager(
                 }
             }
         }
+        journaled || !adaptiveOwned
     }
 
     /**

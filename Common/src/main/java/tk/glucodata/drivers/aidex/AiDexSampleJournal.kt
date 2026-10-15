@@ -87,10 +87,7 @@ internal class AiDexSampleJournal(private val file: File) {
             return
         }
         samples.clear()
-        decoded.forEach { sample ->
-            val held = samples[sample.minute]
-            if (held == null || sample.origin >= held.origin) samples[sample.minute] = sample
-        }
+        samples.putAll(latestRevisions(decoded))
         // A torn append cannot have been followed by a derived write (append is
         // fsynced first). Full-record corruption is moved aside, never decoded
         // as factory data; see quarantine().
@@ -142,6 +139,15 @@ internal class AiDexSampleJournal(private val file: File) {
                 .putFloat(s.rawMgDl).putFloat(s.temperatureC).putInt(s.origin).array()
             return ByteBuffer.allocate(RECORD_BYTES).put(payload).putInt(CRC32().apply { update(payload) }.value.toInt()).array()
         }
+
+        /** One sample per minute: a later record replaces one of the same or lower origin. */
+        fun latestRevisions(records: Iterable<AiDexSourceSample>): TreeMap<Long, AiDexSourceSample> =
+            TreeMap<Long, AiDexSourceSample>().also { folded ->
+                records.forEach { sample ->
+                    val held = folded[sample.minute]
+                    if (held == null || sample.origin >= held.origin) folded[sample.minute] = sample
+                }
+            }
 
         fun decode(bytes: ByteArray): List<AiDexSourceSample> {
             require(bytes.size <= MAX_BYTES && bytes.size % RECORD_BYTES == 0) { "Incomplete AiDex source journal" }

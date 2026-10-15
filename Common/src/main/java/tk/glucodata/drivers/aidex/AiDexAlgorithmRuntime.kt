@@ -272,10 +272,13 @@ internal class AiDexAlgorithmRuntime(
             controller.appliedSelection != AiDexAlgorithmSelection.STOCK) return@synchronized null
         if (HistoryRepositoryAccess.isRegistered()) {
             val stored = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)
-                ?.associate { it.timestamp / 60_000L to it.value } ?: return@synchronized null
+                ?.associateBy { it.timestamp / 60_000L } ?: return@synchronized null
+            // Both lanes: backfill can add Raw to a minute whose Auto already matches.
             val stale = controller.journal.snapshot().filter { source ->
-                val held = stored[source.minute]
-                held == null || kotlin.math.abs(held - source.factoryMgDl) > STOCK_TOLERANCE_MGDL
+                val held = stored[source.minute] ?: return@filter true
+                kotlin.math.abs(held.value - source.factoryMgDl) > STOCK_TOLERANCE_MGDL ||
+                    (source.rawMgDl.isFinite() && source.rawMgDl > 0f &&
+                        kotlin.math.abs(held.rawValue - source.rawMgDl) > STOCK_TOLERANCE_MGDL)
             }
             if (stale.isNotEmpty()) {
                 rewritingHistory = true

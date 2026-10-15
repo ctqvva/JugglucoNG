@@ -185,6 +185,16 @@ class RecordedDisplayVoidingTests {
     }
 
     @Test
+    fun theBeforeReadCoversWholeMinutes() {
+        // The write replaces whole minutes, so a stored row earlier in an edge
+        // minute than the incoming reading must still be read as "before".
+        val repo = java.io.File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
+        val read = repo.substringAfter("suspend fun storedAutoByMinute").substringBefore("\n    }\n")
+        assertTrue(read.contains("ReadingDisplay.minuteOf(readings.minOf { it.timestamp })"))
+        assertTrue(read.contains("ReadingDisplay.minuteOf(readings.maxOf { it.timestamp }) + ReadingDisplay.MINUTE_MS"))
+    }
+
+    @Test
     fun theRepositoryVoidsOnlyAfterADriversBatchReplacedItsHistory() {
         // The voiding is wired to the one write a driver uses to replace its
         // own history, and to nothing else — recording, revising, and the

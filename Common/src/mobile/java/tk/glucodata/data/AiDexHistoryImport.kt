@@ -6,6 +6,7 @@ import tk.glucodata.Applic
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.aidex.*
 import tk.glucodata.drivers.aidex.adaptive2.AiDexAdaptiveV2
+import tk.glucodata.drivers.aidex.adaptive2.AiDexReference
 import tk.glucodata.drivers.aidex.native.ble.AiDexBleManager
 import tk.glucodata.data.calibration.CalibrationManager
 import java.util.Locale
@@ -21,6 +22,17 @@ internal class AiDexHistoryImport private constructor(
     private val originals: Map<String, List<AiDexSourceSample>>,
 ) {
     private val rebuilt = HashMap<String, Map<Long, AiDexAlgorithmReading>>()
+    /** References and fit fingerprints each calibrated rebuild was computed against. */
+    private val calibrationInputs = HashMap<String, Triple<List<AiDexReference>, Long, Long>>()
+
+    private fun currentCalibrationInputs(id: String) = Triple(
+        AiDexAlgorithmReferences.decode(
+            CalibrationManager.getActiveCalibrationAnchors(id, true),
+            CalibrationManager.getActiveCalibrationAnchors(id, false), Applic.unit == 1,
+        ),
+        CalibrationManager.getIntegratedCalibrationFingerprint(id, true),
+        CalibrationManager.getIntegratedCalibrationFingerprint(id, false),
+    )
     val sensorIds: Set<String> get() = selections.keys
 
     private fun canonical(serial: String): String? = canonical(serial, knownIds)
@@ -79,6 +91,11 @@ internal class AiDexHistoryImport private constructor(
                 .filter { it.minute <= end }
             check(current == expected) { "AiDex original readings changed during import for $id" }
         }
+        // A reference edit during preflight can let the driver commit newer
+        // corrections first; rows fitted to the old references must not replace them.
+        calibrationInputs.forEach { (id, expected) ->
+            check(currentCalibrationInputs(id) == expected) { "AiDex calibration changed during import for $id" }
+        }
     }
 
     /** Local references and local applied selection define how conflicting incoming rows are rebuilt. */
@@ -86,10 +103,9 @@ internal class AiDexHistoryImport private constructor(
         val factor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
         originals.forEach { (id, sources) ->
             val selection = selections.getValue(id)
-            val references = if (selection.calibration) AiDexAlgorithmReferences.decode(
-                CalibrationManager.getActiveCalibrationAnchors(id, true),
-                CalibrationManager.getActiveCalibrationAnchors(id, false), Applic.unit == 1,
-            ) else emptyList()
+            val references = if (selection.calibration) {
+                currentCalibrationInputs(id).also { calibrationInputs[id] = it }.first
+            } else emptyList()
             val model = AiDexAlgorithmContext(selection)
             val readings = sources.map { model.process(it, references) }
             val fallback = if (selection.calibration && readings.any { it.uncertainty == null }) {
@@ -109,12 +125,7 @@ internal class AiDexHistoryImport private constructor(
                 row.copy(glucoseMgDl = glucose)
             }
             rebuilt[id] = output.mapIndexed { index, row ->
-                val previous = output.getOrNull(index - 1)?.takeIf {
-                    it.source.sessionStartMs == row.source.sessionStartMs && row.source.timestampMs > it.source.timestampMs
-                }
-                val rate = previous?.let { (row.glucoseMgDl - it.glucoseMgDl) /
-                    ((row.source.timestampMs - it.source.timestampMs) / 60_000f) } ?: Float.NaN
-                row.source.minute to row.copy(rateMgDlPerMinute = rate)
+                row.source.minute to row.copy(rateMgDlPerMinute = AiDexLiveRate.between(output.getOrNull(index - 1), row))
             }.toMap()
         }
     }
@@ -166,8 +177,11 @@ internal class AiDexHistoryImport private constructor(
                 val path = file.relativeTo(context.filesDir).invariantSeparatorsPath
                 val encoded = payload.optJSONObject("history")?.optJSONObject("sensorSourceJournals")
                     ?.optJSONObject(path)?.optString("base64")?.takeIf { it.isNotBlank() }
-                if (encoded != null) AiDexSampleJournal.decode(android.util.Base64.decode(encoded, android.util.Base64.DEFAULT))
-                    .forEach { merged.putIfAbsent(it.minute, it) }
+                // Fold the backup's own revisions exactly as journal restore will,
+                // then let local originals win: the plan must equal the restored journal.
+                if (encoded != null) AiDexSampleJournal.latestRevisions(
+                    AiDexSampleJournal.decode(android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)),
+                ).values.forEach { merged.putIfAbsent(it.minute, it) }
                 sourceMaps[id] = merged.values.toList()
             }
             return AiDexHistoryImport(context, known, counts.keys, selections, newSensors, backup, sourceMaps)

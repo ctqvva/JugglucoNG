@@ -44,6 +44,24 @@ class AiDexSampleJournalTest {
         assertEquals(validLength, file.length())
     }
 
+    @Test fun `restored revisions fold exactly as latestRevisions does`() {
+        val folder = temporary.newFolder()
+        val broadcast = sample(3, AiDexSourceSample.BROADCAST, 100f)
+        val history = sample(3, AiDexSourceSample.HISTORY, 104f)
+        val laterBroadcast = sample(3, AiDexSourceSample.BROADCAST, 101f)
+        fun bytesOf(name: String, vararg rows: AiDexSourceSample) =
+            AiDexSampleJournal(File(folder, name)).apply { rows.forEach { appendAll(listOf(it)) } }.bytes()
+        // An export can carry several revisions of one minute, in append order.
+        val bytes = bytesOf("a.bin", broadcast, history) + bytesOf("b.bin", laterBroadcast)
+        assertEquals(3, AiDexSampleJournal.decode(bytes).size)
+        val root = temporary.newFolder()
+        val path = AiDexSourceJournalBackup.file(root, "X-test").relativeTo(root).invariantSeparatorsPath
+        AiDexSourceJournalBackup.restore(root, path, bytes)
+        val restored = AiDexSampleJournal(File(root, path)).snapshot()
+        assertEquals(AiDexSampleJournal.latestRevisions(AiDexSampleJournal.decode(bytes)).values.toList(), restored)
+        assertEquals(history, restored.single())
+    }
+
     @Test fun `full record corruption is moved aside and never stops later appends`() {
         val folder = temporary.newFolder()
         val file = File(folder, "source.bin")

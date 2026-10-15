@@ -899,11 +899,13 @@ class HistoryRepository(context: Context = Applic.app) {
     /** The stored Auto number per minute across [readings]' span, before they replace it. */
     suspend fun storedAutoByMinute(roomSerial: String, readings: List<HistoryReading>): Map<Long, Float> {
         if (readings.isEmpty()) return emptyMap()
-        val start = readings.minOf { it.timestamp }
-        val end = readings.maxOf { it.timestamp }
+        // The write replaces whole minutes: read whole minutes, or a stored row
+        // earlier in an edge minute looks missing and its record gets voided.
+        val start = ReadingDisplay.minuteOf(readings.minOf { it.timestamp })
+        val end = ReadingDisplay.minuteOf(readings.maxOf { it.timestamp }) + ReadingDisplay.MINUTE_MS
         return withContext(Dispatchers.IO) {
             HashMap<Long, Float>().also { previous ->
-                dao.getSensorReadingsInTimeRange(roomSerial, start, end + 1L).forEach { row ->
+                dao.getSensorReadingsInTimeRange(roomSerial, start, end).forEach { row ->
                     previous[ReadingDisplay.minuteOf(row.timestamp)] = row.value
                 }
             }
