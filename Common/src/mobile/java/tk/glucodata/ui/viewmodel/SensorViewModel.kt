@@ -294,10 +294,6 @@ class SensorViewModel : ViewModel() {
     fun setMain(serial: String) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                if (tk.glucodata.combined.CombinedSensorRegistry.config().enabled &&
-                    !tk.glucodata.combined.CombinedSensorRegistry.isCombined(serial)) {
-                    tk.glucodata.combined.CombinedSensorRegistry.setEnabled(false, emptyList())
-                }
                 MultiSensorSelection.moveToFront(serial, _sensors.value.map { it.serial })
                 SensorBluetooth.setCurrentSensorSelection(serial)
                 // Ensure this sensor's data is synced into Room (non-destructive)

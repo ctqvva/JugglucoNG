@@ -7,9 +7,12 @@ import tk.glucodata.drivers.ManagedSensorUiFamily
 
 object CombinedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
     override val uiFamily = ManagedSensorUiFamily.GENERIC
-    override fun resolveCanonicalSensorId(sensorId: String?) = sensorId?.takeIf(CombinedSensorRegistry::isCombined)
+    override fun resolveCanonicalSensorId(sensorId: String?) = CombinedSensorRegistry.canonicalId(sensorId)
     override fun matchesCallbackId(callbackId: String?, sensorId: String) =
-        CombinedSensorRegistry.isCombined(callbackId) && callbackId.equals(sensorId, true)
+        resolveCanonicalSensorId(callbackId)?.let { it == resolveCanonicalSensorId(sensorId) } == true
+    override fun resolveNativeSensorName(sensorId: String?) = resolveCanonicalSensorId(sensorId)
+    override fun resolveNativeHistorySensorNames(sensorId: String?) =
+        resolveCanonicalSensorId(sensorId)?.let { listOf(it, it.takeLast(8)) }.orEmpty()
     override fun resolveCallbackDataptr(sensorId: String?) = resolveCanonicalSensorId(sensorId)?.let { 0L }
     override fun hasNativeSensorBacking(sensorId: String?) = resolveCanonicalSensorId(sensorId)?.let { true }
     override fun shouldUseNativeHistorySync(sensorId: String?) = resolveCanonicalSensorId(sensorId)?.let { true }

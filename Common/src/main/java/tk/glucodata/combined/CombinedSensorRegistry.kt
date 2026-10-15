@@ -4,11 +4,12 @@ import android.content.Context
 import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import tk.glucodata.*
 import tk.glucodata.alerts.DualSensorConsensus
 import tk.glucodata.drivers.ManagedSensorUiSignals
 
-/** Owns one explicit pair. Display selection changes never silently replace a contributor. */
+/** Owns explicitly selected contributors. Display selection changes never silently replace a contributor. */
 object CombinedSensorRegistry {
     const val PREFIX = "COMB-"
     private const val PREFS = "tk.glucodata_preferences"
@@ -23,7 +24,20 @@ object CombinedSensorRegistry {
     @Volatile internal var manager: CombinedSensorManager? = null
     private val publicationLock = Any()
 
-    fun isCombined(id: String?): Boolean = id?.startsWith(PREFIX, true) == true
+    fun isCombined(id: String?): Boolean = id?.startsWith(PREFIX, true) == true || canonicalId(id) != null
+
+    internal fun canonicalId(id: String?): String? {
+        val raw = id?.uppercase(java.util.Locale.ROOT) ?: return null
+        return when {
+            raw.matches(Regex("COMB-[0-9A-F]{8}")) -> raw
+            raw.matches(Regex("MB-[0-9A-F]{8}")) -> "CO$raw"
+            raw.matches(Regex("[0-9A-F]{8}")) -> {
+                val full = "COMB-$raw"
+                if (config().sensorId == full || runCatching { Natives.resolveFullSensorName(raw) }.getOrNull() == full) full else null
+            }
+            else -> null
+        }
+    }
 
     fun idFor(inputs: List<String>): String = PREFIX + MessageDigest.getInstance("SHA-256")
         .digest(inputs.sorted().joinToString("\n").toByteArray())
@@ -33,11 +47,11 @@ object CombinedSensorRegistry {
         cached?.let { return it }
         val prefs = Applic.app?.getSharedPreferences(PREFS, Context.MODE_PRIVATE) ?: return Config()
         val ids = prefs.getString(KEY_INPUTS, "").orEmpty().split('\n').filter { it.isNotBlank() }
-        return Config(prefs.getBoolean(KEY_ENABLED, false) && ids.size == 2, ids).also { cached = it }
+        return Config(prefs.getBoolean(KEY_ENABLED, false) && ids.size >= 2, ids).also { cached = it }
     }
 
     fun setEnabled(enabled: Boolean, inputs: List<String>) = synchronized(publicationLock) {
-        require(!enabled || (inputs.size == 2 && inputs.all(SensorIdentity::isUsableSensorId) && inputs.none(::isCombined) && !SensorIdentity.matches(inputs[0], inputs[1])))
+        require(!enabled || (inputs.size >= 2 && inputs.all(SensorIdentity::isUsableSensorId) && inputs.none(::isCombined) && inputs.indices.all { i -> inputs.take(i).none { SensorIdentity.matches(it, inputs[i]) } }))
         val previous = config()
         val next = Config(enabled, if (enabled) inputs.map { SensorIdentity.canonicalSensorId(it) ?: it } else previous.inputs)
         if (enabled) check(Natives.ensureSensorShellWithCapacity(next.sensorId,
@@ -69,7 +83,7 @@ object CombinedSensorRegistry {
             }
             MultiSensorSelection.setSelectedOrder(previous.inputs)
         }
-        mutableRevision.value++
+        mutableRevision.update { it + 1 }
         ManagedSensorUiSignals.markDeviceListDirty()
         UiRefreshBus.requestDataRefresh()
     }
@@ -93,6 +107,22 @@ object CombinedSensorRegistry {
         target.observe(snapshot)
     }
 
+    /** Every primary-selection route (including watch commands) uses this exit. */
+    @JvmStatic fun onPrimarySelection(id: String?) {
+        if (!Applic.isWearable && !id.isNullOrBlank() && !isCombined(id) && config().enabled) {
+            setEnabled(false, emptyList())
+            MultiSensorSelection.moveToFront(id)
+        }
+    }
+
+    @JvmStatic fun shouldExportToHealthConnect(id: String): Boolean =
+        !config().enabled || SensorIdentity.matches(id, config().sensorId)
+
+    internal fun assessmentChanged() {
+        mutableRevision.update { it + 1 }
+        UiRefreshBus.requestStatusRefresh()
+    }
+
     internal fun hasFreshOutput(): Boolean = manager?.getManagedCurrentSnapshot(DualSensorConsensus.MAX_AGE_MS) != null
-    internal fun result(): DualSensorConsensus.Result? = manager?.result
+    internal fun result(nowMs: Long = System.currentTimeMillis()): DualSensorConsensus.Result? = manager?.assessment(nowMs)
 }

@@ -2960,17 +2960,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volym för larmljud</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Sensoravvikelse</string>
     <string name="sensor_difference_threshold">Avvikelsegräns</string>
-    <string name="sensor_comparison_help">Välj exakt två sensorer. Skillnaden räknas relativt deras medelvärde; överensstämmelse bevisar inte noggrannhet.</string>
+    <string name="sensor_comparison_help">Jämför valda sensorer. Överensstämmelse bevisar inte noggrannhet.</string>
     <string name="sensor_disagreement_guidance">Sensorerna avviker. Kontrollera med en blodsockermätare; ingen sensor kan avgöra vilken som är rätt.</string>
     <string name="sensor_disagreement_message">Sensorerna skiljer sig med %1$d%%. Kontrollera med en blodsockermätare; ingen sensor kan avgöra vilken som är rätt.</string>
 
     <string name="combine_sensors_title">Kombinera sensorer</string>
-    <string name="combine_sensors_help">Ett kombinerat värde i hela appen, inklusive larm och anslutna appar. Originaldata bevaras.</string>
-    <string name="combine_sensors_select">Välj exakt två sensorer med deras visningskontroller och slå på kombinering. Stäng av för att byta par.</string>
-    <string name="combine_sensors_active">Det kombinerade värdet är huvudkälla. Kalibreringarnas ålder, referensområde och den senaste stabiliteten styr viktningen.</string>
-    <string name="combine_sensors_waiting">Väntar på den parade uppdateringen. Det senaste värdet behålls tills nya data finns.</string>
-    <string name="combine_sensors_fallback">Under inlärning, vid avvikelse eller när parning saknas används ett färskt enskilt värde.</string>
+    <string name="combine_sensors_select">Välj sensorer</string>
+    <string name="combine_sensors_active">Kombinerade · Experimentellt</string>
+    <string name="combine_sensors_waiting">Väntar på sensorer · Experimentellt</string>
+    <string name="combine_sensors_fallback">En sensor · Experimentellt</string>
 </resources>

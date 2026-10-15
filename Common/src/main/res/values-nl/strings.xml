@@ -3003,17 +3003,16 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Sensorafwijking</string>
     <string name="sensor_difference_threshold">Afwijkingsdrempel</string>
-    <string name="sensor_comparison_help">Selecteer precies twee sensoren. Het verschil is relatief aan hun gemiddelde; overeenstemming bewijst geen nauwkeurigheid.</string>
+    <string name="sensor_comparison_help">Vergelijkt geselecteerde sensoren. Overeenstemming bewijst geen nauwkeurigheid.</string>
     <string name="sensor_disagreement_guidance">Sensoren wijken af. Controleer met een bloedglucosemeter; geen van beide kan bepalen welke juist is.</string>
     <string name="sensor_disagreement_message">Sensoren verschillen %1$d%%. Controleer met een bloedglucosemeter; geen van beide kan bepalen welke juist is.</string>
 
     <string name="combine_sensors_title">Sensoren combineren</string>
-    <string name="combine_sensors_help">Één gecombineerde waarde voor de hele app, inclusief alarmen en gekoppelde apps. Originele gegevens blijven bewaard.</string>
-    <string name="combine_sensors_select">Selecteer precies twee sensoren via hun weergaveknoppen en schakel Combineren in. Schakel uit om het paar te wijzigen.</string>
-    <string name="combine_sensors_active">De gecombineerde waarde is de hoofdbron. Recente kalibraties, referentiebereik en recente stabiliteit bepalen de weging.</string>
-    <string name="combine_sensors_waiting">Wachten op de bijbehorende update. De laatste waarde blijft behouden tot nieuwe gegevens beschikbaar zijn.</string>
-    <string name="combine_sensors_fallback">Tijdens het leren, bij afwijking of ontbrekende koppeling wordt een recente afzonderlijke waarde gebruikt.</string>
+    <string name="combine_sensors_select">Selecteer sensoren</string>
+    <string name="combine_sensors_active">Gecombineerd · Experimenteel</string>
+    <string name="combine_sensors_waiting">Wachten op sensoren · Experimenteel</string>
+    <string name="combine_sensors_fallback">Eén sensor · Experimenteel</string>
 </resources>

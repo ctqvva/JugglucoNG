@@ -3040,17 +3040,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Розбіжність сенсорів</string>
     <string name="sensor_difference_threshold">Поріг розбіжності</string>
-    <string name="sensor_comparison_help">Виберіть рівно два сенсори. Розбіжність обчислюється відносно їхнього середнього; збіг не доводить точності.</string>
+    <string name="sensor_comparison_help">Порівнює вибрані сенсори. Збіг не доводить точності.</string>
     <string name="sensor_disagreement_guidance">Сенсори розходяться. Перевірте глюкометром; жоден сенсор не визначає, який із них правильний.</string>
     <string name="sensor_disagreement_message">Сенсори розходяться на %1$d%%. Перевірте глюкометром; жоден сенсор не визначає, який із них правильний.</string>
 
     <string name="combine_sensors_title">Об’єднати сенсори</string>
-    <string name="combine_sensors_help">Спільне показання для всього застосунку, включно з тривогами й підключеними застосунками. Початкові дані зберігаються.</string>
-    <string name="combine_sensors_select">Виберіть рівно два сенсори кнопками відображення та ввімкніть об’єднання. Для зміни пари вимкніть його.</string>
-    <string name="combine_sensors_active">Спільне показання — основне джерело глюкози. Вага залежить від давності калібрувань, близькості до еталона й недавньої стабільності.</string>
-    <string name="combine_sensors_waiting">Очікування парного оновлення. До надходження свіжих даних зберігається останнє показання.</string>
-    <string name="combine_sensors_fallback">Під час навчання, розбіжності або неможливості зіставлення використовується свіже окреме показання.</string>
+    <string name="combine_sensors_select">Виберіть сенсори</string>
+    <string name="combine_sensors_active">Об’єднано · Експериментально</string>
+    <string name="combine_sensors_waiting">Очікування сенсорів · Експериментально</string>
+    <string name="combine_sensors_fallback">Один сенсор · Експериментально</string>
 </resources>

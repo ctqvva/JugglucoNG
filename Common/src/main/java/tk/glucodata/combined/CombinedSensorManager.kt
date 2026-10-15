@@ -7,7 +7,8 @@ import tk.glucodata.alerts.*
 import tk.glucodata.drivers.*
 
 /** A derived source, with its own history and identity, using the normal primary-reading pipeline. */
-class CombinedSensorManager(serial: String, val inputs: List<String>) :
+class CombinedSensorManager(serial: String, val inputs: List<String>,
+    private val nowMillis: () -> Long = System::currentTimeMillis) :
     SuperGattCallback(serial, 0L, 0), ManagedBluetoothSensorDriver {
     private val worker = Executors.newSingleThreadScheduledExecutor()
     private val primary = CombinedPrimaryState(inputs)
@@ -15,9 +16,12 @@ class CombinedSensorManager(serial: String, val inputs: List<String>) :
     @Volatile private var latest: VirtualGlucoseSensorBridge.Reading? = null
     @Volatile internal var result = DualSensorConsensus.Result()
     @Volatile internal var isStopped = false
+    @Volatile private var assessmentExpiresAt = 0L
+    private var restored = false
     private var revision = Long.MIN_VALUE
     private var modelSettings: Pair<Int, Int>? = null
     private var monitoring = false
+    private var outputWasFresh = false
     override var viewMode: Int = 0
 
     override fun canConnectWithoutDataptr() = true
@@ -31,7 +35,7 @@ class CombinedSensorManager(serial: String, val inputs: List<String>) :
     override fun mygetDeviceName(): String = Applic.app.getString(R.string.combine_sensors_title)
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
-        if (inputs.size == 2 && !Applic.isWearable && !isStopped && !monitoring) {
+        if (inputs.size >= 2 && !Applic.isWearable && !isStopped && !monitoring) {
             CombinedSensorRegistry.register(this)
             monitoring = true
             worker.scheduleWithFixedDelay({ refresh() }, 0, 15, TimeUnit.SECONDS)
@@ -51,7 +55,7 @@ class CombinedSensorManager(serial: String, val inputs: List<String>) :
     private fun refresh() {
         if (isStopped || CombinedSensorRegistry.manager !== this) return
         try {
-            val now = System.currentTimeMillis()
+            val now = nowMillis()
             val currentRevision = CalibrationAccess.getRevision()
             if (revision != Long.MIN_VALUE && revision != currentRevision) {
                 primary.resetLearning()
@@ -75,37 +79,58 @@ class CombinedSensorManager(serial: String, val inputs: List<String>) :
                 DualSensorConsensus.Reading(snapshot.sensorId!!, snapshot.timeMillis,
                     snapshot.primaryValue * if (snapshot.isMmol) 18.0182f else 1f, snapshot.viewMode,
                     calibrationTimeMs = last?.let { anchors[it + 2].toLong() } ?: 0L,
-                    calibrationReferenceMgdl = last?.let { anchors[it + 1].toFloat() } ?: Float.NaN)
+                    calibrationReferenceMgdl = last?.let { anchors[it + 1].toFloat() * if (Applic.unit == 1) 18.0182f else 1f } ?: Float.NaN)
             }
-            if (primary.latest == null) {
+            if (!restored) {
                 // Never roll a restored source backwards or republish an already mirrored minute.
-                CurrentGlucoseSource.getFresh(DualSensorConsensus.MAX_AGE_MS, SerialNumber)?.let { stored ->
+                CurrentGlucoseSource.getFresh(Long.MAX_VALUE, SerialNumber)?.let { stored ->
                     val value = stored.numericValue * if (Applic.unit == 1) 18.0182f else 1f
-                    if (stored.sensorId == SerialNumber && value.isFinite() && value > 0f) {
-                        primary.restore(CombinedPrimaryState.Output(stored.timeMillis, value, stored.rate, false))
-                        latest = VirtualGlucoseSensorBridge.Reading(stored.timeMillis, value, calibratedMgdl = value, rate = stored.rate)
+                    if (SensorIdentity.matches(stored.sensorId, SerialNumber) && value.isFinite() && value > 0f) {
+                        primary.restore(CombinedPrimaryState.Output(stored.timeMillis, value, Float.NaN, false))
+                        latest = VirtualGlucoseSensorBridge.Reading(stored.timeMillis, value, calibratedMgdl = value, rate = Float.NaN)
                     }
                 }
+                restored = true
             }
             val output = primary.update(readings, now, configs.disagreementPercent, configs.durationMinutes ?: 5)
+            assessmentExpiresAt = readings.minOfOrNull { it.timeMs + DualSensorConsensus.MAX_AGE_MS } ?: 0L
             if (result != primary.result) {
                 result = primary.result
-                UiRefreshBus.requestStatusRefresh()
+                CombinedSensorRegistry.assessmentChanged()
             }
             if (output == null) return
             val next = VirtualGlucoseSensorBridge.Reading(output.timeMs, output.mgdl,
                 calibratedMgdl = output.mgdl, rate = output.rate)
             CombinedSensorRegistry.publishIfCurrent(this) {
+                if (!output.rate.isFinite()) CombinedTrendHistory.markBoundary(SerialNumber, output.timeMs)
                 latest = next
                 VirtualGlucoseSensorBridge.publishCurrent(SerialNumber, next, 0, "combined sensors",
                     mirrorToNative = true, source = GlucoseReadingSource.COMBINED)
+                exportCombinedToHealthConnect()
             }
         } catch (t: Throwable) { Log.stack("CombinedSensor", "refresh", t) }
+        finally {
+            val fresh = getManagedCurrentSnapshot(DualSensorConsensus.MAX_AGE_MS) != null
+            if (outputWasFresh != fresh) {
+                outputWasFresh = fresh
+                CombinedSensorRegistry.assessmentChanged()
+            }
+        }
+    }
+
+    internal fun assessment(nowMs: Long): DualSensorConsensus.Result =
+        if (isStopped || nowMs > assessmentExpiresAt) DualSensorConsensus.Result() else result
+
+    private fun exportCombinedToHealthConnect() {
+        if (Applic.isWearable || android.os.Build.VERSION.SDK_INT < 28 || !Natives.gethealthConnect()) return
+        val ptr = Natives.str2sensorptr(SerialNumber)
+        if (ptr != 0L) HealthConnectAccess.get()?.writeAll(ptr, SerialNumber)
     }
 
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
+        if (isStopped) return null
         val reading = latest ?: return null
-        if (System.currentTimeMillis() - reading.timestampMs !in 0..maxAgeMillis) return null
+        if (nowMillis() - reading.timestampMs !in 0..maxAgeMillis) return null
         val divisor = if (Applic.unit == 1) 18.0182f else 1f
         return ManagedSensorCurrentSnapshot(reading.timestampMs, reading.glucoseMgdl / divisor,
             calibratedGlucoseValue = reading.glucoseMgdl / divisor, rate = reading.rate)
@@ -115,7 +140,12 @@ class CombinedSensorManager(serial: String, val inputs: List<String>) :
         isActive = SerialNumber == activeSensorId, supportsManualCalibration = false,
         isVendorConnected = latest != null)
     @Synchronized
-    internal fun shutdown() { isStopped = true; worker.shutdownNow() }
+    internal fun shutdown() {
+        isStopped = true
+        result = DualSensorConsensus.Result()
+        worker.shutdownNow()
+        CombinedSensorRegistry.assessmentChanged()
+    }
     override fun close() { shutdown(); super.close() }
     override fun softDisconnect() { shutdown() }
     override fun terminateManagedSensor(wipeData: Boolean) { shutdown() }

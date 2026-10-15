@@ -103,7 +103,7 @@ object CurrentGlucoseSource {
         val callback = if (stoodDown) null else getFromCallback(now, maxAgeMillis)
         val managed = if (stoodDown) null else getFromManaged(now, maxAgeMillis, targetSensor)
         val native = if (targetSensor == null || SensorIdentity.hasNativeSensorBacking(targetSensor)) {
-            getFromNative(now, maxAgeMillis)
+            getFromNative(now, maxAgeMillis, targetSensor?.takeIf { tk.glucodata.combined.CombinedSensorRegistry.isCombined(it) })
         } else {
             null
         }

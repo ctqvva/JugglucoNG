@@ -1017,6 +1017,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) {
             return;
         }
+        if (!tk.glucodata.combined.CombinedSensorRegistry.shouldExportToHealthConnect(SerialNumber)) return;
         final long sensorptr = nativeSensorPtr();
         // Checked before dohealth(): claiming the export for a sensor with nothing to hand over
         // would stop every other sensor from exporting.

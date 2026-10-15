@@ -2966,17 +2966,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume du son d’alerte</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Désaccord des capteurs</string>
     <string name="sensor_difference_threshold">Seuil de différence</string>
-    <string name="sensor_comparison_help">Sélectionnez exactement deux capteurs. La différence est relative à leur moyenne ; leur accord ne prouve pas leur exactitude.</string>
+    <string name="sensor_comparison_help">Compare les capteurs sélectionnés. Leur accord ne prouve pas leur exactitude.</string>
     <string name="sensor_disagreement_guidance">Les capteurs divergent. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
     <string name="sensor_disagreement_message">Les capteurs divergent de %1$d%%. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
 
     <string name="combine_sensors_title">Combiner les capteurs</string>
-    <string name="combine_sensors_help">Une mesure combinée pour toute l’application, alertes et applications connectées comprises. Les données originales sont conservées.</string>
-    <string name="combine_sensors_select">Sélectionnez exactement deux capteurs avec leurs commandes d’affichage, puis activez la combinaison. Désactivez-la pour changer de paire.</string>
-    <string name="combine_sensors_active">La mesure combinée est la source principale. La récence des calibrations, leur plage de référence et la stabilité récente ajustent les poids.</string>
-    <string name="combine_sensors_waiting">En attente de la mesure appariée. La dernière valeur est conservée jusqu’à réception de données récentes.</string>
-    <string name="combine_sensors_fallback">Une mesure individuelle récente est utilisée pendant l’apprentissage, en cas de désaccord ou sans appariement possible.</string>
+    <string name="combine_sensors_select">Sélectionnez les capteurs</string>
+    <string name="combine_sensors_active">Combinés · Expérimental</string>
+    <string name="combine_sensors_waiting">En attente des capteurs · Expérimental</string>
+    <string name="combine_sensors_fallback">Un capteur · Expérimental</string>
 </resources>

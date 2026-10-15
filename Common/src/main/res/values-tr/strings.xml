@@ -2988,17 +2988,16 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Sensör uyuşmazlığı</string>
     <string name="sensor_difference_threshold">Fark eşiği</string>
-    <string name="sensor_comparison_help">Tam olarak iki sensör seçin. Fark, ortalamalarına göre hesaplanır; uyuşmaları doğruluğu kanıtlamaz.</string>
+    <string name="sensor_comparison_help">Seçili sensörleri karşılaştırır. Uyuşmaları doğruluğu kanıtlamaz.</string>
     <string name="sensor_disagreement_guidance">Sensörler uyuşmuyor. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
     <string name="sensor_disagreement_message">Sensörler arasında %1$d%% fark var. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
 
     <string name="combine_sensors_title">Sensörleri birleştir</string>
-    <string name="combine_sensors_help">Alarmlar ve bağlı uygulamalar dahil tüm uygulamada birleşik bir okuma kullanılır. Özgün sensör verileri korunur.</string>
-    <string name="combine_sensors_select">Görüntüleme kontrolleriyle tam iki sensör seçin ve birleştirmeyi açın. Çifti değiştirmek için kapatın.</string>
-    <string name="combine_sensors_active">Birleşik okuma ana kaynaktır. Kalibrasyon yaşı, referans aralığı ve yakın zamandaki kararlılık ağırlıkları ayarlar.</string>
-    <string name="combine_sensors_waiting">Eşleşen güncelleme bekleniyor. Yeni veri gelene kadar son çıktı korunur.</string>
-    <string name="combine_sensors_fallback">Öğrenme sırasında, uyuşmazlıkta veya eşleştirme yokken güncel tekil bir okuma kullanılır.</string>
+    <string name="combine_sensors_select">Sensörleri seçin</string>
+    <string name="combine_sensors_active">Birleştirildi · Deneysel</string>
+    <string name="combine_sensors_waiting">Sensörler bekleniyor · Deneysel</string>
+    <string name="combine_sensors_fallback">Tek sensör · Deneysel</string>
 </resources>

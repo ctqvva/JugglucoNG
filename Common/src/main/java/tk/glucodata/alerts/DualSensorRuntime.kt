@@ -6,7 +6,7 @@ import tk.glucodata.SensorIdentity
 
 /** Independent disagreement warning; Combine mode supplies its own paired assessment. */
 internal object DualSensorRuntime {
-    private val engine = DualSensorConsensus()
+    private val engine = SensorGroupConsensus()
     private var settings: Triple<Int, Int, Boolean>? = null
 
     @Synchronized
@@ -18,7 +18,7 @@ internal object DualSensorRuntime {
     fun evaluate(config: AlertConfig, nowMs: Long): DualSensorConsensus.Result {
         val combined = tk.glucodata.combined.CombinedSensorRegistry.config()
         if (combined.enabled) {
-            val result = tk.glucodata.combined.CombinedSensorRegistry.result() ?: DualSensorConsensus.Result()
+            val result = tk.glucodata.combined.CombinedSensorRegistry.result(nowMs) ?: DualSensorConsensus.Result()
             return result
         }
         if (!config.enabled) {
@@ -29,7 +29,7 @@ internal object DualSensorRuntime {
         if (settings != currentSettings) engine.reset()
         settings = currentSettings
         val ids = NotificationMultiSensorSource.selectedSensorIds(SensorIdentity.resolveMainSensor())
-        val readings = if (ids.size == 2) ids.mapNotNull { id ->
+        val readings = if (ids.size >= 2) ids.mapNotNull { id ->
             val snapshot = runCatching {
                 CurrentDisplaySource.resolveCurrent(DualSensorConsensus.MAX_AGE_MS, id)
             }.getOrNull() ?: return@mapNotNull null
@@ -40,7 +40,7 @@ internal object DualSensorRuntime {
                 snapshot.primaryValue * if (snapshot.isMmol) 18.0182f else 1f, snapshot.viewMode
             )
         } else emptyList()
-        val result = engine.evaluate(readings, nowMs, config.disagreementPercent, config.durationMinutes ?: 5)
+        val result = engine.evaluate(readings.takeIf { it.size == ids.size }.orEmpty(), nowMs, config.disagreementPercent, config.durationMinutes ?: 5)
         return result
     }
 }

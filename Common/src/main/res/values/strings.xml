@@ -3212,17 +3212,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Alert sound volume</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Sensor disagreement</string>
     <string name="sensor_difference_threshold">Difference threshold</string>
-    <string name="sensor_comparison_help">Select exactly two sensors. Difference is relative to their mean; agreement does not prove accuracy.</string>
+    <string name="sensor_comparison_help">Compares selected sensors. Agreement does not prove accuracy.</string>
     <string name="sensor_disagreement_guidance">Sensors disagree. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
     <string name="sensor_disagreement_message">Sensors differ by %1$d%%. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
 
     <string name="combine_sensors_title">Combine sensors</string>
-    <string name="combine_sensors_help">Use one combined reading throughout the app, including alerts and connected apps. Original sensor data is preserved.</string>
-    <string name="combine_sensors_select">Select exactly two sensors with their display controls, then turn on Combine. Turn it off to change the pair.</string>
-    <string name="combine_sensors_active">Combined reading is the main glucose source. Calibration recency, reference range and recent stability adjust the blend.</string>
-    <string name="combine_sensors_waiting">Waiting for the paired update. Keeping the last output until fresh data is available.</string>
-    <string name="combine_sensors_fallback">Using a fresh individual reading while learning, when sensors disagree, or when pairing is unavailable.</string>
+    <string name="combine_sensors_select">Select sensors to combine</string>
+    <string name="combine_sensors_active">Combined · Experimental</string>
+    <string name="combine_sensors_waiting">Waiting for sensors · Experimental</string>
+    <string name="combine_sensors_fallback">Using one sensor · Experimental</string>
 </resources>

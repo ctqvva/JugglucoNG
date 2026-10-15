@@ -38,6 +38,7 @@ object AlertRuntimeManager {
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
+    private var deltaCompositionBoundary: Pair<String?, Long>? = null
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
@@ -701,6 +702,14 @@ object AlertRuntimeManager {
     }
 
     private fun evaluateDeltaAlarmsLocked() {
+        val id = lastDisplaySnapshot?.sensorId
+        val cutoff = tk.glucodata.combined.CombinedTrendHistory.startTime(id)
+        val boundary = id to cutoff
+        if (deltaCompositionBoundary != boundary && (cutoff > 0L || deltaCompositionBoundary?.second != 0L)) {
+            fallingDeltaState.resetBaseline()
+            risingDeltaState.resetBaseline()
+        }
+        deltaCompositionBoundary = boundary
         evaluateDeltaAlarmLocked(AlertType.FALLING_FAST, fallingDeltaState)
         evaluateDeltaAlarmLocked(AlertType.RISING_FAST, risingDeltaState)
     }

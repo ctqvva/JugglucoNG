@@ -66,6 +66,7 @@ private  fun writeAllIns(sensorptr:Long, sensorName:String) {
         if(doLog) {Log.i(LOG_ID, "writeAll $sensorName: no sensorptr");}
         return
     }
+    if (!tk.glucodata.combined.CombinedSensorRegistry.shouldExportToHealthConnect(sensorName)) return
     if (active.getAndSet(true)) {
         if(doLog) {Log.i(LOG_ID, "writeAll already active");}
         return

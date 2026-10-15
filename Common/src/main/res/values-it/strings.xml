@@ -2950,17 +2950,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Discordanza dei sensori</string>
     <string name="sensor_difference_threshold">Soglia di differenza</string>
-    <string name="sensor_comparison_help">Seleziona esattamente due sensori. La differenza è relativa alla loro media; la concordanza non prova la precisione.</string>
+    <string name="sensor_comparison_help">Confronta i sensori selezionati. La concordanza non prova la precisione.</string>
     <string name="sensor_disagreement_guidance">I sensori discordano. Verifica con un glucometro; nessun sensore può indicare quale sia corretto.</string>
     <string name="sensor_disagreement_message">I sensori differiscono del %1$d%%. Verifica con un glucometro; nessun sensore può indicare quale sia corretto.</string>
 
     <string name="combine_sensors_title">Combina sensori</string>
-    <string name="combine_sensors_help">Una lettura combinata per tutta l’app, inclusi allarmi e app collegate. I dati originali vengono conservati.</string>
-    <string name="combine_sensors_select">Seleziona esattamente due sensori tramite i controlli di visualizzazione, poi attiva la combinazione. Disattivala per cambiare coppia.</string>
-    <string name="combine_sensors_active">La lettura combinata è la fonte principale. Recenza delle calibrazioni, intervallo di riferimento e stabilità recente regolano i pesi.</string>
-    <string name="combine_sensors_waiting">In attesa della lettura abbinata. L’ultimo valore viene mantenuto fino a nuovi dati.</string>
-    <string name="combine_sensors_fallback">Durante l’apprendimento, in caso di disaccordo o senza abbinamento si usa una lettura individuale recente.</string>
+    <string name="combine_sensors_select">Seleziona i sensori</string>
+    <string name="combine_sensors_active">Combinati · Sperimentale</string>
+    <string name="combine_sensors_waiting">In attesa dei sensori · Sperimentale</string>
+    <string name="combine_sensors_fallback">Un sensore · Sperimentale</string>
 </resources>

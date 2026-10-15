@@ -3002,17 +3002,16 @@
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
 
-    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <!-- Sensor disagreement warning and experimental combined source. -->
     <string name="alert_sensor_disagreement">Rozbieżność sensorów</string>
     <string name="sensor_difference_threshold">Próg rozbieżności</string>
-    <string name="sensor_comparison_help">Wybierz dokładnie dwa sensory. Rozbieżność jest liczona względem ich średniej; zgodność nie dowodzi dokładności.</string>
+    <string name="sensor_comparison_help">Porównuje wybrane sensory. Zgodność nie dowodzi dokładności.</string>
     <string name="sensor_disagreement_guidance">Sensory są rozbieżne. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
     <string name="sensor_disagreement_message">Sensory różnią się o %1$d%%. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
 
     <string name="combine_sensors_title">Połącz sensory</string>
-    <string name="combine_sensors_help">Jeden wspólny odczyt w całej aplikacji, także w alarmach i połączonych aplikacjach. Dane źródłowe są zachowane.</string>
-    <string name="combine_sensors_select">Wybierz dokładnie dwa sensory przyciskami wyświetlania i włącz łączenie. Wyłącz je, aby zmienić parę.</string>
-    <string name="combine_sensors_active">Wspólny odczyt jest głównym źródłem. Wagi zależą od wieku kalibracji, zakresu odniesienia i ostatniej stabilności.</string>
-    <string name="combine_sensors_waiting">Oczekiwanie na sparowaną aktualizację. Ostatnia wartość pozostaje do nadejścia nowych danych.</string>
-    <string name="combine_sensors_fallback">Podczas uczenia, przy rozbieżności lub braku pary używany jest świeży pojedynczy odczyt.</string>
+    <string name="combine_sensors_select">Wybierz sensory</string>
+    <string name="combine_sensors_active">Połączone · Eksperymentalne</string>
+    <string name="combine_sensors_waiting">Oczekiwanie na sensory · Eksperymentalne</string>
+    <string name="combine_sensors_fallback">Jeden sensor · Eksperymentalne</string>
 </resources>

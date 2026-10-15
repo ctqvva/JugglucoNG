@@ -841,6 +841,7 @@ public class SensorBluetooth {
     }
 
     public static void setCurrentSensorSelection(String serial) {
+        tk.glucodata.combined.CombinedSensorRegistry.onPrimarySelection(serial);
         if (serial == null || serial.isEmpty()) {
             ManagedCurrentSensor.clear();
             Natives.setcurrentsensor("");
