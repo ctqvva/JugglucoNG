@@ -56,7 +56,6 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -233,9 +232,8 @@ fun ReadingRow(
             }
             val leadingActionSlotWidth = 44.dp
             val trendSlotWidth = 30.dp
-            val timeStyle = MaterialTheme.typography.bodySmall
+            val timeStyle = if (isActive) MaterialTheme.typography.bodySmallEmphasized else MaterialTheme.typography.bodySmall
             val timeColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            val timeWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             val cloneTransport = GlucoseReadingSource.cloneTransport(point.source)
             val isNightscoutSource = point.source == GlucoseReadingSource.NIGHTSCOUT
             val isRawModeRR = viewMode == 1 || viewMode == 3
@@ -282,7 +280,6 @@ fun ReadingRow(
                     Text(
                         text = tk.glucodata.MinuteTimeFormat.format(point.timestamp),
                         style = timeStyle,
-                        fontWeight = timeWeight,
                         color = timeColor
                     )
                     if (cloneTransport != null) {

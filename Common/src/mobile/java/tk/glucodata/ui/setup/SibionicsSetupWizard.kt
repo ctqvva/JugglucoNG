@@ -33,7 +33,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -918,8 +917,7 @@ fun SelectTypeStep(
                         ) {
                             Text(
                                 text = stringResource(type.displayNameRes),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                style = if (isSelected) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
                                 color = if (isSelected)
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else

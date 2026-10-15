@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -563,13 +562,12 @@ internal fun TirDistributionRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge,
+            style = if (emphasised) MaterialTheme.typography.labelLargeEmphasized else MaterialTheme.typography.labelLarge,
             color = if (emphasised) {
                 MaterialTheme.colorScheme.onSurface
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
-            fontWeight = if (emphasised) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.width(labelWidth),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

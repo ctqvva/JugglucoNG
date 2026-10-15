@@ -50,7 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -408,8 +407,7 @@ fun CalibrationBottomSheet(
 
                                 Text(
                                     ":",
-                                    style = MaterialTheme.typography.displayMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.displayMediumEmphasized,
                                     modifier = Modifier.padding(horizontal = 8.dp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -625,10 +623,9 @@ fun CustomTimeField(
                         }
                     }
                 },
-                textStyle = MaterialTheme.typography.displayMedium.copy(
+                textStyle = MaterialTheme.typography.displayMediumEmphasized.copy(
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
@@ -812,7 +809,6 @@ private fun CalibrationHeroSection(
                     text = originalStr,
                     style = originalValueStyle.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center
                     )
                 )

@@ -631,7 +631,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = stringResource(R.string.unbind_sensor),
-                                        style = MaterialTheme.typography.titleMediumEmphasized,)
+                                        style = MaterialTheme.typography.titleMedium)
                                     Text(
                                         text = stringResource(R.string.unbind_sensor_desc),
                                         style = MaterialTheme.typography.bodySmall,
@@ -988,7 +988,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.bias_correction),
-                                style = MaterialTheme.typography.titleMediumEmphasized,)
+                                style = MaterialTheme.typography.titleMedium)
                             Text(
                                 if (sensor.resetCompensationActive && sensor.resetCompensationStatus.isNotEmpty())
                                     sensor.resetCompensationStatus
@@ -1043,7 +1043,7 @@ fun SensorCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.hardware_reset),
-                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
@@ -1169,7 +1169,7 @@ fun SensorCard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         stringResource(titleRes),
-                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        style = MaterialTheme.typography.titleMedium,
                                     )
                                     Text(
                                         stringResource(subtitleRes),
@@ -1218,7 +1218,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.sibionics_sensitivity),
-                                    style = MaterialTheme.typography.titleMediumEmphasized,
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
                                 Text(
                                     stringResource(
@@ -2230,8 +2230,8 @@ fun SensorCard(
                                 Text(stringResource(R.string.sensor_life), style = labelStyle)
                                 Text(
                                     remainText,
-                                    style = valueStyle.copy(color = remainColor),
-                                    fontWeight = if (sensor.sensorRemainingHours <= 24) FontWeight.Bold else FontWeight.Normal
+                                    style = (if (sensor.sensorRemainingHours <= 24) MaterialTheme.typography.bodyMediumEmphasized else valueStyle)
+                                        .copy(color = remainColor)
                                 )
                             }
                         }
@@ -2270,8 +2270,7 @@ fun SensorCard(
                                 Text(stringResource(R.string.status), style = labelStyle)
                                 Text(
                                     stringResource(R.string.sensor_expired_text),
-                                    style = valueStyle.copy(color = MaterialTheme.colorScheme.error),
-                                    fontWeight = FontWeight.Bold
+                                    style = MaterialTheme.typography.bodyMediumEmphasized.copy(color = MaterialTheme.colorScheme.error)
                                 )
                             }
                         }
@@ -2401,7 +2400,7 @@ fun SensorCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.auto_calibration_mode),
-                                    style = MaterialTheme.typography.titleMediumEmphasized,)
+                                    style = MaterialTheme.typography.titleMedium)
                                 Text(
                                     calSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -2505,7 +2504,6 @@ fun SensorCard(
                                         Text(
                                             text = displayGlucose,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         val timeText = if (cal.timestampMs > 0) {
@@ -2900,7 +2898,6 @@ fun SensorCard(
                                         Text(
                                             text = displayGlucose,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         val timeText = if (cal.timestampMs > 0) {

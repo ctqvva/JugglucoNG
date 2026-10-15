@@ -48,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -139,10 +138,7 @@ internal fun RiskIndexCard(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = String.format(Locale.getDefault(), "%.0f", gri.value),
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontFeatureSettings = "tnum",
-                            fontWeight = FontWeight.SemiBold
-                        ),
+                        style = MaterialTheme.typography.displaySmallEmphasized.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
@@ -163,13 +159,12 @@ internal fun RiskIndexCard(
                 GriZone.entries.forEach { zone ->
                     Text(
                         text = zone.name,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = if (zone == gri.zone) MaterialTheme.typography.labelSmallEmphasized else MaterialTheme.typography.labelSmall,
                         color = if (zone == gri.zone) {
                             MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         },
-                        fontWeight = if (zone == gri.zone) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center
                     )

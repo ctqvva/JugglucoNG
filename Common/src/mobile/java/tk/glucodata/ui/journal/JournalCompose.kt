@@ -2650,8 +2650,7 @@ private fun JournalPresetPill(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = preset.displayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -2715,13 +2714,12 @@ fun JournalInlineChip(
                     ) {
                         Text(
                             text = chipContent.label,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = if (chipContent.value == null) MaterialTheme.typography.labelLargeEmphasized else MaterialTheme.typography.labelLarge,
                             color = if (chipContent.value == null) {
                                 MaterialTheme.colorScheme.onSurface
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            fontWeight = if (chipContent.value == null) FontWeight.SemiBold else FontWeight.Medium,
                             maxLines = 2,
                             softWrap = true,
                             overflow = TextOverflow.Ellipsis
@@ -2729,9 +2727,8 @@ fun JournalInlineChip(
                         chipContent.value?.let { value ->
                             Text(
                                 text = value,
-                                style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                                style = MaterialTheme.typography.titleSmallEmphasized.copy(fontFeatureSettings = "tnum"),
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -3345,9 +3342,8 @@ private fun JournalStepperField(
                         .weight(1f)
                         .heightIn(min = 64.dp)
                         .onFocusChanged(field::onFocusChanged),
-                    textStyle = MaterialTheme.typography.displaySmall.copy(
+                    textStyle = MaterialTheme.typography.displaySmallEmphasized.copy(
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     ),
                     singleLine = true,
@@ -3367,9 +3363,8 @@ private fun JournalStepperField(
                                 if (value.isEmpty()) {
                                     Text(
                                         text = "0",
-                                        style = MaterialTheme.typography.displaySmall.copy(
+                                        style = MaterialTheme.typography.displaySmallEmphasized.copy(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                            fontWeight = FontWeight.SemiBold,
                                             textAlign = TextAlign.Center
                                         )
                                     )

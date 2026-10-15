@@ -153,7 +153,6 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
@@ -4447,9 +4446,10 @@ fun InteractiveGlucoseChart(
                         } else {
                             statusContentColor
                         }
+                        val tooltipValueWeight = MaterialTheme.typography.titleMediumEmphasized.fontWeight
                         val styledText = androidx.compose.ui.text.buildAnnotatedString {
                             // Primary Value
-                            withStyle(SpanStyle(color = primaryTooltipColor, fontWeight = FontWeight.Bold)) {
+                            withStyle(SpanStyle(color = primaryTooltipColor, fontWeight = tooltipValueWeight)) {
                                 append(dvs.primaryStr)
                             }
 
@@ -4458,7 +4458,7 @@ fun InteractiveGlucoseChart(
                                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
                                     append(" · ")
                                 }
-                                withStyle(SpanStyle(color = LocalContentColor.current.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)) {
+                                withStyle(SpanStyle(color = LocalContentColor.current.copy(alpha = 0.6f), fontWeight = tooltipValueWeight)) {
                                     append(sec)
                                 }
                             }
@@ -4710,8 +4710,7 @@ fun InteractiveGlucoseChart(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = calValueStr,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.labelMediumEmphasized
                         )
                     }
                 }
@@ -4938,12 +4937,13 @@ fun InteractiveGlucoseChart(
         val rangeLabels = items.map { stringResource(it.labelResId, it.labelAmount) }
         val rangeTextMeasurer = rememberTextMeasurer()
         // Reserve the bold width for every label so changing selection cannot resize the picker.
-        val rangeLabelsWidth = remember(rangeLabels, baseLabelStyle, rangeTextMeasurer, density) {
+        val selectedLabelStyle = MaterialTheme.typography.labelLargeEmphasized
+        val rangeLabelsWidth = remember(rangeLabels, selectedLabelStyle, rangeTextMeasurer, density) {
             with(density) {
                 rangeLabels.sumOf { label ->
                     rangeTextMeasurer.measure(
                         text = label,
-                        style = baseLabelStyle.copy(fontWeight = FontWeight.Bold),
+                        style = selectedLabelStyle,
                         softWrap = false,
                         maxLines = 1
                     ).size.width
@@ -5149,7 +5149,7 @@ fun InteractiveGlucoseChart(
 
                             Text(
                                 text = stringResource(range.labelResId, range.labelAmount),
-                                style = baseLabelStyle,
+                                style = if (isSel) selectedLabelStyle else baseLabelStyle,
                                 // The picker changes scale throughout collapse. Keep glyph
                                 // layout stable; scale the layer and its occupied bounds instead.
                                 modifier = Modifier.layout { measurable, constraints ->
@@ -5168,8 +5168,7 @@ fun InteractiveGlucoseChart(
                                 },
                                 color = contentColor,
                                 softWrap = false,
-                                maxLines = 1,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
+                                maxLines = 1
                             )
                         }
                     }
