@@ -202,12 +202,22 @@ AiDex adaptations:
   vendor quality bits and deterministic lag correction are absent. Unknown
   temperature does not invent artifact evidence. The zero lead and lag variance
   of 12 min² are explicit modelling assumptions, not recovered factory values.
-- Absolute scale uncertainty is added to each output-mixture component. Its
-  assumed log-scale SD floor is 8%, rising to 15% without enough stable pairs;
-  reference corrections add their own variance. These bounds and the nominal
-  interval coverage are not clinically validated: the no-reference 90% band
-  contains 22 of 29 saved references (76%). It was deliberately not tuned to
-  those 29 points.
+- Calibration uncertainty is added to each output-mixture component. It is
+  not one minute's factory/raw disagreement: the factory leans with the trend
+  and amplifies moves away from its recent level, and treating that as
+  uncertainty in the slow scale made the 90% band about 40% of the value
+  (median 2.1 mmol/L wide on KUFY, up to 8.5). Three parts instead:
+  how far the whole mapping (scale and offset) sits from its target, smoothed
+  with the scale's 6-hour half-life and divided by the ~17 independent hours
+  that half-life averages (target correlation about one hour); a 4% floor; and
+  half of a 30-minute signed average of the factory's log gap from the mapping,
+  because where the two estimators persistently disagree the level is
+  genuinely in doubt. On the KUFY stock export the median band is 1.03 mmol/L
+  (90th percentile 1.78); Oct 14 19:55 went from 6.3–10.4 to 7.5–9.2.
+  Reference corrections add their own variance. None of this is clinically
+  validated, and it was not fitted to references: the no-reference band
+  contains 11 of 29 KT3T references, because that aging sensor's errors are
+  larger than its model uncertainty.
 - Real lows and sharp raw rises remain reachable; there is no 3–4 mmol/L floor.
   Missing/invalid raw yields no estimate instead of an invented raw observation.
   The inherited physical state bounds remain 0.6–35 mmol/L. Six KT3T samples

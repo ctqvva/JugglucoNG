@@ -223,7 +223,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
     companion object {
         const val MGDL_PER_MMOL = 18.0182f
         private const val MAGIC = 0x4149_5632
-        private const val VERSION = 2
+        private const val VERSION = 3
         private const val MAX_SNAPSHOT_BYTES = 64 * 1024
     }
 }
@@ -326,6 +326,10 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
     private var lastRaw = Float.NaN
     private var lastFactory = Float.NaN
     private var stableCount = 0L
+    /** Squared log distance of the mapping from its target, smoothed: how unsettled the scale is. */
+    private var calibrationSpread = Double.NaN
+    /** Signed log gap between the factory and this mapping, smoothed over half an hour. */
+    private var factoryDisagreement = 0.0
     private val pairs = ArrayDeque<Triple<Long, Float, Float>>()
     private val longPairs = ArrayDeque<Triple<Long, Float, Float>>()
 
@@ -383,10 +387,20 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
         if (target != null) {
             if (!logScale.isFinite()) {
                 logScale = target
+                calibrationSpread = bootstrapSpread()
             } else {
                 val fraction = 1.0 - exp(-ln(2.0) * step / HALF_LIFE_MINUTES)
                 logScale += ((target - logScale) * fraction).coerceIn(-MAX_LOG_STEP * elapsed, MAX_LOG_STEP * elapsed)
+                // Distance of the whole mapping (scale and offset) from its target at this raw level.
+                val distance = ln((exp(target) * raw + offsetTarget).coerceAtLeast(1.0) /
+                    (exp(logScale) * raw + offset).coerceAtLeast(1.0))
+                calibrationSpread += (distance * distance - calibrationSpread) * fraction
             }
+        }
+        if (logScale.isFinite() && validFactory) {
+            val mapped = (exp(logScale) * raw + offset).coerceAtLeast(1.0)
+            val gapFraction = 1.0 - exp(-ln(2.0) * step / DISAGREEMENT_HALF_LIFE_MINUTES)
+            factoryDisagreement += (ln(factory / mapped) - factoryDisagreement) * gapFraction
         }
         lastTime = sample.timestampMs
         lastRaw = raw
@@ -394,7 +408,17 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
         if (!logScale.isFinite()) return null
         val glucose = exp(logScale) * raw + offset
         if (!usable(glucose)) return null
-        return Signal((glucose / AiDexAdaptiveV2.MGDL_PER_MMOL).toFloat(), scatterSquared())
+        // The mapping is a slow average of a target that wanders with the factory
+        // hour to hour; its uncertainty is that wander over the hours averaged,
+        // not the wander itself, and not one minute's factory/raw disagreement.
+        val averagedHours = 2.0 * HALF_LIFE_MINUTES / ln(2.0) / TARGET_CORRELATION_MINUTES
+        // Where the factory persistently reads elsewhere, the level is genuinely
+        // in doubt: the truth plausibly lies between the two, so half the gap.
+        // Signed and smoothed, the factory's minute-scale trend lean mostly cancels.
+        val disagreement = factoryDisagreement / 2.0
+        return Signal((glucose / AiDexAdaptiveV2.MGDL_PER_MMOL).toFloat(),
+            (max(MIN_CALIBRATION_SD * MIN_CALIBRATION_SD, calibrationSpread / averagedHours) +
+                disagreement * disagreement).toFloat())
     }
 
     private fun ratios(): DoubleArray? {
@@ -405,11 +429,17 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
 
     private fun targetLogScale(): Double? = ratios()?.let { it[it.size / 2] }
 
-    private fun scatterSquared(): Float {
-        val ordered = ratios() ?: return (DEFAULT_SCATTER * DEFAULT_SCATTER).toFloat()
-        val residuals = DoubleArray(ordered.size) { abs(ordered[it] - logScale) }.apply { sort() }
-        val scatter = max(MIN_SCATTER, 1.4826 * residuals[residuals.size / 2])
-        return (scatter * scatter).toFloat()
+    /**
+     * Uncertainty of a median of the first pairs, not their scatter: one
+     * minute's factory/raw disagreement (the factory's own trend lean) says
+     * little about where the slow calibration is.
+     */
+    private fun bootstrapSpread(): Double {
+        val ordered = ratios() ?: return DEFAULT_SCATTER * DEFAULT_SCATTER
+        val median = ordered[ordered.size / 2]
+        val residuals = DoubleArray(ordered.size) { abs(ordered[it] - median) }.apply { sort() }
+        val sd = 1.4826 * residuals[residuals.size / 2]
+        return 1.2533 * 1.2533 * sd * sd / ordered.size
     }
 
     /** Huber-weighted affine fit over the long window, with a zero-mean prior on the offset. */
@@ -460,6 +490,8 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
         out.writeFloat(lastRaw)
         out.writeFloat(lastFactory)
         out.writeLong(stableCount)
+        out.writeDouble(calibrationSpread)
+        out.writeDouble(factoryDisagreement)
         for (deque in listOf(pairs, longPairs)) {
             out.writeInt(deque.size)
             deque.forEach { out.writeLong(it.first); out.writeFloat(it.second); out.writeFloat(it.third) }
@@ -474,11 +506,15 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
         lastRaw = input.readFloat()
         lastFactory = input.readFloat()
         stableCount = input.readLong()
+        calibrationSpread = input.readDouble()
+        factoryDisagreement = input.readDouble()
         require(logScale.isNaN() || (logScale.isFinite() && abs(logScale) < 20))
         require(offset.isFinite() && abs(offset) <= MAX_OFFSET_MGDL && offsetTarget.isFinite() && abs(offsetTarget) <= MAX_OFFSET_MGDL)
         require(lastTime >= 0L && (lastRaw.isNaN() || (lastRaw.isFinite() && lastRaw > 0f)))
         require(lastFactory.isNaN() || lastFactory.isFinite())
         require(stableCount >= 0L)
+        require(factoryDisagreement.isFinite() && abs(factoryDisagreement) < 20.0)
+        require(calibrationSpread.isNaN() || (calibrationSpread.isFinite() && calibrationSpread >= 0.0 && calibrationSpread < 100.0))
         for ((deque, limit) in listOf(pairs to MAX_PAIRS, longPairs to MAX_LONG_PAIRS)) {
             val count = input.readInt()
             require(count in 0..limit)
@@ -512,6 +548,10 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
         private const val OFFSET_PRIOR_SD_MGDL = 18.0
         private const val MAX_OFFSET_MGDL = 72.0
         private const val DEFAULT_SCATTER = 0.15
-        private const val MIN_SCATTER = 0.08
+        /** A settled factory-assisted calibration is still only known to a few percent. */
+        private const val MIN_CALIBRATION_SD = 0.04
+        /** The window median moves with the factory's hour-scale lean; ~one window apart is independent. */
+        private const val TARGET_CORRELATION_MINUTES = 60.0
+        private const val DISAGREEMENT_HALF_LIFE_MINUTES = 30.0
     }
 }

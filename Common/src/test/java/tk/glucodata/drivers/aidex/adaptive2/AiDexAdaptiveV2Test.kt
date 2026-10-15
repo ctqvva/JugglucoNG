@@ -73,6 +73,29 @@ class AiDexAdaptiveV2Test {
         }
     }
 
+    private fun width(result: AiDexAdaptiveResult) = result.estimate.upper90Mmol - result.estimate.lower90Mmol
+
+    @Test fun `a settled calibration gives a narrow band`() {
+        val model = settled()
+        var result: AiDexAdaptiveResult? = null
+        for (i in 180..600) result = model.process(sample(i)) ?: result
+        // 5.55 mmol/L with a settled factory curve: well under a third of the value.
+        assertTrue(width(result!!) < 1.2f)
+    }
+
+    @Test fun `a brief factory swing does not balloon the band but a persistent gap widens it`() {
+        val steady = settled().also { m -> for (i in 180..600) m.process(sample(i)) }
+        val baseline = width(steady.process(sample(601))!!)
+        val brief = settled().also { m ->
+            for (i in 180..600) m.process(sample(i, factory = if (i in 590..594) 130f else 100f))
+        }
+        assertTrue(width(brief.process(sample(601))!!) < baseline * 1.3f)
+        val persistent = settled().also { m ->
+            for (i in 180..600) m.process(sample(i, factory = if (i >= 510) 80f else 100f))
+        }
+        assertTrue(width(persistent.process(sample(601, factory = 80f))!!) > baseline * 1.3f)
+    }
+
     @Test fun `actual raw rise follows in the same minute`() {
         val result = settled().process(sample(180, raw = 127f, factory = 190f))!!
         assertTrue(result.estimate.glucoseMmol > 6.8f)
