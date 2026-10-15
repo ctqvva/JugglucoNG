@@ -71,9 +71,11 @@ class AiDexAlgorithmRuntimeTests {
     class NativeInputs {
         companion object {
             var start = 0L
+            var historyWrites = 0
             @JvmStatic @Implementation fun getDeviceAddress(pointer: Long, fresh: Boolean): String? = null
             @JvmStatic @Implementation fun getSensorStartmsec(pointer: Long): Long = start
             @JvmStatic @Implementation fun getSensorUiSnapshot(serial: String): LongArray? = null
+            @JvmStatic @Implementation fun aidexStoreHistoryData(pointer: Long, time: Long, glucose: Float, raw: Float) { historyWrites++ }
         }
     }
 
@@ -157,6 +159,7 @@ class AiDexAlgorithmRuntimeTests {
         Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE).edit().clear().commit()
         AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).parentFile!!.deleteRecursively()
         NativeInputs.start = System.currentTimeMillis() - 180_000L
+        NativeInputs.historyWrites = 0
         SensorBluetooth.gattcallbacks.clear()
         ManagedCurrentSensor.clear()
         Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
@@ -247,6 +250,84 @@ class AiDexAlgorithmRuntimeTests {
         runtime.source(NativeInputs.start + index * 60_000L, factory, raw, Float.NaN, AiDexSourceSample.LIVE)
 
     private fun choose(mode: Int) { assertTrue(runtime.select(mode)); executor.runNext() }
+
+    private fun historyField(name: String) = AiDexBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }
+    private fun historyResponse(method: String, bytes: ByteArray) = AiDexBleManager::class.java
+        .getDeclaredMethod(method, ByteArray::class.java).apply { isAccessible = true }.invoke(driver, bytes)
+    private fun prepareHistoryPage() {
+        driver.dataptr = 1L
+        SuperGattCallback::class.java.getDeclaredField("sensorstartmsec").apply { isAccessible = true }.setLong(driver, NativeInputs.start)
+        historyField("hasAuthoritativeSessionStart").setBoolean(driver, true)
+        historyField("historyRawNextIndex").setInt(driver, 4) // 0x23 already downloaded through the end.
+        historyField("historyBriefNextIndex").setInt(driver, 2)
+        historyField("historyNewestOffset").setInt(driver, 4)
+        historyField("historyDownloading").setBoolean(driver, true)
+        @Suppress("UNCHECKED_CAST")
+        val cache = historyField("calibratedGlucoseCache").get(driver) as MutableMap<Int, Int>
+        cache.putAll(mapOf(2 to 105, 3 to 110))
+    }
+    private fun briefPage() = byteArrayOf(AiDexOpcodes.GET_HISTORIES.toByte(), 0, 2, 0,
+        0xE8.toByte(), 3, 0, 0, 1, 0xE8.toByte(), 3, 0, 0, 1)
+
+    @Test fun failedAdaptiveBackfillRefetchesFactoryPageAfterDriverRecreation() {
+        runtime.record(listOf(sample(1)))
+        choose(8)
+        val journal = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)
+        val saved = journal.readBytes()
+        assertTrue(journal.delete())
+        assertTrue(journal.mkdir()) // Force journal I/O failure, with no Room rows for this page.
+        prepareHistoryPage()
+        historyField("historyNewestOffset").setInt(driver, 3) // Raw cursor 4 is already caught up.
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertFalse(historyField("historyDownloading").getBoolean(driver))
+        assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
+        assertEquals(2, historyField("historyRawNextIndex").getInt(driver))
+        assertFalse(room.containsKey(sample(2).timestampMs))
+        assertFalse(room.containsKey(sample(3).timestampMs))
+        assertEquals(0, NativeInputs.historyWrites)
+
+        runtime.close()
+        driver.dataptr = 0L
+        assertTrue(journal.delete())
+        journal.writeBytes(saved)
+        driver = AiDexBleManager(serial, 0L, 4) // Load persisted cursors with an empty factory cache.
+        SensorBluetooth.gattcallbacks.clear()
+        SensorBluetooth.gattcallbacks.add(driver)
+        installRuntime()
+        executor.runNext() // Reconstruct Adaptive continuation from the saved minute.
+        driver.dataptr = 1L
+        SuperGattCallback::class.java.getDeclaredField("sensorstartmsec").apply { isAccessible = true }.setLong(driver, NativeInputs.start)
+        historyField("hasAuthoritativeSessionStart").setBoolean(driver, true)
+        historyResponse("handleHistoryRangeResponse", byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 3, 0))
+        assertEquals(2, historyField("historyRawNextIndex").getInt(driver))
+        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
+        historyResponse("handleHistoryRawResponse", byteArrayOf(AiDexOpcodes.GET_HISTORIES_RAW.toByte(), 0, 2, 0, 105, 0, 110, 0))
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        executor.runNext()
+        for ((offset, factory) in listOf(2 to 105f, 3 to 110f)) {
+            val time = sample(offset).timestampMs
+            assertEquals(factory, runtime.controller.journal.atMinute(time / 60_000L)!!.factoryMgDl, 0f)
+            assertNotNull(room[time])
+        }
+        assertEquals(0, NativeInputs.historyWrites) // Adaptive remains the only history writer.
+        driver.dataptr = 0L
+    }
+
+    @Test fun stockBackfillStillStoresFactoryHistoryWhenJournalingFails() {
+        val journal = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)
+        assertTrue(journal.parentFile!!.mkdirs() || journal.parentFile!!.isDirectory)
+        assertTrue(journal.mkdir())
+        prepareHistoryPage()
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        assertTrue(historyField("historyDownloading").getBoolean(driver))
+        assertEquals(2, NativeInputs.historyWrites)
+        @Suppress("UNCHECKED_CAST")
+        val pending = historyField("pendingRoomHistoryValues").get(driver) as List<Float>
+        assertEquals(listOf(105f, 110f), pending)
+        driver.dataptr = 0L
+    }
 
     @Test fun stockReleaseGapIsRefetchedBeforePendingStockRestoration() {
         runtime.record(listOf(sample(1), sample(2)))

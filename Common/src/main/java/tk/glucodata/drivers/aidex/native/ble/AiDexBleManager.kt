@@ -5154,7 +5154,10 @@ class AiDexBleManager(
             if (!storeHistoryEntries(mergeResult.entries)) {
                 // Adaptive history reaches Room only through a replay of journaled
                 // originals. Keep this page pending rather than advancing past rows
-                // nothing stored; the raw cursor follows the brief one on resume.
+                // nothing stored. Merging consumed its factory cache, and reconnect
+                // discards that cache, so persist a rewind of 0x23 as well. Its
+                // caught-up cursor otherwise skips the factory refetch on resume.
+                historyRawNextIndex = minOf(historyRawNextIndex, historyBriefNextIndex)
                 abortHistoryDownload("source-journal-unavailable")
                 return
             }

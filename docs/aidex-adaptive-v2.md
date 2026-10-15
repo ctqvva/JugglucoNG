@@ -61,6 +61,11 @@ Available original factory minutes seed that correction's reference anchors
 before an unrelated history hole stops replay. Imported references with unknown
 stock values therefore fit against their available factory minute rather than
 their saved Adaptive value; full historical repair remains blocked.
+If a backfill page cannot be journaled while Adaptive owns history, the download
+stops without advancing that page. Both cursors are persisted at or before its
+start so reconnect refetches the consumed factory cache as well as the raw page,
+even when the failed minutes never reached Room. Stock keeps its direct factory
+history storage when journaling is unavailable.
 The applied mode remains unchanged while a Stock restoration is pending, so
 already-corrected retained history cannot become eligible for a second correction.
 
@@ -348,7 +353,7 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 4,040 tests, zero failures/errors/skips.
+The full mobile Gradle/JVM suite passes: 4,061 tests, zero failures/errors/skips.
 Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
@@ -364,6 +369,9 @@ recovery, interrupted repair/restart, completion notification
 termination, real reference/fit changes, delayed live-write ordering, current
 managed-minute publication, rate units, rejected-reset recovery, retained
 ownership, nonblocking callbacks and queued removal/transport checks. Runtime
+tests exercise a journal failure during Adaptive backfill, persisted cursor
+rewind, driver recreation, factory/raw refetch and successful replay, plus
+continued direct Stock history storage when the journal is unavailable. Runtime
 tests also cover disabled generic sync, settings-only import over
 retained calibrated history, forward factory publication with irrecoverable
 originals, Stock startup repair, full-series fallback fits and blocked tap ordering.
