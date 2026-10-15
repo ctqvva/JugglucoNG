@@ -114,13 +114,9 @@ object CombinedSensorRegistry {
 
     /** Called before the physical source's primary-only gate, without changing its stored data. */
     @JvmStatic fun onPhysicalReading(id: String?, reading: LiveReadingLanes, rate: Float, timeMs: Long, generation: Int) {
-        if (isCombined(id)) return
-        val target = manager ?: return
-        if (target.inputs.none { SensorIdentity.matches(it, id) }) return
-        val snapshot = runCatching { CurrentDisplaySource.resolveIncomingReading(reading, rate, timeMs, id, generation,
-            0, "combination-input", DisplayTrendSource.TREND_WINDOW_MS, true) }
-            .onFailure { Log.stack("CombinedSensor", "input resolution", it) }.getOrNull() ?: return
-        target.observe(snapshot)
+        // This runs on GATT callbacks too: all identity/history/calibration work
+        // belongs to the manager's worker, never the transport callback.
+        manager?.observeIncoming(id, reading, rate, timeMs, generation)
     }
 
     /** Every primary-selection route (including watch commands) uses this exit. */

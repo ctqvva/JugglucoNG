@@ -12,6 +12,10 @@ import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
+import java.lang.reflect.Proxy
 import tk.glucodata.*
 import tk.glucodata.alerts.AlertVolumeTestApplication
 import tk.glucodata.alerts.DualSensorConsensus
@@ -489,6 +493,75 @@ class CombinedSensorIntegrationTests {
                 assertEquals(if (hide) null else "90", display.tertiaryStr)
             }
         } finally { calibration.setHideInitialWhenCalibrated(previous) }
+    }
+
+    @Test fun physicalIngressReturnsWhileHistoryBlocksAndSubsequentCallbacksStayQueued() {
+        CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+        val manager = CombinedSensorRegistry.manager!!
+        drain(manager)
+        val historyEntered = CountDownLatch(1)
+        val releaseHistory = CountDownLatch(1)
+        val callbackThread = AtomicReference<Thread>()
+        val historyThreads = java.util.concurrent.CopyOnWriteArrayList<Thread>()
+        val bridgeField = HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }
+        val previousBridge = bridgeField.get(null)
+        val callback = Executors.newSingleThreadExecutor()
+        HistoryRepositoryAccess.register(Proxy.newProxyInstance(HistoryRepositoryBridge::class.java.classLoader,
+            arrayOf(HistoryRepositoryBridge::class.java)) { _, method, _ ->
+            if (method.name == "getHistoryForNotificationForSensor") {
+                historyThreads += Thread.currentThread()
+                historyEntered.countDown()
+                releaseHistory.await()
+                emptyList<GlucosePoint>()
+            } else null
+        } as HistoryRepositoryBridge)
+        try {
+            val now = System.currentTimeMillis()
+            callback.submit {
+                callbackThread.set(Thread.currentThread())
+                CombinedSensorRegistry.onPhysicalReading("a", LiveReadingLanes.stock(100f, 90f), 0f, now - 60_000L, 0)
+            }.get(5, TimeUnit.SECONDS)
+            assertTrue(historyEntered.await(5, TimeUnit.SECONDS))
+            assertTrue(historyThreads.none { it === callbackThread.get() })
+            // A blocked Room read must not prevent the next BLE event returning.
+            callback.submit {
+                CombinedSensorRegistry.onPhysicalReading("a", LiveReadingLanes.resolved(105f), 0f, now, 0)
+            }.get(5, TimeUnit.SECONDS)
+            assertTrue(PublicationSink.outputs.isEmpty())
+            releaseHistory.countDown()
+            drain(manager)
+            assertEquals(now, PublicationSink.outputs.last().time)
+            assertEquals(105f, PublicationSink.outputs.last().value, 0.001f)
+        } finally {
+            releaseHistory.countDown()
+            callback.shutdownNow()
+            drain(manager)
+            bridgeField.set(null, previousBridge)
+        }
+    }
+
+    @Test fun queuedIncomingLanesKeepTheirUnitsWhenDisplayUnitsChange() {
+        CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+        val manager = CombinedSensorRegistry.manager!!
+        drain(manager)
+        val worker = CombinedSensorManager::class.java.getDeclaredField("worker").apply { isAccessible = true }
+            .get(manager) as ScheduledExecutorService
+        val paused = CountDownLatch(1)
+        val resume = CountDownLatch(1)
+        worker.execute { paused.countDown(); check(resume.await(5, TimeUnit.SECONDS)) }
+        try {
+            assertTrue(paused.await(5, TimeUnit.SECONDS))
+            Applic.unit = 1
+            val now = System.currentTimeMillis()
+            CombinedSensorRegistry.onPhysicalReading("a", LiveReadingLanes.resolved(5.5f), 0f, now - 60_000L, 0)
+            CombinedSensorRegistry.onPhysicalReading("a", LiveReadingLanes.stock(6f, 5f), 0f, now, 0)
+            Applic.unit = 0
+            resume.countDown()
+            drain(manager)
+            assertEquals(2, PublicationSink.outputs.size)
+            assertEquals(5.5f * 18.0182f, PublicationSink.outputs[0].value, 0.001f)
+            assertEquals(6f * 18.0182f, PublicationSink.outputs[1].value, 0.001f)
+        } finally { resume.countDown(); drain(manager) }
     }
 
 }

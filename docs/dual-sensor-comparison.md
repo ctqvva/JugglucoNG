@@ -70,6 +70,11 @@ samples, preserve completed evidence and the last primary output within the fres
 limit. Waiting never holds an expired primary when a fresh individual fallback is
 available. Repeated timer ticks cannot manufacture paired evidence.
 
+Physical-reading callbacks only enqueue immutable incoming lanes. History queries,
+identity resolution and calibration run on the combination manager's worker, with
+ownership checks before resolution and acceptance. Incoming display units are retained
+across a unit change while a reading waits in the queue.
+
 Withhold blending while learning, after a gap, on calibration/lane changes, or when
 the current symmetric difference `200 × abs(a − b) / (a + b)` exceeds the configured
 threshold (20% by default). In these cases use a fresh reading from the first pinned
@@ -90,6 +95,10 @@ snapshots without losing newer boundaries. A combined reading arriving before it
 metadata keeps its glucose value, but its trend is unavailable until continuity is
 known. Native second precision and phone millisecond timestamps share the same
 segment boundaries.
+
+History before the earliest known boundary has unknown continuity. In particular,
+upgrading from the former single-cutoff format cannot recover overwritten boundaries:
+older glucose values remain available, but trends and deltas cannot be inferred there.
 
 With Health Connect enabled, the combined native record is exported. Physical
 exports are withheld while Combine is active and resume when it is disabled.

@@ -51,14 +51,24 @@ class CombinedTrendHistoryTests {
         assertEquals(time(6), CombinedTrendHistory.startTime(id))
     }
 
-    @Test fun legacyLatestCutoffMigratesAndPreservesOlderRows() {
+    @Test fun legacyLatestCutoffMigratesWithoutInventingContinuityBeforeIt() {
         Applic.app.getSharedPreferences("combined_trend_boundaries", 0).edit().putLong(id, time(6) + 321).commit()
         assertEquals(time(6), CombinedTrendHistory.startTime(id))
-        val points = (0..8).map { point(it) }
-        assertEquals((0..2).map(::time), CombinedTrendHistory.filter(points, id, time(2)).map { it.timestamp })
+        val points = (0..8).map { point(it, if (it < 3) 110f else 100f) }
+        assertTrue(CombinedTrendHistory.filter(points, id, time(2)).isEmpty())
+        assertTrue(CombinedTrendHistory.filter(points, id, time(5)).isEmpty())
+        assertEquals(Long.MAX_VALUE, CombinedTrendHistory.startTime(id, time(5)))
+        assertFalse(CombinedTrendHistory.sameSegment(id, time(1), time(2)))
+        assertFalse(CombinedTrendHistory.sameSegment(id, time(2), time(4)))
+        assertEquals(100f, resolved(points, 4).primaryValue, 0.001f)
+        assertTrue(resolved(points, 4).rate.isNaN())
+        val ui = points.map { tk.glucodata.ui.GlucosePoint(it.value, "", it.timestamp, sensorSerial = id) }
+        assertTrue(CombinedTrendHistory.filterUi(ui, id, time(5)).isEmpty())
         assertTrue(CombinedTrendHistory.filter(points, id, time(8)).isEmpty()) // Not yet confirmed by this version.
         CombinedTrendHistory.recordOutput(id, time(8), false)
         assertEquals((6..8).map(::time), CombinedTrendHistory.filter(points, id).map { it.timestamp })
+        assertTrue(CombinedTrendHistory.sameSegment(id, time(6), time(8)))
+        assertTrue(CombinedTrendHistory.sameSegment("physical", time(1), time(4)))
     }
 
     @Test fun millisecondBoundaryAlsoCoversTheSecondPrecisionNativeCopy() {
@@ -90,6 +100,16 @@ class CombinedTrendHistoryTests {
         assertTrue(WearPrefsSync.apply(Applic.app, data) > 0)
         assertEquals((3..5).map(::time), CombinedTrendHistory.filter(points, id).map { it.timestamp })
         assertEquals(0f, resolved(points, 5).rate, 0.001f)
+    }
+
+    @Test fun mirroredEarliestKnownBoundaryDoesNotAuthorizeOlderReceiverHistory() {
+        val points = (0..8).map { point(it, if (it < 3) 110f else 100f) }
+        WearPrefsSync.apply(Applic.app, payload(sender(), 8, listOf(6)))
+        assertTrue(CombinedTrendHistory.filter(points, id, time(4)).isEmpty())
+        assertFalse(CombinedTrendHistory.sameSegment(id, time(2), time(4)))
+        assertTrue(resolved(points, 4).rate.isNaN())
+        assertEquals((6..8).map(::time), CombinedTrendHistory.filter(points, id).map { it.timestamp })
+        assertEquals(0f, resolved(points, 8).rate, 0.001f)
     }
 
     @Test fun outOfOrderReadingsAndMetadataDoNotInventOrEraseATrendBoundary() {

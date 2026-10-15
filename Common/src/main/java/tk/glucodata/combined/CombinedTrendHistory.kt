@@ -96,7 +96,10 @@ object CombinedTrendHistory {
         val time = if (atTimeMs == Long.MAX_VALUE) timeline.throughMs else second(atTimeMs)
         if (time > timeline.throughMs) return null
         val next = timeline.boundaries.binarySearch(time).let { if (it >= 0) it + 1 else -it - 1 }
-        return Segment(timeline.boundaries.getOrNull(next - 1) ?: 0L,
+        // Older writers retained only their latest cutoff. Nothing before the
+        // earliest known boundary establishes continuity, including on upgrade.
+        val start = timeline.boundaries.getOrNull(next - 1) ?: return null
+        return Segment(start,
             timeline.boundaries.getOrNull(next) ?: Long.MAX_VALUE)
     }
 

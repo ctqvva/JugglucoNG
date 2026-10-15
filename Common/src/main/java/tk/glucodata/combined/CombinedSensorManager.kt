@@ -44,12 +44,34 @@ class CombinedSensorManager(serial: String, val inputs: List<String>,
     }
     internal fun observe(snapshot: CurrentDisplaySource.Snapshot) {
         if (!isStopped) runCatching { worker.execute {
-            if (isStopped) return@execute
-            val id = inputs.firstOrNull { SensorIdentity.matches(it, snapshot.sensorId) } ?: return@execute
-            val old = samples[id]
-            if (old == null || snapshot.timeMillis >= old.timeMillis) samples[id] = snapshot.copy(sensorId = id)
-            refresh()
+            accept(snapshot)
         } }
+    }
+
+    internal fun observeIncoming(id: String?, reading: LiveReadingLanes, rate: Float, timeMs: Long, generation: Int) {
+        val wasMmol = Applic.unit == 1
+        if (!isStopped) runCatching { worker.execute {
+            if (isStopped || CombinedSensorRegistry.manager !== this || CombinedSensorRegistry.isCombined(id) ||
+                inputs.none { SensorIdentity.matches(it, id) }) return@execute
+            // Incoming lanes use display units. Preserve their meaning if the
+            // user changes units while this reading waits in the worker queue.
+            val factor = if (wasMmol == (Applic.unit == 1)) 1f else if (wasMmol) 18.0182f else 1f / 18.0182f
+            val lanes = if (factor == 1f) reading else if (reading.isResolved) {
+                LiveReadingLanes.resolved(reading.resolvedValue * factor)
+            } else LiveReadingLanes.stock(reading.stockAuto * factor, reading.stockRaw * factor)
+            val snapshot = runCatching { CurrentDisplaySource.resolveIncomingReading(lanes, rate, timeMs, id, generation,
+                0, "combination-input", DisplayTrendSource.TREND_WINDOW_MS, true) }
+                .onFailure { Log.stack("CombinedSensor", "input resolution", it) }.getOrNull() ?: return@execute
+            accept(snapshot)
+        } }
+    }
+
+    private fun accept(snapshot: CurrentDisplaySource.Snapshot) {
+        if (isStopped || CombinedSensorRegistry.manager !== this) return
+        val id = inputs.firstOrNull { SensorIdentity.matches(it, snapshot.sensorId) } ?: return
+        val old = samples[id]
+        if (old == null || snapshot.timeMillis >= old.timeMillis) samples[id] = snapshot.copy(sensorId = id)
+        refresh()
     }
 
     private fun refresh() {
