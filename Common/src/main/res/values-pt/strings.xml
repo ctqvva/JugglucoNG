@@ -2968,6 +2968,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_disagreement_guidance">Os sensores divergem. Verifique com um medidor de glicemia; nenhum sensor identifica qual está correto.</string>
     <string name="sensor_disagreement_message">Os sensores diferem em %1$d%%. Verifique com um medidor de glicemia; nenhum sensor identifica qual está correto.</string>
 
+    <string name="combined_glucose_source">Combinado</string>
     <string name="combine_sensors_title">Combinar sensores</string>
     <string name="combine_sensors_select">Selecione os sensores</string>
     <string name="combine_sensors_active">Combinados · Experimental</string>

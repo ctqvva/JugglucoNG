@@ -3042,6 +3042,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sensor_disagreement_guidance">A szenzorok eltérnek. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
     <string name="sensor_disagreement_message">A szenzorok eltérése %1$d%%. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
 
+    <string name="combined_glucose_source">Egyesített</string>
     <string name="combine_sensors_title">Szenzorok egyesítése</string>
     <string name="combine_sensors_select">Válasszon szenzorokat</string>
     <string name="combine_sensors_active">Egyesítve · Kísérleti</string>

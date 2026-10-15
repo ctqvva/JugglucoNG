@@ -2982,6 +2982,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_disagreement_guidance">传感器读数不一致。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
     <string name="sensor_disagreement_message">传感器读数相差 %1$d%%。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
 
+    <string name="combined_glucose_source">合并值</string>
     <string name="combine_sensors_title">合并传感器</string>
     <string name="combine_sensors_select">选择传感器</string>
     <string name="combine_sensors_active">已合并 · 实验性</string>

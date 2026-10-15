@@ -3083,6 +3083,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_disagreement_guidance">Sensoren weichen ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
     <string name="sensor_disagreement_message">Sensoren weichen um %1$d%% ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
 
+    <string name="combined_glucose_source">Kombiniert</string>
     <string name="combine_sensors_title">Sensoren kombinieren</string>
     <string name="combine_sensors_select">Sensoren auswählen</string>
     <string name="combine_sensors_active">Kombiniert · Experimentell</string>

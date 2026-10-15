@@ -3042,6 +3042,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_disagreement_guidance">Сенсары разыходзяцца. Праверце глюкометрам; ніводны сенсар не вызначае, які з іх правільны.</string>
     <string name="sensor_disagreement_message">Сенсары разыходзяцца на %1$d%%. Праверце глюкометрам; ніводны сенсар не вызначае, які з іх правільны.</string>
 
+    <string name="combined_glucose_source">Агульнае</string>
     <string name="combine_sensors_title">Аб’яднаць сенсары</string>
     <string name="combine_sensors_select">Выберыце сенсары</string>
     <string name="combine_sensors_active">Аб’яднана · Эксперыментальна</string>

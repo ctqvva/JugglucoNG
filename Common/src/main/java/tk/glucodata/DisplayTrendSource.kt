@@ -40,7 +40,9 @@ object DisplayTrendSource {
             return history
         }
 
-        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue)
+        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue).also {
+            it.sensorSerial = current.sensorId ?: activeSensorSerial
+        }
         if (history.isEmpty()) {
             return listOf(candidate)
         }

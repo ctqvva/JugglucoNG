@@ -3009,6 +3009,7 @@
     <string name="sensor_disagreement_guidance">Sensory są rozbieżne. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
     <string name="sensor_disagreement_message">Sensory różnią się o %1$d%%. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
 
+    <string name="combined_glucose_source">Połączone</string>
     <string name="combine_sensors_title">Połącz sensory</string>
     <string name="combine_sensors_select">Wybierz sensory</string>
     <string name="combine_sensors_active">Połączone · Eksperymentalne</string>

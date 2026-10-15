@@ -3010,6 +3010,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_disagreement_guidance">Sensoren wijken af. Controleer met een bloedglucosemeter; geen van beide kan bepalen welke juist is.</string>
     <string name="sensor_disagreement_message">Sensoren verschillen %1$d%%. Controleer met een bloedglucosemeter; geen van beide kan bepalen welke juist is.</string>
 
+    <string name="combined_glucose_source">Gecombineerd</string>
     <string name="combine_sensors_title">Sensoren combineren</string>
     <string name="combine_sensors_select">Selecteer sensoren</string>
     <string name="combine_sensors_active">Gecombineerd · Experimenteel</string>

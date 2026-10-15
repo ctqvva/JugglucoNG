@@ -3068,6 +3068,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_disagreement_guidance">Мэдрэгчдийн заалт зөрж байна. Цусны глюкоз хэмжигчээр шалгана уу; аль нь зөвийг мэдрэгчид тогтоож чадахгүй.</string>
     <string name="sensor_disagreement_message">Мэдрэгчдийн заалт %1$d%% зөрж байна. Цусны глюкоз хэмжигчээр шалгана уу; аль нь зөвийг мэдрэгчид тогтоож чадахгүй.</string>
 
+    <string name="combined_glucose_source">Нэгтгэсэн</string>
     <string name="combine_sensors_title">Мэдрэгчдийг нэгтгэх</string>
     <string name="combine_sensors_select">Сенсоруудаа сонгоно уу</string>
     <string name="combine_sensors_active">Нэгтгэсэн · Туршилтын</string>

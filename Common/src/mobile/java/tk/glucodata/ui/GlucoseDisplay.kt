@@ -90,6 +90,13 @@ fun getDisplayValues(
     calibratedValue: Float? = null
 ): DisplayValues {
     val isMmol = if (unit.isNotEmpty()) tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit) else tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
+    if (point.source == tk.glucodata.GlucoseReadingSource.COMBINED ||
+        tk.glucodata.combined.CombinedSensorRegistry.isCombined(point.sensorSerial)) {
+        val finalValue = point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0f &&
+            tk.glucodata.chart.HistoryChartModelBuilder.recordAppliesToLane(point.sealedDisplayViewMode ?: -1, false) }
+            ?: point.value
+        return DisplayValueResolver.resolve(finalValue, Float.NaN, 0, isMmol, unit)
+    }
     val hideInitialWhenCalibrated = calibratedValue != null &&
         tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
     return DisplayValueResolver.resolve(

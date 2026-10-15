@@ -2973,6 +2973,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_disagreement_guidance">Les capteurs divergent. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
     <string name="sensor_disagreement_message">Les capteurs divergent de %1$d%%. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
 
+    <string name="combined_glucose_source">Combiné</string>
     <string name="combine_sensors_title">Combiner les capteurs</string>
     <string name="combine_sensors_select">Sélectionnez les capteurs</string>
     <string name="combine_sensors_active">Combinés · Expérimental</string>

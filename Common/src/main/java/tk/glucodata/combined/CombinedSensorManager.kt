@@ -32,7 +32,7 @@ class CombinedSensorManager(serial: String, val inputs: List<String>,
     override fun shouldShowSearchingStatusWhenIdle() = false
     override fun shouldUseSharedCurrentSensorHandoffOnTerminate() = false
     override fun matchesManagedSensorId(sensorId: String?) = SerialNumber.equals(sensorId, true)
-    override fun mygetDeviceName(): String = Applic.app.getString(R.string.combine_sensors_title)
+    override fun mygetDeviceName(): String = Applic.app.getString(R.string.combined_glucose_source)
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (inputs.size >= 2 && !Applic.isWearable && !isStopped && !monitoring) {
@@ -55,6 +55,7 @@ class CombinedSensorManager(serial: String, val inputs: List<String>,
     private fun refresh() {
         if (isStopped || CombinedSensorRegistry.manager !== this) return
         try {
+            CombinedSensorRegistry.migrateDisplaySelection(this)
             val now = nowMillis()
             val currentRevision = CalibrationAccess.getRevision()
             if (revision != Long.MIN_VALUE && revision != currentRevision) {

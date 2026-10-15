@@ -116,7 +116,7 @@ class CombinedSensorIntegrationTests {
         val config = CombinedSensorRegistry.config()
         assertTrue(config.enabled)
         assertEquals(config.sensorId, SensorIdentity.resolveMainSensor())
-        assertEquals(listOf(config.sensorId, "a", "b"), MultiSensorSelection.selectedOrder())
+        assertEquals(listOf(config.sensorId), MultiSensorSelection.selectedOrder())
         val old = CombinedSensorRegistry.manager!!
         assertFalse(CombinedSensorRegistry.hasFreshOutput())
         CombinedSensorRegistry.setEnabled(false, emptyList())
@@ -369,6 +369,72 @@ class CombinedSensorIntegrationTests {
         }
         assertNull(deltas[points.first { it.timestamp == base + 1440 * 60_000L }])
         assertNull(deltas[points.first { it.timestamp == base + 2880 * 60_000L }])
+    }
+
+    @Test fun enablingShowsOnlyTheCombinedSourceWhileKeepingAllContributorsActive() {
+        CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+        val manager = CombinedSensorRegistry.manager!!
+        val id = manager.SerialNumber
+        learn(manager, System.currentTimeMillis())
+        assertEquals(listOf(id), MultiSensorSelection.selectedOrder())
+        assertEquals(listOf(id), NotificationMultiSensorSource.selectedSensorIds(id))
+        assertEquals(listOf("a", "b"), CombinedSensorRegistry.config().inputs)
+        assertTrue(NativeSink.ids.containsAll(listOf("a", "b")))
+        val current = CurrentDisplaySource.resolveCurrent(360_000L, id)!!
+        assertEquals(null, current.secondaryStr)
+        assertEquals(null, current.tertiaryStr)
+        assertFalse(CurrentDisplaySource.setViewModeForSensor(id, 2))
+        assertEquals(0, CurrentDisplaySource.resolveViewModeForSensor(id))
+        CombinedSensorRegistry.setEnabled(false, emptyList())
+        assertEquals(listOf("a", "b"), MultiSensorSelection.selectedOrder())
+    }
+
+    @Test fun oldAutomaticPeerSelectionMigratesOnceWithoutOverridingLaterExplicitChoices() {
+        CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+        val manager = CombinedSensorRegistry.manager!!
+        drain(manager)
+        MultiSensorSelection.setSelectedOrder(listOf(manager.SerialNumber, "a", "b"))
+        Applic.app.getSharedPreferences("tk.glucodata_preferences", 0).edit().remove("combined_sensor_display_version").commit()
+        CombinedSensorRegistry.migrateDisplaySelection(manager)
+        assertEquals(listOf(manager.SerialNumber), MultiSensorSelection.selectedOrder())
+        MultiSensorSelection.setSelectedOrder(listOf(manager.SerialNumber, "a"))
+        CombinedSensorRegistry.migrateDisplaySelection(manager)
+        assertEquals(listOf(manager.SerialNumber, "a"), MultiSensorSelection.selectedOrder())
+        assertEquals(listOf("a", "b"), CombinedSensorRegistry.config().inputs)
+    }
+
+    @Test fun combinedReadingRowsHaveOneValueEvenWithASealedValueOrObsoleteViewMode() {
+        val id = CombinedSensorRegistry.idFor(listOf("a", "b"))
+        for (unit in listOf(0, 1)) for (mode in 0..3) for (sealed in listOf(false, true)) {
+            val divisor = if (unit == 1) 18.0182f else 1f
+            val value = 119f / divisor
+            val point = tk.glucodata.ui.GlucosePoint(value, "", System.currentTimeMillis(), value,
+                sensorSerial = id, source = GlucoseReadingSource.COMBINED,
+                sealedDisplayValue = if (sealed) value else null, sealedDisplayViewMode = if (sealed) 0 else null)
+            val display = tk.glucodata.ui.getDisplayValues(point, mode, if (unit == 1) "mmol/L" else "mg/dL", 200f / divisor)
+            assertEquals(value, display.primaryValue, 0.001f)
+            assertNull(display.secondaryStr)
+            assertNull(display.tertiaryStr)
+        }
+    }
+
+    @Test fun dashboardHeroUsesCombinedRateInsteadOfThePreviousPhysicalHistory() {
+        val id = CombinedSensorRegistry.idFor(listOf("a", "b"))
+        val now = System.currentTimeMillis()
+        val display = DisplayValueResolver.resolve(6.6f, Float.NaN, 0, true)
+        val snapshot = CurrentDisplaySource.Snapshot(now, 0f, id, 0, 0, 0, "combined", 6.6f, Float.NaN,
+            6.6f, 119, true, display)
+        val previousPhysical = (0..8).map { minute -> tk.glucodata.ui.GlucosePoint(
+            20f - minute, "", now - (9 - minute) * 60_000L, sensorSerial = "a") }
+        val latest = tk.glucodata.ui.GlucosePoint(6.6f, "", now, sensorSerial = id, source = GlucoseReadingSource.COMBINED)
+        val trend = tk.glucodata.ui.resolveDashboardHeroTrend(previousPhysical, latest, snapshot, id, 0, true)
+        assertEquals(0f, trend.velocity)
+        assertEquals(tk.glucodata.logic.TrendEngine.TrendState.Flat, trend.state)
+        val unknown = tk.glucodata.ui.resolveDashboardHeroTrend(previousPhysical, latest, snapshot.copy(rate = Float.NaN), id, 0, true)
+        assertTrue(unknown.velocity.isNaN())
+        assertEquals(tk.glucodata.logic.TrendEngine.TrendState.Unknown, unknown.state)
+        val tagged = DisplayTrendSource.augmentHistory(emptyList(), snapshot, id, 0L).single()
+        assertEquals(id, tagged.sensorSerial)
     }
 
 }

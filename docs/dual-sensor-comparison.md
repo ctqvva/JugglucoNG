@@ -5,7 +5,10 @@ then enable **Combine sensors**. The contributor set is pinned: changing display
 never silently replaces an input. Turn Combine off to change the contributors. Selecting
 an individual sensor as primary also exits Combine mode.
 
-Combine creates a separate derived sensor (`COMB-…`) and selects it as the primary.
+Combine creates a separate derived sensor (`COMB-…`) and initially displays only that
+source. Physical contributors can still be explicitly displayed alongside it; their
+display visibility does not change the pinned contributor set. Turning Combine off
+restores the contributors to the display selection.
 Its own Room/native history goes through the existing virtual-sensor publication
 pipeline: dashboard/chart, notifications, standard/custom alarms, speech, widgets,
 live broadcasts, loop feeds, outbound API, and native history integrations consume
@@ -13,6 +16,12 @@ the derived source just as they consume a physical primary. The physical sensors
 continue collecting and retain their own original history and calibration. Native
 exports that contain multiple sensor histories also retain the individual sources;
 the combined source is identifiable by its separate ID.
+
+The combined reading has one final display value, without a second calibration or
+an identical raw value beside it. It has no physical sensor start or expiry date;
+the native history storage window is not a sensor lifetime. The dashboard uses the
+same resolved combined rate as alerts and integrations, leaving its arrow unavailable
+when continuity is unknown.
 
 The Sensors screen contains the switch with one short active/waiting/fallback
 status. There is no separate dashboard-only estimate or combination switch in Alerts.
@@ -97,3 +106,7 @@ The control was also rendered from Compose at 360 dp in
 [English (off)](images/combine-sensors-en.png) and
 [Russian (fallback example)](images/combine-sensors-ru.png) using Robolectric.
 These captures verify the control layout, not physical device behavior.
+The dashboard header was also rendered in
+[English](images/combined-dashboard-en.png) and
+[Russian](images/combined-dashboard-ru.png), including a transition with an unavailable
+trend and stale physical-lifetime fields.

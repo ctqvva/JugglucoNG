@@ -2995,6 +2995,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_disagreement_guidance">Sensörler uyuşmuyor. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
     <string name="sensor_disagreement_message">Sensörler arasında %1$d%% fark var. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
 
+    <string name="combined_glucose_source">Birleşik</string>
     <string name="combine_sensors_title">Sensörleri birleştir</string>
     <string name="combine_sensors_select">Sensörleri seçin</string>
     <string name="combine_sensors_active">Birleştirildi · Deneysel</string>

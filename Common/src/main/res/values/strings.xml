@@ -3219,6 +3219,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_disagreement_guidance">Sensors disagree. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
     <string name="sensor_disagreement_message">Sensors differ by %1$d%%. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
 
+    <string name="combined_glucose_source">Combined</string>
     <string name="combine_sensors_title">Combine sensors</string>
     <string name="combine_sensors_select">Select sensors to combine</string>
     <string name="combine_sensors_active">Combined · Experimental</string>

@@ -403,7 +403,14 @@ object CurrentDisplaySource {
 
         val importedCalibratedValue = liveCalibratedValue
             .takeIf { it.isFinite() && it > 0.1f }
-        val displayValues = exactMatch?.let { point ->
+        val combined = tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId)
+        val displayValues = if (combined) {
+            // This is one final derived value, not a calibrated/raw lane pair.
+            DisplayValueResolver.resolve(
+                autoValue = importedCalibratedValue ?: autoValue.takeIf { it.isFinite() } ?: liveValue ?: Float.NaN,
+                rawValue = Float.NaN, viewMode = 0, isMmol = isMmol
+            )
+        } else exactMatch?.let { point ->
             val hideInitialWhenCalibrated = shouldHideInitialWhenCalibrated()
             if (importedCalibratedValue != null) {
                 DisplayValueResolver.resolve(
@@ -455,7 +462,7 @@ object CurrentDisplaySource {
             return null
         }
 
-        val sharedMgdl = resolveSharedMgdl(
+        val sharedMgdl = if (combined) displayToMgdl(displayValues.primaryValue, isMmol) else resolveSharedMgdl(
             sensorId = sensorId,
             autoValue = autoValue,
             rawValue = rawValue,
@@ -475,10 +482,10 @@ object CurrentDisplaySource {
             sensorId = sensorId,
             sensorGen = sensorGen,
             index = index,
-            viewMode = viewMode,
+            viewMode = if (combined) 0 else viewMode,
             source = source,
-            autoValue = autoValue,
-            rawValue = rawValue,
+            autoValue = if (combined) displayValues.primaryValue else autoValue,
+            rawValue = if (combined) Float.NaN else rawValue,
             sharedDisplayValue = sharedDisplayValue,
             sharedMgdl = sharedMgdl,
             isMmol = isMmol,
@@ -655,7 +662,8 @@ object CurrentDisplaySource {
     }
 
     private fun shouldApplyDisplayCalibration(isRawMode: Boolean, sensorId: String?): Boolean {
-        return !CalibrationAccess.shouldOverwriteSensorValues() &&
+        return !tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId) &&
+            !CalibrationAccess.shouldOverwriteSensorValues() &&
             CalibrationAccess.hasActiveCalibration(isRawMode, sensorId)
     }
 
@@ -709,7 +717,7 @@ object CurrentDisplaySource {
     @JvmStatic
     fun setViewModeForSensor(sensorName: String?, mode: Int): Boolean {
         val normalized = tk.glucodata.drivers.ManagedSensorViewModeStore.sanitize(mode)
-        if (sensorName.isNullOrEmpty()) {
+        if (sensorName.isNullOrEmpty() || (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorName) && normalized != 0)) {
             return false
         }
         tk.glucodata.drivers.ManagedSensorViewModeStore.write(Applic.app, sensorName, normalized)
@@ -733,7 +741,7 @@ object CurrentDisplaySource {
     }
 
     private fun resolveSensorViewMode(sensorName: String?): Int {
-        if (sensorName.isNullOrEmpty()) {
+        if (sensorName.isNullOrEmpty() || tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorName)) {
             return 0
         }
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName, sensorName)

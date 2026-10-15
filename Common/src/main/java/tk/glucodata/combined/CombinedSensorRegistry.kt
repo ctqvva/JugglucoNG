@@ -14,6 +14,7 @@ object CombinedSensorRegistry {
     const val PREFIX = "COMB-"
     private const val PREFS = "tk.glucodata_preferences"
     private const val KEY_INPUTS = "combined_sensor_inputs"
+    private const val KEY_DISPLAY_VERSION = "combined_sensor_display_version"
     private const val KEY_ENABLED = "combined_sensor_enabled"
     data class Config(val enabled: Boolean = false, val inputs: List<String> = emptyList()) {
         val sensorId: String get() = idFor(inputs)
@@ -62,7 +63,8 @@ object CombinedSensorRegistry {
         }
         manager = null
         Applic.app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_ENABLED, enabled).putString(KEY_INPUTS, next.inputs.joinToString("\n")).apply()
+            .putBoolean(KEY_ENABLED, enabled).putString(KEY_INPUTS, next.inputs.joinToString("\n"))
+            .putInt(KEY_DISPLAY_VERSION, 1).apply()
         synchronized(this) { cached = next }
         SensorIdentity.invalidateCaches()
         if (enabled) {
@@ -73,7 +75,7 @@ object CombinedSensorRegistry {
                     ?: CombinedSensorManager(next.sensorId, next.inputs).also { SensorBluetooth.gattcallbacks.add(it) }
             }
             SensorBluetooth.setCurrentSensorSelection(next.sensorId)
-            MultiSensorSelection.setSelectedOrder(listOf(next.sensorId) + next.inputs)
+            MultiSensorSelection.setSelectedOrder(listOf(next.sensorId))
             Natives.setmaxsensors(SensorBluetooth.gattcallbacks.size)
             callback.connectDevice(0)
         } else {
@@ -86,6 +88,20 @@ object CombinedSensorRegistry {
         mutableRevision.update { it + 1 }
         ManagedSensorUiSignals.markDeviceListDirty()
         UiRefreshBus.requestDataRefresh()
+    }
+
+    /** Upgrade only the old automatic combined-plus-contributors selection, once. */
+    internal fun migrateDisplaySelection(candidate: CombinedSensorManager) = publishIfCurrent(candidate) {
+        val prefs = Applic.app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getInt(KEY_DISPLAY_VERSION, 0) < 1) {
+            val oldDefault = listOf(candidate.SerialNumber) + candidate.inputs
+            val selected = MultiSensorSelection.selectedOrder()
+            if (selected.size == oldDefault.size && selected.zip(oldDefault).all { (a, b) -> SensorIdentity.matches(a, b) }) {
+                MultiSensorSelection.setSelectedOrder(listOf(candidate.SerialNumber))
+                UiRefreshBus.requestDataRefresh()
+            }
+            prefs.edit().putInt(KEY_DISPLAY_VERSION, 1).apply()
+        }
     }
 
     internal fun register(candidate: CombinedSensorManager) {
