@@ -16,7 +16,6 @@ class DualSensorConsensusTests {
         for (mmol in listOf(false, true)) {
             val config = AlertDefaults.defaultConfig(AlertType.SENSOR_DISAGREEMENT, mmol)
             assertFalse(config.enabled)
-            assertFalse(config.experimentalEstimateEnabled)
             assertNull(config.threshold)
             assertEquals(20, config.disagreementPercent)
             assertEquals(5, config.durationMinutes)

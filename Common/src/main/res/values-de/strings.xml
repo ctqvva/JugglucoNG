@@ -3078,15 +3078,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Sensorabweichung</string>
-    <string name="sensor_comparison_title">Vergleich zweier Sensoren</string>
     <string name="sensor_difference_threshold">Abweichungsschwelle</string>
-    <string name="sensor_estimate_experimental">Experimenteller kombinierter Schätzwert</string>
     <string name="sensor_comparison_help">Genau zwei Sensoren auswählen. Die Abweichung bezieht sich auf ihren Mittelwert; Übereinstimmung beweist keine Genauigkeit.</string>
-    <string name="sensor_estimate_help">Nur zur Anzeige, nicht für Therapieentscheidungen. Die jüngste Stabilität bestimmt die Gewichtung; auch ein stabiler Sensor kann falsch liegen. Einzelwerte und Alarme bleiben in Gebrauch.</string>
-    <string name="sensor_comparison_unavailable">Warten auf zwei aktuelle Messwerte im Abstand von höchstens einer Minute</string>
-    <string name="sensor_comparison_learning">Lernen aus gepaarten Messwerten über mindestens zwei Minuten</string>
-    <string name="sensor_difference_format">Abweichung: %1$d%%</string>
-    <string name="sensor_estimate_value">Experimenteller Schätzwert: %1$s</string>
     <string name="sensor_disagreement_guidance">Sensoren weichen ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
     <string name="sensor_disagreement_message">Sensoren weichen um %1$d%% ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
+
+    <string name="combine_sensors_title">Sensoren kombinieren</string>
+    <string name="combine_sensors_help">Ein kombinierter Wert für die gesamte App, einschließlich Alarmen und verbundenen Apps. Originaldaten bleiben erhalten.</string>
+    <string name="combine_sensors_select">Genau zwei Sensoren über ihre Anzeige auswählen und Kombinieren einschalten. Zum Wechseln des Paars ausschalten.</string>
+    <string name="combine_sensors_active">Der kombinierte Wert ist die Hauptquelle. Alter und Wertebereich der Kalibrierung sowie die jüngste Stabilität bestimmen die Gewichtung.</string>
+    <string name="combine_sensors_waiting">Warten auf das zweite Update. Der letzte Wert bleibt bis zu neuen Daten erhalten.</string>
+    <string name="combine_sensors_fallback">Beim Lernen, bei Abweichung oder fehlender Paarung wird ein aktueller Einzelwert verwendet.</string>
 </resources>

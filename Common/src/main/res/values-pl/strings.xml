@@ -3004,15 +3004,15 @@
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Rozbieżność sensorów</string>
-    <string name="sensor_comparison_title">Porównanie dwóch sensorów</string>
     <string name="sensor_difference_threshold">Próg rozbieżności</string>
-    <string name="sensor_estimate_experimental">Eksperymentalna łączna ocena</string>
     <string name="sensor_comparison_help">Wybierz dokładnie dwa sensory. Rozbieżność jest liczona względem ich średniej; zgodność nie dowodzi dokładności.</string>
-    <string name="sensor_estimate_help">Tylko do wyświetlania, nie do decyzji o leczeniu. Ostatnia stabilność zmienia wagi; stabilny sensor też może się mylić. Nadal używane są osobne odczyty i alarmy.</string>
-    <string name="sensor_comparison_unavailable">Oczekiwanie na dwa świeże odczyty w odstępie do jednej minuty</string>
-    <string name="sensor_comparison_learning">Uczenie na sparowanych odczytach przez co najmniej dwie minuty</string>
-    <string name="sensor_difference_format">Rozbieżność: %1$d%%</string>
-    <string name="sensor_estimate_value">Eksperymentalna ocena: %1$s</string>
     <string name="sensor_disagreement_guidance">Sensory są rozbieżne. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
     <string name="sensor_disagreement_message">Sensory różnią się o %1$d%%. Sprawdź glukometrem; żaden sensor nie określi, który wynik jest poprawny.</string>
+
+    <string name="combine_sensors_title">Połącz sensory</string>
+    <string name="combine_sensors_help">Jeden wspólny odczyt w całej aplikacji, także w alarmach i połączonych aplikacjach. Dane źródłowe są zachowane.</string>
+    <string name="combine_sensors_select">Wybierz dokładnie dwa sensory przyciskami wyświetlania i włącz łączenie. Wyłącz je, aby zmienić parę.</string>
+    <string name="combine_sensors_active">Wspólny odczyt jest głównym źródłem. Wagi zależą od wieku kalibracji, zakresu odniesienia i ostatniej stabilności.</string>
+    <string name="combine_sensors_waiting">Oczekiwanie na sparowaną aktualizację. Ostatnia wartość pozostaje do nadejścia nowych danych.</string>
+    <string name="combine_sensors_fallback">Podczas uczenia, przy rozbieżności lub braku pary używany jest świeży pojedynczy odczyt.</string>
 </resources>

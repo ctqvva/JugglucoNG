@@ -2,9 +2,10 @@ package tk.glucodata.alerts
 
 import kotlin.math.abs
 
-/** Experimental comparison only. Values are calibrated display lanes converted to mg/dL. */
+/** Shared paired-sensor model. Inputs are calibrated display lanes converted to mg/dL. */
 internal class DualSensorConsensus {
-    data class Reading(val sensorId: String, val timeMs: Long, val mgdl: Float, val lane: Int = 0)
+    data class Reading(val sensorId: String, val timeMs: Long, val mgdl: Float, val lane: Int = 0,
+        val calibrationTimeMs: Long = 0L, val calibrationReferenceMgdl: Float = Float.NaN)
     enum class Status { UNAVAILABLE, WAITING_FOR_PEER, LEARNING, COMPARABLE, DISAGREEING }
     data class Result(
         val status: Status = Status.UNAVAILABLE,
@@ -92,8 +93,8 @@ internal class DualSensorConsensus {
         val estimate = if (learned && !disagreeing) {
             // Detrended short-term variability is a stability heuristic, never an accuracy score.
             // Cap either contribution at 75%; smooth shared bias cannot be detected by two CGMs.
-            val noiseA = noise { it.first }
-            val noiseB = noise { it.second }
+            val noiseA = noise { it.first } / referenceWeight(a, nowMs)
+            val noiseB = noise { it.second } / referenceWeight(b, nowMs)
             val weightA = (noiseB / (noiseA + noiseB)).coerceIn(0.25f, 0.75f)
             a.mgdl * weightA + b.mgdl * (1f - weightA)
         } else null
@@ -105,6 +106,15 @@ internal class DualSensorConsensus {
                 (history.lastOrNull()?.timeMs ?: time) - it >= durationMinutes.coerceIn(1, 120) * 60_000L
             } == true
         )
+    }
+
+    /** A recent nearby meter anchor constrains the calibration; it is not proof of accuracy. */
+    private fun referenceWeight(reading: Reading, nowMs: Long): Float {
+        if (!reading.calibrationReferenceMgdl.isFinite() || reading.calibrationTimeMs <= 0L ||
+            reading.calibrationTimeMs > nowMs) return 1f
+        val age = (nowMs - reading.calibrationTimeMs) / (24 * 60 * 60_000f)
+        val proximity = abs(reading.mgdl - reading.calibrationReferenceMgdl) / 40f
+        return 1f + (1f - age).coerceIn(0f, 1f) / (1f + proximity * proximity)
     }
 
     private fun noise(reading: (PairSample) -> Reading): Float {

@@ -1,34 +1,29 @@
 package tk.glucodata.alerts
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.NotificationMultiSensorSource
 import tk.glucodata.SensorIdentity
 
-/** Shares only a diagnostic result with the dashboard; never publishes a glucose reading. */
+/** Independent disagreement warning; Combine mode supplies its own paired assessment. */
 internal object DualSensorRuntime {
-    data class Display(
-        val enabled: Boolean = false,
-        val showEstimate: Boolean = false,
-        val result: DualSensorConsensus.Result = DualSensorConsensus.Result()
-    )
     private val engine = DualSensorConsensus()
-    private val mutableDisplay = MutableStateFlow(Display())
-    val display = mutableDisplay.asStateFlow()
     private var settings: Triple<Int, Int, Boolean>? = null
 
     @Synchronized
     fun reset() {
         engine.reset()
-        mutableDisplay.value = Display()
     }
 
     @Synchronized
     fun evaluate(config: AlertConfig, nowMs: Long): DualSensorConsensus.Result {
-        if (!config.enabled && !config.experimentalEstimateEnabled) {
+        val combined = tk.glucodata.combined.CombinedSensorRegistry.config()
+        if (combined.enabled) {
+            val result = tk.glucodata.combined.CombinedSensorRegistry.result() ?: DualSensorConsensus.Result()
+            return result
+        }
+        if (!config.enabled) {
             reset()
-            return mutableDisplay.value.result
+            return DualSensorConsensus.Result()
         }
         val currentSettings = Triple(config.disagreementPercent, config.durationMinutes ?: 5, config.enabled)
         if (settings != currentSettings) engine.reset()
@@ -46,7 +41,6 @@ internal object DualSensorRuntime {
             )
         } else emptyList()
         val result = engine.evaluate(readings, nowMs, config.disagreementPercent, config.durationMinutes ?: 5)
-        mutableDisplay.value = Display(true, config.experimentalEstimateEnabled, result)
         return result
     }
 }

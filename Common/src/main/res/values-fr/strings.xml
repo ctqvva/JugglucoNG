@@ -2968,15 +2968,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Désaccord des capteurs</string>
-    <string name="sensor_comparison_title">Comparaison de deux capteurs</string>
     <string name="sensor_difference_threshold">Seuil de différence</string>
-    <string name="sensor_estimate_experimental">Estimation combinée expérimentale</string>
     <string name="sensor_comparison_help">Sélectionnez exactement deux capteurs. La différence est relative à leur moyenne ; leur accord ne prouve pas leur exactitude.</string>
-    <string name="sensor_estimate_help">Affichage uniquement, pas de décision thérapeutique. La stabilité récente ajuste les poids ; un capteur stable peut se tromper. Les mesures et alertes individuelles restent utilisées.</string>
-    <string name="sensor_comparison_unavailable">En attente de deux mesures récentes espacées de moins d’une minute</string>
-    <string name="sensor_comparison_learning">Apprentissage sur des mesures appariées pendant au moins deux minutes</string>
-    <string name="sensor_difference_format">Différence : %1$d%%</string>
-    <string name="sensor_estimate_value">Estimation expérimentale : %1$s</string>
     <string name="sensor_disagreement_guidance">Les capteurs divergent. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
     <string name="sensor_disagreement_message">Les capteurs divergent de %1$d%%. Vérifiez avec un lecteur de glycémie ; aucun capteur ne permet de savoir lequel est correct.</string>
+
+    <string name="combine_sensors_title">Combiner les capteurs</string>
+    <string name="combine_sensors_help">Une mesure combinée pour toute l’application, alertes et applications connectées comprises. Les données originales sont conservées.</string>
+    <string name="combine_sensors_select">Sélectionnez exactement deux capteurs avec leurs commandes d’affichage, puis activez la combinaison. Désactivez-la pour changer de paire.</string>
+    <string name="combine_sensors_active">La mesure combinée est la source principale. La récence des calibrations, leur plage de référence et la stabilité récente ajustent les poids.</string>
+    <string name="combine_sensors_waiting">En attente de la mesure appariée. La dernière valeur est conservée jusqu’à réception de données récentes.</string>
+    <string name="combine_sensors_fallback">Une mesure individuelle récente est utilisée pendant l’apprentissage, en cas de désaccord ou sans appariement possible.</string>
 </resources>

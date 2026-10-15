@@ -1489,6 +1489,10 @@ class DashboardViewModel(
     fun promoteSensorToPrimary(sensorId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
+                if (tk.glucodata.combined.CombinedSensorRegistry.config().enabled &&
+                    !tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId)) {
+                    tk.glucodata.combined.CombinedSensorRegistry.setEnabled(false, emptyList())
+                }
                 MultiSensorSelection.moveToFront(sensorId)
                 SensorBluetooth.setCurrentSensorSelection(sensorId)
                 tk.glucodata.data.HistorySync.mergeFullSyncForSensor(sensorId)

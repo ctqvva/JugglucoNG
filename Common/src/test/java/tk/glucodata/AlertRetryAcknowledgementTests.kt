@@ -162,6 +162,14 @@ class AlertRetryAcknowledgementTests {
 
     private fun harness() = compiled.getConstructor().newInstance().also { invoke(it, "start") }
     private fun invoke(h: Any, method: String) { compiled.getMethod(method).invoke(h) }
+    @Test fun manualDisagreementTestUsesTheMessageOnlyRoute() {
+        val h = harness()
+        invoke(h, "startEmpty")
+        invoke(h, "testDisagreement")
+        invoke(h, "drain")
+        assertEquals(1, compiled.getField("messageTests").getInt(h))
+    }
+
     private fun count(h: Any) = compiled.getField("delivered").getInt(h)
 
     companion object {
@@ -215,6 +223,7 @@ class AlertRetryAcknowledgementTests {
                 import java.util.*;
                 public class RetryHarness {
                     public int delivered;
+                    public int messageTests;
                     public float value;
                     public String message;
                     public boolean scheduled;
@@ -262,7 +271,8 @@ class AlertRetryAcknowledgementTests {
                     static class AlertType {
                         static AlertType Companion = new AlertType();
                         static AlertType LOSS = new AlertType();
-                        AlertType fromId(int kind) { return kind == 4 ? LOSS : this; }
+                        static AlertType SENSOR_DISAGREEMENT = new AlertType();
+                        AlertType fromId(int kind) { return kind == 4 ? LOSS : kind == 14 ? SENSOR_DISAGREEMENT : this; }
                         int getNameResId() { return 0; }
                         boolean isLegacyOnlyId(int kind) { return false; }
                     }
@@ -339,7 +349,14 @@ class AlertRetryAcknowledgementTests {
                         static Applic app = new Applic();
                         String getString(int id) { return "Test LOSS"; }
                     }
-                    static class R { static class drawable { static int loss; } }
+                    static class R {
+                        static class drawable { static int loss; }
+                        static class string { static int sensor_disagreement_guidance = 1; }
+                    }
+                    static boolean triggerSupplementalMessageAlert(int kind, String message) {
+                        onenot.messageTests++;
+                        return true;
+                    }
                     static class CurrentDisplaySource { static class Snapshot { float getPrimaryValue() { return 180; } } }
                     static class AlertTestValuePolicy {
                         static float resolve(AlertType type, AlertConfig config, boolean mmol, float value) { return 180; }
@@ -424,6 +441,7 @@ class AlertRetryAcknowledgementTests {
                     public int firings() { return AlertStateTracker.INSTANCE.firings; }
                     public void quietLoss() { SnoozeManager.snoozed = true; WearAlertSync.suppressed = true; }
                     public void testLoss() { testTrigger(4); }
+                    public void testDisagreement() { testTrigger(14); }
                     $code
                     $handlers
                 }

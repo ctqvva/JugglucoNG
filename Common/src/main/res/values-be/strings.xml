@@ -3037,15 +3037,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Разыходжанне сенсараў</string>
-    <string name="sensor_comparison_title">Параўнанне двух сенсараў</string>
     <string name="sensor_difference_threshold">Парог разыходжання</string>
-    <string name="sensor_estimate_experimental">Эксперыментальная агульная ацэнка</string>
     <string name="sensor_comparison_help">Выберыце роўна два сенсары. Разыходжанне лічыцца адносна іх сярэдняга; супадзенне не даказвае дакладнасць.</string>
-    <string name="sensor_estimate_help">Толькі для прагляду, не для рашэнняў аб лячэнні. Вага залежыць ад нядаўняй стабільнасці; стабільны сенсар таксама можа памыляцца. Выкарыстоўваюцца асобныя паказанні і трывогі.</string>
-    <string name="sensor_comparison_unavailable">Чаканне двух свежых паказанняў з розніцай у часе не больш за хвіліну</string>
-    <string name="sensor_comparison_learning">Збор парных паказанняў на працягу не менш як дзвюх хвілін</string>
-    <string name="sensor_difference_format">Разыходжанне: %1$d%%</string>
-    <string name="sensor_estimate_value">Эксперыментальная ацэнка: %1$s</string>
     <string name="sensor_disagreement_guidance">Сенсары разыходзяцца. Праверце глюкометрам; ніводны сенсар не вызначае, які з іх правільны.</string>
     <string name="sensor_disagreement_message">Сенсары разыходзяцца на %1$d%%. Праверце глюкометрам; ніводны сенсар не вызначае, які з іх правільны.</string>
+
+    <string name="combine_sensors_title">Аб’яднаць сенсары</string>
+    <string name="combine_sensors_help">Агульнае паказанне для ўсёй праграмы, уключаючы трывогі і падключаныя праграмы. Зыходныя даныя захоўваюцца.</string>
+    <string name="combine_sensors_select">Выберыце роўна два сенсары кнопкамі адлюстравання і ўключыце аб’яднанне. Для змены пары выключыце яго.</string>
+    <string name="combine_sensors_active">Агульнае паказанне — асноўная крыніца глюкозы. Вага залежыць ад даўнасці калібровак, блізкасці да эталона і нядаўняй стабільнасці.</string>
+    <string name="combine_sensors_waiting">Чаканне парнага абнаўлення. Да атрымання свежых даных захоўваецца апошняе паказанне.</string>
+    <string name="combine_sensors_fallback">Пры навучанні, разыходжанні або немагчымасці супастаўлення выкарыстоўваецца свежае асобнае паказанне.</string>
 </resources>

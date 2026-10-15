@@ -3214,15 +3214,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Sensor disagreement</string>
-    <string name="sensor_comparison_title">Two-sensor comparison</string>
     <string name="sensor_difference_threshold">Difference threshold</string>
-    <string name="sensor_estimate_experimental">Experimental combined estimate</string>
     <string name="sensor_comparison_help">Select exactly two sensors. Difference is relative to their mean; agreement does not prove accuracy.</string>
-    <string name="sensor_estimate_help">Display only, not for treatment decisions. Recent stability adjusts the blend; a stable sensor can still be wrong. Individual readings and alarms remain in use.</string>
-    <string name="sensor_comparison_unavailable">Waiting for two fresh readings within one minute of each other</string>
-    <string name="sensor_comparison_learning">Learning from paired readings for at least two minutes</string>
-    <string name="sensor_difference_format">Difference: %1$d%%</string>
-    <string name="sensor_estimate_value">Experimental estimate: %1$s</string>
     <string name="sensor_disagreement_guidance">Sensors disagree. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
     <string name="sensor_disagreement_message">Sensors differ by %1$d%%. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
+
+    <string name="combine_sensors_title">Combine sensors</string>
+    <string name="combine_sensors_help">Use one combined reading throughout the app, including alerts and connected apps. Original sensor data is preserved.</string>
+    <string name="combine_sensors_select">Select exactly two sensors with their display controls, then turn on Combine. Turn it off to change the pair.</string>
+    <string name="combine_sensors_active">Combined reading is the main glucose source. Calibration recency, reference range and recent stability adjust the blend.</string>
+    <string name="combine_sensors_waiting">Waiting for the paired update. Keeping the last output until fresh data is available.</string>
+    <string name="combine_sensors_fallback">Using a fresh individual reading while learning, when sensors disagree, or when pairing is unavailable.</string>
 </resources>

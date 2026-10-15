@@ -3013,15 +3013,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Расхождение сенсоров</string>
-    <string name="sensor_comparison_title">Сравнение двух сенсоров</string>
     <string name="sensor_difference_threshold">Порог расхождения</string>
-    <string name="sensor_estimate_experimental">Экспериментальная общая оценка</string>
     <string name="sensor_comparison_help">Выберите ровно два сенсора. Расхождение считается относительно их среднего; совпадение не доказывает точность.</string>
-    <string name="sensor_estimate_help">Только для просмотра, не для принятия решений о лечении. Вес зависит от недавней стабильности; стабильный сенсор тоже может ошибаться. Используются отдельные показания и тревоги.</string>
-    <string name="sensor_comparison_unavailable">Ожидание двух свежих показаний с разницей по времени не более минуты</string>
-    <string name="sensor_comparison_learning">Сбор парных показаний в течение как минимум двух минут</string>
-    <string name="sensor_difference_format">Расхождение: %1$d%%</string>
-    <string name="sensor_estimate_value">Экспериментальная оценка: %1$s</string>
     <string name="sensor_disagreement_guidance">Сенсоры расходятся. Проверьте глюкометром; ни один сенсор не позволяет определить, какой из них верен.</string>
     <string name="sensor_disagreement_message">Сенсоры расходятся на %1$d%%. Проверьте глюкометром; ни один сенсор не позволяет определить, какой из них верен.</string>
+
+    <string name="combine_sensors_title">Объединить сенсоры</string>
+    <string name="combine_sensors_help">Единое показание для всего приложения, включая тревоги и подключённые приложения. Исходные данные сенсоров сохраняются.</string>
+    <string name="combine_sensors_select">Выберите ровно два сенсора кнопками отображения и включите объединение. Для смены пары выключите его.</string>
+    <string name="combine_sensors_active">Общее показание — основной источник глюкозы. Веса зависят от давности калибровок, близости к эталонному значению и недавней стабильности.</string>
+    <string name="combine_sensors_waiting">Ожидание парного обновления. До получения свежих данных сохраняется последнее показание.</string>
+    <string name="combine_sensors_fallback">При обучении, расхождении или невозможности сопоставить сенсоры используется свежее отдельное показание.</string>
 </resources>

@@ -3037,15 +3037,15 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Szenzorok eltérése</string>
-    <string name="sensor_comparison_title">Két szenzor összehasonlítása</string>
     <string name="sensor_difference_threshold">Eltérési küszöb</string>
-    <string name="sensor_estimate_experimental">Kísérleti egyesített becslés</string>
     <string name="sensor_comparison_help">Válasszon pontosan két szenzort. Az eltérés az átlagukhoz viszonyított; az egyezés nem bizonyít pontosságot.</string>
-    <string name="sensor_estimate_help">Csak megjelenítésre, nem kezelési döntésekhez. A súlyozást a közelmúlt stabilitása adja; a stabil szenzor is tévedhet. Az egyedi értékek és riasztások maradnak használatban.</string>
-    <string name="sensor_comparison_unavailable">Várakozás két friss, legfeljebb egy perc eltérésű mérésre</string>
-    <string name="sensor_comparison_learning">Tanulás párosított mérésekből legalább két percen át</string>
-    <string name="sensor_difference_format">Eltérés: %1$d%%</string>
-    <string name="sensor_estimate_value">Kísérleti becslés: %1$s</string>
     <string name="sensor_disagreement_guidance">A szenzorok eltérnek. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
     <string name="sensor_disagreement_message">A szenzorok eltérése %1$d%%. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
+
+    <string name="combine_sensors_title">Szenzorok egyesítése</string>
+    <string name="combine_sensors_help">Egy közös érték az egész alkalmazásban, a riasztásokban és kapcsolt alkalmazásokban is. Az eredeti adatok megmaradnak.</string>
+    <string name="combine_sensors_select">Válasszon pontosan két szenzort a megjelenítési vezérlőkkel, majd kapcsolja be az egyesítést. Párcseréhez kapcsolja ki.</string>
+    <string name="combine_sensors_active">A közös érték a fő forrás. A kalibrációk kora, referenciatartománya és a közelmúlt stabilitása szabályozza a súlyokat.</string>
+    <string name="combine_sensors_waiting">Várakozás a párosított frissítésre. Az utolsó érték megmarad az új adatokig.</string>
+    <string name="combine_sensors_fallback">Tanuláskor, eltéréskor vagy párosítás hiányában friss egyedi mérés használatos.</string>
 </resources>

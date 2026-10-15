@@ -3063,15 +3063,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Мэдрэгчдийн зөрүү</string>
-    <string name="sensor_comparison_title">Хоёр мэдрэгчийн харьцуулалт</string>
     <string name="sensor_difference_threshold">Зөрүүний босго</string>
-    <string name="sensor_estimate_experimental">Туршилтын нэгтгэсэн тооцоо</string>
     <string name="sensor_comparison_help">Яг хоёр мэдрэгч сонгоно уу. Зөрүүг тэдгээрийн дундажтай харьцуулна; ижил заалт нь үнэн зөвийг батлахгүй.</string>
-    <string name="sensor_estimate_help">Зөвхөн харуулах зориулалттай, эмчилгээний шийдвэрт ашиглахгүй. Сүүлийн үеийн тогтвортой байдлаар жинлэнэ; тогтвортой мэдрэгч ч алдаж болно. Тус тусын заалт болон дохиоллыг үргэлжлүүлэн ашиглана.</string>
-    <string name="sensor_comparison_unavailable">Нэг минутаас ихгүй зайтай хоёр шинэ заалтыг хүлээж байна</string>
-    <string name="sensor_comparison_learning">Хос заалтаас дор хаяж хоёр минутын турш суралцана</string>
-    <string name="sensor_difference_format">Зөрүү: %1$d%%</string>
-    <string name="sensor_estimate_value">Туршилтын тооцоо: %1$s</string>
     <string name="sensor_disagreement_guidance">Мэдрэгчдийн заалт зөрж байна. Цусны глюкоз хэмжигчээр шалгана уу; аль нь зөвийг мэдрэгчид тогтоож чадахгүй.</string>
     <string name="sensor_disagreement_message">Мэдрэгчдийн заалт %1$d%% зөрж байна. Цусны глюкоз хэмжигчээр шалгана уу; аль нь зөвийг мэдрэгчид тогтоож чадахгүй.</string>
+
+    <string name="combine_sensors_title">Мэдрэгчдийг нэгтгэх</string>
+    <string name="combine_sensors_help">Дохиолол болон холбогдсон аппуудыг оролцуулан бүх аппад нэгтгэсэн заалт ашиглана. Эх өгөгдөл хадгалагдана.</string>
+    <string name="combine_sensors_select">Дэлгэцийн удирдлагаар яг хоёр мэдрэгч сонгоод нэгтгэхийг асаана уу. Хосыг солихын тулд унтраана уу.</string>
+    <string name="combine_sensors_active">Нэгтгэсэн заалт үндсэн эх үүсвэр болно. Калибровкийн хугацаа, лавлах утгын хүрээ, сүүлийн тогтвортой байдал жинг тохируулна.</string>
+    <string name="combine_sensors_waiting">Хос шинэчлэлтийг хүлээж байна. Шинэ өгөгдөл иртэл сүүлийн заалтыг хадгална.</string>
+    <string name="combine_sensors_fallback">Суралцах, зөрөх эсвэл хослох боломжгүй үед шинэ тусдаа заалт ашиглана.</string>
 </resources>

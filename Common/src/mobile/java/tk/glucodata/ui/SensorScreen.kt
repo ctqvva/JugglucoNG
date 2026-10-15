@@ -499,7 +499,8 @@ fun SensorScreen(
                         onOpenReadiness = onNavigateToReadiness
                     )
                 }
-                items(sensors, key = { it.serial }) { sensor ->
+                item { SensorCombinationCard(sensors) }
+                items(sensors.filterNot { tk.glucodata.combined.CombinedSensorRegistry.isCombined(it.serial) }, key = { it.serial }) { sensor ->
                     FontScaleCap {
                         SensorCard(
                             sensor,

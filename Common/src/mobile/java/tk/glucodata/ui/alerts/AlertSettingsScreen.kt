@@ -1127,14 +1127,7 @@ private fun AlertSettingsExpanded(
                         onValueChange = { onConfigChange(config.copy(disagreementPercent = it)) },
                         valueText = { "$it%" }
                     )
-                    ClickableToggleRow(
-                        title = stringResource(R.string.sensor_estimate_experimental),
-                        checked = config.experimentalEstimateEnabled,
-                        onCheckedChange = { onConfigChange(config.copy(experimentalEstimateEnabled = it)) }
-                    )
-                    Text(stringResource(R.string.sensor_estimate_help),
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        style = MaterialTheme.typography.bodySmall)
+
                 }
                 // === Delta-counter Section (FALLING_FAST / RISING_FAST) ===
                 if (config.type == AlertType.FALLING_FAST || config.type == AlertType.RISING_FAST) {

@@ -2963,15 +2963,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Divergência dos sensores</string>
-    <string name="sensor_comparison_title">Comparação de dois sensores</string>
     <string name="sensor_difference_threshold">Limiar de diferença</string>
-    <string name="sensor_estimate_experimental">Estimativa combinada experimental</string>
     <string name="sensor_comparison_help">Selecione exatamente dois sensores. A diferença é relativa à média; a concordância não comprova a precisão.</string>
-    <string name="sensor_estimate_help">Apenas para visualização, não para decisões de tratamento. A estabilidade recente ajusta os pesos; um sensor estável também pode errar. Continuam em uso as leituras e os alarmes individuais.</string>
-    <string name="sensor_comparison_unavailable">A aguardar duas leituras recentes com intervalo de até um minuto</string>
-    <string name="sensor_comparison_learning">A aprender com leituras emparelhadas durante pelo menos dois minutos</string>
-    <string name="sensor_difference_format">Diferença: %1$d%%</string>
-    <string name="sensor_estimate_value">Estimativa experimental: %1$s</string>
     <string name="sensor_disagreement_guidance">Os sensores divergem. Verifique com um medidor de glicemia; nenhum sensor identifica qual está correto.</string>
     <string name="sensor_disagreement_message">Os sensores diferem em %1$d%%. Verifique com um medidor de glicemia; nenhum sensor identifica qual está correto.</string>
+
+    <string name="combine_sensors_title">Combinar sensores</string>
+    <string name="combine_sensors_help">Uma leitura combinada em toda a aplicação, incluindo alarmes e aplicações ligadas. Os dados originais são preservados.</string>
+    <string name="combine_sensors_select">Selecione exatamente dois sensores com os controlos de visualização e ative a combinação. Desative para mudar o par.</string>
+    <string name="combine_sensors_active">A leitura combinada é a fonte principal. A idade das calibrações, o intervalo de referência e a estabilidade recente ajustam os pesos.</string>
+    <string name="combine_sensors_waiting">A aguardar a atualização emparelhada. O último valor é mantido até chegarem dados recentes.</string>
+    <string name="combine_sensors_fallback">Durante a aprendizagem, em caso de divergência ou sem emparelhamento, é usada uma leitura individual recente.</string>
 </resources>

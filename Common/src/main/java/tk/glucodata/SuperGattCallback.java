@@ -713,6 +713,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             return;
         }
 
+        tk.glucodata.combined.CombinedSensorRegistry.onPhysicalReading(SerialNumber, reading, rate, timmsec, sensorgen);
+
         // Multi-sensor fix: Check if this sensor is the user-selected main sensor.
         // Non-main sensors still store data (already done before this call), but should
         // NOT trigger notifications, alarms, broadcasts, or exchange data — those should

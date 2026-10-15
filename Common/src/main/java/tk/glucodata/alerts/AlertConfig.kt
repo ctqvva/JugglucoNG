@@ -181,7 +181,6 @@ data class AlertConfig(
 
     // Sensor-disagreement only: dimensionless percentage, independent of glucose units.
     val disagreementPercent: Int = 20,
-    val experimentalEstimateEnabled: Boolean = false,
 
     // Sensor-expiry only: warn this many minutes before the sensor ends. Each
     // selected threshold fires once per sensor. Empty = no pre-warning.

@@ -3,6 +3,7 @@ package tk.glucodata
 /** Stable database values describing how a glucose row reached this phone. */
 object GlucoseReadingSource {
     const val SENSOR = "sensor"
+    const val COMBINED = "combined"
     const val NIGHTSCOUT = "nightscout"
     const val API = "api"
     const val MQ_FOLLOWER = "mq_follower"

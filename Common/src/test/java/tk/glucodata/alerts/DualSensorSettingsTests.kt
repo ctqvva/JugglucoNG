@@ -26,7 +26,7 @@ class DualSensorSettingsTests {
         for (mmol in listOf(false, true)) for (enabled in listOf(false, true)) {
             val defaults = AlertDefaults.defaultConfig(AlertType.SENSOR_DISAGREEMENT, mmol)
             val config = defaults.copy(enabled = enabled, disagreementPercent = 35,
-                durationMinutes = 10, experimentalEstimateEnabled = true)
+                durationMinutes = 10)
             save.invoke(AlertRepository, config)
             assertEquals(config, load.invoke(AlertRepository, config.type, defaults))
             save.invoke(AlertRepository, config.copy(disagreementPercent = 900))

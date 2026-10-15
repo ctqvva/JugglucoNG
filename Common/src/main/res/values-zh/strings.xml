@@ -2977,15 +2977,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">传感器读数不一致</string>
-    <string name="sensor_comparison_title">双传感器比较</string>
     <string name="sensor_difference_threshold">差异阈值</string>
-    <string name="sensor_estimate_experimental">实验性综合估值</string>
     <string name="sensor_comparison_help">请选择恰好两个传感器。差异按两者平均值计算；读数一致并不证明准确。</string>
-    <string name="sensor_estimate_help">仅供显示，不用于治疗决策。根据近期稳定性调整权重；稳定的传感器也可能出错。继续使用各传感器的独立读数和警报。</string>
-    <string name="sensor_comparison_unavailable">正在等待时间相差不超过一分钟的两个最新读数</string>
-    <string name="sensor_comparison_learning">至少收集两分钟的配对读数后进行估算</string>
-    <string name="sensor_difference_format">差异：%1$d%%</string>
-    <string name="sensor_estimate_value">实验性估值：%1$s</string>
     <string name="sensor_disagreement_guidance">传感器读数不一致。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
     <string name="sensor_disagreement_message">传感器读数相差 %1$d%%。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
+
+    <string name="combine_sensors_title">合并传感器</string>
+    <string name="combine_sensors_help">在整个应用中使用一个综合读数，包括警报和已连接的应用。保留传感器原始数据。</string>
+    <string name="combine_sensors_select">通过显示控制选择恰好两个传感器，然后开启合并。更换传感器组合前请先关闭。</string>
+    <string name="combine_sensors_active">综合读数为主要血糖来源。根据校准时间、参考值范围和近期稳定性调整权重。</string>
+    <string name="combine_sensors_waiting">正在等待配对更新。收到新数据前保留上次输出。</string>
+    <string name="combine_sensors_fallback">学习期间、读数不一致或无法配对时，使用一个最新的独立读数。</string>
 </resources>

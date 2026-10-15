@@ -2990,15 +2990,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Sensör uyuşmazlığı</string>
-    <string name="sensor_comparison_title">İki sensör karşılaştırması</string>
     <string name="sensor_difference_threshold">Fark eşiği</string>
-    <string name="sensor_estimate_experimental">Deneysel birleşik tahmin</string>
     <string name="sensor_comparison_help">Tam olarak iki sensör seçin. Fark, ortalamalarına göre hesaplanır; uyuşmaları doğruluğu kanıtlamaz.</string>
-    <string name="sensor_estimate_help">Yalnızca görüntüleme içindir, tedavi kararlarında kullanılmaz. Son kararlılık ağırlıkları ayarlar; kararlı bir sensör de yanılabilir. Ayrı okumalar ve alarmlar kullanılmaya devam eder.</string>
-    <string name="sensor_comparison_unavailable">Aralarında en fazla bir dakika olan iki güncel okuma bekleniyor</string>
-    <string name="sensor_comparison_learning">En az iki dakika boyunca eşleştirilmiş okumalardan öğreniliyor</string>
-    <string name="sensor_difference_format">Fark: %1$d%%</string>
-    <string name="sensor_estimate_value">Deneysel tahmin: %1$s</string>
     <string name="sensor_disagreement_guidance">Sensörler uyuşmuyor. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
     <string name="sensor_disagreement_message">Sensörler arasında %1$d%% fark var. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
+
+    <string name="combine_sensors_title">Sensörleri birleştir</string>
+    <string name="combine_sensors_help">Alarmlar ve bağlı uygulamalar dahil tüm uygulamada birleşik bir okuma kullanılır. Özgün sensör verileri korunur.</string>
+    <string name="combine_sensors_select">Görüntüleme kontrolleriyle tam iki sensör seçin ve birleştirmeyi açın. Çifti değiştirmek için kapatın.</string>
+    <string name="combine_sensors_active">Birleşik okuma ana kaynaktır. Kalibrasyon yaşı, referans aralığı ve yakın zamandaki kararlılık ağırlıkları ayarlar.</string>
+    <string name="combine_sensors_waiting">Eşleşen güncelleme bekleniyor. Yeni veri gelene kadar son çıktı korunur.</string>
+    <string name="combine_sensors_fallback">Öğrenme sırasında, uyuşmazlıkta veya eşleştirme yokken güncel tekil bir okuma kullanılır.</string>
 </resources>

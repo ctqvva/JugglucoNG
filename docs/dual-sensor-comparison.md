@@ -1,72 +1,71 @@
-# Two-sensor comparison (experimental)
+# Combine sensors (experimental)
 
-In **Alerts → Sensor disagreement**, enable a warning, an experimental combined
-estimate, or both. Select exactly two sensors with the existing sensor selector.
-Both features default to off. The phone owns the comparison; the Wear alert
-switch controls the phone warning through the existing toggle sync.
+On the **Sensors** screen, select two physical sensors with their display controls,
+then enable **Combine sensors**. The pair is pinned: changing display visibility
+never silently replaces an input. Turn Combine off to change the pair. Selecting
+an individual sensor as primary also exits Combine mode.
 
-The dashboard shows both source sensor IDs and their individual values. The
-combined value is an additional display only. It never enters the glucose store,
-primary selection, glucose alarms, notifications' glucose values, forecasts,
-exports, or integrations. Existing per-sensor calibrations are resolved by
-`CurrentDisplaySource` before comparison; the experiment does not fit another
-calibration or treat one sensor as a reference.
+Combine creates a separate derived sensor (`COMB-…`) and selects it as the primary.
+Its own Room/native history goes through the existing virtual-sensor publication
+pipeline: dashboard/chart, notifications, standard/custom alarms, speech, widgets,
+live broadcasts, loop feeds, outbound API, and native history integrations consume
+the derived source just as they consume a physical primary. Both physical sensors
+continue collecting and retain their own original history and calibration. Native
+exports that contain multiple sensor histories also retain the individual sources;
+the combined source is identifiable by its separate ID.
 
-## Comparison and warning
+The Sensors screen contains the switch, contributor IDs, and active/waiting/fallback
+status. There is no separate dashboard-only estimate or combination switch in Alerts.
+The **Sensor disagreement** warning remains independently configurable under Alerts.
+Both controls default off.
 
-- Use each sensor's primary display lane, converted to mg/dL for all calculations.
-- Require two different logical identities, readings no older than six minutes,
-  timestamps no more than one minute apart, no future readings, and values in
-  20–600 mg/dL. Outside this range the diagnostic is unavailable; normal alarms
-  still operate independently. The six-minute age limit accommodates five-minute
-  sensors; sensors whose sampling phases stay more than one minute apart remain
-  unavailable rather than being extrapolated.
-- Difference is `200 × abs(a − b) / (a + b)`. The default threshold is **20%**,
-  adjustable from 10% to 50%. This symmetric definition is unchanged by swapping
-  the primary. It is an engineering default, not a clinically validated threshold
-  or a CGM-versus-meter accuracy criterion.
-- Warn after five minutes of disagreeing paired evidence by default; the wait is
-  adjustable using the standard duration control. Both timestamps must advance
-  to accumulate evidence. Scheduler ticks and one repeatedly reused sensor
-  sample do not count as additional observations. When one sensor advances before
-  its peer, the incomplete pair hides the estimate while retaining
-  completed-pair evidence within the six-minute freshness limit. Waiting neither
-  advances the disagreement timer nor clears an existing warning episode or its
-  acknowledgement/retry state. Recovery or expiry still cancels pending retries.
-- Agreement, missing/stale/invalid data, sensor or display-lane changes, clock
-  reversal, and recalibration reset the relevant evidence. Configuration changes
-  restart learning. An outage longer than six minutes cannot bridge a run.
-- Use the existing notification/alarm, sound, time-window, snooze, dismissal, and
-  retry controls. Recovery cancels pending retries; failed delivery remains
-  eligible through the standard alert tracker. The warning recommends a meter
-  check and never identifies a sensor as correct.
+## Model
 
-## Experimental combination
+Each input is resolved through its own normal display/calibration pipeline exactly
+once, then converted to mg/dL internally. Never calibrate the already combined
+reading again. Three completed pairs spanning at least two minutes are required
+before blending. Up to 12 recent pairs within 20 minutes determine short-term
+stability, measured as median absolute residual against each stream's previous
+two-point linear trend, with a 5 mg/dL noise floor.
 
-At least three paired observations spanning two minutes are required. Keep up
-to 12 pairs over 20 minutes. Estimate each stream's short-term variability from
-the median absolute residual against its previous two-point linear trend. Apply
-a 5 mg/dL noise floor, square this measure, and blend the **current** readings
-using inverse-variability weights limited to 25–75%. This avoids adding a moving
-average's lag to the current estimate. It does not extrapolate either sensor.
+Recent user calibration anchors also influence the contribution. An anchor younger
+than 24 hours gives up to twice the stability weight, fading with age and distance
+from its reference glucose (40 mg/dL distance scale). Inverse variance determines
+the blend, and either sensor's final contribution is limited to 25–75%. This is an
+experimental heuristic, not an accuracy score: a quiet sensor can be wrong and two
+sensors can share a bias. It does not invent a reference from sensor agreement.
 
-Withhold the estimate immediately while the current difference exceeds the
-configured threshold, without waiting for the warning delay. Invalid timing,
-values, or identity also withhold it and discard learned history, except for the
-bounded wait for an unchanged peer described above. A stable bias
-cannot be detected or corrected by this heuristic: two sensors can agree and
-both be wrong, and a quiet sensor can be less accurate than a noisy one. No
-confidence interval or claim of improved accuracy is shown.
+## Pairing, waiting, and fallback
 
-The estimate is explicitly labelled experimental and unsuitable for treatment
-decisions. The meter-check copy follows the general principle in
-[Dexcom's instructions when readings conflict with symptoms or expectations](https://provider.dexcom.com/what-continuous-glucose-monitoring-cgm-0).
-That guidance does **not** validate this two-sensor algorithm.
+Require two distinct logical sensors, no future timestamps, values in 20–600 mg/dL,
+readings no older than six minutes, and completed-pair timestamps within one minute.
+The freshness limit supports five-minute CGMs. Separate callbacks are paired before
+comparison: when one input advances while the other still has its last accepted
+sample, preserve completed evidence and the last primary output within the freshness
+limit. Repeated timer ticks cannot manufacture paired evidence.
+
+Withhold blending while learning, after a gap, on calibration/lane changes, or when
+the current symmetric difference `200 × abs(a − b) / (a + b)` exceeds the configured
+threshold (20% by default). In these cases use a fresh reading from the first pinned
+sensor, or the second if only it is fresh. No fresh contributor means no new output;
+normal signal-loss handling remains active. No output is backdated or republished
+under a newer timestamp. The combined rate is derived from its own consecutive
+outputs, and is unavailable across composition/fallback transitions.
+
+The independent disagreement warning defaults to five minutes of completed paired
+evidence. Invalid data resets evidence; a bounded wait for the peer does not clear
+acknowledgements or retries. Disagreement recommends a meter check without identifying
+either sensor as correct. This follows the general principle in
+[Dexcom's guidance when readings conflict with symptoms or expectations](https://provider.dexcom.com/what-continuous-glucose-monitoring-cgm-0),
+which does not validate this model.
 
 ## Validation boundaries
 
-Deterministic tests cover pairing, persistence, expiry, timestamp changes,
-calibration resets, weighting, bounds, percentage symmetry, configuration
-persistence, and notification text. Phone/Wear compilation and localized resource
-checks cover integration. Real simultaneous sensor traces, meter-reference
-accuracy, physical alarm delivery, and on-device layout remain to be evaluated.
+Tests distinguish pairing, fallback and publication behavior from clinical accuracy.
+The model is experimental; real simultaneous sensor/meter traces, physical alarm and
+integration delivery, and device rendering require separate verification.
+
+The control was also rendered from Compose at 360 dp in
+[English (off)](images/combine-sensors-en.png) and
+[Russian (fallback example)](images/combine-sensors-ru.png) using Robolectric.
+These captures verify the control layout, not physical device behavior.

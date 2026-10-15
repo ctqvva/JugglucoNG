@@ -3147,15 +3147,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Kala duwanaanshaha dareemayaasha</string>
-    <string name="sensor_comparison_title">Isbarbardhigga laba dareeme</string>
     <string name="sensor_difference_threshold">Xadka kala duwanaanshaha</string>
-    <string name="sensor_estimate_experimental">Qiyaas isku dhafan oo tijaabo ah</string>
     <string name="sensor_comparison_help">Dooro laba dareeme oo keliya. Farqiga waxaa loo xisaabiyaa celceliskooda; isku ekaanshuhu ma caddaynayo saxnaan.</string>
-    <string name="sensor_estimate_help">Bandhig keliya, looma adeegsan karo go’aannada daaweynta. Xasilloonida dhow ayaa beddesha miisaanka; dareeme xasilloon wuu qaldami karaa. Akhrisyada iyo digniinaha gaarka ah ayaa sii shaqaynaya.</string>
-    <string name="sensor_comparison_unavailable">Waxaa la sugayaa laba akhris oo cusub oo aan ka badnayn hal daqiiqo kala fog</string>
-    <string name="sensor_comparison_learning">Waxaa wax laga baranayaa akhrisyada lammaan ugu yaraan laba daqiiqo</string>
-    <string name="sensor_difference_format">Farqiga: %1$d%%</string>
-    <string name="sensor_estimate_value">Qiyaasta tijaabada ah: %1$s</string>
     <string name="sensor_disagreement_guidance">Dareemayaashu way kala duwan yihiin. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
     <string name="sensor_disagreement_message">Dareemayaashu waxay ku kala duwan yihiin %1$d%%. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
+
+    <string name="combine_sensors_title">Isku dar dareemayaasha</string>
+    <string name="combine_sensors_help">Hal akhris oo isku dhafan ayaa laga isticmaalaa appka oo dhan, digniinaha iyo appyada ku xiranba. Xogta asalka ah waa la hayaa.</string>
+    <string name="combine_sensors_select">Dooro laba dareeme oo keliya adigoo adeegsanaya kontaroollada bandhigga, dabadeed daar isku darka. Dami si aad u beddesho lammaanaha.</string>
+    <string name="combine_sensors_active">Akhriska isku dhafan waa isha ugu weyn. Da’da hagaajinta, baaxadda tixraaca iyo xasilloonida dhow ayaa hagaajiya miisaanka.</string>
+    <string name="combine_sensors_waiting">Waxaa la sugayaa cusboonaysiinta lammaanaha. Akhriskii ugu dambeeyay ayaa la hayaa ilaa xog cusub timaaddo.</string>
+    <string name="combine_sensors_fallback">Inta la baranayo, marka dareemayaashu kala duwanaadaan ama lammaanayntu maqan tahay, akhris cusub oo keliya ayaa la isticmaalaa.</string>
 </resources>

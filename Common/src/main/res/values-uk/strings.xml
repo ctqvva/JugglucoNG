@@ -3042,15 +3042,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
     <string name="alert_sensor_disagreement">Розбіжність сенсорів</string>
-    <string name="sensor_comparison_title">Порівняння двох сенсорів</string>
     <string name="sensor_difference_threshold">Поріг розбіжності</string>
-    <string name="sensor_estimate_experimental">Експериментальна спільна оцінка</string>
     <string name="sensor_comparison_help">Виберіть рівно два сенсори. Розбіжність обчислюється відносно їхнього середнього; збіг не доводить точності.</string>
-    <string name="sensor_estimate_help">Лише для перегляду, не для рішень щодо лікування. Вага залежить від недавньої стабільності; стабільний сенсор теж може помилятися. Використовуються окремі показання й тривоги.</string>
-    <string name="sensor_comparison_unavailable">Очікування двох свіжих показань із різницею в часі не більше хвилини</string>
-    <string name="sensor_comparison_learning">Збір парних показань протягом щонайменше двох хвилин</string>
-    <string name="sensor_difference_format">Розбіжність: %1$d%%</string>
-    <string name="sensor_estimate_value">Експериментальна оцінка: %1$s</string>
     <string name="sensor_disagreement_guidance">Сенсори розходяться. Перевірте глюкометром; жоден сенсор не визначає, який із них правильний.</string>
     <string name="sensor_disagreement_message">Сенсори розходяться на %1$d%%. Перевірте глюкометром; жоден сенсор не визначає, який із них правильний.</string>
+
+    <string name="combine_sensors_title">Об’єднати сенсори</string>
+    <string name="combine_sensors_help">Спільне показання для всього застосунку, включно з тривогами й підключеними застосунками. Початкові дані зберігаються.</string>
+    <string name="combine_sensors_select">Виберіть рівно два сенсори кнопками відображення та ввімкніть об’єднання. Для зміни пари вимкніть його.</string>
+    <string name="combine_sensors_active">Спільне показання — основне джерело глюкози. Вага залежить від давності калібрувань, близькості до еталона й недавньої стабільності.</string>
+    <string name="combine_sensors_waiting">Очікування парного оновлення. До надходження свіжих даних зберігається останнє показання.</string>
+    <string name="combine_sensors_fallback">Під час навчання, розбіжності або неможливості зіставлення використовується свіже окреме показання.</string>
 </resources>
