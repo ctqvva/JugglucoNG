@@ -132,6 +132,7 @@ class AiDexAlgorithmRuntimeTests {
     private var completionNotifications = 0
     private var roomWrites = 0
     private var roomAttempts = 0
+    private var lastRoomBatch = LongArray(0)
     private var seriesTransform: ((FloatArray, LongArray) -> FloatArray)? = null
     private val sourceHistoryRequests = ArrayList<Long?>()
     private var beforeRoomWrite: () -> Unit = {}
@@ -181,6 +182,7 @@ class AiDexAlgorithmRuntimeTests {
                     beforeRoomWrite()
                     val times = args!![1] as LongArray
                     val values = args[2] as FloatArray
+                    lastRoomBatch = times.copyOf()
                     times.indices.forEach { room[times[it]] = values[it] }
                     roomWrites++
                     true
@@ -730,6 +732,61 @@ class AiDexAlgorithmRuntimeTests {
         assertTrue(executor.pending.isEmpty())
     }
 
+    @Test fun stockRepairWritesOnlyMissingOrStaleRows() {
+        val held = (0..4).map { sample(it, 100f + it) }
+        runtime.record(held)
+        held.forEach { room[it.timestampMs] = it.factoryMgDl }
+        room.remove(held[2].timestampMs)
+        room[held[3].timestampMs] = 50f // a failed write left an older number
+        runtime.requestRoomRepair()
+        executor.runNext()
+        assertEquals(1, roomAttempts)
+        assertArrayEquals(longArrayOf(held[2].timestampMs, held[3].timestampMs), lastRoomBatch)
+        assertEquals(103f, room[held[3].timestampMs]!!, 0f)
+        assertFalse(runtime.failed)
+        // Nothing left to repair: another Stock replay writes nothing at all.
+        runtime.requestRoomRepair()
+        executor.runNext()
+        assertEquals(1, roomAttempts)
+        assertTrue(executor.pending.isEmpty())
+    }
+
+    @Test fun stockStartupReplayDoesNotRewriteMatchingHistory() {
+        val held = (0..30).map { sample(it, 100f + it % 5) }
+        runtime.record(held)
+        held.forEach { room[it.timestampMs] = it.factoryMgDl }
+        runtime.close()
+        installRuntime() // A journal makes startup schedule its owned replay.
+        assertEquals(1, executor.pending.size)
+        executor.runNext()
+        assertEquals(0, roomAttempts) // Stock already owns these numbers; nothing is replaced.
+        assertFalse(runtime.controller.needsReplay())
+        assertFalse(runtime.failed)
+    }
+
+    @Test fun journalFailureStillStoresAndPublishesTheReading() {
+        val journal = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)
+        assertTrue(journal.parentFile!!.mkdirs() || journal.parentFile!!.isDirectory)
+        assertTrue(journal.mkdir()) // Unwritable: every append fails with an I/O error.
+        val live = sample(1, 123f)
+        assertTrue(runtime.live(live))
+        assertEquals(123f, runtime.latestPublished!!.glucoseMgDl, 0f)
+        assertEquals(123f, room[live.timestampMs]!!, 0f)
+        assertEquals(live.timestampMs, PublicationSink.current!!.timeMillis)
+        assertTrue(runtime.journalUnavailable)
+    }
+
+    @Test fun directLiveRateNeverSpansADropout() {
+        NativeInputs.start = System.currentTimeMillis() - 3_600_000L
+        assertTrue(runtime.live(sample(1, 100f)))
+        assertTrue(runtime.live(sample(2, 104f)))
+        assertEquals(4f, PublicationSink.rate, 0.001f)
+        assertTrue(runtime.live(sample(40, 160f))) // after a 38-minute dropout
+        assertEquals(0f, PublicationSink.rate, 0f) // unknown, as the trendless native result was
+        assertTrue(runtime.live(sample(41, 162f)))
+        assertEquals(2f, PublicationSink.rate, 0.001f)
+    }
+
     @Test fun persistentRoomFailureRetriesThreeTimesThenWaitsForAnotherLiveEvent() {
         beforeRoomWrite = { error("database unavailable") }
         val first = sample(1)
@@ -779,10 +836,13 @@ class AiDexAlgorithmRuntimeTests {
     }
 
     @Test fun calibratedReplayFallbackFitUsesFactoryMinutesWithUsableRawToo() {
-        val anchor = sample(1, 100f, 100f)
-        val estimated = AiDexAlgorithmContext(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED).process(anchor, emptyList())
+        // The estimator bootstraps its scale from a run of stable pairs.
+        val context = AiDexAlgorithmContext(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED)
+        for (index in 0 until 20) context.process(sample(index, 100f, 100f), emptyList())
+        val anchor = sample(20, 100f, 100f)
+        val estimated = context.process(anchor, emptyList())
         assertNotNull(estimated.uncertainty)
-        val fallbacks = listOf(sample(10, 120f), sample(11, 130f)).map { AiDexAlgorithmReading(it, it.factoryMgDl) }
+        val fallbacks = listOf(sample(30, 120f), sample(31, 130f)).map { AiDexAlgorithmReading(it, it.factoryMgDl) }
         // A legacy reference stored Adaptive=200, unknown Stock, user=140.
         // Its usable-raw factory minute must be available to rebase the fit.
         seriesTransform = { values, times ->

@@ -45,6 +45,9 @@ internal class AiDexAlgorithmRuntime(
         private set
     @Volatile var failed = false
         private set
+    /** The original-input journal could not be written; readings still publish. */
+    @Volatile var journalUnavailable = false
+        private set
     private var calibrationRevision = -1L
     private data class CalibrationInputs(val references: List<AiDexReference>, val rawFit: Long, val autoFit: Long)
     private var appliedCalibrationInputs: CalibrationInputs? = null
@@ -53,11 +56,18 @@ internal class AiDexAlgorithmRuntime(
     @Volatile private var missingSourceTime: Long? = null
     @Volatile private var awaitingSourceHistory = false
     @Volatile private var roomRepairNeeded = false
+    @Volatile private var bootstrappedThisProcess = false
 
     init {
+        controller.journal.quarantineListener = { moved, error ->
+            // Refill from the factory values Room/native still hold before any
+            // later Adaptive rebuild; everAdaptive history refetches instead.
+            bootstrappedThisProcess = false
+            Log.stack("AiDexAlgorithm", "unreadable source journal for $serial moved to ${moved.name}", error)
+        }
         val requested = AiDexAlgorithmSelection.fromStorage(prefs.getInt(key("algorithmMode"), 0))
         if (requested != controller.appliedSelection) controller.request(requested)
-        if (everAdaptive || requested.adaptive || nativePointer() != 0L || controller.journal.first() != null) {
+        if (everAdaptive || requested.adaptive || nativePointer() != 0L || journalOrNull { controller.journal.first() } != null) {
             // Reconstruct continuation and finish an interrupted Stock restoration
             // as well as an Adaptive replay after process recreation.
             controller.invalidateReferences()
@@ -66,7 +76,7 @@ internal class AiDexAlgorithmRuntime(
     }
 
     fun source(time: Long, factory: Float, raw: Float, temperature: Float, origin: Int): AiDexSourceSample = synchronized(controller.lock) {
-        if (epoch == 0L) epoch = controller.journal.last()?.sessionStartMs ?: 0L
+        if (epoch == 0L) epoch = journalOrNull { controller.journal.last() }?.sessionStartMs ?: 0L
         val reported = sensorStart().takeIf { it > 0L && it <= time }
         if (epoch == 0L || (reported != null && reported > epoch + 30 * 60_000L && time >= reported)) {
             epoch = reported ?: time
@@ -75,13 +85,27 @@ internal class AiDexAlgorithmRuntime(
         // Earlier imported sessions are kept separately from the current native
         // window. Their exact activation is unknown; use the first stored minute.
         val start = if (time < epoch) {
-            controller.journal.first()?.sessionStartMs?.takeIf { it <= time } ?: time
+            journalOrNull { controller.journal.first() }?.sessionStartMs?.takeIf { it <= time } ?: time
         } else epoch
         AiDexSourceSample(time, start, factory, raw.takeIf { it.isFinite() && it >= 0f } ?: Float.NaN,
             temperature.takeIf { it.isFinite() } ?: Float.NaN, origin)
     }
 
     fun record(sources: Collection<AiDexSourceSample>) = controller.record(sources)
+
+    /** Journal reads that only inform defaults must not take a reading down with them. */
+    private fun <T> journalOrNull(read: () -> T): T? = runCatching(read)
+        .onFailure { Log.stack("AiDexAlgorithm", "source journal read for $serial", it) }.getOrNull()
+
+    /** A failed direct history store is repaired from the journal through the owner. */
+    fun requestRoomRepair() {
+        synchronized(controller.lock) {
+            if (controller.isClosed()) return
+            roomRepairNeeded = true
+            controller.invalidateReferences()
+        }
+        requestReplay()
+    }
     fun resetRequested() = synchronized(controller.lock) { resetWaiting = true; controller.invalidateReferences() }
     fun resetAbandoned() {
         synchronized(controller.lock) {
@@ -132,7 +156,18 @@ internal class AiDexAlgorithmRuntime(
         store: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading = storeLive): Boolean {
         val stored = synchronized(controller.lock) {
             if (controller.isClosed()) return@synchronized false
-            val reading = controller.live(source, references(controller.appliedSelection), allowFactoryFallback = true)
+            val reading = try {
+                controller.live(source, references(controller.appliedSelection), allowFactoryFallback = true)
+                    .also { journalUnavailable = false }
+            } catch (error: Exception) {
+                // The journal is an input to later rebuilds, never a gate on the
+                // reading itself: publish the factory value under the applied mode.
+                if (!journalUnavailable) UiRefreshBus.requestStatusRefresh()
+                journalUnavailable = true
+                Log.stack("AiDexAlgorithm", "source journal write for $serial", error)
+                AiDexAlgorithmReading(source, source.factoryMgDl)
+                    .takeIf { source.timestampMs > (latestPublished?.source?.timestampMs ?: 0L) }
+            }
             if (reading == null) {
                 if (source.timestampMs >= (latestPublished?.source?.timestampMs ?: 0L)) pendingLiveTime = source.timestampMs
                 return@synchronized false
@@ -227,10 +262,50 @@ internal class AiDexAlgorithmRuntime(
         CalibrationAccess.getIntegratedCalibrationFingerprint(serial, false),
     )
 
+    /**
+     * Stock requested and applied: write only the journal minutes Room lacks or
+     * holds a different number for (a failed live/history write, a native-only
+     * minute). Null when Stock does not own the history, false when the write failed.
+     */
+    private fun reconcileStock(): Boolean? = synchronized(controller.lock) {
+        if (controller.isClosed() || controller.requestedSelection != AiDexAlgorithmSelection.STOCK ||
+            controller.appliedSelection != AiDexAlgorithmSelection.STOCK) return@synchronized null
+        if (HistoryRepositoryAccess.isRegistered()) {
+            val stored = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)
+                ?.associate { it.timestamp / 60_000L to it.value } ?: return@synchronized null
+            val stale = controller.journal.snapshot().filter { source ->
+                val held = stored[source.minute]
+                held == null || kotlin.math.abs(held - source.factoryMgDl) > STOCK_TOLERANCE_MGDL
+            }
+            if (stale.isNotEmpty()) {
+                rewritingHistory = true
+                val written = try {
+                    HistorySyncAccess.storeSensorHistoryBatchBlocking(serial,
+                        LongArray(stale.size) { stale[it].timestampMs },
+                        FloatArray(stale.size) { stale[it].factoryMgDl },
+                        FloatArray(stale.size) { stale[it].rawMgDl.takeIf { raw -> raw.isFinite() } ?: 0f })
+                } finally { rewritingHistory = false }
+                if (!written) {
+                    // Bounded by the caller; afterwards the next live/history event retries.
+                    failed = true
+                    roomRepairNeeded = true
+                    UiRefreshBus.requestStatusRefresh()
+                    return@synchronized false
+                }
+                UiRefreshBus.requestDataRefresh()
+            }
+        }
+        roomRepairNeeded = false
+        failed = false
+        controller.settleStock()
+        true
+    }
+
     private fun bootstrap() = synchronized(controller.lock) {
         // Until the first Adaptive write, native/Room still contain authentic
         // factory values, including holes collected by a stock-only release.
-        if (everAdaptive || controller.isClosed()) return@synchronized
+        // Afterwards every AiDex write passes through the journal first.
+        if (everAdaptive || controller.isClosed() || bootstrappedThisProcess) return@synchronized
         val held = controller.journal.snapshot().mapTo(HashSet()) { it.minute }
         val room = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)
         val native = if (nativePointer() != 0L) {
@@ -257,6 +332,7 @@ internal class AiDexAlgorithmRuntime(
         controller.record(sources)
         if (room != null || native != null) {
             check(prefs.edit().putBoolean(key("algorithmSourceBootstrapped"), true).commit())
+            bootstrappedThisProcess = true
         }
     }
 
@@ -274,6 +350,13 @@ internal class AiDexAlgorithmRuntime(
                         if (controller.isClosed() || historyActive() || resetWaiting) return@execute
                         if (controller.requestedSelection.calibration && !CalibrationAccess.isCalibrationStateLoaded()) return@execute
                         bootstrap()
+                        // Stock already owns Room/native through the direct writers.
+                        // Rewriting the same factory history is work without a result.
+                        when (reconcileStock()) {
+                            true -> return@execute
+                            false -> return@repeat // bounded retry, as for a full replay batch
+                            null -> Unit
+                        }
                         val original = controller.journal.snapshot()
                         val displayFactor = if (Applic.unit == 1) 1f / AiDexAdaptiveV2.MGDL_PER_MMOL else 1f
                         // Available factory anchors still own fallback fits even
@@ -427,4 +510,9 @@ internal class AiDexAlgorithmRuntime(
     }
 
     fun close() { controller.close(); worker.shutdownNow() }
+
+    private companion object {
+        /** Journal and Room both hold the same float; anything wider is a stale row. */
+        const val STOCK_TOLERANCE_MGDL = 0.05f
+    }
 }

@@ -927,12 +927,14 @@ class AiDexBleManager(
                 if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
             if (result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
         }.onFailure { Log.stack(TAG, "selected live native write", it) }
-        val rate = when {
-            !algorithmRuntime.controller.appliedSelection.adaptive && trend != Natives.AIDEX_TREND_UNKNOWN -> trend.toByte() / 10f
-            previous != null && row.source.timestampMs > previous.source.timestampMs && row.source.sessionStartMs == previous.source.sessionStartMs ->
-                (row.glucoseMgDl - previous.glucoseMgDl) / ((row.source.timestampMs - previous.source.timestampMs) / 60_000f)
-            else -> row.rateMgDlPerMinute.takeIf { it.isFinite() } ?: 0f
-        }
+        // The sensor's trend byte in Stock; otherwise a difference between
+        // neighbouring readings, never across a dropout. Unknown publishes as 0,
+        // as the native result did for trendless direct frames.
+        val rate = tk.glucodata.drivers.aidex.AiDexLiveRate.resolve(
+            if (!algorithmRuntime.controller.appliedSelection.adaptive && trend != Natives.AIDEX_TREND_UNKNOWN)
+                trend.toByte() / 10f else Float.NaN,
+            previous, row,
+        )
         val output = row.copy(rateMgDlPerMinute = rate)
         // Finish Room storage while the algorithm ownership lock is held. An
         // async live write could otherwise outlive a later Stock restoration.
@@ -5958,7 +5960,10 @@ class AiDexBleManager(
 
         }
 
-        algorithmRuntime.record(originals)
+        // Journal failure must not cost Stock its history; the owned repair
+        // and the source recovery cover the originals later.
+        runCatching { algorithmRuntime.record(originals) }
+            .onFailure { Log.stack(TAG, "history source journal", it) }
         if (!algorithmRuntime.controller.appliedSelection.adaptive) {
             originals.forEach { row ->
                 Natives.aidexStoreHistoryData(dataptr, row.timestampMs, row.factoryMgDl, row.rawMgDl)
@@ -6018,8 +6023,7 @@ class AiDexBleManager(
             if (!storedDirectly) {
                 // Retry from the journal through the same owner, never through
                 // a generic writer that can race a subsequent mode change.
-                algorithmRuntime.controller.invalidateReferences()
-                algorithmRuntime.requestReplay()
+                algorithmRuntime.requestRoomRepair()
                 clearPendingRoomHistory("owned-replay-fallback")
             }
         }
@@ -6115,7 +6119,9 @@ class AiDexBleManager(
     fun getLastDefaultParamDiagnosticsSummary(): String? = lastDefaultParamDiagnostics?.summaryLine()
 
     override fun getDetailedBleStatus(): String {
-        if (algorithmRuntime.failed) return Applic.app.getString(R.string.aidex_algorithm_failed)
+        if (algorithmRuntime.failed || (algorithmRuntime.journalUnavailable &&
+                (algorithmRuntime.controller.requestedSelection.adaptive || algorithmRuntime.controller.appliedSelection.adaptive)))
+            return Applic.app.getString(R.string.aidex_algorithm_failed)
         if (algorithmRuntime.isRebuilding()) return Applic.app.getString(R.string.aidex_algorithm_rebuilding)
         val now = System.currentTimeMillis()
 

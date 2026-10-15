@@ -62,6 +62,40 @@ object RecordedDisplayVoiding {
     }
 
     /**
+     * Auto-lane records at minutes whose stored Auto number this rewrite
+     * actually changed, for a driver that rewrites Auto history it does not
+     * calibrate (AiDex returning to Stock or replaying uncalibrated Adaptive).
+     *
+     * There the record holds the app's own calibration of the stored number
+     * and may legitimately differ from it, so record-against-reading cannot
+     * tell stale from intact. The stored number before and after can: a
+     * minute whose number did not move keeps its record, however often the
+     * driver replays the same values.
+     */
+    fun changedAutoMinutes(
+        records: List<ReadingDisplay>,
+        sensorSerial: String,
+        rewritten: List<HistoryReading>,
+        previousAutoByMinute: Map<Long, Float>,
+    ): List<Long> {
+        if (records.isEmpty() || rewritten.isEmpty()) return emptyList()
+        val byMinute = HashMap<Long, HistoryReading>(rewritten.size)
+        for (reading in rewritten) {
+            if (!tk.glucodata.SensorIdentity.matches(reading.sensorSerial, sensorSerial)) continue
+            byMinute[ReadingDisplay.minuteOf(reading.timestamp)] = reading
+        }
+        val voided = ArrayList<Long>()
+        for (record in records) {
+            if (record.viewMode == 1 || record.viewMode == 3) continue
+            if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorSerial)) continue
+            val after = byMinute[record.timestamp]?.value ?: continue
+            val before = previousAutoByMinute[record.timestamp]
+            if (before == null || !before.isFinite() || abs(before - after) > TOLERANCE_MGDL) voided.add(record.timestamp)
+        }
+        return voided
+    }
+
+    /**
      * Whether [record] still describes the number [reading] holds in the
      * record's lane — the one question both the rebuild-time voiding and the
      * read-time check ask, so they cannot answer it differently.

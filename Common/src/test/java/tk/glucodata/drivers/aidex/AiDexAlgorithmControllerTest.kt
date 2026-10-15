@@ -26,6 +26,33 @@ class AiDexAlgorithmControllerTest {
         return result.readings
     }
 
+    @Test fun `live rate is unknown across a dropout or a model-to-factory switch`() {
+        fun reading(index: Int, glucose: Float, estimated: Boolean) = AiDexAlgorithmReading(sample(index), glucose,
+            if (estimated) tk.glucodata.drivers.aidex.adaptive2.ProbabilisticGlucoseEstimate(
+                glucose / 18f, glucose / 18f - 1f, glucose / 18f + 1f, 0f, 0.1f, 0f, 1f, 0f, 0f, 0f, 0.5f) else null)
+        assertEquals(4f, AiDexLiveRate.between(reading(1, 100f, false), reading(2, 104f, false)), 0.0001f)
+        assertEquals(2f, AiDexLiveRate.between(reading(1, 100f, false), reading(6, 110f, false)), 0.0001f)
+        // 38 minutes describe the dropout, not the current trend.
+        assertTrue(AiDexLiveRate.between(reading(2, 104f, false), reading(40, 160f, false)).isNaN())
+        // Model and factory differ by calibration; a step between them is not a rate.
+        assertTrue(AiDexLiveRate.between(reading(1, 100f, true), reading(2, 130f, false)).isNaN())
+        assertTrue(AiDexLiveRate.between(null, reading(2, 130f, false)).isNaN())
+        // A Stock trend byte still wins; with nothing usable the rate stays unknown.
+        assertEquals(1.5f, AiDexLiveRate.resolve(1.5f, reading(2, 104f, false), reading(40, 160f, false)), 0f)
+        assertTrue(AiDexLiveRate.resolve(Float.NaN, reading(2, 104f, false), reading(40, 160f, false)).isNaN())
+    }
+
+    @Test fun `stock settles without a rewrite only when stock is requested and applied`() {
+        val model = controller()
+        seed(model)
+        model.invalidateReferences()
+        assertTrue(model.settleStock())
+        assertFalse(model.needsReplay())
+        model.request(AiDexAlgorithmSelection.ADAPTIVE_V2)
+        assertFalse(model.settleStock())
+        assertTrue(model.needsReplay())
+    }
+
     @Test fun `stock is default and unknown persisted choices fail to stock`() {
         for (value in listOf(-1, 1, 2, 7, 10, 15, 999)) assertEquals(AiDexAlgorithmSelection.STOCK, AiDexAlgorithmSelection.fromStorage(value))
         assertEquals(8, AiDexAlgorithmSelection.ADAPTIVE_V2.storageId)

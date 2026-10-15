@@ -44,13 +44,21 @@ class AiDexSampleJournalTest {
         assertEquals(validLength, file.length())
     }
 
-    @Test fun `full record corruption fails closed instead of discarding original history`() {
-        val file = File(temporary.newFolder(), "source.bin")
+    @Test fun `full record corruption is moved aside and never stops later appends`() {
+        val folder = temporary.newFolder()
+        val file = File(folder, "source.bin")
         AiDexSampleJournal(file).appendAll(listOf(sample(0)))
         val bytes = file.readBytes().apply { this[20] = (this[20].toInt() xor 1).toByte() }
         file.writeBytes(bytes)
-        assertThrows(IllegalArgumentException::class.java) { AiDexSampleJournal(file).snapshot() }
-        assertArrayEquals(bytes, file.readBytes())
+        val journal = AiDexSampleJournal(file)
+        var reported: File? = null
+        journal.quarantineListener = { moved, _ -> reported = moved }
+        // Nothing corrupt is decoded as factory input, and the evidence is kept.
+        assertEquals(emptyList<AiDexSourceSample>(), journal.snapshot())
+        assertArrayEquals(bytes, reported!!.readBytes())
+        assertTrue(reported!!.name.startsWith("source.bin.corrupt-"))
+        assertEquals(1, journal.appendAll(listOf(sample(1))))
+        assertEquals(listOf(sample(1)), AiDexSampleJournal(file).snapshot())
     }
 
     @Test fun `backup restores originals while local inputs win conflicts`() {

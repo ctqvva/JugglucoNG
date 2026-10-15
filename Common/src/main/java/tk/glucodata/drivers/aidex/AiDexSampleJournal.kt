@@ -35,6 +35,8 @@ internal class AiDexSampleJournal(private val file: File) {
     private val lock = locks.getOrPut(file.canonicalPath) { Any() }
     private var loadedLength = -1L
     private val samples = TreeMap<Long, AiDexSourceSample>()
+    /** Told where an unreadable journal was moved, and why. */
+    @Volatile var quarantineListener: ((File, Throwable) -> Unit)? = null
 
     fun snapshot(): List<AiDexSourceSample> = synchronized(lock) { load(); samples.values.toList() }
     fun first(): AiDexSourceSample? = synchronized(lock) { load(); samples.firstEntry()?.value }
@@ -70,20 +72,44 @@ internal class AiDexSampleJournal(private val file: File) {
     private fun load() {
         val length = if (file.exists()) file.length() else 0L
         if (loadedLength == length) return
-        require(length <= MAX_BYTES) { "AiDex source journal is too large" }
-        val bytes = if (file.exists()) file.readBytes() else ByteArray(0)
+        val bytes = try {
+            require(length <= MAX_BYTES) { "AiDex source journal is too large" }
+            if (file.exists()) file.readBytes() else ByteArray(0)
+        } catch (error: IllegalArgumentException) {
+            quarantine(error)
+            return
+        }
         val complete = bytes.size / RECORD_BYTES * RECORD_BYTES
-        val decoded = decode(bytes.copyOf(complete))
+        val decoded = try {
+            decode(bytes.copyOf(complete))
+        } catch (error: IllegalArgumentException) {
+            quarantine(error)
+            return
+        }
         samples.clear()
         decoded.forEach { sample ->
             val held = samples[sample.minute]
             if (held == null || sample.origin >= held.origin) samples[sample.minute] = sample
         }
         // A torn append cannot have been followed by a derived write (append is
-        // fsynced first). Full-record corruption fails closed rather than losing
-        // original factory data and later treating derived history as factory.
+        // fsynced first). Full-record corruption is moved aside, never decoded
+        // as factory data; see quarantine().
         if (complete != bytes.size) RandomAccessFile(file, "rw").use { it.setLength(complete.toLong()); it.fd.sync() }
         loadedLength = complete.toLong()
+    }
+
+    /**
+     * An unreadable journal must not stop every later reading. Move it aside and
+     * start empty: missing originals are then refetched from the sensor or fail
+     * the rebuild closed (replay never treats stored Auto as factory input), and
+     * a Stock-only history is re-bootstrapped from the factory values it holds.
+     */
+    private fun quarantine(error: Throwable) {
+        val moved = File(file.parentFile, "${file.name}.corrupt-${System.currentTimeMillis()}")
+        if (!file.renameTo(moved)) throw IOException("Cannot move unreadable AiDex source journal aside", error)
+        samples.clear()
+        loadedLength = 0L
+        runCatching { quarantineListener?.invoke(moved, error) }
     }
 
     private fun compact() {

@@ -27,10 +27,30 @@ internal class AiDexAlgorithmContext(val selection: AiDexAlgorithmSelection) {
             result?.estimate?.glucoseMmol?.times(AiDexAdaptiveV2.MGDL_PER_MMOL) ?: source.factoryMgDl,
             result?.estimate,
         )
-        val rate = previous?.takeIf { it.source.sessionStartMs == source.sessionStartMs && source.timestampMs > it.source.timestampMs }
-            ?.let { (reading.glucoseMgDl - it.glucoseMgDl) / ((source.timestampMs - it.source.timestampMs) / 60_000f) } ?: Float.NaN
-        return reading.copy(rateMgDlPerMinute = rate).also { previous = it }
+        return reading.copy(rateMgDlPerMinute = AiDexLiveRate.between(previous, reading)).also { previous = it }
     }
+}
+
+/** A live rate is a difference between neighbouring readings of the same kind, or unknown. */
+internal object AiDexLiveRate {
+    /** Beyond this the difference describes a dropout, not the current trend. */
+    const val MAX_GAP_MS = 5 * 60_000L
+
+    fun between(previous: AiDexAlgorithmReading?, current: AiDexAlgorithmReading): Float {
+        val earlier = previous ?: return Float.NaN
+        val gap = current.source.timestampMs - earlier.source.timestampMs
+        // Model and factory fallback differ by their calibration, not by glucose.
+        if (gap <= 0L || gap > MAX_GAP_MS || earlier.source.sessionStartMs != current.source.sessionStartMs ||
+            (earlier.uncertainty == null) != (current.uncertainty == null)) return Float.NaN
+        return (current.glucoseMgDl - earlier.glucoseMgDl) / (gap / 60_000f)
+    }
+
+    /** A sensor trend byte wins in Stock; otherwise the bounded difference, else unknown. */
+    fun resolve(stockTrendMgDlPerMinute: Float, previous: AiDexAlgorithmReading?, current: AiDexAlgorithmReading): Float =
+        stockTrendMgDlPerMinute.takeIf { it.isFinite() }
+            ?: between(previous, current).takeIf { it.isFinite() }
+            ?: current.rateMgDlPerMinute.takeIf { it.isFinite() }
+            ?: Float.NaN
 }
 
 /** One ownership lock covers source changes, selection and every storage/publication commit. */
@@ -64,6 +84,16 @@ internal class AiDexAlgorithmController(
     }
 
     fun invalidateReferences() = synchronized(lock) { if (!closed) { generation++; replayNeeded = true } }
+
+    /** Stock with Stock applied: Room and native already hold the factory values. */
+    fun settleStock(): Boolean = synchronized(lock) {
+        if (closed || requestedSelection != AiDexAlgorithmSelection.STOCK || appliedSelection != AiDexAlgorithmSelection.STOCK) {
+            false
+        } else {
+            replayNeeded = false
+            true
+        }
+    }
     fun needsReplay(): Boolean = synchronized(lock) { !closed && replayNeeded }
     // Enqueuing from a Bluetooth callback must never wait for a Room writer.
     fun isClosed(): Boolean = closed

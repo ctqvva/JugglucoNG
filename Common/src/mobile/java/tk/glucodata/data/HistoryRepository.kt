@@ -602,12 +602,18 @@ class HistoryRepository(context: Context = Applic.app) {
                         )
                     }
                     val repository = HistoryRepository()
+                    // Read before the replace: only a driver rewriting Auto history it
+                    // does not calibrate needs the numbers it is about to overwrite.
+                    val previousAuto = if (
+                        runCatching { tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(sensorSerial) }
+                            .getOrDefault(false)
+                    ) repository.storedAutoByMinute(roomSerial, readings) else null
                     val stored = repository.storeReadingsReplacingSensorBuckets(
                         sensorSerial = roomSerial,
                         readings = readings,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
                     )
-                    if (stored) repository.voidRecordsRewrittenByDriver(sensorSerial, roomSerial, readings)
+                    if (stored) repository.voidRecordsRewrittenByDriver(sensorSerial, roomSerial, readings, previousAuto)
                     stored
                 }.also { stored ->
                     if (stored) {
@@ -838,30 +844,35 @@ class HistoryRepository(context: Context = Applic.app) {
      * made void — see [RecordedDisplayVoiding] for what that means and why it is
      * a deletion. Only a lane whose calibration the driver integrates qualifies;
      * on every other sensor the rewrite is a re-sync of the same numbers and the
-     * record stands.
+     * record stands — except where a driver rewriting Auto history it does not
+     * calibrate actually changed a minute's stored number ([previousAutoByMinute]).
      */
     suspend fun voidRecordsRewrittenByDriver(
         driverSerial: String,
         roomSerial: String,
         rewritten: List<HistoryReading>,
+        /** Stored Auto numbers before the rewrite; only set for a driver rewriting Auto it does not calibrate. */
+        previousAutoByMinute: Map<Long, Float>? = null,
     ): Int {
         if (rewritten.isEmpty()) return 0
         val autoIntegrated = runCatching {
-            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, false) ||
-                tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(driverSerial)
+            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, false)
         }.getOrDefault(false)
         val rawIntegrated = runCatching {
             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, true)
         }.getOrDefault(false)
-        if (!autoIntegrated && !rawIntegrated) return 0
+        val autoChanges = previousAutoByMinute.takeUnless { autoIntegrated }
+        if (!autoIntegrated && !rawIntegrated && autoChanges == null) return 0
         return withContext(Dispatchers.IO) {
             try {
                 val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
                 val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
                 val records = displayDao.getBetween(start, end)
-                val minutes = RecordedDisplayVoiding.minutesToVoid(
+                val minutes = (RecordedDisplayVoiding.minutesToVoid(
                     records, roomSerial, rewritten, autoIntegrated, rawIntegrated,
-                )
+                ) + (autoChanges?.let {
+                    RecordedDisplayVoiding.changedAutoMinutes(records, roomSerial, rewritten, it)
+                } ?: emptyList())).distinct()
                 if (minutes.isEmpty()) return@withContext 0
                 var deleted = 0
                 database.withTransaction {
@@ -881,6 +892,20 @@ class HistoryRepository(context: Context = Applic.app) {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed voiding recorded minutes for $roomSerial", e)
                 0
+            }
+        }
+    }
+
+    /** The stored Auto number per minute across [readings]' span, before they replace it. */
+    suspend fun storedAutoByMinute(roomSerial: String, readings: List<HistoryReading>): Map<Long, Float> {
+        if (readings.isEmpty()) return emptyMap()
+        val start = readings.minOf { it.timestamp }
+        val end = readings.maxOf { it.timestamp }
+        return withContext(Dispatchers.IO) {
+            HashMap<Long, Float>().also { previous ->
+                dao.getSensorReadingsInTimeRange(roomSerial, start, end + 1L).forEach { row ->
+                    previous[ReadingDisplay.minuteOf(row.timestamp)] = row.value
+                }
             }
         }
     }
