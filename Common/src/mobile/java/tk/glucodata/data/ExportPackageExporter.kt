@@ -344,6 +344,7 @@ object ExportPackageExporter {
 
                     val settingsResult = payload.optJSONObject("settings")?.let { settings ->
                         SettingsExporter.importPayload(appContext, settings).getOrThrow()
+                            .also { aidex.settingsImported() }
                     }
                     val historySummary = payload.optJSONObject("history")?.let { history ->
                         importHistorySection(appContext, uri, history, aidex)

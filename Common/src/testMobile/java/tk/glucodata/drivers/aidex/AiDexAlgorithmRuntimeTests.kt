@@ -640,6 +640,22 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(9, Applic.app.getSharedPreferences("AiDexNativePrefs", 0).getInt("algorithmAppliedMode_$serial", -1))
     }
 
+    @Test fun aSettingsImportThatRerunsCalibrationMigrationStillRestoresConflictingHistory() {
+        saveRealAutoReference()
+        runtime.record(listOf(sample(0), sample(10)))
+        choose(9) // The connected sensor applies calibrated Adaptive.
+        assertTrue(CalibrationManager.isEnabledForMode(true, serial))
+        // An older backup: Stock, global Raw calibration off, enablement not yet
+        // migrated. Restoring it reruns the migration for the current sensor.
+        val preferences = stockSettingsPreferences().put("calibration_prefs", JSONObject().put("values", JSONObject()
+            .put("calibration_enabled_raw", JSONObject().put("type", "boolean").put("value", false))))
+        val early = sample(1)
+        val summary = importPackage(packageSettings(preferences), JSONArray().put(backupReading(early, 100f)), backupSources(early))
+        assertEquals(1, summary.historyReadings)
+        assertEquals(1, runBlocking { HistoryDatabase.getInstance(Applic.app).historyDao()
+            .getSensorReadingsAtTimestamps(serial, listOf(early.timestampMs)) }.size)
+    }
+
     @Test fun aReferenceEditDuringPreflightInvalidatesTheRebuiltImportRows() {
         saveRealAutoReference()
         runtime.record(listOf(sample(0)))

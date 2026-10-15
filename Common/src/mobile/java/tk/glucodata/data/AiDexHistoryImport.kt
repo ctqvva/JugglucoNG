@@ -130,6 +130,16 @@ internal class AiDexHistoryImport private constructor(
         }
     }
 
+    /**
+     * The import's own settings step can change calibration inputs: replacing
+     * calibration_prefs can rerun the legacy enablement migration for the
+     * current sensor. Rebuild against what that step produced; edits made
+     * after this point are still rejected by [checkOwnership].
+     */
+    fun settingsImported() {
+        if (originals.isNotEmpty()) rebuildConflicts()
+    }
+
     fun normalized(reading: HistoryReading): AiDexAlgorithmReading? {
         validate(reading)
         val id = canonical(reading.sensorSerial) ?: return null
