@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.TrendingDown
 import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
@@ -410,14 +411,16 @@ private fun ActionDock(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
+            BoxWithConstraints(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                contentAlignment = Alignment.CenterEnd
             ) {
+                // A share of the dock at least, and as wide as its label needs: on a
+                // narrow (low-dp) screen a fixed share was too small and broke the word.
                 FilledTonalButton(
                     onClick = onSnooze,
                     modifier = Modifier
-                        .fillMaxWidth(if (compact) 0.42f else 0.36f)
+                        .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
                         .height(if (compact) 58.dp else 62.dp),
                     shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentPadding = PaddingValues(horizontal = 24.dp),
@@ -428,9 +431,7 @@ private fun ActionDock(
                 ) {
                     Text(
                         text = stringResource(R.string.snooze),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        )
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
