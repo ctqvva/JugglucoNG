@@ -213,7 +213,7 @@ class CombinedSensorIntegrationTests {
         assertTrue(DisplayTrendSource.resolveArrowRate(history, snapshot, 0, false, Float.NaN).isNaN())
         // The cutoff is persisted, rather than owned by the disposable manager.
         manager.shutdown()
-        assertEquals(now, CombinedTrendHistory.startTime(id.takeLast(11)))
+        assertEquals(now / 1000L * 1000L, CombinedTrendHistory.startTime(id.takeLast(11)))
         assertEquals(history, CombinedTrendHistory.filter(history, "a"))
         val uiHistory = history.map { tk.glucodata.ui.GlucosePoint(it.value, "", it.timestamp, sensorSerial = id) }
         assertTrue(tk.glucodata.logic.TrendEngine.calculateTrend(uiHistory, isMmol = false).velocity.isNaN())
@@ -337,4 +337,38 @@ class CombinedSensorIntegrationTests {
             assertThrows(IllegalArgumentException::class.java) { CombinedSensorRegistry.setEnabled(true, invalid) }
         }
     }
+    @Test fun veryLowCalibratedFallbackPublishesInBothUnitsWithoutBlending() {
+        for (unit in listOf(0, 1)) {
+            Applic.unit = unit
+            CombinedSensorRegistry.setEnabled(true, listOf("a", "b"))
+            val manager = CombinedSensorRegistry.manager!!
+            learn(manager, System.currentTimeMillis(), 15f, 100f)
+            assertNull(manager.result.estimateMgdl)
+            assertEquals(if (unit == 1) 15f / 18.0182f else 15f, PublicationSink.outputs.last().value, 0.001f)
+            assertEquals(1.5f, NativeSink.nativeValues.last().second, 0.001f)
+            CombinedSensorRegistry.setEnabled(false, emptyList())
+        }
+    }
+
+    @Test fun historicalRowsKeepDeltasAndTrendsInsideTheirOwnSegments() {
+        val id = CombinedSensorRegistry.idFor(listOf("a", "b"))
+        // A previous day, then a later blend/fallback transition, then today's segment.
+        val base = System.currentTimeMillis() / 1000 * 1000 - 2 * 24 * 60 * 60_000L
+        val minutes = (0..2).toList() + (1440..1442).toList() + (2880..2882).toList()
+        for (minute in minutes) CombinedTrendHistory.recordOutput(id, base + minute * 60_000L, minute % 1440 == 0)
+        val points = minutes.map { minute -> tk.glucodata.ui.GlucosePoint(
+            if (minute < 1440) 105f else if (minute < 2880) 100f else 110f, "", base + minute * 60_000L, sensorSerial = id) }
+        val index = tk.glucodata.ui.RowDeltaIndex(points, SensorIdentity::matches)
+        val deltas = index.deltasFor(points.asReversed(), false, 1)
+        for (minute in listOf(2, 1442, 2882)) {
+            val point = points.first { it.timestamp == base + minute * 60_000L }
+            assertNotNull("missing historical delta at $minute", deltas[point])
+            val segment = CombinedTrendHistory.filterUi(points, id, point.timestamp)
+            assertEquals(3, segment.size)
+            assertEquals(0f, tk.glucodata.logic.TrendEngine.calculateTrend(segment, isMmol = false).velocity, 0.001f)
+        }
+        assertNull(deltas[points.first { it.timestamp == base + 1440 * 60_000L }])
+        assertNull(deltas[points.first { it.timestamp == base + 2880 * 60_000L }])
+    }
+
 }

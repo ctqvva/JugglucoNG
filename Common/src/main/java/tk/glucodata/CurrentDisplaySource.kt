@@ -193,7 +193,7 @@ object CurrentDisplaySource {
         nowMillis: Long = System.currentTimeMillis()
     ): Snapshot? {
         val processedPoints = prepareRecentPointsForCurrent(
-            recentPoints = tk.glucodata.combined.CombinedTrendHistory.filter(recentPoints, sensorId),
+            recentPoints = tk.glucodata.combined.CombinedTrendHistory.filter(recentPoints, sensorId, current?.timeMillis ?: recentPoints.maxOfOrNull { it.timestamp } ?: 0L),
             current = current,
             historyStart = historyStart,
             viewMode = viewMode,

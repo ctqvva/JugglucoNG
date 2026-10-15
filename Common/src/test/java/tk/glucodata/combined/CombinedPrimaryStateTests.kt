@@ -100,4 +100,46 @@ class CombinedPrimaryStateTests {
         assertSame(previous, state.latest)
         assertFalse(update(state, 3)!!.blended)
     }
+    @Test fun freshLowCalibratedReadingsRemainTheIndividualFallback() {
+        val state = CombinedPrimaryState(listOf("a", "b"))
+        val low = update(state, 0, 15f, 100f)!!
+        assertEquals(15f, low.mgdl)
+        assertEquals("a", low.fallbackSensorId)
+        assertEquals(DualSensorConsensus.Status.UNAVAILABLE, state.result.status)
+        val lone = state.update(listOf(pair(1, 15f)[0]), base + 60_000L, 20, 5)!!
+        assertEquals(15f, lone.mgdl)
+        assertEquals("a", lone.fallbackSensorId)
+    }
+
+    @Test fun mixedCadenceCallbacksAndMonitorTicksCannotLetThePrimaryExpire() {
+        val state = CombinedPrimaryState(listOf("a", "b", "c"))
+        val latest = mutableMapOf<String, DualSensorConsensus.Reading>()
+        val blends = mutableSetOf<Int>()
+        for (minute in 0..25) {
+            for ((id, value) in listOf("a" to 100f, "b" to 105f, "c" to 110f)) {
+                if (id == "b" && minute % 5 != 0) continue
+                latest[id] = DualSensorConsensus.Reading(id, base + minute * 60_000L, value)
+                val output = state.update(latest.values.toList(), base + minute * 60_000L, 20, 5)
+                if (output?.blended == true) blends += minute
+            }
+            for (offset in listOf(15_000L, 30_000L, 45_000L)) {
+                val now = base + minute * 60_000L + offset
+                state.update(latest.values.toList(), now, 20, 5)
+                assertTrue("primary expired at $minute:$offset", now - state.latest!!.timeMs <= DualSensorConsensus.MAX_AGE_MS)
+            }
+        }
+        assertTrue("blends=$blends", blends.containsAll(listOf(10, 15, 20, 25)))
+    }
+
+    @Test fun waitingCannotPreserveAnExpiredPrimary() {
+        val state = CombinedPrimaryState(listOf("a", "b"))
+        update(state, 0)
+        val now = base + 360_000L
+        val partial = listOf(pair(6)[0], pair(0)[1])
+        assertNull(state.update(partial, now, 20, 5)) // Exactly at the freshness boundary is still current.
+        val output = state.update(partial, now + 1L, 20, 5)!!
+        assertEquals(now, output.timeMs)
+        assertEquals(100f, output.mgdl)
+    }
+
 }

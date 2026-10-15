@@ -61,6 +61,7 @@ class SettingsRegistryTests {
                 KEY_PREDICTION_HORIZON,
                 KEY_SENSOR_SELECTION,
                 KEY_SENSOR_COLORS,
+                KEY_COMBINED_TREND_SEGMENTS,
             ),
             SettingsRegistry.mirrored.map { it.key }.toSet(),
         )

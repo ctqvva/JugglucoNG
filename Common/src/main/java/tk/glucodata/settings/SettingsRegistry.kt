@@ -20,6 +20,7 @@ const val KEY_PREDICTION_INSULIN_SENSITIVITY = "dashboard_prediction_insulin_sen
 const val KEY_PREDICTION_CARB_ABSORPTION = "dashboard_prediction_carb_absorption_g_per_h"
 const val KEY_PREDICTION_HORIZON = "dashboard_prediction_horizon_minutes"
 const val KEY_SENSOR_SELECTION = "dashboard_multi_sensor_selection_order"
+const val KEY_COMBINED_TREND_SEGMENTS = "combined_trend_segments_v1"
 const val KEY_SENSOR_COLORS = "sensor_color_overrides_argb"
 
 // The defaults, declared once (plan §2.4). Before this, prediction-horizon 120 lived in four files
@@ -197,6 +198,11 @@ object SettingsRegistry {
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
     )
 
+    val COMBINED_TREND_SEGMENTS = SettingDefinition(
+        KEY_COMBINED_TREND_SEGMENTS, SettingType.STRING, "",
+        SettingScope.MIRRORED, SettingBackup.INCLUDED,
+    )
+
     val definitions: List<SettingDefinition> = listOf(
         SMOOTHING_MINUTES,
         SMOOTHING_GRAPH_ONLY,
@@ -210,6 +216,7 @@ object SettingsRegistry {
         PREDICTION_HORIZON,
         SENSOR_SELECTION,
         SENSOR_COLORS,
+        COMBINED_TREND_SEGMENTS,
     )
 
     /**

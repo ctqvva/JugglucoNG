@@ -703,7 +703,7 @@ object AlertRuntimeManager {
 
     private fun evaluateDeltaAlarmsLocked() {
         val id = lastDisplaySnapshot?.sensorId
-        val cutoff = tk.glucodata.combined.CombinedTrendHistory.startTime(id)
+        val cutoff = tk.glucodata.combined.CombinedTrendHistory.startTime(id, lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs)
         val boundary = id to cutoff
         if (deltaCompositionBoundary != boundary && (cutoff > 0L || deltaCompositionBoundary?.second != 0L)) {
             fallingDeltaState.resetBaseline()

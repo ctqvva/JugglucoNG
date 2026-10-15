@@ -32,8 +32,11 @@ Recent user calibration anchors also influence the contribution. An anchor young
 than 24 hours gives up to twice the stability weight, fading with age and distance
 from its reference glucose (40 mg/dL distance scale). Inverse variance determines
 the pair blend, and either sensor’s contribution is limited to 25–75%.
-For three or more selected sensors, compare every pair and average the pair
-estimates only when every pair has learned and agrees. Every selected input
+For three or more selected sensors, accept a complete group observation before
+advancing any pair. This gives every pair the same observation baseline, including
+when one contributor reports every five minutes and the others every minute.
+Compare every pair from that group and average the pair estimates only when every
+pair has learned and agrees. Every selected input
 participates; each total contribution is bounded between `0.5/N` and `1.5/N`.
 A disagreeing sensor withholds the whole blend; a majority cannot establish truth. This is an
 experimental heuristic, not an accuracy score: a quiet sensor can be wrong and two
@@ -41,12 +44,16 @@ sensors can share a bias. It does not invent a reference from sensor agreement.
 
 ## Pairing, waiting, and fallback
 
-Require at least two distinct logical sensors, no future timestamps, values in 20–600 mg/dL,
-readings no older than six minutes, and completed-pair timestamps within one minute.
+Comparison requires at least two distinct logical sensors, no future timestamps,
+values in 20–600 mg/dL, readings no older than six minutes, and completed-group
+timestamps within one minute. These comparison bounds do not exclude a valid low
+calibrated reading from individual fallback: fallback accepts the physical display
+pipeline’s finite positive reading, including values below 20 mg/dL.
 The freshness limit supports five-minute CGMs. Separate callbacks are paired before
 comparison: while inputs advance separately and peers still have their last accepted
 samples, preserve completed evidence and the last primary output within the freshness
-limit. Repeated timer ticks cannot manufacture paired evidence.
+limit. Waiting never holds an expired primary when a fresh individual fallback is
+available. Repeated timer ticks cannot manufacture paired evidence.
 
 Withhold blending while learning, after a gap, on calibration/lane changes, or when
 the current symmetric difference `200 × abs(a − b) / (a + b)` exceeds the configured
@@ -55,10 +62,19 @@ sensor, or the next fresh contributor in selection order. No fresh contributor m
 normal signal-loss handling remains active. No output is backdated or republished
 under a newer timestamp. The combined rate is derived from its own consecutive
 outputs, and is unavailable across composition/fallback transitions. Each transition
-persists a trend cutoff before publication; smoothing and trend estimation exclude
-earlier compositions. Restart restores the native source’s timestamp (including
+persists a composition boundary before publication. Historical trend and delta
+queries select the segment containing the row’s timestamp; later transitions do
+not erase movement within older segments. Smoothing and trend estimation never
+cross a known composition boundary. Restart restores the native source’s timestamp (including
 its short aliases), preventing same-timestamp replacement, and starts a new trend
 segment at the first new output.
+
+The boundary timeline and its confirmed-through timestamp travel with the mirrored
+Wear preferences. Every output advances that coverage, and receivers merge delayed
+snapshots without losing newer boundaries. A combined reading arriving before its
+metadata keeps its glucose value, but its trend is unavailable until continuity is
+known. Native second precision and phone millisecond timestamps share the same
+segment boundaries.
 
 With Health Connect enabled, the combined native record is exported. Physical
 exports are withheld while Combine is active and resume when it is disabled.

@@ -102,7 +102,7 @@ class CombinedSensorManager(serial: String, val inputs: List<String>,
             val next = VirtualGlucoseSensorBridge.Reading(output.timeMs, output.mgdl,
                 calibratedMgdl = output.mgdl, rate = output.rate)
             CombinedSensorRegistry.publishIfCurrent(this) {
-                if (!output.rate.isFinite()) CombinedTrendHistory.markBoundary(SerialNumber, output.timeMs)
+                CombinedTrendHistory.recordOutput(SerialNumber, output.timeMs, startsSegment = !output.rate.isFinite())
                 latest = next
                 VirtualGlucoseSensorBridge.publishCurrent(SerialNumber, next, 0, "combined sensors",
                     mirrorToNative = true, source = GlucoseReadingSource.COMBINED)

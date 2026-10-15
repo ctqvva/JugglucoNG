@@ -336,7 +336,7 @@ internal fun readingDeltas(
             previousIndex++
         }
         val previous = newestFirst.getOrNull(previousIndex) ?: return@map null
-        if (previous.timestamp < tk.glucodata.combined.CombinedTrendHistory.startTime(anchor.sensorSerial)) return@map null
+        if (!tk.glucodata.combined.CombinedTrendHistory.sameSegment(anchor.sensorSerial, previous.timestamp, anchor.timestamp)) return@map null
         val delta = tk.glucodata.GlucoseDelta.delta(
             anchor.timestamp, anchor.value,
             previous.timestamp, previous.value,
