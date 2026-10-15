@@ -3034,4 +3034,18 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Szenzorok eltérése</string>
+    <string name="sensor_comparison_title">Két szenzor összehasonlítása</string>
+    <string name="sensor_difference_threshold">Eltérési küszöb</string>
+    <string name="sensor_estimate_experimental">Kísérleti egyesített becslés</string>
+    <string name="sensor_comparison_help">Válasszon pontosan két szenzort. Az eltérés az átlagukhoz viszonyított; az egyezés nem bizonyít pontosságot.</string>
+    <string name="sensor_estimate_help">Csak megjelenítésre, nem kezelési döntésekhez. A súlyozást a közelmúlt stabilitása adja; a stabil szenzor is tévedhet. Az egyedi értékek és riasztások maradnak használatban.</string>
+    <string name="sensor_comparison_unavailable">Várakozás két friss, legfeljebb egy perc eltérésű mérésre</string>
+    <string name="sensor_comparison_learning">Tanulás párosított mérésekből legalább két percen át</string>
+    <string name="sensor_difference_format">Eltérés: %1$d%%</string>
+    <string name="sensor_estimate_value">Kísérleti becslés: %1$s</string>
+    <string name="sensor_disagreement_guidance">A szenzorok eltérnek. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
+    <string name="sensor_disagreement_message">A szenzorok eltérése %1$d%%. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
 </resources>

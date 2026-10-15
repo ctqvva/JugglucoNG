@@ -3211,4 +3211,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 
     <string name="alert_sound_volume">Alert sound volume</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Sensor disagreement</string>
+    <string name="sensor_comparison_title">Two-sensor comparison</string>
+    <string name="sensor_difference_threshold">Difference threshold</string>
+    <string name="sensor_estimate_experimental">Experimental combined estimate</string>
+    <string name="sensor_comparison_help">Select exactly two sensors. Difference is relative to their mean; agreement does not prove accuracy.</string>
+    <string name="sensor_estimate_help">Display only, not for treatment decisions. Recent stability adjusts the blend; a stable sensor can still be wrong. Individual readings and alarms remain in use.</string>
+    <string name="sensor_comparison_unavailable">Waiting for two fresh readings within one minute of each other</string>
+    <string name="sensor_comparison_learning">Learning from paired readings for at least two minutes</string>
+    <string name="sensor_difference_format">Difference: %1$d%%</string>
+    <string name="sensor_estimate_value">Experimental estimate: %1$s</string>
+    <string name="sensor_disagreement_guidance">Sensors disagree. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
+    <string name="sensor_disagreement_message">Sensors differ by %1$d%%. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
 </resources>

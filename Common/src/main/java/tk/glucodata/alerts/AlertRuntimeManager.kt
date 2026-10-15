@@ -77,6 +77,7 @@ object AlertRuntimeManager {
         synchronized(lock) {
             val suppressThroughMs = maxOf(lastReadingTimeMs, currentReadingTimeMs)
             calibrationReadingBarrier.suppressThrough(suppressThroughMs)
+            DualSensorRuntime.reset()
             // A recalibration shifts the displayed value without a real new sample; drop the delta
             // baseline so the jump can't be mistaken for a steep fall/rise.
             fallingDeltaState.resetBaseline()
@@ -187,6 +188,7 @@ object AlertRuntimeManager {
             evaluatePersistentHighLocked(nowMs)
             evaluateDeltaAlarmsLocked()
         }
+        evaluateSensorDisagreementLocked(System.currentTimeMillis())
         evaluateSensorExpiryLocked(nowMs)
         SensorHandoverRuntime.evaluate(nowMs)
         return standardAlertEvaluation
@@ -602,6 +604,21 @@ object AlertRuntimeManager {
 
         val message = Applic.app.getString(R.string.alert_persistent_high) + " " + Notify.glucosestr(glucoseValue)
         triggerAlert(type, glucoseValue, currentRateLocked(), message)
+    }
+
+    private fun evaluateSensorDisagreementLocked(nowMs: Long) {
+        // Phone owns comparison settings and the diagnostic card; Wear can control its toggle.
+        if (Applic.isWearable) return
+        val type = AlertType.SENSOR_DISAGREEMENT
+        val config = AlertRepository.loadConfig(type)
+        val result = DualSensorRuntime.evaluate(config, nowMs)
+        if (!config.enabled || !config.isActiveNow() || !result.warningDue) {
+            clearRuntimeAlert(type, "sensor-disagreement-cleared")
+            return
+        }
+        if (SnoozeManager.isSnoozed(type)) return
+        triggerMessageAlert(type, Applic.app.getString(R.string.sensor_disagreement_message,
+            result.differencePercent?.toInt() ?: 0))
     }
 
     private fun evaluateSensorExpiryLocked(nowMs: Long) {

@@ -26,6 +26,7 @@ class AlertTestValuePolicyTests {
                 AlertType.LOSS,
                 AlertType.MISSED_READING,
                 AlertType.SENSOR_EXPIRY,
+                AlertType.SENSOR_DISAGREEMENT,
                 AlertType.FALLING_FAST,
                 AlertType.RISING_FAST -> null
             }
@@ -47,6 +48,7 @@ class AlertTestValuePolicyTests {
                 AlertType.LOSS,
                 AlertType.MISSED_READING,
                 AlertType.SENSOR_EXPIRY,
+                AlertType.SENSOR_DISAGREEMENT,
                 AlertType.FALLING_FAST,
                 AlertType.RISING_FAST -> assertEquals(8.8f, value, 0.001f)
             }

@@ -14,6 +14,7 @@ object AlertDisplayText {
     // stripping digits turned the title into "Forecast low:  ( min)".
     private fun carriesDurationNumbers(type: AlertType?): Boolean =
         type == AlertType.SENSOR_EXPIRY ||
+            type == AlertType.SENSOR_DISAGREEMENT ||
             type == AlertType.MISSED_READING ||
             type == AlertType.PRE_LOW ||
             type == AlertType.PRE_HIGH

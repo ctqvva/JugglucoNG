@@ -2959,4 +2959,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Sensoravvikelse</string>
+    <string name="sensor_comparison_title">Jämförelse av två sensorer</string>
+    <string name="sensor_difference_threshold">Avvikelsegräns</string>
+    <string name="sensor_estimate_experimental">Experimentellt kombinerat värde</string>
+    <string name="sensor_comparison_help">Välj exakt två sensorer. Skillnaden räknas relativt deras medelvärde; överensstämmelse bevisar inte noggrannhet.</string>
+    <string name="sensor_estimate_help">Endast visning, inte för behandlingsbeslut. Den senaste stabiliteten styr viktningen; även en stabil sensor kan visa fel. Enskilda värden och larm används fortfarande.</string>
+    <string name="sensor_comparison_unavailable">Väntar på två färska värden med högst en minuts mellanrum</string>
+    <string name="sensor_comparison_learning">Lär från parade värden under minst två minuter</string>
+    <string name="sensor_difference_format">Skillnad: %1$d%%</string>
+    <string name="sensor_estimate_value">Experimentell uppskattning: %1$s</string>
+    <string name="sensor_disagreement_guidance">Sensorerna avviker. Kontrollera med en blodsockermätare; ingen sensor kan avgöra vilken som är rätt.</string>
+    <string name="sensor_disagreement_message">Sensorerna skiljer sig med %1$d%%. Kontrollera med en blodsockermätare; ingen sensor kan avgöra vilken som är rätt.</string>
 </resources>

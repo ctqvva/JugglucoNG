@@ -3144,4 +3144,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Kala duwanaanshaha dareemayaasha</string>
+    <string name="sensor_comparison_title">Isbarbardhigga laba dareeme</string>
+    <string name="sensor_difference_threshold">Xadka kala duwanaanshaha</string>
+    <string name="sensor_estimate_experimental">Qiyaas isku dhafan oo tijaabo ah</string>
+    <string name="sensor_comparison_help">Dooro laba dareeme oo keliya. Farqiga waxaa loo xisaabiyaa celceliskooda; isku ekaanshuhu ma caddaynayo saxnaan.</string>
+    <string name="sensor_estimate_help">Bandhig keliya, looma adeegsan karo go’aannada daaweynta. Xasilloonida dhow ayaa beddesha miisaanka; dareeme xasilloon wuu qaldami karaa. Akhrisyada iyo digniinaha gaarka ah ayaa sii shaqaynaya.</string>
+    <string name="sensor_comparison_unavailable">Waxaa la sugayaa laba akhris oo cusub oo aan ka badnayn hal daqiiqo kala fog</string>
+    <string name="sensor_comparison_learning">Waxaa wax laga baranayaa akhrisyada lammaan ugu yaraan laba daqiiqo</string>
+    <string name="sensor_difference_format">Farqiga: %1$d%%</string>
+    <string name="sensor_estimate_value">Qiyaasta tijaabada ah: %1$s</string>
+    <string name="sensor_disagreement_guidance">Dareemayaashu way kala duwan yihiin. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
+    <string name="sensor_disagreement_message">Dareemayaashu waxay ku kala duwan yihiin %1$d%%. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
 </resources>

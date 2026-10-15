@@ -2987,4 +2987,18 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Sensör uyuşmazlığı</string>
+    <string name="sensor_comparison_title">İki sensör karşılaştırması</string>
+    <string name="sensor_difference_threshold">Fark eşiği</string>
+    <string name="sensor_estimate_experimental">Deneysel birleşik tahmin</string>
+    <string name="sensor_comparison_help">Tam olarak iki sensör seçin. Fark, ortalamalarına göre hesaplanır; uyuşmaları doğruluğu kanıtlamaz.</string>
+    <string name="sensor_estimate_help">Yalnızca görüntüleme içindir, tedavi kararlarında kullanılmaz. Son kararlılık ağırlıkları ayarlar; kararlı bir sensör de yanılabilir. Ayrı okumalar ve alarmlar kullanılmaya devam eder.</string>
+    <string name="sensor_comparison_unavailable">Aralarında en fazla bir dakika olan iki güncel okuma bekleniyor</string>
+    <string name="sensor_comparison_learning">En az iki dakika boyunca eşleştirilmiş okumalardan öğreniliyor</string>
+    <string name="sensor_difference_format">Fark: %1$d%%</string>
+    <string name="sensor_estimate_value">Deneysel tahmin: %1$s</string>
+    <string name="sensor_disagreement_guidance">Sensörler uyuşmuyor. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
+    <string name="sensor_disagreement_message">Sensörler arasında %1$d%% fark var. Kan şekeri ölçüm cihazıyla kontrol edin; hiçbir sensör hangisinin doğru olduğunu belirleyemez.</string>
 </resources>

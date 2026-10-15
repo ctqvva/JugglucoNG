@@ -1508,7 +1508,10 @@ fun DashboardScreen(
 
 
                     item {
-                        DashboardCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            DualSensorComparisonCard()
+                            DashboardCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                        }
                     }
 
                     if (appUpdateBannerVisible) {
@@ -1807,10 +1810,13 @@ fun DashboardScreen(
                 }
 
                 item {
-                    DashboardCgmReadinessBanner(
-                        modifier = Modifier.padding(horizontal = contentHorizontalPadding),
-                        onOpenReadiness = onNavigateToReadiness
-                    )
+                    Column(
+                        Modifier.padding(horizontal = contentHorizontalPadding),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DualSensorComparisonCard()
+                        DashboardCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                    }
                 }
 
                 if (appUpdateBannerVisible) {

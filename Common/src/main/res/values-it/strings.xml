@@ -2949,4 +2949,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB vengono inviati nel campo jugglucong di devicestatus, separatamente dall’IOB standard.</string>
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
+
+    <!-- Dual-sensor comparison: experimental display, never a treatment source. -->
+    <string name="alert_sensor_disagreement">Discordanza dei sensori</string>
+    <string name="sensor_comparison_title">Confronto di due sensori</string>
+    <string name="sensor_difference_threshold">Soglia di differenza</string>
+    <string name="sensor_estimate_experimental">Stima combinata sperimentale</string>
+    <string name="sensor_comparison_help">Seleziona esattamente due sensori. La differenza è relativa alla loro media; la concordanza non prova la precisione.</string>
+    <string name="sensor_estimate_help">Solo visualizzazione, non per decisioni terapeutiche. La stabilità recente regola i pesi; anche un sensore stabile può sbagliare. Restano in uso letture e allarmi individuali.</string>
+    <string name="sensor_comparison_unavailable">In attesa di due letture recenti distanti non più di un minuto</string>
+    <string name="sensor_comparison_learning">Apprendimento da letture appaiate per almeno due minuti</string>
+    <string name="sensor_difference_format">Differenza: %1$d%%</string>
+    <string name="sensor_estimate_value">Stima sperimentale: %1$s</string>
+    <string name="sensor_disagreement_guidance">I sensori discordano. Verifica con un glucometro; nessun sensore può indicare quale sia corretto.</string>
+    <string name="sensor_disagreement_message">I sensori differiscono del %1$d%%. Verifica con un glucometro; nessun sensore può indicare quale sia corretto.</string>
 </resources>

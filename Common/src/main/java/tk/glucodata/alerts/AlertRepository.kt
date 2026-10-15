@@ -437,6 +437,8 @@ object AlertRepository {
             soundDelayEnabled = prefs.getBoolean(keySoundDelayEnabled(type), false),
             soundDelaySeconds = readSoundDelaySeconds(type),
             expiryWarningMinutes = readExpiryWarnings(type, default.expiryWarningMinutes),
+            disagreementPercent = sanitizeDisagreementPercent(prefs.getInt("alert_${type.id}_disagreementPercent", 20)),
+            experimentalEstimateEnabled = prefs.getBoolean("alert_${type.id}_experimentalEstimate", false),
             rearmMargin = readRearmMargin(type, default.rearmMargin),
             rearmMinIntervalMinutes = readRearmMinInterval(type, default.rearmMinIntervalMinutes),
             iobCoverageFactor = readIobCoverage(type, default.iobCoverageFactor),
@@ -472,6 +474,8 @@ object AlertRepository {
         }
         prefs.edit {
             putBoolean(keyEnabled(config.type), config.enabled)
+            putInt("alert_${config.type.id}_disagreementPercent", sanitizeDisagreementPercent(config.disagreementPercent))
+            putBoolean("alert_${config.type.id}_experimentalEstimate", config.experimentalEstimateEnabled)
             if (config.threshold != null) putFloat(keyThreshold(config.type), config.threshold) else remove(keyThreshold(config.type))
             if (config.durationMinutes != null) putInt(keyDuration(config.type), config.durationMinutes) else remove(keyDuration(config.type))
             if (config.forecastMinutes != null) putInt(keyForecast(config.type), config.forecastMinutes) else remove(keyForecast(config.type))
