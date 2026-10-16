@@ -66,7 +66,30 @@ final class CustomGlucoseNotification {
         if (!expanded && textPixels + TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, metrics)
                 > 40f * metrics.density) hasStatus = false;
         views.setViewVisibility(R.id.notification_status, hasStatus ? View.VISIBLE : View.GONE);
-        if (hasStatus) views.setTextViewText(R.id.notification_status, status);
+        views.setViewVisibility(R.id.notification_status_image, View.GONE);
+        if (hasStatus) {
+            int statusColor = night ? 0xA6FFFFFF : 0xA6000000;
+            float statusPixels = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, metrics);
+            if (systemFont) {
+                SpannableStringBuilder styled = new SpannableStringBuilder(status);
+                styled.setSpan(new TypefaceSpan(systemBodyFamily(context)), 0, styled.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                views.setTextViewText(R.id.notification_status, styled);
+                views.setTextColor(R.id.notification_status, statusColor);
+            } else {
+                // System UI cannot load our bundled font. Use the same painter as the
+                // values, at body size/regular weight, with a single ellipsized line.
+                int widthDp = Math.max(160, context.getResources().getConfiguration().screenWidthDp - 96);
+                int width = Math.round(widthDp * metrics.density);
+                Bitmap bitmap = NotificationValueBitmap.drawStatus(context, status, statusColor, statusPixels, width);
+                views.setViewVisibility(R.id.notification_status, View.GONE);
+                views.setViewVisibility(R.id.notification_status_image, View.VISIBLE);
+                views.setInt(R.id.notification_status_image, "setMaxHeight", (bitmap.getHeight() + 1) / 2);
+                views.setImageViewBitmap(R.id.notification_status_image, bitmap);
+                views.setContentDescription(R.id.notification_status_image, status);
+            }
+        }
+        if (!hasStatus || systemFont) views.setImageViewBitmap(R.id.notification_status_image, null);
         return views;
     }
 
@@ -101,6 +124,11 @@ final class CustomGlucoseNotification {
         int id = context.getResources().getIdentifier(resource, "string", "android");
         if (id != 0) return context.getResources().getString(id);
         return weight == 500 ? "sans-serif-medium" : "sans-serif";
+    }
+
+    static String systemBodyFamily(Context context) {
+        int id = context.getResources().getIdentifier("config_bodyFontFamily", "string", "android");
+        return id == 0 ? "sans-serif" : context.getResources().getString(id);
     }
 
     private static CharSequence styledValue(CharSequence value, int secondary, int tertiary) {

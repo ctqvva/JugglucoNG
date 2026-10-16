@@ -25,9 +25,53 @@ class CustomGlucoseNotificationTests {
     private val app: Application = ApplicationProvider.getApplicationContext()
     private fun values(expanded: Boolean = true, rate: Float = 0f,
         peers: List<NotificationChartDrawer.ValueItem> = listOf(NotificationChartDrawer.ValueItem("5,5", 0xff81a9f6.toInt(), 0f)),
-        scale: Float = 1f, enabled: Boolean = true, systemFont: Boolean = true, weight: Int = 400) =
+        scale: Float = 1f, enabled: Boolean = true, systemFont: Boolean = true, weight: Int = 400,
+        status: CharSequence = "") =
         CustomGlucoseNotification.values(app, expanded, "5,7", 0xffeeeeee.toInt(), 0xffcccccc.toInt(),
-            0xffaaaaaa.toInt(), peers, rate, 0xffff0000.toInt(), true, scale, weight, systemFont, false, enabled, 1f, "", true)
+            0xffaaaaaa.toInt(), peers, rate, 0xffff0000.toInt(), true, scale, weight, systemFont, false, enabled, 1f, status, true)
+
+    @Test fun supportingLineSurvivesParcelAndFontSwitchWithoutRetainingOldContent() {
+        val status = "+0,1 · IOB 1,2"
+        val parcel = Parcel.obtain()
+        try {
+            values(systemFont = false, status = status).writeToParcel(parcel, 0)
+            parcel.setDataPosition(0)
+            val restricted = object : android.content.ContextWrapper(app) { override fun isRestricted() = true }
+            val root = android.widget.RemoteViews.CREATOR.createFromParcel(parcel).apply(restricted, null)
+            val image = root.findViewById<ImageView>(R.id.notification_status_image)
+            val text = root.findViewById<TextView>(R.id.notification_status)
+            assertEquals(View.GONE, text.visibility)
+            assertEquals(View.VISIBLE, image.visibility)
+            assertEquals(status, image.contentDescription.toString())
+            val bitmap = (image.drawable as android.graphics.drawable.BitmapDrawable).bitmap
+            assertEquals((bitmap.height + 1) / 2, image.maxHeight)
+
+            values(status = status).reapply(app, root)
+            assertEquals(View.GONE, image.visibility)
+            assertNull((image.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap)
+            assertEquals(View.VISIBLE, text.visibility)
+            val styled = text.text as android.text.Spanned
+            assertEquals(status, styled.toString())
+            assertEquals(CustomGlucoseNotification.systemBodyFamily(app),
+                styled.getSpans(0, styled.length, android.text.style.TypefaceSpan::class.java).single().family)
+
+            values(status = "", systemFont = false).reapply(app, root)
+            assertEquals(View.GONE, image.visibility)
+            assertEquals(View.GONE, text.visibility)
+        } finally { parcel.recycle() }
+    }
+
+    @Test fun bundledSupportingLineBoundsLongStyledContentAndKeepsItsAccessibleText() {
+        val status = android.text.SpannableStringBuilder("+0,1 · " + "sensor status ".repeat(80))
+        status.setSpan(android.text.style.ForegroundColorSpan(0xffff0000.toInt()), 7, 13,
+            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        val bitmap = NotificationValueBitmap.drawStatus(app, status, 0xffaaaaaa.toInt(), 12f, 240)
+        assertTrue(bitmap.width <= 480)
+        val short = NotificationValueBitmap.drawStatus(app, "+0,1", 0xffaaaaaa.toInt(), 12f, 240)
+        assertEquals(short.height, bitmap.height)
+        val root = values(systemFont = false, status = status).apply(app, null)
+        assertEquals(status.toString(), root.findViewById<ImageView>(R.id.notification_status_image).contentDescription.toString())
+    }
 
     @Test fun nativeReadoutSurvivesParcelAndRestrictedHostWithoutBitmapValues() {
         val parcel = Parcel.obtain()

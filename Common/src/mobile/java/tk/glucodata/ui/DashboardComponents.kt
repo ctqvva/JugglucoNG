@@ -60,13 +60,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.key
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.ui.theme.displayLargeExpressive
@@ -295,7 +292,7 @@ fun DashboardCombinedHeader(
             tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
         }
     }
-    // "Δ" readout: the measured change over the last ~5 minutes — a raw
+    // Signed change over the selected interval — a raw
     // number to sanity-check the estimated arrow against. Same computation as
     // the per-row deltas in the readings list, anchored at the newest point.
     val heroDeltaText = if (showDelta) {
@@ -558,6 +555,7 @@ fun DashboardCombinedHeader(
                 // single-sensor content height (heroContentMinHeight below) so it
                 // never grows or shrinks — the scaled cluster just centers inside it.
                 val isMultiHero = peerReadings.isNotEmpty()
+                val inlineDelta = !hasSecondary && !hasTertiary && !isMultiHero
                 val heroMultiSensorScale = if (isMultiHero) 0.74f else 1f
                 // Single-sensor padding defines the target card height. Multi mode
                 // uses a smaller inner padding so the scaled value + chip cluster
@@ -686,7 +684,9 @@ fun DashboardCombinedHeader(
                                 DashboardHeroPrimaryText(
                                     value = primaryText,
                                     style = primaryValueStyle,
-                                    color = heroValueColor
+                                    color = heroValueColor,
+                                    deltaText = heroDeltaText.takeIf { inlineDelta },
+                                    deltaColor = glucoseContentColor
                                 )
                                 // Only when the estimator actually reports a
                                 // range, and deliberately quiet: low contrast,
@@ -707,7 +707,7 @@ fun DashboardCombinedHeader(
                             HeroTrendWithDelta(
                                 trendResult = trendResult,
                                 arrowColor = heroArrowColor,
-                                deltaText = heroDeltaText,
+                                deltaText = heroDeltaText.takeUnless { inlineDelta },
                                 contentColor = glucoseContentColor,
                                 iconSize = resolvedTrendIconSize
                             )
@@ -799,7 +799,8 @@ fun DashboardCombinedHeader(
                                 secondaryStackStyle = secondaryThreeValueStyle,
                                 tertiaryStackStyle = tertiaryThreeValueStyle,
                                 contentColor = glucoseContentColor,
-                                primaryColor = heroValueColor
+                                primaryColor = heroValueColor,
+                                deltaText = heroDeltaText.takeIf { inlineDelta }
                             )
 
                             Spacer(modifier = Modifier.width(resolvedClusterGap))
@@ -807,7 +808,7 @@ fun DashboardCombinedHeader(
                             HeroTrendWithDelta(
                                 trendResult = trendResult,
                                 arrowColor = heroArrowColor,
-                                deltaText = heroDeltaText,
+                                deltaText = heroDeltaText.takeUnless { inlineDelta },
                                 contentColor = glucoseContentColor,
                                 iconSize = resolvedTrendIconSize
                             )
@@ -1103,24 +1104,23 @@ private fun HeroTrendWithDelta(
             color = arrowColor
         )
         if (!deltaText.isNullOrEmpty()) {
-            val deltaReadout = buildAnnotatedString {
-                withStyle(
-                    SpanStyle(color = contentColor.copy(alpha = 0.45f))
-                ) {
-                    append("Δ")
-                }
-                append(" ")
-                append(deltaText)
-            }
-            Text(
-                text = deltaReadout,
-                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                color = contentColor.copy(alpha = 0.75f),
-                softWrap = false,
-                maxLines = 1
-            )
+            HeroDeltaText(deltaText, contentColor)
         }
     }
+}
+
+@Composable
+private fun HeroDeltaText(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontFeatureSettings = "tnum"
+        ),
+        color = color.copy(alpha = 0.65f),
+        softWrap = false,
+        maxLines = 1,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -1128,9 +1128,25 @@ private fun DashboardHeroPrimaryText(
     value: String,
     style: TextStyle,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    deltaText: String? = null,
+    deltaColor: Color = color
 ) {
+    if (deltaText.isNullOrEmpty()) {
+        AnimatedHeroPrimaryText(value, style, color, modifier)
+    } else {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AnimatedHeroPrimaryText(value, style, color, modifier.weight(1f, fill = false).alignByBaseline())
+            Spacer(Modifier.width(8.dp))
+            HeroDeltaText(deltaText, deltaColor, Modifier.alignByBaseline())
+        }
+    }
+}
+
+@Composable
+private fun AnimatedHeroPrimaryText(value: String, style: TextStyle, color: Color, modifier: Modifier) {
     AnimatedContent(
+        modifier = modifier,
         targetState = value,
         transitionSpec = {
             (slideInVertically(
@@ -1152,8 +1168,7 @@ private fun DashboardHeroPrimaryText(
             style = style,
             color = color,
             softWrap = false,
-            maxLines = 1,
-            modifier = modifier
+            maxLines = 1
         )
     }
 }
@@ -1267,7 +1282,8 @@ private fun DashboardHeroValueCluster(
     tertiaryStackStyle: TextStyle,
     contentColor: Color,
     modifier: Modifier = Modifier,
-    primaryColor: Color = contentColor
+    primaryColor: Color = contentColor,
+    deltaText: String? = null
 ) {
     val hasSecondary = secondaryText != null
     val hasTertiary = tertiaryText != null
@@ -1346,7 +1362,9 @@ private fun DashboardHeroValueCluster(
                 DashboardHeroPrimaryText(
                     value = primaryText,
                     style = primaryStyle,
-                    color = primaryColor
+                    color = primaryColor,
+                    deltaText = deltaText,
+                    deltaColor = contentColor
                 )
             }
 

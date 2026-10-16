@@ -11,7 +11,7 @@ public final class ProductionPreview {
         return CustomGlucoseNotification.values(context, expanded, step % 2 == 0 ? "5.7" : "5.8",
                 0xffeeeeee, 0xffcccccc, 0xffaaaaaa,
                 Collections.singletonList(new NotificationChartDrawer.ValueItem("5.5", 0xff81a9f6, 0f)),
-                rate, 0xffeeeeee, true, context.getSharedPreferences("native-view-probe", Context.MODE_PRIVATE).getFloat("scale", 1f), 400, !ibm, false, true, 1f, "", true);
+                rate, 0xffeeeeee, true, context.getSharedPreferences("native-view-probe", Context.MODE_PRIVATE).getFloat("scale", 1f), 400, !ibm, false, true, 1f, "+0.1 · IOB 1.2", true);
     }
     public static void chart(RemoteViews views, android.graphics.Bitmap bitmap) {
         CustomGlucoseNotification.chart(views, bitmap);

@@ -164,3 +164,19 @@ Small IBM:
 Small System/Google Sans:
 
 ![Small system spacing](evidence/spacing-system-small-value.png)
+
+## Supporting typography, 2026-10-17
+
+The production preview includes a signed change and synthetic IOB text. The
+supporting line now follows the selected family: bundled IBM Plex is painted
+at regular body weight, while System uses the configured platform body family.
+Both use a quieter supporting color. Long bundled text is bounded to one
+ellipsized line, retaining the full accessible description and colored spans.
+
+The compact production presenter was inspected in the Pixel 8 Pro/API 37
+notification shade with IBM Plex. The screenshot below contains synthetic data.
+Expanded presentation and the dashboard hero were not checked on device in
+this pass. The focused JVM run passed 46 tests, including API 26/34 parceling,
+font switching, bitmap clearing, and long supporting content.
+
+![Compact IBM supporting typography](evidence/status-font-ibm-compact.png)
