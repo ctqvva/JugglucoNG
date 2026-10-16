@@ -375,23 +375,18 @@ object OttaiRegistry {
         tk.glucodata.SensorIdentity.invalidateCaches()
     }
 
+    /**
+     * Takes the sensor out of active monitoring. Its credentials are not part of that: keyA,
+     * method, coefficient and the activation facts (everything [exportJson] carries) stay, and
+     * the record moves back to the drafts, so it is listed under saved credentials and can be
+     * connected again offline. Losing them is unrecoverable for a sensor whose account binding
+     * is gone or that was never saved to a file (2026-10-16, SyAi 54DCE9C96891). Releasing the
+     * cloud binding is the wizard's explicit Unbind action, never a side effect of this.
+     */
     @JvmStatic
     fun removeSensor(context: Context, sensorId: String?) {
         val id = sensorId?.trim() ?: return
         val canonical = OttaiConstants.canonicalSensorId(id).ifEmpty { id }
-        // When this sensor started is the one fact removal must not destroy. It takes a BLE
-        // session to re-derive, and the cloud does not reliably carry it — a re-bind answers with
-        // activeTime = now, or with nothing at all. Wiped, a sensor two weeks into its life came
-        // back from a remove/re-add reading "Ready to activate" and offering to start warmup
-        // (2026-08-07, 6CA04230E260, real start 2026-07-23).
-        //
-        // Carry it into the provisional slot, whose meaning is exactly "a start recovered locally
-        // that the cloud has not confirmed": a later cloud activeTime still overrides it, and it
-        // cannot resurrect the sensor on its own, because every managed-connection path reaches
-        // it only through a persisted record that this call just deleted.
-        val recoveredStartMs = loadMaterials(context, canonical).activeTimeMs
-            .takeIf { it > 0L }
-            ?: loadProvisionalActiveTime(context, canonical)
         val (removed, remaining) = persistedRecords(context).partition { it.matchesId(canonical) }
         // The native mirror shell stays in Natives.activeSensors() under its short name (the last
         // 7 of the 12 hex). With the record gone nothing claims that name, so SensorBluetooth
@@ -408,32 +403,25 @@ object OttaiRegistry {
         writeRecords(context, remaining)
         writeRecords(
             context,
-            draftRecords(context).filter { !it.matchesId(canonical) },
+            draftRecords(context).filter { draft -> removed.none { it.matchesId(draft.sensorId) } } + removed,
             PREF_DRAFT_SENSORS_KEY,
         )
+        // Only this session's cursors and transient state go. The start and accepted lifetime stay
+        // with the credentials: a sensor two weeks into its life that lost them came back from a
+        // remove/re-add reading "Ready to activate" (2026-08-07, 6CA04230E260), and a 28-day unit
+        // fell back to the 15-day rated default and read as EXPIRED.
         prefs(context).edit().apply {
             listOf(
-                OttaiConstants.PREF_KEYA_PREFIX, OttaiConstants.PREF_METHOD_PREFIX,
-                OttaiConstants.PREF_COEFF_PREFIX, OttaiConstants.PREF_ACTIVE_TIME_PREFIX,
-                OttaiConstants.PREF_PROVISIONAL_ACTIVE_TIME_PREFIX,
-                OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX, OttaiConstants.PREF_RETAIN_TIME_PREFIX,
-                // PREF_ACCEPTED_MAX_ACTIVE is deliberately NOT in this list: it is the lifetime
-                // the sensor itself accepted at activation, kept for the same reason as the start
-                // below. Dropping it sends an extended 28-day unit back to the 15-day rated
-                // default, which reads as EXPIRED partway through a working sensor.
-                OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX,
-                OttaiConstants.PREF_DEVICE_VERSION_PREFIX, OttaiConstants.PREF_LAST_DATA_NO_PREFIX,
+                OttaiConstants.PREF_LAST_DATA_NO_PREFIX,
                 OttaiConstants.PREF_LAST_PUBLISHED_GLUCOSE_PREFIX,
-                OttaiConstants.PREF_DEVICE_ID_PREFIX, OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX,
+                OttaiConstants.PREF_ACTIVATION_ATTEMPTED_PREFIX,
                 OttaiConstants.PREF_CONTINUITY_BASELINE_PREFIX,
                 OttaiConstants.PREF_HISTORY_HOLES_PREFIX,
-                LEGACY_ACTIVATED_MAXACTIVE_PREFIX,
                 OttaiConstants.PREF_TEMPERATURE_HISTORY_PREFIX,
                 PREF_V3_BOOTSTRAP_PENDING_PREFIX,
             ).forEach { remove(it + canonical) }
             remove(lastValidatedVersionKey(canonical))
         }.apply()
-        saveProvisionalActiveTime(context, canonical, recoveredStartMs)
     }
 
     private fun finishNativeShell(sensorId: String) {

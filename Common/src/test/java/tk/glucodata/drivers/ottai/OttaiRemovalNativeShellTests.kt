@@ -146,6 +146,58 @@ class OttaiRemovalNativeShellTests {
         OttaiBleManager::class.java.getDeclaredField(name).apply { isAccessible = true }.set(manager, value)
     }
 
+    /**
+     * Disconnect used to wipe keyA/method/coefficient. A SyAi sensor whose credentials were never
+     * exported was then unrecoverable (2026-10-16): removal must leave it under saved credentials.
+     */
+    @Test
+    fun removalKeepsCredentialsAsASavedDraftAndDropsOnlySessionState() {
+        val address = "AB:12:38:87:1A:25"
+        val keyA = "0123456789ABCDEF".repeat(12)
+        OttaiRegistry.ensureSensorRecord(context, sensorId, address, "Ottai CGM")
+        val materials = OttaiRegistry.DeviceMaterials(
+            keyAHex = keyA,
+            method = "x 1 *",
+            coefficient = "1,2,3",
+            activeTimeMs = 1_782_823_440_000L,
+            deviceVersion = "V3",
+            deviceId = 7,
+            activeExpireTimeMs = 15L * 24 * 60 * 60 * 1000,
+        )
+        assertTrue(OttaiRegistry.saveMaterials(context, sensorId, materials))
+        OttaiRegistry.saveLastDataNo(context, sensorId, 1234)
+
+        OttaiRegistry.removeSensor(context, sensorId)
+
+        assertTrue(OttaiRegistry.persistedRecords(context).isEmpty())
+        assertTrue(OttaiRegistry.findRecord(context, sensorId) == null)
+        val saved = OttaiRegistry.savedMaterialRecords(context).single()
+        assertEquals(sensorId, saved.sensorId)
+        assertEquals(address, saved.address)
+        val kept = OttaiRegistry.loadMaterials(context, sensorId)
+        assertEquals(keyA, kept.keyAHex)
+        assertEquals(materials.method, kept.method)
+        assertEquals(materials.coefficient, kept.coefficient)
+        assertEquals(materials.activeTimeMs, kept.activeTimeMs)
+        assertEquals(materials.activeExpireTimeMs, kept.activeExpireTimeMs)
+        assertEquals(-1, OttaiRegistry.loadLastDataNo(context, sensorId))
+        assertTrue(OttaiRegistry.exportJson(context, sensorId) != null)
+    }
+
+    @Test
+    fun removalKeepsOtherDraftsAndReAddPromotesTheSavedDraft() {
+        val other = "CD4568871A26"
+        OttaiRegistry.saveDraftRecord(context, other, "", "Other")
+        OttaiRegistry.ensureSensorRecord(context, sensorId, "", "Ottai CGM")
+
+        OttaiRegistry.removeSensor(context, sensorId)
+        assertEquals(setOf(other, sensorId), OttaiRegistry.draftRecords(context).map { it.sensorId }.toSet())
+
+        OttaiRegistry.addSensor(context, sensorId, "", connectNow = false)
+        assertEquals(listOf(other), OttaiRegistry.draftRecords(context).map { it.sensorId })
+        assertEquals(listOf(sensorId), OttaiRegistry.persistedRecords(context).map { it.sensorId })
+    }
+
     @Test
     fun removingAnUnknownSensorFinishesNothing() {
         OttaiRegistry.ensureSensorRecord(context, sensorId, "", "Ottai CGM")
