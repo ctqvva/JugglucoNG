@@ -1582,6 +1582,11 @@ class SensorViewModel : ViewModel() {
             ?: tk.glucodata.drivers.ottai.OttaiConstants.canonicalSensorId(serial)
         if (!terminateSensor(serial, wipeData)) return false
         val app = tk.glucodata.Applic.app ?: return true
+        // Delete now, not after the unbind: that request can take up to 30 s, and the sensor sits
+        // in Saved credentials meanwhile. Reconnecting it there makes it managed again, and
+        // forgetCredentials refuses a managed sensor, so the keys would silently survive.
+        // The unbind needs only the id and the account session, not the keys.
+        tk.glucodata.drivers.ottai.OttaiRegistry.forgetCredentials(app, canonical)
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val released = tk.glucodata.drivers.ottai.OttaiConstants.looksLikeMac(canonical) &&
                 tk.glucodata.drivers.ottai.OttaiRegistry.loadAccessToken(app).isNotBlank() &&
@@ -1591,7 +1596,6 @@ class SensorViewModel : ViewModel() {
                     android.util.Log.w("SensorVM", "Ottai unbind $canonical failed: ${it.message}")
                 }.getOrDefault(false)
             android.util.Log.i("SensorVM", "Ottai forget+unbind $canonical released=$released")
-            tk.glucodata.drivers.ottai.OttaiRegistry.forgetCredentials(app, canonical)
             if (!released) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     android.widget.Toast.makeText(
