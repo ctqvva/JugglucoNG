@@ -165,7 +165,7 @@ private fun SensorTypeItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = if (compact) MaterialTheme.typography.titleSmallEmphasized else MaterialTheme.typography.titleMediumEmphasized,
+                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

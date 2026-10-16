@@ -610,7 +610,7 @@ fun DangerItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    style = MaterialTheme.typography.titleMedium,
                     color = contentColor
                 )
                 Text(
