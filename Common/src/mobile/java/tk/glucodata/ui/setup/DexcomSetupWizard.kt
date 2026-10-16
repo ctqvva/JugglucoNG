@@ -28,6 +28,7 @@ fun DexcomSetupWizard(
     val ui = rememberWizardUiMetrics()
     var handledScan by remember { mutableStateOf(false) }
     var showManualEntry by remember { mutableStateOf(false) }
+    var newPairingSlot by remember { mutableIntStateOf(tk.glucodata.DexcomBluetoothSlot.forNewPairings()) }
     val launchFullscreenScan = rememberUnifiedQrScanLauncher(
         requestCode = tk.glucodata.MainActivity.REQUEST_BARCODE,
         title = stringResource(R.string.dexcom_setup_title),
@@ -117,6 +118,16 @@ fun DexcomSetupWizard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            DexcomBluetoothSlotSelector(
+                selectedSlot = newPairingSlot,
+                onSlotSelected = { slot ->
+                    newPairingSlot = slot
+                    tk.glucodata.DexcomBluetoothSlot.setForNewPairings(slot)
+                }
             )
         }
     }

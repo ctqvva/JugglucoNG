@@ -107,6 +107,7 @@ data class SensorInfo(
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
     val sensorIndex: Int = -1,
     val isCloneSource: Boolean = false,
+    val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -686,6 +687,7 @@ class SensorViewModel : ViewModel() {
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
                             sensorIndex = sensorIndex,
+                            dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
                         )
                     }
                 } catch (e: Exception) {
@@ -1294,6 +1296,31 @@ class SensorViewModel : ViewModel() {
                 }
                 refreshSensors()
             }
+        }
+    }
+
+    /** Moves a Dexcom sensor to another authentication slot; it pairs again on the next connection. */
+    fun setDexcomBluetoothSlot(serial: String, slot: Int) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) return
+        val gatt = findGatt(serial) as? tk.glucodata.DexGattCallback ?: return
+        if (gatt.authSlot == slot) return
+        val wasPaused = SensorBluetooth.isSensorPaused(gatt)
+        viewModelScope.launch {
+            // Same pause/disconnect/reconnect sequence as reconnectSensor, with the old
+            // pairing dropped while nothing is talking to the sensor.
+            gatt.setPause(true)
+            gatt.disconnect()
+            kotlinx.coroutines.delay(500)
+            gatt.changeAuthSlot(slot)
+            if (gatt.dataptr != 0L) {
+                try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
+            }
+            // A sensor the user paused stays paused; it pairs on the new slot when resumed.
+            if (!wasPaused) {
+                gatt.setPause(false)
+                gatt.connectDevice(200)
+            }
+            refreshSensors()
         }
     }
 
