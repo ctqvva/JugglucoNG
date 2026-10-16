@@ -13,7 +13,8 @@ import android.content.SharedPreferences;
  * pairing that sensor again.
  *
  * Slot 2 is what this app always sent, so it stays the default and the value every sensor
- * paired before this setting existed is pinned to.
+ * paired before this setting existed is pinned to. A watch build pairs new sensors on slot 3,
+ * the watch slot, so it reads next to a phone on slot 2 instead of taking its pairing.
  */
 public final class DexcomBluetoothSlot {
     public static final int RECEIVER_OR_PUMP = 1;
@@ -41,9 +42,14 @@ public final class DexcomBluetoothSlot {
         return isValid(slot) ? slot : DEFAULT;
     }
 
+    private static int newPairingDefault() {
+        return Applic.isWearable ? SMART_WATCH : DEFAULT;
+    }
+
     /** The slot the next newly paired sensor will use. */
     public static int forNewPairings() {
-        return validOrDefault(prefs().getInt(NEW_PAIRING_KEY, DEFAULT));
+        final int slot = prefs().getInt(NEW_PAIRING_KEY, newPairingDefault());
+        return isValid(slot) ? slot : newPairingDefault();
     }
 
     public static void setForNewPairings(int slot) {

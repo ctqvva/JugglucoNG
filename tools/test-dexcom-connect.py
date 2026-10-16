@@ -198,7 +198,7 @@ class Prefs {
 }
 '''+slot_class+r'''
 class Applic extends Context {
-    static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
+    static boolean isWearable;static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
     static PowerManager power=new PowerManager();
     static class Scheduler {void schedule(Runnable r,long delay,TimeUnit unit){}}
     static Scheduler scheduler=new Scheduler();
@@ -435,6 +435,15 @@ public class DexGattCallback extends SuperGattCallback {
         check(Natives.resets==resets+1&&cb.getAuthSlot()==1,"rejected slot change touched state");
         Applic.prefs.ints.put("auth_slot_bad",9);
         check(DexcomBluetoothSlot.forSensor("bad")==2,"corrupt stored slot was sent to the sensor");
+
+        // A watch pairs new sensors on the watch slot; ones it already paired stay put.
+        Applic.isWearable=true;
+        try {
+            Applic.prefs=new Prefs();Natives.authenticated=false;
+            check(new DexGattCallback("watch-new",7).getAuthSlot()==3,"watch paired a new sensor off the watch slot");
+            Applic.prefs=new Prefs();Natives.authenticated=true;
+            check(new DexGattCallback("watch-paired",8).getAuthSlot()==2,"watch moved an already paired sensor");
+        } finally {Applic.isWearable=false;Natives.authenticated=true;}
 
         // A paused disconnect never reaches close(); the slot change must reset the session.
         cb=fresh();cb.phase=GetData;cb.setPause(true);
