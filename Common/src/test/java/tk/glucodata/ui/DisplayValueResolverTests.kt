@@ -171,4 +171,31 @@ class DisplayValueResolverTests {
         )
         assertEquals(6.1f, live.primaryValue, 0.001f)
     }
+
+    @Test
+    fun resolve_rawPlusAutoWithoutRawInput_keepsAutoBesideTheRecord() {
+        for (isMmol in listOf(false, true)) {
+            val auto = if (isMmol) 6.1f else 110f
+            val recorded = if (isMmol) 5.4f else 97f
+            for (raw in listOf(0f, Float.NaN, -1f, 11_557f)) {
+                for (hideSource in listOf(false, true)) {
+                    val result = DisplayValueResolver.resolve(
+                        autoValue = auto,
+                        rawValue = raw,
+                        viewMode = 3,
+                        isMmol = isMmol,
+                        calibratedValue = recorded,
+                        hideInitialWhenCalibrated = hideSource,
+                        calibratedIsRecorded = true
+                    )
+                    assertEquals(recorded, result.primaryValue, 0.001f)
+                    assertEquals(auto, result.secondaryValue)
+                    assertEquals(null, result.tertiaryValue)
+                    val expected = if (isMmol) "5,4 · 6,1" else "97 · 110"
+                    assertEquals(expected, result.fullFormatted)
+                    assertEquals(if (isMmol) "6,1" else "110", result.secondaryStr)
+                }
+            }
+        }
+    }
 }

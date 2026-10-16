@@ -129,15 +129,17 @@ object DisplayValueResolver {
                 )
                 3 -> DisplayValues(
                     primaryValue = effectiveCalibratedValue,
-                    secondaryValue = rawDisplayValue.takeIf { it.isFinite() },
+                    secondaryValue = if (rawDisplayValue.isFinite()) rawDisplayValue
+                        else autoDisplayValue.takeIf { it.isFinite() },
                     tertiaryValue = autoDisplayValue.takeIf { it.isFinite() && rawDisplayValue.isFinite() },
                     primaryStr = calStr,
-                    secondaryStr = rawStr.takeUnless { it == "--" },
+                    secondaryStr = if (rawDisplayValue.isFinite()) rawStr else valStr.takeUnless { it == "--" },
                     tertiaryStr = valStr.takeIf { autoDisplayValue.isFinite() && rawDisplayValue.isFinite() },
                     fullFormatted = appendUnit(
                         when {
                             rawDisplayValue.isFinite() && autoDisplayValue.isFinite() -> "$calStr · $rawStr · $valStr"
                             rawDisplayValue.isFinite() -> "$calStr · $rawStr"
+                            autoDisplayValue.isFinite() -> "$calStr · $valStr"
                             else -> calStr
                         },
                         unitLabel
