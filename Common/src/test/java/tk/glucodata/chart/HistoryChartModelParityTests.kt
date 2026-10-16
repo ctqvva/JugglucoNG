@@ -37,13 +37,11 @@ class HistoryChartModelParityTests {
         }
 
     /**
-     * The dashboard's former per-point value rule, plus the one deliberate
-     * change since: a record applies only to the lane it was shown on.
+     * The dashboard's former per-point value rule: a usable record wins in
+     * whichever lane it was shown, as the main value the user saw.
      */
     private fun oracleValue(p: GlucosePoint, isRaw: Boolean, cal: ((Float, Long) -> Float)?): Float? {
-        val recordedIsRaw = p.sealedDisplayViewMode == 1 || p.sealedDisplayViewMode == 3
-        val laneMatches = p.sealedDisplayViewMode < 0 || recordedIsRaw == isRaw
-        if (!p.sealedDisplayValue.isNaN() && p.sealedDisplayValue > 0.1f && laneMatches) return p.sealedDisplayValue
+        if (!p.sealedDisplayValue.isNaN() && p.sealedDisplayValue > 0.1f) return p.sealedDisplayValue
         val base = if (isRaw) p.rawValue else p.value
         if (base.isNaN() || base <= 0.1f) return null
         return cal?.invoke(base, p.timestamp) ?: base
@@ -99,8 +97,8 @@ class HistoryChartModelParityTests {
 
     @Test
     fun recordedThenCalibratedThenOwnPreferenceMatchesAcrossAMixedSeries() {
-        // Records alternate between lanes, so every view mode below meets both
-        // a matching and a mismatching record.
+        // Records alternate between lanes, so every view mode below meets a
+        // record shown on its own lane and one shown on the other.
         val points = (0 until 60).map { i ->
             val sealed = if (i % 7 == 0) 4f + i * 0.01f else Float.NaN
             val mode = if (i % 14 == 0) 0 else 1

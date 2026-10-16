@@ -1761,11 +1761,9 @@ class HistoryRepository(context: Context = Applic.app) {
         freezeEnabled: Boolean = false,
         nowMs: Long = System.currentTimeMillis()
     ): GlucosePoint {
-        // The lane tag travels with the value: StatsViewModel resolves each
-        // point's lane from its sensor's view mode and applies the record only
-        // where the lanes agree (recordAppliesToLane). A bare value without its
-        // lane cannot be gated, which is how raw-line records ended up in auto
-        // statistics.
+        // The lane tag travels with the value as provenance. It does not gate
+        // the record: a statistic describes the main value that was shown,
+        // whichever lane showed it — see HistoryChartModelBuilder.recordedMainValue.
         val sealed = if (!freezeEnabled) {
             null
         } else {
@@ -2141,10 +2139,8 @@ class HistoryRepository(context: Context = Applic.app) {
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
-     * the window is revised, because it is still settling — but only within the
-     * record's own lane (see [ReadingDisplayDao.reviseIfUnsealed]): a view-mode
-     * toggle resubmits the same minutes in the other lane's numbers, and
-     * letting that land would freeze wrong-lane values one toggle at a time.
+     * the window is revised, because it is still settling — by a calibration
+     * change or a view-mode switch alike, so it seals as it was last shown.
      * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *

@@ -45,12 +45,10 @@ interface ReadingDisplayDao {
      * A stale or incorrect horizon would weaken this bound. There is no other update
      * and no REPLACE anywhere in this DAO.
      *
-     * The lane guard (`viewMode & 1`) is the same rule: a record is a fact about
-     * a minute *and a lane*. Toggling the view mode resubmits the visible
-     * minutes in the other lane's numbers; without the guard each toggle
-     * overwrote the still-unsealed hour, and the minutes sealed wrong one lane
-     * at a time. A cross-lane presentation keeps the existing record — the
-     * first version's `IGNORE`-only seal over minutes that already have one.
+     * A view-mode toggle revises like a calibration change does. Unsealed
+     * records are never drawn, so the hour before a toggle is already shown in
+     * the new lane; refusing the revision (#499) sealed those minutes with the
+     * old lane's numbers an hour later, and the line moved under the user.
      */
     @Query(
         """
@@ -61,7 +59,6 @@ interface ReadingDisplayDao {
             calibrationFingerprint = :calibrationFingerprint,
             recordedAt = :recordedAt
         WHERE timestamp = :timestamp AND timestamp > :sealHorizon
-          AND ((viewMode & 1) = (:viewMode & 1))
           AND (displayMgdl != :displayMgdl OR sensorSerial != :sensorSerial
                OR viewMode != :viewMode OR calibrationFingerprint != :calibrationFingerprint)
         """

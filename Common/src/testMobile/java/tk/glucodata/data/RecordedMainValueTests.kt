@@ -175,7 +175,7 @@ class RecordedMainValueTests {
             ),
         )
         assertTrue(
-            "the lane tag must travel with the value or no consumer can gate on it",
+            "the lane the record was shown on travels with it as provenance",
             stats.contains("sealedDisplayViewMode = sealed?.viewMode"),
         )
     }

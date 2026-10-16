@@ -736,6 +736,7 @@ class StatsViewModel : ViewModel() {
         val hideInitialWhenCalibrated = CalibrationManager.shouldHideInitialWhenCalibrated()
         val sensorSerial = activeSerial ?: history.firstOrNull()?.sensorSerial
         val calibratedDisplayValues = arrayOfNulls<Float>(history.size)
+        val recordedIndices = BooleanArray(history.size)
 
         run {
             history.withIndex()
@@ -770,10 +771,11 @@ class StatsViewModel : ViewModel() {
 
             // A reading whose displayed value was recorded overrides the series
             // recomputed above: the statistic has to describe what was on screen,
-            // not what today's calibration would have made of it. The record only
-            // overrides the lane it was shown on — a raw-line record says nothing
-            // about the auto line (see recordAppliesToLane), or a past raw-mode
-            // stretch would poison the auto statistics with raw numbers.
+            // not what today's calibration would have made of it — in whichever
+            // lane it was shown. Gating it by the lane selected now (#499) let a
+            // raw/auto switch re-derive every minute recorded in the other lane,
+            // so the statistics moved with the toggle and with any calibration
+            // added afterwards, which is the one thing a record must not do.
             //
             // Converted, because the two sides are not in the same unit.
             // [calibratedDisplayValues] holds display units — it is filled from
@@ -786,18 +788,12 @@ class StatsViewModel : ViewModel() {
             // the unsealed last hour survived. Harmless while the record was
             // sparse enough to almost never fire; total once coverage was fixed.
             history.forEachIndexed { index, point ->
-                val pointSensorSerial = point.sensorSerial ?: sensorSerial
-                val pointViewMode = sensorViewModes[pointSensorSerial] ?: viewMode
-                val isRawMode = pointViewMode == 1 || pointViewMode == 3
                 point.sealedDisplayValue
                     ?.takeIf { it.isFinite() && it > 0f }
-                    ?.takeIf {
-                        tk.glucodata.chart.HistoryChartModelBuilder.recordAppliesToLane(
-                            point.sealedDisplayViewMode ?: -1,
-                            isRawMode
-                        )
+                    ?.let {
+                        calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol)
+                        recordedIndices[index] = true
                     }
-                    ?.let { calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol) }
             }
         }
 
@@ -813,7 +809,8 @@ class StatsViewModel : ViewModel() {
                 viewMode = pointViewMode,
                 unit = unit,
                 calibratedDisplayValue = calibratedDisplayValue,
-                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated
+                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated,
+                calibratedIsRecorded = recordedIndices[index]
             )
             if (primaryValueMgDl == null || !primaryValueMgDl.isFinite() || primaryValueMgDl <= 0f) {
                 null
@@ -1036,7 +1033,8 @@ class StatsViewModel : ViewModel() {
         viewMode: Int,
         unit: GlucoseUnit,
         calibratedDisplayValue: Float?,
-        hideInitialWhenCalibrated: Boolean
+        hideInitialWhenCalibrated: Boolean,
+        calibratedIsRecorded: Boolean = false
     ): Float? {
         val isMmol = unit == GlucoseUnit.MMOL
         val displayValues = DisplayValueResolver.resolve(
@@ -1045,7 +1043,8 @@ class StatsViewModel : ViewModel() {
             viewMode = viewMode,
             isMmol = isMmol,
             calibratedValue = calibratedDisplayValue,
-            hideInitialWhenCalibrated = hideInitialWhenCalibrated
+            hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+            calibratedIsRecorded = calibratedIsRecorded
         )
         val primaryDisplayValue = displayValues.primaryValue
         if (!primaryDisplayValue.isFinite() || primaryDisplayValue <= 0f) {
