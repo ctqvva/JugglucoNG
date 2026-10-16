@@ -47,6 +47,8 @@ import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
 import tk.glucodata.data.prediction.StateDoseHintCalculator
+import tk.glucodata.ui.PeerCurrentReading
+import tk.glucodata.ui.SecondarySensorDisplay
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -150,15 +152,6 @@ class DashboardViewModel(
             val EMPTY = PeerRawHistory(emptyList(), emptyList(), emptyList())
         }
     }
-
-    /** Latest displayable reading of a peer (non-primary) selected sensor. */
-    data class PeerCurrentReading(
-        val sensorId: String,
-        val primaryStr: String,
-        val secondaryStr: String?,
-        val rate: Float,
-        val timeMillis: Long
-    )
 
     private companion object {
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
@@ -1462,23 +1455,7 @@ class DashboardViewModel(
             return
         }
         _peerCurrentReadings.value = withContext(Dispatchers.IO) {
-            peerSensors.mapNotNull { sensorId ->
-                runCatching {
-                    CurrentDisplaySource.resolveCurrent(
-                        Notify.glucosetimeout,
-                        sensorId,
-                        tk.glucodata.DisplayTrendSource.TREND_WINDOW_MS
-                    )
-                }.getOrNull()?.let { snapshot ->
-                    PeerCurrentReading(
-                        sensorId = sensorId,
-                        primaryStr = snapshot.primaryStr,
-                        secondaryStr = snapshot.secondaryStr,
-                        rate = snapshot.rate,
-                        timeMillis = snapshot.timeMillis
-                    )
-                }
-            }
+            SecondarySensorDisplay.resolvePeers(peerSensors)
         }
     }
 
