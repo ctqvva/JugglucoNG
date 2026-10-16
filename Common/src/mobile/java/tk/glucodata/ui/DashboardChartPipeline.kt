@@ -336,6 +336,7 @@ internal fun readingDeltas(
             previousIndex++
         }
         val previous = newestFirst.getOrNull(previousIndex) ?: return@map null
+        if (!tk.glucodata.combined.CombinedTrendHistory.sameSegment(anchor.sensorSerial, previous.timestamp, anchor.timestamp)) return@map null
         val delta = tk.glucodata.GlucoseDelta.delta(
             anchor.timestamp, anchor.value,
             previous.timestamp, previous.value,
@@ -442,4 +443,33 @@ private fun perMinuteMgdl(delta: Float, isMmol: Boolean, deltaIntervalMinutes: I
     val minutes = tk.glucodata.GlucoseDelta.sanitizeIntervalMinutes(deltaIntervalMinutes)
     val perMinute = delta / minutes
     return if (isMmol) perMinute * tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else perMinute
+}
+
+/** The hero keeps current-source identity and uses the canonical combined rate. */
+internal fun resolveDashboardHeroTrend(
+    history: List<GlucosePoint>,
+    latestPoint: GlucosePoint?,
+    current: tk.glucodata.CurrentDisplaySource.Snapshot?,
+    sensorId: String?,
+    viewMode: Int,
+    isMmol: Boolean
+): tk.glucodata.logic.TrendEngine.TrendResult {
+    val source = current?.sensorId ?: sensorId ?: latestPoint?.sensorSerial
+    val combined = tk.glucodata.combined.CombinedSensorRegistry.isCombined(source)
+    val points = history.ifEmpty { listOfNotNull(latestPoint) }
+        .filter { !combined || tk.glucodata.SensorIdentity.matches(it.sensorSerial, source) ||
+            (it.sensorSerial == null && it.source == tk.glucodata.GlucoseReadingSource.COMBINED) }
+        .map { point -> tk.glucodata.GlucosePoint(point.timestamp, point.value, point.rawValue).also {
+            it.sensorSerial = point.sensorSerial ?: source
+        } }
+    val trendPoints = tk.glucodata.DisplayTrendSource.resolveTrendPoints(points, current, source)
+    val trend = if (trendPoints.isEmpty()) {
+        tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, Float.NaN, 0f, 0f)
+    } else tk.glucodata.logic.TrendEngine.calculateTrend(trendPoints, useRaw = viewMode == 1 || viewMode == 3, isMmol = isMmol)
+    if (!combined || current == null) return trend
+    return trend.copy(
+        state = if (current.rate.isFinite()) tk.glucodata.logic.TrendEngine.stateFor(current.rate)
+            else tk.glucodata.logic.TrendEngine.TrendState.Unknown,
+        velocity = current.rate
+    )
 }

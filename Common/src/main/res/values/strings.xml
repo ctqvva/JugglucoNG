@@ -3211,4 +3211,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 
     <string name="alert_sound_volume">Alert sound volume</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">Sensor disagreement</string>
+    <string name="sensor_difference_threshold">Difference threshold</string>
+    <string name="sensor_comparison_help">Compares selected sensors. Agreement does not prove accuracy.</string>
+    <string name="sensor_disagreement_guidance">Sensors disagree. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
+    <string name="sensor_disagreement_message">Sensors differ by %1$d%%. Check with a blood glucose meter; neither sensor can identify which is correct.</string>
+
+    <string name="combined_glucose_source">Combined</string>
+    <string name="combine_sensors_title">Combine sensors</string>
+    <string name="combine_sensors_select">Select sensors to combine</string>
+    <string name="combine_sensors_active">Combined · Experimental</string>
+    <string name="combine_sensors_waiting">Waiting for sensors · Experimental</string>
+    <string name="combine_sensors_fallback">Using one sensor · Experimental</string>
 </resources>

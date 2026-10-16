@@ -25,6 +25,10 @@ fun TrendIndicator(
     outlineColor: Color? = null,
     shadowColor: Color? = null
 ) {
+    if (trendResult.state == TrendEngine.TrendState.Unknown || !trendResult.velocity.isFinite()) {
+        androidx.compose.foundation.layout.Spacer(modifier = modifier.size(24.dp))
+        return
+    }
     // "Optically Correct Arrow" Engine
     // 1. Visual: 90-degree Head, Round Caps/Joins, Optical Centering.
     // 2. Logic: shared TrendArrowAngle math — 45 deg per mg/dL/min, vertical

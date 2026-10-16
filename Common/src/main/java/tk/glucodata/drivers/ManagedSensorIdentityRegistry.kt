@@ -18,6 +18,7 @@ object ManagedSensorIdentityRegistry {
     private const val TAG = "ManagedSensorIdentity"
 
     val all: List<ManagedSensorIdentityAdapter> = listOf(
+        tk.glucodata.combined.CombinedSensorIdentityAdapter,
         AiDexManagedSensorIdentityAdapter,
         AnytimeManagedSensorIdentityAdapter,
         ICanHealthManagedSensorIdentityAdapter,

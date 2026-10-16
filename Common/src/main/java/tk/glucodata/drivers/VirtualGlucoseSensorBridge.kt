@@ -239,7 +239,7 @@ object VirtualGlucoseSensorBridge {
         }
 
         val rawMgdl = reading.rawMgdl.takeIf { it.isFinite() && it > 0f } ?: 0f
-        val rate = reading.rate.takeIf { it.isFinite() } ?: 0f
+        val rate = if (source == GlucoseReadingSource.COMBINED) reading.rate else reading.rate.takeIf { it.isFinite() } ?: 0f
         HistorySyncAccess.storeCurrentReadingWithSourceAsync(
             reading.timestampMs,
             reading.storageGlucoseMgdl,

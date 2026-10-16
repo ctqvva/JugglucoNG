@@ -92,15 +92,18 @@ object HistoryChartModelBuilder {
         hideInitialWhenCalibrated: Boolean,
         gapThresholdMs: Long,
     ): ChartSeriesModel {
-        val isRawMode = input.viewMode == 1 || input.viewMode == 3
+        // A combined reading is already the final value, never an auto/raw pair.
+        val combined = tk.glucodata.combined.CombinedSensorRegistry.isCombined(input.sensorId)
+        val viewMode = if (combined) 0 else input.viewMode
+        val isRawMode = viewMode == 1 || viewMode == 3
         val defaultLook = if (input.isPrimary) ChartLook.MAIN else ChartLook.SECONDARY
 
         // Every series has its lanes, not only the primary: a peer in a dual
         // view mode shows both signals, exactly as the primary does. The first
         // version gave peers one lane and their second signal simply vanished.
         val secondaryLanes = ArrayList<ChartLane>()
-        val seriesHasCalibration = if (input.isPrimary) hasCalibration else input.hasCalibration
-        secondaryLaneKinds(input.viewMode, seriesHasCalibration, hideInitialWhenCalibrated).forEach { kind ->
+        val seriesHasCalibration = !combined && (if (input.isPrimary) hasCalibration else input.hasCalibration)
+        secondaryLaneKinds(viewMode, seriesHasCalibration, hideInitialWhenCalibrated).forEach { kind ->
             secondaryLanes.add(ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs)))
         }
 
@@ -178,7 +181,7 @@ object HistoryChartModelBuilder {
         return ChartSeriesModel(
             sensorId = input.sensorId,
             isPrimary = input.isPrimary,
-            viewMode = input.viewMode,
+            viewMode = viewMode,
             colorArgb = input.colorArgb,
             runs = runs,
             secondaryLanes = secondaryLanes,
@@ -192,6 +195,13 @@ object HistoryChartModelBuilder {
         var lastTimestamp = Long.MIN_VALUE
         var lastSensorId: String? = null
         for (point in points) {
+            if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(point.sensorSerial)) {
+                if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
+                current = ArrayList()
+                lastTimestamp = Long.MIN_VALUE
+                lastSensorId = null
+                continue
+            }
             val value = if (kind == ChartLaneKind.RAW) point.rawValue else point.value
             if (value.isNaN() || value <= 0.1f) continue
             val sensorChanged = lastSensorId != null && point.sensorSerial != null &&
@@ -234,6 +244,7 @@ object HistoryChartModelBuilder {
         sensorId: String,
         calibration: Calibration,
     ): Float? {
+        if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId)) return null
         val base = if (isRawMode) point.rawValue else point.value
         if (base.isNaN() || base <= 0.1f) return null
         val calibrated = calibration.apply(base, point.timestamp, isRawMode, sensorId) ?: return null
@@ -251,6 +262,11 @@ object HistoryChartModelBuilder {
         sensorId: String,
         calibration: Calibration,
     ): Float? {
+        if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId)) {
+            return point.sealedDisplayValue.takeIf {
+                it.isFinite() && it > 0.1f && recordAppliesToLane(point.sealedDisplayViewMode, false)
+            } ?: point.value.takeIf { it.isFinite() && it > 0.1f }
+        }
         val sealed = point.sealedDisplayValue
         if (!sealed.isNaN() && sealed > 0.1f && recordAppliesToLane(point.sealedDisplayViewMode, isRawMode)) {
             return sealed

@@ -3075,4 +3075,18 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">Sensorabweichung</string>
+    <string name="sensor_difference_threshold">Abweichungsschwelle</string>
+    <string name="sensor_comparison_help">Vergleicht ausgewählte Sensoren. Übereinstimmung beweist keine Genauigkeit.</string>
+    <string name="sensor_disagreement_guidance">Sensoren weichen ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
+    <string name="sensor_disagreement_message">Sensoren weichen um %1$d%% ab. Mit einem Blutzuckermessgerät prüfen; keiner der Sensoren kann zeigen, welcher richtig liegt.</string>
+
+    <string name="combined_glucose_source">Kombiniert</string>
+    <string name="combine_sensors_title">Sensoren kombinieren</string>
+    <string name="combine_sensors_select">Sensoren auswählen</string>
+    <string name="combine_sensors_active">Kombiniert · Experimentell</string>
+    <string name="combine_sensors_waiting">Warten auf Sensoren · Experimentell</string>
+    <string name="combine_sensors_fallback">Ein Sensor · Experimentell</string>
 </resources>

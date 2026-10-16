@@ -50,6 +50,7 @@ object WearPrefsSync {
     @JvmStatic
     fun encode(context: Context?): ByteArray {
         if (context == null) return ByteArray(0)
+        tk.glucodata.combined.CombinedTrendHistory.migrate(context)
         val source = prefs(context)
         val text = buildString {
             // The protocol version, first. An old receiver has no `=` on this line and skips it, so
@@ -116,6 +117,10 @@ object WearPrefsSync {
                         // Stored in the form MultiSensorSelection reads.
                         KEY_SENSOR_SELECTION -> SettingsRegistry.selectionFromWire(raw)
                             .joinToString(MultiSensorSelection.SEPARATOR)
+                        tk.glucodata.settings.KEY_COMBINED_TREND_SEGMENTS ->
+                            tk.glucodata.combined.CombinedTrendHistory.mergeEncoded(
+                                definition.readString(prefs(context)), unescapeLine(raw)
+                            ) ?: return@forEach
                         else -> unescapeLine(raw)
                     }
                     if (key == KEY_SENSOR_SELECTION && value != prefs(context).getString(key, "")) {

@@ -40,7 +40,9 @@ object DisplayTrendSource {
             return history
         }
 
-        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue)
+        val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue).also {
+            it.sensorSerial = current.sensorId ?: activeSensorSerial
+        }
         if (history.isEmpty()) {
             return listOf(candidate)
         }
@@ -83,7 +85,9 @@ object DisplayTrendSource {
         current: CurrentDisplaySource.Snapshot?,
         activeSensorSerial: String?
     ): List<GlucosePoint> {
-        val augmented = augmentHistory(historyPoints, current, activeSensorSerial, 0L)
+        val augmented = tk.glucodata.combined.CombinedTrendHistory.filter(
+            augmentHistory(historyPoints, current, activeSensorSerial, 0L), activeSensorSerial,
+            current?.timeMillis ?: historyPoints?.maxOfOrNull { it.timestamp } ?: 0L)
         val newestTimestamp = augmented.lastOrNull()?.timestamp ?: return augmented
         val cutoff = newestTimestamp - TREND_WINDOW_MS
         if (augmented.first().timestamp >= cutoff) {
@@ -101,9 +105,13 @@ object DisplayTrendSource {
         isMmol: Boolean,
         fallbackRate: Float = 0f
     ): Float {
-        val points = recentPoints ?: emptyList()
+        val sensorId = current?.sensorId ?: recentPoints?.maxByOrNull { it.timestamp }?.sensorSerial
+        val points = tk.glucodata.combined.CombinedTrendHistory.filter(recentPoints ?: emptyList(), sensorId,
+            current?.timeMillis ?: recentPoints?.maxOfOrNull { it.timestamp } ?: 0L)
         val useRaw = viewMode == 1 || viewMode == 3
-        if (hasUsableTrendHistory(points, useRaw)) {
+        val usable = hasUsableTrendHistory(points, useRaw)
+        if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId) && !usable) return Float.NaN
+        if (usable) {
             val historyRate = runCatching {
                 TrendAccess.calculateVelocity(points, useRaw = useRaw, isMmol = isMmol)
             }.getOrNull()

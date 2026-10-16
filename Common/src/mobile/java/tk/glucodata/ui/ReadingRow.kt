@@ -169,13 +169,16 @@ fun ReadingRow(
     // only timestamp, value and raw value, so it is handed the points as they
     // are: the round trip through the native point type was two copies of the
     // tail per row for nothing.
-    val regressed = remember(history, index) {
+    val regressed = remember(history, index, point.timestamp, sensorId) {
         val relevantHistory = when {
             history.isEmpty() -> listOf(point)
             index == 0 -> history
             else -> history.drop(index)
         }
-        tk.glucodata.logic.TrendEngine.calculateTrend(relevantHistory, useRaw = (viewMode == 1 || viewMode == 3), isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit))
+        val continuous = tk.glucodata.combined.CombinedTrendHistory.filterUi(relevantHistory, sensorId ?: point.sensorSerial, point.timestamp)
+        if (continuous.size < 2 && tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId ?: point.sensorSerial))
+            tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, Float.NaN, 0f, 0f)
+        else tk.glucodata.logic.TrendEngine.calculateTrend(continuous, useRaw = (viewMode == 1 || viewMode == 3), isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit))
     }
     // A row states one movement. Where the Δ knows it, the arrow says the same thing rather
     // than the longer regression, which answers a different question and can point the other

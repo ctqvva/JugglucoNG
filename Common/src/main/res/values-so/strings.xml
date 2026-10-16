@@ -3144,4 +3144,18 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">Kala duwanaanshaha dareemayaasha</string>
+    <string name="sensor_difference_threshold">Xadka kala duwanaanshaha</string>
+    <string name="sensor_comparison_help">Waxay isbarbardhigtaa dareemayaasha la doortay. Isku ekaanshuhu ma caddaynayo saxnaan.</string>
+    <string name="sensor_disagreement_guidance">Dareemayaashu way kala duwan yihiin. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
+    <string name="sensor_disagreement_message">Dareemayaashu waxay ku kala duwan yihiin %1$d%%. Ku hubi qalabka sonkorta dhiigga; dareeme ma garan karo kan saxda ah.</string>
+
+    <string name="combined_glucose_source">La isku daray</string>
+    <string name="combine_sensors_title">Isku dar dareemayaasha</string>
+    <string name="combine_sensors_select">Dooro dareemayaasha</string>
+    <string name="combine_sensors_active">La isku daray · Tijaabo</string>
+    <string name="combine_sensors_waiting">Sugaya dareemayaasha · Tijaabo</string>
+    <string name="combine_sensors_fallback">Hal dareeme · Tijaabo</string>
 </resources>

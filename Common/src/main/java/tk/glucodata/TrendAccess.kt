@@ -67,7 +67,10 @@ object TrendAccess {
 
     @JvmStatic
     fun calculateVelocity(points: List<GlucosePoint>, useRaw: Boolean, isMmol: Boolean): Float {
-        val resolution = resolve(provider, points, useRaw, isMmol)
+        val sensorId = points.maxByOrNull { it.timestamp }?.sensorSerial
+        val continuous = tk.glucodata.combined.CombinedTrendHistory.filter(points, sensorId)
+        if (continuous.size < 2 && tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId)) return Float.NaN
+        val resolution = resolve(provider, continuous, useRaw, isMmol)
         if (resolution.usedFallback) {
             // Deliberately not behind doLog: without the provider every arrow and every outgoing
             // rate quietly carries a two-point slope instead of the app's trend. A value other

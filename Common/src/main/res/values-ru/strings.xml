@@ -3010,4 +3010,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB и COB передаются в поле jugglucong объекта devicestatus отдельно от обычного IOB.</string>
 
     <string name="alert_sound_volume">Громкость звука тревоги</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">Расхождение сенсоров</string>
+    <string name="sensor_difference_threshold">Порог расхождения</string>
+    <string name="sensor_comparison_help">Сравнивает выбранные сенсоры. Совпадение не доказывает точность.</string>
+    <string name="sensor_disagreement_guidance">Сенсоры расходятся. Проверьте глюкометром; ни один сенсор не позволяет определить, какой из них верен.</string>
+    <string name="sensor_disagreement_message">Сенсоры расходятся на %1$d%%. Проверьте глюкометром; ни один сенсор не позволяет определить, какой из них верен.</string>
+
+    <string name="combined_glucose_source">Общее</string>
+    <string name="combine_sensors_title">Объединить сенсоры</string>
+    <string name="combine_sensors_select">Выберите сенсоры</string>
+    <string name="combine_sensors_active">Объединено · Экспериментально</string>
+    <string name="combine_sensors_waiting">Ожидание сенсоров · Экспериментально</string>
+    <string name="combine_sensors_fallback">Один сенсор · Экспериментально</string>
 </resources>

@@ -38,6 +38,7 @@ object AlertRuntimeManager {
     private var preHighCoverageSkipLogged: String? = null
     private val standardEpisodes = AlertEpisodeState<AlertType>()
     private val sensorExpiryState = SensorExpiryAlertState(AlertRepository.sensorExpiryWarnedStore)
+    private var deltaCompositionBoundary: Pair<String?, Long>? = null
     private val fallingDeltaState = DeltaAlarmState(falling = true)
     private val risingDeltaState = DeltaAlarmState(falling = false)
     private val calibrationReadingBarrier = ReadingTimestampBarrier()
@@ -77,6 +78,7 @@ object AlertRuntimeManager {
         synchronized(lock) {
             val suppressThroughMs = maxOf(lastReadingTimeMs, currentReadingTimeMs)
             calibrationReadingBarrier.suppressThrough(suppressThroughMs)
+            DualSensorRuntime.reset()
             // A recalibration shifts the displayed value without a real new sample; drop the delta
             // baseline so the jump can't be mistaken for a steep fall/rise.
             fallingDeltaState.resetBaseline()
@@ -187,6 +189,7 @@ object AlertRuntimeManager {
             evaluatePersistentHighLocked(nowMs)
             evaluateDeltaAlarmsLocked()
         }
+        evaluateSensorDisagreementLocked(System.currentTimeMillis())
         evaluateSensorExpiryLocked(nowMs)
         SensorHandoverRuntime.evaluate(nowMs)
         return standardAlertEvaluation
@@ -604,6 +607,31 @@ object AlertRuntimeManager {
         triggerAlert(type, glucoseValue, currentRateLocked(), message)
     }
 
+    private fun evaluateSensorDisagreementLocked(nowMs: Long) {
+        // Phone owns comparison settings and the diagnostic card; Wear can control its toggle.
+        if (Applic.isWearable) return
+        val type = AlertType.SENSOR_DISAGREEMENT
+        val config = AlertRepository.loadConfig(type)
+        val result = DualSensorRuntime.evaluate(config, nowMs)
+        handleSensorDisagreementLocked(config, result)
+    }
+
+    private fun handleSensorDisagreementLocked(config: AlertConfig, result: DualSensorConsensus.Result) {
+        val type = AlertType.SENSOR_DISAGREEMENT
+        if (config.enabled && config.isActiveNow() && result.status == DualSensorConsensus.Status.WAITING_FOR_PEER) {
+            // An incomplete pair is not recovery. Preserve the last completed pair's
+            // delivery/retry and acknowledgement state until comparable data or expiry.
+            return
+        }
+        if (!config.enabled || !config.isActiveNow() || !result.warningDue) {
+            clearRuntimeAlert(type, "sensor-disagreement-cleared")
+            return
+        }
+        if (SnoozeManager.isSnoozed(type)) return
+        triggerMessageAlert(type, Applic.app.getString(R.string.sensor_disagreement_message,
+            result.differencePercent?.toInt() ?: 0))
+    }
+
     private fun evaluateSensorExpiryLocked(nowMs: Long) {
         val type = AlertType.SENSOR_EXPIRY
         val config = AlertRepository.loadConfig(type)
@@ -674,6 +702,14 @@ object AlertRuntimeManager {
     }
 
     private fun evaluateDeltaAlarmsLocked() {
+        val id = lastDisplaySnapshot?.sensorId
+        val cutoff = tk.glucodata.combined.CombinedTrendHistory.startTime(id, lastDisplaySnapshot?.timeMillis ?: lastReadingTimeMs)
+        val boundary = id to cutoff
+        if (deltaCompositionBoundary != boundary && (cutoff > 0L || deltaCompositionBoundary?.second != 0L)) {
+            fallingDeltaState.resetBaseline()
+            risingDeltaState.resetBaseline()
+        }
+        deltaCompositionBoundary = boundary
         evaluateDeltaAlarmLocked(AlertType.FALLING_FAST, fallingDeltaState)
         evaluateDeltaAlarmLocked(AlertType.RISING_FAST, risingDeltaState)
     }

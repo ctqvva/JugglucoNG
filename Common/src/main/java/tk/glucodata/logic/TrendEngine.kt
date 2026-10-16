@@ -19,7 +19,7 @@ object TrendEngine {
      */
     fun calculateTrend(history: List<NativeGlucosePoint>, useRaw: Boolean = false, isMmol: Boolean): TrendResult {
         val uiHistory = history.map {
-            GlucosePoint(it.value, "", it.timestamp, it.rawValue)
+            GlucosePoint(it.value, "", it.timestamp, it.rawValue, sensorSerial = it.sensorSerial)
         }
         return calculateTrend(uiHistory, useRaw, isMmol)
     }
@@ -207,13 +207,19 @@ object TrendEngine {
      */
     @JvmName("calculateTrendUi")
     fun calculateTrend(history: List<GlucosePoint>, useRaw: Boolean = false, isMmol: Boolean): TrendResult {
-        if (history.size < 2) return TrendResult(TrendState.Flat, 0f, 0f, 0f, 0f)
+        val sensorId = history.maxByOrNull { it.timestamp }?.sensorSerial
+        val continuous = tk.glucodata.combined.CombinedTrendHistory.filterUi(history, sensorId)
+        if (continuous.size < 2) {
+            return if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorId))
+                TrendResult(TrendState.Unknown, Float.NaN, 0f, 0f, 0f)
+            else TrendResult(TrendState.Flat, 0f, 0f, 0f, 0f)
+        }
 
         // Ensure history is Descending (Newest First) for the default logic
-        val ordered = if (history.first().timestamp < history.last().timestamp) {
-            history.reversed()
+        val ordered = if (continuous.first().timestamp < continuous.last().timestamp) {
+            continuous.reversed()
         } else {
-            history
+            continuous
         }
 
         fun pointValue(p: GlucosePoint): Float = if (useRaw && p.rawValue > 0) p.rawValue else p.value

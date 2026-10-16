@@ -19,7 +19,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
     PERSISTENT_HIGH(10, R.string.alert_persistent_high),
     SENSOR_EXPIRY(11, R.string.alert_sensor_expiry),
     FALLING_FAST(12, R.string.alert_falling_fast),
-    RISING_FAST(13, R.string.alert_rising_fast);
+    RISING_FAST(13, R.string.alert_rising_fast),
+    SENSOR_DISAGREEMENT(14, R.string.alert_sensor_disagreement);
 
     companion object {
         fun fromId(id: Int): AlertType? = entries.find { it.id == id }
@@ -41,7 +42,8 @@ enum class AlertType(val id: Int, val nameResId: Int) {
             LOSS,
             SENSOR_EXPIRY,
             FALLING_FAST,
-            RISING_FAST
+            RISING_FAST,
+            SENSOR_DISAGREEMENT
         )
     }
 }
@@ -176,6 +178,9 @@ data class AlertConfig(
     val retryEnabled: Boolean = false,
     val retryIntervalMinutes: Int = 5,      // Re-alert every X minutes
     val retryCount: Int = 3,                // Max number of retries (0 = unlimited until dismissed)
+
+    // Sensor-disagreement only: dimensionless percentage, independent of glucose units.
+    val disagreementPercent: Int = 20,
 
     // Sensor-expiry only: warn this many minutes before the sensor ends. Each
     // selected threshold fires once per sensor. Empty = no pre-warning.
@@ -413,6 +418,11 @@ object AlertDefaults {
                 deliveryMode = AlertDeliveryMode.SYSTEM_ALARM,
                 hapticProfile = HapticProfile.STEADY,
                 defaultSnoozeMinutes = 60
+            )
+            AlertType.SENSOR_DISAGREEMENT -> AlertConfig(
+                type = type, durationMinutes = 5,
+                deliveryMode = AlertDeliveryMode.NOTIFICATION_ONLY,
+                hapticProfile = HapticProfile.STEADY
             )
             AlertType.SENSOR_EXPIRY -> AlertConfig(
                 type = type,

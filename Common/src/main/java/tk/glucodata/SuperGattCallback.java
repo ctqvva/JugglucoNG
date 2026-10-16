@@ -713,6 +713,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             return;
         }
 
+        tk.glucodata.combined.CombinedSensorRegistry.onPhysicalReading(SerialNumber, reading, rate, timmsec, sensorgen);
+
         // Multi-sensor fix: Check if this sensor is the user-selected main sensor.
         // Non-main sensors still store data (already done before this call), but should
         // NOT trigger notifications, alarms, broadcasts, or exchange data — those should
@@ -1015,6 +1017,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (isWearable || !Natives.gethealthConnect() || Build.VERSION.SDK_INT < 28) {
             return;
         }
+        if (!tk.glucodata.combined.CombinedSensorRegistry.shouldExportToHealthConnect(SerialNumber)) return;
         final long sensorptr = nativeSensorPtr();
         // Checked before dohealth(): claiming the export for a sensor with nothing to hand over
         // would stop every other sensor from exporting.

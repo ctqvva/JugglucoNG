@@ -3034,4 +3034,18 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">Szenzorok eltérése</string>
+    <string name="sensor_difference_threshold">Eltérési küszöb</string>
+    <string name="sensor_comparison_help">Összehasonlítja a kiválasztott szenzorokat. Az egyezés nem bizonyít pontosságot.</string>
+    <string name="sensor_disagreement_guidance">A szenzorok eltérnek. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
+    <string name="sensor_disagreement_message">A szenzorok eltérése %1$d%%. Ellenőrizze vércukormérővel; egyik szenzor sem dönti el, melyik helyes.</string>
+
+    <string name="combined_glucose_source">Egyesített</string>
+    <string name="combine_sensors_title">Szenzorok egyesítése</string>
+    <string name="combine_sensors_select">Válasszon szenzorokat</string>
+    <string name="combine_sensors_active">Egyesítve · Kísérleti</string>
+    <string name="combine_sensors_waiting">Szenzorokra vár · Kísérleti</string>
+    <string name="combine_sensors_fallback">Egy szenzor · Kísérleti</string>
 </resources>

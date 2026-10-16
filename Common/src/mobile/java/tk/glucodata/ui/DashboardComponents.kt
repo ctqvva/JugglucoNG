@@ -183,7 +183,7 @@ private fun glucoseHeroTone(
 }
 
 private fun trendCornerWeightsFromVelocity(velocity: Float): TrendCornerWeights {
-    val angleDeg = (-velocity * 25f).coerceIn(-90f, 90f)
+    val angleDeg = (-(velocity.takeIf { it.isFinite() } ?: 0f) * 25f).coerceIn(-90f, 90f)
     val angleRad = Math.toRadians(angleDeg.toDouble())
     val dirX = cos(angleRad).toFloat()
     val dirY = sin(angleRad).toFloat()
@@ -272,28 +272,16 @@ fun DashboardCombinedHeader(
     // Sensor: Surface Variant (Tonal) vs Tertiary Container (Expiring)
     // FIX: Replaced fragile string matching (failed in Dutch, false positive in English for "1 days in use")
     // with robust progress-based logic. >90% progress (approx <1.4 days left) triggers Expiring state.
-    val isExpiring = sensorProgress > 0.90f
+    val hasPhysicalLifecycle = !tk.glucodata.combined.CombinedSensorRegistry.isCombined(sensorName)
+    val isExpiring = hasPhysicalLifecycle && sensorProgress > 0.90f
     // FIX: User reported "Silly" contrast in Dark Mode with surfaceVariant (too bright/green).
     // Switched to primaryContainer to match the Glucose Card (Left) for a cohesive dark look.
     val sensorContainerColor = if (isExpiring) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) // Darker variant
     val sensorContentColor = if (isExpiring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
     // Advanced Trend
-    val trendResult = remember(history, latestPoint, currentSnapshot) {
-        if (history.isNotEmpty()) {
-             // Map Kotlin UI points to Native Java points for shared TrendEngine
-             val nativeList = history.map { tk.glucodata.GlucosePoint(it.timestamp, it.value, it.rawValue) }
-             // The canonical trend list (live-augmented, newest-anchored window) —
-             // the same points the notification and broadcast arrows regress over.
-             val trendPoints = tk.glucodata.DisplayTrendSource.resolveTrendPoints(nativeList, currentSnapshot, null)
-             tk.glucodata.logic.TrendEngine.calculateTrend(trendPoints, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
-        } else if (latestPoint != null) {
-            // Fallback
-             val nativeList = listOf(tk.glucodata.GlucosePoint(latestPoint.timestamp, latestPoint.value, latestPoint.rawValue))
-             tk.glucodata.logic.TrendEngine.calculateTrend(nativeList, useRaw = (viewMode == 1 || viewMode == 3), isMmol = isMmol)
-        } else {
-            tk.glucodata.logic.TrendEngine.TrendResult(tk.glucodata.logic.TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
-        }
+    val trendResult = remember(history, latestPoint, currentSnapshot, sensorName, viewMode, isMmol) {
+        resolveDashboardHeroTrend(history, latestPoint, currentSnapshot, sensorName, viewMode, isMmol)
     }
     // "Δ" readout: the measured change over the last ~5 minutes — a raw
     // number to sanity-check the estimated arrow against. Same computation as
@@ -367,7 +355,7 @@ fun DashboardCombinedHeader(
         )
     }
     val sensorPresent = sensorName.isNotBlank() || activeSensors.isNotEmpty()
-    val sensorDisplayName = remember(refreshRevision, sensorName) {
+    val sensorDisplayName = if (!hasPhysicalLifecycle) stringResource(R.string.combined_glucose_source) else remember(refreshRevision, sensorName) {
         tk.glucodata.drivers.ManagedSensorRuntime.resolveUiSnapshot(sensorName)
             ?.displayName
             ?.takeIf { it.isNotBlank() }
@@ -884,8 +872,8 @@ fun DashboardCombinedHeader(
                     .fillMaxSize()
                     .onSizeChanged { sensorContentWidthPx = it.width }
             ) {
-                val showRemainingHours = sensorHoursRemaining in 0L..24L
-                val lifecycleText = if (showRemainingHours) "$sensorHoursRemaining" + "h" else daysRemaining
+                val showRemainingHours = hasPhysicalLifecycle && sensorHoursRemaining in 0L..24L
+                val lifecycleText = if (!hasPhysicalLifecycle) "" else if (showRemainingHours) "$sensorHoursRemaining" + "h" else daysRemaining
                 val lifecycleStyle = MaterialTheme.typography.labelLarge
                 val lifecycleTextMeasurer = rememberTextMeasurer()
                 val lifecycleTextWidthPx = remember(lifecycleText, lifecycleStyle) {
@@ -905,7 +893,7 @@ fun DashboardCombinedHeader(
                 val showLifecycleCalendar = sensorContentWidthPx == 0 ||
                     lifecycleTextWidthPx + lifecycleCalendarChromePx <= sensorContentWidthPx
                 // Dynamic Fill Layer
-                if (sensorProgress > 0f) {
+                if (hasPhysicalLifecycle && sensorProgress > 0f) {
                     val fillColor = when {
                         sensorProgress > 0.95f -> MaterialTheme.colorScheme.error
                         sensorProgress > 0.80f -> MaterialTheme.colorScheme.tertiary

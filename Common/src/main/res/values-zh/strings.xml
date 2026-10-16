@@ -2974,4 +2974,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
 
     <string name="alert_sound_volume">警报音量</string>
+
+    <!-- Sensor disagreement warning and experimental combined source. -->
+    <string name="alert_sensor_disagreement">传感器读数不一致</string>
+    <string name="sensor_difference_threshold">差异阈值</string>
+    <string name="sensor_comparison_help">比较所选传感器。读数一致并不证明准确。</string>
+    <string name="sensor_disagreement_guidance">传感器读数不一致。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
+    <string name="sensor_disagreement_message">传感器读数相差 %1$d%%。请用血糖仪核对；两个传感器都无法判断哪一个正确。</string>
+
+    <string name="combined_glucose_source">合并值</string>
+    <string name="combine_sensors_title">合并传感器</string>
+    <string name="combine_sensors_select">选择传感器</string>
+    <string name="combine_sensors_active">已合并 · 实验性</string>
+    <string name="combine_sensors_waiting">等待传感器 · 实验性</string>
+    <string name="combine_sensors_fallback">使用单个传感器 · 实验性</string>
 </resources>

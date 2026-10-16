@@ -2894,7 +2894,9 @@ public class Notify {
                 }
                 allowNextAlertEffectsForTest();
 
-                if (kind == 4) {
+                if (alertType == AlertType.SENSOR_DISAGREEMENT) {
+                    triggerSupplementalMessageAlert(kind, Applic.app.getString(R.string.sensor_disagreement_guidance));
+                } else if (kind == 4) {
                     // LOSS bypasses arrowglucosealarm, so consume its pending test here.
                     AlertStateTracker.INSTANCE.shouldTrigger(alertType, config);
                     onenot.lossofsignalalarm(kind, R.drawable.loss, message, typeStr, true, true);

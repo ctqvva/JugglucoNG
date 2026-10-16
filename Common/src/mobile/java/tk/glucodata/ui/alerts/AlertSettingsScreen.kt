@@ -157,7 +157,8 @@ fun AlertSettingsScreen(
         listOf(
             AlertType.MISSED_READING,
             AlertType.LOSS,
-            AlertType.SENSOR_EXPIRY
+            AlertType.SENSOR_EXPIRY,
+            AlertType.SENSOR_DISAGREEMENT
         )
     }
     val customHighs = remember(customAlerts) { customAlerts.filter { it.type == CustomAlertType.HIGH } }
@@ -1011,6 +1012,7 @@ private fun AlertCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     val subtitle = buildString {
+                        if (config.type == AlertType.SENSOR_DISAGREEMENT) append("${config.disagreementPercent}%")
                         config.threshold?.let { append(formatThreshold(it, isMmol)) }
                         config.durationMinutes?.let {
                             if (isNotEmpty()) append(" • ")
@@ -1115,6 +1117,18 @@ private fun AlertSettingsExpanded(
             onReset = { onConfigChange(config.resetToDefaults(isMmol)) },
             isModified = config.isModifiedFromDefaults(isMmol),
             headerContent = {
+                if (config.type == AlertType.SENSOR_DISAGREEMENT) {
+                    Text(stringResource(R.string.sensor_comparison_help),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        style = MaterialTheme.typography.bodyMedium)
+                    DurationSlider(
+                        label = stringResource(R.string.sensor_difference_threshold),
+                        value = config.disagreementPercent, range = 10..50, stepSize = 5,
+                        onValueChange = { onConfigChange(config.copy(disagreementPercent = it)) },
+                        valueText = { "$it%" }
+                    )
+
+                }
                 // === Delta-counter Section (FALLING_FAST / RISING_FAST) ===
                 if (config.type == AlertType.FALLING_FAST || config.type == AlertType.RISING_FAST) {
                     DeltaAlarmSettings(

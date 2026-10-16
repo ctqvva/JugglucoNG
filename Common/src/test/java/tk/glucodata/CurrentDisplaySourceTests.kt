@@ -520,4 +520,30 @@ class CurrentDisplaySourceTests {
     private companion object {
         const val SENSOR = "30211DF2J38"
     }
+    @Test fun combinedResolvedValueIsASingleFinalLaneInBothUnitsAndEveryViewMode() {
+        val time = 1_800_000_000_000L
+        for (mmol in listOf(false, true)) for (mode in 0..3) for (withHistory in listOf(false, true)) {
+            val divisor = if (mmol) 18.0182f else 1f
+            val snapshot = CurrentDisplaySource.resolveFromLive(null, 100f / divisor, 105f / divisor,
+                Float.NaN, time, "COMB-1234ABCD", 0, 0, "combined",
+                if (withHistory) listOf(GlucosePoint(time, 100f / divisor, 90f / divisor)) else emptyList(), mode, mmol)!!
+            assertEquals(105f / divisor, snapshot.primaryValue, 0.001f)
+            assertEquals(105f / divisor, snapshot.autoValue, 0.001f)
+            assertEquals(105, snapshot.sharedMgdl)
+            assertEquals(0, snapshot.viewMode)
+            assertEquals(null, snapshot.secondaryStr)
+            assertEquals(null, snapshot.tertiaryStr)
+            assertEquals(snapshot.primaryStr, snapshot.fullFormatted)
+            org.junit.Assert.assertTrue(snapshot.rawValue.isNaN())
+        }
+    }
+
+    @Test fun physicalResolvedCalibrationStillShowsItsOwnOriginalLane() {
+        val time = 1_800_000_000_000L
+        val snapshot = CurrentDisplaySource.resolveFromLive(null, 100f, 105f, 0f, time,
+            "physical-test", 0, 0, "physical", emptyList(), 0, false)!!
+        assertEquals(105f, snapshot.primaryValue)
+        assertEquals("100", snapshot.secondaryStr)
+    }
+
 }

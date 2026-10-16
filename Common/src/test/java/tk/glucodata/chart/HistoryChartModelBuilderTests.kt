@@ -27,6 +27,40 @@ class HistoryChartModelBuilderTests {
     private val noCalibration = HistoryChartModelBuilder.Calibration { _, _, _, _ -> null }
     private val plusOne = HistoryChartModelBuilder.Calibration { v, _, _, _ -> v + 1f }
 
+    @Test fun combinedHistoryAlwaysHasOneFinalLaneWithoutRecalibrationOrPreview() {
+        val id = "COMB-1234ABCD"
+        for (mmol in listOf(false, true)) for (mode in 0..3) for (primary in listOf(false, true)) {
+            val divisor = if (mmol) 18.0182f else 1f
+            val points = listOf(
+                point(NOW, 119f / divisor, id),
+                point(NOW + MINUTE, 120f / divisor, id, 121f / divisor).also { it.sealedDisplayViewMode = 0 },
+                point(NOW + 2 * MINUTE, 122f / divisor, id, 999f).also { it.sealedDisplayViewMode = 1 }
+            )
+            val model = HistoryChartModelBuilder.build(
+                listOf(HistoryChartModelBuilder.SeriesInput(id, primary, mode, 0, points, hasCalibration = true)),
+                MainSensorOwnership.NONE,
+                HistoryChartModelBuilder.Calibration { _, _, _, _ -> error("Combined history must not be calibrated again") },
+                hasCalibration = true, hideInitialWhenCalibrated = false
+            )
+            val series = model.series.single()
+            assertEquals(0, series.viewMode)
+            assertTrue(series.secondaryLanes.isEmpty())
+            assertEquals(listOf(119f / divisor, 121f / divisor, 122f / divisor), series.runs.single().points.map { it.value })
+            assertTrue(series.cursorAt(NOW)!!.lanes.isEmpty())
+        }
+    }
+
+    @Test fun historicalCombinedPointsStayFinalInAPhysicalRawTimeline() {
+        val physical = point(NOW, 5f, "A").also { it.rawValue = 9f }
+        val combined = point(NOW + MINUTE, 6.6f, "COMB-1234ABCD").also { it.rawValue = 99f }
+        val model = HistoryChartModelBuilder.build(
+            listOf(HistoryChartModelBuilder.SeriesInput("A", true, 3, 0, listOf(physical, combined))),
+            MainSensorOwnership.NONE, plusOne, hasCalibration = true, hideInitialWhenCalibrated = false
+        ).primary!!
+        assertEquals(6.6f, model.valueAt(combined.timestamp)!!, 0.001f)
+        assertTrue(model.secondaryLanes.all { lane -> lane.runs.flatMap { it.points }.none { it.timestamp == combined.timestamp } })
+    }
+
     @Test
     fun aRecordSpeaksOnlyForTheLaneItWasShownOn() {
         // Sealed while the raw lane was main (mode 1): the record is the raw

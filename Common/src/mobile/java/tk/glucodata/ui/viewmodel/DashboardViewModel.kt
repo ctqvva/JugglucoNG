@@ -53,7 +53,6 @@ import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.drivers.ManagedSensorRuntime
-import tk.glucodata.drivers.ManagedSensorStatusPolicy
 import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
 import tk.glucodata.ui.util.resolveDashboardSensorStatus
@@ -1002,52 +1001,20 @@ class DashboardViewModel(
                 val sensorKind = snapshot[0].toInt()
                 val vm = snapshot[1].toInt()
                 val startMsec = snapshot[2]
-                val expectedEnd = snapshot[3]
-                val officialEnd = snapshot[4]
                 _sensorStatus.value = resolveDashboardSensorStatus(sName, sensorKind, startMsec, nativeStatus)
 
-                _viewMode.value = managedSnapshot?.viewMode ?: vm
+                _viewMode.value = if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sName)) 0 else managedSnapshot?.viewMode ?: vm
 
-                val lifecycleOfficialEndMs = managedSnapshot?.officialEndMs?.takeIf { it > 0L }
-                    ?: if (managedSnapshot == null) officialEnd else 0L
-                val lifecycleExpectedEndMs = managedSnapshot?.expectedEndMs?.takeIf { it > 0L }
-                    ?: if (managedSnapshot == null) expectedEnd else 0L
-                val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
-                    startTimeMs = managedSnapshot?.startTimeMs?.takeIf { it > 0L } ?: startMsec,
-                    officialEndMs = lifecycleOfficialEndMs,
-                    expectedEndMs = lifecycleExpectedEndMs,
-                    sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
-                    sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
-                    fallbackDurationDays = fallbackDurationDays,
-                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
-                        managedSnapshot.expectedEndMs > 0L &&
-                        !managedSnapshot.isSensorExpired,
-                    nowMs = System.currentTimeMillis()
-                )
-                _sensorProgress.value = lifecycle.progress
-                _sensorHoursRemaining.value = lifecycle.remainingHours
-                _daysRemaining.value = lifecycle.daysText
-                _currentDay.value = lifecycle.currentDay
             } else {
                 _sensorStatus.value = resolveDashboardSensorStatus(sName, nativeStatus)
-                _viewMode.value = managedSnapshot?.viewMode ?: 0
-                val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
-                    startTimeMs = managedSnapshot?.startTimeMs ?: 0L,
-                    officialEndMs = managedSnapshot?.officialEndMs ?: 0L,
-                    expectedEndMs = managedSnapshot?.expectedEndMs ?: 0L,
-                    sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
-                    sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
-                    fallbackDurationDays = fallbackDurationDays,
-                    allowExpectedEndOverrun = managedSnapshot?.uiFamily == ManagedSensorUiFamily.ANYTIME &&
-                        managedSnapshot.expectedEndMs > 0L &&
-                        !managedSnapshot.isSensorExpired,
-                    nowMs = System.currentTimeMillis()
-                )
-                _sensorProgress.value = lifecycle.progress
-                _sensorHoursRemaining.value = lifecycle.remainingHours
-                _daysRemaining.value = lifecycle.daysText
-                _currentDay.value = lifecycle.currentDay
+                _viewMode.value = if (tk.glucodata.combined.CombinedSensorRegistry.isCombined(sName)) 0 else managedSnapshot?.viewMode ?: 0
             }
+            val lifecycle = tk.glucodata.ui.util.resolveDashboardSensorLifecycle(
+                sName, managedSnapshot, snapshot, fallbackDurationDays, System.currentTimeMillis())
+            _sensorProgress.value = lifecycle.progress
+            _sensorHoursRemaining.value = lifecycle.remainingHours
+            _daysRemaining.value = lifecycle.daysText
+            _currentDay.value = lifecycle.currentDay
         } else {
             _sensorName.value = ""
             _sensorStatus.value = ""
