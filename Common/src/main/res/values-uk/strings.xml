@@ -614,7 +614,7 @@
     <string name="dexcom_slot_receiver">Слот 1: приймач або помпа</string>
     <string name="dexcom_slot_app">Слот 2: застосунок на телефоні (типово)</string>
     <string name="dexcom_slot_watch">Слот 3: смарт-годинник</string>
-    <string name="dexcom_slot_desc">Сенсор зберігає окреме підключення для кожного слота. Виберіть той, яким не користується інший пристрій: застосунок Dexcom займає слот телефона. Слоти 1 і 3 ще не перевірені.</string>
+    <string name="dexcom_slot_desc">Сенсор зберігає окреме підключення для кожного слота. Виберіть той, яким не користується інший пристрій: застосунок Dexcom займає слот телефона.</string>
     <string name="dexcom_slot_button">Слот Bluetooth: %1$s</string>
     <string name="dexcom_slot_change_desc">Сенсор знову підключиться в новому слоті за збереженим кодом. Після цього старий слот зможе використати інший пристрій.</string>
     <string name="dexcom_slot_change_action">Змінити слот</string>

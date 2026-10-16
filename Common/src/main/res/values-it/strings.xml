@@ -475,7 +475,7 @@
     <string name="dexcom_slot_receiver">Slot 1: ricevitore o pompa</string>
     <string name="dexcom_slot_app">Slot 2: app per telefono (predefinito)</string>
     <string name="dexcom_slot_watch">Slot 3: smartwatch</string>
-    <string name="dexcom_slot_desc">Il sensore mantiene un abbinamento separato per ogni slot. Scegline uno che nessun altro dispositivo usa: l\'app Dexcom occupa lo slot del telefono. Gli slot 1 e 3 non sono ancora testati.</string>
+    <string name="dexcom_slot_desc">Il sensore mantiene un abbinamento separato per ogni slot. Scegline uno che nessun altro dispositivo usa: l\'app Dexcom occupa lo slot del telefono.</string>
     <string name="dexcom_slot_button">Slot Bluetooth: %1$s</string>
     <string name="dexcom_slot_change_desc">Il sensore verrà abbinato di nuovo sul nuovo slot con il codice salvato. Un altro dispositivo potrà poi usare quello vecchio.</string>
     <string name="dexcom_slot_change_action">Cambia slot</string>

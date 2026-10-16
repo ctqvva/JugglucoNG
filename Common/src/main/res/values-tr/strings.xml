@@ -654,7 +654,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_slot_receiver">Yuva 1: alıcı veya pompa</string>
     <string name="dexcom_slot_app">Yuva 2: telefon uygulaması (varsayılan)</string>
     <string name="dexcom_slot_watch">Yuva 3: akıllı saat</string>
-    <string name="dexcom_slot_desc">Sensör her yuva için ayrı bir eşleşme tutar. Başka bir cihazın kullanmadığı birini seçin: Dexcom uygulaması telefon yuvasını kullanır. Yuva 1 ve 3 henüz test edilmedi.</string>
+    <string name="dexcom_slot_desc">Sensör her yuva için ayrı bir eşleşme tutar. Başka bir cihazın kullanmadığı birini seçin: Dexcom uygulaması telefon yuvasını kullanır.</string>
     <string name="dexcom_slot_button">Bluetooth yuvası: %1$s</string>
     <string name="dexcom_slot_change_desc">Sensör, kayıtlı koduyla yeni yuvada yeniden eşleşir. Ardından eski yuvayı başka bir cihaz kullanabilir.</string>
     <string name="dexcom_slot_change_action">Yuvayı değiştir</string>

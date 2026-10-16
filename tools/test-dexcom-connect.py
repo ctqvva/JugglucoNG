@@ -124,7 +124,7 @@ class SuperGattCallback {
     void bonded(){}void getdatacmd(){dataCommands++;}void disablenotification(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void searchforDeviceAddress(){rescans++;mActiveDeviceAddress=null;}
     void unbond(){unbondCalls++;removedBond=true;} void setConStatus(int status){}
-    void askcertificate(int phase){}void sendcerts(){}void saveDeviceName(){}
+    int certificateRequests;void askcertificate(int phase){certificateRequests++;}void sendcerts(){}void saveDeviceName(){}
     static boolean dexKnownSensor(long p){return true;} static boolean getalarmclock(){return alarmClock;}
     static PendingIntent getBroadcast(Context c,int id,Intent i,int flags){return new PendingIntent(i.action);}
 }
@@ -435,6 +435,29 @@ public class DexGattCallback extends SuperGattCallback {
         check(Natives.resets==resets+1&&cb.getAuthSlot()==1,"rejected slot change touched state");
         Applic.prefs.ints.put("auth_slot_bad",9);
         check(DexcomBluetoothSlot.forSensor("bad")==2,"corrupt stored slot was sent to the sensor");
+
+        // A paused disconnect never reaches close(); the slot change must reset the session.
+        cb=fresh();cb.phase=GetData;cb.setPause(true);
+        check(cb.changeAuthSlot(3)&&cb.phase==-1&&cb.mBluetoothGatt==null,"slot change kept the old session's phase");
+    }
+    static int[] challengeReply(int slot,int auth,int bond,boolean androidBonded,boolean newPairing){
+        DexGattCallback cb=fresh();Applic.prefs=new Prefs();
+        DexcomBluetoothSlot.pin("sensor-A",slot);cb=new DexGattCallback("sensor-A",1);
+        cb.phase=ChallengeReply;cb.bonded=androidBonded;cb.newcertificates=newPairing;
+        int resets=Natives.resets;
+        cb.authenticate(new byte[]{0x05,(byte)auth,(byte)bond});
+        return new int[]{Natives.resets-resets,cb.certificateRequests,cb.dataCommands};
+    }
+    static void challengeReplies() {
+        // Slot 2 keeps its old rules: a fresh pairing goes on to certificates.
+        check(Arrays.equals(challengeReply(2,0,2,false,true),new int[]{0,1,0}),"slot 2 fresh pairing stopped");
+        check(Arrays.equals(challengeReply(2,1,2,true,true),new int[]{0,0,1}),"slot 2 bonded shortcut lost");
+        check(Arrays.equals(challengeReply(2,0,2,false,false),new int[]{1,0,0}),"slot 2 unauthenticated reconnect continued");
+        // Slot 3: without auth==1 stop; a fresh pairing exchanges certificates despite a bond.
+        check(Arrays.equals(challengeReply(3,0,2,false,true),new int[]{1,0,0}),"slot 3 sent certificates without auth");
+        check(Arrays.equals(challengeReply(3,1,2,true,true),new int[]{0,1,0}),"slot 3 fresh pairing reused another slot's bond");
+        check(Arrays.equals(challengeReply(3,1,2,true,false),new int[]{0,0,1}),"slot 3 reconnect lost bonded shortcut");
+        check(Arrays.equals(challengeReply(3,1,1,false,true),new int[]{0,0,1}),"slot 3 bonded sensor not read");
     }
     public static void main(String[] args) throws Exception {
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
@@ -497,6 +520,7 @@ public class DexGattCallback extends SuperGattCallback {
         publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);stableRosterSnapshots();
         preservesBondBeforeFirstReading();recognizesVerifiedSensor();quietReconnectsRespectReceptionAndSampleTime();
         authSlots();
+        challengeReplies();
         System.out.println("PASS: Dexcom recovery, quiet/slot timing, auth slots, bond/challenge guards, callback lifecycle, concurrent publication/teardown and nonblocking roster snapshots");
     }
 }

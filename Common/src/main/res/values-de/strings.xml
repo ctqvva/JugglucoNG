@@ -706,7 +706,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_slot_receiver">Slot 1: Empfänger oder Pumpe</string>
     <string name="dexcom_slot_app">Slot 2: Handy-App (Standard)</string>
     <string name="dexcom_slot_watch">Slot 3: Smartwatch</string>
-    <string name="dexcom_slot_desc">Der Sensor speichert für jeden Slot eine eigene Kopplung. Wählen Sie einen, den kein anderes Gerät nutzt: Die Dexcom-App belegt den Handy-Slot. Slot 1 und 3 sind noch nicht getestet.</string>
+    <string name="dexcom_slot_desc">Der Sensor speichert für jeden Slot eine eigene Kopplung. Wählen Sie einen, den kein anderes Gerät nutzt: Die Dexcom-App belegt den Handy-Slot.</string>
     <string name="dexcom_slot_button">Bluetooth-Slot: %1$s</string>
     <string name="dexcom_slot_change_desc">Der Sensor wird mit seinem gespeicherten Code im neuen Slot neu gekoppelt. Ein anderes Gerät kann danach den alten Slot nutzen.</string>
     <string name="dexcom_slot_change_action">Slot wechseln</string>

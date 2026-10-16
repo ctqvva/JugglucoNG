@@ -672,13 +672,17 @@ private boolean removedBond=false;
                   return;
                   }
                 boolean isbonded = bond == 1;
+                // Seen on a watch pairing on slot 3: there, certificates sent without
+                // auth==1 only make the sensor hang up, and a fresh pairing exchanges
+                // certificates even when Android kept a bond made for another slot.
+                final boolean watchSlot = authSlot == DexcomBluetoothSlot.SMART_WATCH;
 
-                if(!newcertificates&&auth != 1) {
+                if((watchSlot||!newcertificates)&&auth != 1) {
                     handshake = "auth != 1";
                     wrotepass[1] = System.currentTimeMillis();
                     resetCerts();
                 } else {
-                    if(auth==1&&isbonded||(bonded&&bond==2)) {
+                    if(auth==1&&isbonded||(bonded&&bond==2&&!(watchSlot&&newcertificates))) {
                         getdatacmd();
                     } else {
                         askcertificate(SendCertificate1);
@@ -919,11 +923,13 @@ public int getAuthSlot() {
 /**
  * Moves this sensor to another slot. The key and bond belong to the old slot, so both are
  * dropped and the next connection pairs again from the stored sensor code, as a new sensor
- * does. Call while paused and disconnected.
+ * does. Call while paused: a paused disconnect never reaches close(), so the old session's
+ * handshake phase is reset here, or the next connection would skip pairing.
  */
 public synchronized boolean changeAuthSlot(int slot) {
     if (!DexcomBluetoothSlot.isValid(slot) || slot == authSlot) return false;
     {if(doLog) {Log.i(LOG_ID, SerialNumber + " changeAuthSlot " + authSlot + " -> " + slot);};};
+    close();
     DexcomBluetoothSlot.pin(SerialNumber, slot);
     authSlot = slot;
     if (dataptr != 0L) Natives.dexResetKeys(dataptr);

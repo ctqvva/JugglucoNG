@@ -1305,23 +1305,20 @@ class SensorViewModel : ViewModel() {
         val gatt = findGatt(serial) as? tk.glucodata.DexGattCallback ?: return
         if (gatt.authSlot == slot) return
         val wasPaused = SensorBluetooth.isSensorPaused(gatt)
-        viewModelScope.launch {
-            // Same pause/disconnect/reconnect sequence as reconnectSensor, with the old
-            // pairing dropped while nothing is talking to the sensor.
-            gatt.setPause(true)
-            gatt.disconnect()
-            kotlinx.coroutines.delay(500)
-            gatt.changeAuthSlot(slot)
-            if (gatt.dataptr != 0L) {
-                try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
-            }
-            // A sensor the user paused stays paused; it pairs on the new slot when resumed.
-            if (!wasPaused) {
-                gatt.setPause(false)
-                gatt.connectDevice(200)
-            }
-            refreshSensors()
+        // Runs to the end here rather than in viewModelScope: leaving the screen mid-way
+        // would cancel it with the sensor still paused. changeAuthSlot closes the old
+        // session itself, so there is no disconnect to wait for.
+        gatt.setPause(true)
+        gatt.changeAuthSlot(slot)
+        if (gatt.dataptr != 0L) {
+            try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
         }
+        // A sensor the user paused stays paused; it pairs on the new slot when resumed.
+        if (!wasPaused) {
+            gatt.setPause(false)
+            gatt.connectDevice(200)
+        }
+        refreshSensors()
     }
 
     fun returnSensorToPhone(serial: String) {

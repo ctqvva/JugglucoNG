@@ -602,7 +602,7 @@
     <string name="dexcom_slot_receiver">Plats 1: mottagare eller pump</string>
     <string name="dexcom_slot_app">Plats 2: telefonapp (standard)</string>
     <string name="dexcom_slot_watch">Plats 3: smartklocka</string>
-    <string name="dexcom_slot_desc">Sensorn sparar en separat parkoppling för varje plats. Välj en som ingen annan enhet använder: Dexcom-appen tar telefonplatsen. Plats 1 och 3 är inte testade än.</string>
+    <string name="dexcom_slot_desc">Sensorn sparar en separat parkoppling för varje plats. Välj en som ingen annan enhet använder: Dexcom-appen tar telefonplatsen.</string>
     <string name="dexcom_slot_button">Bluetooth-plats: %1$s</string>
     <string name="dexcom_slot_change_desc">Sensorn parkopplas igen på den nya platsen med sin sparade kod. En annan enhet kan sedan använda den gamla platsen.</string>
     <string name="dexcom_slot_change_action">Byt plats</string>

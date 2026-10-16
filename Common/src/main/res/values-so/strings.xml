@@ -756,7 +756,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dexcom_slot_receiver">Booska 1: qalabka qaata ama bamka</string>
     <string name="dexcom_slot_app">Booska 2: app-ka taleefanka (caadi)</string>
     <string name="dexcom_slot_watch">Booska 3: saacad casri ah</string>
-    <string name="dexcom_slot_desc">Dareemuhu boos kasta wuxuu u hayaa isku xir gaar ah. Dooro mid aan qalab kale isticmaalin: app-ka Dexcom wuxuu qaataa booska taleefanka. Boosaska 1 iyo 3 weli lama tijaabin.</string>
+    <string name="dexcom_slot_desc">Dareemuhu boos kasta wuxuu u hayaa isku xir gaar ah. Dooro mid aan qalab kale isticmaalin: app-ka Dexcom wuxuu qaataa booska taleefanka.</string>
     <string name="dexcom_slot_button">Booska Bluetooth: %1$s</string>
     <string name="dexcom_slot_change_desc">Dareemuhu wuxuu dib ugu xirmayaa booska cusub isagoo adeegsanaya koodhkiisa kaydsan. Qalab kale ayaa markaas isticmaali kara booskii hore.</string>
     <string name="dexcom_slot_change_action">Beddel booska</string>
