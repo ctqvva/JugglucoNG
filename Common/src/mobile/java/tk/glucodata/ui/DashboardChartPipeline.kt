@@ -152,12 +152,28 @@ internal fun buildPredictionSeriesForChart(
         return seriesPoints.takeIf { it.size >= 2 }?.let { GlucosePredictionSeries(kind, it) }
     }
 
+    // Without a calibration the primary lane's own forecast is the primary
+    // forecast, so it has to start where the main line ends — on a recorded
+    // value when there is one, even one recorded in the other lane. The
+    // calibrated source is record-aware and, with no calibration active, is
+    // the lane's own value everywhere else. Secondary lanes stay plain.
+    val primaryLaneIsRecordAware = !hasCalibration
     return buildList {
         if (drawRaw) {
-            buildSeries(GlucosePredictionSeriesKind.RAW, PredictionHistorySource.RAW)?.let(::add)
+            val source = if (isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_RAW
+            } else {
+                PredictionHistorySource.RAW
+            }
+            buildSeries(GlucosePredictionSeriesKind.RAW, source)?.let(::add)
         }
         if (drawAuto) {
-            buildSeries(GlucosePredictionSeriesKind.AUTO, PredictionHistorySource.AUTO)?.let(::add)
+            val source = if (!isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_AUTO
+            } else {
+                PredictionHistorySource.AUTO
+            }
+            buildSeries(GlucosePredictionSeriesKind.AUTO, source)?.let(::add)
         }
         if (hasCalibration) {
             buildSeries(

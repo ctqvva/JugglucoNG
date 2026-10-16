@@ -146,4 +146,29 @@ class DisplayValueResolverTests {
         assertEquals("--", nan.primaryStr)
         assertEquals("--", negative.primaryStr)
     }
+
+    @Test
+    fun resolve_rawModeWithoutRawInput_keepsARecordedValueButNotALiveCalibration() {
+        // AiDEX stores rawValue = 0 when its raw signal is unusable. A minute
+        // recorded on the auto line and viewed after a switch to raw keeps its
+        // record, as the chart does; a live calibration of nothing does not.
+        val recorded = DisplayValueResolver.resolve(
+            autoValue = 6.1f,
+            rawValue = 0f,
+            viewMode = 1,
+            isMmol = true,
+            calibratedValue = 5.4f,
+            calibratedIsRecorded = true
+        )
+        assertEquals(5.4f, recorded.primaryValue, 0.001f)
+
+        val live = DisplayValueResolver.resolve(
+            autoValue = 6.1f,
+            rawValue = 0f,
+            viewMode = 1,
+            isMmol = true,
+            calibratedValue = 5.4f
+        )
+        assertEquals(6.1f, live.primaryValue, 0.001f)
+    }
 }

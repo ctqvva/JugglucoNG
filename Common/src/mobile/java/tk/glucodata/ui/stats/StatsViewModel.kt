@@ -736,6 +736,7 @@ class StatsViewModel : ViewModel() {
         val hideInitialWhenCalibrated = CalibrationManager.shouldHideInitialWhenCalibrated()
         val sensorSerial = activeSerial ?: history.firstOrNull()?.sensorSerial
         val calibratedDisplayValues = arrayOfNulls<Float>(history.size)
+        val recordedIndices = BooleanArray(history.size)
 
         run {
             history.withIndex()
@@ -789,7 +790,10 @@ class StatsViewModel : ViewModel() {
             history.forEachIndexed { index, point ->
                 point.sealedDisplayValue
                     ?.takeIf { it.isFinite() && it > 0f }
-                    ?.let { calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol) }
+                    ?.let {
+                        calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol)
+                        recordedIndices[index] = true
+                    }
             }
         }
 
@@ -805,7 +809,8 @@ class StatsViewModel : ViewModel() {
                 viewMode = pointViewMode,
                 unit = unit,
                 calibratedDisplayValue = calibratedDisplayValue,
-                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated
+                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated,
+                calibratedIsRecorded = recordedIndices[index]
             )
             if (primaryValueMgDl == null || !primaryValueMgDl.isFinite() || primaryValueMgDl <= 0f) {
                 null
@@ -1028,7 +1033,8 @@ class StatsViewModel : ViewModel() {
         viewMode: Int,
         unit: GlucoseUnit,
         calibratedDisplayValue: Float?,
-        hideInitialWhenCalibrated: Boolean
+        hideInitialWhenCalibrated: Boolean,
+        calibratedIsRecorded: Boolean = false
     ): Float? {
         val isMmol = unit == GlucoseUnit.MMOL
         val displayValues = DisplayValueResolver.resolve(
@@ -1037,7 +1043,8 @@ class StatsViewModel : ViewModel() {
             viewMode = viewMode,
             isMmol = isMmol,
             calibratedValue = calibratedDisplayValue,
-            hideInitialWhenCalibrated = hideInitialWhenCalibrated
+            hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+            calibratedIsRecorded = calibratedIsRecorded
         )
         val primaryDisplayValue = displayValues.primaryValue
         if (!primaryDisplayValue.isFinite() || primaryDisplayValue <= 0f) {
