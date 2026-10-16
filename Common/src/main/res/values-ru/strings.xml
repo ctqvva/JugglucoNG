@@ -2838,7 +2838,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_uncertainty_ribbon_desc">Показывать полосу вероятного диапазона вокруг линии глюкозы</string>
     <string name="freeze_displayed_values">Сохранять показанные значения</string>
     <string name="freeze_displayed_values_desc">Измерение сохраняет значение, которое было показано. Изменения калибровки влияют только на свежие измерения.</string>
-    <string name="freeze_displayed_values_on">Показанные значения сохраняются</string>
+    <string name="freeze_displayed_values_after">Фиксируются через %1$s</string>
     <string name="freeze_displayed_values_off">Пересчёт при каждом изменении</string>
     <string name="anytime_credentials_backup">Резервная копия учётных данных CT5</string>
     <string name="anytime_credentials_backup_warning">Этот файл позволяет восстановить сеанс передатчика после переустановки приложения или удаления датчика. Храните его в безопасном месте.</string>

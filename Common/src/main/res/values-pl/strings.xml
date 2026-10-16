@@ -2829,7 +2829,7 @@
     <string name="sibionics_uncertainty_ribbon_desc">Pokaż pasmo prawdopodobnego zakresu wokół linii glikemii</string>
     <string name="freeze_displayed_values">Zachowuj wyświetlone wartości</string>
     <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
-    <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
+    <string name="freeze_displayed_values_after">Blokada po czasie: %1$s</string>
     <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
     <string name="anytime_credentials_backup">Kopia danych uwierzytelniających CT5</string>
     <string name="anytime_credentials_backup_warning">Ten plik pozwala przywrócić sesję nadajnika po ponownej instalacji aplikacji lub usunięciu sensora. Przechowuj go bezpiecznie.</string>

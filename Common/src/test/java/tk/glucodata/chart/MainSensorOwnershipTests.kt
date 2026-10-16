@@ -72,8 +72,8 @@ class MainSensorOwnershipTests {
 
     @Test
     fun theBoundaryIsTheGraceWindowMeasuredFromTheMinute() {
-        val justSealed = NOW - MainSensorOwnership.SEAL_GRACE_MS - MINUTE
-        val justSettling = NOW - MainSensorOwnership.SEAL_GRACE_MS + MINUTE
+        val justSealed = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS - MINUTE
+        val justSettling = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS + MINUTE
         val o = ownership(
             mapOf(
                 MainSensorOwnership.minuteOf(justSealed) to "A",
@@ -98,7 +98,7 @@ class MainSensorOwnershipTests {
         val minute = MainSensorOwnership.minuteOf(SETTLING)
         val records = mapOf(minute to "B")
         val before = MainSensorOwnership(records, NOW)
-        val resumed = MainSensorOwnership(records, minute + MainSensorOwnership.SEAL_GRACE_MS)
+        val resumed = MainSensorOwnership(records, minute + MainSensorOwnership.DEFAULT_SEAL_GRACE_MS)
         assertFalse(before == resumed)
         assertNull(before.mainSensorAt(minute))
         assertEquals("B", resumed.mainSensorAt(minute))

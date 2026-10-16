@@ -40,6 +40,9 @@ object CalibrationManager {
     private const val KEY_OVERWRITE_SENSOR_VALUES = "calibration_overwrite_sensor_values"
     private const val KEY_FREEZE_DISPLAYED_VALUES = "calibration_freeze_displayed_values"
     private const val KEY_FREEZE_MIGRATED_FROM_OVERWRITE = "calibration_freeze_migrated_from_overwrite"
+    private const val KEY_DISPLAY_SEAL_GRACE_HOURS = "calibration_display_seal_grace_hours"
+    private val DEFAULT_DISPLAY_SEAL_GRACE_HOURS =
+        (tk.glucodata.chart.MainSensorOwnership.DEFAULT_SEAL_GRACE_MS / 3_600_000L).toInt()
     private const val KEY_VISUAL_CONTINUITY = "calibration_visual_continuity"
     private const val KEY_CALIBRATE_FROM_JOURNAL = "calibration_from_journal_bg"
     private const val KEY_KEEP_DISABLED_HISTORY = "calibration_keep_disabled_history"
@@ -211,6 +214,17 @@ object CalibrationManager {
     private val _freezeDisplayedValues = MutableStateFlow(true)
     val freezeDisplayedValues: StateFlow<Boolean> = _freezeDisplayedValues
 
+    /** The choices offered for [displaySealGraceHours], shortest first. */
+    val DISPLAY_SEAL_GRACE_HOURS_CHOICES = listOf(1, 3, 6, 12, 24)
+
+    /**
+     * How long a displayed value stays revisable before it is kept — see
+     * `tk.glucodata.data.ReadingDisplay.isSealedAt`. One of
+     * [DISPLAY_SEAL_GRACE_HOURS_CHOICES].
+     */
+    private val _displaySealGraceHours = MutableStateFlow(DEFAULT_DISPLAY_SEAL_GRACE_HOURS)
+    val displaySealGraceHours: StateFlow<Int> = _displaySealGraceHours
+
     private val _visualContinuity = MutableStateFlow(true)
     val visualContinuity: StateFlow<Boolean> = _visualContinuity
 
@@ -274,6 +288,9 @@ object CalibrationManager {
         _keepDisabledHistory.value = prefs.getBoolean(KEY_KEEP_DISABLED_HISTORY, false)
         _overwriteSensorValues.value = prefs.getBoolean(KEY_OVERWRITE_SENSOR_VALUES, false)
         _freezeDisplayedValues.value = prefs.getBoolean(KEY_FREEZE_DISPLAYED_VALUES, true)
+        _displaySealGraceHours.value = prefs.getInt(KEY_DISPLAY_SEAL_GRACE_HOURS, DEFAULT_DISPLAY_SEAL_GRACE_HOURS)
+            .takeIf { it in DISPLAY_SEAL_GRACE_HOURS_CHOICES }
+            ?: DEFAULT_DISPLAY_SEAL_GRACE_HOURS
         _visualContinuity.value = prefs.getBoolean(KEY_VISUAL_CONTINUITY, true)
         _calibrateFromJournal.value = prefs.getBoolean(KEY_CALIBRATE_FROM_JOURNAL, false)
         _weightMode.value = CalibrationWeightMode.fromStorage(
@@ -954,6 +971,21 @@ object CalibrationManager {
     fun shouldFreezeDisplayedValues(): Boolean {
         ensureInitialized()
         return _freezeDisplayedValues.value
+    }
+
+    fun setDisplaySealGraceHours(hours: Int) {
+        if (hours !in DISPLAY_SEAL_GRACE_HOURS_CHOICES || _displaySealGraceHours.value == hours) return
+        _displaySealGraceHours.value = hours
+        if (::prefs.isInitialized) {
+            prefs.edit().putInt(KEY_DISPLAY_SEAL_GRACE_HOURS, hours).apply()
+        }
+        requestUiRefreshAfterCalibrationChange()
+        Log.i(TAG, "Display seal grace: ${hours}h")
+    }
+
+    fun displaySealGraceMs(): Long {
+        ensureInitialized()
+        return _displaySealGraceHours.value * 3_600_000L
     }
 
     /**

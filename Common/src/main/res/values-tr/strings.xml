@@ -2819,7 +2819,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sibionics_uncertainty_ribbon_desc">Glukoz çizgisi çevresinde olası aralık bandını göster</string>
     <string name="freeze_displayed_values">Gösterilen değerleri koru</string>
     <string name="freeze_displayed_values_desc">Bir ölçüm gösterildiği değeri korur. Kalibrasyon değişiklikleri yalnızca son ölçümleri etkiler.</string>
-    <string name="freeze_displayed_values_on">Gösterilen değerler korunuyor</string>
+    <string name="freeze_displayed_values_after">%1$s sonra sabitlenir</string>
     <string name="freeze_displayed_values_off">Her değişiklikte yeniden hesaplanıyor</string>
     <string name="anytime_credentials_backup">CT5 kimlik bilgilerini yedekle</string>
     <string name="anytime_credentials_backup_warning">Bu dosya, uygulama yeniden yüklendikten veya sensör kaldırıldıktan sonra verici oturumunu geri yükleyebilir. Güvenli bir yerde saklayın.</string>

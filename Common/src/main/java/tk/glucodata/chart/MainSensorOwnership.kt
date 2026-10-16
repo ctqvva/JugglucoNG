@@ -31,8 +31,10 @@ class MainSensorOwnership(
     /** Recorded owner per minute, keyed by [minuteOf]. */
     private val recorded: Map<Long, String>,
     private val nowMs: Long,
+    /** The user's grace window; see [DEFAULT_SEAL_GRACE_MS]. */
+    private val sealGraceMs: Long = DEFAULT_SEAL_GRACE_MS,
 ) {
-    private val sealedOwners = recorded.filterKeys { it <= nowMs - SEAL_GRACE_MS }
+    private val sealedOwners = recorded.filterKeys { it <= nowMs - sealGraceMs }
 
     /**
      * The recorded main sensor at [timestampMs], or null where the record has
@@ -69,13 +71,17 @@ class MainSensorOwnership(
         const val MINUTE_MS = 60_000L
 
         /**
-         * How long a presented minute stays revisable before it is history.
+         * How long a presented minute stays revisable before it is history,
+         * unless the user picked another window (Settings → Keep displayed
+         * values).
          *
-         * An hour, so that a calibration entered well after the fingerstick it
-         * refers to still moves the line it was meant to correct. The single
-         * definition; the record's own constant points here.
+         * Three hours. One was too short for the two things the window is for:
+         * a fingerstick is often logged an hour or two after it was taken, and
+         * its calibration should still move the line it was meant to correct;
+         * and a passing state — calibration switched off, an algorithm rebuild,
+         * a raw/auto switch — should be undone before it seals, not after.
          */
-        const val SEAL_GRACE_MS = 60L * 60L * 1000L
+        const val DEFAULT_SEAL_GRACE_MS = 3L * 60L * 60L * 1000L
 
         /** The minute a timestamp belongs to. */
         fun minuteOf(timestampMs: Long): Long = (timestampMs / MINUTE_MS) * MINUTE_MS

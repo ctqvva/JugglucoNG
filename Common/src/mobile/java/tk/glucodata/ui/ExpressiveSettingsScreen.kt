@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -798,27 +799,59 @@ fun ExpressiveSettingsScreen(
 
                 // A reading's displayed value is a record, not a derivation —
                 // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
-                // current behaviour so the common question is answered in place.
+                // current behaviour so the common question is answered in place;
+                // the body picks how long a value stays revisable, the switch
+                // turns keeping off.
                 val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
                     .freezeDisplayedValues.collectAsStateWithLifecycle()
-                SettingsSwitchItem(
-                    title = stringResource(R.string.freeze_displayed_values),
-                    subtitle = stringResource(
-                        if (freezeDisplayedValues) {
-                            R.string.freeze_displayed_values_on
+                val sealGraceHours by tk.glucodata.data.calibration.CalibrationManager
+                    .displaySealGraceHours.collectAsStateWithLifecycle()
+                var sealGraceMenuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    SettingsNavSwitchItem(
+                        title = stringResource(R.string.freeze_displayed_values),
+                        subtitle = if (freezeDisplayedValues) {
+                            stringResource(
+                                R.string.freeze_displayed_values_after,
+                                pluralStringResource(R.plurals.duration_hours, sealGraceHours, sealGraceHours)
+                            )
                         } else {
-                            R.string.freeze_displayed_values_off
+                            stringResource(R.string.freeze_displayed_values_off)
+                        },
+                        checked = freezeDisplayedValues,
+                        onCheckedChange = {
+                            tk.glucodata.data.calibration.CalibrationManager
+                                .setFreezeDisplayedValues(it)
+                        },
+                        onClick = { sealGraceMenuExpanded = true },
+                        icon = Icons.Default.Lock,
+                        iconTint = dataColor,
+                        position = CardPosition.BOTTOM
+                    )
+                    DropdownMenuPopup(
+                        expanded = sealGraceMenuExpanded,
+                        onDismissRequest = { sealGraceMenuExpanded = false }
+                    ) {
+                        DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                            val choices = tk.glucodata.data.calibration.CalibrationManager
+                                .DISPLAY_SEAL_GRACE_HOURS_CHOICES
+                            choices.forEachIndexed { index, hours ->
+                                SelectableDropdownMenuItem(
+                                    selected = hours == sealGraceHours,
+                                    shapes = MenuDefaults.itemShape(index, choices.size),
+                                    text = {
+                                        Text(pluralStringResource(R.plurals.duration_hours, hours, hours))
+                                    },
+                                    onClick = {
+                                        tk.glucodata.data.calibration.CalibrationManager
+                                            .setDisplaySealGraceHours(hours)
+                                        sealGraceMenuExpanded = false
+                                    }
+                                )
+                            }
                         }
-                    ),
-                    checked = freezeDisplayedValues,
-                    onCheckedChange = {
-                        tk.glucodata.data.calibration.CalibrationManager
-                            .setFreezeDisplayedValues(it)
-                    },
-                    icon = Icons.Default.Lock,
-                    iconTint = dataColor,
-                    position = CardPosition.BOTTOM
-                )
+                    }
+                }
             }
         }
 

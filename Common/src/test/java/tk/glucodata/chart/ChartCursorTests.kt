@@ -101,7 +101,7 @@ class ChartCursorTests {
 
     @Test
     fun aPeerThatOwnsTheMinuteIsMarkedWithTheMainLook() {
-        val ownership = MainSensorOwnership(mapOf(MainSensorOwnership.minuteOf(NOW) to "B"), NOW + 60 * MINUTE)
+        val ownership = MainSensorOwnership(mapOf(MainSensorOwnership.minuteOf(NOW) to "B"), NOW + MainSensorOwnership.DEFAULT_SEAL_GRACE_MS)
         val model = HistoryChartModelBuilder.build(
             listOf(primaryA(), calibratedRawPeerB()), ownership, calibratesPeerRaw,
         )

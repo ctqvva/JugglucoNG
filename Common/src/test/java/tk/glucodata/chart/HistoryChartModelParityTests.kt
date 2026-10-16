@@ -93,9 +93,10 @@ class HistoryChartModelParityTests {
     }
 
     private fun sealedSpan(from: Int, to: Int, owner: String) =
-        (from until to).associate { MainSensorOwnership.minuteOf(NOW - (200 - it) * MINUTE) to owner }
+        (from until to).associate { MainSensorOwnership.minuteOf(ts(it)) to owner }
 
-    private fun ts(i: Int) = NOW - (200 - i) * MINUTE
+    // 300 minutes back: the first 120 are past the 3 h grace window, the rest inside it.
+    private fun ts(i: Int) = NOW - (300 - i) * MINUTE
 
     @Test
     fun recordedThenCalibratedThenOwnPreferenceMatchesAcrossAMixedSeries() {

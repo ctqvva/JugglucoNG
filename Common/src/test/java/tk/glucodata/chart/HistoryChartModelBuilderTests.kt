@@ -15,7 +15,7 @@ class HistoryChartModelBuilderTests {
     private companion object {
         const val MINUTE = MainSensorOwnership.MINUTE_MS
         const val NOW = 1_800_000_000_000L
-        val SEALED_START = NOW - 3L * 60L * MINUTE
+        val SEALED_START = NOW - MainSensorOwnership.DEFAULT_SEAL_GRACE_MS - 3L * 60L * MINUTE
     }
 
     private fun point(ts: Long, value: Float, serial: String, sealed: Float = Float.NaN) =
