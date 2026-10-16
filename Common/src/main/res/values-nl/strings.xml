@@ -2523,6 +2523,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_cloud_unbind_confirm">Permanent ontkoppelen</string>
     <string name="ottai_cloud_unbind_success">Sensor permanent ontkoppeld van Ottai. De sensor en opgeslagen referenties in JugglucoNG zijn niet gewijzigd.</string>
     <string name="ottai_cloud_unbind_failed">De sensor kon niet van Ottai worden ontkoppeld.</string>
+    <string name="ottai_disconnect_forget_unbind">Inloggegevens verwijderen en ontkoppelen</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Verwijdert de opgeslagen sleutels en ontkoppelt de sensor van het Ottai-account. Hij kan daarna niet meer worden verbonden.</string>
+    <string name="ottai_disconnect_unbind_failed">Inloggegevens verwijderd, maar de sensor is nog gekoppeld aan het Ottai-account. Ontkoppel hem in de Ottai-instellingen.</string>
+    <string name="ottai_unused_binding_title">Sensor nog gekoppeld aan dit account</string>
+    <string name="ottai_unused_binding_desc">%1$s is gekoppeld aan dit Ottai-account maar niet verbonden in JugglucoNG. Als hij is afgelopen, ontkoppel hem zodat het account een nieuwe sensor kan activeren.</string>
     <string name="ottai_cloud_binding_checking">Ottai-cloudkoppeling controleren…</string>
     <string name="ottai_cloud_binding_bound">Cloudstatus: gekoppeld aan dit Ottai-account</string>
     <string name="ottai_cloud_binding_not_bound">Cloudstatus: niet gekoppeld aan dit Ottai-account</string>

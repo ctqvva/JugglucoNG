@@ -420,6 +420,8 @@ fun SensorCard(
     var showWipeDialog by remember { mutableStateOf(false) }
     var wipeDataChecked by remember { mutableStateOf(false) }
     var removeHistoryChecked by remember { mutableStateOf(false) }
+    // Ottai: Disconnect keeps the credentials and the account binding unless this is chosen.
+    var forgetOttaiChecked by remember { mutableStateOf(false) }
 
     // Sibionics Calibration Bottom Sheet
     var showSibionicsCalSheet by remember { mutableStateOf(false) }
@@ -673,6 +675,7 @@ fun SensorCard(
                 onDismissRequest = {
                     showTerminateDialog = false
                     removeHistoryChecked = false
+                    forgetOttaiChecked = false
                 },
                 title = { Text(stringResource(R.string.disconnect_sensor_title)) },
                 text = {
@@ -686,13 +689,45 @@ fun SensorCard(
                             )
                             Text(stringResource(R.string.remove_sensor_history))
                         }
+                        if (sensor.vendor == SensorVendor.OTTAI) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.large)
+                                    .toggleable(
+                                        value = forgetOttaiChecked,
+                                        role = Role.Checkbox,
+                                        onValueChange = { forgetOttaiChecked = it }
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = forgetOttaiChecked,
+                                    onCheckedChange = null,
+                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.ottai_disconnect_forget_unbind))
+                                    Text(
+                                        text = stringResource(R.string.ottai_disconnect_forget_unbind_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        val removed = viewModel.terminateSensor(sensor.serial, removeHistoryChecked)
+                        val removed = if (sensor.vendor == SensorVendor.OTTAI) {
+                            viewModel.disconnectOttaiSensor(sensor.serial, removeHistoryChecked, forgetOttaiChecked)
+                        } else {
+                            viewModel.terminateSensor(sensor.serial, removeHistoryChecked)
+                        }
                         showTerminateDialog = false
                         removeHistoryChecked = false
+                        forgetOttaiChecked = false
                         if (!removed) {
                             android.widget.Toast.makeText(
                                 context,
@@ -708,6 +743,7 @@ fun SensorCard(
                     TextButton(onClick = {
                         showTerminateDialog = false
                         removeHistoryChecked = false
+                        forgetOttaiChecked = false
                     },
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }

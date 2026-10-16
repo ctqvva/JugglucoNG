@@ -98,6 +98,18 @@ class OttaiSetupFlowTests {
     }
 
     @Test
+    fun `binding no managed sensor accounts for is surfaced once`() {
+        val stale = device("54DCE9C96891", unbindTime = 0L)
+        val inUse = device("70D07E2552DB", unbindTime = 0L)
+        val past = device("18690ADED9B3", unbindTime = 1_787_500_000_000L)
+        val devices = listOf(stale, inUse, past, stale.copy(mac = "54:DC:E9:C9:68:91"))
+
+        assertEquals(listOf(stale), ottaiUnusedCloudBindings(devices, listOf("70D07E2552DB")))
+        assertEquals(emptyList<Any>(), ottaiUnusedCloudBindings(devices, listOf("54DCE9C96891", "70D07E2552DB")))
+        assertEquals(emptyList<Any>(), ottaiUnusedCloudBindings(null, emptyList()))
+    }
+
+    @Test
     fun `cloud unbind is available only for the exact selected active binding`() {
         val active = device("70D07E2552DB", unbindTime = 0L)
         val past = device("18690ADED9B3", unbindTime = 1_787_500_000_000L)

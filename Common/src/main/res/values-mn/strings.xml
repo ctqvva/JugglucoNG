@@ -2587,6 +2587,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_cloud_unbind_confirm">Бүрмөсөн салгах</string>
     <string name="ottai_cloud_unbind_success">Мэдрэгчийг Ottai-аас бүрмөсөн салгалаа. JugglucoNG дахь мэдрэгч болон хадгалсан мэдээлэл өөрчлөгдөөгүй.</string>
     <string name="ottai_cloud_unbind_failed">Мэдрэгчийг Ottai-аас салгаж чадсангүй.</string>
+    <string name="ottai_disconnect_forget_unbind">Нэвтрэх мэдээллийг устгаж салгах</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Хадгалсан түлхүүрүүдийг устгаж, мэдрэгчийг Ottai бүртгэлээс салгана. Дахин холбох боломжгүй болно.</string>
+    <string name="ottai_disconnect_unbind_failed">Нэвтрэх мэдээлэл устсан ч мэдрэгч Ottai бүртгэлд холбогдсон хэвээр байна. Ottai тохиргоонд салгана уу.</string>
+    <string name="ottai_unused_binding_title">Мэдрэгч энэ бүртгэлд холбогдсон хэвээр байна</string>
+    <string name="ottai_unused_binding_desc">%1$s энэ Ottai бүртгэлд холбогдсон боловч JugglucoNG-д холбогдоогүй байна. Хугацаа нь дууссан бол бүртгэл шинэ мэдрэгч идэвхжүүлэхийн тулд салгана уу.</string>
     <string name="ottai_cloud_binding_checking">Ottai үүлэн холболтыг шалгаж байна…</string>
     <string name="ottai_cloud_binding_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдсон</string>
     <string name="ottai_cloud_binding_not_bound">Үүлэн төлөв: энэ Ottai бүртгэлтэй холбогдоогүй</string>

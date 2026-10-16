@@ -424,6 +424,41 @@ object OttaiRegistry {
         }.apply()
     }
 
+    /**
+     * The explicit "Remove credentials and unbind" choice, for a sensor [removeSensor] has already
+     * taken out of monitoring: drops the saved draft and its auth material. When it started and
+     * the lifetime it accepted still survive, in the provisional slot and PREF_ACCEPTED_MAX_ACTIVE,
+     * so a re-import of the same sensor does not read as unactivated or as a 15-day unit.
+     */
+    @JvmStatic
+    fun forgetCredentials(context: Context, sensorId: String?) {
+        val id = sensorId?.trim() ?: return
+        val canonical = OttaiConstants.canonicalSensorId(id).ifEmpty { id }
+        if (findRecord(context, canonical) != null) {
+            Log.w(TAG, "forgetCredentials($canonical) refused: still a managed sensor")
+            return
+        }
+        val recoveredStartMs = loadMaterials(context, canonical).activeTimeMs
+            .takeIf { it > 0L }
+            ?: loadProvisionalActiveTime(context, canonical)
+        writeRecords(
+            context,
+            draftRecords(context).filter { !it.matchesId(canonical) },
+            PREF_DRAFT_SENSORS_KEY,
+        )
+        prefs(context).edit().apply {
+            listOf(
+                OttaiConstants.PREF_KEYA_PREFIX, OttaiConstants.PREF_METHOD_PREFIX,
+                OttaiConstants.PREF_COEFF_PREFIX, OttaiConstants.PREF_ACTIVE_TIME_PREFIX,
+                OttaiConstants.PREF_ACTIVE_EXPIRE_PREFIX, OttaiConstants.PREF_RETAIN_TIME_PREFIX,
+                OttaiConstants.PREF_PREHEAT_PERIOD_PREFIX, OttaiConstants.PREF_DEVICE_VERSION_PREFIX,
+                OttaiConstants.PREF_DEVICE_ID_PREFIX,
+            ).forEach { remove(it + canonical) }
+        }.apply()
+        saveProvisionalActiveTime(context, canonical, recoveredStartMs)
+        Log.i(TAG, "forgot credentials of $canonical")
+    }
+
     private fun finishNativeShell(sensorId: String) {
         runCatching { Natives.finishSensorById(sensorId) }
             .onSuccess { finished -> if (finished) Log.i(TAG, "finished native shell of $sensorId") }

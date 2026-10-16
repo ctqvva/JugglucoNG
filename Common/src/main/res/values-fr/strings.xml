@@ -2486,6 +2486,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Dissocier définitivement</string>
     <string name="ottai_cloud_unbind_success">Capteur définitivement dissocié d’Ottai. Le capteur et les identifiants enregistrés dans JugglucoNG n’ont pas été modifiés.</string>
     <string name="ottai_cloud_unbind_failed">Impossible de dissocier le capteur d’Ottai.</string>
+    <string name="ottai_disconnect_forget_unbind">Supprimer les identifiants et dissocier</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Supprime les clés enregistrées et dissocie le capteur du compte Ottai. Il ne pourra plus être connecté.</string>
+    <string name="ottai_disconnect_unbind_failed">Identifiants supprimés, mais le capteur est toujours associé au compte Ottai. Dissociez-le dans la configuration Ottai.</string>
+    <string name="ottai_unused_binding_title">Capteur toujours associé à ce compte</string>
+    <string name="ottai_unused_binding_desc">%1$s est associé à ce compte Ottai mais n’est pas connecté dans JugglucoNG. S’il est terminé, dissociez-le pour que le compte puisse activer un nouveau capteur.</string>
     <string name="ottai_cloud_binding_checking">Vérification de l’association au cloud Ottai…</string>
     <string name="ottai_cloud_binding_bound">État du cloud : associé à ce compte Ottai</string>
     <string name="ottai_cloud_binding_not_bound">État du cloud : non associé à ce compte Ottai</string>

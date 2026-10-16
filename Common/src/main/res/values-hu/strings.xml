@@ -1005,6 +1005,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_cloud_unbind_confirm">Hozzárendelés végleges megszüntetése</string>
     <string name="ottai_cloud_unbind_success">A szenzor Ottai-hozzárendelése véglegesen megszűnt. A JugglucoNG-ben lévő szenzor és mentett hitelesítő adatok nem változtak.</string>
     <string name="ottai_cloud_unbind_failed">Nem sikerült megszüntetni a szenzor Ottai-hozzárendelését.</string>
+    <string name="ottai_disconnect_forget_unbind">Hitelesítő adatok törlése és leválasztás</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Törli a mentett kulcsokat, és leválasztja a szenzort az Ottai-fiókról. Utána nem csatlakoztatható újra.</string>
+    <string name="ottai_disconnect_unbind_failed">A hitelesítő adatok törölve, de a szenzor még az Ottai-fiókhoz van kötve. Válaszd le az Ottai beállításában.</string>
+    <string name="ottai_unused_binding_title">A szenzor még ehhez a fiókhoz van kötve</string>
+    <string name="ottai_unused_binding_desc">A(z) %1$s ehhez az Ottai-fiókhoz van kötve, de nincs csatlakoztatva a JugglucoNG-ben. Ha lejárt, válaszd le, hogy a fiók új szenzort aktiválhasson.</string>
     <string name="ottai_cloud_binding_checking">Ottai felhős hozzárendelés ellenőrzése…</string>
     <string name="ottai_cloud_binding_bound">Felhős állapot: ehhez az Ottai-fiókhoz hozzárendelve</string>
     <string name="ottai_cloud_binding_not_bound">Felhős állapot: nincs ehhez az Ottai-fiókhoz hozzárendelve</string>

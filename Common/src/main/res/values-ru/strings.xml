@@ -2175,6 +2175,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Отвязать навсегда</string>
     <string name="ottai_cloud_unbind_success">Сенсор навсегда отвязан от Ottai. Сенсор и сохранённые данные в JugglucoNG не изменены.</string>
     <string name="ottai_cloud_unbind_failed">Не удалось отвязать сенсор от Ottai.</string>
+    <string name="ottai_disconnect_forget_unbind">Удалить учётные данные и отвязать</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Удаляет сохранённые ключи и отвязывает сенсор от аккаунта Ottai. Подключить его снова не получится.</string>
+    <string name="ottai_disconnect_unbind_failed">Учётные данные удалены, но сенсор всё ещё привязан к аккаунту Ottai. Отвяжите его в настройке Ottai.</string>
+    <string name="ottai_unused_binding_title">Сенсор всё ещё привязан к этому аккаунту</string>
+    <string name="ottai_unused_binding_desc">%1$s привязан к этому аккаунту Ottai, но не подключён в JugglucoNG. Если он закончился, отвяжите его, чтобы аккаунт мог активировать новый сенсор.</string>
     <string name="ottai_cloud_binding_checking">Проверка привязки в облаке Ottai…</string>
     <string name="ottai_cloud_binding_bound">Статус облака: привязан к этому аккаунту Ottai</string>
     <string name="ottai_cloud_binding_not_bound">Статус облака: не привязан к этому аккаунту Ottai</string>

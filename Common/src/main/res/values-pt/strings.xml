@@ -2481,6 +2481,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_unbind_confirm">Desassociar permanentemente</string>
     <string name="ottai_cloud_unbind_success">Sensor desassociado permanentemente do Ottai. O sensor e as credenciais guardadas no JugglucoNG não foram alterados.</string>
     <string name="ottai_cloud_unbind_failed">Não foi possível desassociar o sensor do Ottai.</string>
+    <string name="ottai_disconnect_forget_unbind">Remover credenciais e desvincular</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Apaga as chaves guardadas e desvincula o sensor da conta Ottai. Não poderá voltar a ser ligado.</string>
+    <string name="ottai_disconnect_unbind_failed">Credenciais removidas, mas o sensor continua vinculado à conta Ottai. Desvincule-o na configuração Ottai.</string>
+    <string name="ottai_unused_binding_title">Sensor ainda vinculado a esta conta</string>
+    <string name="ottai_unused_binding_desc">%1$s está vinculado a esta conta Ottai, mas não está ligado no JugglucoNG. Se já terminou, desvincule-o para que a conta possa ativar um novo sensor.</string>
     <string name="ottai_cloud_binding_checking">A verificar a associação à nuvem Ottai…</string>
     <string name="ottai_cloud_binding_bound">Estado da nuvem: associado a esta conta Ottai</string>
     <string name="ottai_cloud_binding_not_bound">Estado da nuvem: não associado a esta conta Ottai</string>

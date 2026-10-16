@@ -2508,6 +2508,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_cloud_unbind_confirm">Kalıcı olarak kaldır</string>
     <string name="ottai_cloud_unbind_success">Sensörün Ottai bağlantısı kalıcı olarak kaldırıldı. JugglucoNG’deki sensör ve kayıtlı bilgiler değiştirilmedi.</string>
     <string name="ottai_cloud_unbind_failed">Sensörün Ottai bağlantısı kaldırılamadı.</string>
+    <string name="ottai_disconnect_forget_unbind">Kimlik bilgilerini sil ve bağlantıyı kaldır</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Kayıtlı anahtarları siler ve sensörü Ottai hesabından ayırır. Daha sonra yeniden bağlanamaz.</string>
+    <string name="ottai_disconnect_unbind_failed">Kimlik bilgileri silindi ancak sensör hâlâ Ottai hesabına bağlı. Ottai kurulumunda bağlantısını kaldırın.</string>
+    <string name="ottai_unused_binding_title">Sensör hâlâ bu hesaba bağlı</string>
+    <string name="ottai_unused_binding_desc">%1$s bu Ottai hesabına bağlı ancak JugglucoNG\'de bağlı değil. Süresi dolduysa, hesabın yeni bir sensörü etkinleştirebilmesi için bağlantısını kaldırın.</string>
     <string name="ottai_cloud_binding_checking">Ottai bulut bağlantısı denetleniyor…</string>
     <string name="ottai_cloud_binding_bound">Bulut durumu: bu Ottai hesabına bağlı</string>
     <string name="ottai_cloud_binding_not_bound">Bulut durumu: bu Ottai hesabına bağlı değil</string>

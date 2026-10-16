@@ -185,6 +185,29 @@ class OttaiRemovalNativeShellTests {
     }
 
     @Test
+    fun forgetCredentialsDropsKeysAndDraftButKeepsTheStart() {
+        val startMs = 1_782_823_440_000L
+        OttaiRegistry.ensureSensorRecord(context, sensorId, "", "Ottai CGM")
+        assertTrue(
+            OttaiRegistry.saveMaterials(
+                context, sensorId,
+                OttaiRegistry.DeviceMaterials("0123456789ABCDEF".repeat(12), "x", "1", startMs, "V3", 7),
+            ),
+        )
+
+        OttaiRegistry.forgetCredentials(context, sensorId)
+        assertEquals("a managed sensor keeps its keys", 192, OttaiRegistry.loadMaterials(context, sensorId).keyAHex.length)
+
+        OttaiRegistry.removeSensor(context, sensorId)
+        OttaiRegistry.forgetCredentials(context, sensorId)
+
+        assertTrue(OttaiRegistry.loadMaterials(context, sensorId).keyAHex.isEmpty())
+        assertTrue(OttaiRegistry.draftRecords(context).isEmpty())
+        assertTrue(OttaiRegistry.savedMaterialRecords(context).isEmpty())
+        assertEquals(startMs, OttaiRegistry.loadProvisionalActiveTime(context, sensorId))
+    }
+
+    @Test
     fun removalKeepsOtherDraftsAndReAddPromotesTheSavedDraft() {
         val other = "CD4568871A26"
         OttaiRegistry.saveDraftRecord(context, other, "", "Other")

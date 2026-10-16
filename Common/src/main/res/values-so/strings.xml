@@ -2671,6 +2671,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_cloud_unbind_confirm">Si joogto ah uga fur</string>
     <string name="ottai_cloud_unbind_success">Dareemaha si joogto ah ayaa looga furay Ottai. Dareemaha iyo aqoonsiyada ku kaydsan JugglucoNG lama beddelin.</string>
     <string name="ottai_cloud_unbind_failed">Dareemaha lagama furi karin Ottai.</string>
+    <string name="ottai_disconnect_forget_unbind">Tirtir aqoonsiga oo ka saar isku-xidhka</string>
+    <string name="ottai_disconnect_forget_unbind_desc">Waxay tirtiraysaa furayaasha la keydiyay waxayna dareemaha ka saaraysaa akoonka Ottai. Mar dambe lama xidhi karo.</string>
+    <string name="ottai_disconnect_unbind_failed">Aqoonsiga waa la tirtiray, laakiin dareemuhu weli wuxuu ku xidhan yahay akoonka Ottai. Ka saar isku-xidhka habaynta Ottai.</string>
+    <string name="ottai_unused_binding_title">Dareemuhu weli wuxuu ku xidhan yahay akoonkan</string>
+    <string name="ottai_unused_binding_desc">%1$s wuxuu ku xidhan yahay akoonkan Ottai laakiin kuma xidhna JugglucoNG. Haddii uu dhammaaday, ka saar isku-xidhka si akoonku u hawlgelin karo dareeme cusub.</string>
     <string name="ottai_cloud_binding_checking">Xiriirka daruurta Ottai waa la hubinayaa…</string>
     <string name="ottai_cloud_binding_bound">Xaaladda daruurta: waxay ku xiran tahay koontadan Ottai</string>
     <string name="ottai_cloud_binding_not_bound">Xaaladda daruurta: kuma xirna koontadan Ottai</string>

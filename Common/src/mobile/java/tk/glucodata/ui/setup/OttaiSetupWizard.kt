@@ -399,6 +399,22 @@ internal fun ottaiActiveCloudUnbindTarget(
     }
 }
 
+/**
+ * Account bindings no managed sensor accounts for: what a sensor removed without unbinding, or
+ * one that simply ended, leaves behind. The account holds one binding at a time, so a stale one
+ * blocks the next activation (AppUser_AlreadyBinding) until something releases it.
+ */
+internal fun ottaiUnusedCloudBindings(
+    devices: List<OttaiCloudClient.DeviceSummary>?,
+    managedSensorIds: Collection<String>,
+): List<OttaiCloudClient.DeviceSummary> {
+    val managed = managedSensorIds.map(OttaiConstants::canonicalSensorId).toSet()
+    return devices.orEmpty().filter { device ->
+        val mac = OttaiConstants.canonicalSensorId(device.mac)
+        device.isActive && OttaiConstants.looksLikeMac(mac) && mac !in managed
+    }.distinctBy { OttaiConstants.canonicalSensorId(it.mac) }
+}
+
 internal enum class OttaiCloudBindingUiState {
     HIDDEN,
     CHECKING,
@@ -1232,6 +1248,22 @@ fun OttaiSetupWizard(
                             }
                         }
 
+                        if (signedIn) {
+                            val unusedBindings = remember(devices) {
+                                ottaiUnusedCloudBindings(
+                                    devices,
+                                    OttaiRegistry.persistedRecords(context).map { it.sensorId },
+                                )
+                            }
+                            unusedBindings.forEach { binding ->
+                                OttaiUnusedBindingCard(
+                                    sensorId = OttaiConstants.canonicalSensorId(binding.mac),
+                                    enabled = !busy && !devicesLoading,
+                                    onUnbind = { pendingCloudUnbind = binding },
+                                )
+                            }
+                        }
+
                         OttaiBleScanPanel(
                             ui = ui,
                             selectedAddress = bleAddress,
@@ -1865,6 +1897,50 @@ private fun OttaiSensorRow(
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Icon(Icons.Default.LinkOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.unbind_sensor))
+            }
+        }
+    }
+}
+
+@Composable
+private fun OttaiUnusedBindingCard(
+    sensorId: String,
+    enabled: Boolean,
+    onUnbind: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.ottai_unused_binding_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.ottai_unused_binding_desc, sensorId),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onUnbind,
+                enabled = enabled,
+                modifier = Modifier.align(Alignment.End),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) {
+                Icon(
+                    Icons.Default.LinkOff,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.unbind_sensor))
             }

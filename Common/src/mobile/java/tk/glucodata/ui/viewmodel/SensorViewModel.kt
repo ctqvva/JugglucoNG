@@ -1569,6 +1569,43 @@ class SensorViewModel : ViewModel() {
     }
 
     /**
+     * Ottai Disconnect. Plain removal keeps the credentials and the account binding; only the
+     * explicit [forgetAndUnbind] choice deletes the keys and releases the binding. A failed or
+     * impossible unbind (signed out, offline) leaves the binding in place, and Ottai setup lists
+     * it at the top with its own Unbind action.
+     */
+    fun disconnectOttaiSensor(serial: String, wipeData: Boolean, forgetAndUnbind: Boolean): Boolean {
+        if (!forgetAndUnbind) return terminateSensor(serial, wipeData)
+        // Resolve while the managed record still exists; removal turns it into a draft.
+        val canonical = tk.glucodata.drivers.ottai.OttaiManagedSensorIdentityAdapter
+            .resolveCanonicalSensorId(serial)
+            ?: tk.glucodata.drivers.ottai.OttaiConstants.canonicalSensorId(serial)
+        if (!terminateSensor(serial, wipeData)) return false
+        val app = tk.glucodata.Applic.app ?: return true
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val released = tk.glucodata.drivers.ottai.OttaiConstants.looksLikeMac(canonical) &&
+                tk.glucodata.drivers.ottai.OttaiRegistry.loadAccessToken(app).isNotBlank() &&
+                runCatching {
+                    tk.glucodata.drivers.ottai.OttaiCloudClient.unbindWithResult(app, canonical).released
+                }.onFailure {
+                    android.util.Log.w("SensorVM", "Ottai unbind $canonical failed: ${it.message}")
+                }.getOrDefault(false)
+            android.util.Log.i("SensorVM", "Ottai forget+unbind $canonical released=$released")
+            tk.glucodata.drivers.ottai.OttaiRegistry.forgetCredentials(app, canonical)
+            if (!released) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        app,
+                        app.getString(tk.glucodata.R.string.ottai_disconnect_unbind_failed),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+        return true
+    }
+
+    /**
      * Force-forget the stored AiDex PAIR credential (manual Delete). For a key invalidated by
      * an unpair elsewhere, which can no longer build a session to unpair itself. Next connect
      * pairs fresh.
