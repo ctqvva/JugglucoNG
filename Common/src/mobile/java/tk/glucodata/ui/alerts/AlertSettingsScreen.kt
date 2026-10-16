@@ -166,6 +166,7 @@ fun AlertSettingsScreen(
     // Track expanded states
     var expandedType by remember { mutableStateOf<AlertType?>(null) }
     var showPreemptiveSnooze by remember { mutableStateOf(false) }
+    var showSameDirectionSuppression by remember { mutableStateOf(false) }
     // Preview with the same gain and stream as the alert.
     var soundPickerRequest by remember { mutableStateOf<AlertSoundPickerRequest?>(null) }
     var sameDirectionSuppressionMinutes by remember {
@@ -457,7 +458,8 @@ fun AlertSettingsScreen(
                     config = config,
                     isMmol = isMmol,
                     isExpanded = expandedType == type,
-                    position = getCardPosition(type, trendAlerts),
+                    // The quiet-period row below closes the group.
+                    position = if (type == trendAlerts.first()) CardPosition.TOP else CardPosition.MIDDLE,
                     onToggle = { enabled ->
                         persistConfigIfChanged(config.copy(enabled = enabled))
                     },
@@ -475,27 +477,24 @@ fun AlertSettingsScreen(
             }
 
             // The cross-family quiet period (#210) belongs with the trend alerts it
-            // coordinates. Its High coverage is on and has no switch.
+            // coordinates, so it closes their group as one compact row; the slider
+            // lives in a dialog. Its High coverage is on and has no switch.
             item(key = "same-direction-quiet-period") {
-                Spacer(Modifier.height(8.dp))
-                SliderSettingsItem(
+                SettingsItem(
                     title = stringResource(R.string.same_direction_suppression_title),
                     subtitle = stringResource(R.string.same_direction_suppression_summary),
                     icon = Icons.Default.NotificationsPaused,
-                    position = SettingsItemPosition.SINGLE
-                ) {
-                    DurationSlider(
-                        label = "",
-                        value = sameDirectionSuppressionMinutes,
-                        range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
-                        stepSize = 1,
-                        onValueChange = { persistSameDirectionSuppressionMinutes(it) },
-                        valueText = { v ->
-                            if (v == 0) stringResource(R.string.off)
-                            else stringResource(R.string.minutes_short_format, v)
-                        }
-                    )
-                }
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = SettingsItemPosition.BOTTOM,
+                    onClick = { showSameDirectionSuppression = true },
+                    trailingContent = {
+                        Text(
+                            sameDirectionSuppressionText(sameDirectionSuppressionMinutes),
+                            style = MaterialTheme.typography.bodyMediumEmphasized,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                )
             }
 
             // === OTHER ALERTS SECTION ===
@@ -562,6 +561,17 @@ fun AlertSettingsScreen(
 
         if (showPreemptiveSnooze) {
             PreemptiveSnoozeDialog(onDismiss = { showPreemptiveSnooze = false })
+        }
+
+        if (showSameDirectionSuppression) {
+            SameDirectionSuppressionDialog(
+                initialMinutes = sameDirectionSuppressionMinutes,
+                onDismiss = { showSameDirectionSuppression = false },
+                onSave = { minutes ->
+                    persistSameDirectionSuppressionMinutes(minutes)
+                    showSameDirectionSuppression = false
+                }
+            )
         }
 
         if (alertToEdit != null) {
@@ -866,49 +876,6 @@ fun CustomAlertCard(
 
 
 
-
-/**
- * A settings row that holds a slider instead of a trailing control: same
- * surface, shape and 68dp text inset as [SettingsItem], so it sits in a group
- * of rows without reading as a different kind of thing.
- */
-@Composable
-private fun SliderSettingsItem(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    position: SettingsItemPosition,
-    slider: @Composable () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = tk.glucodata.ui.components.cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            IconTile(icon = icon, tint = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                slider()
-            }
-        }
-    }
-}
 
 @Composable
 private fun SectionHeader(
@@ -1555,6 +1522,56 @@ internal fun DurationSlider(
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
+
+@Composable
+private fun sameDirectionSuppressionText(minutes: Int): String =
+    if (minutes == 0) stringResource(R.string.off)
+    else stringResource(R.string.minutes_short_format, minutes)
+
+@Composable
+private fun SameDirectionSuppressionDialog(
+    initialMinutes: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit
+) {
+    var minutes by remember { mutableStateOf(initialMinutes) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.NotificationsPaused, contentDescription = null) },
+        title = { Text(stringResource(R.string.same_direction_suppression_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    stringResource(R.string.same_direction_suppression_summary),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                DurationSlider(
+                    label = stringResource(R.string.duration_label),
+                    value = minutes,
+                    range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
+                    stepSize = 1,
+                    onValueChange = { minutes = it },
+                    valueText = { sameDirectionSuppressionText(it) }
+                )
+            }
+        },
+        confirmButton = {
+            FilledTonalButton(
+                onClick = { onSave(minutes) },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
