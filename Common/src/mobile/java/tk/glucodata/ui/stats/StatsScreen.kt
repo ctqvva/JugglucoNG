@@ -2975,7 +2975,7 @@ private fun InsightRow(insight: StatsInsight) {
         ) {
             Text(
                 text = insight.title,
-                style = MaterialTheme.typography.titleMediumEmphasized,
+                style = MaterialTheme.typography.titleMedium,
                 color = contentColor
             )
             Text(
