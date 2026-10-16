@@ -621,7 +621,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="caresens_air_setup_title">Configurazione di CareSens Air</string>
     <string name="changeinsulin">"Change insulin type to "</string>
     <string name="changestartbutton">Change start</string>
-    <string name="chsibionics">Sibionics GS1 (CN)</string>
+    <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
@@ -670,7 +670,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="enabled_status">Enabled</string>
     <string name="endstime">" ends at this time"</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>

@@ -854,7 +854,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
-    <string name="chsibionics">Sibionics GS1 (CN)</string>
+    <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clampnow">Now clamp</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
@@ -877,7 +877,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="delete_calibration">Delete calibration?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exclude">Exclude</string>
     <string name="factory_reset_alert">Remove EVERYTHING. Cannot be undone!</string>
     <string name="factory_reset_confirm">Factory Reset?</string>

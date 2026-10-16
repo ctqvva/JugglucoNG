@@ -873,7 +873,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="restart">Neu starten</string>
     <string name="caresens_air_scan_instruction">Scannen Sie den Sensorcode auf Ihrem CareSens Air-Paket</string>
     <string name="caresens_air_setup_title">CareSens Air einrichten</string>
-    <string name="chsibionics">Sibionics GS1 (CN)</string>
+    <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clean_data_confirm">App-Daten löschen?</string>
     <string name="clean_history_confirm">Verlauf löschen?</string>
     <string name="clear_history_desc_long">Alle Glukosewerte entfernen. Kann nicht rückgängig gemacht werden.</string>
@@ -902,7 +902,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="disconnect_sensor_failed">Der Sensor konnte nicht entfernt werden und ist weiterhin aktiv. Versuchen Sie es erneut.</string>
     <string name="disconnect_sensor_title">Sensor trennen?</string>
     <string name="enabled_status">Aktiviert</string>
-    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
     <string name="hours_short">%1$d S</string>

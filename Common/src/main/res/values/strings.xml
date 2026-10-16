@@ -398,8 +398,8 @@
     <string name="humaninsulin">Human Insulin/Humulin R/Novolin R</string>
     <string name="afrezza">Afrezza</string>
     <string name="not">Not</string>
-    <string name="eusibionics">Sibionics GS1 (EU)</string>
-    <string name="chsibionics">Sibionics GS1 (CN)</string>
+    <string name="eusibionics">Sibionics GS1 EU</string>
+    <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>

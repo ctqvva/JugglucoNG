@@ -738,7 +738,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="calibrations">Calibrations</string>
     <string name="caresens_air_scan_instruction">Skanna sensorkoden på ditt CareSens Air-paket</string>
     <string name="caresens_air_setup_title">CareSens Air Setup</string>
-    <string name="chsibionics">Sibionics GS1 (CN)</string>
+    <string name="chsibionics">Sibionics GS1 CN</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
@@ -771,7 +771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="disconnect_sensor_title">Disconnect Sensor?</string>
     <string name="enabled_status">Enabled</string>
     <string name="enternums">Enter amounts on</string>
-    <string name="eusibionics">Sibionics GS1 (EU)</string>
+    <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="exchangedata">Utbyta data</string>
     <string name="exclude">Exclude</string>
     <string name="expired">Expired</string>
