@@ -6,29 +6,19 @@ import java.util.Collections
 /**
  * Records the main value for minutes that were actually put in front of the user.
  *
- * **Visible, not loaded.** This is the whole reason the recorder exists rather
- * than the repository being called from wherever data arrives. The chart holds
- * far more than it draws: the merge needs the entire stored timeline to rank
- * sensors correctly, queries run ahead of the viewport, and panning keeps points
- * alive on both sides of the screen. None of that was presented to anyone.
- * Recording a minute the chart merely *had* would freeze today's opinion onto a
- * moment nobody looked at — the same backdating a background pass does, with a
- * scroll as the trigger instead of a timer.
- *
- * So the only input is the slice the chart just drew, and the only caller is the
- * draw path's own viewport. A minute enters the record when it appears on
- * screen, and not before.
+ * **Visible, not loaded.** The chart holds far more than it draws: queries
+ * run ahead of the viewport, and panning keeps points alive on both sides of
+ * the screen. Only the slice the chart just drew is submitted here, with the
+ * chart's own values. Every other minute is recorded as it arrives, by
+ * [tk.glucodata.data.DisplayRecordKeeper].
  *
  * **Settling.** A pan sweeps thousands of minutes past the viewport in a second;
  * a glance at them is not a presentation, and writing each frame would be both
  * dishonest and expensive. [SETTLE_MS] is how long the viewport must hold still
  * before what it shows counts as looked at.
  *
- * **Once per lane.** [presented] remembers what this process has already
- * written, so holding still, or returning to a stretch, costs nothing. It is
- * keyed by the minute and the lane it was drawn in: a minute drawn in the new
- * lane in the frame right after a switch is refused by the repository, and
- * must still be written when it is drawn in the lane it was on. The set is per
+ * **Once.** [presented] remembers what this process has already written, so
+ * holding still, or returning to a stretch, costs nothing. The set is per
  * process on purpose: it is a write-amplification guard, not the guarantee. The
  * guarantee is in the database — a minute past its grace window cannot be
  * revised, whatever is submitted.
@@ -65,17 +55,13 @@ internal object PresentedMinuteRecorder {
         // A minute still inside its grace window is resubmitted every pass, since
         // its value can still change; the database decides whether that lands.
         val unseen = visible.map { it.copy(minuteMs = tk.glucodata.data.ReadingDisplay.minuteOf(it.minuteMs)) }
-            .distinctBy(::guardKey)
-            .filter { guardKey(it) !in presented }
+            .distinctBy { it.minuteMs }
+            .filter { it.minuteMs !in presented }
         if (unseen.isEmpty()) return 0
         val recorded = write(unseen) ?: return 0
-        presented.addAll(unseen.map(::guardKey))
+        presented.addAll(unseen.map { it.minuteMs })
         return recorded
     }
-
-    /** The minute, doubled to leave the low bit for the lane. */
-    private fun guardKey(minute: HistoryRepository.PresentedMinute): Long =
-        minute.minuteMs * 2 + (minute.viewMode and 1)
 
     /**
      * Drops minutes still inside the grace window from the guard, so the next
@@ -83,7 +69,7 @@ internal object PresentedMinuteRecorder {
      */
     fun releaseUnsealed(sealHorizonMs: Long) {
         synchronized(presented) {
-            presented.removeAll { (it shr 1) > sealHorizonMs }
+            presented.removeAll { it > sealHorizonMs }
         }
     }
 }

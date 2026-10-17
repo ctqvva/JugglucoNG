@@ -1167,10 +1167,7 @@ class SensorViewModel : ViewModel() {
         val gatt = findGatt(serial)
         if (gatt != null) {
             val normalizedMode = ManagedSensorViewModeStore.sanitize(mode)
-            val previousMode = runCatching {
-                tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(serial)
-            }.getOrNull()
-            ManagedSensorViewModeStore.write(Applic.app, serial, normalizedMode, previousMode)
+            ManagedSensorViewModeStore.write(Applic.app, serial, normalizedMode)
             if (gatt is ManagedBluetoothSensorDriver) {
                 gatt.viewMode = normalizedMode
             }

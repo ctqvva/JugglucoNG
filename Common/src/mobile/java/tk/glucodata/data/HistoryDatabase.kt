@@ -880,7 +880,10 @@ abstract class HistoryDatabase : RoomDatabase() {
                     DATABASE_NAME
                 )
                 .addMigrations(*ALL_MIGRATIONS)
-                .build().also { INSTANCE = it }
+                .build().also {
+                    INSTANCE = it
+                    DisplayRecordKeeper.watch(it, context)
+                }
             }
 
         @JvmStatic

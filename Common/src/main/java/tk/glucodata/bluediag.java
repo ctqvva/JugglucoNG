@@ -783,7 +783,7 @@ public class bluediag {
                                 // when no driver is live; writing native alone
                                 // would leave this choice invisible to them.
                                 tk.glucodata.drivers.ManagedSensorViewModeStore.INSTANCE.write(
-                                        Applic.app, gatt.SerialNumber, pos, currentMode);
+                                        Applic.app, gatt.SerialNumber, pos);
                                 act.requestRender();
                             }
                         }
