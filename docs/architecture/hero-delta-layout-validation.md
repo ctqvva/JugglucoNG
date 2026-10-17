@@ -1,15 +1,22 @@
 # Hero delta geometry
 
 A single-value hero centers its regular body-large delta beside the primary,
-with a 16dp gap. A two-value hero preserves the original reading spacing:
-8dp from primary to dot, then 4dp from dot to secondary. The baseline-aligned
-dot and secondary occupy the upper line, with the smaller body-small delta
-directly below. Its independent 16dp inset does not affect the reading gaps.
-Enabling the delta does not insert anything between the primary and dot or move the
-secondary sideways. Three values and constrained widths use the arrow area.
-The delta cannot increase measured or intrinsic hero height.
+with a 16dp gap. Two- and three-value heroes place the smaller delta beneath
+the trend arrow, in both portrait and landscape. A constrained single-value
+hero also uses the arrow area. The two-value reading retains its original
+8dp main-to-dot and 4dp dot-to-secondary gaps, with delta on or off.
 
-## Render check, 2026-10-17
+## Current validation
+
+Mobile debug compilation passes after routing two-value delta to the existing
+`HeroTrendWithDelta` in both orientations. The reading cluster receives no delta
+in two-value mode, so its dot and secondary retain their normal vertical
+alignment as well as their original horizontal spacing.
+
+The screenshots below record the earlier below-dot iteration; they do not
+represent the final arrow placement.
+
+## Earlier render check, 2026-10-17
 
 The production `HeroReadingLayout.kt`, `AppTypography`, and bundled IBM Plex font
 were compiled into a separate synthetic preview, rendered in an isolated API 36

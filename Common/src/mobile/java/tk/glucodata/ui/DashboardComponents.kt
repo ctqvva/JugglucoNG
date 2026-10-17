@@ -631,22 +631,9 @@ fun DashboardCombinedHeader(
                         )
                     }
                 ).copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
-                val pairDeltaFits = !singleValue && !hasThreeValues && heroDeltaText?.let { delta ->
-                    val supportWidth = heroTextMeasurer.measure(secondaryText ?: tertiaryText.orEmpty(), style = secondaryInlineStyle, maxLines = 1).size.width +
-                        heroTextMeasurer.measure("·", style = slashStyle.scaleForHero(1.12f), maxLines = 1).size.width +
-                        with(density) { 4.dp.roundToPx() }
-                    val deltaWidth = heroTextMeasurer.measure(delta, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"), maxLines = 1).size.width
-                    val requiredWidth = heroTextMeasurer.measure(primaryText, style = primaryValueStyle, maxLines = 1).size.width +
-                        maxOf(
-                            supportWidth + with(density) { 8.dp.roundToPx() },
-                            deltaWidth + with(density) { 16.dp.roundToPx() }
-                        )
-                    val available = heroContentWidthPx - with(density) {
-                        (resolvedStartPadding + resolvedEndPadding + resolvedClusterGap + resolvedTrendIconSize).roundToPx()
-                    }
-                    heroContentWidthPx > 0 && requiredWidth * 0.72f <= available
-                } == true
-                val deltaByArrow = hasThreeValues || (!singleDeltaFits && !pairDeltaFits)
+                // Only the single-value layout places delta beside the value.
+                // Two and three values keep it beneath the trend arrow.
+                val deltaByArrow = !singleDeltaFits
                 val statusTitleStyle = when (heroWidthClass) {
                     AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleMedium
                     AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.titleLarge
@@ -721,8 +708,7 @@ fun DashboardCombinedHeader(
                                         secondaryStackStyle = secondaryThreeValueStyle,
                                         tertiaryStackStyle = tertiaryThreeValueStyle,
                                         contentColor = glucoseContentColor,
-                                        primaryColor = heroValueColor,
-                                        deltaText = heroDeltaText.takeIf { pairDeltaFits }
+                                        primaryColor = heroValueColor
                                     )
                                 }
                                 // Only when the estimator actually reports a
@@ -819,7 +805,7 @@ fun DashboardCombinedHeader(
                                 tertiaryStackStyle = tertiaryThreeValueStyle,
                                 contentColor = glucoseContentColor,
                                 primaryColor = heroValueColor,
-                                deltaText = heroDeltaText.takeIf { singleDeltaFits || pairDeltaFits }
+                                deltaText = heroDeltaText.takeIf { singleDeltaFits }
                             )
 
                             Spacer(modifier = Modifier.width(resolvedClusterGap))
