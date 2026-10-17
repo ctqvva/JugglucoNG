@@ -4800,9 +4800,13 @@ public class Notify {
      * }
      */
     void oldnotification(long time) {
-        final String tformat = timef.format(time);
-        String message = Applic.getContext().getString(R.string.nonewvalue) + tformat;
-        placelargenotification(R.drawable.novalue, message, GLUCOSENOTIFICATION, true);
+        placelargenotification(R.drawable.novalue, staleReadingStatus(time), GLUCOSENOTIFICATION, true);
+    }
+
+    /** "No new value since 14:32": what the lock-screen overlay and widgets show in
+     * place of a reading older than {@link #glucosetimeout}. */
+    public static String staleReadingStatus(long lastReadingMillis) {
+        return Applic.getContext().getString(R.string.nonewvalue) + timef.format(lastReadingMillis);
     }
 
     @SuppressWarnings("deprecation")

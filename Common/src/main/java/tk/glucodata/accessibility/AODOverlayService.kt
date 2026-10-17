@@ -503,7 +503,8 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
 
     private fun updateOverlayContent() {
         val view = overlayView ?: return
-        NotificationChartDrawer.setAodUsesLightPalette(resolveUsesLightPalette())
+        val usesLightPalette = resolveUsesLightPalette()
+        NotificationChartDrawer.setAodUsesLightPalette(usesLightPalette)
 
         // 1. Fetch Data
         val endT = System.currentTimeMillis()
@@ -552,12 +553,28 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         val overlayChartPoints = DisplayTrendSource.augmentHistory(chartPoints, resolvedDisplay, activeSensorSerial, startT)
         currentChartAnchorFraction = estimateChartAnchorFraction(overlayChartPoints, startT, endT)
         val hasCalibration = tk.glucodata.NightscoutCalibration.hasCalibrationForViewMode(activeSensorSerial, viewMode)
+        // Same freshness rule as the dashboard hero and the ongoing notification: past
+        // glucosetimeout the number and arrow give way to "No new value since …", while
+        // the chart keeps the history.
+        val dataState = tk.glucodata.DisplayDataState.resolve(
+            sensorPresent = !activeSensorSerial.isNullOrBlank(),
+            currentTimestampMillis = resolvedDisplay?.timeMillis ?: 0L,
+            latestHistoryTimestampMillis = overlayChartPoints.lastOrNull()?.timestamp ?: 0L
+        )
+        if (dataState.isFresh) {
+            tk.glucodata.GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
+        }
+        val staleStatus = if (dataState.isStale) {
+            Notify.staleReadingStatus(dataState.latestTimestampMillis)
+        } else {
+            null
+        }
 
-        if (resolvedDisplay != null) {
+        if (dataState.isFresh && resolvedDisplay != null) {
             time = resolvedDisplay.timeMillis
             glvalue = resolvedDisplay.primaryValue
             valStr = if (showSecondary) resolvedDisplay.fullFormatted else resolvedDisplay.primaryStr
-        } else if (overlayChartPoints.isNotEmpty()) {
+        } else if (dataState.isFresh && overlayChartPoints.isNotEmpty()) {
             val p = overlayChartPoints[overlayChartPoints.size - 1]
             glvalue = p.value
             valStr = if (isMmol) String.format(Locale.getDefault(), "%.1f", glvalue)
@@ -606,16 +623,17 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             textScale,
             fontWeight,
             useSystemFont,
-            if (inlineMultiArrows) displayRate else Float.NaN,
+            if (inlineMultiArrows && dataState.isFresh) displayRate else Float.NaN,
             isMmol,
             1.0f
         )
         val textImg = view.findViewById<ImageView>(R.id.notification_glucose)
         textImg?.setImageBitmap(textBitmap)
+        textImg?.visibility = if (staleStatus == null) View.VISIBLE else View.GONE
 
         // Pass combined scale to arrow
         val arrowImg = view.findViewById<ImageView>(R.id.notification_arrow)
-        if (showArrow && !inlineMultiArrows) {
+        if (showArrow && !inlineMultiArrows && dataState.isFresh) {
             val arrowBitmap = NotificationChartDrawer.drawArrow(
                 this,
                 displayRate,
@@ -677,11 +695,15 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             // Apply Scaling
             statusView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f * textScale)
 
-            if (statusText.isNotEmpty()) {
-                statusView.visibility = View.GONE
-                statusView.text = statusText
+            if (staleStatus != null) {
+                statusView.text = staleStatus
+                statusView.setTextColor(
+                    if (usesLightPalette) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+                )
+                statusView.visibility = View.VISIBLE
             } else {
                 statusView.visibility = View.GONE
+                statusView.text = statusText
             }
         }
         applyBurnInProtection()

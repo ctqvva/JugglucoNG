@@ -1,5 +1,6 @@
 package tk.glucodata
 
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
@@ -20,6 +21,43 @@ object GlucoseUpdateBroadcaster {
     // Glance widget sessions observe this because update() recomposes the
     // captured content but does not re-run provideGlance.
     val tick: StateFlow<Long> get() = tickState
+
+    private val freshnessDeadline = AlarmManager.OnAlarmListener { send() }
+    private var armedReadingMillis = 0L
+
+    /**
+     * Redraws the lock-screen overlay and widgets once [readingTimeMillis] passes
+     * [Notify.glucosetimeout], so they swap the number for "No new value since …" whether
+     * or not the glucose notification is enabled (its own deadline only runs when it is).
+     * Non-wakeup: fires on time while the device is awake, otherwise on the next wake.
+     *
+     * Called for every live reading and by each surface that draws a fresh number, so a
+     * reading restored after a process restart (which drops the in-process alarm) still
+     * expires. A call for an older reading leaves a pending later deadline alone.
+     */
+    @JvmStatic
+    fun armFreshnessDeadline(readingTimeMillis: Long) {
+        if (Applic.isWearable || readingTimeMillis <= 0L) return
+        val alarmManager = Applic.app?.getSystemService(AlarmManager::class.java) ?: return
+        synchronized(lock) {
+            val armedDeadline = armedReadingMillis + Notify.glucosetimeout
+            if (readingTimeMillis <= armedReadingMillis && armedDeadline >= System.currentTimeMillis()) return
+            try {
+                alarmManager.cancel(freshnessDeadline)
+                // DisplayDataState counts the exact threshold as fresh; go one ms past it.
+                alarmManager.setExact(
+                    AlarmManager.RTC,
+                    readingTimeMillis + Notify.glucosetimeout + 1L,
+                    "tk.glucodata:glucose-freshness",
+                    freshnessDeadline,
+                    null
+                )
+                armedReadingMillis = readingTimeMillis
+            } catch (th: Throwable) {
+                Log.stack(LOG_ID, "armFreshnessDeadline", th)
+            }
+        }
+    }
 
     @JvmStatic
     fun hasActiveTickObservers(): Boolean {
