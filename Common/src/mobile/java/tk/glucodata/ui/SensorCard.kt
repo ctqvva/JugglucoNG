@@ -1904,8 +1904,8 @@ fun SensorCard(
                     val pausedText = stringResource(R.string.disabled_status)
 
                     val displayName = sensor.displayName.ifBlank { sensor.serial }
-                    val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel) {
-                        sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel)
+                    val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand) {
+                        sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
 

@@ -97,6 +97,8 @@ data class ManagedSensorUiSnapshot(
     val vendorFirmware: String = "",
     val vendorHardware: String = "",
     val vendorModel: String = "",
+    /** Badge brand when it differs from the family's own ("LUMI" for a Lumiflex AiDex). */
+    val vendorBrand: String = "",
     val resetCompensationActive: Boolean = false,
     val resetCompensationStatus: String = "",
 )

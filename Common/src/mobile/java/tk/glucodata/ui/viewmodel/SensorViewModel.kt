@@ -95,6 +95,7 @@ data class SensorInfo(
     val vendorFirmware: String = "",  // AiDex: firmware version from GET_DEVICE_INFO
     val vendorHardware: String = "",  // AiDex: hardware version from GET_DEVICE_INFO
     val vendorModel: String = "",  // AiDex: model name from GET_DEVICE_INFO (e.g. "GX-01S")
+    val vendorBrand: String = "",  // AiDex: advertised rebrand for the badge (e.g. "LUMI"), blank = family
     val isIcan: Boolean = false,
     val isAnytime: Boolean = false,  // Anytime/Yuwell: vendor reports battery as percent + voltage
     val vendor: SensorVendor = SensorVendor.UNKNOWN,
@@ -453,6 +454,7 @@ class SensorViewModel : ViewModel() {
             vendorFirmware = snapshot.vendorFirmware,
             vendorHardware = snapshot.vendorHardware,
             vendorModel = snapshot.vendorModel,
+            vendorBrand = snapshot.vendorBrand,
             resetCompensationActive = snapshot.resetCompensationActive,
             resetCompensationStatus = snapshot.resetCompensationStatus,
             handoffUiState = handoffUiState,

@@ -63,6 +63,9 @@ data class SensorBadge(val brand: String, val model: String) {
 /**
  * Badge lines for a sensor: the product line on top, the concrete model underneath.
  *
+ * [vendorBrand] replaces the family word when a driver knows the sensor is sold under another
+ * name, such as an AiDex advertising itself as "Lumi-…". Blank keeps the family's own word.
+ *
  * The model line is whatever the driver reported for this specific device — "Sibionics 2",
  * "iCan i6", "CT5" — because that is the name the sensor wizard and the Model row already use.
  * Only when a driver reports nothing does it fall back to the family's own name, and when even
@@ -72,10 +75,11 @@ fun sensorBadge(
     vendor: SensorVendor,
     type: SensorTypeName,
     vendorModel: String = "",
+    vendorBrand: String = "",
 ): SensorBadge {
     val reported = modelToken(vendorModel)
     val model = reported.ifEmpty { fallbackModelToken(type) }
-    return when (vendor) {
+    val badge = when (vendor) {
         SensorVendor.ABBOTT -> SensorBadge("LIBRE", model)
         SensorVendor.SIBIONICS -> SensorBadge("SIBI", model)
         SensorVendor.DEXCOM -> SensorBadge("DEX", model)
@@ -89,6 +93,8 @@ fun sensorBadge(
         SensorVendor.NIGHTSCOUT -> SensorBadge("NIGHT", "SCOUT")
         SensorVendor.UNKNOWN -> SensorBadge("", "")
     }
+    val brand = vendorBrand.trim().uppercase()
+    return if (brand.isEmpty() || badge.brand.isEmpty()) badge else badge.copy(brand = brand)
 }
 
 /** Model name for sensors whose driver reports none, e.g. the natively-decoded Libre and Dexcom. */

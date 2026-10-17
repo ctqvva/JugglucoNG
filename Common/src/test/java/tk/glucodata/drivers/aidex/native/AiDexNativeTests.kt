@@ -1265,6 +1265,35 @@ class DefaultParamCatalogCompareTests {
     }
 
     @Test
+    fun resolveRanksARememberedByteBetweenTheLiveByteAndTheRating() {
+        // A 16-day sensor reports model GX-01S (rated 15): before 0x10 is read again this
+        // connection, its earlier byte still beats the rating.
+        assertEquals(16, AiDexWearProfile.resolve(null, 16, AiDexWearProfile.ratedDays("GX-01S")))
+        // This connection's byte wins over an older one.
+        assertEquals(15, AiDexWearProfile.resolve(15, 16, 15))
+        assertEquals(15, AiDexWearProfile.resolve(0, 0, 15))
+        assertEquals(15, AiDexWearProfile.resolve(null, -1, 15))
+        assertEquals(16, AiDexWearProfile.resolve(null, 16, null))
+        assertNull(AiDexWearProfile.resolve(null, null, null))
+    }
+
+    @Test
+    fun productBrandComesOnlyFromALumiAdvertisement() {
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumi-2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("lumi 2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumi2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumiflex LinX X-2222293NWA"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("Luminous-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("X-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("AiDEX X-2222267V4E"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("LinX-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("64:02:8F:CC:03:E7"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement(null))
+        // The brand is a label only: a Lumi advertisement keeps the same canonical X- identity.
+        assertEquals("X-2222258CUW", AiDexSerialIdentity.canonicalFromAdvertisement("Lumi-2222258CUW"))
+    }
+
+    @Test
     fun testWorking171UsesOfficialTrimmedFirmwareKey() {
         val currentRawHex = "010105000080C613008303BFFE68006700650068006B00100E302AD06BB0FFC4FFECFF00000000100E302AD06B0A0000000000C4092800FA00740E2003EE020A000A000800FA0019007D000802AA009CFF640000001100E803B80B32005500D501280046001E0032006400020014002003B004050014001E005A005A00F401F4019033B04F000000000000000000000000000000000000000000000000000000000000000000000000"
 

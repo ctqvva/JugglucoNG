@@ -78,6 +78,21 @@ class SensorVendorTests {
     }
 
     @Test
+    fun aDriverReportedBrandReplacesOnlyTheFamilyWord() {
+        assertEquals(
+            SensorBadge("LUMI", "GX-01S"),
+            sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S", "Lumi"),
+        )
+        // Blank keeps the family's own word.
+        assertEquals(
+            SensorBadge("AIDEX", "GX-01S"),
+            sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S", " "),
+        )
+        // A glyph-only badge stays a glyph.
+        assertEquals(SensorBadge("", ""), sensorBadge(SensorVendor.UNKNOWN, SensorTypeName.UNKNOWN, "", "LUMI"))
+    }
+
+    @Test
     fun shortBrandAndModelPairsStayOnOneLine() {
         assertEquals("SIBI 2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").inlineText)
         assertTrue(!sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").stacked)

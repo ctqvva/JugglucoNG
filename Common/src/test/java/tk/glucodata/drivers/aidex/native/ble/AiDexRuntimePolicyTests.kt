@@ -404,6 +404,21 @@ class AiDexRuntimePolicyTests {
     }
 
     @Test
+    fun shouldRequestStartupDeviceInfo_retriesAFewSpacedTimesPerConnection() {
+        val spacing = AiDexRuntimePolicy.STARTUP_DEVICE_INFO_RETRY_SPACING_MS
+        val max = AiDexRuntimePolicy.STARTUP_DEVICE_INFO_MAX_ATTEMPTS
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 0, 0L, 1_000L))
+        // An unanswered request is retried, but not on the very next pass.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 1, 1_000L, 1_000L + spacing - 1))
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, 1, 1_000L, 1_000L + spacing))
+        assertTrue(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, max - 1, 1_000L, 1_000L + spacing))
+        // Bounded: a sensor that never answers is not polled for the rest of the connection.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(false, max, 1_000L, 10L * 60_000L))
+        // Nothing to ask once the startup metadata is complete.
+        assertFalse(AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(true, 0, 0L, 1_000L))
+    }
+
+    @Test
     fun shouldRequestRoutineCalibrationRefresh_onlyWithoutCachedRecords() {
         assertTrue(
             AiDexRuntimePolicy.shouldRequestRoutineCalibrationRefresh(
