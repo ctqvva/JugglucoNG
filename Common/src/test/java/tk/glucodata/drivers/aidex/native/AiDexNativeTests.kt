@@ -1087,6 +1087,32 @@ class StartupMetadataParsingTests {
     }
 
     @Test
+    fun testParseStartupDeviceInfoFrame_liveLumiReplyWithModelCode() {
+        // Lumi-2222258CUW, fw 1.7.1, 2026-10-17: opcode, ACK 0x01, model code 0x8000, CRC stripped.
+        val frame = AiDexParser.dataFromHex("1001008001070103100047582D3031530000")
+
+        val parsed = AiDexParser.parseStartupDeviceInfoFrame(frame)
+
+        assertNotNull(parsed)
+        assertEquals("1.7", parsed!!.firmwareVersion)
+        assertEquals("1.3", parsed.hardwareVersion)
+        assertEquals(16, parsed.wearDays)
+        assertEquals("GX-01S", parsed.modelName)
+    }
+
+    @Test
+    fun testParseStartupDeviceInfoFrame_modelCodeNeedsAckAndReadableModel() {
+        // Same reply without the ACK byte in front of the non-zero code: still rejected.
+        assertNull(AiDexParser.parseStartupDeviceInfoFrame(
+            AiDexParser.dataFromHex("1002008001070103100047582D3031530000"),
+        ))
+        // ACK present but the "model" is not text: a misaligned frame, rejected.
+        assertNull(AiDexParser.parseStartupDeviceInfoFrame(
+            AiDexParser.dataFromHex("100100800107010310000102030405060000"),
+        ))
+    }
+
+    @Test
     fun testParseLocalStartTimePayload_acceptsPlausibleDate() {
         val payload = byteArrayOf(
             0xEA.toByte(), 0x07,
