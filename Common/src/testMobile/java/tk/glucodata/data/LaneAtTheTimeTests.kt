@@ -29,7 +29,11 @@ class LaneAtTheTimeTests {
         const val T0 = 1_792_000_000_000L - 1_792_000_000_000L % MINUTE
         const val AUTO = 100f
         const val RAW = 78f
+        const val GRACE = ReadingDisplay.DISPLAY_SEAL_GRACE_MS
     }
+
+    /** A switch made when minute [m] left the grace window. */
+    private fun sealedAt(m: Int): Long = T0 + m * MINUTE + GRACE
 
     private fun point(minute: Int, sealed: Float? = null, sealedMode: Int? = null) = GlucosePoint(
         value = AUTO + minute,
@@ -56,7 +60,7 @@ class LaneAtTheTimeTests {
     fun switchingToRawLeavesTheWholePastOnAuto() {
         // Auto until minute 60, then raw. Minutes 30..44 had been on screen in
         // auto and were recorded; the rest of the past never was.
-        val log = listOf(Switch(T0 + 60 * MINUTE, 0, 1))
+        val log = listOf(Switch(sealedAt(60), 0, 1))
         val stored = (0 until 70).map { m ->
             if (m in 30..44) point(m, sealed = AUTO + m, sealedMode = 0) else point(m)
         }
@@ -68,8 +72,23 @@ class LaneAtTheTimeTests {
     }
 
     @Test
+    fun aSwitchCarriesTheGraceHourWithIt() {
+        // Switched to raw at minute 120: the hour before it was still settling,
+        // so it follows raw like everything after; what had sealed stays auto.
+        val log = listOf(Switch(T0 + 120 * MINUTE, 0, 1))
+        val stored = (0..120).map(::point)
+
+        val shown = mainLine(apply(stored, log), isRawMode = true)
+
+        (0 until 60).forEach { m -> assertEquals("minute $m", AUTO + m, shown[m], 0f) }
+        (60..120).forEach { m -> assertEquals("minute $m", RAW + m, shown[m], 0f) }
+        assertTrue(LaneAtTheTime.recordable(log, T0 + 90 * MINUTE, viewMode = 1))
+        assertFalse(LaneAtTheTime.recordable(log, T0 + 30 * MINUTE, viewMode = 1))
+    }
+
+    @Test
     fun switchingBackRestoresTheSameLine() {
-        val log = listOf(Switch(T0 + 20 * MINUTE, 0, 1), Switch(T0 + 40 * MINUTE, 1, 0))
+        val log = listOf(Switch(sealedAt(20), 0, 1), Switch(sealedAt(40), 1, 0))
         val stored = (0 until 50).map(::point)
 
         val inAuto = mainLine(apply(stored, log), isRawMode = false)
@@ -81,7 +100,7 @@ class LaneAtTheTimeTests {
 
     @Test
     fun aRecordedMinuteKeepsItsRecord() {
-        val log = listOf(Switch(T0 + 60 * MINUTE, 0, 1))
+        val log = listOf(Switch(sealedAt(60), 0, 1))
         val recorded = point(5, sealed = 140f, sealedMode = 1)
         val out = apply(listOf(recorded), log).single()
         assertEquals(140f, out.sealedDisplayValue!!, 0f)
@@ -90,7 +109,7 @@ class LaneAtTheTimeTests {
 
     @Test
     fun theLaneValueTravelsAsTheRecordWithItsMode() {
-        val log = listOf(Switch(T0 + 60 * MINUTE, 3, 0))
+        val log = listOf(Switch(sealedAt(60), 3, 0))
         val out = apply(listOf(point(5)), log).single()
         assertEquals(RAW + 5, out.sealedDisplayValue!!, 0f)
         assertEquals(3, out.sealedDisplayViewMode)
@@ -100,19 +119,19 @@ class LaneAtTheTimeTests {
     fun withoutASwitchNothingChanges() {
         val stored = (0 until 10).map(::point)
         assertSame(stored, apply(stored, emptyList()))
-        assertSame(stored, apply(stored, listOf(Switch(T0 - MINUTE, 0, 1))))
+        assertSame(stored, apply(stored, listOf(Switch(sealedAt(-1), 0, 1))))
     }
 
     @Test
     fun aLaneWithNothingToDrawFallsBackToTheLiveLine() {
-        val log = listOf(Switch(T0 + 60 * MINUTE, 1, 0))
+        val log = listOf(Switch(sealedAt(60), 1, 0))
         val noRaw = point(5).copy(rawValue = Float.NaN)
         assertNull(apply(listOf(noRaw), log).single().sealedDisplayValue)
     }
 
     @Test
     fun aMinuteFromBeforeTheSwitchIsRecordedOnlyInTheLaneItWasOn() {
-        val switchAt = T0 + 60 * MINUTE + 30_000L
+        val switchAt = sealedAt(60) + 30_000L
         val log = listOf(Switch(switchAt, 0, 1))
 
         assertTrue(LaneAtTheTime.recordable(log, T0 + 10 * MINUTE, viewMode = 0))

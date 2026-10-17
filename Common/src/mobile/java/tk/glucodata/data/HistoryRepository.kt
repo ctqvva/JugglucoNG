@@ -1691,10 +1691,10 @@ class HistoryRepository(context: Context = Applic.app) {
     }
 
     /**
-     * Minutes with no record, in the lane that was on at the time.
+     * Minutes with no record, in the lane that was on when they sealed.
      *
-     * See [DisplayLaneHistory]: a raw/auto switch takes effect from when it is
-     * made. Without this a minute first drawn after a switch took the new lane
+     * See [DisplayLaneHistory]: a raw/auto switch moves the grace hour and
+     * everything after it, and nothing that had sealed. Without this a minute first drawn after a switch took the new lane
      * while the minutes around it, drawn before, kept the old one, and the line
      * jumped at the edges of whatever had been on screen.
      *
@@ -2184,8 +2184,8 @@ class HistoryRepository(context: Context = Applic.app) {
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
      * the window is revised, because it is still settling — by a calibration
-     * change, so it seals as it was last shown. A raw/auto switch does not
-     * reach back: a minute that ended before the switch stays on the lane it
+     * or a raw/auto change, so it seals as it was last shown. A switch reaches
+     * no further back: a minute that had sealed before it stays on the lane it
      * was on, and a presentation of it in the other lane is not recorded (see
      * [DisplayLaneHistory]).
      * Which of the two happens is decided by the database rather than here — see

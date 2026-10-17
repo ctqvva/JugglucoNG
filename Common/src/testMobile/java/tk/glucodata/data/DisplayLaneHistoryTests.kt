@@ -17,7 +17,7 @@ import tk.glucodata.data.DisplayLaneHistory.Switch
 import tk.glucodata.drivers.ManagedSensorViewModeStore
 
 /**
- * The switch log behind "a raw/auto switch takes effect from when it is made".
+ * The switch log behind "a raw/auto switch never moves what had sealed".
  * See [DisplayLaneHistory].
  */
 @RunWith(RobolectricTestRunner::class)

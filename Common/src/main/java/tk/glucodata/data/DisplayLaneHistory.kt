@@ -19,9 +19,10 @@ import tk.glucodata.SensorIdentity
  * whatever had happened to be on screen before.
  *
  * This log closes that gap. A minute with no record is shown in the lane that
- * was selected at that minute — the value the dashboard showed, or would have
- * shown, at the time — so a switch takes effect from the moment it is made, and
- * the past keeps one lane per stretch whatever is viewed afterwards.
+ * was selected when it sealed — the value the dashboard showed, or would have
+ * shown, then — so a switch moves the grace hour and everything after it, as a
+ * calibration does, and the sealed past keeps one lane per stretch whatever is
+ * viewed afterwards.
  *
  * Only lane changes are logged: modes 0 and 2 both put auto on the main line,
  * 1 and 3 raw. Every user-facing switch goes through
