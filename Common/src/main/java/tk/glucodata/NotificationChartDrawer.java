@@ -1069,7 +1069,7 @@ public class NotificationChartDrawer {
             GlucosePoint p,
             boolean isRawMode,
             String calibrationSensorId) {
-        Float sealed = tk.glucodata.chart.HistoryChartModelBuilder.INSTANCE.recordedMainValue(p, isRawMode);
+        Float sealed = tk.glucodata.chart.HistoryChartModelBuilder.INSTANCE.recordedMainValue(p);
         if (sealed != null) return sealed;
         float baseVal = isRawMode ? p.rawValue : p.value;
         if (baseVal <= 0f) return 0f;

@@ -19,7 +19,7 @@ class HistoryChartModelBuilderTests {
     }
 
     private fun point(ts: Long, value: Float, serial: String, sealed: Float = Float.NaN) =
-        GlucosePoint(ts, value, value).also { it.sensorSerial = serial; it.sealedAutoLaneValue = sealed }
+        GlucosePoint(ts, value, value).also { it.sensorSerial = serial; it.sealedDisplayValue = sealed }
 
     private fun series(id: String, primary: Boolean, vararg points: GlucosePoint) =
         HistoryChartModelBuilder.SeriesInput(id, primary, viewMode = 0, colorArgb = 0, points = points.toList())
@@ -28,63 +28,37 @@ class HistoryChartModelBuilderTests {
     private val plusOne = HistoryChartModelBuilder.Calibration { v, _, _, _ -> v + 1f }
 
     @Test
-    fun aRecordHoldsOnlyTheLineItWasShownOn() {
-        // Shown on the raw line (9.5). The auto line was never shown for this
-        // minute, so it draws live — it must not borrow the raw line's number.
-        val p = GlucosePoint(NOW, 5f, 9f).also { it.sensorSerial = "A"; it.sealedRawLaneValue = 9.5f }
+    fun aRecordHoldsTheMainLineWhicheverLaneIsSelectedNow() {
+        // Sealed while the raw lane was main (mode 1). Switching to auto must
+        // not re-derive it: the record is the number the user was shown.
+        val p = GlucosePoint(NOW, 5f, 9f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 9.5f; it.sealedDisplayViewMode = 1
+        }
         assertEquals(9.5f, HistoryChartModelBuilder.resolveValue(p, isRawMode = true, "A", plusOne)!!, 0.001f)
-        assertEquals(6f, HistoryChartModelBuilder.resolveValue(p, isRawMode = false, "A", plusOne)!!, 0.001f)
-        val q = GlucosePoint(NOW, 5f, 9f).also { it.sensorSerial = "A"; it.sealedAutoLaneValue = 5.5f }
+        assertEquals(9.5f, HistoryChartModelBuilder.resolveValue(p, isRawMode = false, "A", plusOne)!!, 0.001f)
+        val q = GlucosePoint(NOW, 5f, 9f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 5.5f; it.sealedDisplayViewMode = 2
+        }
         assertEquals(5.5f, HistoryChartModelBuilder.resolveValue(q, isRawMode = false, "A", plusOne)!!, 0.001f)
-        assertEquals(10f, HistoryChartModelBuilder.resolveValue(q, isRawMode = true, "A", plusOne)!!, 0.001f)
+        assertEquals(5.5f, HistoryChartModelBuilder.resolveValue(q, isRawMode = true, "A", plusOne)!!, 0.001f)
     }
 
     @Test
-    fun aLaneSwitchShowsEachLinesOwnRecordAndSwitchingBackRestoresIt() {
-        // Both lines recorded for the same minutes; a raw calibration added since.
-        fun recorded(ts: Long) = GlucosePoint(ts, 66f, 72f).also {
-            it.sensorSerial = "A"; it.sealedAutoLaneValue = 66f; it.sealedRawLaneValue = 70f
+    fun aLaneSwitchKeepsTheRecordedLineAndPreviewsTheSelectedLane() {
+        // The 2026-10-17 AiDEX store: minutes recorded on the auto line, viewed
+        // after a switch to raw with a raw calibration added. The main line
+        // keeps the auto record; the calibrated raw value shows as the preview.
+        fun recordedOnAuto(ts: Long) = GlucosePoint(ts, 66f, 72f).also {
+            it.sensorSerial = "A"; it.sealedDisplayValue = 66f; it.sealedDisplayViewMode = 0
         }
-        fun build(viewMode: Int) = HistoryChartModelBuilder.build(
-            listOf(
-                HistoryChartModelBuilder.SeriesInput(
-                    "A", isPrimary = true, viewMode = viewMode, colorArgb = 0,
-                    points = listOf(recorded(NOW), recorded(NOW + MINUTE)),
-                )
-            ),
-            MainSensorOwnership.NONE, plusOne, hasCalibration = true,
+        val a = HistoryChartModelBuilder.SeriesInput(
+            "A", isPrimary = true, viewMode = 1, colorArgb = 0,
+            points = listOf(recordedOnAuto(NOW), recordedOnAuto(NOW + MINUTE)),
         )
-        fun mainValues(model: HistoryChartModel) = model.primary!!.runs.flatMap { it.points }.map { it.value }
-        fun previewValues(model: HistoryChartModel) = model.primary!!.secondaryLanes
-            .single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }.runs.flatMap { it.points }.map { it.value }
-
-        val raw = build(viewMode = 1)
-        assertEquals(listOf(70f, 70f), mainValues(raw))
-        assertEquals("today's raw calibration, beside the record", listOf(73f, 73f), previewValues(raw))
-        val auto = build(viewMode = 0)
-        assertEquals(listOf(66f, 66f), mainValues(auto))
-        assertEquals(listOf(67f, 67f), previewValues(auto))
-        assertEquals(mainValues(raw), mainValues(build(viewMode = 3)))
-        assertEquals(mainValues(auto), mainValues(build(viewMode = 2)))
-    }
-
-    @Test
-    fun theOtherLinesRecordsNeverStitchIntoThisOne() {
-        // The 2026-10-17 store after a fresh start: the first stretch was first
-        // shown on auto, the second on raw. With one record per minute both
-        // lanes drew auto then raw — a step at the boundary in either lane.
-        val points = (0 until 6).map { i ->
-            GlucosePoint(NOW + i * MINUTE, 120f, 100f).also {
-                it.sensorSerial = "A"
-                if (i < 3) it.sealedAutoLaneValue = 120f else it.sealedRawLaneValue = 100f
-            }
-        }
-        fun mainValues(viewMode: Int) = HistoryChartModelBuilder.build(
-            listOf(HistoryChartModelBuilder.SeriesInput("A", true, viewMode, 0, points)),
-            MainSensorOwnership.NONE, noCalibration,
-        ).primary!!.runs.flatMap { it.points }.map { it.value }
-        assertEquals(List(6) { 120f }, mainValues(0))
-        assertEquals(List(6) { 100f }, mainValues(1))
+        val model = HistoryChartModelBuilder.build(listOf(a), MainSensorOwnership.NONE, plusOne, hasCalibration = true)
+        assertEquals(listOf(66f, 66f), model.primary!!.runs.flatMap { it.points }.map { it.value })
+        val preview = model.primary!!.secondaryLanes.single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }
+        assertEquals(listOf(73f, 73f), preview.runs.flatMap { it.points }.map { it.value })
     }
 
     @Test

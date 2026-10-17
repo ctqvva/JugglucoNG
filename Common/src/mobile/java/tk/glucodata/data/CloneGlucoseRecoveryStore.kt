@@ -144,11 +144,9 @@ internal class CloneGlucoseRecoveryStore(
 
     private suspend fun exportDisplay(sink: CloneRecoveryPackageIO.RecordSink) {
         var afterTimestamp = 0L
-        var afterLane = Int.MIN_VALUE
         while (true) {
             val page = displayDao.getRecoveryPage(
                 afterTimestamp = afterTimestamp,
-                afterLane = afterLane,
                 limit = PAGE_SIZE,
             )
             if (page.isEmpty()) return
@@ -159,7 +157,6 @@ internal class CloneGlucoseRecoveryStore(
                 )
             }
             afterTimestamp = page.last().timestamp
-            afterLane = page.last().lane
         }
     }
 

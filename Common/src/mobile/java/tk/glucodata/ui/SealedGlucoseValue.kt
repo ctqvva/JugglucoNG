@@ -14,7 +14,7 @@ import tk.glucodata.data.calibration.CalibrationManager
  * property of whichever screen happened to be updated.
  *
  * Values in, values out, all in the caller's display unit: a point's
- * recorded values are converted alongside its value by
+ * [GlucosePoint.sealedDisplayValue] is converted alongside its value by
  * `inDisplayUnit`, so both sides of this choice are already in the same unit.
  */
 internal object SealedGlucoseValue {
@@ -28,9 +28,10 @@ internal object SealedGlucoseValue {
         isRawMode: Boolean,
         sensorId: String?
     ): Float? {
-        // The record of the line being shown — the same rule the chart builder
-        // applies (recordedMainValue), or rows and chart disagree minute by minute.
-        point.sealedValueFor(isRawMode)?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
+        // The record is what the main line showed, whichever lane drew it —
+        // the same rule the chart builder applies (recordedMainValue), or rows
+        // and charts disagree minute by minute after a view-mode switch.
+        point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         return computeCalibrated(
             baseValue = if (isRawMode) point.rawValue else point.value,
             timestamp = point.timestamp,

@@ -357,8 +357,8 @@ class HistoryRepository(context: Context = Applic.app) {
                         // only draw today's derivation of a line the user had
                         // already been shown.
                         tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue).also { out ->
-                            out.sealedAutoLaneValue = p.sealedAutoLaneValue ?: Float.NaN
-                            out.sealedRawLaneValue = p.sealedRawLaneValue ?: Float.NaN
+                            out.sealedDisplayValue = p.sealedDisplayValue ?: Float.NaN
+                            out.sealedDisplayViewMode = p.sealedDisplayViewMode ?: -1
                             out.sensorSerial = p.sensorSerial
                         }
                     }
@@ -866,20 +866,15 @@ class HistoryRepository(context: Context = Applic.app) {
                 val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
                 val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
                 val records = displayDao.getBetween(start, end)
-                // Per lane: a stale raw-line record says nothing about the auto line's.
-                val minutesByLane = records.groupBy { it.lane }.mapValues { (_, laneRecords) ->
-                    RecordedDisplayVoiding.minutesToVoid(
-                        laneRecords, roomSerial, rewritten, autoIntegrated, rawIntegrated,
-                    )
-                }.filterValues { it.isNotEmpty() }
-                if (minutesByLane.isEmpty()) return@withContext 0
+                val minutes = RecordedDisplayVoiding.minutesToVoid(
+                    records, roomSerial, rewritten, autoIntegrated, rawIntegrated,
+                )
+                if (minutes.isEmpty()) return@withContext 0
                 var deleted = 0
                 database.withTransaction {
-                    minutesByLane.forEach { (lane, minutes) ->
-                        // Under SQLite's older 999-variable ceiling, which some devices still have.
-                        minutes.chunked(500).forEach { chunk ->
-                            deleted += displayDao.deleteAtMinutes(lane, chunk)
-                        }
+                    // Under SQLite's older 999-variable ceiling, which some devices still have.
+                    minutes.chunked(500).forEach { chunk ->
+                        deleted += displayDao.deleteAtMinutes(chunk)
                     }
                 }
                 tk.glucodata.Log.i(
@@ -1101,10 +1096,10 @@ class HistoryRepository(context: Context = Applic.app) {
                 val indexed = display.indexedDisplay()
                 mapped.map { point ->
                     val sealed = indexed[displayKey(point.timestamp)]
-                        ?.filter { it.isUsable && it.isSealedAt(nowMs) }
-                        ?.filter { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
-                        ?.filter { record ->
-                            val serial = point.sensorSerial ?: return@filter true
+                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                        ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
+                        ?.takeIf { record ->
+                            val serial = point.sensorSerial ?: return@takeIf true
                             recordStillDescribes(
                                 HistoryReading(
                                     timestamp = point.timestamp, sensorSerial = serial,
@@ -1113,12 +1108,8 @@ class HistoryRepository(context: Context = Applic.app) {
                                 record,
                             )
                         }
-                        ?.takeUnless { it.isEmpty }
                         ?: return@map point
-                    point.copy(
-                        sealedAutoLaneValue = sealed.auto?.displayMgdl,
-                        sealedRawLaneValue = sealed.raw?.displayMgdl,
-                    )
+                    point.copy(sealedDisplayValue = sealed.displayMgdl, sealedDisplayViewMode = sealed.viewMode)
                 }
             }
         }.flowOn(Dispatchers.IO)
@@ -1671,7 +1662,7 @@ class HistoryRepository(context: Context = Applic.app) {
     private fun mapReadings(
         readings: List<HistoryReading>,
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap(),
-        display: Map<Long, ReadingDisplayLanes> = emptyMap()
+        display: Map<Long, ReadingDisplay> = emptyMap()
     ): List<GlucosePoint> {
         val nowMs = System.currentTimeMillis()
         val freezeEnabled = display.isNotEmpty() &&
@@ -1687,8 +1678,8 @@ class HistoryRepository(context: Context = Applic.app) {
                 sensorSerial = reading.sensorSerial,
                 source = reading.source,
                 uncertainty = uncertainty[uncertaintyKey(reading)]?.toGlucoseUncertainty(),
-                sealedAutoLaneValue = sealed?.auto?.displayMgdl,
-                sealedRawLaneValue = sealed?.raw?.displayMgdl,
+                sealedDisplayValue = sealed?.displayMgdl,
+                sealedDisplayViewMode = sealed?.viewMode,
             )
         }
     }
@@ -1701,7 +1692,7 @@ class HistoryRepository(context: Context = Applic.app) {
      * two-sensor store fall back to live derivation for every minute the other
      * sensor owned.
      */
-    private suspend fun displayRecordsFor(startTime: Long): Map<Long, ReadingDisplayLanes> {
+    private suspend fun displayRecordsFor(startTime: Long): Map<Long, ReadingDisplay> {
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
             return emptyMap()
         }
@@ -1709,7 +1700,8 @@ class HistoryRepository(context: Context = Applic.app) {
             .getOrDefault(emptyMap())
     }
 
-    private fun List<ReadingDisplay>.indexedDisplay(): Map<Long, ReadingDisplayLanes> = byMinute()
+    private fun List<ReadingDisplay>.indexedDisplay(): Map<Long, ReadingDisplay> =
+        if (isEmpty()) emptyMap() else associateBy { displayKey(it.timestamp) }
 
     /**
      * Intervals are keyed by sensor and **minute**, not by exact timestamp.
@@ -1765,20 +1757,21 @@ class HistoryRepository(context: Context = Applic.app) {
      */
     private fun mapReadingForStats(
         reading: HistoryReading,
-        display: Map<Long, ReadingDisplayLanes> = emptyMap(),
+        display: Map<Long, ReadingDisplay> = emptyMap(),
         freezeEnabled: Boolean = false,
         nowMs: Long = System.currentTimeMillis()
     ): GlucosePoint {
-        // Both lanes travel with the point; the statistic takes the record of
-        // the lane it summarises — see HistoryChartModelBuilder.recordedMainValue.
+        // The lane tag travels with the value as provenance. It does not gate
+        // the record: a statistic describes the main value that was shown,
+        // whichever lane showed it — see HistoryChartModelBuilder.recordedMainValue.
         val sealed = if (!freezeEnabled) {
             null
         } else {
             display[displayKey(reading.timestamp)]
-                ?.filter { it.isUsable && it.isSealedAt(nowMs) }
-                // The minute's record whichever sensor won it — but not a stale
+                ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                // The minute's record whoever showed it — but not a stale
                 // one of this reading's own sensor; see recordStillDescribes.
-                ?.filter { record ->
+                ?.takeIf { record ->
                     !SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||
                         recordStillDescribes(reading, record)
                 }
@@ -1791,8 +1784,8 @@ class HistoryRepository(context: Context = Applic.app) {
             rate = reading.rate,
             sensorSerial = reading.sensorSerial,
             source = reading.source,
-            sealedAutoLaneValue = sealed?.auto?.displayMgdl,
-            sealedRawLaneValue = sealed?.raw?.displayMgdl,
+            sealedDisplayValue = sealed?.displayMgdl,
+            sealedDisplayViewMode = sealed?.viewMode,
         )
     }
 
@@ -1800,7 +1793,7 @@ class HistoryRepository(context: Context = Applic.app) {
         readings: List<HistoryReading>,
         preferredSerial: String?,
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap(),
-        display: Map<Long, ReadingDisplayLanes> = emptyMap()
+        display: Map<Long, ReadingDisplay> = emptyMap()
     ): List<GlucosePoint> {
         // The merge decides ownership from today's facts, and the recorded
         // owner is deliberately NOT applied here. Substituting it per minute
@@ -2146,9 +2139,8 @@ class HistoryRepository(context: Context = Applic.app) {
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
-     * the window is revised, because it is still settling, so it seals as it was
-     * last shown. Each lane is its own record: presenting the raw line freezes
-     * and revises the raw line's record of a minute, never the auto line's.
+     * the window is revised, because it is still settling — by a calibration
+     * change or a view-mode switch alike, so it seals as it was last shown.
      * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
@@ -2194,7 +2186,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     rows.filter { it.timestamp > sealHorizon }.forEach { row ->
                         displayDao.reviseIfUnsealed(
                             row.timestamp, row.sensorSerial, row.displayMgdl, row.viewMode,
-                            row.calibrationFingerprint, row.recordedAt, sealHorizon, row.lane,
+                            row.calibrationFingerprint, row.recordedAt, sealHorizon,
                         )
                     }
                     count
@@ -2260,15 +2252,14 @@ class HistoryRepository(context: Context = Applic.app) {
      */
     private fun sealedRecordForLine(
         reading: HistoryReading,
-        display: Map<Long, ReadingDisplayLanes>,
+        display: Map<Long, ReadingDisplay>,
         nowMs: Long
-    ): ReadingDisplayLanes? {
-        val records = display[displayKey(reading.timestamp)] ?: return null
-        return records.filter { record ->
-            record.isUsable && record.isSealedAt(nowMs) &&
-                SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) &&
-                recordStillDescribes(reading, record)
-        }.takeUnless { it.isEmpty }
+    ): ReadingDisplay? {
+        val record = display[displayKey(reading.timestamp)] ?: return null
+        if (!record.isUsable || !record.isSealedAt(nowMs)) return null
+        if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
+        if (!recordStillDescribes(reading, record)) return null
+        return record
     }
 
     /**

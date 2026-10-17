@@ -6,22 +6,19 @@ public class GlucosePoint {
     public float rawValue; // Added for Raw data
     public int color; // Optional, for point coloring
     /**
-     * The main value recorded for this minute on the auto line (view modes 0/2),
-     * in the same unit as {@link #value}, or NaN when nothing was recorded there.
-     * A renderer that finds one draws it instead of recomputing — see
-     * tk.glucodata.data.ReadingDisplay. This bridge type dropped the record for a
-     * long time, which is why the notification chart could only ever show
-     * today's derivation of yesterday's line.
+     * The value this reading was recorded as having shown, in the same unit as
+     * {@link #value}, or NaN when nothing was recorded. A renderer that finds one
+     * draws it instead of recomputing — see tk.glucodata.data.ReadingDisplay.
+     * This bridge type dropped it for a long time, which is why the notification
+     * chart could only ever show today's derivation of yesterday's line.
      */
-    public float sealedAutoLaneValue = Float.NaN;
-    /** The same for the raw line (view modes 1/3). */
-    public float sealedRawLaneValue = Float.NaN;
-
-    /** The recorded main value of the lane being drawn, or NaN. */
-    public float sealedValueFor(boolean isRawMode) {
-        return isRawMode ? sealedRawLaneValue : sealedAutoLaneValue;
-    }
-
+    public float sealedDisplayValue = Float.NaN;
+    /**
+     * The view mode in force when {@link #sealedDisplayValue} was recorded, so a
+     * renderer knows which lane the number belongs to (0/2 auto, 1/3 raw).
+     * -1 when nothing was recorded.
+     */
+    public int sealedDisplayViewMode = -1;
     /** The sensor that produced this reading, when known. */
     public String sensorSerial;
 

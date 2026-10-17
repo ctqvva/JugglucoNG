@@ -11,16 +11,16 @@ class NotificationChartSmoothingTests {
         val points = listOf(100f, 100f, 220f, 100f, 100f).mapIndexed { i, value ->
             GlucosePoint(i*60_000L, value, value).also {
                 it.sensorSerial = "A"
-                it.sealedAutoLaneValue = 125f
-                it.sealedRawLaneValue = 118f
+                it.sealedDisplayValue = 125f
+                it.sealedDisplayViewMode = 0
             }
         }
         val smoothed = NotificationChartModelSource.smoothPoints(points, 3, false)
         assertNotEquals(points[2].value, smoothed[2].value)
         smoothed.forEach {
             assertEquals("A", it.sensorSerial)
-            assertEquals(125f, it.sealedAutoLaneValue, 0.001f)
-            assertEquals(118f, it.sealedRawLaneValue, 0.001f)
+            assertEquals(125f, it.sealedDisplayValue, 0.001f)
+            assertEquals(0, it.sealedDisplayViewMode)
         }
         val model = HistoryChartModelBuilder.build(
             listOf(HistoryChartModelBuilder.SeriesInput("A", true, 0, 0, smoothed)),

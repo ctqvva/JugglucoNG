@@ -20,9 +20,7 @@ class ChartCursorTests {
     }
 
     private fun point(ts: Long, auto: Float, raw: Float, serial: String, sealed: Float = Float.NaN) =
-        GlucosePoint(ts, auto, raw).also {
-            it.sensorSerial = serial; it.sealedAutoLaneValue = sealed; it.sealedRawLaneValue = sealed
-        }
+        GlucosePoint(ts, auto, raw).also { it.sensorSerial = serial; it.sealedDisplayValue = sealed }
 
     private fun series(id: String, primary: Boolean, viewMode: Int, hasCalibration: Boolean, vararg points: GlucosePoint) =
         HistoryChartModelBuilder.SeriesInput(

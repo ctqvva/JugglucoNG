@@ -10,7 +10,7 @@ import tk.glucodata.GlucosePoint
  *
  * The oracle is the rule set DashboardChart used to apply per frame:
  *
- * - value: the lane's own record if usable, else the lane's calibration when one
+ * - value: `sealedDisplayValue` if usable, else the lane's calibration when one
  *   applies, else the lane's own value (`CalibratedValueResolver.valueAt`);
  * - look: `MainSensorOwnership.isMainAt` per point, null keeping the default
  *   (`ownershipRanges`);
@@ -33,20 +33,15 @@ class HistoryChartModelParityTests {
 
     private fun point(ts: Long, auto: Float, raw: Float, serial: String, sealed: Float = Float.NaN, sealedMode: Int = -1) =
         GlucosePoint(ts, auto, raw).also {
-            it.sensorSerial = serial
-            when (sealedMode) {
-                0, 2 -> it.sealedAutoLaneValue = sealed
-                1, 3 -> it.sealedRawLaneValue = sealed
-            }
+            it.sensorSerial = serial; it.sealedDisplayValue = sealed; it.sealedDisplayViewMode = sealedMode
         }
 
     /**
-     * The per-point value rule: a usable record of the line being drawn wins,
-     * as the main value the user saw on it; the other line's record does not.
+     * The dashboard's former per-point value rule: a usable record wins in
+     * whichever lane it was shown, as the main value the user saw.
      */
     private fun oracleValue(p: GlucosePoint, isRaw: Boolean, cal: ((Float, Long) -> Float)?): Float? {
-        val sealed = if (isRaw) p.sealedRawLaneValue else p.sealedAutoLaneValue
-        if (!sealed.isNaN() && sealed > 0.1f) return sealed
+        if (!p.sealedDisplayValue.isNaN() && p.sealedDisplayValue > 0.1f) return p.sealedDisplayValue
         val base = if (isRaw) p.rawValue else p.value
         if (base.isNaN() || base <= 0.1f) return null
         return cal?.invoke(base, p.timestamp) ?: base

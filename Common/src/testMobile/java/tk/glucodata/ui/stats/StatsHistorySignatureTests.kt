@@ -17,9 +17,9 @@ class StatsHistorySignatureTests {
     private fun changed(point: GlucosePoint) = original.toMutableList().also { it[37] = point }
 
     @Test fun interiorSealingAndLaneChangesReachTheStatsConsumer() = runBlocking {
-        val sealed = changed(original[37].copy(sealedAutoLaneValue = 120f))
-        val revised = changed(sealed[37].copy(sealedAutoLaneValue = 125f))
-        val rawLane = changed(revised[37].copy(sealedRawLaneValue = 98f))
+        val sealed = changed(original[37].copy(sealedDisplayValue = 120f, sealedDisplayViewMode = 0))
+        val revised = changed(sealed[37].copy(sealedDisplayValue = 125f))
+        val rawLane = changed(revised[37].copy(sealedDisplayViewMode = 1))
         val emissions = flowOf(original, sealed, sealed.toList(), revised, rawLane, original)
             .distinctUntilChangedBy(::statsHistorySignature).toList()
         assertEquals(listOf(original, sealed, revised, rawLane, original), emissions)

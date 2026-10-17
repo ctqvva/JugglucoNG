@@ -168,18 +168,4 @@ class HistoryDatabaseSafetyTests {
         assertFalse(source.contains("DROP TABLE clone_journal_tombstones"))
         assertFalse(source.contains("DROP TABLE journal_entries"))
     }
-
-    @Test
-    fun displayRecordsMoveToTheirLaneAtV33WithoutLosingARow() {
-        val source = historyDatabaseSource()
-        val step = source.substringAfter("Migration(32, 33)").substringBefore("\n        }\n")
-        assertTrue(source.contains("MIGRATION_32_33"))
-        assertTrue(step.contains("PRIMARY KEY(timestamp, lane)"))
-        // Every row is copied, in the lane its view mode names, before the old table goes.
-        val copy = step.indexOf("INSERT OR IGNORE INTO reading_display_by_lane")
-        val drop = step.indexOf("DROP TABLE reading_display")
-        assertTrue(copy >= 0 && drop > copy)
-        assertTrue(step.contains("(viewMode & 1)"))
-        assertTrue(step.contains("index_reading_display_sensorSerial"))
-    }
 }
