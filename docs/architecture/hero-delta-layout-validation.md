@@ -1,10 +1,11 @@
 # Hero delta geometry
 
 A single-value hero centers its regular body-large delta beside the primary,
-with a 16dp gap. A two-value hero uses that same gap for a support column:
-the baseline-aligned dot and secondary occupy its upper line, with the smaller
-body-small delta directly below, aligned to the dot's leading edge. Enabling
-the delta does not insert anything between the primary and dot or move the
+with a 16dp gap. A two-value hero preserves the original reading spacing:
+8dp from primary to dot, then 4dp from dot to secondary. The baseline-aligned
+dot and secondary occupy the upper line, with the smaller body-small delta
+directly below. Its independent 16dp inset does not affect the reading gaps.
+Enabling the delta does not insert anything between the primary and dot or move the
 secondary sideways. Three values and constrained widths use the arrow area.
 The delta cannot increase measured or intrinsic hero height.
 
@@ -29,6 +30,6 @@ complete dashboard configuration.
 
 `HeroReadingLayoutTests` verifies measured and intrinsic height invariance across
 three glyph sizes, dot/secondary baseline alignment, delta placement below the
-support line in LTR/RTL, stable horizontal dot/secondary positions when toggling
-delta, and preservation of the primary's width. All four tests and the mobile
-debug compilation pass.
+support line in LTR/RTL, the original 8dp/4dp reading gaps with delta on and off,
+and preservation of the primary's width. All four tests and the mobile debug
+compilation pass.

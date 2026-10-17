@@ -68,8 +68,6 @@ class HeroReadingLayoutTests {
             result.placeChildren()
             val (primary, dot, second, delta) = children
             assertEquals(dot.position.y + dot.baseline, second.position.y + second.baseline)
-            assertEquals(dot.position.x, if (direction == LayoutDirection.Ltr) delta.position.x
-                else delta.position.x + delta.measuredWidth - dot.measuredWidth)
             assertTrue(delta.position.y >= dot.position.y + dot.naturalHeight)
             assertTrue(delta.position.y >= second.position.y + second.naturalHeight)
             assertTrue(delta.position.y + delta.naturalHeight <= primary.naturalHeight)
@@ -90,6 +88,15 @@ class HeroReadingLayoutTests {
             assertEquals(withoutResult.width, withResult.width)
             assertEquals(withoutDelta[1].position.x, withDelta[1].position.x)
             assertEquals(withoutDelta[2].position.x, withDelta[2].position.x)
+            for (children in listOf(withoutDelta, withDelta)) {
+                val (primary, dot, secondary) = children
+                val mainToDot = if (direction == LayoutDirection.Ltr) dot.position.x - primary.measuredWidth
+                    else primary.position.x - (dot.position.x + dot.measuredWidth)
+                val dotToSecondary = if (direction == LayoutDirection.Ltr) secondary.position.x - (dot.position.x + dot.measuredWidth)
+                    else dot.position.x - (secondary.position.x + secondary.measuredWidth)
+                assertEquals(8, mainToDot)
+                assertEquals(4, dotToSecondary)
+            }
         }
     }
 
