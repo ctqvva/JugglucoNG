@@ -53,7 +53,7 @@ class ICanHealthCeCalibrationTests {
     }
 
     @Test
-    fun startCalibFirstCalibrationRampsFromCurrent() {
+    fun startCalibFirstCalibrationRampsFromCount() {
         val result = ICanHealthCeCalibration.startCalib(
             currentGluMgDl = 180f,
             isFirstCalibration = true,
@@ -61,11 +61,12 @@ class ICanHealthCeCalibrationTests {
             sensorCurrent = 1f,
             temperatureC = 1f,
         )
-        assertFalse(result.isCalibrated)
+        // ramp = ((180 - 1) * 0) / 5 + 1
+        assertTrue(result.isCalibrated)
         assertEquals(180f, result.encodedP, 0.0001f)
         assertEquals(1, result.calibCount)
-        assertEquals(180f, result.calibProduct, 0.0001f)
-        assertEquals(180f, result.temperature, 0.0001f)
+        assertEquals(1f, result.calibProduct, 0.0001f)
+        assertEquals(1f, result.temperature, 0.0001f)
         assertEquals(1f, result.currentTimesTemp, 0.0001f)
     }
 
@@ -73,7 +74,7 @@ class ICanHealthCeCalibrationTests {
     fun startCalibRampsByExistingCount() {
         val result = ICanHealthCeCalibration.startCalib(
             currentGluMgDl = 180f,
-            isFirstCalibration = false,
+            isFirstCalibration = true,
             existingCalibrationCount = 2,
             sensorCurrent = 1f,
             temperatureC = 1f,
@@ -86,29 +87,51 @@ class ICanHealthCeCalibrationTests {
     }
 
     @Test
-    fun startCalibWrapsCountAfterFour() {
+    fun startCalibWrapsCountToOneAfterFour() {
         val result = ICanHealthCeCalibration.startCalib(
             currentGluMgDl = 180f,
-            isFirstCalibration = false,
+            isFirstCalibration = true,
             existingCalibrationCount = 4,
             sensorCurrent = 1f,
             temperatureC = 1f,
         )
         assertFalse(result.isCalibrated)
-        assertEquals(0, result.calibCount)
+        // The vendor lib wraps to 1, not 0.
+        assertEquals(1, result.calibCount)
+        // rampFactor = ((180 - 1) * 4) / 5 + 1
+        assertEquals(144.2f, result.temperature, 0.01f)
     }
 
     @Test
-    fun startCalibFallsBackToOneForInvalidCurrent() {
+    fun startCalibNonFirstKeepsCountAndScalesProduct() {
         val result = ICanHealthCeCalibration.startCalib(
-            currentGluMgDl = Float.NaN,
-            isFirstCalibration = true,
-            existingCalibrationCount = -3,
+            currentGluMgDl = 180f,
+            isFirstCalibration = false,
+            existingCalibrationCount = 2,
             sensorCurrent = 1f,
             temperatureC = 1f,
         )
-        assertEquals(1f, result.encodedP, 0.0001f)
-        assertEquals(1f, result.temperature, 0.0001f)
+        assertFalse(result.isCalibrated)
+        assertEquals(180f, result.encodedP, 0.0001f)
+        assertEquals(2, result.calibCount)
+        assertEquals(180f, result.calibProduct, 0.0001f)
+        assertEquals(1f, result.currentTimesTemp, 0.0001f)
+        // The lib stores the raw glucose in the temperature slot on this path.
+        assertEquals(180f, result.temperature, 0.0001f)
+    }
+
+    @Test
+    fun startCalibPassesThroughRawInputLikeNativeLib() {
+        // libAlg.so applies no finite/positive guard; NaN propagates verbatim.
+        val result = ICanHealthCeCalibration.startCalib(
+            currentGluMgDl = Float.NaN,
+            isFirstCalibration = true,
+            existingCalibrationCount = 0,
+            sensorCurrent = 1f,
+            temperatureC = 1f,
+        )
+        assertTrue(result.encodedP.isNaN())
+        assertTrue(result.calibProduct.isNaN())
         assertEquals(1, result.calibCount)
     }
 }

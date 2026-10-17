@@ -49,6 +49,30 @@ object ICanHealthCeCalibration {
         )
     }
 
+    /**
+     * Mirrors `AlgNamespace::startCalib` from the vendor `libAlg.so`
+     * (iCan Health 01.18.00.19, ARM Thumb function at file offset 0xd740).
+     *
+     * The previous port had the two branches swapped: it applied the
+     * count-based ramp when `isFirstCalibration` was false, while the binary
+     * applies it when the flag is true (the JNI bridge in `libsinoCgmSdk.so`
+     * normalises the jboolean to 0/1 and passes it through without inversion).
+     * Concretely the binary does:
+     * - flag true:  ramp = ((cur - 1) * count) / 5 + 1, calibrated = count < 4,
+     *   next count = count + 1 (wrapping to 1, not 0, once count reaches 4),
+     *   product = current * temp * ramp, temperature slot = ramp;
+     * - flag false: product = cur * current * temp, not calibrated, count kept
+     *   as-is, temperature slot = cur.
+     *
+     * Like the binary, no finite/positive guard is applied to the inputs here.
+     * Note the binary stores the raw finger glucose in the temperature slot on
+     * the non-first path; that looks odd but is what the lib does, so it is
+     * mirrored verbatim.
+     *
+     * Currently unreachable at runtime (`supportsSensorCalibration()` is false,
+     * so `calibrateSensor()` never runs); kept exact so a future enablement
+     * matches the vendor behaviour.
+     */
     fun startCalib(
         currentGluMgDl: Float,
         isFirstCalibration: Boolean,
@@ -56,28 +80,28 @@ object ICanHealthCeCalibration {
         sensorCurrent: Float,
         temperatureC: Float,
     ): ICanHealthCeCalibrationResult {
-        val safeCurrent = currentGluMgDl.takeIf { it.isFinite() && it > 0f } ?: 1f
-        val count = existingCalibrationCount.coerceAtLeast(0)
-        val rampFactor = if (isFirstCalibration) {
-            safeCurrent
-        } else {
-            (((safeCurrent - 1f) * count.toFloat()) / 5f) + 1f
+        if (isFirstCalibration) {
+            val rampFactor =
+                (((currentGluMgDl - 1f) * existingCalibrationCount.toFloat()) / 5f) + 1f
+            val calibrated = existingCalibrationCount < 4
+            val nextCount =
+                if (existingCalibrationCount < 4) existingCalibrationCount + 1 else 1
+            return ICanHealthCeCalibrationResult(
+                encodedP = currentGluMgDl,
+                isCalibrated = calibrated,
+                calibCount = nextCount,
+                calibProduct = sensorCurrent * temperatureC * rampFactor,
+                currentTimesTemp = temperatureC,
+                temperature = rampFactor,
+            )
         }
-        val nextCount = if (isFirstCalibration) {
-            1
-        } else if (count < 4) {
-            count + 1
-        } else {
-            0
-        }
-
         return ICanHealthCeCalibrationResult(
-            encodedP = safeCurrent,
-            isCalibrated = !isFirstCalibration && count < 4,
-            calibCount = nextCount,
-            calibProduct = sensorCurrent * temperatureC * rampFactor,
+            encodedP = currentGluMgDl,
+            isCalibrated = false,
+            calibCount = existingCalibrationCount,
+            calibProduct = currentGluMgDl * sensorCurrent * temperatureC,
             currentTimesTemp = temperatureC,
-            temperature = rampFactor,
+            temperature = currentGluMgDl,
         )
     }
 

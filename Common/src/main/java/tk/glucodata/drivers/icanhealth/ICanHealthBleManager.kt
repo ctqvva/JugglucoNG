@@ -2302,7 +2302,11 @@ class ICanHealthBleManager(
 
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
-                Log.i(TAG, "Sensor info: ${data.toHexString()}")
+                Log.i(
+                    TAG,
+                    "Sensor info: ${data.toHexString()} " +
+                        "model=$vendorModelName sw=$vendorSoftwareVersion ${bundledKeyContext()}"
+                )
                 startPostAuthSetup("sensor-info")
             }
 
@@ -2366,22 +2370,29 @@ class ICanHealthBleManager(
     }
 
     private fun handleRacpResponse(data: ByteArray) {
+        // Keep the raw bytes and the device identity on every RACP outcome: a
+        // history failure on an unseen firmware is otherwise undebuggable.
+        val racpContext =
+            "racp=${data.toHexString()} phase=${historyBackfillPhase.name} ${bundledKeyContext()}" +
+                " model=$vendorModelName sw=$vendorSoftwareVersion"
         when (ICanHealthParser.parseRacpResultCode(data)) {
             ICanHealthConstants.RACP_RESULT_SUCCESS -> {
-                Log.i(TAG, "RACP transfer complete")
+                Log.i(TAG, "RACP transfer complete ($racpContext)")
                 handleRacpPhaseCompletion(noData = false)
             }
 
             ICanHealthConstants.RACP_RESULT_NO_DATA -> {
-                Log.i(TAG, "RACP reported no data")
+                Log.i(TAG, "RACP reported no data ($racpContext)")
                 handleRacpPhaseCompletion(noData = true)
             }
 
             ICanHealthConstants.RACP_RESULT_NOT_SUPPORTED -> {
+                Log.w(TAG, "RACP not supported ($racpContext)")
                 handleRacpNotSupported()
             }
 
             ICanHealthConstants.RACP_RESULT_FAILED -> {
+                Log.w(TAG, "RACP failed ($racpContext)")
                 handleRacpFailed()
             }
 
