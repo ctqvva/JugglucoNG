@@ -704,6 +704,17 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="dexcom_setup_title">Dexcom beállítása</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">A Dexcom szenzoron lévő Data Matrix kód szkennelése</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-hely</string>
+    <string name="dexcom_slot_receiver_short">Pumpa</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Óra</string>
+    <string name="dexcom_slot_receiver">1. hely: vevőkészülék vagy pumpa</string>
+    <string name="dexcom_slot_app">2. hely: telefonos alkalmazás (alapértelmezett)</string>
+    <string name="dexcom_slot_watch">3. hely: okosóra</string>
+    <string name="dexcom_slot_desc">A szenzor minden helyhez külön párosítást tárol. Válasszon olyat, amelyet más eszköz nem használ: a Dexcom alkalmazás a telefon helyét foglalja el.</string>
+    <string name="dexcom_slot_button">Bluetooth-hely: %1$s</string>
+    <string name="dexcom_slot_change_desc">A szenzor a tárolt kóddal újra párosodik az új helyen. Ezután más eszköz használhatja a régi helyet.</string>
+    <string name="dexcom_slot_change_action">Hely módosítása</string>
     <string name="scan_dexcom">Dexcom szkennelése</string>
     <string name="accuchek_setup_title">Accu-Chek beállítása</string>
     <string name="accuchek_scan_instruction">Az Accu-Chek SmartGuide szenzoron lévő Data Matrix kód szkennelése</string>

@@ -468,6 +468,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scansiona Dexcom</string>
     <string name="dexcom_scan_instruction">Scansiona il datamatrix sul sensore Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Slot Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Pompa</string>
+    <string name="dexcom_slot_app_short">Telefono</string>
+    <string name="dexcom_slot_watch_short">Orologio</string>
+    <string name="dexcom_slot_receiver">Slot 1: ricevitore o pompa</string>
+    <string name="dexcom_slot_app">Slot 2: app per telefono (predefinito)</string>
+    <string name="dexcom_slot_watch">Slot 3: smartwatch</string>
+    <string name="dexcom_slot_desc">Il sensore mantiene un abbinamento separato per ogni slot. Scegline uno che nessun altro dispositivo usa: l\'app Dexcom occupa lo slot del telefono.</string>
+    <string name="dexcom_slot_button">Slot Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Il sensore verrà abbinato di nuovo sul nuovo slot con il codice salvato. Un altro dispositivo potrà poi usare quello vecchio.</string>
+    <string name="dexcom_slot_change_action">Cambia slot</string>
     <string name="dexcom_pairing_code_label">Codice di associazione a 4 cifre</string>
     <string name="dexcom_pairing_code_instruction">Inserisci il codice di associazione a 4 cifre stampato sull’applicatore del sensore.</string>
     <string name="libre_setup_title">Configurazione Libre</string>

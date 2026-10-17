@@ -647,6 +647,17 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Dexcom Tara</string>
     <string name="dexcom_scan_instruction">Dexcom sensöründeki datamatrix kodunu tarayın</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth yuvası</string>
+    <string name="dexcom_slot_receiver_short">Pompa</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Saat</string>
+    <string name="dexcom_slot_receiver">Yuva 1: alıcı veya pompa</string>
+    <string name="dexcom_slot_app">Yuva 2: telefon uygulaması (varsayılan)</string>
+    <string name="dexcom_slot_watch">Yuva 3: akıllı saat</string>
+    <string name="dexcom_slot_desc">Sensör her yuva için ayrı bir eşleşme tutar. Başka bir cihazın kullanmadığı birini seçin: Dexcom uygulaması telefon yuvasını kullanır.</string>
+    <string name="dexcom_slot_button">Bluetooth yuvası: %1$s</string>
+    <string name="dexcom_slot_change_desc">Sensör, kayıtlı koduyla yeni yuvada yeniden eşleşir. Ardından eski yuvayı başka bir cihaz kullanabilir.</string>
+    <string name="dexcom_slot_change_action">Yuvayı değiştir</string>
     <string name="dexcom_pairing_code_label">4 haneli eşleştirme kodu</string>
     <string name="dexcom_pairing_code_instruction">Sensör aplikatöründe yazan 4 haneli eşleştirme kodunu girin.</string>
     <string name="libre_setup_title">Libre Kurulumu</string>

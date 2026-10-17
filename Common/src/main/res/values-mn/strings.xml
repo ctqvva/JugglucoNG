@@ -701,6 +701,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">Dexcom мэдрэгч дээрх дата матрицыг уншуулна уу</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth слот</string>
+    <string name="dexcom_slot_receiver_short">Насос</string>
+    <string name="dexcom_slot_app_short">Утас</string>
+    <string name="dexcom_slot_watch_short">Цаг</string>
+    <string name="dexcom_slot_receiver">Слот 1: хүлээн авагч эсвэл насос</string>
+    <string name="dexcom_slot_app">Слот 2: утасны апп (үндсэн)</string>
+    <string name="dexcom_slot_watch">Слот 3: ухаалаг цаг</string>
+    <string name="dexcom_slot_desc">Мэдрэгч слот бүрт тусдаа холболт хадгалдаг. Өөр төхөөрөмж ашигладаггүй слотыг сонгоно уу: Dexcom апп утасны слотыг эзэлдэг.</string>
+    <string name="dexcom_slot_button">Bluetooth слот: %1$s</string>
+    <string name="dexcom_slot_change_desc">Мэдрэгч хадгалсан кодоор шинэ слот дээр дахин холбогдоно. Дараа нь хуучин слотыг өөр төхөөрөмж ашиглаж болно.</string>
+    <string name="dexcom_slot_change_action">Слот солих</string>
     <string name="scan_dexcom">Dexcom уншуулах</string>
     <string name="dexcom_pairing_code_label">4 оронтой холбох код</string>
     <string name="dexcom_pairing_code_instruction">Мэдрэгчийн аппликатор дээр хэвлэгдсэн 4 оронтой холбох кодыг оруулна уу.</string>

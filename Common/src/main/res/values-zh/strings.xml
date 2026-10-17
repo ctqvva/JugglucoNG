@@ -602,6 +602,17 @@
     <string name="dexcom_15_day_models">%1$s（G7 / Flex）</string>
     <string name="scan_dexcom">扫描 Dexcom</string>
     <string name="dexcom_scan_instruction">扫描 Dexcom 传感器上的 DataMatrix 代码</string>
+    <string name="dexcom_bluetooth_slot">蓝牙槽位</string>
+    <string name="dexcom_slot_receiver_short">泵</string>
+    <string name="dexcom_slot_app_short">手机</string>
+    <string name="dexcom_slot_watch_short">手表</string>
+    <string name="dexcom_slot_receiver">槽位 1：接收器或胰岛素泵</string>
+    <string name="dexcom_slot_app">槽位 2：手机应用（默认）</string>
+    <string name="dexcom_slot_watch">槽位 3：智能手表</string>
+    <string name="dexcom_slot_desc">传感器为每个槽位单独保存配对。请选择其他设备未使用的槽位：Dexcom 应用占用手机槽位。</string>
+    <string name="dexcom_slot_button">蓝牙槽位：%1$s</string>
+    <string name="dexcom_slot_change_desc">传感器将使用已保存的代码在新槽位上重新配对。之后其他设备可以使用旧槽位。</string>
+    <string name="dexcom_slot_change_action">更换槽位</string>
     <string name="dexcom_pairing_code_label">4 位配对码</string>
     <string name="dexcom_pairing_code_instruction">输入传感器助针器上印刷的 4 位配对码。</string>
     <string name="libre_setup_title">Libre 设置</string>

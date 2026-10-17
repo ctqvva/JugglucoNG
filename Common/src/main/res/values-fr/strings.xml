@@ -542,6 +542,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scanner Dexcom</string>
     <string name="dexcom_scan_instruction">Scannez le code datamatrix sur votre capteur Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Emplacement Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Pompe</string>
+    <string name="dexcom_slot_app_short">Téléphone</string>
+    <string name="dexcom_slot_watch_short">Montre</string>
+    <string name="dexcom_slot_receiver">Emplacement 1 : récepteur ou pompe</string>
+    <string name="dexcom_slot_app">Emplacement 2 : application mobile (par défaut)</string>
+    <string name="dexcom_slot_watch">Emplacement 3 : montre connectée</string>
+    <string name="dexcom_slot_desc">Le capteur garde un appairage distinct pour chaque emplacement. Choisissez-en un qu\'aucun autre appareil n\'utilise : l\'application Dexcom occupe l\'emplacement du téléphone.</string>
+    <string name="dexcom_slot_button">Emplacement Bluetooth : %1$s</string>
+    <string name="dexcom_slot_change_desc">Le capteur sera de nouveau appairé sur le nouvel emplacement avec son code enregistré. Un autre appareil pourra ensuite utiliser l\'ancien.</string>
+    <string name="dexcom_slot_change_action">Changer d\'emplacement</string>
     <string name="dexcom_pairing_code_label">Code d’association à 4 chiffres</string>
     <string name="dexcom_pairing_code_instruction">Saisissez le code d’association à 4 chiffres imprimé sur l’applicateur du capteur.</string>
     <string name="libre_setup_title">Configuration Libre</string>

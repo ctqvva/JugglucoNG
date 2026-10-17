@@ -691,6 +691,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Сканировать Dexcom</string>
     <string name="dexcom_scan_instruction">Сканируйте datamatrix код на сенсоре Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Слот Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Помпа</string>
+    <string name="dexcom_slot_app_short">Телефон</string>
+    <string name="dexcom_slot_watch_short">Часы</string>
+    <string name="dexcom_slot_receiver">Слот 1: ресивер или помпа</string>
+    <string name="dexcom_slot_app">Слот 2: приложение на телефоне (по умолчанию)</string>
+    <string name="dexcom_slot_watch">Слот 3: смарт-часы</string>
+    <string name="dexcom_slot_desc">Сенсор хранит отдельное сопряжение для каждого слота. Выберите тот, который не использует другое устройство: приложение Dexcom занимает слот телефона.</string>
+    <string name="dexcom_slot_button">Слот Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Сенсор заново выполнит сопряжение в новом слоте по сохранённому коду. После этого старый слот сможет занять другое устройство.</string>
+    <string name="dexcom_slot_change_action">Сменить слот</string>
     <string name="dexcom_pairing_code_label">4-значный код сопряжения</string>
     <string name="dexcom_pairing_code_instruction">Введите 4-значный код сопряжения, напечатанный на аппликаторе сенсора.</string>
     <string name="libre_setup_title">Настройка Libre</string>

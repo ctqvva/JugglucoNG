@@ -595,6 +595,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Skanna Dexcom</string>
     <string name="dexcom_scan_instruction">Skanna datamatrix-koden på Dexcom-sensorn</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-plats</string>
+    <string name="dexcom_slot_receiver_short">Pump</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Klocka</string>
+    <string name="dexcom_slot_receiver">Plats 1: mottagare eller pump</string>
+    <string name="dexcom_slot_app">Plats 2: telefonapp (standard)</string>
+    <string name="dexcom_slot_watch">Plats 3: smartklocka</string>
+    <string name="dexcom_slot_desc">Sensorn sparar en separat parkoppling för varje plats. Välj en som ingen annan enhet använder: Dexcom-appen tar telefonplatsen.</string>
+    <string name="dexcom_slot_button">Bluetooth-plats: %1$s</string>
+    <string name="dexcom_slot_change_desc">Sensorn parkopplas igen på den nya platsen med sin sparade kod. En annan enhet kan sedan använda den gamla platsen.</string>
+    <string name="dexcom_slot_change_action">Byt plats</string>
     <string name="dexcom_pairing_code_label">4-siffrig parkopplingskod</string>
     <string name="dexcom_pairing_code_instruction">Ange den 4-siffriga parkopplingskoden som står på sensorapplikatorn.</string>
     <string name="libre_setup_title">Libre Installation</string>

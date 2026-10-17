@@ -687,6 +687,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_scan_instruction">Scan de datamatrix op je Dexcom-sensor</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-slot</string>
+    <string name="dexcom_slot_receiver_short">Pomp</string>
+    <string name="dexcom_slot_app_short">Telefoon</string>
+    <string name="dexcom_slot_watch_short">Horloge</string>
+    <string name="dexcom_slot_receiver">Slot 1: ontvanger of pomp</string>
+    <string name="dexcom_slot_app">Slot 2: telefoon-app (standaard)</string>
+    <string name="dexcom_slot_watch">Slot 3: smartwatch</string>
+    <string name="dexcom_slot_desc">De sensor bewaart per slot een aparte koppeling. Kies er een die geen ander apparaat gebruikt: de Dexcom-app neemt het telefoonslot.</string>
+    <string name="dexcom_slot_button">Bluetooth-slot: %1$s</string>
+    <string name="dexcom_slot_change_desc">De sensor wordt met de opgeslagen code opnieuw gekoppeld op het nieuwe slot. Een ander apparaat kan daarna het oude slot gebruiken.</string>
+    <string name="dexcom_slot_change_action">Slot wijzigen</string>
     <string name="dexcom_pairing_code_label">4-cijferige koppelcode</string>
     <string name="dexcom_pairing_code_instruction">Voer de 4-cijferige koppelcode in die op de sensorapplicator staat.</string>
     <string name="libre_setup_title">Libre Installatie</string>

@@ -670,6 +670,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Skanuj Dexcom</string>
     <string name="dexcom_scan_instruction">Zeskanuj kod datamatrix na sensorze Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Gniazdo Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Pompa</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Zegarek</string>
+    <string name="dexcom_slot_receiver">Gniazdo 1: odbiornik lub pompa</string>
+    <string name="dexcom_slot_app">Gniazdo 2: aplikacja na telefon (domyślne)</string>
+    <string name="dexcom_slot_watch">Gniazdo 3: smartwatch</string>
+    <string name="dexcom_slot_desc">Sensor przechowuje osobne parowanie dla każdego gniazda. Wybierz takie, którego nie używa inne urządzenie: aplikacja Dexcom zajmuje gniazdo telefonu.</string>
+    <string name="dexcom_slot_button">Gniazdo Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Sensor zostanie ponownie sparowany w nowym gnieździe przy użyciu zapisanego kodu. Inne urządzenie będzie mogło potem użyć starego gniazda.</string>
+    <string name="dexcom_slot_change_action">Zmień gniazdo</string>
     <string name="dexcom_pairing_code_label">4-cyfrowy kod parowania</string>
     <string name="dexcom_pairing_code_instruction">Wpisz 4-cyfrowy kod parowania wydrukowany na aplikatorze sensora.</string>
     <string name="libre_setup_title">Konfiguracja Libre</string>

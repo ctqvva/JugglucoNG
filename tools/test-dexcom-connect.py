@@ -8,6 +8,10 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 source = (root / 'Common/src/dex/java/tk/glucodata/DexGattCallback.java').read_text()
 roster_source = (root / 'Common/src/main/java/tk/glucodata/SensorBluetooth.java').read_text()
+slot_source = (root / 'Common/src/main/java/tk/glucodata/DexcomBluetoothSlot.java').read_text()
+# The real slot store, compiled against the fake preferences below.
+slot_class = re.sub(r'^(package|import) [^\n]*\n', '', slot_source, flags=re.M)
+slot_class = re.sub(r'\bSharedPreferences\b', 'Prefs', slot_class).replace('public final class', 'final class')
 
 
 def method(signature, source=source):
@@ -41,6 +45,8 @@ methods = '\n'.join(method(s) for s in [
     'private void authenticate(', 'static private boolean equalpart(',
     'static boolean    createBond(', 'private void resetCerts(', 'private void resetconnect(',
     'private    void getdata(', 'private boolean isWarmupReading(',
+    'private void docmd0(', 'private void requestAuth(', 'public int getAuthSlot(',
+    'public synchronized boolean changeAuthSlot(',
 ])
 fields = source[source.index('private static final long DEXCOM_WARMUP_MSEC'):source.index('    public DexGattCallback(')]
 phase_start = source.index('private int phase =')
@@ -60,6 +66,7 @@ class System {
     static long now=1_760_000_000_000L;
     static long currentTimeMillis(){return now;}
     static long nanoTime(){return java.lang.System.nanoTime();}
+    static void arraycopy(Object a,int ai,Object b,int bi,int n){java.lang.System.arraycopy(a,ai,b,bi,n);}
     static final java.io.PrintStream out=java.lang.System.out;
 }
 class SuperGattCallback {
@@ -70,6 +77,7 @@ class SuperGattCallback {
     long dataptr, showtime, foundtime, datatime, sampletime, lastWarmupRetryAt, sensorstartmsec;
     int triedinvain, payloadCalls, unbondCalls, certsize, startpacket;
     boolean newcertificates;byte[] packet;
+    byte[] certinbuf, lastWrite;int certinbufiter;
     static final int TRANSPORT_LE=2;
     static final int GATT_SUCCESS=0;
     BluetoothGattCharacteristic[] charact={new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic(),new BluetoothGattCharacteristic()};
@@ -92,7 +100,8 @@ class SuperGattCallback {
     public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
     boolean discover(BluetoothGatt g){payloadCalls++;return true;}
     void tryer(Runnable r){r.run();}void enableIndication(BluetoothGatt g,BluetoothGattCharacteristic c){}
-    void askbackfill(){}void write(int which,byte[] value){}void requestAuth(){}void docmd0(BluetoothGatt g){}
+    void askbackfill(){}void write(int which,byte[] value){lastWrite=value;}
+    void cmd(BluetoothGatt g,int num){}
     void enableGattDescriptor(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
     void getcert(byte[] v){payloadCalls++;}void handleGlucoseResult(long res,long time){
         payloadCalls++;
@@ -115,7 +124,7 @@ class SuperGattCallback {
     void bonded(){}void getdatacmd(){dataCommands++;}void disablenotification(BluetoothGatt g,BluetoothGattCharacteristic c){}
     void searchforDeviceAddress(){rescans++;mActiveDeviceAddress=null;}
     void unbond(){unbondCalls++;removedBond=true;} void setConStatus(int status){}
-    void askcertificate(int phase){}void sendcerts(){}void saveDeviceName(){}
+    int certificateRequests;void askcertificate(int phase){certificateRequests++;}void sendcerts(){}void saveDeviceName(){}
     static boolean dexKnownSensor(long p){return true;} static boolean getalarmclock(){return alarmClock;}
     static PendingIntent getBroadcast(Context c,int id,Intent i,int flags){return new PendingIntent(i.action);}
 }
@@ -137,7 +146,8 @@ class Natives {
     static void dexEndBackfill(long ptr){}
     static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}
     static long lastglucosetime(){return lastGlucose<0?System.currentTimeMillis():lastGlucose;}
-    static boolean isAuthenticated(long p){return true;}static void dexbackfill(long p,byte[] v){}
+    static boolean authenticated=true;
+    static boolean isAuthenticated(long p){return authenticated;}static void dexbackfill(long p,byte[] v){}
     static boolean dex8AES(long p,byte[] input,int from,byte[] output,int to){
         if(input.length<from+8)throw new AssertionError("JNI AES input would read beyond packet");
         if(!aesSuccess)return false;
@@ -146,6 +156,7 @@ class Natives {
     static void dexResetKeys(long p){resets++;}
     static int getDexCertSize(byte[] v){return 0;}static byte[] dexChallenger(byte[] v){return v;}
 }
+class Random {static void fillbytes(byte[] b){Arrays.fill(b,(byte)0x11);}}
 class Log {static void i(String a,String b){}static void d(String a,String b){}static void e(String a,String b){}static void stack(String a,String b,Throwable t){}static void showbytes(String s,byte[] v){}}
 class Uri {static Uri parse(String s){return new Uri();}}
 class R {static class raw {static int bonded=1;}}
@@ -178,11 +189,16 @@ class AlarmManager {
 }
 class Prefs {
     Map<String,Boolean> values=new HashMap<>();
+    Map<String,Integer> ints=new HashMap<>();
     boolean getBoolean(String key,boolean fallback){return values.getOrDefault(key,fallback);}
-    Prefs edit(){return this;}Prefs putBoolean(String key,boolean v){values.put(key,v);return this;}void apply(){}
+    int getInt(String key,int fallback){return ints.getOrDefault(key,fallback);}
+    boolean contains(String key){return values.containsKey(key)||ints.containsKey(key);}
+    Prefs edit(){return this;}Prefs putBoolean(String key,boolean v){values.put(key,v);return this;}
+    Prefs putInt(String key,int v){ints.put(key,v);return this;}void apply(){}
 }
+'''+slot_class+r'''
 class Applic extends Context {
-    static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
+    static boolean isWearable;static Applic app=new Applic();static Prefs prefs=new Prefs();static AlarmManager alarms=new AlarmManager();
     static PowerManager power=new PowerManager();
     static class Scheduler {void schedule(Runnable r,long delay,TimeUnit unit){}}
     static Scheduler scheduler=new Scheduler();
@@ -206,7 +222,7 @@ public class DexGattCallback extends SuperGattCallback {
         Applic.prefs=new Prefs();Applic.alarms=new AlarmManager();
         Applic.power=new PowerManager();PowerManager.releases=0;Applic.ui.clear();
         defaultAuto=false;alarmClock=false;isWearable=false;CloneSensorRegistry.clone=false;SensorOwnershipRuntime.blocked=false;
-        Natives.lastGlucose=-1;Natives.aesSuccess=true;Natives.resets=0;
+        Natives.lastGlucose=-1;Natives.aesSuccess=true;Natives.resets=0;Natives.authenticated=true;
         Natives.sampleAge=0;Natives.result=100;Natives.saveName=false;System.now=1_760_000_000_000L;
         DexGattCallback cb=new DexGattCallback("sensor-A",1);PowerManager.owner=cb;cb.connectDevice(0);return cb;
     }
@@ -387,6 +403,71 @@ public class DexGattCallback extends SuperGattCallback {
             check(Applic.alarms.at==cb.sensorstartmsec+1800000+15000,"warmup timing was replaced with quiet delay");
         }
     }
+    static byte requestedSlot(DexGattCallback cb){
+        cb.lastWrite=null;cb.requestAuth();
+        check(cb.lastWrite!=null&&cb.lastWrite.length==10&&cb.lastWrite[0]==0x02,"auth request lost its 0x02 opcode/shape");
+        return cb.lastWrite[9];
+    }
+    static void authSlots() {
+        DexGattCallback cb=fresh();
+        check(requestedSlot(cb)==0x02&&DexcomBluetoothSlot.forSensor("sensor-A")==2,"default auth request left slot 2");
+
+        // A sensor already paired before slots existed stays on slot 2 whatever new pairings use.
+        Applic.prefs=new Prefs();DexcomBluetoothSlot.setForNewPairings(3);
+        cb=new DexGattCallback("legacy",5);
+        check(requestedSlot(cb)==0x02&&DexcomBluetoothSlot.isPinned("legacy"),"paired sensor moved to the new-pairing slot");
+
+        // A new sensor takes the chosen slot and keeps it once its pairing starts.
+        Applic.prefs=new Prefs();Natives.authenticated=false;DexcomBluetoothSlot.setForNewPairings(3);
+        cb=new DexGattCallback("new",6);
+        check(cb.getAuthSlot()==3&&!DexcomBluetoothSlot.isPinned("new"),"new sensor slot pinned before pairing");
+        cb.docmd0(cb.mBluetoothGatt);
+        check(DexcomBluetoothSlot.forSensor("new")==3&&requestedSlot(cb)==0x03,"new pairing did not claim slot 3");
+        DexcomBluetoothSlot.setForNewPairings(1);
+        check(new DexGattCallback("new",6).getAuthSlot()==3,"later new-pairing choice moved a paired sensor");
+
+        // Moving slots drops the old key and bond, once.
+        int resets=Natives.resets,unbonds=cb.unbondCalls;
+        check(cb.changeAuthSlot(1)&&cb.getAuthSlot()==1&&DexcomBluetoothSlot.forSensor("new")==1,"slot change not applied");
+        check(Natives.resets==resets+1&&cb.unbondCalls==unbonds+1,"slot change kept the old slot's key or bond");
+        check(requestedSlot(cb)==0x01,"auth request ignored the changed slot");
+        check(!cb.changeAuthSlot(1)&&!cb.changeAuthSlot(0)&&!cb.changeAuthSlot(4),"no-op or invalid slot change reset pairing");
+        check(Natives.resets==resets+1&&cb.getAuthSlot()==1,"rejected slot change touched state");
+        Applic.prefs.ints.put("auth_slot_bad",9);
+        check(DexcomBluetoothSlot.forSensor("bad")==2,"corrupt stored slot was sent to the sensor");
+
+        // A watch pairs new sensors on the watch slot; ones it already paired stay put.
+        Applic.isWearable=true;
+        try {
+            Applic.prefs=new Prefs();Natives.authenticated=false;
+            check(new DexGattCallback("watch-new",7).getAuthSlot()==3,"watch paired a new sensor off the watch slot");
+            Applic.prefs=new Prefs();Natives.authenticated=true;
+            check(new DexGattCallback("watch-paired",8).getAuthSlot()==2,"watch moved an already paired sensor");
+        } finally {Applic.isWearable=false;Natives.authenticated=true;}
+
+        // A paused disconnect never reaches close(); the slot change must reset the session.
+        cb=fresh();cb.phase=GetData;cb.setPause(true);
+        check(cb.changeAuthSlot(3)&&cb.phase==-1&&cb.mBluetoothGatt==null,"slot change kept the old session's phase");
+    }
+    static int[] challengeReply(int slot,int auth,int bond,boolean androidBonded,boolean newPairing){
+        DexGattCallback cb=fresh();Applic.prefs=new Prefs();
+        DexcomBluetoothSlot.pin("sensor-A",slot);cb=new DexGattCallback("sensor-A",1);
+        cb.phase=ChallengeReply;cb.bonded=androidBonded;cb.newcertificates=newPairing;
+        int resets=Natives.resets;
+        cb.authenticate(new byte[]{0x05,(byte)auth,(byte)bond});
+        return new int[]{Natives.resets-resets,cb.certificateRequests,cb.dataCommands};
+    }
+    static void challengeReplies() {
+        // Slot 2 keeps its old rules: a fresh pairing goes on to certificates.
+        check(Arrays.equals(challengeReply(2,0,2,false,true),new int[]{0,1,0}),"slot 2 fresh pairing stopped");
+        check(Arrays.equals(challengeReply(2,1,2,true,true),new int[]{0,0,1}),"slot 2 bonded shortcut lost");
+        check(Arrays.equals(challengeReply(2,0,2,false,false),new int[]{1,0,0}),"slot 2 unauthenticated reconnect continued");
+        // Slot 3: without auth==1 stop; a fresh pairing exchanges certificates despite a bond.
+        check(Arrays.equals(challengeReply(3,0,2,false,true),new int[]{1,0,0}),"slot 3 sent certificates without auth");
+        check(Arrays.equals(challengeReply(3,1,2,true,true),new int[]{0,1,0}),"slot 3 fresh pairing reused another slot's bond");
+        check(Arrays.equals(challengeReply(3,1,2,true,false),new int[]{0,0,1}),"slot 3 reconnect lost bonded shortcut");
+        check(Arrays.equals(challengeReply(3,1,1,false,true),new int[]{0,0,1}),"slot 3 bonded sensor not read");
+    }
     public static void main(String[] args) throws Exception {
         DexGattCallback cb=fresh();BluetoothGatt first=cb.mBluetoothGatt;
         check(cb.mActiveDeviceAddress.equals(Natives.stored),"process startup lost saved address");
@@ -447,7 +528,9 @@ public class DexGattCallback extends SuperGattCallback {
         cb=fresh();current=cb.mBluetoothGatt;current.discoveryResult=false;cb.bonded();Applic.runUi();check(cb.disconnects==1,"current discovery failure lost recovery");
         publicationAndTeardownFinish(false);publicationAndTeardownFinish(true);stableRosterSnapshots();
         preservesBondBeforeFirstReading();recognizesVerifiedSensor();quietReconnectsRespectReceptionAndSampleTime();
-        System.out.println("PASS: Dexcom recovery, quiet/slot timing, bond/challenge guards, callback lifecycle, concurrent publication/teardown and nonblocking roster snapshots");
+        authSlots();
+        challengeReplies();
+        System.out.println("PASS: Dexcom recovery, quiet/slot timing, auth slots, bond/challenge guards, callback lifecycle, concurrent publication/teardown and nonblocking roster snapshots");
     }
 }
 '''

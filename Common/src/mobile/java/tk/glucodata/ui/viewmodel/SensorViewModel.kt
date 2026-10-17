@@ -108,6 +108,7 @@ data class SensorInfo(
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
     val sensorIndex: Int = -1,
     val isCloneSource: Boolean = false,
+    val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -688,6 +689,7 @@ class SensorViewModel : ViewModel() {
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
                             sensorIndex = sensorIndex,
+                            dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
                         )
                     }
                 } catch (e: Exception) {
@@ -1309,6 +1311,28 @@ class SensorViewModel : ViewModel() {
                 refreshSensors()
             }
         }
+    }
+
+    /** Moves a Dexcom sensor to another authentication slot; it pairs again on the next connection. */
+    fun setDexcomBluetoothSlot(serial: String, slot: Int) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) return
+        val gatt = findGatt(serial) as? tk.glucodata.DexGattCallback ?: return
+        if (gatt.authSlot == slot) return
+        val wasPaused = SensorBluetooth.isSensorPaused(gatt)
+        // Runs to the end here rather than in viewModelScope: leaving the screen mid-way
+        // would cancel it with the sensor still paused. changeAuthSlot closes the old
+        // session itself, so there is no disconnect to wait for.
+        gatt.setPause(true)
+        gatt.changeAuthSlot(slot)
+        if (gatt.dataptr != 0L) {
+            try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
+        }
+        // A sensor the user paused stays paused; it pairs on the new slot when resumed.
+        if (!wasPaused) {
+            gatt.setPause(false)
+            gatt.connectDevice(200)
+        }
+        refreshSensors()
     }
 
     fun returnSensorToPhone(serial: String) {

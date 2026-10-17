@@ -770,6 +770,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Dexcom Setup Wizard -->
     <string name="dexcom_setup_title">Dexcom setup</string>
     <string name="dexcom_scan_instruction">Scan the data matrix on your Dexcom sensor</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth slot</string>
+    <string name="dexcom_slot_receiver_short">Pump</string>
+    <string name="dexcom_slot_app_short">Phone</string>
+    <string name="dexcom_slot_watch_short">Watch</string>
+    <string name="dexcom_slot_receiver">Slot 1: receiver or pump</string>
+    <string name="dexcom_slot_app">Slot 2: phone app (default)</string>
+    <string name="dexcom_slot_watch">Slot 3: smart watch</string>
+    <string name="dexcom_slot_desc">The sensor keeps a separate pairing for each slot. Pick one no other device uses: the Dexcom app takes the phone slot.</string>
+    <string name="dexcom_slot_button">Bluetooth slot: %1$s</string>
+    <string name="dexcom_slot_change_desc">The sensor pairs again on the new slot with its stored code. Another device can then use the old slot.</string>
+    <string name="dexcom_slot_change_action">Change slot</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_pairing_code_label">4-digit pairing code</string>
     <string name="dexcom_pairing_code_instruction">Enter the 4-digit pairing code printed on the sensor applicator.</string>
