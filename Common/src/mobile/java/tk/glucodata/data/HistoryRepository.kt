@@ -1113,10 +1113,11 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapped
             } else {
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 val indexed = display.indexedDisplay()
                 mapped.map { point ->
                     val sealed = indexed[displayKey(point.timestamp)]
-                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                         ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
                         ?.takeIf { record ->
                             val serial = point.sensorSerial ?: return@takeIf true
@@ -1236,8 +1237,9 @@ class HistoryRepository(context: Context = Applic.app) {
             val freezeEnabled = indexed.isNotEmpty() &&
                 runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
             val nowMs = System.currentTimeMillis()
+            val graceMs = ReadingDisplay.sealGraceMs()
             mergeQueryReadings(readings, preferredSerial).map { reading ->
-                mapReadingForStats(reading, indexed, freezeEnabled, nowMs)
+                mapReadingForStats(reading, indexed, freezeEnabled, nowMs, graceMs)
             }
         }.flowOn(Dispatchers.IO)
     }
@@ -1310,8 +1312,9 @@ class HistoryRepository(context: Context = Applic.app) {
                 val readings = dao.getReadingsSince(startTime)
                 val display = displayRecordsFor(startTime)
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 mergeQueryReadings(readings, preferredSerial).map { reading ->
-                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs)
+                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs, graceMs)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting stats display history", e)
@@ -1687,8 +1690,9 @@ class HistoryRepository(context: Context = Applic.app) {
         val nowMs = System.currentTimeMillis()
         val freezeEnabled = display.isNotEmpty() &&
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+        val graceMs = if (freezeEnabled) ReadingDisplay.sealGraceMs() else 0L
         return readings.map { reading ->
-            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs)
+            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs, graceMs)
             GlucosePoint(
                 value = reading.value,
                 time = formatTime(reading.timestamp),
@@ -1779,7 +1783,8 @@ class HistoryRepository(context: Context = Applic.app) {
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay> = emptyMap(),
         freezeEnabled: Boolean = false,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        graceMs: Long = ReadingDisplay.sealGraceMs(),
     ): GlucosePoint {
         // The lane tag travels with the value: StatsViewModel resolves each
         // point's lane from its sensor's view mode and applies the record only
@@ -1790,7 +1795,7 @@ class HistoryRepository(context: Context = Applic.app) {
             null
         } else {
             display[displayKey(reading.timestamp)]
-                ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                 // The minute's record whoever showed it — but not a stale
                 // one of this reading's own sensor; see recordStillDescribes.
                 ?.takeIf { record ->
@@ -2178,7 +2183,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val nowMs = System.currentTimeMillis()
-                val sealHorizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+                val sealHorizon = nowMs - ReadingDisplay.sealGraceMs()
                 val fingerprints = HashMap<String, Long>()
                 val rows = entries.mapNotNull { entry ->
                     if (!entry.displayMgdl.isFinite() || entry.displayMgdl <= 0f) return@mapNotNull null
@@ -2260,7 +2265,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 displayDao.mainLineOwners(startTime).associate { it.timestamp to it.sensorSerial }
             }.getOrDefault(emptyMap())
         }
-        return MainSensorOwnership(recorded, nowMs)
+        return MainSensorOwnership(recorded, nowMs, ReadingDisplay.sealGraceMs())
     }
 
     /**
@@ -2277,10 +2282,11 @@ class HistoryRepository(context: Context = Applic.app) {
     private fun sealedRecordForLine(
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay>,
-        nowMs: Long
+        nowMs: Long,
+        graceMs: Long,
     ): ReadingDisplay? {
         val record = display[displayKey(reading.timestamp)] ?: return null
-        if (!record.isUsable || !record.isSealedAt(nowMs)) return null
+        if (!record.isUsable || !record.isSealedAt(nowMs, graceMs)) return null
         if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
         if (!recordStillDescribes(reading, record)) return null
         return record

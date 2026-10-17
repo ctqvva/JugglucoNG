@@ -2976,7 +2976,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
     <string name="freeze_displayed_values">Hay qiimaha la tusay</string>
     <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
-    <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
+    <string name="freeze_displayed_values_after">Waa la xiraa %1$s kadib</string>
+    <string name="freeze_displayed_values_grace_desc">Ilaa markaas akhrintu waxay weli raacdaa isbeddellada qalabaynta, sidaas darteed cabbir far oo goor dambe la geliyay ayaa sixi kara. Kadib waxay haysaa qiimihii la tusay.</string>
     <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
     <string name="anytime_credentials_backup">Kaydi aqoonsiyada CT5</string>
     <string name="anytime_credentials_backup_warning">Faylkan wuxuu soo celin karaa fadhiga gudbiyaha kadib dib-u-rakibidda abka ama ka saarista dareemaha. Si ammaan ah u kaydi.</string>
