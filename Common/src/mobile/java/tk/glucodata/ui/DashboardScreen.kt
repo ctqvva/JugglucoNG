@@ -1313,14 +1313,15 @@ fun DashboardScreen(
             // ignored the smoothing setting, so the row could state a fall the notification
             // and the delta alarms — computed from the smoothed reading — did not agree with.
             val recentReadingDeltas = remember(
-                dashboardRowsShowDelta, recentReadings, consumerHistory, unit, deltaIntervalMinutes
+                dashboardRowsShowDelta, recentReadings, consumerHistory, unit, deltaIntervalMinutes, viewMode
             ) {
                 if (dashboardRowsShowDelta) {
                     readingDeltas(
                         recentReadings.map { it.timestamp },
                         consumerHistory,
                         tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
-                        deltaIntervalMinutes
+                        deltaIntervalMinutes,
+                        useRaw = viewMode == 1 || viewMode == 3
                     )
                 } else {
                     emptyList()

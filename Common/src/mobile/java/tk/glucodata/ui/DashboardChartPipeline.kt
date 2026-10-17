@@ -302,8 +302,9 @@ internal fun readingDeltaTexts(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
-    deltaIntervalMinutes: Int
-): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes)
+    deltaIntervalMinutes: Int,
+    useRaw: Boolean = false
+): List<String?> = readingDeltas(anchorTimestamps, history, isMmol, deltaIntervalMinutes, useRaw)
     .map { it?.text }
 
 /**
@@ -314,9 +315,12 @@ internal fun readingDeltas(
     anchorTimestamps: List<Long>,
     history: List<GlucosePoint>,
     isMmol: Boolean,
-    deltaIntervalMinutes: Int
+    deltaIntervalMinutes: Int,
+    useRaw: Boolean = false
 ): List<ReadingDelta?> {
     if (anchorTimestamps.isEmpty()) return emptyList()
+    fun valueOf(point: GlucosePoint): Float =
+        if (useRaw && point.rawValue > 0f) point.rawValue else point.value
     val newestFirst = history.asReversed()
     val minGap = tk.glucodata.GlucoseDelta.minGapMillis(deltaIntervalMinutes)
     var anchorIndex = 0
@@ -332,13 +336,13 @@ internal fun readingDeltas(
         // only shrinks further for the older anchors that follow.
         while (previousIndex < newestFirst.size) {
             val candidate = newestFirst[previousIndex]
-            if (candidate.value > 0.1f && anchor.timestamp - candidate.timestamp >= minGap) break
+            if (valueOf(candidate) > 0.1f && anchor.timestamp - candidate.timestamp >= minGap) break
             previousIndex++
         }
         val previous = newestFirst.getOrNull(previousIndex) ?: return@map null
         val delta = tk.glucodata.GlucoseDelta.delta(
-            anchor.timestamp, anchor.value,
-            previous.timestamp, previous.value,
+            anchor.timestamp, valueOf(anchor),
+            previous.timestamp, valueOf(previous),
             deltaIntervalMinutes
         )
         val text = tk.glucodata.GlucoseDelta.format(delta, isMmol).takeIf { it.isNotEmpty() }

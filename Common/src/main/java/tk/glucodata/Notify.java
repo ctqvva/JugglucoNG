@@ -4245,7 +4245,12 @@ public class Notify {
             if (doLog)
                 Log.i(LOG_ID, "notification delta=" + deltaText
                         + " points=" + nativePoints.size()
-                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp)));
+                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp))
+                        + " mode=" + viewMode + " mmol=" + isMmol
+                        + " newest=" + newest.timestamp + ":" + newestValue
+                        + " previous=" + (previous == null ? -1L : previous.timestamp) + ":" + previousValue
+                        + " displayed=" + (fallbackDisplay == null ? -1L : fallbackDisplay.getTimeMillis())
+                        + ":" + displayGlucoseValue);
             if (!deltaText.isEmpty()) {
                 newStatusText = (newStatusText == null || newStatusText.length() == 0)
                         ? deltaText

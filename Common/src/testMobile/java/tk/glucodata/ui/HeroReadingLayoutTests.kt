@@ -61,20 +61,18 @@ class HeroReadingLayoutTests {
         }
     }
 
-    @Test fun dotAndSecondaryShareBaselineAndDeltaSitsBelowDotBesidePrimary() {
+    @Test fun dotAndSecondaryShareBaselineAndDeltaCentersBesidePrimary() {
         for (direction in LayoutDirection.entries) {
             val children = items()
             val result = with(HeroPairMeasurePolicy(true)) { Scope(direction).measure(children, Constraints(maxWidth = 200)) }
             result.placeChildren()
             val (primary, dot, second, delta) = children
             assertEquals(dot.position.y + dot.baseline, second.position.y + second.baseline)
-            assertTrue(delta.position.y >= dot.position.y + dot.naturalHeight)
+            assertEquals((primary.naturalHeight - delta.naturalHeight) / 2, delta.position.y)
             assertTrue(delta.position.y + delta.naturalHeight <= primary.naturalHeight)
-            val dotCenter = dot.position.x + dot.naturalWidth / 2
-            assertTrue(dotCenter in delta.position.x..(delta.position.x + delta.measuredWidth))
             val distance = if (direction == LayoutDirection.Ltr) delta.position.x - primary.naturalWidth
                 else primary.position.x - (delta.position.x + delta.measuredWidth)
-            assertEquals(4, distance)
+            assertEquals(8, distance)
         }
     }
 
