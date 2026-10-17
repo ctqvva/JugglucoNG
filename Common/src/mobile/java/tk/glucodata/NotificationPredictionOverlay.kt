@@ -31,8 +31,8 @@ internal fun buildNotificationPredictionHistory(
             timestamp = point.timestamp,
             time = timeFormat.format(Date(point.timestamp)),
             sensorSerial = point.sensorSerial?.takeIf { it.isNotBlank() } ?: calibrationSensorId,
-            sealedDisplayValue = point.sealedDisplayValue.takeIf { it.isFinite() && it > 0.1f },
-            sealedDisplayViewMode = point.sealedDisplayViewMode.takeIf { it >= 0 }
+            sealedAutoLaneValue = point.sealedAutoLaneValue.takeIf { it.isFinite() && it > 0.1f },
+            sealedRawLaneValue = point.sealedRawLaneValue.takeIf { it.isFinite() && it > 0.1f }
         )
     }
 }

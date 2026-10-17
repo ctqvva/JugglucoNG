@@ -9,19 +9,21 @@ import tk.glucodata.ui.buildPredictionSeriesForChart
 
 class NotificationPredictionHistoryTests {
     @Test
-    fun notificationForecastStartsFromTheRecordAfterSwitchingLanes() {
+    fun notificationForecastStartsFromTheRecordOfTheLineItExtends() {
         for (isMmol in listOf(false, true)) {
             val auto = if (isMmol) 5f else 90f
             val raw = if (isMmol) 4f else 72f
-            val recorded = if (isMmol) 7f else 126f
+            val recordedAuto = if (isMmol) 7f else 126f
+            val recordedRaw = if (isMmol) 6f else 108f
             for (mode in 0..3) {
                 val source = (0 until 12).map { i ->
                     GlucosePoint(1_800_000_000_000L + i * 60_000L, auto, raw).also {
                         it.sensorSerial = "X-222227KUFY"
-                        it.sealedDisplayValue = recorded
-                        it.sealedDisplayViewMode = if (mode % 2 == 0) 1 else 0
+                        it.sealedAutoLaneValue = recordedAuto
+                        it.sealedRawLaneValue = recordedRaw
                     }
                 }
+                val recorded = if (mode % 2 == 0) recordedAuto else recordedRaw
                 val history = buildNotificationPredictionHistory(source, "fallback-sensor")
                 val series = buildPredictionSeriesForChart(
                     points = history,
@@ -36,7 +38,8 @@ class NotificationPredictionHistoryTests {
                 val primaryKind = if (mode % 2 == 0) GlucosePredictionSeriesKind.AUTO else GlucosePredictionSeriesKind.RAW
                 assertEquals(recorded, series.getValue(primaryKind).points.first().value, 0.05f)
                 assertEquals("X-222227KUFY", history.last().sensorSerial)
-                assertEquals(source.last().sealedDisplayViewMode, history.last().sealedDisplayViewMode)
+                assertEquals(recordedAuto, history.last().sealedAutoLaneValue)
+                assertEquals(recordedRaw, history.last().sealedRawLaneValue)
                 if (mode == 2) {
                     assertEquals(raw, series.getValue(GlucosePredictionSeriesKind.RAW).points.first().value, 0.05f)
                 } else if (mode == 3) {
@@ -53,7 +56,7 @@ class NotificationPredictionHistoryTests {
         assertEquals("fallback-sensor", history.sensorSerial)
         assertEquals(5f, history.value, 0.001f)
         assertEquals(4f, history.rawValue, 0.001f)
-        assertNull(history.sealedDisplayValue)
-        assertNull(history.sealedDisplayViewMode)
+        assertNull(history.sealedAutoLaneValue)
+        assertNull(history.sealedRawLaneValue)
     }
 }

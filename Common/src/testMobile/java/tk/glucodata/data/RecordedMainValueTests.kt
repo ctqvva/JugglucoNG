@@ -91,8 +91,8 @@ class RecordedMainValueTests {
         // than the caller's: a wrong horizon can only fail to revise a live
         // minute, never rewrite a sealed one.
         assertTrue(
-            "revision must be bounded in SQL to minutes inside the grace window",
-            dao.contains("WHERE timestamp = :timestamp AND timestamp > :sealHorizon"),
+            "revision must be bounded in SQL to one lane's minutes inside the grace window",
+            dao.contains("WHERE timestamp = :timestamp AND lane = :lane AND timestamp > :sealHorizon"),
         )
         assertEquals(
             "exactly one UPDATE statement against the table",
@@ -175,8 +175,8 @@ class RecordedMainValueTests {
             ),
         )
         assertTrue(
-            "the lane the record was shown on travels with it as provenance",
-            stats.contains("sealedDisplayViewMode = sealed?.viewMode"),
+            "both lines' records travel with the point, each in its own field",
+            stats.contains("sealedRawLaneValue = sealed?.raw?.displayMgdl"),
         )
     }
 

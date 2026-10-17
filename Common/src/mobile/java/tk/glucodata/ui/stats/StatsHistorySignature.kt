@@ -17,8 +17,8 @@ internal fun statsHistorySignature(points: List<GlucosePoint>): StatsHistorySign
         hash = 31L * hash + point.value.toRawBits()
         hash = 31L * hash + point.rawValue.toRawBits()
         hash = 31L * hash + (point.sensorSerial?.hashCode() ?: 0)
-        hash = 31L * hash + (point.sealedDisplayValue?.toRawBits() ?: 0)
-        hash = 31L * hash + (point.sealedDisplayViewMode ?: -1)
+        hash = 31L * hash + (point.sealedAutoLaneValue?.toRawBits() ?: 0)
+        hash = 31L * hash + (point.sealedRawLaneValue?.toRawBits() ?: 0)
     }
     return StatsHistorySignature(
         size = points.size,

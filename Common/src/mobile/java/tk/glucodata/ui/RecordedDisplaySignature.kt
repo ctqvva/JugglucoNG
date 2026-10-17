@@ -4,10 +4,10 @@ package tk.glucodata.ui
 internal fun recordedDisplaySignature(points: List<GlucosePoint>): Int {
     var hash = 1
     for (point in points) {
-        val value = point.sealedDisplayValue ?: continue
+        if (point.sealedAutoLaneValue == null && point.sealedRawLaneValue == null) continue
         hash = 31 * hash + point.timestamp.hashCode()
-        hash = 31 * hash + value.toRawBits()
-        hash = 31 * hash + (point.sealedDisplayViewMode ?: -1)
+        hash = 31 * hash + (point.sealedAutoLaneValue?.toRawBits() ?: 0)
+        hash = 31 * hash + (point.sealedRawLaneValue?.toRawBits() ?: 0)
         hash = 31 * hash + (point.sensorSerial?.hashCode() ?: 0)
     }
     return hash

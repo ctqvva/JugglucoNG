@@ -70,10 +70,10 @@ internal fun buildDisplayHistoryForPrediction(
         val baseValue = if (useRaw) point.rawValue else point.value
         val sensorId = point.sensorSerial?.takeIf { it.isNotBlank() }
         // The prediction extrapolates the line the user is looking at, so it has
-        // to read the same values that line draws — a recorded one included,
-        // in whichever lane it was recorded, as the main line does.
+        // to read the same values that line draws — that line's record included,
+        // as the main line does.
         val sealed = if (useCalibration) {
-            point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
+            point.sealedValueFor(useRaw)?.takeIf { it.isFinite() && it > 0.1f }
         } else {
             null
         }
@@ -153,8 +153,8 @@ internal fun buildPredictionSeriesForChart(
     }
 
     // Without a calibration the primary lane's own forecast is the primary
-    // forecast, so it has to start where the main line ends — on a recorded
-    // value when there is one, even one recorded in the other lane. The
+    // forecast, so it has to start where the main line ends — on that line's
+    // recorded value when there is one. The
     // calibrated source is record-aware and, with no calibration active, is
     // the lane's own value everywhere else. Secondary lanes stay plain.
     val primaryLaneIsRecordAware = !hasCalibration

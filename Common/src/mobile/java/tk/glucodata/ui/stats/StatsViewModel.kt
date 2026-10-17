@@ -771,11 +771,11 @@ class StatsViewModel : ViewModel() {
 
             // A reading whose displayed value was recorded overrides the series
             // recomputed above: the statistic has to describe what was on screen,
-            // not what today's calibration would have made of it — in whichever
-            // lane it was shown. Gating it by the lane selected now (#499) let a
-            // raw/auto switch re-derive every minute recorded in the other lane,
-            // so the statistics moved with the toggle and with any calibration
-            // added afterwards, which is the one thing a record must not do.
+            // not what today's calibration would have made of it. Each main line
+            // keeps its own record, so the statistic takes the record of the lane
+            // it summarises: a raw/auto switch shows that lane's statistics as
+            // they were shown, switching back restores these, and a calibration
+            // added afterwards moves neither.
             //
             // Converted, because the two sides are not in the same unit.
             // [calibratedDisplayValues] holds display units — it is filled from
@@ -788,7 +788,8 @@ class StatsViewModel : ViewModel() {
             // the unsealed last hour survived. Harmless while the record was
             // sparse enough to almost never fire; total once coverage was fixed.
             history.forEachIndexed { index, point ->
-                point.sealedDisplayValue
+                val pointViewMode = sensorViewModes[point.sensorSerial ?: sensorSerial] ?: viewMode
+                point.sealedValueFor(pointViewMode == 1 || pointViewMode == 3)
                     ?.takeIf { it.isFinite() && it > 0f }
                     ?.let {
                         calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol)

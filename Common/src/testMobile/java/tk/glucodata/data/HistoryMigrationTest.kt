@@ -20,7 +20,7 @@ import org.robolectric.annotation.ConscryptMode
  * migration that drops a column or a table fails here.
  *
  * The starting points are the released schemas recovered in H2: v11
- * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v32 is the current version. The row tests
+ * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v33 is the current version. The row tests
  * matter most: Room migrations are the one place a bug permanently destroys
  * user history.
  */
@@ -99,6 +99,51 @@ class HistoryMigrationTest {
                 if (cursor.getString(0) == "index_reading_display_sensorSerial") found = true
             }
             assertTrue("reading_display was rebuilt with its per-sensor index", found)
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun v33KeepsEveryRecordInTheLaneItWasShownIn() {
+        helper.createDatabase(DB_NAME, 32).use { db ->
+            // Records alternating lanes, the way the single slot left them.
+            listOf(0 to 0, 1 to 1, 2 to 2, 3 to 3).forEach { (minute, viewMode) ->
+                db.execSQL(
+                    "INSERT INTO reading_display " +
+                        "(timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt) " +
+                        "VALUES (${minute * 60_000L}, 'S-1', ${100 + minute}, $viewMode, 7, 9)"
+                )
+            }
+        }
+
+        val migrated = helper.runMigrationsAndValidate(DB_NAME, 33, true, *HistoryDatabase.ALL_MIGRATIONS)
+
+        migrated.query(
+            "SELECT timestamp, lane, viewMode, displayMgdl FROM reading_display ORDER BY timestamp"
+        ).use { cursor ->
+            val rows = ArrayList<List<Number>>()
+            while (cursor.moveToNext()) {
+                rows += listOf(cursor.getLong(0), cursor.getInt(1), cursor.getInt(2), cursor.getFloat(3))
+            }
+            assertEquals(
+                listOf(
+                    listOf(0L, 0, 0, 100f),
+                    listOf(60_000L, 1, 1, 101f),
+                    listOf(120_000L, 0, 2, 102f),
+                    listOf(180_000L, 1, 3, 103f),
+                ),
+                rows,
+            )
+        }
+        // The other lane of each minute is free: a raw presentation records beside the auto one.
+        migrated.execSQL(
+            "INSERT INTO reading_display " +
+                "(timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt, lane) " +
+                "VALUES (0, 'S-1', 90, 1, 7, 10, 1)"
+        )
+        migrated.query("SELECT COUNT(*) FROM reading_display WHERE timestamp = 0").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(2, cursor.getInt(0))
         }
         migrated.close()
     }

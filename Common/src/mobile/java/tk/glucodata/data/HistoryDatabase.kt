@@ -61,6 +61,9 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
+ *   v33 — reading_display keyed by (minute, lane): the auto and the raw main
+ *         line each keep their own record of a minute. Existing rows move to
+ *         the lane they were shown in; the other lane starts unrecorded.
  */
 /**
  * The current schema version (plan task H5). The migration tests migrate from the
@@ -68,7 +71,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  * A version bump also needs its exported schema JSON committed — the CI schema
  * check in H1 catches that.
  */
-internal const val HISTORY_DATABASE_VERSION = 32
+internal const val HISTORY_DATABASE_VERSION = 33
 
 @Database(
     entities = [
@@ -722,6 +725,50 @@ abstract class HistoryDatabase : RoomDatabase() {
         }
 
         /**
+         * v32 → v33: one recorded main value per minute **per lane**.
+         *
+         * Every existing row is kept, in the lane its view mode says it was
+         * shown in. The other lane of that minute has no record, which is the
+         * truth: the user never saw that line there. Before this, the single
+         * slot made a raw-lane record stand in for the auto line and the
+         * reverse — see [ReadingDisplay].
+         */
+        private val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS reading_display_by_lane")
+                db.execSQL(
+                    """
+                    CREATE TABLE reading_display_by_lane (
+                        timestamp INTEGER NOT NULL,
+                        sensorSerial TEXT NOT NULL,
+                        displayMgdl REAL NOT NULL,
+                        viewMode INTEGER NOT NULL,
+                        calibrationFingerprint INTEGER NOT NULL,
+                        recordedAt INTEGER NOT NULL,
+                        lane INTEGER NOT NULL,
+                        PRIMARY KEY(timestamp, lane)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO reading_display_by_lane
+                        (timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt, lane)
+                    SELECT timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt,
+                        (viewMode & 1)
+                    FROM reading_display
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE reading_display")
+                db.execSQL("ALTER TABLE reading_display_by_lane RENAME TO reading_display")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_reading_display_sensorSerial " +
+                        "ON reading_display (sensorSerial)"
+                )
+            }
+        }
+
+        /**
          * The Clone-owned tables and the identity backfills, idempotently. Kept
          * separate from [ensureV30Compatibility] because that one is also what a
          * Clone-less build runs, and it must never start creating tables it does
@@ -810,7 +857,8 @@ abstract class HistoryDatabase : RoomDatabase() {
             bridgeCloneToV30(28),
             bridgeCloneToV30(29),
             MIGRATION_30_31,
-            MIGRATION_31_32
+            MIGRATION_31_32,
+            MIGRATION_32_33
         )
 
         fun getInstance(context: Context): HistoryDatabase =

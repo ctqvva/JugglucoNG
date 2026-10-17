@@ -94,7 +94,8 @@ fun getDisplayValues(
         tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
     // Rows, the hero and the chart tooltip pass the point's own record when it
     // has one (SealedGlucoseValue, the chart's main line), so equality says it.
-    val calibratedIsRecorded = calibratedValue != null && point.sealedDisplayValue == calibratedValue
+    val calibratedIsRecorded = calibratedValue != null &&
+        point.sealedValueFor(viewMode == 1 || viewMode == 3) == calibratedValue
     return DisplayValueResolver.resolve(
         autoValue = point.value,
         rawValue = point.rawValue,

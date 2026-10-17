@@ -35,11 +35,21 @@ import androidx.room.Index
  * wholesale, so a column on that table is not durable and a row keyed by the
  * minute is.
  *
+ * **One record per minute per lane.** The main line is drawn from the auto
+ * value (view modes 0/2) or the raw value (1/3), and the two are different
+ * numbers for the same minute — on an AiDEX about 1.2 mmol/L apart. A record
+ * is the number one of those lines showed, so it is kept per [lane]. With a
+ * single slot per minute, whichever lane happened to be on screen when a
+ * minute was first presented took it for both, and the line in the other lane
+ * became a patchwork of the two — switching lanes after turning the freeze on
+ * stitched raw and auto stretches together wherever the user had looked
+ * (2026-10-17). Each lane freezes its own first presentation and keeps it.
+ *
  * Values are mg/dL, matching how readings are stored.
  */
 @Entity(
     tableName = "reading_display",
-    primaryKeys = ["timestamp"],
+    primaryKeys = ["timestamp", "lane"],
     indices = [Index(value = ["sensorSerial"])],
 )
 data class ReadingDisplay(
@@ -49,7 +59,7 @@ data class ReadingDisplay(
     val sensorSerial: String,
     /** The number shown, in mg/dL. */
     val displayMgdl: Float,
-    /** The lane it came from: 1/3 are raw-primary, 0/2 auto-primary. */
+    /** The view mode it was shown in: 1/3 are raw-primary, 0/2 auto-primary. */
     val viewMode: Int,
     /**
      * Identifies the calibration state that produced [displayMgdl].
@@ -60,6 +70,12 @@ data class ReadingDisplay(
      */
     val calibrationFingerprint: Long,
     val recordedAt: Long,
+    /**
+     * Which main line this is the record of: [AUTO_LANE] or [RAW_LANE]. Part of
+     * the key, and always [laneOf] [viewMode]; 0 and 2 (or 1 and 3) draw the
+     * same main line, so they share a record.
+     */
+    val lane: Int = laneOf(viewMode),
 ) {
     val isUsable: Boolean
         get() = displayMgdl.isFinite() && displayMgdl > 0f
@@ -93,7 +109,45 @@ data class ReadingDisplay(
 
         const val MINUTE_MS = tk.glucodata.chart.MainSensorOwnership.MINUTE_MS
 
-        /** The minute a timestamp belongs to — the table's key. */
+        /** The minute a timestamp belongs to — the table's key, with the lane. */
         fun minuteOf(timestampMs: Long): Long = tk.glucodata.chart.MainSensorOwnership.minuteOf(timestampMs)
+
+        /** The main line drawn from the sensor's auto value (view modes 0 and 2). */
+        const val AUTO_LANE = 0
+
+        /** The main line drawn from the sensor's raw value (view modes 1 and 3). */
+        const val RAW_LANE = 1
+
+        fun laneOf(viewMode: Int): Int = viewMode and 1
+
+        fun laneOf(isRawMode: Boolean): Int = if (isRawMode) RAW_LANE else AUTO_LANE
     }
+}
+
+/** One minute's records, one per main line — see [ReadingDisplay]. */
+data class ReadingDisplayLanes(
+    val auto: ReadingDisplay? = null,
+    val raw: ReadingDisplay? = null,
+) {
+    /** Keeps each lane's record only where [keep] accepts it. */
+    inline fun filter(keep: (ReadingDisplay) -> Boolean): ReadingDisplayLanes =
+        ReadingDisplayLanes(auto?.takeIf(keep), raw?.takeIf(keep))
+
+    val isEmpty: Boolean get() = auto == null && raw == null
+}
+
+/** Records indexed by their minute, the two lanes of a minute together. */
+fun List<ReadingDisplay>.byMinute(): Map<Long, ReadingDisplayLanes> {
+    if (isEmpty()) return emptyMap()
+    val out = HashMap<Long, ReadingDisplayLanes>(size)
+    for (record in this) {
+        val minute = ReadingDisplay.minuteOf(record.timestamp)
+        val lanes = out[minute] ?: ReadingDisplayLanes()
+        out[minute] = if (record.lane == ReadingDisplay.RAW_LANE) {
+            lanes.copy(raw = record)
+        } else {
+            lanes.copy(auto = record)
+        }
+    }
+    return out
 }

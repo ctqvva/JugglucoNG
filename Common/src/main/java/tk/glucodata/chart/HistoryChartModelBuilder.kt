@@ -209,23 +209,23 @@ object HistoryChartModelBuilder {
     }
 
     /**
-     * A record is the main value the user was shown for a minute, whichever lane
-     * the main line was drawing then. It is applied to the main line in every
-     * lane — it is never consulted for a secondary lane, which draws the sensor's
-     * own values (see [segmentLane]). Switching between auto and raw therefore
-     * leaves a sealed minute where it was, and the lane now selected shows
-     * beside it as the calibration preview, exactly as a calibration change
-     * does.
+     * The main value the user was shown for this minute **on the line being
+     * drawn**, if one was recorded. Each main line keeps its own record (see
+     * `tk.glucodata.data.ReadingDisplay`), so switching between auto and raw
+     * shows the other line exactly as it was shown before, and switching back
+     * restores this one — a calibration moves neither.
      *
-     * Gating the record by lane (2026-09-11, extended to every reader in #499)
-     * turned the main line into a patchwork: each minute took its record or a
-     * fresh derivation depending on which lane happened to be main when it was
-     * first shown, so a toggle re-derived every minute recorded in the other
-     * lane, the statistics followed, and a later calibration moved exactly
-     * those minutes and no others.
+     * Never consulted for a secondary lane, which draws the sensor's own values
+     * (see [segmentLane]).
+     *
+     * History: with one record per minute, gating it by lane (2026-09-11, then
+     * every reader in #499) re-derived every minute first shown in the other
+     * lane, and a calibration moved exactly those minutes; applying it in
+     * either lane (#652) stitched the two lines together wherever the user had
+     * happened to look in each.
      */
-    fun recordedMainValue(point: GlucosePoint): Float? {
-        val sealed = point.sealedDisplayValue
+    fun recordedMainValue(point: GlucosePoint, isRawMode: Boolean): Float? {
+        val sealed = point.sealedValueFor(isRawMode)
         return if (!sealed.isNaN() && sealed > 0.1f) sealed else null
     }
 
@@ -237,7 +237,7 @@ object HistoryChartModelBuilder {
      * today's calibration of the sensor's value, or the sensor's value itself.
      *
      * Not only the calibrated case. A record outlives the state that produced
-     * it — a deleted calibration, the other lane — and the preview is the one
+     * it — a deleted calibration, a different one — and the preview is the one
      * place the live value can still be seen beside it.
      */
     private fun liveValue(
@@ -262,5 +262,5 @@ object HistoryChartModelBuilder {
         isRawMode: Boolean,
         sensorId: String,
         calibration: Calibration,
-    ): Float? = recordedMainValue(point) ?: liveValue(point, isRawMode, sensorId, calibration)
+    ): Float? = recordedMainValue(point, isRawMode) ?: liveValue(point, isRawMode, sensorId, calibration)
 }

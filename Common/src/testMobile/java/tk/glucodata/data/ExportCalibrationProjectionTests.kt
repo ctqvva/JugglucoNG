@@ -77,7 +77,7 @@ class ExportCalibrationProjectionTests {
                 timestamp = 1_700_000_000_000L,
                 sensorId = "sn-1",
                 viewMode = 0,
-                sealedDisplayValue = 9.1f
+                sealedAutoLaneValue = 9.1f
             )!!,
             0.0f
         )
@@ -90,7 +90,7 @@ class ExportCalibrationProjectionTests {
                 timestamp = 1_700_000_000_000L,
                 sensorId = "sn-1",
                 viewMode = 1,
-                sealedDisplayValue = 9.1f
+                sealedRawLaneValue = 9.1f
             )!!,
             0.0f
         )
@@ -106,7 +106,7 @@ class ExportCalibrationProjectionTests {
                 timestamp = 1_700_000_000_000L,
                 sensorId = "sn-1",
                 viewMode = 0,
-                sealedDisplayValue = null
+                sealedAutoLaneValue = null
             )
         )
     }
@@ -127,7 +127,7 @@ class ExportCalibrationProjectionTests {
                     sensorId = "sn-1",
                     viewMode = 0,
                     isMmol = isMmol,
-                    sealedMgDl = 100f
+                    sealedAutoMgDl = 100f
                 )!!,
                 0.01f
             )

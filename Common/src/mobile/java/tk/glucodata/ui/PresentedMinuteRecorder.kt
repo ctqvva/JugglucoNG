@@ -24,11 +24,13 @@ import java.util.Collections
  * dishonest and expensive. [SETTLE_MS] is how long the viewport must hold still
  * before what it shows counts as looked at.
  *
- * **Once.** [presented] remembers what this process has already written, so
- * holding still, or returning to a stretch, costs nothing. The set is per
- * process on purpose: it is a write-amplification guard, not the guarantee. The
- * guarantee is in the database — a minute past its grace window cannot be
- * revised, whatever is submitted.
+ * **Once per lane.** [presented] remembers what this process has already
+ * written, so holding still, or returning to a stretch, costs nothing. It is
+ * keyed by the minute *and the lane*: the auto and the raw main line each keep
+ * their own record, and a minute written for one has not been shown on the
+ * other. The set is per process on purpose: it is a write-amplification guard,
+ * not the guarantee. The guarantee is in the database — a minute past its grace
+ * window cannot be revised, whatever is submitted.
  */
 internal object PresentedMinuteRecorder {
 
@@ -62,13 +64,17 @@ internal object PresentedMinuteRecorder {
         // A minute still inside its grace window is resubmitted every pass, since
         // its value can still change; the database decides whether that lands.
         val unseen = visible.map { it.copy(minuteMs = tk.glucodata.data.ReadingDisplay.minuteOf(it.minuteMs)) }
-            .distinctBy { it.minuteMs }
-            .filter { it.minuteMs !in presented }
+            .distinctBy { guardKey(it) }
+            .filter { guardKey(it) !in presented }
         if (unseen.isEmpty()) return 0
         val recorded = write(unseen) ?: return 0
-        presented.addAll(unseen.map { it.minuteMs })
+        presented.addAll(unseen.map(::guardKey))
         return recorded
     }
+
+    /** The minute, doubled to leave the low bit for the lane. */
+    private fun guardKey(minute: HistoryRepository.PresentedMinute): Long =
+        minute.minuteMs * 2 + tk.glucodata.data.ReadingDisplay.laneOf(minute.viewMode)
 
     /**
      * Drops minutes still inside the grace window from the guard, so the next
@@ -76,7 +82,7 @@ internal object PresentedMinuteRecorder {
      */
     fun releaseUnsealed(sealHorizonMs: Long) {
         synchronized(presented) {
-            presented.removeAll { it > sealHorizonMs }
+            presented.removeAll { (it shr 1) > sealHorizonMs }
         }
     }
 }

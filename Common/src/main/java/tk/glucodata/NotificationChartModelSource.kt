@@ -20,8 +20,8 @@ object NotificationChartModelSource {
             withValues = { source, auto, raw ->
                 GlucosePoint(source.timestamp, auto, raw).also {
                     it.sensorSerial = source.sensorSerial
-                    it.sealedDisplayValue = source.sealedDisplayValue
-                    it.sealedDisplayViewMode = source.sealedDisplayViewMode
+                    it.sealedAutoLaneValue = source.sealedAutoLaneValue
+                    it.sealedRawLaneValue = source.sealedRawLaneValue
                     it.color = source.color
                 }
             },

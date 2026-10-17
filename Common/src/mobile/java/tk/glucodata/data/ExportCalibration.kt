@@ -22,7 +22,7 @@ import tk.glucodata.ui.util.GlucoseFormatter
 object ExportCalibration {
 
     /** viewMode 1/3 mean the sensor's primary lane is the raw signal, not auto. */
-    private fun isRawMode(viewMode: Int): Boolean = viewMode == 1 || viewMode == 3
+    fun isRawMode(viewMode: Int): Boolean = viewMode == 1 || viewMode == 3
 
     /**
      * The stored value the projection starts from: the raw lane in raw mode, the auto
@@ -51,8 +51,8 @@ object ExportCalibration {
      * applies. Null is returned when no active software calibration exists for
      * this sensor's primary lane, or the base value is missing/unusable.
      *
-     * [sealedDisplayValue] wins outright when present, in whichever lane it was
-     * recorded: it is the main value the user was shown (see
+     * The record of the exported lane wins outright when present: it is the main
+     * value the user was shown on that line (see
      * [HistoryChartModelBuilder.recordedMainValue]). An export that recomputed
      * a value the user was shown a different number for would contradict both
      * the chart and Nightscout, which is the disagreement this file exists to
@@ -60,10 +60,8 @@ object ExportCalibration {
      *
      * @param autoDisplayValue the stored auto value in display units
      * @param rawDisplayValue   the stored raw value in display units
-     * @param sealedDisplayValue the recorded displayed value, in display units
-     * @param sealedDisplayViewMode the view mode in force when [sealedDisplayValue]
-     *   was recorded (0/2 auto, 1/3 raw). Provenance only; it does not gate the
-     *   record.
+     * @param sealedAutoLaneValue the auto line's recorded value, in display units
+     * @param sealedRawLaneValue the raw line's recorded value, in display units
      */
     fun calibratedDisplayValue(
         autoDisplayValue: Float,
@@ -71,11 +69,11 @@ object ExportCalibration {
         timestamp: Long,
         sensorId: String?,
         viewMode: Int,
-        sealedDisplayValue: Float? = null,
-        sealedDisplayViewMode: Int? = null
+        sealedAutoLaneValue: Float? = null,
+        sealedRawLaneValue: Float? = null
     ): Float? {
         val raw = isRawMode(viewMode)
-        sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
+        (if (raw) sealedRawLaneValue else sealedAutoLaneValue)?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         val base = laneBaseValue(autoDisplayValue, rawDisplayValue, viewMode) ?: return null
         val calSensorId = sensorId?.takeIf { it.isNotBlank() }
         if (!CalibrationManager.hasActiveCalibration(raw, calSensorId)) return null
@@ -102,8 +100,8 @@ object ExportCalibration {
         sensorId: String?,
         viewMode: Int,
         isMmol: Boolean,
-        sealedMgDl: Float? = null,
-        sealedViewMode: Int? = null
+        sealedAutoMgDl: Float? = null,
+        sealedRawMgDl: Float? = null
     ): Float? {
         val autoDisplay = GlucoseFormatter.displayFromMgDl(autoMgDl, isMmol)
         val rawDisplay = GlucoseFormatter.displayFromMgDl(rawMgDl, isMmol)
@@ -113,8 +111,8 @@ object ExportCalibration {
             timestamp = timestamp,
             sensorId = sensorId,
             viewMode = viewMode,
-            sealedDisplayValue = sealedMgDl?.let { GlucoseFormatter.displayFromMgDl(it, isMmol) },
-            sealedDisplayViewMode = sealedViewMode
+            sealedAutoLaneValue = sealedAutoMgDl?.let { GlucoseFormatter.displayFromMgDl(it, isMmol) },
+            sealedRawLaneValue = sealedRawMgDl?.let { GlucoseFormatter.displayFromMgDl(it, isMmol) }
         ) ?: return null
         return if (isMmol) GlucoseFormatter.mmolToMg(calibratedDisplay) else calibratedDisplay
     }
