@@ -312,7 +312,9 @@ fun ReadingRow(
                         Text(
                             text = deltaText,
                             style = timeStyle.copy(fontFeatureSettings = "tnum"),
-                            color = tertiaryColor
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (isActive) 0.65f else 0.5f
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
