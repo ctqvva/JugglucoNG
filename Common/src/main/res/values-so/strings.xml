@@ -2906,6 +2906,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3154,6 +3155,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_secret_label">Sirta API ama token-ka gelitaanka</string>
     <string name="nightscout_api_help">v1 u isticmaal sirta API, v3-na token-ka gelitaanka Nightscout.</string>
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
+    <string name="medtrum_sensor_desc">Geli lambarka taxanaha ee ku daabacan balastarka (hexadecimal)</string>
+    <string name="medtrum_setup_saved_title">Dareemaha waa la keydiyay</string>
+    <string name="medtrum_setup_searching">Weli lama xiriirin. Balastarku wuu isku xiri doonaa marka uu u dhow yahay.</string>
+    <string name="medtrum_setup_auth_failed">Balastarku wuu diiday lambarkan taxanaha. Hubi lambarka ku daabacan balastarka.</string>
+    <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum balastar. Hubi in balastarku uu dhow yahay oo mar kale isku day.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
 </resources>

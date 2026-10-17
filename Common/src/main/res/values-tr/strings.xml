@@ -2743,6 +2743,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2997,6 +2998,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_secret_label">API sırrı veya erişim belirteci</string>
     <string name="nightscout_api_help">v1 için API sırrını, v3 için Nightscout erişim tokenini kullanın.</string>
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
+    <string name="medtrum_sensor_desc">Yama üzerinde yazan seri numarasını girin (onaltılık)</string>
+    <string name="medtrum_setup_saved_title">Sensör kaydedildi</string>
+    <string name="medtrum_setup_searching">Henüz bağlanmadı. Yama menzile girdiğinde kendiliğinden bağlanacak.</string>
+    <string name="medtrum_setup_auth_failed">Yama bu seri numarasını reddetti. Yama üzerindeki numarayı kontrol edin.</string>
+    <string name="medtrum_setup_device_rejected">Bu cihaz bir Medtrum yaması değil. Yamanın yakında olduğundan emin olun ve tekrar deneyin.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
 </resources>

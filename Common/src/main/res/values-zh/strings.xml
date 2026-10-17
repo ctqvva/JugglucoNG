@@ -2731,6 +2731,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2984,6 +2985,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API 密钥或访问令牌</string>
     <string name="nightscout_api_help">v1 使用 API 密钥，v3 使用 Nightscout 访问令牌。</string>
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
+    <string name="medtrum_sensor_desc">输入贴片上印的序列号（十六进制）</string>
+    <string name="medtrum_setup_saved_title">传感器已保存</string>
+    <string name="medtrum_setup_searching">尚未连接。贴片进入范围后会自动连接。</string>
+    <string name="medtrum_setup_auth_failed">贴片拒绝了此序列号。请检查贴片上印的号码。</string>
+    <string name="medtrum_setup_device_rejected">此设备不是 Medtrum 贴片。请确认贴片在附近，然后重试。</string>
 
     <string name="alert_sound_volume">警报音量</string>
 </resources>

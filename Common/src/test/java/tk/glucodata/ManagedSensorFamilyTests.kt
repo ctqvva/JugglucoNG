@@ -24,7 +24,7 @@ class ManagedSensorFamilyTests {
     private fun source(relative: String): String = File(repoRoot(), relative).readText()
 
     @Test
-    fun familyCodesAreStableAndFitTheThreeBitsNativeStores() {
+    fun familyCodesAreStableAndFitTheFourBitsNativeStores() {
         // On disk, and shipped to other phones: reordering the enum must not relabel a sensor.
         assertEquals(0, ManagedSensorUiFamily.GENERIC.nativeCode)
         assertEquals(1, ManagedSensorUiFamily.MQ.nativeCode)
@@ -34,7 +34,9 @@ class ManagedSensorFamilyTests {
         assertEquals(5, ManagedSensorUiFamily.OTTAI.nativeCode)
         assertEquals(6, ManagedSensorUiFamily.SIBIONICS.nativeCode)
         assertEquals(7, ManagedSensorUiFamily.NIGHTSCOUT.nativeCode)
-        assertTrue(ManagedSensorUiFamily.entries.all { it.nativeCode in 0..7 })
+        // Code 8 is the first that needs the formerly reserved fourth bit.
+        assertEquals(8, ManagedSensorUiFamily.MEDTRUM.nativeCode)
+        assertTrue(ManagedSensorUiFamily.entries.all { it.nativeCode in 0..15 })
         assertEquals(ManagedSensorUiFamily.entries.size, ManagedSensorUiFamily.entries.map { it.nativeCode }.toSet().size)
         for (family in ManagedSensorUiFamily.entries) {
             assertEquals(family, ManagedSensorUiFamily.fromNativeCode(family.nativeCode))
@@ -43,12 +45,17 @@ class ManagedSensorFamilyTests {
     }
 
     @Test
-    fun theInfoBlockHoldsThreeBitsAndNativeRefusesAnythingWider() {
+    fun theInfoBlockHoldsFourBitsAndNativeRefusesAnythingWider() {
         val info = source("Common/src/main/cpp/SensorGlucoseData.hpp")
+        // The three low bits live in the packed word; the fourth is the bit beside them that
+        // used to be reserved, so every existing info.dat reads 0 there and codes 0-7 are
+        // unchanged.
         assertTrue(info.contains("uint16_t managedFamily : 3;"))
+        assertTrue(info.contains("uint8_t managedFamilyHigh : 1;"))
+        assertTrue(info.contains("maxManagedFamilyCode = 15"))
         val jni = source("Common/src/main/cpp/g.cpp")
         assertTrue(jni.contains("fromjava(setSensorManagedFamily)"))
-        assertTrue(jni.contains("code < 0 || code > 7"))
+        assertTrue(jni.contains("SensorGlucoseData::Info::maxManagedFamilyCode"))
         assertTrue(jni.contains("fromjava(getSensorManagedFamily)"))
     }
 

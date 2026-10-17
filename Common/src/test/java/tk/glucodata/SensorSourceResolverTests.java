@@ -34,6 +34,7 @@ public class SensorSourceResolverTests {
         assertEquals("Anytime", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_ANYTIME, false));
         assertEquals("MQ", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_MQ, false));
         assertEquals("Nightscout", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_NIGHTSCOUT, false));
+        assertEquals("Medtrum", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_MEDTRUM, false));
         // The API source relays another app's readings; it must not default to Libre 2.
         assertEquals("Unknown", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_EXTERNAL, false));
         assertEquals("Libre2", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_EXTERNAL, true));
@@ -45,6 +46,8 @@ public class SensorSourceResolverTests {
                 SensorSourceResolver.kindForManagedFamily(tk.glucodata.drivers.ManagedSensorUiFamily.GENERIC));
         assertEquals(SensorSourceResolver.SENSOR_KIND_NIGHTSCOUT,
                 SensorSourceResolver.kindForManagedFamily(tk.glucodata.drivers.ManagedSensorUiFamily.NIGHTSCOUT));
+        assertEquals(SensorSourceResolver.SENSOR_KIND_MEDTRUM,
+                SensorSourceResolver.kindForManagedFamily(tk.glucodata.drivers.ManagedSensorUiFamily.MEDTRUM));
     }
 
     @Test
@@ -75,6 +78,8 @@ public class SensorSourceResolverTests {
         assertEquals(SensorSourceResolver.SENSOR_KIND_OTTAI, SensorSourceResolver.kindForSnapshot(libre2, 5));
         assertEquals(SensorSourceResolver.SENSOR_KIND_SIBIONICS, SensorSourceResolver.kindForSnapshot(libre2, 6));
         assertEquals(SensorSourceResolver.SENSOR_KIND_NIGHTSCOUT, SensorSourceResolver.kindForSnapshot(libre2, 7));
+        // Codes above 7 use the fourth family bit (the formerly reserved one).
+        assertEquals(SensorSourceResolver.SENSOR_KIND_MEDTRUM, SensorSourceResolver.kindForSnapshot(libre2, 8));
         assertFalse(SensorSourceResolver.isLibreKind(SensorSourceResolver.kindForSnapshot(libre2, 5)));
     }
 

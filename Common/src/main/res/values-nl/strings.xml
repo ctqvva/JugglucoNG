@@ -2758,6 +2758,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3012,6 +3013,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_secret_label">API-secret of toegangstoken</string>
     <string name="nightscout_api_help">Gebruik een API-geheim voor v1 of een Nightscout-toegangstoken voor v3.</string>
     <string name="nightscout_iob_help">eIOB en COB worden in het veld jugglucong van devicestatus verstuurd, los van de standaard-IOB.</string>
+    <string name="medtrum_sensor_desc">Voer het serienummer in dat op de patch staat (hexadecimaal)</string>
+    <string name="medtrum_setup_saved_title">Sensor opgeslagen</string>
+    <string name="medtrum_setup_searching">Nog niet verbonden. De patch maakt vanzelf verbinding zodra hij binnen bereik is.</string>
+    <string name="medtrum_setup_auth_failed">De patch heeft dit serienummer geweigerd. Controleer het nummer op de patch.</string>
+    <string name="medtrum_setup_device_rejected">Dit apparaat is geen Medtrum-patch. Zorg dat de patch binnen bereik is en probeer het opnieuw.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
 </resources>

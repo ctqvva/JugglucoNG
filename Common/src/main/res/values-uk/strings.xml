@@ -2791,6 +2791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3049,6 +3050,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Секрет API або токен доступу</string>
     <string name="nightscout_api_help">Для v1 використовуйте секрет API, для v3 — токен доступу Nightscout.</string>
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
+    <string name="medtrum_sensor_desc">Введіть серійний номер, надрукований на патчі (шістнадцятковий)</string>
+    <string name="medtrum_setup_saved_title">Сенсор збережено</string>
+    <string name="medtrum_setup_searching">Поки не під’єднано. Патч під’єднається сам, коли буде поруч.</string>
+    <string name="medtrum_setup_auth_failed">Патч відхилив цей серійний номер. Перевірте номер на патчі.</string>
+    <string name="medtrum_setup_device_rejected">Цей пристрій не є патчем Medtrum. Переконайтеся, що патч поруч, і спробуйте ще раз.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
 </resources>

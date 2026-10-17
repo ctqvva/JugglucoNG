@@ -2822,6 +2822,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3070,6 +3071,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
     <string name="nightscout_api_help">v1-д API нууц, v3-д Nightscout хандалтын токен ашиглана уу.</string>
     <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
+    <string name="medtrum_sensor_desc">Наалт дээр хэвлэсэн серийн дугаарыг оруулна уу (16-тын)</string>
+    <string name="medtrum_setup_saved_title">Мэдрэгч хадгалагдлаа</string>
+    <string name="medtrum_setup_searching">Одоогоор холбогдоогүй. Наалт ойр байх үед өөрөө холбогдоно.</string>
+    <string name="medtrum_setup_auth_failed">Наалт энэ серийн дугаарыг хүлээн аваагүй. Наалт дээрх дугаарыг шалгана уу.</string>
+    <string name="medtrum_setup_device_rejected">Энэ төхөөрөмж Medtrum наалт биш. Наалт ойрхон байгаа эсэхийг шалгаад дахин оролдоно уу.</string>
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
 </resources>

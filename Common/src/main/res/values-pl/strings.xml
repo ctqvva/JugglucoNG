@@ -2753,6 +2753,7 @@
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3011,6 +3012,11 @@
     <string name="nightscout_secret_label">Sekret API lub token dostępu</string>
     <string name="nightscout_api_help">Dla v1 użyj sekretu API, a dla v3 tokenu dostępu Nightscout.</string>
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
+    <string name="medtrum_sensor_desc">Wpisz numer seryjny wydrukowany na plastrze (szesnastkowy)</string>
+    <string name="medtrum_setup_saved_title">Sensor zapisany</string>
+    <string name="medtrum_setup_searching">Jeszcze nie połączono. Plaster połączy się sam, gdy będzie w zasięgu.</string>
+    <string name="medtrum_setup_auth_failed">Plaster odrzucił ten numer seryjny. Sprawdź numer wydrukowany na plastrze.</string>
+    <string name="medtrum_setup_device_rejected">To urządzenie nie jest plastrem Medtrum. Upewnij się, że plaster jest w pobliżu, i spróbuj ponownie.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
 </resources>

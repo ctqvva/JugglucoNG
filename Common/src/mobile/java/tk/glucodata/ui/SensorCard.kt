@@ -2861,6 +2861,40 @@ fun SensorCard(
                 }
             }
 
+            if (sensor.isMedtrum && sensor.supportsManualCalibration) {
+                FilledTonalButton(
+                    onClick = { showSensorCalibrateDialog = true },
+                    enabled = sensor.isVendorConnected,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bloodtype,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (sensor.isVendorConnected) {
+                            stringResource(R.string.calibrate_action)
+                        } else {
+                            stringResource(R.string.calibrate_connect_first)
+                        },
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+
             if (sensor.isAnytime && sensor.supportsManualCalibration) {
                 val warmupComplete = AnytimeCalibrationPolicy.canAcceptManualCalibration(sensor.sensorAgeHours)
                 val canCalibrate = sensor.isVendorConnected && warmupComplete

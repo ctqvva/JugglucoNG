@@ -429,6 +429,7 @@ fun DashboardScreen(
     var showMQWizard by remember { mutableStateOf(false) }
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
+    var showMedtrumWizard by remember { mutableStateOf(false) }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
     // Where the chart draws the tapped time's dot, for the journal menu to grow from.
@@ -830,6 +831,19 @@ fun DashboardScreen(
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showCareSensAirWizard = false
+            }
+        )
+        return
+    }
+
+    // Medtrum EasySense Setup Wizard
+    if (showMedtrumWizard) {
+        tk.glucodata.ui.setup.MedtrumSetupWizard(
+            onDismiss = { showMedtrumWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showMedtrumWizard = false
+                viewModel.refreshData()
             }
         )
         return
@@ -1395,6 +1409,7 @@ fun DashboardScreen(
                     tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
                         tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
                         tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
+                        tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
                 }
             },
                 onImportHistory = {

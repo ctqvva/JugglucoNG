@@ -291,6 +291,7 @@ fun SensorScreen(
     var showMQWizard by remember { mutableStateOf(false) }
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
+    var showMedtrumWizard by remember { mutableStateOf(false) }
 
     // Sensor Type Picker Bottom Sheet
     if (showSensorPicker) {
@@ -309,6 +310,7 @@ fun SensorScreen(
                     tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
                     tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
                     tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
+                    tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
                 }
             }
         )
@@ -398,6 +400,18 @@ fun SensorScreen(
         return
     }
 
+    if (showMedtrumWizard) {
+        tk.glucodata.ui.setup.MedtrumSetupWizard(
+            onDismiss = { showMedtrumWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showMedtrumWizard = false
+                viewModel.refreshSensors()
+            }
+        )
+        return
+    }
+
     if (showICanHealthWizard) {
         tk.glucodata.ui.setup.ICanHealthSetupWizard(
             onDismiss = { showICanHealthWizard = false },
@@ -477,6 +491,7 @@ fun SensorScreen(
                             tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
                             tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
                             tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
+                            tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
                         }
                     }
                 )

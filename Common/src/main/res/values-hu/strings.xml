@@ -2805,6 +2805,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -3044,6 +3045,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_secret_label">API-titok vagy hozzáférési token</string>
     <string name="nightscout_api_help">A v1-hez API-titkot, a v3-hoz Nightscout-hozzáférési tokent használj.</string>
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
+    <string name="medtrum_sensor_desc">Adja meg a tapaszra nyomtatott sorozatszámot (hexadecimális)</string>
+    <string name="medtrum_setup_saved_title">Szenzor mentve</string>
+    <string name="medtrum_setup_searching">Még nincs kapcsolat. A tapasz magától csatlakozik, ha hatótávon belül van.</string>
+    <string name="medtrum_setup_auth_failed">A tapasz elutasította ezt a sorozatszámot. Ellenőrizze a tapaszon lévő számot.</string>
+    <string name="medtrum_setup_device_rejected">Ez az eszköz nem Medtrum tapasz. Ellenőrizze, hogy a tapasz a közelben van-e, majd próbálja újra.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
 </resources>

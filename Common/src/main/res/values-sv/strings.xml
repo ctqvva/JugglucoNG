@@ -2715,6 +2715,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2969,6 +2970,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API-hemlighet eller åtkomsttoken</string>
     <string name="nightscout_api_help">Använd API-hemligheten med v1 eller en Nightscout-åtkomsttoken med v3.</string>
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
+    <string name="medtrum_sensor_desc">Ange serienumret som står på plåstret (hexadecimalt)</string>
+    <string name="medtrum_setup_saved_title">Sensorn sparad</string>
+    <string name="medtrum_setup_searching">Inte ansluten än. Plåstret ansluter av sig själv när det är inom räckhåll.</string>
+    <string name="medtrum_setup_auth_failed">Plåstret avvisade serienumret. Kontrollera numret som står på plåstret.</string>
+    <string name="medtrum_setup_device_rejected">Den här enheten är inte ett Medtrum-plåster. Kontrollera att plåstret är inom räckhåll och försök igen.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
 </resources>

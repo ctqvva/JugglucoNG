@@ -2716,6 +2716,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2970,6 +2971,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Segredo da API ou token de acesso</string>
     <string name="nightscout_api_help">Use o segredo da API com v1 ou um token de acesso do Nightscout com v3.</string>
     <string name="nightscout_iob_help">eIOB e COB são enviados no campo jugglucong de devicestatus, separados da IOB padrão.</string>
+    <string name="medtrum_sensor_desc">Introduza o número de série impresso no adesivo (hexadecimal)</string>
+    <string name="medtrum_setup_saved_title">Sensor guardado</string>
+    <string name="medtrum_setup_searching">Ainda não ligado. O adesivo liga-se sozinho quando estiver ao alcance.</string>
+    <string name="medtrum_setup_auth_failed">O adesivo recusou este número de série. Verifique o número impresso no adesivo.</string>
+    <string name="medtrum_setup_device_rejected">Este dispositivo não é um adesivo Medtrum. Verifique se o adesivo está por perto e tente novamente.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
 </resources>

@@ -34,7 +34,8 @@ enum class ManagedSensorCalibrationSource {
 
 enum class ManagedSensorUiFamily(
     /**
-     * What the native info block stores for this family (three bits, 0 = unknown).
+     * What the native info block stores for this family (four bits, 0 = unknown;
+     * 8-15 use the fourth bit, which builds before it read as 0).
      * Fixed here rather than taken from ordinal(), because the value is on disk
      * and travels to other phones over Clone: reordering the enum must not
      * relabel anyone's sensor.
@@ -48,7 +49,8 @@ enum class ManagedSensorUiFamily(
     ANYTIME(4),
     OTTAI(5),
     SIBIONICS(6),
-    NIGHTSCOUT(7);
+    NIGHTSCOUT(7),
+    MEDTRUM(8);
 
     companion object {
         fun fromNativeCode(code: Int): ManagedSensorUiFamily =

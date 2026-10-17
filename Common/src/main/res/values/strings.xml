@@ -1075,6 +1075,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_sensor_desc" translatable="false">X, Vista, Smart, Lumi</string>
     <string name="ottai_sensor" translatable="false">Ottai / Syai</string>
     <string name="ottai_sensor_desc" translatable="false">M8, X1</string>
+    <string name="medtrum_sensor" translatable="false">Medtrum EasySense</string>
+    <string name="medtrum_sensor_desc">Enter the serial number printed on the patch (hexadecimal)</string>
+    <string name="medtrum_setup_saved_title">Sensor saved</string>
+    <string name="medtrum_setup_searching">Not connected yet. The patch connects on its own when it is in range.</string>
+    <string name="medtrum_setup_auth_failed">The patch rejected this serial number. Check the number printed on the patch.</string>
+    <string name="medtrum_setup_device_rejected">This device is not a Medtrum patch. Make sure the patch is in range and try again.</string>
+    <string name="medtrum_serial_hint" translatable="false">1B2C3D4E</string>
+    <string name="medtrum_serial_echo" translatable="false">SN %1$s = %2$d</string>
     <string name="icanhealth_sensor" translatable="false">Sinocare iCan</string>
     <string name="icanhealth_sensor_desc" translatable="false">i3, i6</string>
     <string name="anytime_sensor" translatable="false">Yuwell Anytime</string>
@@ -2954,6 +2962,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_vendor_isens" translatable="false">i-SENS</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>

@@ -29,7 +29,8 @@ enum class SensorType {
     ICANHEALTH,
     MQ,
     ANYTIME,
-    OTTAI
+    OTTAI,
+    MEDTRUM
 }
 
 /** One sensor family the user can add: shared by the picker sheet and the empty-state cards. */
@@ -51,6 +52,7 @@ internal val sensorTypeOptions = listOf(
     SensorTypeOption(SensorType.ACCUCHEK, Icons.Default.QrCodeScanner, R.string.accuchek_sensor, R.string.accuchek_sensor_desc),
     SensorTypeOption(SensorType.CARESENS_AIR, Icons.Default.QrCodeScanner, R.string.caresens_air_sensor, R.string.caresens_air_sensor_desc),
     SensorTypeOption(SensorType.MQ, Icons.Default.Bluetooth, R.string.mq_sensor, R.string.mq_sensor_desc),
+    SensorTypeOption(SensorType.MEDTRUM, Icons.Default.Bluetooth, R.string.medtrum_sensor, R.string.medtrum_sensor_desc),
 )
 
 /**

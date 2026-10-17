@@ -2705,6 +2705,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2959,6 +2960,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Segreto API o token di accesso</string>
     <string name="nightscout_api_help">Usa il segreto API con v1 o un token di accesso Nightscout con v3.</string>
     <string name="nightscout_iob_help">eIOB e COB vengono inviati nel campo jugglucong di devicestatus, separatamente dall’IOB standard.</string>
+    <string name="medtrum_sensor_desc">Inserisci il numero di serie stampato sul cerotto (esadecimale)</string>
+    <string name="medtrum_setup_saved_title">Sensore salvato</string>
+    <string name="medtrum_setup_searching">Non ancora connesso. Il cerotto si connetterà da solo quando sarà nel raggio d\'azione.</string>
+    <string name="medtrum_setup_auth_failed">Il cerotto ha rifiutato questo numero di serie. Controlla il numero stampato sul cerotto.</string>
+    <string name="medtrum_setup_device_rejected">Questo dispositivo non è un cerotto Medtrum. Assicurati che il cerotto sia vicino e riprova.</string>
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
 </resources>
