@@ -947,9 +947,6 @@ object CalibrationManager {
         if (::prefs.isInitialized) {
             prefs.edit().putBoolean(KEY_FREEZE_DISPLAYED_VALUES, enabled).apply()
         }
-        // Turned on: record the whole store as it is shown now, so nothing
-        // that was not on screen follows the next calibration or switch.
-        if (enabled) tk.glucodata.data.DisplayRecordKeeper.recordAll()
         requestUiRefreshAfterCalibrationChange()
         Log.i(TAG, "Freeze displayed values: $enabled")
     }

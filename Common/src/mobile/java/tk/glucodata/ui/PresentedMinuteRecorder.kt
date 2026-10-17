@@ -6,11 +6,18 @@ import java.util.Collections
 /**
  * Records the main value for minutes that were actually put in front of the user.
  *
- * **Visible, not loaded.** The chart holds far more than it draws: queries
- * run ahead of the viewport, and panning keeps points alive on both sides of
- * the screen. Only the slice the chart just drew is submitted here, with the
- * chart's own values. Every other minute is recorded as it arrives, by
- * [tk.glucodata.data.DisplayRecordKeeper].
+ * **Visible, not loaded.** This is the whole reason the recorder exists rather
+ * than the repository being called from wherever data arrives. The chart holds
+ * far more than it draws: the merge needs the entire stored timeline to rank
+ * sensors correctly, queries run ahead of the viewport, and panning keeps points
+ * alive on both sides of the screen. None of that was presented to anyone.
+ * Recording a minute the chart merely *had* would freeze today's opinion onto a
+ * moment nobody looked at — the same backdating a background pass does, with a
+ * scroll as the trigger instead of a timer.
+ *
+ * So the only input is the slice the chart just drew, and the only caller is the
+ * draw path's own viewport. A minute enters the record when it appears on
+ * screen, and not before.
  *
  * **Settling.** A pan sweeps thousands of minutes past the viewport in a second;
  * a glance at them is not a presentation, and writing each frame would be both

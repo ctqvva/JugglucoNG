@@ -60,24 +60,6 @@ class HistoryRepository(context: Context = Applic.app) {
     companion object {
         private const val TAG = "HistoryRepo"
 
-        /**
-         * One entry per minute the main line draws and no sealed record holds
-         * yet: the minute's first point, in its sensor's lane. Sealed records
-         * arrive attached to their points and are left alone.
-         */
-        internal fun minutesToRecord(
-            points: List<GlucosePoint>,
-            viewModeOf: (String) -> Int,
-            valueOf: (GlucosePoint, Int) -> Float?,
-        ): List<PresentedMinute> =
-            points.distinctBy { ReadingDisplay.minuteOf(it.timestamp) }.mapNotNull { point ->
-                if (point.sealedDisplayValue != null) return@mapNotNull null
-                val serial = point.sensorSerial?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val viewMode = viewModeOf(serial)
-                val value = valueOf(point, viewMode)?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
-                PresentedMinute(ReadingDisplay.minuteOf(point.timestamp), value, serial, viewMode)
-            }
-
         @Volatile
         private var timestampIndexTracker: HistoryTimestampIndexTracker? = null
 
@@ -2137,64 +2119,22 @@ class HistoryRepository(context: Context = Applic.app) {
     )
 
     /**
-     * Records the main value of every minute since [startTime] that has not
-     * sealed yet, as the dashboard draws it now: the merged main sensor, its
-     * selected lane, through the live calibration. See [DisplayRecordKeeper],
-     * which runs this as readings arrive.
+     * Records the main value for minutes the user has actually been shown.
      *
-     * Recording only what had been on screen left every minute nobody looked
-     * at unrecorded, and an unrecorded minute follows today's settings: a
-     * calibration or a raw/auto switch moved all of them, and scrolling over
-     * them afterwards froze them in the new state beside the stretches that
-     * had been recorded before — steps at the edges of old viewports. Recorded
-     * on arrival and revised while it settles, a minute seals as it was shown,
-     * or would have been shown, when it left the grace window. This is not a
-     * replay of the merge days later: it runs while the minute is current, and
-     * once sealed a late reading cannot move it.
+     * Presentation is the only writer. A background pass over stored readings
+     * cannot produce a record, because the decision it would have to reproduce
+     * is not reproducible: [HistoryDisplayMerge] ranks sensors by how recently
+     * each last read and builds coverage segments out of whatever readings exist
+     * at query time, so one sensor reading again tomorrow, or one late backfill
+     * row landing inside a fifteen-minute gap, changes who owns a minute from
+     * last week. Replaying it later yields a plausible answer with no way to
+     * tell when it is wrong. Capturing the output as it is drawn has nothing to
+     * reproduce.
      *
-     * @return newly inserted minutes, or null if disabled or the write failed.
-     */
-    suspend fun recordDisplayedMinutesSince(startTime: Long): Int? {
-        if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
-            return null
-        }
-        // The dashboard's own merge, so a minute is recorded under the sensor
-        // the chart draws for it.
-        val points = loadMergedWindow(
-            runCatching { SensorIdentity.resolveMainSensor() }.getOrNull(),
-            startTime,
-            System.currentTimeMillis(),
-        )
-        val isMmol = GlucoseFormatter.isMmolApp()
-        val viewModes = HashMap<String, Int>()
-        val entries = minutesToRecord(
-            points,
-            viewModeOf = { serial ->
-                viewModes.getOrPut(serial) { tk.glucodata.CurrentDisplaySource.resolveViewModeForSensor(serial) }
-            },
-            valueOf = { point, viewMode -> mainValueMgdl(point, viewMode, isMmol) },
-        )
-        return recordPresentedMinutes(entries)
-    }
-
-    /** The main line's value for a point in [viewMode]'s lane, as the rows compute it. */
-    private fun mainValueMgdl(point: GlucosePoint, viewMode: Int, isMmol: Boolean): Float? {
-        val isRawMode = viewMode == 1 || viewMode == 3
-        val base = if (isRawMode) point.rawValue else point.value
-        if (!base.isFinite() || base <= 0.1f) return null
-        val calibrated = tk.glucodata.ui.SealedGlucoseValue.computeCalibrated(
-            baseValue = GlucoseFormatter.displayFromMgDl(base, isMmol),
-            timestamp = point.timestamp,
-            isRawMode = isRawMode,
-            sensorId = point.sensorSerial,
-        ) ?: return base
-        return if (isMmol) GlucoseFormatter.mmolToMg(calibrated) else calibrated
-    }
-
-    /**
-     * Records the main value for minutes the user has been shown — the
-     * chart's own values for what is on screen — and for every minute as it
-     * arrives ([recordDisplayedMinutesSince]).
+     * Only what was **visible** may be recorded. A minute the chart queried,
+     * prefetched or held off-screen was presented to nobody, and recording it
+     * would be the same backdating a background pass does, triggered by a scroll
+     * instead. Enforcing that is the caller's job — see [PresentedMinuteRecorder].
      *
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the

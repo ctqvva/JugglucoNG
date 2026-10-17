@@ -61,12 +61,6 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
- *   v33 — test builds of PR #652 only: reading_display keyed by (minute, lane).
- *         Withdrawn — a raw/auto switch must not change the main line, and
- *         per-lane records made it show the other lane's line.
- *   v34 — reading_display is one record per minute again, as at v32. From
- *         v32 nothing changes; a v33 store keeps each minute's first-recorded
- *         row, which is what the user was shown first.
  */
 /**
  * The current schema version (plan task H5). The migration tests migrate from the
@@ -74,7 +68,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  * A version bump also needs its exported schema JSON committed — the CI schema
  * check in H1 catches that.
  */
-internal const val HISTORY_DATABASE_VERSION = 34
+internal const val HISTORY_DATABASE_VERSION = 32
 
 @Database(
     entities = [
@@ -727,57 +721,6 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
-        /** v32 → v34: the schema did not change. v33 never shipped outside PR #652. */
-        private val MIGRATION_32_34 = object : Migration(32, 34) {
-            override fun migrate(db: SupportSQLiteDatabase) = Unit
-        }
-
-        /**
-         * v33 → v34: back to one recorded main value per minute.
-         *
-         * A v33 store can hold two rows for a minute, one per lane. The one
-         * kept is the earliest recorded: the value the user was shown first,
-         * which is what a record means. The row with the lower lane wins a tie.
-         */
-        private val MIGRATION_33_34 = object : Migration(33, 34) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DROP TABLE IF EXISTS reading_display_by_minute")
-                db.execSQL(
-                    """
-                    CREATE TABLE reading_display_by_minute (
-                        timestamp INTEGER NOT NULL,
-                        sensorSerial TEXT NOT NULL,
-                        displayMgdl REAL NOT NULL,
-                        viewMode INTEGER NOT NULL,
-                        calibrationFingerprint INTEGER NOT NULL,
-                        recordedAt INTEGER NOT NULL,
-                        PRIMARY KEY(timestamp)
-                    )
-                    """.trimIndent()
-                )
-                db.execSQL(
-                    """
-                    INSERT INTO reading_display_by_minute
-                        (timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt)
-                    SELECT timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt
-                    FROM reading_display AS r
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM reading_display AS o
-                        WHERE o.timestamp = r.timestamp
-                            AND (o.recordedAt < r.recordedAt
-                                OR (o.recordedAt = r.recordedAt AND o.lane < r.lane))
-                    )
-                    """.trimIndent()
-                )
-                db.execSQL("DROP TABLE reading_display")
-                db.execSQL("ALTER TABLE reading_display_by_minute RENAME TO reading_display")
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_reading_display_sensorSerial " +
-                        "ON reading_display (sensorSerial)"
-                )
-            }
-        }
-
         /**
          * The Clone-owned tables and the identity backfills, idempotently. Kept
          * separate from [ensureV30Compatibility] because that one is also what a
@@ -867,9 +810,7 @@ abstract class HistoryDatabase : RoomDatabase() {
             bridgeCloneToV30(28),
             bridgeCloneToV30(29),
             MIGRATION_30_31,
-            MIGRATION_31_32,
-            MIGRATION_32_34,
-            MIGRATION_33_34
+            MIGRATION_31_32
         )
 
         fun getInstance(context: Context): HistoryDatabase =
@@ -880,10 +821,7 @@ abstract class HistoryDatabase : RoomDatabase() {
                     DATABASE_NAME
                 )
                 .addMigrations(*ALL_MIGRATIONS)
-                .build().also {
-                    INSTANCE = it
-                    DisplayRecordKeeper.watch(it, context)
-                }
+                .build().also { INSTANCE = it }
             }
 
         @JvmStatic

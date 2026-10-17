@@ -151,10 +151,6 @@ interface HistoryDao {
     @Query("SELECT * FROM history_readings WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getReadingsSince(startTime: Long): List<HistoryReading>
 
-    /** The oldest reading first stored at or after [storedAt]; null when none was. */
-    @Query("SELECT MIN(timestamp) FROM history_readings WHERE firstStoredAt >= :storedAt")
-    suspend fun getEarliestTimestampStoredSince(storedAt: Long): Long?
-
     /**
      * Keyset page on the unique (timestamp, sensorSerial) index; start after (Long.MIN_VALUE, "").
      * The MAX() is what SQLite seeks to. Given only `timestamp >= :startTime` it walked the index
