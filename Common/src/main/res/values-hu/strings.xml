@@ -2878,6 +2878,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="freeze_displayed_values">Megjelenített értékek megőrzése</string>
     <string name="freeze_displayed_values_desc">A mérés megőrzi a megjelenített értékét. A kalibráció módosítása csak a legutóbbi méréseket érinti.</string>
     <string name="freeze_displayed_values_after">Rögzítés %1$s után</string>
+    <string name="freeze_displayed_values_grace_desc">Addig a mérés még követi a kalibráció változásait, így egy később rögzített ujjbegyes mérés is javíthatja. Utána megtartja a megjelenített értéket.</string>
     <string name="freeze_displayed_values_off">Újraszámítás minden változáskor</string>
     <string name="anytime_credentials_backup">CT5-hitelesítő adatok mentése</string>
     <string name="anytime_credentials_backup_warning">Ezzel a fájllal visszaállítható a jeladó munkamenete az alkalmazás újratelepítése vagy a szenzor eltávolítása után. Tárolja biztonságos helyen.</string>

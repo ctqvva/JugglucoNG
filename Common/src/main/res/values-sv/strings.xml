@@ -2792,6 +2792,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values">Behåll visade värden</string>
     <string name="freeze_displayed_values_desc">Ett värde behåller det som visades. Kalibreringsändringar påverkar bara de senaste värdena.</string>
     <string name="freeze_displayed_values_after">Låses efter %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Fram till dess följer en mätning fortfarande kalibreringsändringar, så ett sent inmatat fingerstick kan rätta den. Därefter behåller den det visade värdet.</string>
     <string name="freeze_displayed_values_off">Räknas om vid varje ändring</string>
     <string name="anytime_credentials_backup">Säkerhetskopiera CT5-uppgifter</string>
     <string name="anytime_credentials_backup_warning">Filen kan återställa sändarsessionen efter att appen installerats om eller sensorn tagits bort. Förvara den säkert.</string>

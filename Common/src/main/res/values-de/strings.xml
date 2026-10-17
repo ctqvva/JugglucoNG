@@ -2908,6 +2908,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="freeze_displayed_values">Angezeigte Werte behalten</string>
     <string name="freeze_displayed_values_desc">Ein Messwert behält den angezeigten Wert. Kalibrierungsänderungen wirken nur auf aktuelle Messwerte.</string>
     <string name="freeze_displayed_values_after">Fixiert nach %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Bis dahin folgt ein Messwert noch Kalibrierungsänderungen, sodass ein später eingetragener Fingerstich ihn korrigieren kann. Danach behält er den angezeigten Wert.</string>
     <string name="freeze_displayed_values_off">Wird bei jeder Änderung neu berechnet</string>
     <string name="anytime_credentials_backup">CT5-Zugangsdaten sichern</string>
     <string name="anytime_credentials_backup_warning">Mit dieser Datei kann die Sendersitzung nach einer Neuinstallation der App oder dem Entfernen des Sensors wiederhergestellt werden. Bewahre sie sicher auf.</string>

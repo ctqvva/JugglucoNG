@@ -2798,6 +2798,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="freeze_displayed_values">Conserver les valeurs affichées</string>
     <string name="freeze_displayed_values_desc">Une mesure conserve la valeur affichée. Les modifications d\'étalonnage n\'affectent que les mesures récentes.</string>
     <string name="freeze_displayed_values_after">Figées après %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">D’ici là, une mesure suit encore les changements de calibration, donc une glycémie capillaire saisie en retard peut la corriger. Ensuite, elle garde la valeur affichée.</string>
     <string name="freeze_displayed_values_off">Recalcul à chaque modification</string>
     <string name="anytime_credentials_backup">Sauvegarder les identifiants CT5</string>
     <string name="anytime_credentials_backup_warning">Ce fichier permet de restaurer la session de l’émetteur après la réinstallation de l’application ou la suppression du capteur. Conservez-le en lieu sûr.</string>

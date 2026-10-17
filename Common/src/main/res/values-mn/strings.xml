@@ -2893,6 +2893,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="freeze_displayed_values">Харуулсан утгыг хадгалах</string>
     <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
     <string name="freeze_displayed_values_after">Түгжих хугацаа: %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Тэр хүртэл уншилт каллибрацийн өөрчлөлтийг дагасаар байх тул хожуу оруулсан хурууны хэмжилт түүнийг засаж чадна. Дараа нь харуулсан утгаа хадгална.</string>
     <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
     <string name="anytime_credentials_backup">CT5 нэвтрэх мэдээллийг нөөцлөх</string>
     <string name="anytime_credentials_backup_warning">Энэ файл нь аппыг дахин суулгасны эсвэл мэдрэгчийг устгасны дараа дамжуулагчийн сессийг сэргээх боломжтой. Аюулгүй газар хадгална уу.</string>
