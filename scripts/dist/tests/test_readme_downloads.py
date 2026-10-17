@@ -171,7 +171,10 @@ class Downloads(unittest.TestCase):
 
     def test_noop_and_superseded_release_do_not_commit(self):
         updated = helper.rewrite(README, PREVIEW)
-        replies = remote_responses(readme=updated)[:4]
+        # Both generated files must match the fixture release, independently of
+        # whichever version the real checkout's button currently advertises.
+        button = helper.rewrite_button(BUTTON, PREVIEW['tag_name'])
+        replies = remote_responses(readme=updated, button=button)[:4]
         with patch.dict('os.environ', {}, clear=True), patch.object(helper, 'api', side_effect=replies) as api, \
              patch.object(helper, 'ensure_ci') as ci:
             helper.update()
@@ -180,6 +183,19 @@ class Downloads(unittest.TestCase):
         with patch.dict('os.environ', {'TAG': '1.2.3-Alpha'}, clear=True), patch.object(helper, 'api', side_effect=replies) as api, patch.object(helper, 'ensure_ci'):
             helper.update()
             self.assertEqual(api.call_count, 4)
+
+    def test_matching_readme_with_stale_button_still_commits(self):
+        updated = helper.rewrite(README, PREVIEW)
+        stale_button = helper.rewrite_button(BUTTON, OLDER_RELEASE['tag_name'])
+        with patch.dict('os.environ', {}, clear=True), \
+             patch.object(helper, 'api', side_effect=remote_responses(readme=updated, button=stale_button)) as api, \
+             patch.object(helper, 'ensure_ci') as ci:
+            helper.update()
+        files = {f['path']: f['content'] for f in api.call_args_list[5].args[1]['tree']}
+        self.assertEqual(files['README.md'], updated)
+        self.assertEqual(files[helper.BUTTON_PATH], helper.rewrite_button(stale_button, PREVIEW['tag_name']))
+        self.assertEqual(api.call_args_list[-1].args[0], 'git/refs/heads/main')
+        ci.assert_called_once()
 
     def test_foreign_repository_never_reads_or_writes_github(self):
         with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'someone/fork'}, clear=True), patch.object(helper, 'api') as api:
