@@ -101,6 +101,9 @@ class ExpressiveAppWidget : GlanceAppWidget() {
         val viewMode = resolvedDisplay?.viewMode ?: WidgetDisplaySource.resolveViewMode(activeSensorSerial)
         val dataState = WidgetDisplaySource.resolveDataState(resolvedDisplay, chartHistory, activeSensorSerial)
         val hasCalibration = WidgetDisplaySource.hasCalibration(activeSensorSerial, viewMode)
+        if (dataState.isFresh) {
+            GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
+        }
         return WidgetState(
             // Same rule as the dashboard hero: a reading past glucosetimeout is not
             // shown as current, whether it came from the live source or from history.

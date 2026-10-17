@@ -561,6 +561,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             currentTimestampMillis = resolvedDisplay?.timeMillis ?: 0L,
             latestHistoryTimestampMillis = overlayChartPoints.lastOrNull()?.timestamp ?: 0L
         )
+        if (dataState.isFresh) {
+            tk.glucodata.GlucoseUpdateBroadcaster.armFreshnessDeadline(dataState.latestTimestampMillis)
+        }
         val staleStatus = if (dataState.isStale) {
             Notify.staleReadingStatus(dataState.latestTimestampMillis)
         } else {
