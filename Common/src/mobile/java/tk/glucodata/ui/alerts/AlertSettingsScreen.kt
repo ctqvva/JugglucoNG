@@ -166,6 +166,7 @@ fun AlertSettingsScreen(
     // Track expanded states
     var expandedType by remember { mutableStateOf<AlertType?>(null) }
     var showPreemptiveSnooze by remember { mutableStateOf(false) }
+    var showSameDirectionSuppression by remember { mutableStateOf(false) }
     // Preview with the same gain and stream as the alert.
     var soundPickerRequest by remember { mutableStateOf<AlertSoundPickerRequest?>(null) }
     var sameDirectionSuppressionMinutes by remember {
@@ -474,28 +475,18 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // The cross-family quiet period (#210) belongs with the trend alerts it
-            // coordinates. Its High coverage is on and has no switch.
+            // The cross-family quiet period (#210) governs the trend group as a whole,
+            // so it is a footnote under the group rather than a fifth card: no
+            // container, no tile, and the same left edge as the section header. Its
+            // High coverage is on and has no switch.
             item(key = "same-direction-quiet-period") {
-                Spacer(Modifier.height(8.dp))
-                SliderSettingsItem(
+                GroupFootnote(
                     title = stringResource(R.string.same_direction_suppression_title),
                     subtitle = stringResource(R.string.same_direction_suppression_summary),
                     icon = Icons.Default.NotificationsPaused,
-                    position = SettingsItemPosition.SINGLE
-                ) {
-                    DurationSlider(
-                        label = "",
-                        value = sameDirectionSuppressionMinutes,
-                        range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
-                        stepSize = 1,
-                        onValueChange = { persistSameDirectionSuppressionMinutes(it) },
-                        valueText = { v ->
-                            if (v == 0) stringResource(R.string.off)
-                            else stringResource(R.string.minutes_short_format, v)
-                        }
-                    )
-                }
+                    value = sameDirectionSuppressionText(sameDirectionSuppressionMinutes),
+                    onClick = { showSameDirectionSuppression = true }
+                )
             }
 
             // === OTHER ALERTS SECTION ===
@@ -562,6 +553,17 @@ fun AlertSettingsScreen(
 
         if (showPreemptiveSnooze) {
             PreemptiveSnoozeDialog(onDismiss = { showPreemptiveSnooze = false })
+        }
+
+        if (showSameDirectionSuppression) {
+            SameDirectionSuppressionDialog(
+                initialMinutes = sameDirectionSuppressionMinutes,
+                onDismiss = { showSameDirectionSuppression = false },
+                onSave = { minutes ->
+                    persistSameDirectionSuppressionMinutes(minutes)
+                    showSameDirectionSuppression = false
+                }
+            )
         }
 
         if (alertToEdit != null) {
@@ -868,44 +870,51 @@ fun CustomAlertCard(
 
 
 /**
- * A settings row that holds a slider instead of a trailing control: same
- * surface, shape and 68dp text inset as [SettingsItem], so it sits in a group
- * of rows without reading as a different kind of thing.
+ * A setting that applies to the whole group above it. Deliberately not a card:
+ * it sits on the screen background in muted text, lined up with the
+ * [SectionHeader] label, so it reads as a note about the group rather than as
+ * another member of it. The value is the button that changes it, and its text
+ * ends on the same right edge as the switches above.
  */
 @Composable
-private fun SliderSettingsItem(
+private fun GroupFootnote(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    position: SettingsItemPosition,
-    slider: @Composable () -> Unit
+    value: String,
+    onClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = tk.glucodata.ui.components.cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 4.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding
         ) {
-            IconTile(icon = icon, tint = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                slider()
-            }
+            Text(value)
         }
     }
 }
@@ -1555,6 +1564,56 @@ internal fun DurationSlider(
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
+
+@Composable
+private fun sameDirectionSuppressionText(minutes: Int): String =
+    if (minutes == 0) stringResource(R.string.off)
+    else stringResource(R.string.minutes_short_format, minutes)
+
+@Composable
+private fun SameDirectionSuppressionDialog(
+    initialMinutes: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit
+) {
+    var minutes by remember { mutableStateOf(initialMinutes) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.NotificationsPaused, contentDescription = null) },
+        title = { Text(stringResource(R.string.same_direction_suppression_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    stringResource(R.string.same_direction_suppression_summary),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                DurationSlider(
+                    label = stringResource(R.string.duration_label),
+                    value = minutes,
+                    range = 0..AlertDefaults.SAME_DIRECTION_SUPPRESSION_MAX_MINUTES,
+                    stepSize = 1,
+                    onValueChange = { minutes = it },
+                    valueText = { sameDirectionSuppressionText(it) }
+                )
+            }
+        },
+        confirmButton = {
+            FilledTonalButton(
+                onClick = { onSave(minutes) },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
