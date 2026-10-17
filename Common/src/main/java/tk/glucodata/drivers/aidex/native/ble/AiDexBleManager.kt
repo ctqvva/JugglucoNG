@@ -6294,19 +6294,32 @@ class AiDexBleManager(
 
     override val vendorBrandName: String
         get() {
-            val advertised = try {
-                super.mygetDeviceName()
-            } catch (_: Throwable) {
-                null
-            }
-            val brand = AiDexSerialIdentity.productBrandFromAdvertisement(advertised)
-                ?: return rememberedAdvertisedBrand
-            if (brand != rememberedAdvertisedBrand) {
-                rememberedAdvertisedBrand = brand
-                writeStringPref(PREF_ADVERTISED_BRAND, brand)
-            }
-            return brand
+            noteAdvertisedBrand(
+                try {
+                    super.mygetDeviceName()
+                } catch (_: Throwable) {
+                    null
+                }
+            )
+            return rememberedAdvertisedBrand
         }
+
+    /**
+     * Keeps the badge brand from any name this sensor was seen under. The stack's cached name
+     * is often missing, and a scan matched by address never stores the advertised one, so the
+     * matched scan results below feed this too.
+     */
+    private fun noteAdvertisedBrand(advertisedName: String?) {
+        val brand = AiDexSerialIdentity.productBrandFromAdvertisement(advertisedName) ?: return
+        if (brand == rememberedAdvertisedBrand) return
+        rememberedAdvertisedBrand = brand
+        writeStringPref(PREF_ADVERTISED_BRAND, brand)
+    }
+
+    override fun onScanResult(result: ScanResult) {
+        super.onScanResult(result)
+        noteAdvertisedBrand(result.scanRecord?.deviceName)
+    }
 
     override fun shouldUseNativeOfficialEndFallback(): Boolean = false
 
@@ -6849,6 +6862,7 @@ class AiDexBleManager(
                         (advertisedName?.let { aiDexDeviceNameMatchesSerial(it, SerialNumber) } == true)
 
                     if (!identityMatches) return
+                    noteAdvertisedBrand(advertisedName)
 
                     if (
                         reconnect.isBroadcastOnlyMode &&
