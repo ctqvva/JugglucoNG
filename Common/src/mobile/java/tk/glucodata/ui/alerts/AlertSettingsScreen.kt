@@ -458,8 +458,7 @@ fun AlertSettingsScreen(
                     config = config,
                     isMmol = isMmol,
                     isExpanded = expandedType == type,
-                    // The quiet-period row below closes the group.
-                    position = if (type == trendAlerts.first()) CardPosition.TOP else CardPosition.MIDDLE,
+                    position = getCardPosition(type, trendAlerts),
                     onToggle = { enabled ->
                         persistConfigIfChanged(config.copy(enabled = enabled))
                     },
@@ -476,24 +475,17 @@ fun AlertSettingsScreen(
                 )
             }
 
-            // The cross-family quiet period (#210) belongs with the trend alerts it
-            // coordinates, so it closes their group as one compact row; the slider
-            // lives in a dialog. Its High coverage is on and has no switch.
+            // The cross-family quiet period (#210) governs the trend group as a whole,
+            // so it is a footnote under the group rather than a fifth card: no
+            // container, no tile, and the same left edge as the section header. Its
+            // High coverage is on and has no switch.
             item(key = "same-direction-quiet-period") {
-                SettingsItem(
+                GroupFootnote(
                     title = stringResource(R.string.same_direction_suppression_title),
                     subtitle = stringResource(R.string.same_direction_suppression_summary),
                     icon = Icons.Default.NotificationsPaused,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    position = SettingsItemPosition.BOTTOM,
-                    onClick = { showSameDirectionSuppression = true },
-                    trailingContent = {
-                        Text(
-                            sameDirectionSuppressionText(sameDirectionSuppressionMinutes),
-                            style = MaterialTheme.typography.bodyMediumEmphasized,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    value = sameDirectionSuppressionText(sameDirectionSuppressionMinutes),
+                    onClick = { showSameDirectionSuppression = true }
                 )
             }
 
@@ -876,6 +868,56 @@ fun CustomAlertCard(
 
 
 
+
+/**
+ * A setting that applies to the whole group above it. Deliberately not a card:
+ * it sits on the screen background in muted text, lined up with the
+ * [SectionHeader] label, so it reads as a note about the group rather than as
+ * another member of it. The value is the button that changes it, and its text
+ * ends on the same right edge as the switches above.
+ */
+@Composable
+private fun GroupFootnote(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 4.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding
+        ) {
+            Text(value)
+        }
+    }
+}
 
 @Composable
 private fun SectionHeader(
