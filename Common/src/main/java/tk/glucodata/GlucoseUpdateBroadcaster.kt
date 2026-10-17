@@ -1,5 +1,6 @@
 package tk.glucodata
 
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
@@ -20,6 +21,33 @@ object GlucoseUpdateBroadcaster {
     // Glance widget sessions observe this because update() recomposes the
     // captured content but does not re-run provideGlance.
     val tick: StateFlow<Long> get() = tickState
+
+    private val freshnessDeadline = AlarmManager.OnAlarmListener { send() }
+
+    /**
+     * Redraws the lock-screen overlay and widgets once [readingTimeMillis] passes
+     * [Notify.glucosetimeout], so they swap the number for "No new value since …" whether
+     * or not the glucose notification is enabled (its own deadline only runs when it is).
+     * Non-wakeup: fires on time while the device is awake, otherwise on the next wake.
+     */
+    @JvmStatic
+    fun armFreshnessDeadline(readingTimeMillis: Long) {
+        if (Applic.isWearable || readingTimeMillis <= 0L) return
+        val alarmManager = Applic.app?.getSystemService(AlarmManager::class.java) ?: return
+        try {
+            alarmManager.cancel(freshnessDeadline)
+            // DisplayDataState counts the exact threshold as fresh; go one ms past it.
+            alarmManager.setExact(
+                AlarmManager.RTC,
+                readingTimeMillis + Notify.glucosetimeout + 1L,
+                "tk.glucodata:glucose-freshness",
+                freshnessDeadline,
+                null
+            )
+        } catch (th: Throwable) {
+            Log.stack(LOG_ID, "armFreshnessDeadline", th)
+        }
+    }
 
     @JvmStatic
     fun hasActiveTickObservers(): Boolean {

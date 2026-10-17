@@ -1606,9 +1606,6 @@ public class Notify {
                 freshnessDeadlineService = null;
                 scheduleVisualNotificationRefresh();
             }
-            // Widgets redraw only on this broadcast and the lock-screen overlay waits
-            // for its minute tick otherwise; both retire the aged reading from it.
-            GlucoseUpdateBroadcaster.send(Applic.app);
         }
     };
 

@@ -612,8 +612,7 @@ class NotificationStartupRestoreTests {
         val stale = getNested(manager, "last")!!
         assertTrue((getNested(stale, "title") as String).startsWith("No new value"))
         assertEquals(getNested(snapshot, "time"), getNested(stale, "when"))
-        // #659: the overlay and widgets retire the aged reading on the same deadline.
-        assertEquals(1, get(h, "broadcastSends"))
+        assertEquals(0, get(h, "broadcastSends"))
         assertEquals(0, call(h, "queuedCount"))
     }
 
