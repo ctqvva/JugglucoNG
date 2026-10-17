@@ -585,7 +585,7 @@ fun DashboardCombinedHeader(
                     val primaryWidth = heroTextMeasurer.measure(primaryText, style = primaryValueStyle, maxLines = 1).size.width
                     val deltaWidth = heroTextMeasurer.measure(delta, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"), maxLines = 1).size.width
                     val chromeWidth = with(density) {
-                        (resolvedStartPadding + resolvedEndPadding + resolvedClusterGap + resolvedTrendIconSize + 8.dp).roundToPx()
+                        (resolvedStartPadding + resolvedEndPadding + resolvedClusterGap + resolvedTrendIconSize + 16.dp).roundToPx()
                     }
                     heroContentWidthPx > 0 && primaryWidth + deltaWidth + chromeWidth <= heroContentWidthPx
                 } == true
@@ -632,11 +632,12 @@ fun DashboardCombinedHeader(
                     }
                 ).copy(fontFeatureSettings = "tnum").scaleForHero(heroMultiSensorScale)
                 val pairDeltaFits = !singleValue && !hasThreeValues && heroDeltaText?.let { delta ->
-                    val requiredWidth = heroTextMeasurer.measure(primaryText, style = primaryValueStyle, maxLines = 1).size.width +
-                        heroTextMeasurer.measure(secondaryText ?: tertiaryText.orEmpty(), style = secondaryInlineStyle, maxLines = 1).size.width +
+                    val supportWidth = heroTextMeasurer.measure(secondaryText ?: tertiaryText.orEmpty(), style = secondaryInlineStyle, maxLines = 1).size.width +
                         heroTextMeasurer.measure("·", style = slashStyle.scaleForHero(1.12f), maxLines = 1).size.width +
-                        heroTextMeasurer.measure(delta, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"), maxLines = 1).size.width +
-                        with(density) { (8.dp + 8.dp + 4.dp).roundToPx() }
+                        with(density) { 4.dp.roundToPx() }
+                    val deltaWidth = heroTextMeasurer.measure(delta, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"), maxLines = 1).size.width
+                    val requiredWidth = heroTextMeasurer.measure(primaryText, style = primaryValueStyle, maxLines = 1).size.width +
+                        with(density) { 16.dp.roundToPx() } + maxOf(supportWidth, deltaWidth)
                     val available = heroContentWidthPx - with(density) {
                         (resolvedStartPadding + resolvedEndPadding + resolvedClusterGap + resolvedTrendIconSize).roundToPx()
                     }
@@ -1265,24 +1266,18 @@ private fun DashboardHeroValueCluster(
             maxLines = 1
         ).size.width
         val inlinePairWidthPx = if (!hasThreeValues && pairText != null) {
-            // Same gaps as the InlinePair row below; a mismatch leaves the pair unscaled
-            // while it is still too wide, and the secondary value clips.
-            primaryWidthPx +
-                with(density) { 8.dp.roundToPx() } +
-                dotWidthPx +
-                with(density) { 4.dp.roundToPx() } +
+            // The delta shares the support column; it never inserts width
+            // between the primary reading and the dot.
+            val supportWidth = dotWidthPx + with(density) { 4.dp.roundToPx() } +
+                textMeasurer.measure(pairText, style = secondaryInlineStyle, maxLines = 1).size.width
+            val deltaWidth = if (!deltaText.isNullOrEmpty()) {
                 textMeasurer.measure(
-                    text = pairText,
-                    style = secondaryInlineStyle,
+                    deltaText,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                     maxLines = 1
-                ).size.width +
-                if (!deltaText.isNullOrEmpty()) {
-                    textMeasurer.measure(
-                        deltaText,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                        maxLines = 1
-                    ).size.width + with(density) { 8.dp.roundToPx() }
-                } else 0
+                ).size.width
+            } else 0
+            primaryWidthPx + with(density) { 16.dp.roundToPx() } + maxOf(supportWidth, deltaWidth)
         } else {
             0
         }
@@ -1340,9 +1335,8 @@ private fun DashboardHeroValueCluster(
                     secondaryColor = inlinePairColor,
                     contentColor = contentColor,
                     deltaText = deltaText,
-                    deltaStyle = MaterialTheme.typography.bodyLarge.scaleForHero(pairScale),
-                    beforeDelta = 8.dp * pairScale,
-                    beforeDot = 8.dp * pairScale,
+                    deltaStyle = MaterialTheme.typography.bodySmall.scaleForHero(pairScale),
+                    beforeDot = 16.dp * pairScale,
                     afterDot = 4.dp * pairScale
                 )
             }

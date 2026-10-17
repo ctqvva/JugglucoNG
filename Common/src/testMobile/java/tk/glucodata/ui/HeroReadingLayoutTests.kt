@@ -61,18 +61,35 @@ class HeroReadingLayoutTests {
         }
     }
 
-    @Test fun dotAndSecondaryShareBaselineAndDeltaCentersBesidePrimary() {
+    @Test fun deltaSitsBelowDotAndSecondaryAtTheSingleValueGap() {
         for (direction in LayoutDirection.entries) {
             val children = items()
             val result = with(HeroPairMeasurePolicy(true)) { Scope(direction).measure(children, Constraints(maxWidth = 200)) }
             result.placeChildren()
             val (primary, dot, second, delta) = children
             assertEquals(dot.position.y + dot.baseline, second.position.y + second.baseline)
-            assertEquals((primary.naturalHeight - delta.naturalHeight) / 2, delta.position.y)
+            assertEquals(dot.position.x, if (direction == LayoutDirection.Ltr) delta.position.x
+                else delta.position.x + delta.measuredWidth - dot.measuredWidth)
+            assertTrue(delta.position.y >= dot.position.y + dot.naturalHeight)
+            assertTrue(delta.position.y >= second.position.y + second.naturalHeight)
             assertTrue(delta.position.y + delta.naturalHeight <= primary.naturalHeight)
             val distance = if (direction == LayoutDirection.Ltr) delta.position.x - primary.naturalWidth
                 else primary.position.x - (delta.position.x + delta.measuredWidth)
-            assertEquals(8, distance)
+            assertEquals(16, distance)
+        }
+    }
+
+    @Test fun enablingDeltaDoesNotMoveTheDotOrSecondarySideways() {
+        for (direction in LayoutDirection.entries) {
+            val withoutDelta = items().take(3)
+            val withDelta = items()
+            val withoutResult = with(HeroPairMeasurePolicy(false)) { Scope(direction).measure(withoutDelta, Constraints(maxWidth = 200)) }
+            val withResult = with(HeroPairMeasurePolicy(true)) { Scope(direction).measure(withDelta, Constraints(maxWidth = 200)) }
+            withoutResult.placeChildren()
+            withResult.placeChildren()
+            assertEquals(withoutResult.width, withResult.width)
+            assertEquals(withoutDelta[1].position.x, withDelta[1].position.x)
+            assertEquals(withoutDelta[2].position.x, withDelta[2].position.x)
         }
     }
 

@@ -63,14 +63,14 @@ internal fun DashboardHeroPrimaryText(
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         AnimatedHeroPrimaryText(value, style, color)
         if (!deltaText.isNullOrEmpty()) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(16.dp))
             HeroDeltaText(deltaText, deltaColor, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
-/** Keep the primary and its delta together on the same center line. The dot
- * separates that group from the secondary reading and shares its baseline. */
+/** The dot and secondary share a baseline above the smaller primary delta.
+ * Both support lines start at the same gap used by the single-value delta. */
 @Composable
 internal fun DashboardHeroPairText(
     primary: String,
@@ -83,14 +83,13 @@ internal fun DashboardHeroPairText(
     contentColor: Color,
     deltaText: String?,
     deltaStyle: TextStyle,
-    beforeDelta: Dp = 8.dp,
-    beforeDot: Dp = 8.dp,
+    beforeDot: Dp = 16.dp,
     afterDot: Dp = 4.dp,
     modifier: Modifier = Modifier
 ) {
     val hasDelta = !deltaText.isNullOrEmpty()
-    val policy = remember(hasDelta, beforeDelta, beforeDot, afterDot) {
-        HeroPairMeasurePolicy(hasDelta, beforeDot, afterDot, beforeDelta)
+    val policy = remember(hasDelta, beforeDot, afterDot) {
+        HeroPairMeasurePolicy(hasDelta, beforeDot, afterDot)
     }
     Layout(modifier = modifier, measurePolicy = policy, content = {
         AnimatedHeroPrimaryText(primary, primaryStyle, primaryColor)
@@ -102,34 +101,31 @@ internal fun DashboardHeroPairText(
 
 internal class HeroPairMeasurePolicy(
     private val hasDelta: Boolean,
-    private val beforeDot: Dp = 8.dp,
-    private val afterDot: Dp = 4.dp,
-    private val beforeDelta: Dp = 8.dp
+    private val beforeDot: Dp = 16.dp,
+    private val afterDot: Dp = 4.dp
 ) : MeasurePolicy {
     override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): androidx.compose.ui.layout.MeasureResult {
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val main = measurables[0].measure(loose)
         val dot = measurables[1].measure(loose)
         val second = measurables[2].measure(loose)
-        val deltaGap = if (hasDelta) beforeDelta.roundToPx() else 0
-        val supportWidth = beforeDot.roundToPx() + dot.width + afterDot.roundToPx() + second.width
+        val supportX = main.width + beforeDot.roundToPx()
         val delta = if (hasDelta) measurables[3].measure(loose.copy(
-            maxWidth = (constraints.maxWidth - main.width - deltaGap - supportWidth).coerceAtLeast(0)
+            maxWidth = (constraints.maxWidth - supportX).coerceAtLeast(0)
         )) else null
-        val deltaX = main.width + deltaGap
-        val dotX = main.width + deltaGap + (delta?.width ?: 0) + beforeDot.roundToPx()
-        val secondaryX = dotX + dot.width + afterDot.roundToPx()
+        val secondaryX = supportX + dot.width + afterDot.roundToPx()
         val baseline = maxOf(dot[FirstBaseline], second[FirstBaseline])
         val lineHeight = baseline + maxOf(dot.height - dot[FirstBaseline], second.height - second[FirstBaseline])
-        val top = ((main.height - lineHeight) / 2).coerceAtLeast(0)
-        val width = constraints.constrainWidth(secondaryX + second.width)
+        val supportHeight = lineHeight + (delta?.height ?: 0)
+        val top = ((main.height - supportHeight) / 2).coerceAtLeast(0)
+        val width = constraints.constrainWidth(maxOf(secondaryX + second.width, supportX + (delta?.width ?: 0)))
         // Supporting text uses the primary line's existing height, including
         // during intrinsic measurement of the hero/sensor card pair.
         return layout(width, main.height) {
             main.placeRelative(0, 0)
-            dot.placeRelative(dotX, top + baseline - dot[FirstBaseline])
+            dot.placeRelative(supportX, top + baseline - dot[FirstBaseline])
             second.placeRelative(secondaryX, top + baseline - second[FirstBaseline])
-            delta?.placeRelative(deltaX, (main.height - delta.height) / 2)
+            delta?.placeRelative(supportX, top + lineHeight)
         }
     }
 
@@ -140,10 +136,16 @@ internal class HeroPairMeasurePolicy(
         measurables[0].maxIntrinsicHeight(width)
 
     override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int) =
-        measurables.sumOf { it.minIntrinsicWidth(height) } + beforeDot.roundToPx() + afterDot.roundToPx() + if (hasDelta) beforeDelta.roundToPx() else 0
+        measurables[0].minIntrinsicWidth(height) + beforeDot.roundToPx() + maxOf(
+            measurables[1].minIntrinsicWidth(height) + afterDot.roundToPx() + measurables[2].minIntrinsicWidth(height),
+            if (hasDelta) measurables[3].minIntrinsicWidth(height) else 0
+        )
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int) =
-        measurables.sumOf { it.maxIntrinsicWidth(height) } + beforeDot.roundToPx() + afterDot.roundToPx() + if (hasDelta) beforeDelta.roundToPx() else 0
+        measurables[0].maxIntrinsicWidth(height) + beforeDot.roundToPx() + maxOf(
+            measurables[1].maxIntrinsicWidth(height) + afterDot.roundToPx() + measurables[2].maxIntrinsicWidth(height),
+            if (hasDelta) measurables[3].maxIntrinsicWidth(height) else 0
+        )
 }
 
 @Composable
