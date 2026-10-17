@@ -22,8 +22,9 @@ object GlucoseUpdateBroadcaster {
     // captured content but does not re-run provideGlance.
     val tick: StateFlow<Long> get() = tickState
 
-    // Bypasses the throttle: a broadcast in the second before expiry (startup, a settings
-    // change) must not swallow the one redraw that retires the number.
+    // Outside the throttle both ways: a broadcast in the second before expiry (startup, a
+    // settings change) must not swallow the one redraw that retires the number, and that
+    // redraw must not hold back a fresh reading arriving right after it.
     private val freshnessDeadline = AlarmManager.OnAlarmListener { deliver(null, throttled = false) }
     private var armedReadingMillis = 0L
 
@@ -76,12 +77,14 @@ object GlucoseUpdateBroadcaster {
         val appContext = (context?.applicationContext ?: Applic.app) ?: return
         val now = SystemClock.elapsedRealtime()
         synchronized(lock) {
-            if (throttled && lastBroadcastElapsedRealtime > 0L &&
-                now - lastBroadcastElapsedRealtime < MIN_BROADCAST_INTERVAL_MS
-            ) {
-                return
+            if (throttled) {
+                if (lastBroadcastElapsedRealtime > 0L &&
+                    now - lastBroadcastElapsedRealtime < MIN_BROADCAST_INTERVAL_MS
+                ) {
+                    return
+                }
+                lastBroadcastElapsedRealtime = now
             }
-            lastBroadcastElapsedRealtime = now
             tickState.value = tickState.value + 1L
         }
 
