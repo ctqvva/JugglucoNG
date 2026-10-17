@@ -943,6 +943,10 @@ object CalibrationManager {
 
     fun setFreezeDisplayedValues(enabled: Boolean) {
         if (_freezeDisplayedValues.value == enabled) return
+        // Switches made while values were recalculated on every change were
+        // never kept; replaying them now would change the screen on turning
+        // this on. See DisplayLaneHistory.
+        if (enabled) tk.glucodata.data.DisplayLaneHistory.clear()
         _freezeDisplayedValues.value = enabled
         if (::prefs.isInitialized) {
             prefs.edit().putBoolean(KEY_FREEZE_DISPLAYED_VALUES, enabled).apply()

@@ -712,7 +712,8 @@ object CurrentDisplaySource {
         if (sensorName.isNullOrEmpty()) {
             return false
         }
-        tk.glucodata.drivers.ManagedSensorViewModeStore.write(Applic.app, sensorName, normalized)
+        val previous = runCatching { resolveSensorViewMode(sensorName) }.getOrNull()
+        tk.glucodata.drivers.ManagedSensorViewModeStore.write(Applic.app, sensorName, normalized, previous)
         tk.glucodata.drivers.ManagedSensorRuntime.resolveDriver(sensorName)?.let { driver ->
             driver.viewMode = normalized
             val ptr = driver.getManagedUiSnapshot()?.dataptr ?: 0L

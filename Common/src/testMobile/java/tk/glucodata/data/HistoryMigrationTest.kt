@@ -20,7 +20,7 @@ import org.robolectric.annotation.ConscryptMode
  * migration that drops a column or a table fails here.
  *
  * The starting points are the released schemas recovered in H2: v11
- * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v32 is the current version. The row tests
+ * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v34 is the current version. The row tests
  * matter most: Room migrations are the one place a bug permanently destroys
  * user history.
  */
@@ -99,6 +99,46 @@ class HistoryMigrationTest {
                 if (cursor.getString(0) == "index_reading_display_sensorSerial") found = true
             }
             assertTrue("reading_display was rebuilt with its per-sensor index", found)
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun v34KeepsTheFirstRecordedRowOfEachMinute() {
+        helper.createDatabase(DB_NAME, 33).use { db ->
+            // (minute, lane, viewMode, value, recordedAt) as a PR #652 test build left them.
+            listOf(
+                listOf(0, 0, 0, 100, 5), listOf(0, 1, 1, 90, 9),   // auto shown first
+                listOf(1, 0, 2, 101, 9), listOf(1, 1, 3, 91, 5),   // raw shown first
+                listOf(2, 1, 1, 92, 7),                            // only ever shown raw
+                listOf(3, 0, 0, 103, 7), listOf(3, 1, 1, 93, 7),   // same instant: lane 0
+            ).forEach { (minute, lane, viewMode, value, recordedAt) ->
+                db.execSQL(
+                    "INSERT INTO reading_display " +
+                        "(timestamp, sensorSerial, displayMgdl, viewMode, calibrationFingerprint, recordedAt, lane) " +
+                        "VALUES (${minute * 60_000L}, 'S-1', $value, $viewMode, 7, $recordedAt, $lane)"
+                )
+            }
+        }
+
+        val migrated = helper.runMigrationsAndValidate(DB_NAME, 34, true, *HistoryDatabase.ALL_MIGRATIONS)
+
+        migrated.query(
+            "SELECT timestamp, viewMode, displayMgdl FROM reading_display ORDER BY timestamp"
+        ).use { cursor ->
+            val rows = ArrayList<List<Number>>()
+            while (cursor.moveToNext()) {
+                rows += listOf(cursor.getLong(0), cursor.getInt(1), cursor.getFloat(2))
+            }
+            assertEquals(
+                listOf(
+                    listOf(0L, 0, 100f),
+                    listOf(60_000L, 3, 91f),
+                    listOf(120_000L, 1, 92f),
+                    listOf(180_000L, 0, 103f),
+                ),
+                rows,
+            )
         }
         migrated.close()
     }

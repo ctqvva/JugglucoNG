@@ -22,10 +22,21 @@ object ManagedSensorViewModeStore {
         return sanitize(prefs.getInt(key, 0))
     }
 
-    fun write(context: Context? = Applic.app, sensorId: String?, mode: Int) {
+    /**
+     * @param previousMode the mode in force before this write, for a sensor
+     *   whose mode so far lived only in native storage. Used when the store
+     *   has no entry yet.
+     */
+    fun write(context: Context? = Applic.app, sensorId: String?, mode: Int, previousMode: Int? = null) {
         val key = keyFor(sensorId) ?: return
         val prefs = prefs(context) ?: return
-        prefs.edit().putInt(key, sanitize(mode)).apply()
+        val next = sanitize(mode)
+        val previous = if (prefs.contains(key)) sanitize(prefs.getInt(key, next)) else previousMode?.let(::sanitize)
+        prefs.edit().putInt(key, next).apply()
+        // Every user-facing switch lands here; see DisplayLaneHistory.
+        if (previous != null && previous != next) {
+            tk.glucodata.data.DisplayLaneHistory.noteSwitch(sensorId?.trim(), previous, next, context = context)
+        }
     }
 
     fun clear(context: Context? = Applic.app, sensorId: String?) {

@@ -1085,12 +1085,13 @@ class HistoryRepository(context: Context = Applic.app) {
     ): kotlinx.coroutines.flow.Flow<List<GlucosePoint>> =
         kotlinx.coroutines.flow.combine(
             points,
-            displayDao.getFlow(startTime)
-        ) { mapped, display ->
-            if (display.isEmpty() ||
-                !runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
-            ) {
+            displayDao.getFlow(startTime),
+            DisplayLaneHistory.revision,
+        ) { mapped, display, _ ->
+            if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
                 mapped
+            } else if (display.isEmpty()) {
+                mapped.withLaneAtTheTime()
             } else {
                 val nowMs = System.currentTimeMillis()
                 val indexed = display.indexedDisplay()
@@ -1110,7 +1111,7 @@ class HistoryRepository(context: Context = Applic.app) {
                         }
                         ?: return@map point
                     point.copy(sealedDisplayValue = sealed.displayMgdl, sealedDisplayViewMode = sealed.viewMode)
-                }
+                }.withLaneAtTheTime()
             }
         }.flowOn(Dispatchers.IO)
 
@@ -1211,14 +1212,15 @@ class HistoryRepository(context: Context = Applic.app) {
         return kotlinx.coroutines.flow.combine(
             dao.getHistoryFlow(startTime),
             displayDao.getFlow(startTime),
-        ) { readings, display ->
+            DisplayLaneHistory.revision,
+        ) { readings, display, _ ->
             val indexed = display.indexedDisplay()
-            val freezeEnabled = indexed.isNotEmpty() &&
+            val freezeEnabled =
                 runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
             val nowMs = System.currentTimeMillis()
             mergeQueryReadings(readings, preferredSerial).map { reading ->
                 mapReadingForStats(reading, indexed, freezeEnabled, nowMs)
-            }
+            }.let { if (freezeEnabled) it.withLaneAtTheTime() else it }
         }.flowOn(Dispatchers.IO)
     }
 
@@ -1289,10 +1291,12 @@ class HistoryRepository(context: Context = Applic.app) {
             try {
                 val readings = dao.getReadingsSince(startTime)
                 val display = displayRecordsFor(startTime)
+                val freezeEnabled =
+                    runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
                 val nowMs = System.currentTimeMillis()
                 mergeQueryReadings(readings, preferredSerial).map { reading ->
-                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs)
-                }
+                    mapReadingForStats(reading, display, freezeEnabled, nowMs)
+                }.let { if (freezeEnabled) it.withLaneAtTheTime() else it }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting stats display history", e)
                 emptyList()
@@ -1482,7 +1486,8 @@ class HistoryRepository(context: Context = Applic.app) {
             dao.getHistoryFlow(startTime),
             uncertaintyDao.getFlow(startTime),
             displayDao.getFlow(startTime),
-        ) { readings, uncertainty, display ->
+            DisplayLaneHistory.revision,
+        ) { readings, uncertainty, display, _ ->
             mapDisplayReadings(
                 readings,
                 preferredSerial,
@@ -1533,7 +1538,8 @@ class HistoryRepository(context: Context = Applic.app) {
             dao.getReadingsBetweenFlow(paddedStart, paddedEnd),
             uncertaintyDao.getBetweenFlow(paddedStart, paddedEnd),
             displayDao.getBetweenFlow(paddedStart, paddedEnd),
-        ) { readings, uncertainty, display ->
+            DisplayLaneHistory.revision,
+        ) { readings, uncertainty, display, _ ->
             Triple(readings, uncertainty, display)
         }.transform { (readings, uncertainty, display) ->
             if (!timestampIndex.isReady) {
@@ -1662,10 +1668,10 @@ class HistoryRepository(context: Context = Applic.app) {
     private fun mapReadings(
         readings: List<HistoryReading>,
         uncertainty: Map<Long, ReadingUncertainty> = emptyMap(),
-        display: Map<Long, ReadingDisplay> = emptyMap()
+        display: Map<Long, ReadingDisplay>? = null
     ): List<GlucosePoint> {
         val nowMs = System.currentTimeMillis()
-        val freezeEnabled = display.isNotEmpty() &&
+        val freezeEnabled = display != null &&
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
         return readings.map { reading ->
             val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs)
@@ -1681,7 +1687,45 @@ class HistoryRepository(context: Context = Applic.app) {
                 sealedDisplayValue = sealed?.displayMgdl,
                 sealedDisplayViewMode = sealed?.viewMode,
             )
-        }
+        }.let { if (freezeEnabled) it.withLaneAtTheTime() else it }
+    }
+
+    /**
+     * Minutes with no record, in the lane that was on at the time.
+     *
+     * See [DisplayLaneHistory]: a raw/auto switch takes effect from when it is
+     * made. Without this a minute first drawn after a switch took the new lane
+     * while the minutes around it, drawn before, kept the old one, and the line
+     * jumped at the edges of whatever had been on screen.
+     *
+     * The value is what the dashboard drew for that lane — the stored value
+     * through the live calibration, as [tk.glucodata.ui.SealedGlucoseValue]
+     * computes it for the rows — and it travels as the point's record, so the
+     * chart, the rows, the statistics, the notification and the export all show
+     * the same number, and the chart records it once it is on screen. Until
+     * then it follows calibration changes like any unrecorded minute.
+     */
+    private fun List<GlucosePoint>.withLaneAtTheTime(): List<GlucosePoint> {
+        if (isEmpty()) return this
+        val isMmol = GlucoseFormatter.isMmolApp()
+        return LaneAtTheTime.apply(
+            this,
+            switchesFor = { serial -> DisplayLaneHistory.switchesFor(serial) },
+            laneValueMgdl = { point, viewMode -> laneValueMgdl(point, viewMode, isMmol) },
+        )
+    }
+
+    private fun laneValueMgdl(point: GlucosePoint, viewMode: Int, isMmol: Boolean): Float? {
+        val isRawMode = viewMode == 1 || viewMode == 3
+        val base = if (isRawMode) point.rawValue else point.value
+        if (!base.isFinite() || base <= 0.1f) return null
+        val calibrated = tk.glucodata.ui.SealedGlucoseValue.computeCalibrated(
+            baseValue = GlucoseFormatter.displayFromMgDl(base, isMmol),
+            timestamp = point.timestamp,
+            isRawMode = isRawMode,
+            sensorId = point.sensorSerial,
+        ) ?: return base
+        return if (isMmol) GlucoseFormatter.mmolToMg(calibrated) else calibrated
     }
 
     /**
@@ -2140,7 +2184,10 @@ class HistoryRepository(context: Context = Applic.app) {
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
      * the window is revised, because it is still settling — by a calibration
-     * change or a view-mode switch alike, so it seals as it was last shown.
+     * change, so it seals as it was last shown. A raw/auto switch does not
+     * reach back: a minute that ended before the switch stays on the lane it
+     * was on, and a presentation of it in the other lane is not recorded (see
+     * [DisplayLaneHistory]).
      * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
@@ -2156,10 +2203,16 @@ class HistoryRepository(context: Context = Applic.app) {
                 val nowMs = System.currentTimeMillis()
                 val sealHorizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
                 val fingerprints = HashMap<String, Long>()
+                val laneLogs = HashMap<String, List<DisplayLaneHistory.Switch>>()
                 val rows = entries.mapNotNull { entry ->
                     if (!entry.displayMgdl.isFinite() || entry.displayMgdl <= 0f) return@mapNotNull null
                     val serial = entry.sensorSerial.trim().takeIf { it.isNotEmpty() }
                         ?: return@mapNotNull null
+                    // Not something the user was shown: a minute from before a
+                    // lane switch, drawn in the new lane before the history
+                    // caught up with the switch. See DisplayLaneHistory.
+                    val laneLog = laneLogs.getOrPut(serial) { DisplayLaneHistory.switchesFor(serial) }
+                    if (!LaneAtTheTime.recordable(laneLog, entry.minuteMs, entry.viewMode)) return@mapNotNull null
                     ReadingDisplay(
                         timestamp = ReadingDisplay.minuteOf(entry.minuteMs),
                         sensorSerial = serial,

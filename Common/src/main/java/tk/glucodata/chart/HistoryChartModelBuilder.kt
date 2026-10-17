@@ -149,7 +149,9 @@ object HistoryChartModelBuilder {
                 false -> ChartLook.SECONDARY
                 null -> defaultLook
             }
-            val model = ChartPointModel(point.timestamp, value, sensorId, look)
+            val recordedViewMode = point.sealedDisplayViewMode
+                .takeIf { it in 0..3 && recordedMainValue(point) != null }
+            val model = ChartPointModel(point.timestamp, value, sensorId, look, recordedViewMode)
 
             val gap = lastTimestamp != Long.MIN_VALUE && (point.timestamp - lastTimestamp) > gapThresholdMs
             if (gap || sensorChanged) {

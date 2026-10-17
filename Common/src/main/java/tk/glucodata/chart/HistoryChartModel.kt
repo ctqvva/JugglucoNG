@@ -28,6 +28,12 @@ data class ChartPointModel(
     val sensorId: String? = null,
     /** A shared boundary point retains its own look in both adjacent runs. */
     val look: ChartLook = ChartLook.MAIN,
+    /**
+     * The view mode of the record this value came from, or null for a value
+     * derived in the series' own mode. A record keeps the lane it was shown in
+     * across a raw/auto switch, so its minute is presented in that lane.
+     */
+    val recordedViewMode: Int? = null,
 )
 
 /**
@@ -207,7 +213,10 @@ data class HistoryChartModel(
                 val p = pts[i]
                 if (p.look != ChartLook.MAIN) continue
                 val minute = MainSensorOwnership.minuteOf(p.timestamp)
-                values.putIfAbsent(minute, PresentedChartValue(minute, p.value, p.sensorId ?: s.sensorId, s.viewMode))
+                values.putIfAbsent(
+                    minute,
+                    PresentedChartValue(minute, p.value, p.sensorId ?: s.sensorId, p.recordedViewMode ?: s.viewMode),
+                )
             }
         }
         return values.values.toList()
