@@ -3093,4 +3093,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Patch. Stellen Sie sicher, dass sich der Patch in Reichweite befindet, und versuchen Sie es erneut.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+    <string name="stream_history_mode">Stream+Verlauf</string>
+    <string name="history_stream_mode">Verlauf+Stream</string>
+    <string name="libre_history_mode_caption">Der Verlauf ist der eigene Wert des Sensors, alle 15 Minuten gespeichert und etwa 16 Minuten hinter dem Stream. Bis der Verlaufswert einer Minute eintrifft, steht der Stream dafür ein.</string>
 </resources>

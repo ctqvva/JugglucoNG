@@ -3052,4 +3052,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Гэта прылада не з\'яўляецца патчам Medtrum. Пераканайцеся, што патч побач, і паўтарыце спробу.</string>
 
     <string name="alert_sound_volume">Гучнасць гуку трывогі</string>
+    <string name="stream_history_mode">Паток+Гісторыя</string>
+    <string name="history_stream_mode">Гісторыя+Паток</string>
+    <string name="libre_history_mode_caption">Гісторыя — уласнае значэнне сэнсара, якое захоўваецца кожныя 15 хвілін і адстае ад патоку прыкладна на 16 хвілін. Пакуль гісторыя за хвіліну не прыйшла, замест яе выкарыстоўваецца паток.</string>
 </resources>

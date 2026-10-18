@@ -266,6 +266,8 @@ object DataSmoothing {
         selector = { if (useRawValue) it.rawValue else it.value },
     )
 
+    private fun isValidLane(value: Float): Boolean = value.isFinite() && value >= 0.1f
+
     internal fun collapsePointsForDisplay(
         points: List<GlucosePoint>,
         smoothingMinutes: Int,
@@ -280,21 +282,46 @@ object DataSmoothing {
         val collapsed = ArrayList<GlucosePoint>()
         var activeBucket = Long.MIN_VALUE
         var pending: GlucosePoint? = null
+        var bucketAuto = Float.NaN
+        var bucketRaw = Float.NaN
+
+        // The bucket's last point, carrying the bucket's newest valid value for
+        // a lane it lacks: Libre's History lane is one value per 15 minutes.
+        fun flush() {
+            val last = pending ?: return
+            val carryAuto = !isValidLane(last.value) && !bucketAuto.isNaN()
+            val carryRaw = !isValidLane(last.rawValue) && !bucketRaw.isNaN()
+            if (!carryAuto && !carryRaw) {
+                collapsed.add(last)
+                return
+            }
+            val point = GlucosePoint(
+                last.timestamp,
+                if (carryAuto) bucketAuto else last.value,
+                if (carryRaw) bucketRaw else last.rawValue,
+            )
+            point.color = last.color
+            point.sensorSerial = last.sensorSerial
+            point.sealedDisplayValue = last.sealedDisplayValue
+            point.sealedDisplayViewMode = last.sealedDisplayViewMode
+            point.uncertainty = last.uncertainty?.shifted(point.value - last.value)
+            collapsed.add(point)
+        }
 
         for (point in points) {
             val bucket = point.timestamp / bucketDurationMs
             if (bucket != activeBucket) {
-                if (activeBucket < openBucket) {
-                    pending?.let(collapsed::add)
-                }
+                if (activeBucket < openBucket) flush()
                 activeBucket = bucket
+                bucketAuto = Float.NaN
+                bucketRaw = Float.NaN
             }
+            if (isValidLane(point.value)) bucketAuto = point.value
+            if (isValidLane(point.rawValue)) bucketRaw = point.rawValue
             pending = point
         }
 
-        if (activeBucket < openBucket) {
-            pending?.let(collapsed::add)
-        }
+        if (activeBucket < openBucket) flush()
         return when {
             collapsed.isNotEmpty() -> collapsed
             points.isNotEmpty() -> listOf(points.last())

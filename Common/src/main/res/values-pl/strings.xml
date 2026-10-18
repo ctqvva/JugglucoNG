@@ -3019,4 +3019,7 @@
     <string name="medtrum_setup_device_rejected">To urządzenie nie jest plastrem Medtrum. Upewnij się, że plaster jest w pobliżu, i spróbuj ponownie.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
+    <string name="stream_history_mode">Strumień+Historia</string>
+    <string name="history_stream_mode">Historia+Strumień</string>
+    <string name="libre_history_mode_caption">Historia to własna wartość sensora, zapisywana co 15 minut i opóźniona względem strumienia o około 16 minut. Dopóki historia danej minuty nie dotrze, zastępuje ją strumień.</string>
 </resources>

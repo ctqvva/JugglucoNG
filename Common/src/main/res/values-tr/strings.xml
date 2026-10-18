@@ -3005,4 +3005,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="medtrum_setup_device_rejected">Bu cihaz bir Medtrum yaması değil. Yamanın yakında olduğundan emin olun ve tekrar deneyin.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
+    <string name="stream_history_mode">Akış+Geçmiş</string>
+    <string name="history_stream_mode">Geçmiş+Akış</string>
+    <string name="libre_history_mode_caption">Geçmiş, sensörün kendi değeridir; 15 dakikada bir kaydedilir ve akışın yaklaşık 16 dakika gerisindedir. Bir dakikanın geçmişi gelene kadar yerine akış kullanılır.</string>
 </resources>

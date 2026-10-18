@@ -2977,4 +2977,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Den här enheten är inte ett Medtrum-plåster. Kontrollera att plåstret är inom räckhåll och försök igen.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
+    <string name="stream_history_mode">Strömmade+Historiska</string>
+    <string name="history_stream_mode">Historiska+Strömmade</string>
+    <string name="libre_history_mode_caption">Historiken är sensorns eget värde, sparat var 15:e minut och cirka 16 minuter efter strömmen. Tills en minuts historik har kommit används strömmen i dess ställe.</string>
 </resources>

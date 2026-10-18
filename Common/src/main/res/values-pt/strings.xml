@@ -2978,4 +2978,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Este dispositivo não é um adesivo Medtrum. Verifique se o adesivo está por perto e tente novamente.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
+    <string name="stream_history_mode">Stream+Histórico</string>
+    <string name="history_stream_mode">Histórico+Stream</string>
+    <string name="libre_history_mode_caption">O histórico é o valor do próprio sensor, guardado a cada 15 minutos e cerca de 16 minutos atrás do stream. Até o histórico de um minuto chegar, o stream ocupa o seu lugar.</string>
 </resources>

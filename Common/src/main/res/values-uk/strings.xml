@@ -3057,4 +3057,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Цей пристрій не є патчем Medtrum. Переконайтеся, що патч поруч, і спробуйте ще раз.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
+    <string name="stream_history_mode">Потік+Історія</string>
+    <string name="history_stream_mode">Історія+Потік</string>
+    <string name="libre_history_mode_caption">Історія — власне значення сенсора, зберігається кожні 15 хвилин і відстає від потоку приблизно на 16 хвилин. Доки історія за хвилину не надійшла, замість неї використовується потік.</string>
 </resources>

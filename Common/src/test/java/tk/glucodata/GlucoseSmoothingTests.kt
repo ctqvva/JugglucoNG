@@ -202,4 +202,27 @@ class GlucoseSmoothingTests {
         assertEquals(1, GlucoseSmoothing.splitSegments(points.take(2), { it.timestamp }).size)
         assertEquals(0, GlucoseSmoothing.splitSegments(emptyList<P>(), { it.timestamp }).size)
     }
+
+    @Test
+    fun collapseCarriesASparseLaneTheBucketsLastReadingLacks() {
+        // Libre: Stream every minute, its own History every 15. A 5-minute
+        // bucket whose History sits on its first minute must not lose it.
+        val points = (0 until 10).map { m -> P(m * minute, 100f + m, if (m == 5) 130f else 0f) }
+        val collapsed = smooth(points, minutes = 5, collapse = true, now = 60L * minute)
+        assertEquals(listOf(4 * minute, 9 * minute), collapsed.map { it.timestamp })
+        assertEquals(0f, collapsed[0].rawValue, 1e-6f)
+        assertEquals(130f, collapsed[1].rawValue, 1e-3f)
+        // The bucket's own Stream value is not touched.
+        assertTrue(collapsed[1].value > 100f)
+    }
+
+    @Test
+    fun collapseCarriesTheStreamWhenTheBucketEndsOnAHistoryOnlyRow() {
+        val points = listOf(P(0, 120f, 0f), P(minute, 121f, 0f), P(2 * minute, 0f, 130f))
+        val collapsed = smooth(points, minutes = 5, collapse = true, now = 60L * minute)
+        assertEquals(1, collapsed.size)
+        assertEquals(2 * minute, collapsed[0].timestamp)
+        assertTrue(collapsed[0].value > 100f)
+        assertEquals(130f, collapsed[0].rawValue, 1e-3f)
+    }
 }

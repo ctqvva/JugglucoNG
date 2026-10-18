@@ -3162,4 +3162,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum balastar. Hubi in balastarku uu dhow yahay oo mar kale isku day.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+    <string name="stream_history_mode">Gudbin+Taariikh</string>
+    <string name="history_stream_mode">Taariikh+Gudbin</string>
+    <string name="libre_history_mode_caption">Taariikhdu waa qiimaha dareemaha laftiisa, oo la kaydiyo 15-kii daqiiqo kasta, kana dambeeya gudbinta qiyaastii 16 daqiiqo. Ilaa taariikhda daqiiqad timaado, gudbintu ayaa meesheeda gasha.</string>
 </resources>
