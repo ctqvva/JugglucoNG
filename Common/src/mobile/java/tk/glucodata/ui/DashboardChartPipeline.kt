@@ -229,6 +229,8 @@ internal fun buildSmoothedConsumerHistory(
                     rawValue = point.rawValue,
                     rate = source?.rate,
                     sensorSerial = source?.sensorSerial,
+                    sealedDisplayValue = source?.sealedDisplayValue,
+                    sealedDisplayViewMode = source?.sealedDisplayViewMode,
                     // Smoothing displaces the value, so the interval follows it
                     // rather than being dropped or left behind around the
                     // unsmoothed one. The width is the estimator's claim and

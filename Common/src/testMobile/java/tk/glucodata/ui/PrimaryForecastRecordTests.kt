@@ -23,11 +23,11 @@ class PrimaryForecastRecordTests {
 
     private val settings = PredictiveSimulationSettings(enabled = true, trendMomentumEnabled = false)
 
-    private fun flatRecordedHistory() = (0 until 12).map { i ->
+    private fun flatRecordedHistory(start: Long = START) = (0 until 12).map { i ->
         GlucosePoint(
             value = AUTO,
             time = "",
-            timestamp = START + i * MINUTE,
+            timestamp = start + i * MINUTE,
             rawValue = RAW,
             sensorSerial = "X-222227KUFY",
             sealedDisplayValue = RECORDED,
@@ -35,14 +35,18 @@ class PrimaryForecastRecordTests {
         )
     }
 
-    private fun forecast(viewMode: Int) = buildPredictionSeriesForChart(
-        points = flatRecordedHistory(),
+    private fun forecast(
+        viewMode: Int,
+        points: List<GlucosePoint> = flatRecordedHistory(),
+        unit: String = "mmol/L"
+    ) = buildPredictionSeriesForChart(
+        points = points,
         viewMode = viewMode,
         journalEntries = emptyList(),
         insulinPresetsById = emptyMap(),
-        unit = "mmol/L",
-        targetLow = 3.9f,
-        targetHigh = 10f,
+        unit = unit,
+        targetLow = if (unit == "mmol/L") 3.9f else 70f,
+        targetHigh = if (unit == "mmol/L") 10f else 180f,
         settings = settings
     ).associateBy { it.kind }
 
@@ -58,5 +62,27 @@ class PrimaryForecastRecordTests {
         val series = forecast(viewMode = 2)
         assertEquals(RECORDED, series.getValue(GlucosePredictionSeriesKind.AUTO).points.first().value, 0.05f)
         assertEquals(RAW, series.getValue(GlucosePredictionSeriesKind.RAW).points.first().value, 0.05f)
+    }
+
+    @Test
+    fun smoothingKeepsTheRecordedEndpointForRowsAndForecastsAfterALaneSwitch() {
+        for (isMmol in listOf(false, true)) {
+            val scale = if (isMmol) 1f else 18f
+            val points = flatRecordedHistory(start = 1_700_000_000_000L).map {
+                it.copy(value = AUTO * scale, rawValue = RAW * scale, sealedDisplayValue = RECORDED * scale)
+            }
+            for (collapse in listOf(false, true)) {
+                val consumerHistory = buildSmoothedConsumerHistory(points, 5, collapse)
+                val row = buildDisplayReadings(consumerHistory).first()
+                assertEquals(
+                    RECORDED * scale,
+                    SealedGlucoseValue.calibratedFor(row, isRawMode = true, row.sensorSerial) ?: Float.NaN,
+                    0.001f
+                )
+                val series = forecast(3, consumerHistory, if (isMmol) "mmol/L" else "mg/dL")
+                assertEquals(RECORDED * scale, series.getValue(GlucosePredictionSeriesKind.RAW).points.first().value, 0.05f)
+                assertEquals(AUTO * scale, series.getValue(GlucosePredictionSeriesKind.AUTO).points.first().value, 0.05f)
+            }
+        }
     }
 }
