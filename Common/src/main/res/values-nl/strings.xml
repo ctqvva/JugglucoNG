@@ -3062,9 +3062,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dexcom_share_auth_blocked">Inloggen geblokkeerd — controleer account en wachtwoord</string>
     <string name="dexcom_share_credentials_required">Vul eerst account en wachtwoord in</string>
     <string name="dexcom_share_warning">Onofficiële interface: Dexcom kan deze op elk moment wijzigen of blokkeren. Dit is geen functie van een medisch hulpmiddel.</string>
-    <string name="stream_history_mode">Stream+History</string>
-    <string name="sensor_history_lane_value">History %1$s</string>
-    <string name="sensor_history_lane_caption">History is de eigen waarde van de sensor, elke 15 minuten opgeslagen en ongeveer 16 minuten achter op de stream.</string>
     <string name="stream_history_mode">Stream+Geschiedenis</string>
     <string name="history_stream_mode">Geschiedenis+Stream</string>
     <string name="libre_history_mode_caption">De geschiedenis is de eigen waarde van de sensor, elke 15 minuten opgeslagen en ongeveer 16 minuten achter op de stream. Tot de geschiedenis van een minuut binnen is, neemt de stream haar plaats in.</string>
