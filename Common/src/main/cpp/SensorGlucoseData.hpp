@@ -1398,6 +1398,16 @@ static int getgeneration(const char *info) {
   bool isLibre() const {
     return !(isSibionics() || isDexcom() || isAccuChek() || isAir());
   }
+  // A Libre 1/2 keeps the patch info it gave over NFC at activation. A
+  // managed driver's direct stream shell (Ottai, Anytime, Medtrum, iCan, a
+  // follower...) is Libre 2 by elimination, but its patch info is all zero.
+  bool hasLibrePatchInfo() const {
+    for (const signed char byte : getinfo()->info.data) {
+      if (byte != 0)
+        return true;
+    }
+    return false;
+  }
   bool isAccuChek() const { return getinfo()->accuChek; }
   bool isAiDex() const { return getinfo()->aidex; }
   bool isAir() const { return getinfo()->air; }
