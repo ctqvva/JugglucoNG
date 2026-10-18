@@ -2163,6 +2163,7 @@ static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
 static void appendScanHistory(const SensorGlucoseData *hist, jlong starttime,
                               HistorySamples &samples) {
   const auto scans = hist->getScandata();
+  const bool libreLanes = hasLibreHistoryLane(hist);
   for (const auto &item : scans) {
     if (!item.valid() || item.t <= starttime)
       continue;
@@ -2172,7 +2173,23 @@ static void appendScanHistory(const SensorGlucoseData *hist, jlong starttime,
 
     // Scans have no dedicated raw lane like rawpolls.dat. Assignment is
     // intentional: a scan is a newer source than the periodic history point.
-    samples[item.t] = {valAuto, 0};
+    // Libre 1/2: Room keeps one row per clock minute, so a history value
+    // appendStoredHistory left in the scan's minute rides on the scan row,
+    // or Room would keep one of the two and lose the other lane.
+    jlong valRaw = 0;
+    if (libreLanes) {
+      const jlong minuteStart = (jlong)(item.t / 60) * 60;
+      for (auto it = samples.lower_bound(minuteStart);
+           it != samples.end() && it->first < minuteStart + 60;) {
+        if (it->second.second > 0) {
+          valRaw = it->second.second;
+          it = samples.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    }
+    samples[item.t] = {valAuto, valRaw};
   }
 }
 
