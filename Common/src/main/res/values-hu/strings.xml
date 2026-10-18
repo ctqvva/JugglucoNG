@@ -3094,4 +3094,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="dexcom_share_auth_blocked">Bejelentkezés letiltva — ellenőrizze a fiókot és a jelszót</string>
     <string name="dexcom_share_credentials_required">Először adja meg a fiókot és a jelszót</string>
     <string name="dexcom_share_warning">Nem hivatalos felület: a Dexcom bármikor megváltoztathatja vagy letilthatja. Ez nem orvostechnikai eszköz funkciója.</string>
+    <string name="stream_history_mode">Adatfolyam+Előzmények</string>
+    <string name="sensor_history_lane_value">Előzmények %1$s</string>
+    <string name="sensor_history_lane_caption">Az előzmény a szenzor saját értéke, 15 percenként tárolva, körülbelül 16 perccel az adatfolyam mögött.</string>
 </resources>

@@ -3025,4 +3025,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Connexion bloquée — vérifiez le compte et le mot de passe</string>
     <string name="dexcom_share_credentials_required">Saisissez d\'abord le compte et le mot de passe</string>
     <string name="dexcom_share_warning">Interface non officielle : Dexcom peut la modifier ou la bloquer à tout moment. Ce n\'est pas une fonction de dispositif médical.</string>
+    <string name="stream_history_mode">Flux+Historique</string>
+    <string name="sensor_history_lane_value">Historique %1$s</string>
+    <string name="sensor_history_lane_caption">L\'historique est la valeur propre du capteur, enregistrée toutes les 15 minutes et environ 16 minutes en retard sur le flux.</string>
 </resources>

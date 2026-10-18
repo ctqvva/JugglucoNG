@@ -730,6 +730,13 @@ public class Natives {
          */
         public static native long[] getGlucoseHistoryForSensor(String sensorName, long starttime);
 
+        /**
+         * Libre 1/2 only: the sensor's own 15-minute history (FRAM, or the history
+         * values a BLE packet carries), whether or not the stream covers it.
+         * Returns [time_sec, mgdl*10, ...], or null for any other sensor.
+         */
+        public static native long[] getSensorHistoryLane(String sensorName, long starttime);
+
         public static native byte[] getmynetinfo(String name, boolean create, int watchhassensor, boolean galaxy,
                         int setnums);
 

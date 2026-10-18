@@ -3135,4 +3135,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_share_auth_blocked">Anmeldung gesperrt — Konto und Passwort prüfen</string>
     <string name="dexcom_share_credentials_required">Zuerst Konto und Passwort eingeben</string>
     <string name="dexcom_share_warning">Inoffizielle Schnittstelle: Dexcom kann sie jederzeit ändern oder sperren. Dies ist keine Funktion eines Medizinprodukts.</string>
+    <string name="stream_history_mode">Stream+Verlauf</string>
+    <string name="sensor_history_lane_value">Verlauf %1$s</string>
+    <string name="sensor_history_lane_caption">Der Verlauf ist der eigene Wert des Sensors, alle 15 Minuten gespeichert und etwa 16 Minuten hinter dem Stream.</string>
 </resources>

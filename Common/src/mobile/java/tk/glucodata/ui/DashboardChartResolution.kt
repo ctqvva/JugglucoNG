@@ -40,9 +40,12 @@ internal class ChartResolutionInputs(
     val hideInitialWhenCalibrated: Boolean,
     val primarySerial: String?,
     val primaryColorArgb: Int,
+    /** A Libre 1/2's own history lane; see InteractiveGlucoseChart. */
+    val sensorHistory: List<GlucosePoint> = emptyList(),
 ) {
     fun sameAs(other: ChartResolutionInputs): Boolean =
         safeData === other.safeData &&
+            sensorHistory === other.sensorHistory &&
             multiSensorDisplay === other.multiSensorDisplay &&
             graphSmoothingMinutes == other.graphSmoothingMinutes &&
             collapseSmoothedData == other.collapseSmoothedData &&

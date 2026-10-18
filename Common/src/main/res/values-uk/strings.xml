@@ -3099,4 +3099,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Вхід заблоковано — перевірте обліковий запис і пароль</string>
     <string name="dexcom_share_credentials_required">Спочатку введіть обліковий запис і пароль</string>
     <string name="dexcom_share_warning">Неофіційний інтерфейс: Dexcom може змінити або заблокувати його будь-коли. Це не функція медичного виробу.</string>
+    <string name="stream_history_mode">Потік+Історія</string>
+    <string name="sensor_history_lane_value">Історія %1$s</string>
+    <string name="sensor_history_lane_caption">Історія — власне значення сенсора, зберігається кожні 15 хвилин і відстає від потоку приблизно на 16 хвилин.</string>
 </resources>

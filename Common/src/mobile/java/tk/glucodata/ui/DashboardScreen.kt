@@ -326,6 +326,7 @@ fun DashboardScreen(
         timelineExtents?.takeIf { glucoseHistory.isNotEmpty() }?.let { ChartDataBounds(it.earliestMs, it.latestMs) }
     }
     val multiSensorDisplay by viewModel.multiSensorDisplay.collectAsStateWithLifecycle()
+    val sensorHistoryLane by viewModel.sensorHistoryLane.collectAsStateWithLifecycle()
     val mainSensorOwnership by viewModel.mainSensorOwnership.collectAsStateWithLifecycle()
     val peerCurrentReadings by viewModel.peerCurrentReadings.collectAsStateWithLifecycle()
     val selectedSensorIds by viewModel.selectedSensorIds.collectAsStateWithLifecycle()
@@ -1647,6 +1648,7 @@ fun DashboardScreen(
                                     DashboardChartSection(
                                         modifier = Modifier.fillMaxSize(),
                                         glucoseHistory = glucoseHistory,
+                                        sensorHistory = sensorHistoryLane,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,
                                         multiSensorDisplay = multiSensorDisplay,
@@ -1890,6 +1892,7 @@ fun DashboardScreen(
                                             .fillMaxSize()
                                             .padding(bottom = 0.dp),
                                         glucoseHistory = glucoseHistory,
+                                        sensorHistory = sensorHistoryLane,
                                         dataBounds = chartDataBounds,
                                         onVisibleRangeChanged = viewModel::onChartViewportChanged,
                                         multiSensorDisplay = multiSensorDisplay,

@@ -3019,4 +3019,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Inloggning blockerad — kontrollera konto och lösenord</string>
     <string name="dexcom_share_credentials_required">Ange konto och lösenord först</string>
     <string name="dexcom_share_warning">Inofficiellt gränssnitt: Dexcom kan ändra eller blockera det när som helst. Detta är inte en funktion i en medicinteknisk produkt.</string>
+    <string name="stream_history_mode">Strömmade+Historiska</string>
+    <string name="sensor_history_lane_value">Historiska %1$s</string>
+    <string name="sensor_history_lane_caption">Historiken är sensorns eget värde, sparat var 15:e minut och cirka 16 minuter efter strömmen.</string>
 </resources>

@@ -222,6 +222,7 @@ private data class ChartRangePalette(
  */
 private fun buildDashboardChartModel(
     renderData: List<GlucosePoint>,
+    sensorHistory: List<GlucosePoint>,
     peers: List<PeerSensorChartSeries>,
     primarySerial: String?,
     primaryColorArgb: Int,
@@ -242,6 +243,7 @@ private fun buildDashboardChartModel(
             viewMode = viewMode,
             colorArgb = primaryColorArgb,
             points = renderData.map(::toShared),
+            historyPoints = sensorHistory.map(::toShared),
         )
     )
     peers.forEach { peer ->
@@ -301,6 +303,8 @@ internal fun resolveDashboardChart(inputs: ChartResolutionInputs): ChartResoluti
     }
     val chartModel = buildDashboardChartModel(
         renderData = renderData,
+        // Not smoothed: the sensor already smoothed its own history.
+        sensorHistory = inputs.sensorHistory,
         peers = peerChartSeries,
         primarySerial = inputs.primarySerial,
         primaryColorArgb = inputs.primaryColorArgb,
@@ -749,6 +753,7 @@ private fun List<GlucosePoint>.sliceByTimestampRange(startMillis: Long, endMilli
 fun DashboardChartSection(
     modifier: Modifier,
     glucoseHistory: List<GlucosePoint>,
+    sensorHistory: List<GlucosePoint> = emptyList(),
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
@@ -802,6 +807,7 @@ fun DashboardChartSection(
                 if (glucoseHistory.isNotEmpty() || dataBounds != null) {
                     InteractiveGlucoseChart(
                         fullData = glucoseHistory,
+                        sensorHistory = sensorHistory,
                         dataBounds = dataBounds,
                         onVisibleRangeChanged = onVisibleRangeChanged,
                         multiSensorDisplay = multiSensorDisplay,
@@ -881,6 +887,8 @@ fun DashboardChartSection(
 @Composable
 fun InteractiveGlucoseChart(
     fullData: List<GlucosePoint>,
+    /** A Libre 1/2's own 15-minute history, drawn as a thin lane beside the stream; display units. */
+    sensorHistory: List<GlucosePoint> = emptyList(),
     multiSensorDisplay: MultiSensorDisplayData = MultiSensorDisplayData.EMPTY,
     mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership = tk.glucodata.chart.MainSensorOwnership.NONE,
     peerPredictionSeries: Map<String, List<GlucosePredictionSeries>> = emptyMap(),
@@ -1111,12 +1119,13 @@ fun InteractiveGlucoseChart(
     // builder are each a pass over the whole timeline, and the timeline is the
     // whole store. See rememberChartResolution.
     val resolutionInputs = remember(
-        safeData, multiSensorDisplay, graphSmoothingMinutes, collapseSmoothedData,
+        safeData, sensorHistory, multiSensorDisplay, graphSmoothingMinutes, collapseSmoothedData,
         mainSensorOwnership, calibrationRevision, viewMode, hasCalibration,
         hideInitialWhenCalibrated, primarySerial, primaryIdentityColor,
     ) {
         ChartResolutionInputs(
             safeData = safeData,
+            sensorHistory = sensorHistory,
             multiSensorDisplay = multiSensorDisplay,
             graphSmoothingMinutes = graphSmoothingMinutes,
             collapseSmoothedData = collapseSmoothedData,
@@ -1169,6 +1178,7 @@ fun InteractiveGlucoseChart(
     val reusablePeerPath = remember { Path() }
     val reusableRawPath = remember { Path() }
     val reusableAutoPath = remember { Path() }
+    val reusableHistoryPath = remember { Path() }
     val reusableDate = remember { java.util.Date() }
 
     // Hoist intervals array to avoid allocation in Canvas loop
@@ -3008,6 +3018,7 @@ fun InteractiveGlucoseChart(
                             tk.glucodata.chart.ChartLaneKind.RAW -> reusableRawPath
                             tk.glucodata.chart.ChartLaneKind.AUTO -> reusableAutoPath
                             tk.glucodata.chart.ChartLaneKind.CALIBRATION_PREVIEW -> reusableDemotedPath
+                            tk.glucodata.chart.ChartLaneKind.SENSOR_HISTORY -> reusableHistoryPath
                         }
                         path.rewind()
                         val lineRun = ChartLineRun()
@@ -3021,6 +3032,26 @@ fun InteractiveGlucoseChart(
                                 val previewStroke = 1.dp.toPx()
                                 drawPath(path, previewColor, style = Stroke(width = previewStroke, cap = strokeCap, join = strokeJoin))
                                 drawIsolated(lineRun, previewColor, previewStroke)
+                            }
+                            tk.glucodata.chart.ChartLaneKind.SENSOR_HISTORY -> {
+                                // The sensor's 15-minute history: a lane like the
+                                // others, with each stored value marked, so it
+                                // reads as samples a quarter-hour apart rather
+                                // than a second continuous signal.
+                                val historyColor = laneColor(tertiary = false)
+                                drawPath(path, historyColor, style = Stroke(width = laneStroke, cap = strokeCap, join = strokeJoin))
+                                val dotRadius = laneStroke * 1.5f
+                                for (run in lane.runs) {
+                                    val points = run.points
+                                    val fromIndex = points.firstIndexAtOrAfter(viewportStart - cullMargin)
+                                    val toIndex = points.firstIndexAfter(viewportEnd + cullMargin)
+                                    for (index in fromIndex until toIndex) {
+                                        val point = points[index]
+                                        val px = (point.timestamp - viewportStart) * timeScale
+                                        val py = chartHeight - ((point.value - cYMin) * yScale)
+                                        if (px.isFinite() && py.isFinite()) drawCircle(historyColor, dotRadius, Offset(px, py))
+                                    }
+                                }
                             }
                             else -> {
                                 val color = if (lane.kind == tk.glucodata.chart.ChartLaneKind.RAW) rawLaneColor else autoLaneColor
@@ -4489,6 +4520,21 @@ fun InteractiveGlucoseChart(
                             text = styledText,
                             style = MaterialTheme.typography.titleMedium
                         )
+                        // The sensor's own history for this minute, when one was
+                        // stored here: the number its thin lane marks.
+                        chartModel.primary?.cursorAt(point.timestamp)?.lanes
+                            ?.firstOrNull { it.kind == tk.glucodata.chart.ChartLaneKind.SENSOR_HISTORY }
+                            ?.let { history ->
+                                Text(
+                                    text = stringResource(
+                                        R.string.sensor_history_lane_value,
+                                        GlucoseFormatter.format(history.value, GlucoseFormatter.isMmol(unit)),
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = statusContentColor.copy(alpha = 0.72f),
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
                         // Uncertainty, when the estimator that produced this
                         // point actually reported it. The range is stated as a
                         // range; the artifact line is phrased as a possibility,
