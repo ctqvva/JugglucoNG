@@ -25,8 +25,11 @@ object GlucoseUpdateBroadcaster {
     // Outside the throttle both ways: a broadcast in the second before expiry (startup, a
     // settings change) must not swallow the one redraw that retires the number, and that
     // redraw must not hold back a fresh reading arriving right after it.
-    private val freshnessDeadline = AlarmManager.OnAlarmListener { deliver(null, throttled = false) }
-    private var armedReadingMillis = 0L
+    private val freshnessDeadline = AlarmManager.OnAlarmListener {
+        synchronized(lock) { pendingDeadlineMillis = 0L }
+        deliver(null, throttled = false)
+    }
+    private var pendingDeadlineMillis = 0L
 
     /**
      * Redraws the lock-screen overlay and widgets once [readingTimeMillis] passes
@@ -36,26 +39,28 @@ object GlucoseUpdateBroadcaster {
      *
      * Called for every live reading and by each surface that draws a fresh number, so a
      * reading restored after a process restart (which drops the in-process alarm) still
-     * expires. A call for an older reading leaves a pending later deadline alone.
+     * expires. One alarm serves them all at the earliest deadline: readings differ per
+     * sensor (switching the primary can draw an older one), and the redraw it triggers
+     * re-arms whatever each surface still shows, so a too-early deadline costs one redraw.
      */
     @JvmStatic
     fun armFreshnessDeadline(readingTimeMillis: Long) {
         if (Applic.isWearable || readingTimeMillis <= 0L) return
         val alarmManager = Applic.app?.getSystemService(AlarmManager::class.java) ?: return
+        // DisplayDataState counts the exact threshold as fresh; go one ms past it.
+        val deadline = readingTimeMillis + Notify.glucosetimeout + 1L
         synchronized(lock) {
-            val armedDeadline = armedReadingMillis + Notify.glucosetimeout
-            if (readingTimeMillis <= armedReadingMillis && armedDeadline >= System.currentTimeMillis()) return
+            if (pendingDeadlineMillis in 1..deadline) return
             try {
                 alarmManager.cancel(freshnessDeadline)
-                // DisplayDataState counts the exact threshold as fresh; go one ms past it.
                 alarmManager.setExact(
                     AlarmManager.RTC,
-                    readingTimeMillis + Notify.glucosetimeout + 1L,
+                    deadline,
                     "tk.glucodata:glucose-freshness",
                     freshnessDeadline,
                     null
                 )
-                armedReadingMillis = readingTimeMillis
+                pendingDeadlineMillis = deadline
             } catch (th: Throwable) {
                 Log.stack(LOG_ID, "armFreshnessDeadline", th)
             }
