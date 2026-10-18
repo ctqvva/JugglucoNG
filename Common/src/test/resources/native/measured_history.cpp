@@ -6,6 +6,9 @@
 #include <utility>
 #include <vector>
 
+// g.cpp builds against the NDK's libc++, which also declares isnan at global
+// scope; libstdc++ (Linux CI) only has std::isnan.
+using std::isnan;
 using jlong = int64_t;
 using HistorySamples = std::map<jlong, std::pair<jlong, jlong>>;
 
@@ -139,6 +142,23 @@ int main() {
         // dropping it would break the line across 15 + 15 minutes.
         assert(samples.at(at(firstId - 15)).first == 900);
         assert(samples.at(at(firstId - 15)).second == 900);
+    }
+
+    // A missed sensor minute's history at 12:15:10 and the next minute's poll at
+    // 12:15:50 share a clock minute, which Room stores as one row: the history
+    // rides on that poll instead of becoming a row of its own.
+    {
+        const uint32_t base = measuredTime - (measuredTime % 60);
+        const SensorGlucoseData shared{false,
+                                       {{base + 10, 1000, 41}},
+                                       0, {{base - 60 + 50, 118, 40}, {base + 50, 120, 42}}};
+        samples = exportAll(shared);
+        assert(samples.size() == 2);
+        assert(samples.count(base + 10) == 0);
+        assert(samples.at(base + 50).first == 1200);
+        assert(samples.at(base + 50).second == 1000);
+        // The other poll keeps an empty History lane.
+        assert(samples.at(base - 10).second == 0);
     }
 
     // A BLE dropout: last poll 12:11, history at 12:15 and 12:30, neither with

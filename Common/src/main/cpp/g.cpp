@@ -2016,19 +2016,6 @@ static jlong calibratedHistoryValue(const SensorGlucoseData *hist,
   return !isnan(cali) ? (jlong)(cali * 10) : (jlong)item->getsputnik();
 }
 
-// Every valid history value by the sensor minute id it was stored for.
-static std::map<int, jlong> historyById(const SensorGlucoseData *hist) {
-  std::map<int, jlong> byId;
-  const int start = std::max(0, hist->getstarthistory());
-  const int end = std::min(hist->getAllendhistory(), hist->maxpos());
-  for (int pos = start; pos < end; ++pos) {
-    const Glucose *item = hist->getglucose(pos);
-    if (item->valid())
-      byId[(int)item->getid()] = calibratedHistoryValue(hist, item);
-  }
-  return byId;
-}
-
 // Minute ids that hold a valid stream reading, ascending.
 static std::vector<int> streamIds(const SensorGlucoseData *hist) {
   std::vector<int> ids;
@@ -2040,12 +2027,52 @@ static std::vector<int> streamIds(const SensorGlucoseData *hist) {
   return ids;
 }
 
+// Clock minutes (time / 60) that hold a valid stream reading, ascending. Room
+// keeps one row per clock minute, so a history value with no stream reading at
+// its own id but one in its clock minute -- the two writers' second offsets
+// differ -- has to ride on that reading's row or one of the two lanes is lost.
+static std::vector<uint32_t> streamClockMinutes(const SensorGlucoseData *hist) {
+  std::vector<uint32_t> minutes;
+  for (const auto &item : hist->getPolldata()) {
+    if (item.valid())
+      minutes.push_back(item.t / 60);
+  }
+  std::sort(minutes.begin(), minutes.end());
+  return minutes;
+}
+
+// Each stream reading's History: the value stored for its own minute id, or
+// else one stored for a missed id that lands in its clock minute.
+struct LibreHistoryPairs {
+  std::map<int, jlong> byId;
+  std::map<uint32_t, jlong> byClockMinute;
+};
+
+static LibreHistoryPairs historyPairs(const SensorGlucoseData *hist) {
+  LibreHistoryPairs pairs;
+  const std::vector<int> streamed = streamIds(hist);
+  const int start = std::max(0, hist->getstarthistory());
+  const int end = std::min(hist->getAllendhistory(), hist->maxpos());
+  for (int pos = start; pos < end; ++pos) {
+    const Glucose *item = hist->getglucose(pos);
+    if (!item->valid())
+      continue;
+    const jlong value = calibratedHistoryValue(hist, item);
+    if (std::binary_search(streamed.begin(), streamed.end(), (int)item->getid()))
+      pairs.byId[(int)item->getid()] = value;
+    else
+      pairs.byClockMinute[item->gettime() / 60] = value;
+  }
+  return pairs;
+}
+
 // Compose reads Room, while Libre NFC history is stored in historydata rather
 // than polls. Export that 15-minute history so an NFC scan can populate the
 // dashboard instead of only reaching native followers/LibreView. For Libre
-// 1/2 a minute the stream also has is exported with the stream reading (see
-// appendPollHistory); the rest carry the history in the Raw lane, and in the
-// Auto lane too where no stream reading is near enough to stand for it.
+// 1/2 a value whose minute id or clock minute the stream also has is exported
+// with that stream reading (see appendPollHistory); the rest carry the history
+// in the Raw lane, and in the Auto lane too where no stream reading is near
+// enough to stand for it.
 static void appendStoredHistory(const SensorGlucoseData *hist, jlong starttime,
                                 HistorySamples &samples) {
   // Dexcom historydata contains saveDexFuture forecasts, including forecasts
@@ -2059,6 +2086,8 @@ static void appendStoredHistory(const SensorGlucoseData *hist, jlong starttime,
       libreLanes ? streamTimes(hist) : std::vector<uint32_t>{};
   const std::vector<int> streamed =
       libreLanes ? streamIds(hist) : std::vector<int>{};
+  const std::vector<uint32_t> streamMinutes =
+      libreLanes ? streamClockMinutes(hist) : std::vector<uint32_t>{};
   const int start = std::max(0, hist->getstarthistory());
   const int end = std::min(hist->getAllendhistory(), hist->maxpos());
   for (int pos = start; pos < end; ++pos) {
@@ -2070,7 +2099,9 @@ static void appendStoredHistory(const SensorGlucoseData *hist, jlong starttime,
       continue;
     }
     if (std::binary_search(streamed.begin(), streamed.end(),
-                           (int)item->getid()))
+                           (int)item->getid()) ||
+        std::binary_search(streamMinutes.begin(), streamMinutes.end(),
+                           item->gettime() / 60))
       continue;
     const jlong value = calibratedHistoryValue(hist, item);
     const bool covered = coveredByStream(stream, item->gettime());
@@ -2092,8 +2123,8 @@ static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
   // rawpolls holds only the uncompensated NFC trend minutes (saveScanTrend),
   // which are neither the stream nor the history and stay out of both lanes.
   const bool libreLanes = hasLibreHistoryLane(hist);
-  const std::map<int, jlong> history =
-      libreLanes ? historyById(hist) : std::map<int, jlong>{};
+  const LibreHistoryPairs history =
+      libreLanes ? historyPairs(hist) : LibreHistoryPairs{};
 
   for (const auto &item : polls) {
     const uint16_t rawVal = libreLanes ? 0 : hist->getRawForPoll(&item);
@@ -2111,8 +2142,15 @@ static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
 
     jlong valRaw = rawVal > 0 ? (jlong)(rawVal * convfactordL) : 0;
     if (libreLanes) {
-      const auto found = history.find(item.id);
-      valRaw = found != history.end() ? found->second : 0;
+      valRaw = 0;
+      if (autoValid) {
+        const auto byId = history.byId.find(item.id);
+        const auto byMinute = history.byClockMinute.find(item.t / 60);
+        if (byId != history.byId.end())
+          valRaw = byId->second;
+        else if (byMinute != history.byClockMinute.end())
+          valRaw = byMinute->second;
+      }
     }
 
     // BLE polls are the highest-resolution source and win exact timestamp

@@ -51,6 +51,8 @@ object HistorySync {
     private val sensorLastFullMergeTimeMs = ConcurrentHashMap<String, Long>()
     private val sensorDelayedFullMergePending = ConcurrentHashMap.newKeySet<String>()
     private val sensorResetPreserveUntilMs = ConcurrentHashMap<String, Long>()
+    /** Libre 1/2: the sensor's history timestamps as of its last stored sync. */
+    private val sensorKnownHistory = ConcurrentHashMap<String, Set<Long>>()
     private const val STABLE_THRESHOLD = 2
     private const val STABLE_GROWTH_TOLERANCE = 2
 
@@ -73,6 +75,7 @@ object HistorySync {
     // does not leave permanent holes, while still avoiding all-history rescans.
     private const val INCREMENTAL_OVERLAP_MS = 6 * 60 * 60 * 1000L
     private const val RECENT_SYNC_BUCKET_MS = 60_000L
+    private const val HISTORY_LANE_PREFS = "history_sync_libre_history_lane"
     private const val RECENT_SYNC_DEFAULT_LOOKBACK_MS = 5 * 60 * 1000L
     private const val RECENT_SYNC_MAX_LOOKBACK_MS = 30 * 60 * 1000L
     private const val DESTRUCTIVE_RESYNC_RESET_GAP_MS = 60 * 60 * 1000L
@@ -307,7 +310,12 @@ object HistorySync {
     /**
      * Sync a single sensor's native data into Room.
      */
-    private suspend fun doSyncSensor(serial: String, forceFull: Boolean) {
+    private suspend fun doSyncSensor(
+        serial: String,
+        forceFull: Boolean,
+        /** Rows a destructive resync deleted, so records drawn from them can still be judged. */
+        deletedRowsByMinute: Map<Long, HistoryReading>? = null,
+    ) {
         try {
             if (!SensorIdentity.shouldUseNativeHistorySync(serial)) {
                 Log.d(TAG, "Skipping native sync for driver-owned Room sensor $serial")
@@ -340,7 +348,7 @@ object HistorySync {
                 isFullSync = false
             }
 
-            val currentCount = doSyncSensorWindow(serial, startSec)
+            val currentCount = doSyncSensorWindow(serial, startSec, deletedRowsByMinute)
             if (currentCount > 0) {
                 if (isFullSync) {
                     Log.i(TAG, "Full sync [$serial]: ${currentCount} readings (lastCount=$lastCount, stable=$stableCount)")
@@ -369,7 +377,17 @@ object HistorySync {
         }
     }
 
-    private suspend fun doSyncSensorWindow(serial: String, startSec: Long): Int {
+    private suspend fun doSyncSensorWindow(
+        serial: String,
+        requestedStartSec: Long,
+        deletedRowsByMinute: Map<Long, HistoryReading>? = null,
+    ): Int {
+        // Libre 1/2 History lands on the stream reading of its own minute, which
+        // is ~16 minutes old by then -- and an NFC scan brings hours at once --
+        // so any window reaches back to the earliest history this sync has not
+        // stored yet. Empty for every other sensor.
+        val historyTimestamps = loadNativeHistoryTimestamps(serial, 0L)
+        val startSec = startForNewHistory(serial, requestedStartSec, historyTimestamps)
         val rawHistory = loadNativeHistory(serial, startSec)
         if (rawHistory == null) {
             Log.d(TAG, "getGlucoseHistoryForSensor($serial, $startSec) returned null — skipping")
@@ -383,7 +401,6 @@ object HistorySync {
         val readings = ArrayList<HistoryReading>(NATIVE_SYNC_INSERT_CHUNK)
         var parsedCount = 0
         var storedAny = false
-        val historyTimestamps = loadNativeHistoryTimestamps(serial, startSec)
 
         for (i in rawHistory.indices step 3) {
             if (i + 2 >= rawHistory.size) break
@@ -410,7 +427,7 @@ object HistorySync {
                 )
                 parsedCount++
                 if (readings.size >= NATIVE_SYNC_INSERT_CHUNK) {
-                    val stored = storeNativeChunk(roomSerial, readings, historyTimestamps)
+                    val stored = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
                     readings.clear()
                     storedAny = storedAny || stored
                 }
@@ -418,7 +435,7 @@ object HistorySync {
         }
 
         if (readings.isNotEmpty()) {
-            val stored = storeNativeChunk(roomSerial, readings, historyTimestamps)
+            val stored = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
             readings.clear()
             storedAny = storedAny || stored
         }
@@ -426,7 +443,30 @@ object HistorySync {
             UiRefreshBus.requestDataRefresh()
             UiRefreshBus.requestStatusRefresh()
         }
+        if (historyTimestamps.isNotEmpty()) {
+            sensorKnownHistory[serial] = historyTimestamps
+            markHistoryLaneBackfilled(serial)
+        }
         return parsedCount
+    }
+
+    private fun startForNewHistory(serial: String, requestedStartSec: Long, historyTimestamps: Set<Long>): Long =
+        LibreHistorySyncWindow.startSec(
+            requestedStartSec = requestedStartSec,
+            historyTimestamps = historyTimestamps,
+            known = sensorKnownHistory[serial],
+            backfilled = historyTimestamps.isNotEmpty() && isHistoryLaneBackfilled(serial),
+        )
+
+    private fun historyLanePrefs() =
+        Applic.app?.getSharedPreferences(HISTORY_LANE_PREFS, android.content.Context.MODE_PRIVATE)
+
+    private fun isHistoryLaneBackfilled(serial: String): Boolean =
+        historyLanePrefs()?.getBoolean(serial, false) ?: false
+
+    private fun markHistoryLaneBackfilled(serial: String) {
+        val prefs = historyLanePrefs() ?: return
+        if (!prefs.getBoolean(serial, false)) prefs.edit().putBoolean(serial, true).apply()
     }
 
     /**
@@ -438,11 +478,12 @@ object HistorySync {
         roomSerial: String,
         readings: List<HistoryReading>,
         historyTimestamps: Set<Long>,
+        deletedRowsByMinute: Map<Long, HistoryReading>?,
     ): Boolean {
-        val previous = if (historyTimestamps.isEmpty()) {
-            emptyMap()
-        } else {
-            historyRepository.storedReadingsByMinute(roomSerial, readings)
+        val previous = when {
+            historyTimestamps.isEmpty() -> emptyMap()
+            deletedRowsByMinute != null -> deletedRowsByMinute
+            else -> historyRepository.storedReadingsByMinute(roomSerial, readings)
         }
         val stored = historyRepository.storeReadingsReplacingSensorBuckets(
             sensorSerial = roomSerial,
@@ -540,15 +581,22 @@ object HistorySync {
         scope.launch {
             syncGate.withLock {
                 val preserveExistingHistory = shouldPreserveExistingHistoryOnFullResync(serial, legacyAliases)
+                var deletedRowsByMinute: Map<Long, HistoryReading>? = null
                 if (!preserveExistingHistory) {
                     try {
+                        // A Libre's records drawn from history rows are judged against
+                        // the rows they came from, which this delete removes.
+                        if (loadNativeHistoryTimestamps(serial, 0L).isNotEmpty()) {
+                            val roomSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+                            deletedRowsByMinute = historyRepository.storedReadingsByMinuteForSensor(roomSerial)
+                        }
                         historyRepository.deleteForSensor(serial)
                         legacyAliases.forEach { historyRepository.deleteForSensor(it) }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error deleting Room data for $serial before resync: ${e.message}")
                     }
                 }
-                doSyncSensor(serial, forceFull = true)
+                doSyncSensor(serial, forceFull = true, deletedRowsByMinute = deletedRowsByMinute)
             }
         }
     }

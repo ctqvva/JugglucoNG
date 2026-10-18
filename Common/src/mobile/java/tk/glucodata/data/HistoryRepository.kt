@@ -924,6 +924,16 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
+    /** Every stored row of [roomSerial], per minute. */
+    suspend fun storedReadingsByMinuteForSensor(roomSerial: String): Map<Long, HistoryReading> =
+        withContext(Dispatchers.IO) {
+            HashMap<Long, HistoryReading>().also { rows ->
+                dao.getSensorReadingsInTimeRange(roomSerial, 0L, Long.MAX_VALUE).forEach { row ->
+                    rows[ReadingDisplay.minuteOf(row.timestamp)] = row
+                }
+            }
+        }
+
     /**
      * Drops Auto records drawn from a Libre history row that a re-sync has taken
      * off the Auto line; see [RecordedDisplayVoiding.displacedHistoryMinutes].
