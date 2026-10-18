@@ -3205,6 +3205,6 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dexcom_share_credentials_required">Marka hore geli akoonka iyo furaha sirta</string>
     <string name="dexcom_share_warning">Interface aan rasmi ahayn: Dexcom wuu beddeli karaa ama xannibi karaa wakhti kasta. Tani maaha hawl qalab caafimaad.</string>
     <string name="stream_history_mode">Gudbin+Taariikh</string>
-    <string name="sensor_history_lane_value">Taariikh %1$s</string>
-    <string name="sensor_history_lane_caption">Taariikhdu waa qiimaha dareemaha laftiisa, oo la kaydiyo 15-kii daqiiqo kasta, kana dambeeya gudbinta qiyaastii 16 daqiiqo.</string>
+    <string name="history_stream_mode">Taariikh+Gudbin</string>
+    <string name="libre_history_mode_caption">Taariikhdu waa qiimaha dareemaha laftiisa, oo la kaydiyo 15-kii daqiiqo kasta, kana dambeeya gudbinta qiyaastii 16 daqiiqo. Ilaa taariikhda daqiiqad timaado, gudbintu ayaa meesheeda gasha.</string>
 </resources>

@@ -2387,62 +2387,23 @@ fun SensorCard(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Libre 1/2 have no raw lane; their second signal is the sensor's own
-            // 15-minute history beside the BLE stream. Chart-only: the stream
-            // stays the value, the alerts and the main line in both modes.
-            if (sensor.sensorType == SensorTypeName.LIBRE_2) {
-                Text(
-                    stringResource(R.string.data_mode),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                val historyLaneRevision by tk.glucodata.SensorHistoryLanePreference.revision.collectAsStateWithLifecycle()
-                val historyLaneShown = remember(sensor.serial, historyLaneRevision) {
-                    tk.glucodata.SensorHistoryLanePreference.isShown(sensor.serial)
-                }
-                val laneLabels = listOf(
-                    stringResource(R.string.streamname),
-                    stringResource(R.string.stream_history_mode)
-                )
-                ConnectedButtonGroup(
-                    options = laneLabels.indices.toList(),
-                    selectedOption = if (historyLaneShown) 1 else 0,
-                    onOptionSelected = { tk.glucodata.SensorHistoryLanePreference.setShown(sensor.serial, it == 1) },
-                    labelText = { laneLabels[it] },
-                    label = {
-                        Text(
-                            text = laneLabels[it],
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                    unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unselectedContentColor = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.sensor_history_lane_caption),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
-            if (sensor.isSibionics || sensor.supportsDisplayModes) {
+            // Libre 1/2 export their two lanes as Stream (Auto) and the sensor's own
+            // 15-minute History (Raw), so the same four modes switch between them.
+            val isLibreStreamHistory = sensor.sensorType == SensorTypeName.LIBRE_2
+            if (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory) {
                 Text(
                     stringResource(R.string.data_mode),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                val modeLabels = listOf(
+                val modeLabels = if (isLibreStreamHistory) listOf(
+                    stringResource(R.string.streamname),
+                    stringResource(R.string.historyname),
+                    stringResource(R.string.stream_history_mode),
+                    stringResource(R.string.history_stream_mode)
+                ) else listOf(
                     stringResource(R.string.auto),
                     stringResource(R.string.raw),
                     stringResource(R.string.auto_raw),
@@ -2469,6 +2430,14 @@ fun SensorCard(
                     unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                     unselectedContentColor = MaterialTheme.colorScheme.onSurface
                 )
+                if (isLibreStreamHistory) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.libre_history_mode_caption),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Both managed algorithms replace the Auto lane; pure Raw hides this entry.

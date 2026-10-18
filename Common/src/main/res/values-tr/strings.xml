@@ -3048,6 +3048,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_share_credentials_required">Önce hesabı ve şifreyi girin</string>
     <string name="dexcom_share_warning">Resmi olmayan arayüz: Dexcom bunu istediği zaman değiştirebilir veya engelleyebilir. Bu bir tıbbi cihaz özelliği değildir.</string>
     <string name="stream_history_mode">Akış+Geçmiş</string>
-    <string name="sensor_history_lane_value">Geçmiş %1$s</string>
-    <string name="sensor_history_lane_caption">Geçmiş, sensörün kendi değeridir; 15 dakikada bir kaydedilir ve akışın yaklaşık 16 dakika gerisindedir.</string>
+    <string name="history_stream_mode">Geçmiş+Akış</string>
+    <string name="libre_history_mode_caption">Geçmiş, sensörün kendi değeridir; 15 dakikada bir kaydedilir ve akışın yaklaşık 16 dakika gerisindedir. Bir dakikanın geçmişi gelene kadar yerine akış kullanılır.</string>
 </resources>

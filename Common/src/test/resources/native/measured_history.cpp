@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <utility>
@@ -11,14 +12,18 @@ using HistorySamples = std::map<jlong, std::pair<jlong, jlong>>;
 struct Glucose {
     uint32_t time;
     uint16_t mgdlTimes10;
+    uint16_t id = 0;
     bool valid() const { return mgdlTimes10 > 380 && mgdlTimes10 < 5020; }
     uint32_t gettime() const { return time; }
     uint16_t getsputnik() const { return mgdlTimes10; }
+    uint32_t getid() const { return id; }
 };
 
 struct ScanData {
     uint32_t t;
-    uint16_t g;
+    int32_t g;
+    int32_t id = 0;
+    uint16_t raw = 0; // rawpolls.dat, mmol/L x 10
     bool valid() const { return g > 0; }
 };
 
@@ -34,13 +39,31 @@ struct SensorGlucoseData {
     // Native decides Libre 2 by elimination, AiDex shells included.
     bool isLibre2() const { return !dexcom && !libre3; }
     const std::vector<ScanData>& getPolldata() const { return polls; }
+    uint16_t getRawForPoll(const ScanData *poll) const { return poll ? poll->raw : 0; }
     int getstarthistory() const { return first; }
     int getAllendhistory() const { return history.size(); }
     int maxpos() const { return history.size(); }
     const Glucose* getglucose(int pos) const { return &history.at(pos); }
 };
 
+// Native calibration (calibrate/calculate.cpp): NAN when none applies. Tests
+// switch it on to see that history goes through it exactly as the stream does.
+static double calibrationOffset = NAN;
+double calibrateNow(const SensorGlucoseData *, const uint32_t, const double value) {
+    return std::isnan(calibrationOffset) ? NAN : value + calibrationOffset;
+}
+double calibrateNow(const SensorGlucoseData *sens, const ScanData &value) {
+    return calibrateNow(sens, value.t, (double)value.g);
+}
+
 // PRODUCTION_EXPORTER
+
+static HistorySamples exportAll(const SensorGlucoseData &sens, jlong starttime = 0) {
+    HistorySamples samples;
+    appendStoredHistory(&sens, starttime, samples);
+    appendPollHistory(&sens, starttime, samples);
+    return samples;
+}
 
 int main() {
     // Issue #250 trace: measured 136 mg/dL at 16:04:33, forecast 125 at 16:14:33.
@@ -61,63 +84,126 @@ int main() {
     assert(samples.size() == 1);
     assert(samples.at(forecastTime).first == 1360);
 
-    // Libre NFC history must still export in JNI units (mg/dL * 10), with no raw lane.
-    const SensorGlucoseData libre{false, {{measuredTime - 900, 770},
-                                        {measuredTime, 1360},
-                                        {forecastTime, 0}}};
+    // Libre NFC history exports in JNI units (mg/dL * 10). With no stream it is
+    // the Auto line's only answer, and it is the History (Raw) lane as well.
+    const SensorGlucoseData libre{false, {{measuredTime - 900, 770, 10},
+                                        {measuredTime, 1360, 25},
+                                        {forecastTime, 0, 35}}};
     samples.clear();
     appendStoredHistory(&libre, 0, samples);
     assert(samples.size() == 2);
     assert(samples.at(measuredTime - 900).first == 770);
     assert(samples.at(measuredTime).first == 1360);
-    assert(samples.at(measuredTime).second == 0);
+    assert(samples.at(measuredTime).second == 1360);
 
     samples.clear();
     appendStoredHistory(&libre, measuredTime - 900, samples);
     assert(samples.size() == 1); // starttime is exclusive.
     assert(samples.begin()->first == measuredTime);
 
-    // Libre 1/2 with a BLE stream: history the stream covers stays out of the
-    // main lane (it is drawn as its own lane); history in a stream gap fills it.
+    // Libre 1/2 with a BLE stream: Auto is the stream and History is paired to
+    // the stream reading of the same minute id.
     {
-        const uint32_t gapStart = measuredTime - 1800;
+        constexpr int firstId = 1000;
+        const uint32_t t0 = measuredTime;
+        auto at = [&](int id) { return t0 + (uint32_t)(id - firstId) * 60; };
         std::vector<ScanData> stream;
-        for (uint32_t t = measuredTime - 600; t <= measuredTime + 600; t += 60)
-            stream.push_back({t, 120});
-        stream.push_back({gapStart - 600, 0}); // raw-only scan trend: not a stream reading
+        for (int id = firstId; id <= firstId + 20; ++id) {
+            if (id == firstId + 3) continue; // one missed minute
+            stream.push_back({at(id) + 7, 120, id});
+        }
+        // An uncompensated NFC trend minute (saveScanTrend): raw only.
+        stream.push_back({at(firstId - 30), 0, firstId - 30, 40});
         const SensorGlucoseData streaming{false,
-                                          {{gapStart, 900},
-                                           {measuredTime - 900, 1000},
-                                           {measuredTime, 1200}},
+                                          {{at(firstId - 15), 900, firstId - 15},
+                                           {at(firstId + 3), 1010, firstId + 3},
+                                           {at(firstId + 5), 1000, firstId + 5},
+                                           {at(firstId + 20), 1100, firstId + 20}},
                                           0, stream};
-        samples.clear();
-        appendStoredHistory(&streaming, 0, samples);
-        assert(samples.size() == 1);
-        assert(samples.count(gapStart) == 1);
+        samples = exportAll(streaming);
+        // 20 stream minutes plus two history-only minutes; no NFC trend row.
+        assert(samples.size() == 22);
+        assert(samples.count(at(firstId - 30)) == 0);
+        // Paired: the stream reading carries its minute's history.
+        assert(samples.at(at(firstId + 5) + 7).first == 1200);
+        assert(samples.at(at(firstId + 5) + 7).second == 1000);
+        assert(samples.at(at(firstId + 20) + 7).second == 1100);
+        assert(samples.count(at(firstId + 5)) == 0); // no second row for it
+        // A stream minute with no history has an empty History lane.
+        assert(samples.at(at(firstId + 6) + 7).second == 0);
+        // The missed minute is covered by the stream on both sides: History
+        // only, so the Stream line does not jump to the sensor's other answer.
+        assert(samples.at(at(firstId + 3)).first == 0);
+        assert(samples.at(at(firstId + 3)).second == 1010);
+        // Before the stream starts the history is the Auto line's answer too:
+        // dropping it would break the line across 15 + 15 minutes.
+        assert(samples.at(at(firstId - 15)).first == 900);
+        assert(samples.at(at(firstId - 15)).second == 900);
+    }
 
-        // The edge: exactly five minutes from a stream reading is covered, a
-        // second further is a gap.
+    // A BLE dropout: last poll 12:11, history at 12:15 and 12:30, neither with
+    // a stream reading. Without the 12:15 point on the Auto line, the line would
+    // break across 19 minutes.
+    {
+        const uint32_t noon = measuredTime - (measuredTime % 3600);
+        std::vector<ScanData> dropout;
+        for (int minute = 0; minute <= 11; ++minute)
+            dropout.push_back({noon + minute * 60, 120, minute});
+        const SensorGlucoseData droppedOut{false,
+                                           {{noon + 15 * 60, 1000, 15},
+                                            {noon + 30 * 60, 1100, 30}},
+                                           0, dropout};
+        samples = exportAll(droppedOut);
+        assert(samples.at(noon + 15 * 60).first == 1000);
+        assert(samples.at(noon + 30 * 60).first == 1100);
+    }
+
+    // The edge: a stream reading five minutes on each side covers a history
+    // point; a second further on either side does not.
+    {
         const SensorGlucoseData edge{false,
-                                     {{measuredTime - 900, 1000},
-                                      {measuredTime - 901, 1010}},
-                                     0, {{measuredTime - 600, 120}}};
+                                     {{measuredTime - 900, 1000, 1},
+                                      {measuredTime - 901, 1010, 2},
+                                      {measuredTime - 899, 1020, 3}},
+                                     0, {{measuredTime - 1200, 120, 100}, {measuredTime - 600, 120, 101}}};
         samples.clear();
         appendStoredHistory(&edge, 0, samples);
-        assert(samples.size() == 1);
-        assert(samples.count(measuredTime - 901) == 1);
+        assert(samples.at(measuredTime - 900).first == 0);
+        assert(samples.at(measuredTime - 901).first == 1010);
+        assert(samples.at(measuredTime - 899).first == 1020);
+    }
 
-        // AiDex shells and Libre 3 keep their history in the main lane as before.
-        SensorGlucoseData aidex = streaming;
+    // AiDex shells and Libre 3 keep their history and raw lanes as before.
+    {
+        const SensorGlucoseData base{false,
+                                     {{measuredTime, 1200, 7}},
+                                     0, {{measuredTime + 30, 120, 7, 70}}};
+        SensorGlucoseData aidex = base;
         aidex.aidex = true;
-        samples.clear();
-        appendStoredHistory(&aidex, 0, samples);
-        assert(samples.size() == 3);
-
-        SensorGlucoseData libre3 = streaming;
+        SensorGlucoseData libre3 = base;
         libre3.libre3 = true;
-        samples.clear();
-        appendStoredHistory(&libre3, 0, samples);
-        assert(samples.size() == 3);
+        for (const SensorGlucoseData *other : {&aidex, &libre3}) {
+            samples = exportAll(*other);
+            assert(samples.size() == 2);
+            assert(samples.at(measuredTime).first == 1200);
+            assert(samples.at(measuredTime).second == 0);
+            assert(samples.at(measuredTime + 30).second == (jlong)(70 * 18.0182));
+        }
+    }
+
+    // Native calibration reaches history exactly as it reaches the stream.
+    {
+        calibrationOffset = 10.0;
+        const SensorGlucoseData calibrated{false,
+                                           {{measuredTime, 1000, 7},
+                                            {measuredTime + 3600, 1100, 67}},
+                                           0, {{measuredTime + 30, 120, 7}}};
+        samples = exportAll(calibrated);
+        assert(samples.at(measuredTime + 30).first == 1300);
+        assert(samples.at(measuredTime + 30).second == 1100);
+        assert(samples.at(measuredTime + 3600).first == 1200);
+        assert(samples.at(measuredTime + 3600).second == 1200);
+        calibrationOffset = NAN;
     }
 
     const SensorGlucoseData empty{false, {}};

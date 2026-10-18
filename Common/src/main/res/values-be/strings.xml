@@ -3095,6 +3095,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_credentials_required">Спачатку ўвядзіце ўліковы запіс і пароль</string>
     <string name="dexcom_share_warning">Неафіцыйны інтэрфейс: Dexcom можа змяніць або заблакаваць яго ў любы момант. Гэта не функцыя медыцынскай прылады.</string>
     <string name="stream_history_mode">Паток+Гісторыя</string>
-    <string name="sensor_history_lane_value">Гісторыя %1$s</string>
-    <string name="sensor_history_lane_caption">Гісторыя — уласнае значэнне сэнсара, якое захоўваецца кожныя 15 хвілін і адстае ад патоку прыкладна на 16 хвілін.</string>
+    <string name="history_stream_mode">Гісторыя+Паток</string>
+    <string name="libre_history_mode_caption">Гісторыя — уласнае значэнне сэнсара, якое захоўваецца кожныя 15 хвілін і адстае ад патоку прыкладна на 16 хвілін. Пакуль гісторыя за хвіліну не прыйшла, замест яе выкарыстоўваецца паток.</string>
 </resources>

@@ -3121,6 +3121,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dexcom_share_credentials_required">Эхлээд бүртгэл болон нууц үгээ оруулна уу</string>
     <string name="dexcom_share_warning">Албан бус интерфейс: Dexcom үүнийг хэзээ ч өөрчлөх эсвэл хааж болно. Энэ нь эмнэлгийн хэрэгслийн функц биш.</string>
     <string name="stream_history_mode">Дамжуулалт+Түүх</string>
-    <string name="sensor_history_lane_value">Түүх %1$s</string>
-    <string name="sensor_history_lane_caption">Түүх нь мэдрэгчийн өөрийн утга бөгөөд 15 минут тутам хадгалагдаж, дамжуулалтаас ойролцоогоор 16 минутаар хоцордог.</string>
+    <string name="history_stream_mode">Түүх+Дамжуулалт</string>
+    <string name="libre_history_mode_caption">Түүх нь мэдрэгчийн өөрийн утга бөгөөд 15 минут тутам хадгалагдаж, дамжуулалтаас ойролцоогоор 16 минутаар хоцордог. Тухайн минутын түүх ирэх хүртэл дамжуулалт түүнийг орлоно.</string>
 </resources>

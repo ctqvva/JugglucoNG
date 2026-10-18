@@ -3035,6 +3035,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_credentials_required">请先输入账户和密码</string>
     <string name="dexcom_share_warning">非官方接口：Dexcom 可能随时更改或封锁它。这不是医疗器械功能。</string>
     <string name="stream_history_mode">蓝牙+历史</string>
-    <string name="sensor_history_lane_value">历史 %1$s</string>
-    <string name="sensor_history_lane_caption">历史是传感器自身的数值，每 15 分钟保存一次，比蓝牙数据晚约 16 分钟。</string>
+    <string name="history_stream_mode">历史+蓝牙</string>
+    <string name="libre_history_mode_caption">历史是传感器自身的数值，每 15 分钟保存一次，比蓝牙数据晚约 16 分钟。某一分钟的历史到达之前，以蓝牙数据代替。</string>
 </resources>

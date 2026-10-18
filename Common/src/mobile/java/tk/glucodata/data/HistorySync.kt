@@ -383,6 +383,7 @@ object HistorySync {
         val readings = ArrayList<HistoryReading>(NATIVE_SYNC_INSERT_CHUNK)
         var parsedCount = 0
         var storedAny = false
+        val historyTimestamps = loadNativeHistoryTimestamps(serial, startSec)
 
         for (i in rawHistory.indices step 3) {
             if (i + 2 >= rawHistory.size) break
@@ -409,11 +410,7 @@ object HistorySync {
                 )
                 parsedCount++
                 if (readings.size >= NATIVE_SYNC_INSERT_CHUNK) {
-                    val stored = historyRepository.storeReadingsReplacingSensorBuckets(
-                        sensorSerial = roomSerial,
-                        readings = readings,
-                        bucketDurationMs = RECENT_SYNC_BUCKET_MS,
-                    )
+                    val stored = storeNativeChunk(roomSerial, readings, historyTimestamps)
                     readings.clear()
                     storedAny = storedAny || stored
                 }
@@ -421,11 +418,7 @@ object HistorySync {
         }
 
         if (readings.isNotEmpty()) {
-            val stored = historyRepository.storeReadingsReplacingSensorBuckets(
-                sensorSerial = roomSerial,
-                readings = readings,
-                bucketDurationMs = RECENT_SYNC_BUCKET_MS,
-            )
+            val stored = storeNativeChunk(roomSerial, readings, historyTimestamps)
             readings.clear()
             storedAny = storedAny || stored
         }
@@ -434,6 +427,57 @@ object HistorySync {
             UiRefreshBus.requestStatusRefresh()
         }
         return parsedCount
+    }
+
+    /**
+     * Writes one chunk; for a Libre 1/2 ([historyTimestamps] non-empty) also
+     * voids records the chunk took off the Stream lane -- history rows that
+     * older exports mixed into it.
+     */
+    private suspend fun storeNativeChunk(
+        roomSerial: String,
+        readings: List<HistoryReading>,
+        historyTimestamps: Set<Long>,
+    ): Boolean {
+        val previous = if (historyTimestamps.isEmpty()) {
+            emptyMap()
+        } else {
+            historyRepository.storedReadingsByMinute(roomSerial, readings)
+        }
+        val stored = historyRepository.storeReadingsReplacingSensorBuckets(
+            sensorSerial = roomSerial,
+            readings = readings,
+            bucketDurationMs = RECENT_SYNC_BUCKET_MS,
+        )
+        if (stored && previous.isNotEmpty()) {
+            historyRepository.voidRecordsOfDisplacedSensorHistory(
+                roomSerial = roomSerial,
+                rewritten = HistoryBucketReplacement.collapseReadings(readings, RECENT_SYNC_BUCKET_MS),
+                previousByMinute = previous,
+                historyTimestamps = historyTimestamps,
+            )
+        }
+        return stored
+    }
+
+    /** Libre 1/2 only: the epoch-ms times of the sensor's stored history; empty for every other sensor. */
+    private fun loadNativeHistoryTimestamps(serial: String, startSec: Long): Set<Long> {
+        val from = (startSec - 1L).coerceAtLeast(0L)
+        for (nativeName in SensorIdentity.resolveNativeHistorySensorNames(serial).ifEmpty { listOf(serial) }) {
+            val packed = try {
+                Natives.getSensorHistoryLane(nativeName, from)
+            } catch (_: Throwable) {
+                null
+            } ?: continue
+            val times = HashSet<Long>(packed.size / 2)
+            var i = 0
+            while (i + 1 < packed.size) {
+                times.add(packed[i] * 1000L)
+                i += 2
+            }
+            return times
+        }
+        return emptySet()
     }
 
     private fun loadNativeHistory(serial: String, startSec: Long): LongArray? {
