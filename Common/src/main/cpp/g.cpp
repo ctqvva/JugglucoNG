@@ -1974,7 +1974,8 @@ using HistorySamples = std::map<jlong, std::pair<jlong, jlong>>;
 // other raw lane here. AiDex native shells are Libre 2 by elimination;
 // exclude them.
 static bool hasLibreHistoryLane(const SensorGlucoseData *hist) {
-  return hist->isLibre2() && !hist->isAiDex();
+  // Managed drivers' shells keep their own raw lane in rawpolls.
+  return hist->isLibre2() && !hist->isAiDex() && hist->hasLibrePatchInfo();
 }
 
 // A history point with a stream reading this close on *both* sides is

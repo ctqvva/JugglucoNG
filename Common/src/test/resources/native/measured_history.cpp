@@ -37,7 +37,9 @@ struct SensorGlucoseData {
     std::vector<ScanData> polls = {};
     bool aidex = false;
     bool libre3 = false;
+    bool patchinfo = true; // all zero on a managed driver's direct stream shell
     bool isDexcom() const { return dexcom; }
+    bool hasLibrePatchInfo() const { return patchinfo; }
     bool isAiDex() const { return aidex; }
     // Native decides Libre 2 by elimination, AiDex shells included.
     bool isLibre2() const { return !dexcom && !libre3; }
@@ -193,16 +195,20 @@ int main() {
         assert(samples.at(measuredTime - 899).first == 1020);
     }
 
-    // AiDex shells and Libre 3 keep their history and raw lanes as before.
+    // AiDex shells, other managed drivers' shells (Ottai, Anytime, Medtrum...:
+    // Libre 2 by elimination, no patch info) and Libre 3 keep their history
+    // and raw lanes as before.
     {
         const SensorGlucoseData base{false,
                                      {{measuredTime, 1200, 7}},
                                      0, {{measuredTime + 30, 120, 7, 70}}};
         SensorGlucoseData aidex = base;
         aidex.aidex = true;
+        SensorGlucoseData managedShell = base;
+        managedShell.patchinfo = false;
         SensorGlucoseData libre3 = base;
         libre3.libre3 = true;
-        for (const SensorGlucoseData *other : {&aidex, &libre3}) {
+        for (const SensorGlucoseData *other : {&aidex, &managedShell, &libre3}) {
             samples = exportAll(*other);
             assert(samples.size() == 2);
             assert(samples.at(measuredTime).first == 1200);
