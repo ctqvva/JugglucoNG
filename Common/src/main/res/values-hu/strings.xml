@@ -3052,4 +3052,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="medtrum_setup_device_rejected">Ez az eszköz nem Medtrum tapasz. Ellenőrizze, hogy a tapasz a közelben van-e, majd próbálja újra.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
+    <string name="stream_history_mode">Adatfolyam+Előzmények</string>
+    <string name="sensor_history_lane_value">Előzmények %1$s</string>
+    <string name="sensor_history_lane_caption">Az előzmény a szenzor saját értéke, 15 percenként tárolva, körülbelül 16 perccel az adatfolyam mögött.</string>
 </resources>

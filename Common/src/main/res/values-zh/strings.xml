@@ -2992,4 +2992,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">此设备不是 Medtrum 贴片。请确认贴片在附近，然后重试。</string>
 
     <string name="alert_sound_volume">警报音量</string>
+    <string name="stream_history_mode">蓝牙+历史</string>
+    <string name="sensor_history_lane_value">历史 %1$s</string>
+    <string name="sensor_history_lane_caption">历史是传感器自身的数值，每 15 分钟保存一次，比蓝牙数据晚约 16 分钟。</string>
 </resources>

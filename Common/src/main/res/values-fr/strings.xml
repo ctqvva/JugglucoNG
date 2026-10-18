@@ -2983,4 +2983,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Cet appareil n\'est pas un capteur Medtrum. Vérifiez que le capteur est à portée, puis réessayez.</string>
 
     <string name="alert_sound_volume">Volume du son d’alerte</string>
+    <string name="stream_history_mode">Flux+Historique</string>
+    <string name="sensor_history_lane_value">Historique %1$s</string>
+    <string name="sensor_history_lane_caption">L\'historique est la valeur propre du capteur, enregistrée toutes les 15 minutes et environ 16 minutes en retard sur le flux.</string>
 </resources>

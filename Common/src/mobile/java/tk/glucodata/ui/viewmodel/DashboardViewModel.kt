@@ -314,6 +314,14 @@ class DashboardViewModel(
     val multiSensorDisplay = _multiSensorDisplay.asStateFlow()
 
     /**
+     * The current sensor's own 15-minute history (Libre 1/2), in display units,
+     * for the chart's History lane. Empty for every other sensor and whenever
+     * the user has switched the lane off on the sensor card.
+     */
+    private val _sensorHistoryLane = MutableStateFlow<List<GlucosePoint>>(emptyList())
+    val sensorHistoryLane = _sensorHistoryLane.asStateFlow()
+
+    /**
      * Who is the main sensor, minute by minute, over the chart's history window.
      *
      * The chart draws what this says. See [tk.glucodata.chart.MainSensorOwnership]
@@ -593,6 +601,7 @@ class DashboardViewModel(
     private var currentReadingJob: Job? = null
     private var historyJob: Job? = null
     private var multiSensorHistoryJob: Job? = null
+    private var sensorHistoryLaneJob: Job? = null
     private var timelineExtentsJob: Job? = null
     private var uiRefreshJob: Job? = null
     private var journalEntriesJob: Job? = null
@@ -1105,6 +1114,7 @@ class DashboardViewModel(
         activeHistoryStartTimeMs = recoveryStartTimeMs
 
         startMultiSensorHistoryCollectionForMode(mode)
+        startSensorHistoryLaneCollection()
         if (historyJob?.isActive == true && activeHistoryMode == mode) return
 
         historyJob?.cancel()
@@ -1440,6 +1450,39 @@ class DashboardViewModel(
         }
     }
 
+    /**
+     * Reloads the History lane when the sensor, the unit or the card's switch
+     * changes, and when the stream gains a reading -- a new history value lands
+     * at most a packet after one. A sensor's whole history is ~1.4k points, so
+     * it is read whole rather than windowed.
+     */
+    private fun startSensorHistoryLaneCollection() {
+        if (sensorHistoryLaneJob?.isActive == true) return
+        sensorHistoryLaneJob = viewModelScope.launch {
+            combine(
+                _sensorName,
+                _unit,
+                tk.glucodata.SensorHistoryLanePreference.revision,
+                _glucoseHistory.map { it.lastOrNull()?.timestamp ?: 0L }.distinctUntilChanged(),
+            ) { sensor, unit, _, _ -> sensor to unit }
+                .conflate()
+                .collectLatest { (sensor, unit) ->
+                    val points = if (
+                        sensor.isBlank() ||
+                        !SensorIdentity.shouldUseNativeHistorySync(sensor) ||
+                        !tk.glucodata.SensorHistoryLanePreference.isShown(sensor)
+                    ) {
+                        emptyList()
+                    } else {
+                        withContext(Dispatchers.IO) {
+                            tk.glucodata.data.SensorHistoryLaneSource.load(sensor, 0L).inDisplayUnit(unit)
+                        }
+                    }
+                    if (points != _sensorHistoryLane.value) _sensorHistoryLane.value = points
+                }
+        }
+    }
+
     private var peerCurrentRefreshJob: Job? = null
 
     /** Coalesced hero peer chip refresh; piggybacks on the regular data refresh. */
@@ -1564,6 +1607,8 @@ class DashboardViewModel(
         historyJob = null
         multiSensorHistoryJob?.cancel()
         multiSensorHistoryJob = null
+        sensorHistoryLaneJob?.cancel()
+        sensorHistoryLaneJob = null
         timelineExtentsJob?.cancel()
         timelineExtentsJob = null
         journalAnchorsJob?.cancel()

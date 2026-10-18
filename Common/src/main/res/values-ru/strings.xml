@@ -3028,4 +3028,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Это устройство не является патчем Medtrum. Убедитесь, что патч рядом, и повторите попытку.</string>
 
     <string name="alert_sound_volume">Громкость звука тревоги</string>
+    <string name="stream_history_mode">Поток+История</string>
+    <string name="sensor_history_lane_value">История %1$s</string>
+    <string name="sensor_history_lane_caption">История — собственное значение датчика, сохраняется каждые 15 минут и отстаёт от потока примерно на 16 минут.</string>
 </resources>
