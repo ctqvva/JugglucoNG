@@ -17,6 +17,7 @@ object XdripBackfill {
     private const val RAW_ONLY_VIEW_MODE = 1
     private const val RAW_PRIMARY_VIEW_MODE = 3
     private const val MIN_SMOOTHING_POINTS = 3
+    private const val MAX_RATE_LOOKBACK_MS = 60L * 60L * 1000L
 
     data class Row(val timeMs: Long, val value: Float, val rawValue: Float, val rate: Float?)
 
@@ -74,7 +75,7 @@ object XdripBackfill {
      * smoothing is on, then calibrated. Stored rows are mg/dL, and so is every step here;
      * [NightscoutCalibration] does the display-unit conversion the calibration model needs.
      * A stored rate of 0 is the "no rate" placeholder of backfilled history, so the rate is
-     * derived from the neighbouring reading instead, or left unknown.
+     * derived from an earlier reading instead, or left unknown.
      */
     private fun buildCandidates(
         sensorSerial: String,
@@ -95,8 +96,7 @@ object XdripBackfill {
         } else {
             base
         }
-        var previous: Pair<Long, Float>? = null
-        return valid.mapIndexed { index, row ->
+        val shown = valid.mapIndexed { index, row ->
             val primary = smoothed[index]
             val calibrated = NightscoutCalibration.getCalibratedValueForViewMode(
                 sensorSerial, viewMode,
@@ -104,15 +104,29 @@ object XdripBackfill {
                 if (rawPrimary) primary else row.rawValue,
                 row.timeMs,
             )
-            val mgdl = if (calibrated.isFinite() && calibrated > 0f) calibrated else primary
-            val rate = row.rate?.takeIf { it.isFinite() && it != 0f }
-                ?: previous?.let { (time, value) ->
-                    ExchangeTrend.deriveRate(Math.round(value), time, Math.round(mgdl), row.timeMs)
-                }
-                ?: Float.NaN
-            previous = row.timeMs to mgdl
-            XdripBackfillTracker.Candidate(row.timeMs, mgdl.toDouble(), rate)
+            if (calibrated.isFinite() && calibrated > 0f) calibrated else primary
         }
+        return valid.mapIndexed { index, row ->
+            val rate = row.rate?.takeIf { it.isFinite() && it != 0f }
+                ?: derivedRate(valid, shown, index)
+            XdripBackfillTracker.Candidate(row.timeMs, shown[index].toDouble(), rate)
+        }
+    }
+
+    /**
+     * Rate from the nearest earlier reading far enough back for [ExchangeTrend.deriveRate] to
+     * accept: minute-spaced rows are too close together to say anything about direction.
+     */
+    private fun derivedRate(rows: List<Row>, mgdl: List<Float>, index: Int): Float {
+        val row = rows[index]
+        for (earlier in index - 1 downTo 0) {
+            if (row.timeMs - rows[earlier].timeMs > MAX_RATE_LOOKBACK_MS) break
+            val rate = ExchangeTrend.deriveRate(
+                Math.round(mgdl[earlier]), rows[earlier].timeMs, Math.round(mgdl[index]), row.timeMs,
+            )
+            if (!rate.isNaN()) return rate
+        }
+        return Float.NaN
     }
 
     private fun viewMode(sensorSerial: String): Int =
