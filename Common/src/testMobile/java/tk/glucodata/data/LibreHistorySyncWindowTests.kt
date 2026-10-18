@@ -87,6 +87,18 @@ class LibreHistorySyncWindowTests {
     }
 
     @Test
+    fun anOldNfcTrendRowTheExportNoLongerWritesIsLeftBehind() {
+        val trend = ms(NOW_SEC - 40 * 60) + 7_000 // Raw-only: uncompensated trend minute
+        val history = ms(NOW_SEC - 30 * 60)
+        val stored = listOf(row(trend, value = 0f, raw = 95f), row(history, value = 0f, raw = 100f))
+        val exported = setOf(ReadingDisplay.minuteOf(history)) // covered history: {0, history}
+        assertEquals(
+            listOf(trend),
+            LibreHistorySyncWindow.rowsLeftBehind(stored, exported, setOf(history), 0L).map { it.timestamp },
+        )
+    }
+
+    @Test
     fun anEarlierRequestIsNeverNarrowed() {
         val history = setOf(ms(NOW_SEC - 16 * 60))
         assertEquals(0L, LibreHistorySyncWindow.startSec(0L, history, known = emptySet(), backfilled = true))

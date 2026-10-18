@@ -2291,6 +2291,17 @@ extern "C" JNIEXPORT jlongArray JNICALL fromjava(getSensorHistoryLane)(
   return jresult;
 }
 
+// Whether the sensor's two lanes are its Stream and its own History -- the
+// question the export answers -- for a card that cannot tell a Libre received
+// over Clone from anything else.
+extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorHistoryLane)(
+    JNIEnv *env, jclass cl, jlong dataptr) {
+  if (!dataptr)
+    return false;
+  const SensorGlucoseData *hist = reinterpret_cast<streamdata *>(dataptr)->hist;
+  return hist && !hist->error() && hasLibreHistoryLane(hist);
+}
+
 jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
                   SensorGlucoseData *hist) {
   if (!glval)

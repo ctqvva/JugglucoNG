@@ -82,7 +82,6 @@ import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
-import tk.glucodata.SensorTypeName
 import tk.glucodata.SensorVendor
 import tk.glucodata.SensorVisuals
 import tk.glucodata.SensorBadge
@@ -2375,7 +2374,7 @@ fun SensorCard(
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
             // Libre 1/2 export their two lanes as Stream (Auto) and the sensor's own
             // 15-minute History (Raw), so the same four modes switch between them.
-            val isLibreStreamHistory = sensor.sensorType == SensorTypeName.LIBRE_2
+            val isLibreStreamHistory = sensor.hasLibreHistoryLane
             if (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory) {
                 Text(
                     stringResource(R.string.data_mode),
