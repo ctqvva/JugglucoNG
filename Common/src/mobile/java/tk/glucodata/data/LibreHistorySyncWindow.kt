@@ -34,4 +34,23 @@ internal object LibreHistorySyncWindow {
         } ?: return requestedStartSec
         return minOf(requestedStartSec, earliestNewMs / 1000L - PAIRING_SLACK_SEC).coerceAtLeast(0L)
     }
+
+    /**
+     * Stored history rows an export from [exportStartMs] (exclusive) no longer
+     * writes. Older exports stored each history value as a row of its own; it
+     * now rides on the stream reading of its minute id, which can fall in the
+     * next clock minute. Where the history's own clock minute then gets no row
+     * (the previous id's reading was missed), the bucket replace never rewrites
+     * it, and the old row would keep drawing History on the Stream line.
+     */
+    fun rowsLeftBehind(
+        stored: Collection<HistoryReading>,
+        exportedMinutes: Set<Long>,
+        historyTimestamps: Set<Long>,
+        exportStartMs: Long,
+    ): List<HistoryReading> = stored.filter {
+        it.timestamp > exportStartMs &&
+            it.timestamp in historyTimestamps &&
+            ReadingDisplay.minuteOf(it.timestamp) !in exportedMinutes
+    }
 }

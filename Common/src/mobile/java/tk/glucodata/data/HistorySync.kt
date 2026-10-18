@@ -401,6 +401,8 @@ object HistorySync {
         val readings = ArrayList<HistoryReading>(NATIVE_SYNC_INSERT_CHUNK)
         var parsedCount = 0
         var storedAny = false
+        var failedAny = false
+        val exportedMinutes = HashSet<Long>()
 
         for (i in rawHistory.indices step 3) {
             if (i + 2 >= rawHistory.size) break
@@ -415,6 +417,7 @@ object HistorySync {
             val rawValue = valueRawRaw / 10f
 
             if (value > 0 || rawValue > 0) {
+                if (historyTimestamps.isNotEmpty()) exportedMinutes.add(ReadingDisplay.minuteOf(timeMs))
                 readings.add(
                     HistoryReading(
                         timestamp = timeMs,
@@ -427,23 +430,36 @@ object HistorySync {
                 )
                 parsedCount++
                 if (readings.size >= NATIVE_SYNC_INSERT_CHUNK) {
-                    val stored = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
+                    val outcome = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
                     readings.clear()
-                    storedAny = storedAny || stored
+                    storedAny = storedAny || outcome == HistoryRepository.BucketReplaceOutcome.STORED
+                    failedAny = failedAny || outcome == HistoryRepository.BucketReplaceOutcome.FAILED
                 }
             }
         }
 
         if (readings.isNotEmpty()) {
-            val stored = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
+            val outcome = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
             readings.clear()
-            storedAny = storedAny || stored
+            storedAny = storedAny || outcome == HistoryRepository.BucketReplaceOutcome.STORED
+            failedAny = failedAny || outcome == HistoryRepository.BucketReplaceOutcome.FAILED
+        }
+        if (historyTimestamps.isNotEmpty() && !failedAny) {
+            val exportStartMs = startSec * 1000L
+            val stored = deletedRowsByMinute
+                ?: historyRepository.storedReadingsByMinuteForSensor(roomSerial, exportStartMs)
+            val leftBehind = LibreHistorySyncWindow.rowsLeftBehind(
+                stored.values, exportedMinutes, historyTimestamps, exportStartMs,
+            )
+            if (historyRepository.removeSensorHistoryLeftBehind(roomSerial, leftBehind) > 0) storedAny = true
         }
         if (storedAny) {
             UiRefreshBus.requestDataRefresh()
             UiRefreshBus.requestStatusRefresh()
         }
-        if (historyTimestamps.isNotEmpty()) {
+        // A failed write leaves the markers where they were, so the next sync
+        // reaches back to the same history and tries again.
+        if (historyTimestamps.isNotEmpty() && !failedAny) {
             sensorKnownHistory[serial] = historyTimestamps
             markHistoryLaneBackfilled(serial)
         }
@@ -479,18 +495,18 @@ object HistorySync {
         readings: List<HistoryReading>,
         historyTimestamps: Set<Long>,
         deletedRowsByMinute: Map<Long, HistoryReading>?,
-    ): Boolean {
+    ): HistoryRepository.BucketReplaceOutcome {
         val previous = when {
             historyTimestamps.isEmpty() -> emptyMap()
             deletedRowsByMinute != null -> deletedRowsByMinute
             else -> historyRepository.storedReadingsByMinute(roomSerial, readings)
         }
-        val stored = historyRepository.storeReadingsReplacingSensorBuckets(
+        val outcome = historyRepository.replaceSensorBuckets(
             sensorSerial = roomSerial,
             readings = readings,
             bucketDurationMs = RECENT_SYNC_BUCKET_MS,
         )
-        if (stored && previous.isNotEmpty()) {
+        if (outcome == HistoryRepository.BucketReplaceOutcome.STORED && previous.isNotEmpty()) {
             historyRepository.voidRecordsOfDisplacedSensorHistory(
                 roomSerial = roomSerial,
                 rewritten = HistoryBucketReplacement.collapseReadings(readings, RECENT_SYNC_BUCKET_MS),
@@ -498,7 +514,7 @@ object HistorySync {
                 historyTimestamps = historyTimestamps,
             )
         }
-        return stored
+        return outcome
     }
 
     /** Libre 1/2 only: the epoch-ms times of the sensor's stored history; empty for every other sensor. */

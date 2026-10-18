@@ -49,6 +49,43 @@ class LibreHistorySyncWindowTests {
         assertEquals(LIVE_START, LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = true))
     }
 
+    private fun row(timestampMs: Long, value: Float = 120f, raw: Float = 0f) =
+        HistoryReading(timestamp = timestampMs, sensorSerial = "3MH0000ABC", value = value, rawValue = raw, rate = null)
+
+    @Test
+    fun anOldHistoryRowWhoseValueMovedToTheNextMinutesStreamReadingIsLeftBehind() {
+        // History for minute id 41 at 12:15:55; its stream reading came at
+        // 12:16:02, and id 40's (12:15:02) was missed, so 12:15 gets no row.
+        val minute = ms(NOW_SEC - NOW_SEC % 60 - 30 * 60)
+        val history = minute + 55_000
+        val stream = minute + 62_000
+        val stored = listOf(row(history, value = 100f), row(stream))
+        val exported = setOf(minute + 60_000) // 12:16:02 {stream, history}
+        assertEquals(
+            listOf(history),
+            LibreHistorySyncWindow.rowsLeftBehind(stored, exported, setOf(history), exportStartMs = 0L).map { it.timestamp },
+        )
+    }
+
+    @Test
+    fun aHistoryRowTheExportStillWritesIsKept() {
+        val history = ms(NOW_SEC - 30 * 60)
+        val stored = listOf(row(history, value = 0f, raw = 100f))
+        val exported = setOf(ReadingDisplay.minuteOf(history))
+        assertEquals(emptyList<HistoryReading>(), LibreHistorySyncWindow.rowsLeftBehind(stored, exported, setOf(history), 0L))
+    }
+
+    @Test
+    fun onlyRowsInsideTheExportWindowAndAtHistoryTimesAreLeftBehind() {
+        val history = ms(NOW_SEC - 30 * 60)
+        val streamOnly = history + 120_000
+        val stored = listOf(row(history), row(streamOnly))
+        // Before the window: this export says nothing about it.
+        assertEquals(emptyList<HistoryReading>(), LibreHistorySyncWindow.rowsLeftBehind(stored, emptySet(), setOf(history), history))
+        // A stream row is never a history row, exported or not.
+        assertEquals(listOf(history), LibreHistorySyncWindow.rowsLeftBehind(stored, emptySet(), setOf(history), 0L).map { it.timestamp })
+    }
+
     @Test
     fun anEarlierRequestIsNeverNarrowed() {
         val history = setOf(ms(NOW_SEC - 16 * 60))
