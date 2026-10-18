@@ -22,7 +22,7 @@ class NativeMeasuredHistoryTests {
     @Test
     fun measuredHistoryExcludesDexcomForecastsButPreservesLibreHistoryAndPolls() {
         val nativeSource = repositoryFile("Common/src/main/cpp/g.cpp").readText()
-        // From the Libre history-lane helpers the exporter calls, through the exporter.
+        // From the Libre lane helpers through the stored-history and poll exporters.
         val start = nativeSource.indexOf("static bool hasLibreHistoryLane(")
         val end = nativeSource.indexOf("static void appendScanHistory(", start)
         assertTrue("Locate the production stored-history exporter", start >= 0 && end > start)

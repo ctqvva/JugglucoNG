@@ -36,8 +36,6 @@ object HistoryChartModelBuilder {
         val points: List<GlucosePoint>,
         /** Whether a calibration applies to this sensor's own primary lane. */
         val hasCalibration: Boolean = false,
-        /** The sensor's own history beside its stream (Libre 1/2); empty when not shown. */
-        val historyPoints: List<GlucosePoint> = emptyList(),
     )
 
     /** `(baseValue, timestamp, isRawMode, sensorId) -> calibrated`, or null when no calibration applies. */
@@ -101,11 +99,6 @@ object HistoryChartModelBuilder {
         // view mode shows both signals, exactly as the primary does. The first
         // version gave peers one lane and their second signal simply vanished.
         val secondaryLanes = ArrayList<ChartLane>()
-        // First, so it paints under the stream's own lanes.
-        if (input.historyPoints.isNotEmpty()) {
-            val historyRuns = historyLane(input, calibration, gapThresholdMs)
-            if (historyRuns.isNotEmpty()) secondaryLanes.add(ChartLane(ChartLaneKind.SENSOR_HISTORY, historyRuns))
-        }
         val seriesHasCalibration = if (input.isPrimary) hasCalibration else input.hasCalibration
         secondaryLaneKinds(input.viewMode, seriesHasCalibration, hideInitialWhenCalibrated).forEach { kind ->
             secondaryLanes.add(ChartLane(kind, segmentLane(input.points, kind, gapThresholdMs)))
@@ -191,32 +184,6 @@ object HistoryChartModelBuilder {
             runs = runs,
             secondaryLanes = secondaryLanes,
         )
-    }
-
-    /**
-     * The sensor's history, calibrated exactly as its Auto line is, so the two
-     * differ only by what the sensor reported. History is Auto-lane data: Libre
-     * has no raw lane, and a calibration fitted to the stream applies to both.
-     */
-    private fun historyLane(input: SeriesInput, calibration: Calibration, gapThresholdMs: Long): List<ChartRun> {
-        val runs = ArrayList<ChartRun>()
-        var current = ArrayList<ChartPointModel>()
-        var lastTimestamp = Long.MIN_VALUE
-        for (point in input.historyPoints) {
-            val base = point.value
-            if (base.isNaN() || base <= 0.1f) continue
-            val sensorId = point.sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: input.sensorId
-            val calibrated = calibration.apply(base, point.timestamp, false, sensorId)
-            val value = if (calibrated != null && !calibrated.isNaN() && calibrated > 0.1f) calibrated else base
-            if (lastTimestamp != Long.MIN_VALUE && point.timestamp - lastTimestamp > gapThresholdMs && current.isNotEmpty()) {
-                runs.add(ChartRun(ChartLook.SECONDARY, current))
-                current = ArrayList()
-            }
-            current.add(ChartPointModel(point.timestamp, value, sensorId, ChartLook.SECONDARY))
-            lastTimestamp = point.timestamp
-        }
-        if (current.isNotEmpty()) runs.add(ChartRun(ChartLook.SECONDARY, current))
-        return runs
     }
 
     /** A secondary lane: the sensor's own values in that lane, thin, split only at gaps. */

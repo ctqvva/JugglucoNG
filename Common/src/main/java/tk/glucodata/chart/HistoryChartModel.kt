@@ -55,18 +55,12 @@ enum class ChartLaneKind {
      * where the two disagree; where they agree there is nothing to preview.
      */
     CALIBRATION_PREVIEW,
-    /**
-     * A Libre 1/2's own 15-minute history beside its minute stream: the
-     * sensor's smoothed, later answer for the same minutes. Seeing the two
-     * apart is how a noisy or drifting stream shows itself.
-     */
-    SENSOR_HISTORY,
 }
 
 /**
  * A lane drawn thin beside the main line: the other signal in a dual-lane
- * view mode, the uncalibrated source behind a calibrated main line, the
- * calibration preview, or a Libre's own history. Never the main line itself — the builder leaves that
+ * view mode, the uncalibrated source behind a calibrated main line, or the
+ * calibration preview. Never the main line itself — the builder leaves that
  * out so a renderer cannot draw it twice.
  */
 data class ChartLane(

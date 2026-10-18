@@ -2968,6 +2968,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
     <string name="stream_history_mode">Flusso+Cronologia</string>
-    <string name="sensor_history_lane_value">Cronologia %1$s</string>
-    <string name="sensor_history_lane_caption">La cronologia è il valore proprio del sensore, salvato ogni 15 minuti e circa 16 minuti dietro il flusso.</string>
+    <string name="history_stream_mode">Cronologia+Flusso</string>
+    <string name="libre_history_mode_caption">La cronologia è il valore proprio del sensore, salvato ogni 15 minuti e circa 16 minuti dietro il flusso. Finché la cronologia di un minuto non arriva, la sostituisce il flusso.</string>
 </resources>

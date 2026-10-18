@@ -96,6 +96,47 @@ object RecordedDisplayVoiding {
     }
 
     /**
+     * Auto-lane records drawn from a Libre 1/2 history row that a native re-sync
+     * has since taken off the Auto line.
+     *
+     * Libre's own 15-minute history used to be exported into the same Auto
+     * lane as its stream, so a minute could be presented -- and recorded -- with
+     * the history value. It now has its own lane: the minute's Auto value is
+     * the stream reading, or nothing where the stream covers it. A record left
+     * holding the history number would keep drawing it on the Stream line.
+     *
+     * Voided only where the stored row the record came from was a history row
+     * ([historyTimestamps]) and the minute's re-synced row is a different
+     * reading or carries no Auto value. A calibration change, a scan or any
+     * other rewrite leaves the record alone.
+     */
+    fun displacedHistoryMinutes(
+        records: List<ReadingDisplay>,
+        sensorSerial: String,
+        rewritten: List<HistoryReading>,
+        previousByMinute: Map<Long, HistoryReading>,
+        historyTimestamps: Set<Long>,
+    ): List<Long> {
+        if (records.isEmpty() || rewritten.isEmpty() || historyTimestamps.isEmpty()) return emptyList()
+        val byMinute = HashMap<Long, HistoryReading>(rewritten.size)
+        for (reading in rewritten) {
+            if (!tk.glucodata.SensorIdentity.matches(reading.sensorSerial, sensorSerial)) continue
+            byMinute[ReadingDisplay.minuteOf(reading.timestamp)] = reading
+        }
+        val voided = ArrayList<Long>()
+        for (record in records) {
+            if (record.viewMode == 1 || record.viewMode == 3) continue
+            if (!tk.glucodata.SensorIdentity.matches(record.sensorSerial, sensorSerial)) continue
+            val before = previousByMinute[record.timestamp] ?: continue
+            if (before.timestamp !in historyTimestamps) continue
+            val after = byMinute[record.timestamp] ?: continue
+            val autoGone = !after.value.isFinite() || after.value <= 0f
+            if (after.timestamp != before.timestamp || autoGone) voided.add(record.timestamp)
+        }
+        return voided
+    }
+
+    /**
      * Whether [record] still describes the number [reading] holds in the
      * record's lane — the one question both the rebuild-time voiding and the
      * read-time check ask, so they cannot answer it differently.

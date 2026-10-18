@@ -3094,6 +3094,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
     <string name="stream_history_mode">Stream+Verlauf</string>
-    <string name="sensor_history_lane_value">Verlauf %1$s</string>
-    <string name="sensor_history_lane_caption">Der Verlauf ist der eigene Wert des Sensors, alle 15 Minuten gespeichert und etwa 16 Minuten hinter dem Stream.</string>
+    <string name="history_stream_mode">Verlauf+Stream</string>
+    <string name="libre_history_mode_caption">Der Verlauf ist der eigene Wert des Sensors, alle 15 Minuten gespeichert und etwa 16 Minuten hinter dem Stream. Bis der Verlaufswert einer Minute eintrifft, steht der Stream dafür ein.</string>
 </resources>

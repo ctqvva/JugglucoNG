@@ -909,6 +909,55 @@ class HistoryRepository(context: Context = Applic.app) {
         }
     }
 
+    /** The stored row per minute across [readings]' span, before they replace it. */
+    suspend fun storedReadingsByMinute(roomSerial: String, readings: List<HistoryReading>): Map<Long, HistoryReading> {
+        if (readings.isEmpty()) return emptyMap()
+        // Whole minutes, as the bucket replace writes them.
+        val start = ReadingDisplay.minuteOf(readings.minOf { it.timestamp })
+        val end = ReadingDisplay.minuteOf(readings.maxOf { it.timestamp }) + ReadingDisplay.MINUTE_MS
+        return withContext(Dispatchers.IO) {
+            HashMap<Long, HistoryReading>().also { previous ->
+                dao.getSensorReadingsInTimeRange(roomSerial, start, end).forEach { row ->
+                    previous[ReadingDisplay.minuteOf(row.timestamp)] = row
+                }
+            }
+        }
+    }
+
+    /**
+     * Drops Auto records drawn from a Libre history row that a re-sync has taken
+     * off the Auto line; see [RecordedDisplayVoiding.displacedHistoryMinutes].
+     */
+    suspend fun voidRecordsOfDisplacedSensorHistory(
+        roomSerial: String,
+        rewritten: List<HistoryReading>,
+        previousByMinute: Map<Long, HistoryReading>,
+        historyTimestamps: Set<Long>,
+    ): Int {
+        if (rewritten.isEmpty() || previousByMinute.isEmpty() || historyTimestamps.isEmpty()) return 0
+        return withContext(Dispatchers.IO) {
+            try {
+                val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
+                val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
+                val minutes = RecordedDisplayVoiding.displacedHistoryMinutes(
+                    displayDao.getBetween(start, end), roomSerial, rewritten, previousByMinute, historyTimestamps,
+                )
+                if (minutes.isEmpty()) return@withContext 0
+                var deleted = 0
+                database.withTransaction {
+                    minutes.chunked(500).forEach { chunk -> deleted += displayDao.deleteAtMinutes(chunk) }
+                }
+                tk.glucodata.Log.i(TAG, "voided $deleted recorded minutes for $roomSerial: history left the Stream lane")
+                deleted
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed voiding displaced history records for $roomSerial", e)
+                0
+            }
+        }
+    }
+
     /** The stored Auto number per minute across [readings]' span, before they replace it. */
     suspend fun storedAutoByMinute(roomSerial: String, readings: List<HistoryReading>): Map<Long, Float> {
         if (readings.isEmpty()) return emptyMap()
