@@ -1010,9 +1010,10 @@ class HistoryRepository(context: Context = Applic.app) {
 
     /**
      * Deletes Libre history rows the export left behind, and the values
-     * recorded from them; see [LibreHistorySyncWindow.rowsLeftBehind].
+     * recorded from them; see [LibreHistorySyncWindow.rowsLeftBehind]. Null
+     * when the database failed, so the caller can retry.
      */
-    suspend fun removeSensorHistoryLeftBehind(roomSerial: String, rows: List<HistoryReading>): Int {
+    suspend fun removeSensorHistoryLeftBehind(roomSerial: String, rows: List<HistoryReading>): Int? {
         if (rows.isEmpty()) return 0
         return withContext(Dispatchers.IO) {
             try {
@@ -1030,7 +1031,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Failed removing history rows left behind for $roomSerial", e)
-                0
+                null
             }
         }
     }

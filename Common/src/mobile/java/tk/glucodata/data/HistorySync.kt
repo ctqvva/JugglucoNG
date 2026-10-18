@@ -451,14 +451,17 @@ object HistorySync {
             val leftBehind = LibreHistorySyncWindow.rowsLeftBehind(
                 stored.values, exportedMinutes, historyTimestamps, exportStartMs,
             )
-            if (historyRepository.removeSensorHistoryLeftBehind(roomSerial, leftBehind) > 0) storedAny = true
+            when (val removed = historyRepository.removeSensorHistoryLeftBehind(roomSerial, leftBehind)) {
+                null -> failedAny = true
+                else -> if (removed > 0) storedAny = true
+            }
         }
         if (storedAny) {
             UiRefreshBus.requestDataRefresh()
             UiRefreshBus.requestStatusRefresh()
         }
-        // A failed write leaves the markers where they were, so the next sync
-        // reaches back to the same history and tries again.
+        // A failed write or cleanup leaves the markers where they were, so the
+        // next sync reaches back to the same history and tries again.
         if (historyTimestamps.isNotEmpty() && !failedAny) {
             sensorKnownHistory[serial] = historyTimestamps
             markHistoryLaneBackfilled(serial)
