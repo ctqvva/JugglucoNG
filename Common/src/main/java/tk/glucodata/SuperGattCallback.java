@@ -973,6 +973,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                             + " exchangeOnly=" + DataSmoothing.smoothOnlyExchangeOutputs(app)
                             + " payloadAgeMs=" + (System.currentTimeMillis() - loopFeedPayload.getTimeMillis()));
                 SendLikexDrip.broadcastglucose(loopFeedPayload, sensorstartmsec);
+                XdripBackfill.recordLiveSent(loopFeedPayload.getSensorId(), loopFeedPayload.getTimeMillis(),
+                        loopFeedPayload.getSensorGen(), sensorstartmsec);
             }
             if (!isWearable) {
                 if (exchangeOutputDecision.getSendWearInt())

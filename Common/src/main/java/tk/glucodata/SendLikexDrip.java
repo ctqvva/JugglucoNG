@@ -81,9 +81,28 @@ static void broadcastglucose(ExchangeGlucosePayload payload,long sensorStartmsec
         return;
     {
     if(doLog) {Log.i(LOG_ID,"broadcastglucose "+payload.primaryMgdl+" sensor="+payload.sensorId);};};
+    send(mkGlucosebundle(payload, sensorStartmsec));
+    }
+
+/** A reading that was missed live (history backfill), sent under its own timestamp like xDrip does. */
+public static void broadcastBackfill(String sensorId,int sensorGen,double mgdl,long timeMillis,float rateMgdlPerMinute,long sensorStartmsec) {
+    if(names==null)
+        return;
+    final ExchangeTrend trend=ExchangeTrend.fromRate(rateMgdlPerMinute);
+    Bundle extras = new Bundle();
+    extras.putDouble(EXTRA_BG_ESTIMATE,mgdl);
+    extras.putString(EXTRA_BG_SLOPE_NAME,trend.name);
+    extras.putDouble(EXTRA_BG_SLOPE,(double)trend.rateMgdlPerMinute/60000.0);
+    extras.putLong(EXTRA_TIMESTAMP,timeMillis);
+    extras.putLong(EXTRA_SENSOR_STARTED_AT,sensorStartmsec);
+    extras.putString(EXTRA_DATA_SOURCE_INFO, SensorSourceResolver.resolveXdripSourceInfo(sensorId, sensorGen));
+    send(extras);
+    }
+
+private static void send(Bundle extras) {
     final Context context=Applic.app;
     Intent intent = new Intent(ACTION);
-    intent.putExtras(mkGlucosebundle(payload, sensorStartmsec));
+    intent.putExtras(extras);
     intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
     for(var name:names) {
         if(name!=null) {

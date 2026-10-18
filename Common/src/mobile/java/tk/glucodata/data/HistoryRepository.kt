@@ -22,6 +22,7 @@ import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.XdripBackfill
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -710,6 +711,16 @@ class HistoryRepository(context: Context = Applic.app) {
     }
 
 
+    /** Hands a stored batch to the xDrip broadcast so readings missed live still reach AAPS. */
+    private fun forwardBackfillToXdrip(readings: List<HistoryReading>) {
+        readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+            XdripBackfill.onHistoryStored(
+                serial,
+                rows.map { XdripBackfill.Row(it.timestamp, it.value, it.rawValue, it.rate) },
+            )
+        }
+    }
+
     /**
      * Store multiple readings at once (used for backfill).
      * Readings must already have sensorSerial set.
@@ -750,6 +761,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     dao.insertAll(readingsWithStableProvenance)
                 }
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
+                forwardBackfillToXdrip(filteredReadings)
                 // Only log small batches (likely genuine new data, not re-syncs)
                 if (filteredReadings.size <= 10) {
                     Log.d(TAG, "Stored ${filteredReadings.size} readings")
@@ -831,6 +843,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
+                forwardBackfillToXdrip(collapsedReadings)
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
