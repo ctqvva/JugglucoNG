@@ -42,6 +42,10 @@ internal object LibreHistorySyncWindow {
      * next clock minute. Where the history's own clock minute then gets no row
      * (the previous id's reading was missed), the bucket replace never rewrites
      * it, and the old row would keep drawing History on the Stream line.
+     *
+     * Older exports also wrote the uncompensated NFC trend minutes as Raw-only
+     * rows. They are no longer exported, so a row with no Auto value in a
+     * minute the export skips would show as History.
      */
     fun rowsLeftBehind(
         stored: Collection<HistoryReading>,
@@ -50,7 +54,7 @@ internal object LibreHistorySyncWindow {
         exportStartMs: Long,
     ): List<HistoryReading> = stored.filter {
         it.timestamp > exportStartMs &&
-            it.timestamp in historyTimestamps &&
-            ReadingDisplay.minuteOf(it.timestamp) !in exportedMinutes
+            ReadingDisplay.minuteOf(it.timestamp) !in exportedMinutes &&
+            (it.timestamp in historyTimestamps || !(it.value.isFinite() && it.value > 0f))
     }
 }

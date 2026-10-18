@@ -738,6 +738,9 @@ public class Natives {
          */
         public static native long[] getSensorHistoryLane(String sensorName, long starttime);
 
+        /** Whether getGlucoseHistoryForSensor exports this sensor as Stream (Auto) and History (Raw). */
+        public static native boolean hasSensorHistoryLane(long dataptr);
+
         public static native byte[] getmynetinfo(String name, boolean create, int watchhassensor, boolean galaxy,
                         int setnums);
 
