@@ -366,6 +366,16 @@ re-enable Nightscout.
 
 ## Troubleshooting
 
+- **1.2.2 works remotely but 1.2.3–1.2.5 fail:** those production builds exclude
+  the old bundled TURN credentials. Direct/LAN success does not establish that
+  relay fallback works. Configure a reachable UDP TURN server with valid relay
+  credentials, reconnect, and check the selected transport. New canonical builds
+  require an explicit bundled relay configuration; see the
+  [distribution guide](distribution.md#bundled-clone-turn-fallback).
+- **Trace says `createAgent: 0 usable TURN servers (bundled)`:** this build has
+  no default relay fallback. A credentialed custom TURN server can supply one.
+  A nonzero count means configured relays, not successful allocation; a selected
+  TURN route is stronger evidence. STUN cannot replace a TURN relay.
 - **`Cannot find credentials of user` in coturn:** the app and coturn usernames
   differ, or coturn did not load the intended config.
 - **coturn reports a missing config:** check that `turnserver.conf` is a file,
