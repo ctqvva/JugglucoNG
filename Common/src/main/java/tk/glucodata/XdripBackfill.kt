@@ -16,6 +16,7 @@ object XdripBackfill {
     private const val PREFS = "xdrip_backfill"
     private const val RAW_ONLY_VIEW_MODE = 1
     private const val RAW_PRIMARY_VIEW_MODE = 3
+    private const val MIN_SMOOTHING_POINTS = 3
 
     data class Row(val timeMs: Long, val value: Float, val rawValue: Float, val rate: Float?)
 
@@ -28,6 +29,9 @@ object XdripBackfill {
     fun recordLiveSent(sensorId: String?, timeMs: Long, sensorGen: Int, sensorStartMs: Long) {
         if (sensorId.isNullOrEmpty() || timeMs <= 0L) return
         val id = key(sensorId)
+        // Bring back the saved cutoff first: after a restart the first live send would otherwise
+        // become the cutoff and the whole gap before it would never be backfilled.
+        if (tracker.sensor(id) == null) restore(id)
         tracker.recordSent(id, timeMs, sensorGen, sensorStartMs)
         runCatching {
             prefs()?.edit()?.putString(id, "$timeMs,$sensorGen,$sensorStartMs")?.apply()
@@ -39,43 +43,81 @@ object XdripBackfill {
     fun onHistoryStored(sensorSerial: String, rows: List<Row>) {
         if (rows.isEmpty() || sensorSerial.isEmpty()) return
         try {
-            if (!Natives.getxbroadcast()) return
+            if (!Natives.getxbroadcast() || !isMainSensor(sensorSerial)) return
             val id = key(sensorSerial)
             val sensor = tracker.sensor(id) ?: restore(id) ?: return
             val app = Applic.app ?: return
-            val isRawPrimary = rawPrimary(sensorSerial)
-            val candidates = rows.mapNotNull { row ->
-                val base = if (isRawPrimary) row.rawValue else row.value
-                if (!base.isFinite() || base <= 0f) return@mapNotNull null
-                val shown = CalibrationAccess.getCalibratedValue(base, row.timeMs, isRawPrimary, false, sensorSerial)
-                XdripBackfillTracker.Candidate(row.timeMs, shown.toDouble(), row.rate ?: Float.NaN)
-            }
+            val viewMode = viewMode(sensorSerial)
+            val candidates = buildCandidates(
+                sensorSerial, rows, viewMode, DataSmoothing.exchangeSmoothingMinutes(app),
+            )
             val spacingMs = DataSmoothing.exchangeThrottleIntervalMinutes(app) * 60_000L
             val picked = tracker.pick(id, candidates, System.currentTimeMillis(), spacingMs)
             if (picked.isEmpty()) return
             if (Log.doLog) Log.i(LOG_ID, "backfill ${picked.size} readings sensor=$id")
-            var previous: XdripBackfillTracker.Candidate? = null
             for (point in picked) {
-                val rate = when {
-                    point.rate.isFinite() -> point.rate
-                    previous != null -> ExchangeTrend.deriveRate(
-                        previous.mgdl.toInt(), previous.timeMs, point.mgdl.toInt(), point.timeMs,
-                    )
-                    else -> Float.NaN
-                }
-                SendLikexDrip.broadcastBackfill(id, sensor.sensorGen, point.mgdl, point.timeMs, rate, sensor.sensorStartMs)
-                previous = point
+                SendLikexDrip.broadcastBackfill(id, sensor.sensorGen, point.mgdl, point.timeMs, point.rate, sensor.sensorStartMs)
             }
         } catch (error: Throwable) {
             Log.stack(LOG_ID, "onHistoryStored", error)
         }
     }
 
-    private fun rawPrimary(sensorSerial: String): Boolean {
-        val viewMode = runCatching { Natives.getSensorUiSnapshot(sensorSerial)?.takeIf { it.size >= 2 }?.get(1)?.toInt() }
-            .getOrNull() ?: 0
-        return viewMode == RAW_ONLY_VIEW_MODE || viewMode == RAW_PRIMARY_VIEW_MODE
+    /** Same rule as the live path: a deselected sensor stores history but exchanges nothing. */
+    private fun isMainSensor(sensorSerial: String): Boolean {
+        val main = runCatching { SensorIdentity.resolveLiveMainSensor(sensorSerial) }.getOrNull()
+        return main.isNullOrEmpty() || SensorIdentity.matches(sensorSerial, main)
     }
+
+    /**
+     * The values a live reading would have carried: the primary lane, smoothed when exchange
+     * smoothing is on, then calibrated. Stored rows are mg/dL, and so is every step here;
+     * [NightscoutCalibration] does the display-unit conversion the calibration model needs.
+     * A stored rate of 0 is the "no rate" placeholder of backfilled history, so the rate is
+     * derived from the neighbouring reading instead, or left unknown.
+     */
+    private fun buildCandidates(
+        sensorSerial: String,
+        rows: List<Row>,
+        viewMode: Int,
+        smoothingMinutes: Int,
+    ): List<XdripBackfillTracker.Candidate> {
+        val rawPrimary = viewMode == RAW_ONLY_VIEW_MODE || viewMode == RAW_PRIMARY_VIEW_MODE
+        val valid = rows.sortedBy(Row::timeMs).filter {
+            val base = if (rawPrimary) it.rawValue else it.value
+            base.isFinite() && base > 0f
+        }
+        val base = valid.map { if (rawPrimary) it.rawValue else it.value }
+        val smoothed = if (smoothingMinutes > 0 && valid.size >= MIN_SMOOTHING_POINTS) {
+            GlucoseSmoothing.smoothLane(valid, smoothingMinutes * 30_000L, Row::timeMs) {
+                if (rawPrimary) it.rawValue else it.value
+            }.toList()
+        } else {
+            base
+        }
+        var previous: Pair<Long, Float>? = null
+        return valid.mapIndexed { index, row ->
+            val primary = smoothed[index]
+            val calibrated = NightscoutCalibration.getCalibratedValueForViewMode(
+                sensorSerial, viewMode,
+                if (rawPrimary) row.value else primary,
+                if (rawPrimary) primary else row.rawValue,
+                row.timeMs,
+            )
+            val mgdl = if (calibrated.isFinite() && calibrated > 0f) calibrated else primary
+            val rate = row.rate?.takeIf { it.isFinite() && it != 0f }
+                ?: previous?.let { (time, value) ->
+                    ExchangeTrend.deriveRate(Math.round(value), time, Math.round(mgdl), row.timeMs)
+                }
+                ?: Float.NaN
+            previous = row.timeMs to mgdl
+            XdripBackfillTracker.Candidate(row.timeMs, mgdl.toDouble(), rate)
+        }
+    }
+
+    private fun viewMode(sensorSerial: String): Int =
+        runCatching { Natives.getSensorUiSnapshot(sensorSerial)?.takeIf { it.size >= 2 }?.get(1)?.toInt() }
+            .getOrNull() ?: 0
 
     private fun restore(id: String): XdripBackfillTracker.Sensor? {
         val parts = runCatching { prefs()?.getString(id, null)?.split(',') }.getOrNull() ?: return null
