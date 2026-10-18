@@ -12,6 +12,9 @@ internal object LibreHistorySyncWindow {
     /** The stream reading History pairs with is up to a minute from it. */
     const val PAIRING_SLACK_SEC = 120L
 
+    /** A Libre 1/2 hands over at most its FRAM history at once: 32 x 15 minutes. */
+    const val SENSOR_HISTORY_SPAN_SEC = 8L * 60L * 60L
+
     /**
      * @param historyTimestamps the sensor's stored history now, epoch ms; empty for any other sensor.
      * @param known the same set at this sensor's last stored sync in this process, or null.
@@ -28,9 +31,11 @@ internal object LibreHistorySyncWindow {
             known != null -> historyTimestamps.filterNot(known::contains).minOrNull()
             // Rows written before History had a lane gain it, once per sensor.
             !backfilled -> historyTimestamps.minOrNull()
-            // A new process: native storage only grows inside this process, so
-            // nothing can have arrived while it was dead.
-            else -> null
+            // A new process. Native storage only grows while the app runs, but
+            // the last process may have died between storing history and
+            // syncing it. Whatever arrived then is no older than the sensor's
+            // history span before the newest history stored.
+            else -> historyTimestamps.maxOrNull()?.let { it - SENSOR_HISTORY_SPAN_SEC * 1000L }
         } ?: return requestedStartSec
         return minOf(requestedStartSec, earliestNewMs / 1000L - PAIRING_SLACK_SEC).coerceAtLeast(0L)
     }

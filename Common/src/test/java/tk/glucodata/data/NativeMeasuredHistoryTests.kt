@@ -24,7 +24,7 @@ class NativeMeasuredHistoryTests {
         val nativeSource = repositoryFile("Common/src/main/cpp/g.cpp").readText()
         // From the Libre lane helpers through the stored-history and poll exporters.
         val start = nativeSource.indexOf("static bool hasLibreHistoryLane(")
-        val end = nativeSource.indexOf("static void appendScanHistory(", start)
+        val end = nativeSource.indexOf("static jlongArray historySamplesToJava(", start)
         assertTrue("Locate the production stored-history exporter", start >= 0 && end > start)
         val exporter = nativeSource.substring(start, end)
         val fixture = repositoryFile("Common/src/test/resources/native/measured_history.cpp").readText()

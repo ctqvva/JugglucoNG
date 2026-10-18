@@ -46,7 +46,17 @@ class LibreHistorySyncWindowTests {
             NOW_SEC - 10 * 86_400 - LibreHistorySyncWindow.PAIRING_SLACK_SEC,
             LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = false),
         )
-        assertEquals(LIVE_START, LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = true))
+    }
+
+    @Test
+    fun aNewProcessCatchesUpOnHistoryTheLastOneStoredButNeverSynced() {
+        // The last process stored a scan's 8 hours of history and died before syncing.
+        val newest = NOW_SEC - 3 * 86_400 // and the app then stayed closed for days
+        val history = setOf(ms(newest - 7 * 3600), ms(newest))
+        assertEquals(
+            newest - LibreHistorySyncWindow.SENSOR_HISTORY_SPAN_SEC - LibreHistorySyncWindow.PAIRING_SLACK_SEC,
+            LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = true),
+        )
     }
 
     private fun row(timestampMs: Long, value: Float = 120f, raw: Float = 0f) =

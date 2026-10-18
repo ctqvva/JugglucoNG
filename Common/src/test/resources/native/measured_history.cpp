@@ -36,6 +36,7 @@ struct SensorGlucoseData {
     int first = 0;
     std::vector<ScanData> polls = {};
     bool aidex = false;
+    std::vector<ScanData> scans = {};
     bool libre3 = false;
     bool patchinfo = true; // all zero on a managed driver's direct stream shell
     bool isDexcom() const { return dexcom; }
@@ -44,6 +45,7 @@ struct SensorGlucoseData {
     // Native decides Libre 2 by elimination, AiDex shells included.
     bool isLibre2() const { return !dexcom && !libre3; }
     const std::vector<ScanData>& getPolldata() const { return polls; }
+    const std::vector<ScanData>& getScandata() const { return scans; }
     uint16_t getRawForPoll(const ScanData *poll) const { return poll ? poll->raw : 0; }
     int getstarthistory() const { return first; }
     int getAllendhistory() const { return history.size(); }
@@ -66,6 +68,7 @@ double calibrateNow(const SensorGlucoseData *sens, const ScanData &value) {
 static HistorySamples exportAll(const SensorGlucoseData &sens, jlong starttime = 0) {
     HistorySamples samples;
     appendStoredHistory(&sens, starttime, samples);
+    appendScanHistory(&sens, starttime, samples);
     appendPollHistory(&sens, starttime, samples);
     return samples;
 }
@@ -161,6 +164,28 @@ int main() {
         assert(samples.at(base + 50).second == 1000);
         // The other poll keeps an empty History lane.
         assert(samples.at(base - 10).second == 0);
+    }
+
+    // NFC only: a scan at 12:00:50 and history for 12:00:10 that a later scan
+    // brought share a clock minute. The history rides on the scan's row, so
+    // Room keeps both lanes; another minute's history keeps its own row.
+    {
+        const uint32_t base = measuredTime - (measuredTime % 60);
+        SensorGlucoseData nfcOnly{false, {{base + 10, 1000, 41}, {base + 900, 1050, 56}}};
+        nfcOnly.scans = {{base + 50, 125, 0}};
+        samples = exportAll(nfcOnly);
+        assert(samples.size() == 2);
+        assert(samples.count(base + 10) == 0);
+        assert(samples.at(base + 50).first == 1250);
+        assert(samples.at(base + 50).second == 1000);
+        assert(samples.at(base + 900).first == 1050);
+        assert(samples.at(base + 900).second == 1050);
+        // Other sensors keep the scan's Raw lane empty and the history row.
+        nfcOnly.patchinfo = false;
+        samples = exportAll(nfcOnly);
+        assert(samples.size() == 3);
+        assert(samples.at(base + 50).second == 0);
+        assert(samples.at(base + 10).first == 1000);
     }
 
     // A BLE dropout: last poll 12:11, history at 12:15 and 12:30, neither with
