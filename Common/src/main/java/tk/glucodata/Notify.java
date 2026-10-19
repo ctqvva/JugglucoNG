@@ -1484,7 +1484,7 @@ public class Notify {
             }
             publishVisualNotification(generation, capturedService, staleNotification, null,
                     new NotificationFingerprint().add("stale").add(effective.getTimeMillis())
-                            .add(effective.getPrimaryValue()).add(staleMessage(effective.getTimeMillis()))
+                            .add(staleMessage(effective.getTimeMillis())).add(staleReadingBody(effective))
                             .value());
             return;
         }
@@ -5000,13 +5000,10 @@ public class Notify {
     private Notification makeStaleReadingNotification(CurrentDisplaySource.Snapshot stale) {
         final long actualMillis = stale != null ? stale.getTimeMillis() : 0L;
         final String status = staleMessage(actualMillis);
-        final CharSequence retainedValue = stale != null && stale.getFullFormatted() != null
-                ? stale.getFullFormatted()
-                : (stale != null ? stale.getPrimaryStr() : "");
         final Notification.Builder builder = mkbuilder(GLUCOSENOTIFICATION);
         builder.setSmallIcon(R.drawable.novalue).setOnlyAlertOnce(true)
                 .setContentTitle(status)
-                .setContentText(retainedValue != null ? retainedValue.toString() : "")
+                .setContentText(staleReadingBody(stale))
                 .setOngoing(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setVisibility(VISIBILITY_PUBLIC);
@@ -5254,6 +5251,15 @@ public class Notify {
                 publishStartupStatus(ticket, target, app.getString(R.string.loading_data));
                 break;
         }
+    }
+
+    /** The retained value the stale status shows as its text: every displayed lane. */
+    private static String staleReadingBody(CurrentDisplaySource.Snapshot stale) {
+        if (stale == null) return "";
+        final String full = stale.getFullFormatted();
+        if (full != null) return full;
+        final String primary = stale.getPrimaryStr();
+        return primary != null ? primary : "";
     }
 
     private String staleMessage(long actualMillis) {

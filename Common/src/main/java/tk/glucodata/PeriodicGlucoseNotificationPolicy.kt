@@ -49,12 +49,17 @@ object PeriodicGlucoseNotificationPolicy {
         nowElapsedMillis: Long,
         intervalMinutes: Int,
         freshnessMillis: Long,
+        sendCurrentOnce: Boolean = false,
     ): Decision {
         if (!enabled) return Decision.DISABLED
         if (readingMillis <= 0L) return Decision.NO_READING
         if (!NotificationRefreshPolicy.isFresh(readingMillis, nowWallMillis, freshnessMillis)) {
             return Decision.STALE
         }
+        // The user just switched the feature on: show the current reading once, even if
+        // it went out before the switch was turned off. The persisted record is kept, so
+        // restarts still never replay.
+        if (sendCurrentOnce) return Decision.SEND
         // Markers from before a backwards clock change would hold back every new reading
         // until the clock caught up again; they no longer describe anything.
         val lastReading = trusted(last.readingMillis, nowWallMillis)
@@ -66,6 +71,18 @@ object PeriodicGlucoseNotificationPolicy {
         val since = sinceLastSend(last, nowWallMillis, nowElapsedMillis) ?: return Decision.SEND
         return if (since >= interval - min(MAX_SLACK_MS, interval / 4)) Decision.SEND else Decision.TOO_SOON
     }
+
+    /**
+     * Whether an alarm notification and a snapshot describe the same measurement.
+     * Readings are at least a minute apart; the two paths can differ only in sub-second
+     * precision (a native time in whole seconds), so compare whole seconds, not a window
+     * that would also catch the next one-minute reading.
+     */
+    @JvmStatic
+    fun sameMeasurement(alarmReadingMillis: Long, readingMillis: Long): Boolean =
+        alarmReadingMillis > 0L && readingMillis > 0L &&
+            Math.floorDiv(CurrentGlucoseSource.normalizeTimeMillis(alarmReadingMillis), 1000L) ==
+            Math.floorDiv(CurrentGlucoseSource.normalizeTimeMillis(readingMillis), 1000L)
 
     private fun trusted(millis: Long, nowWallMillis: Long): Long =
         if (millis > nowWallMillis + CLOCK_BACK_TOLERANCE_MS) 0L else millis

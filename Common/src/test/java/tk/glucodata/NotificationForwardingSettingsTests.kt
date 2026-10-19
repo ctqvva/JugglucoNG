@@ -11,6 +11,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -106,6 +107,8 @@ class NotificationForwardingSettingsTests {
     }
 
     @Test fun periodicNotificationIsAnOrdinaryReadingStampedNotification() {
+        // Phone feature: the Wear build never creates the channel or posts.
+        assumeFalse(Applic.isWearable)
         val manager = app.getSystemService(NotificationManager::class.java)
         PeriodicGlucoseNotifier.createChannel(app, manager)
         val channel = manager.getNotificationChannel(PeriodicGlucoseNotifier.CHANNEL_ID)
@@ -133,6 +136,7 @@ class NotificationForwardingSettingsTests {
     }
 
     @Test fun turningPeriodicOffCancelsTheOutstandingNotificationOnly() {
+        assumeFalse(Applic.isWearable)
         val manager = app.getSystemService(NotificationManager::class.java)
         PeriodicGlucoseNotifier.createChannel(app, manager)
         val periodic = PeriodicGlucoseNotifier.builder(app, "9,0 mmol/L", "12:40", 1L, 1L, 330_000L)

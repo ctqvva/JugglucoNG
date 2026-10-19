@@ -37,8 +37,7 @@ public final class PeriodicGlucoseNotifier {
     private static final int CONTENT_REQUEST_CODE = 81434;
     /** Lets the reading's Room write land (delta) and coalesces callbacks of one reading. */
     private static final long CHECK_DELAY_MS = 2_000L;
-    /** An alarm notification for a reading this close is treated as its delivery. */
-    private static final long ALERT_MATCH_WINDOW_MS = 60_000L;
+    /** An alarm notification posted this recently for the same measurement is its delivery. */
     private static final long ALERT_RECENT_MS = 2 * 60_000L;
 
     private static final String STATE_PREFS = "periodic_glucose_notification_state";
@@ -52,6 +51,8 @@ public final class PeriodicGlucoseNotifier {
     /** Reading shown when this process started: cached, not new. Handler thread only. */
     private static long baselineReadingMillis;
     private static long shownReadingMillis;
+    /** Set by switching the feature on; cleared by the post it causes. Handler thread only. */
+    private static boolean sendCurrentOnce;
 
     private static volatile long alertReadingMillis;
     private static volatile long alertPostedElapsedMillis;
@@ -130,9 +131,9 @@ public final class PeriodicGlucoseNotifier {
     }
 
     /**
-     * The switch changed. On: the current reading may go out straight away, if fresh, so
-     * the user sees the feature work. Off: the outstanding notification and any queued
-     * check go.
+     * The switch changed. On: the current reading goes out once straight away, if fresh,
+     * so the user sees the feature work, even if it was sent before the switch was turned
+     * off. Off: the outstanding notification and any queued check go.
      */
     public static void onSettingChanged(boolean enabled) {
         if (isWearable) {
@@ -143,7 +144,7 @@ public final class PeriodicGlucoseNotifier {
             checkPending = false;
         }
         handler.post(() -> {
-            baselineReadingMillis = 0L;
+            sendCurrentOnce = enabled;
             if (enabled) {
                 runCheckSafely();
             } else {
@@ -187,16 +188,18 @@ public final class PeriodicGlucoseNotifier {
         final SharedPreferences state = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE);
         final PeriodicGlucoseNotificationPolicy.Sent last = new PeriodicGlucoseNotificationPolicy.Sent(
                 state.getLong(KEY_READING, 0L), state.getLong(KEY_WALL, 0L), state.getLong(KEY_ELAPSED, 0L));
+        final boolean forced = sendCurrentOnce;
         final PeriodicGlucoseNotificationPolicy.Decision decision = PeriodicGlucoseNotificationPolicy.decide(
                 true, readingMillis, baselineReadingMillis, last, nowWall, nowElapsed,
-                NotificationForwardingSettings.periodicIntervalMinutes(prefs), Notify.glucosetimeout);
+                NotificationForwardingSettings.periodicIntervalMinutes(prefs), Notify.glucosetimeout, forced);
         if (doLog) {
             Log.i(LOG_ID, "check reading=" + readingMillis + " decision=" + decision);
         }
         if (decision != PeriodicGlucoseNotificationPolicy.Decision.SEND) {
             return;
         }
-        if (alarmAlreadyCarried(readingMillis, nowElapsed)) {
+        sendCurrentOnce = false;
+        if (!forced && alarmAlreadyCarried(readingMillis, nowElapsed)) {
             // The alarm notification just carried this reading to the watch. Count it as
             // this interval's message instead of sending the same value twice.
             if (doLog) {
@@ -212,7 +215,7 @@ public final class PeriodicGlucoseNotifier {
     private static boolean alarmAlreadyCarried(long readingMillis, long nowElapsed) {
         final long posted = alertPostedElapsedMillis;
         return posted > 0L && nowElapsed - posted <= ALERT_RECENT_MS
-                && Math.abs(alertReadingMillis - readingMillis) <= ALERT_MATCH_WINDOW_MS;
+                && PeriodicGlucoseNotificationPolicy.sameMeasurement(alertReadingMillis, readingMillis);
     }
 
     private static CurrentDisplaySource.Snapshot resolveCurrent() {

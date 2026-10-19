@@ -639,6 +639,21 @@ class NotificationStartupRestoreTests {
         assertEquals(4, (getNested(manager, "calls") as List<*>).size)
     }
 
+    @Test fun staleStatusRepostsWhenItsBodyChangesButNotOtherwise() {
+        val h = harness()
+        val snapshot = snapshotAt(System.currentTimeMillis() - 400_000L, 123f)
+        nestField(snapshot, "fullFormatted").set(snapshot, "123")
+        set(h, "cannedSnapshot", snapshot)
+        val manager = get(h, "notificationManager")!!
+        refresh(h)
+        refresh(h)
+        assertEquals("identical stale status is not reposted", 1, (getNested(manager, "calls") as List<*>).size)
+        // Auto -> Auto+Raw: same reading time and primary value, new body.
+        nestField(snapshot, "fullFormatted").set(snapshot, "123 · 118")
+        refresh(h)
+        assertEquals(2, (getNested(manager, "calls") as List<*>).size)
+    }
+
     @Test fun newServiceEpochRepostsEvenIdenticalContent() {
         val h = harness()
         set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L, 123f))
@@ -986,6 +1001,9 @@ class NotificationStartupRestoreTests {
                             public boolean isMmol() { return false; }
                             public String getSensorId() { return "sensor-1"; }
                             public int getViewMode() { return 0; }
+                            public String fullFormatted = null;
+                            public String getFullFormatted() { return fullFormatted; }
+                            public String getPrimaryStr() { return String.valueOf(value); }
                         }
                     }
                     static class GlucosePoint {

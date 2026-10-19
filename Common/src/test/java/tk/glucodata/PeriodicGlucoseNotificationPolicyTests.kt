@@ -1,6 +1,8 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.PeriodicGlucoseNotificationPolicy.Decision
 import tk.glucodata.PeriodicGlucoseNotificationPolicy.Sent
@@ -19,9 +21,9 @@ class PeriodicGlucoseNotificationPolicyTests {
         val elapsed get() = wall - bootAt
         val sent = mutableListOf<Long>()
 
-        fun reading(at: Long, interval: Int, enabled: Boolean = true): Decision {
+        fun reading(at: Long, interval: Int, enabled: Boolean = true, sendCurrentOnce: Boolean = false): Decision {
             val decision = PeriodicGlucoseNotificationPolicy.decide(
-                enabled, at, baseline, last, wall, elapsed, interval, freshness)
+                enabled, at, baseline, last, wall, elapsed, interval, freshness, sendCurrentOnce)
             if (decision == Decision.SEND) {
                 last = Sent(at, wall, elapsed)
                 sent += at
@@ -167,6 +169,31 @@ class PeriodicGlucoseNotificationPolicyTests {
         phone.reading(noon, 10)
         phone.wall = noon + 9 * minute
         assertEquals(Decision.TOO_SOON, phone.reading(phone.wall, 10))
+    }
+
+    @Test fun switchingOnAgainShowsTheCurrentFreshReadingOnce() {
+        val phone = Phone()
+        phone.reading(noon, 5)
+        // Off, then on again a minute later: the same reading was already sent and the
+        // interval has not passed, but the user asked to see it.
+        phone.wall = noon + minute
+        assertEquals(Decision.ALREADY_SENT, phone.reading(noon, 5))
+        assertEquals(Decision.SEND, phone.reading(noon, 5, sendCurrentOnce = true))
+        phone.wall += minute
+        assertEquals(Decision.TOO_SOON, phone.reading(phone.wall, 5))
+        assertEquals("never a stale value", Decision.STALE,
+            phone.reading(phone.wall - 400_000L, 5, sendCurrentOnce = true))
+        // Restart protection is a separate input and stays in force without the switch.
+        phone.baseline = phone.wall
+        assertEquals(Decision.ALREADY_SENT, phone.reading(phone.wall, 1))
+    }
+
+    @Test fun alarmMatchesOnlyItsOwnMeasurement() {
+        assertTrue(PeriodicGlucoseNotificationPolicy.sameMeasurement(noon + 450L, noon))
+        assertTrue("native whole-second time", PeriodicGlucoseNotificationPolicy.sameMeasurement(noon / 1000L, noon + 300L))
+        assertFalse("the next one-minute reading", PeriodicGlucoseNotificationPolicy.sameMeasurement(noon, noon + minute))
+        assertFalse(PeriodicGlucoseNotificationPolicy.sameMeasurement(noon, noon + 1_000L))
+        assertFalse(PeriodicGlucoseNotificationPolicy.sameMeasurement(0L, 0L))
     }
 
     @Test fun intervalChangeAppliesToTheNextReading() {
