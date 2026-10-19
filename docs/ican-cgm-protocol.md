@@ -18,7 +18,8 @@ tracked in issue #676.
 
 **Conventions.** `TX` = phone → sensor, `RX` = sensor → phone. Handles are the ones the sensors in
 those captures actually used, not spec defaults. All multi-byte integers are little-endian unless
-stated otherwise.
+stated otherwise. Claims are distinguished where it matters: directly observed bytes, deductions
+from the vendor code, and working hypotheses that still need hardware confirmation (marked as such).
 
 ---
 
@@ -73,9 +74,10 @@ Nothing else is written in steady state: no code-state read, no calibration, no 
 
 * `TX 0x0024 F3` → `RX 06 F3 01 <challenge:4 B>`. The challenge is the session nonce; every
   encrypted frame in the session is IV'd from it (§9).
-* The reply token is `F4 10 <16 B>`: AES-128-CBC/PKCS7 over a 12-char user id padded to the block
-  size, keyed with the auth key of the sensor's key family, IV = challenge-derived
-  (`ICanHealthParser.deriveAuthToken`, `buildAuthPlaintext`).
+* The reply token is `F4 10 <16 B>`: AES-128-CBC/PKCS7, keyed with the auth key of the sensor's key
+  family, IV = challenge-derived. The plaintext is 14 bytes — `F4 0C <12-byte user id>` — padded to
+  16 by PKCS7 (`ICanHealthParser.deriveAuthToken`, `buildAuthPlaintext`). Getting this layout wrong
+  (e.g. omitting the `F4 0C` prefix) yields a different token and fails authentication.
 * `RX 1C F4 01` = accepted. `RX 1C F4 02 <payload>` = rejected; the payload carries the user id the
   sensor expects, which is what `ICanHealthParser.recoverUserIdFromAuthReject` uses to recover from
   a sensor that was started by a different app instance.
@@ -119,7 +121,9 @@ Records are fixed-size: 2 bytes for `subtype 02`, 4 bytes for `subtype 01`.
 
 * glucose record: `low | ((high & 0xF) << 8)` in hundredths of mmol/L; the high nibble is not part of
   the value. Some firmware needs the "direct" 16-bit form instead (`usesDirectSnHistoryGlucoseEncoding`).
-* original record: current (u16, hundredths of mmol/L) + temperature (u16, tenths of °C).
+* original record: current (u16) + temperature (u16, tenths of °C). The current field is **not** a
+  plain glucose unit: the vendor XORs each byte with `0x88` and reads the result as a 5-digit
+  supplier-formatted number (`decodeCurrentValue`; kept for internal use only).
 * Values produced during warm-up are XOR-obfuscated; `ICanHealthParser.decodeHistoryGlucoseBytes`
   mirrors the vendor's table. The official app's own stream shows the same low/odd values at the
   start of a session, with the plain decode.
@@ -131,10 +135,13 @@ holes behind the live edge. In the capture, the counter already read 42 while th
 30, and one batch returned records 30, 33, 36, 39, 42. Subtypes 01 and 02 are tracked as two
 independent tails, so one can lag the other.
 
-Our driver instead catches up from `lastKnown + interval` (`ICanHealthHistoryPolicy`), which never
-fills a hole behind the live edge; and when it has no history at all for a session it asks from
-offset 3, which is far behind the live edge of any session that has been running for a while — see
-§6 for why those requests come back `0x0A`. See issue #676 for the decision.
+Our driver catches up from `lastKnown + interval` (`ICanHealthHistoryPolicy`) and *does* repair
+known holes behind the live edge: when a live notification exposes a sequence gap,
+`automaticGlucoseHistoryStartSequence` prefers `pendingLiveGap.startSequence` (a regression test
+covers requesting 303 after the live counter reaches 312). What it does **not** do is reconstruct a
+session it has no stored records for: with no history at all it asks from offset 3, which is far
+behind the live edge of any session that has been running for a while — see §6 for why those
+requests come back `0x0A`. See issue #676 for the decision.
 
 ## 5. Live notifications
 
@@ -147,32 +154,40 @@ The 19-byte notification on `0x2AA7`:
 Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
 
 ```
-0D 80 <value 2 B> <seq u16 LE> 01 00 00 00 00 00 00 00 | 03 03 03
- │  │  │           │             │                        └ PKCS7 padding
+0D 80 <value 2 B> <seq u16 LE> 01 00 00 00 00 00 00 | 03 03 03
+ │  │  │           │             │                     └ PKCS7 padding
  │  │  │           │             └ constant 0x0001 ("one new record")
  │  │  │           └ same sequence number as the outer header
- │  │  └ value field — see below
+ │  │  └ value field at `[2:4]` — see below
  │  └ 0x80 (launcher state: running)
  └ 0x0D = 13 = 16 − 3
 ```
 
+* Verified against the capture: challenge `F1 18 6B D2` decrypts one `iCGM-t6` notification to
+  `0D 80 0D 02 48 03 01 00 00 00 00 00 00 03 03 03` — six zero bytes, not seven.
+
 * On `iCGM-t6` the value field is the glucose, in the same encoding as a history record: it matches
   the history record with the same sequence number exactly (verified against a batch decrypted from
   the same session).
-* On `iCGM-t3` it is **not** glucose: no relation to the history record at the same sequence, no
-  affine or monotone mapping, no CRC-16 (8 standard variants tested), not the temperature and not the
-  current field. It behaves like a nonce, and the packet reads as a "one new record is available"
-  trigger — which is how the vendor app treats it (it requests history seconds after receiving one).
+* On the captured (global) `iCGM-t3` it is **not** glucose: no relation to the history record at the
+  same sequence, no affine or monotone mapping, no CRC-16 (8 standard variants tested), not the
+  temperature and not the current field. It behaves like a nonce, and the packet reads as a "one new
+  record is available" trigger — which is how the vendor app treats it (it requests history seconds
+  after receiving one). One CN `iCGM-t3` field report looked different (plausible values), so the
+  field's semantics may be variant-specific — issue #676 tracks the open decision and the
+  live-vs-history comparison that resolves it.
 * Our driver currently decrypts this frame with AES/ECB. That happens to preserve the glucose field
   (the IV only touches bytes 1/6/10/15) but corrupts the parsed `statusByte` and `currentValue`, and
   makes the logged "flags" byte `0x80 ⊕ challenge[0]`. See issue #676.
 
 ## 6. Provisioning: `correctCode`, and what a refused history request means
 
-* History *reads* need a per-sensor calibration table (`correctCode`, 25 floats) that the vendor's
-  server hands out for a sensor serial and the vendor app writes into the sensor. The state is
-  readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`; `0xFFFF` means "no code written". Observed
-  written values: 500, 510, 530, 600.
+* A per-sensor calibration table (`correctCode`, 25 floats) is handed out by the vendor's server for
+  a sensor serial and written into the sensor during the vendor app's activation/binding. Whether
+  the **sensor** itself requires it for history is not established — see the confound below. The
+  state is readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`; `0xFFFF` means "no code written".
+  Observed written values: 500, 510, 530, 600 — and 570 on a provisioned `iCGM-t3`
+  (`1C F6 01 3A 02`); treat any value other than `0xFFFF` as provisioned.
 * The vendor app never asks for history before that code has been written — the gate is in the SDK
   (`hasWriteCorrectCode`, `onPrepareReadHistoryData`, `onWriteCorrectCodeCompleted`) — and the write
   happens during activation/binding, never during normal sync: the iOS capture contains no `F6` read
@@ -200,7 +215,9 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   is implemented by packed (ijiami) native code — but both halves are more reachable than an earlier
   revision of this section claimed. The API paths and the data model are readable in the RU SDK
   (`sino-deviceaccess/sdk/authentication|check-device|cgm-code-encrypt`, a 25-float JSON code), the
-  write key is the sensor's own `0xF3` payload rather than a server secret, the write sequence is
+  write key material is the sensor's own `0xF3` payload rather than a server secret — the vendor
+  passes the whole 7-byte notification into its native chunker, and how that expands into a 16-byte
+  key is not statically readable — the write sequence is
   visible in Java with `F6` readable afterwards as an on-hardware check of each attempt, and the
   native pieces can be invoked rather than reimplemented. The plan is therefore that the driver
   fetches and writes the table itself during its own activation — tracked in issue #679. Pointing the
@@ -236,8 +253,8 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
     `0x0C` (+03) in three different logs.
   So `20` reads as "written by the vendor app" *or* "a device genuinely at UTC+5:00", and the
   payload cannot tell the two apart. `parseSessionStartTime` treats `20` as unknown and resolves the
-  wall clock in the device zone (PR #635) — correct whenever the reader is in the writer's zone, off
-  by the difference in the remaining case. The vendor's own reader has a related problem: it reads
+  wall clock in the device zone (PR #635 filters `TIME_ZONE_VENDOR_CONSTANT`) — correct whenever the
+  reader is in the writer's zone, off by the difference in the remaining case. The vendor's own reader has a related problem: it reads
   the wall clock as `GMT+8` and never looks at bytes 7–8.
 * The stored time is when the app *wrote* it (activation/binding), which is not necessarily when the
   sensor's session started — the count below is relative to the session, not to the write. A CN
@@ -269,7 +286,8 @@ original-history key and an auth key (`DEFAULT_{OLD,NEW}_{GLUCOSE,ORIGINAL_HISTO
 
 Not implemented here, and none of them appear in steady-state traffic from either app:
 
-* `F5` — start/session command (our onboarding writes it),
+* `0x1A` — start/session command (the byte our onboarding writes, `CMD_START_SENSOR`; earlier notes
+  called it `F5`),
 * `F2` — write the calibration table in chunks, `F7` — commit it,
 * `F6` — read the code state (see §6),
 * terminate flows reachable from the vendor app's sensor management, not from syncing.
