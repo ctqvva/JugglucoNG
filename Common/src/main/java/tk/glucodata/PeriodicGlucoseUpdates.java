@@ -26,6 +26,17 @@ public final class PeriodicGlucoseUpdates {
     private static final String LOG_ID = "PeriodicGlucose";
     /** An alarm notification posted this recently for the same measurement is its delivery. */
     private static final long ALERT_RECENT_MS = 2 * 60_000L;
+    /**
+     * A due reading waits this long before it is announced. The ongoing notification is
+     * posted before the alert checks of the same reading finish (custom alerts run after
+     * it), and an announcement already forwarded cannot be taken back.
+     */
+    static final long SETTLE_MS = 2_000L;
+
+    static final int NOT_DUE = 0;
+    /** Due, but still settling: render again after {@link #settleRemainingMillis()}. */
+    static final int LATER = 1;
+    static final int ANNOUNCE = 2;
 
     private static final String STATE_PREFS = "periodic_glucose_notification_state";
     private static final String KEY_READING = "reading_ms";
@@ -36,6 +47,9 @@ public final class PeriodicGlucoseUpdates {
     private static long baselineReadingMillis;
     /** Set by switching the feature on; cleared by the post it causes. */
     private static boolean sendCurrentOnce;
+    /** The due reading that is settling, and since when. */
+    private static long settlingReadingMillis;
+    private static long settlingSinceElapsed;
 
     private static volatile long alertReadingMillis;
     private static volatile long alertPostedElapsedMillis;
@@ -61,18 +75,19 @@ public final class PeriodicGlucoseUpdates {
 
     /**
      * Whether this post of the ongoing notification announces the reading, i.e. carries
-     * standard title/text. Records the announcement, so later posts of the same reading
-     * (follow-up repaints, chart changes) stay without text.
+     * standard title/text: {@link #NOT_DUE}, {@link #LATER} or {@link #ANNOUNCE}. An
+     * announcement is recorded, so later posts of the same reading (follow-up repaints,
+     * chart changes) stay without text.
      */
-    static synchronized boolean claim(long readingMillis, float value) {
+    static synchronized int claim(long readingMillis, float value) {
         if (isWearable) {
-            return false;
+            return NOT_DUE;
         }
         final Context context = Applic.app;
         final SharedPreferences prefs = context.getSharedPreferences(
                 NotificationForwardingSettings.PREFS, Context.MODE_PRIVATE);
         if (!NotificationForwardingSettings.isPeriodicEnabled(prefs)) {
-            return false;
+            return NOT_DUE;
         }
         // Same validity floor as the ongoing notification.
         if (!Float.isFinite(value) || value < 2.0f) {
@@ -88,28 +103,52 @@ public final class PeriodicGlucoseUpdates {
                 true, readingMillis, baselineReadingMillis, last, nowWall, nowElapsed,
                 NotificationForwardingSettings.periodicIntervalMinutes(prefs), Notify.glucosetimeout, forced);
         if (decision != PeriodicGlucoseNotificationPolicy.Decision.SEND) {
-            return false;
+            return NOT_DUE;
         }
+        if (settlingReadingMillis != readingMillis) {
+            settlingReadingMillis = readingMillis;
+            settlingSinceElapsed = nowElapsed;
+        }
+        // Switching the feature on is not tied to a new reading's alerts.
+        if (!forced && nowElapsed - settlingSinceElapsed < SETTLE_MS) {
+            return LATER;
+        }
+        final long settlingSince = settlingSinceElapsed;
+        settlingReadingMillis = 0L;
         sendCurrentOnce = false;
         state.edit().putLong(KEY_READING, readingMillis).putLong(KEY_WALL, nowWall)
                 .putLong(KEY_ELAPSED, nowElapsed).apply();
-        if (!forced && alarmAlreadyCarried(readingMillis, nowElapsed)) {
-            // The alarm notification just carried this reading to the watch. Count it as
+        if (!forced && alarmAlreadyCarried(readingMillis, settlingSince, nowElapsed)) {
+            // An alarm notification just carried this reading to the watch. Count it as
             // this interval's message instead of sending the same value twice.
             if (doLog) {
                 Log.i(LOG_ID, "reading delivered by an alarm notification");
             }
-            return false;
+            return NOT_DUE;
         }
         if (doLog) {
             Log.i(LOG_ID, "announce reading=" + readingMillis);
         }
-        return true;
+        return ANNOUNCE;
     }
 
-    private static boolean alarmAlreadyCarried(long readingMillis, long nowElapsed) {
+    /** How long the settling reading still waits; 0 when none is settling. */
+    static synchronized long settleRemainingMillis() {
+        if (settlingReadingMillis == 0L) {
+            return 0L;
+        }
+        return Math.max(0L, SETTLE_MS - (SystemClock.elapsedRealtime() - settlingSinceElapsed));
+    }
+
+    /**
+     * Native alarms are posted before the ongoing notification and carry the reading's
+     * time. Custom alerts are posted after it and carry their own time, so any alarm
+     * notification posted while the reading settled was for this reading.
+     */
+    private static boolean alarmAlreadyCarried(long readingMillis, long settlingSince, long nowElapsed) {
         final long posted = alertPostedElapsedMillis;
         return posted > 0L && nowElapsed - posted <= ALERT_RECENT_MS
-                && PeriodicGlucoseNotificationPolicy.sameMeasurement(alertReadingMillis, readingMillis);
+                && (posted >= settlingSince
+                        || PeriodicGlucoseNotificationPolicy.sameMeasurement(alertReadingMillis, readingMillis));
     }
 }

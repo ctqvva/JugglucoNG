@@ -104,9 +104,13 @@ notifications are the same under every combination.
   interval uses elapsed realtime within one boot and falls back to wall time after
   a reboot. The last reading announced is persisted, and readings measured before
   the process started are a baseline, so a restart never replays a cached value.
-  Switching the setting on announces the current fresh reading once. An alarm
-  notification that just carried the same measurement counts as that interval's
-  message. The alarm itself is never touched or delayed.
+  A due reading settles for 2 s before a re-render announces it, because custom
+  alerts run after the ongoing notification is posted and a forwarded message
+  cannot be taken back. An alarm notification posted for the same measurement
+  (native alarms, posted first) or while the reading settled (custom alerts, which
+  stamp their own time) counts as that interval's message. Switching the setting
+  on announces the current fresh reading once, without settling. The alarm itself
+  is never touched or delayed.
 - The two settings are exclusive. Turning periodic on turns standard text off and
   disables its switch. Turning periodic off leaves standard text off. Rendering
   also enforces the rule, in case the stored values ever conflict.

@@ -1279,6 +1279,21 @@ public class Notify {
         }
     };
 
+    /** Renders again once a due periodic update has settled; the render announces it. */
+    private final Runnable periodicAnnouncementRunnable = () -> {
+        try {
+            scheduleVisualNotificationRefresh();
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "periodicAnnouncementRunnable", th);
+        }
+    };
+
+    private void schedulePeriodicAnnouncement() {
+        glucoseRefreshHandler.removeCallbacks(periodicAnnouncementRunnable);
+        glucoseRefreshHandler.postDelayed(periodicAnnouncementRunnable,
+                PeriodicGlucoseUpdates.settleRemainingMillis() + 50L);
+    }
+
     private final Runnable dataChangedGlucoseRefreshRunnable = new Runnable() {
         @Override
         public void run() {
@@ -4448,9 +4463,14 @@ public class Notify {
             final boolean always = NotificationForwardingSettings.isStandardTextEnabled(prefs);
             final long readingMillis = fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L;
             // Periodic updates: text on the announcing post only, with the measurement
-            // time as its body (some watch apps skip notifications without one).
-            final boolean announce = !always && readingMillis > 0L
-                    && PeriodicGlucoseUpdates.claim(readingMillis, displayGlucoseValue);
+            // time as its body (some watch apps skip notifications without one). A due
+            // reading settles first so its alerts can stand in for the announcement.
+            final int periodic = always || readingMillis <= 0L ? PeriodicGlucoseUpdates.NOT_DUE
+                    : PeriodicGlucoseUpdates.claim(readingMillis, displayGlucoseValue);
+            final boolean announce = periodic == PeriodicGlucoseUpdates.ANNOUNCE;
+            if (periodic == PeriodicGlucoseUpdates.LATER) {
+                schedulePeriodicAnnouncement();
+            }
             if (always || announce) {
                 final java.util.ArrayList<CharSequence> peerTexts = new java.util.ArrayList<>();
                 for (NotificationChartDrawer.ValueItem peer : peerValueItems) {

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
+import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -16,6 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
+import org.robolectric.shadows.ShadowSystemClock
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = NotificationForwardingSettingsTests.TestApplication::class)
@@ -105,9 +107,21 @@ class NotificationForwardingSettingsTests {
 
     private fun resetPeriodicState() {
         app.getSharedPreferences("periodic_glucose_notification_state", Context.MODE_PRIVATE).edit().clear().commit()
-        PeriodicGlucoseUpdates::class.java.getDeclaredField("baselineReadingMillis")
-            .also { it.isAccessible = true }.setLong(null, 0L)
+        for (name in listOf("baselineReadingMillis", "settlingReadingMillis", "alertPostedElapsedMillis")) {
+            PeriodicGlucoseUpdates::class.java.getDeclaredField(name).also { it.isAccessible = true }.setLong(null, 0L)
+        }
         PeriodicGlucoseUpdates.onSettingChanged(false)
+    }
+
+    private fun settle() = ShadowSystemClock.advanceBy(Duration.ofMillis(PeriodicGlucoseUpdates.SETTLE_MS))
+
+    /** Renders of one reading until it is no longer settling: what the posts would carry. */
+    private fun claimSettled(readingMillis: Long, value: Float): Int {
+        val first = PeriodicGlucoseUpdates.claim(readingMillis, value)
+        if (first != PeriodicGlucoseUpdates.LATER) return first
+        assertTrue(PeriodicGlucoseUpdates.settleRemainingMillis() > 0L)
+        settle()
+        return PeriodicGlucoseUpdates.claim(readingMillis, value)
     }
 
     @Test fun periodicUpdatesAnnounceEachReadingOnceOnTheOngoingNotification() {
@@ -115,44 +129,77 @@ class NotificationForwardingSettingsTests {
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
         val now = System.currentTimeMillis()
-        assertFalse("off by default", PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals("off by default", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
 
         NotificationForwardingSettings.setPeriodicEnabled(app, true)
         NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
-        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
-        assertFalse("repaints of the same reading carry no text", PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
-        assertTrue("next reading", PeriodicGlucoseUpdates.claim(now - 10_000L, 5.6f))
+        assertEquals("the first post of a due reading waits for its alerts",
+            PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        settle()
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals("repaints of the same reading carry no text",
+            PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
+        assertEquals(0L, PeriodicGlucoseUpdates.settleRemainingMillis())
+        assertEquals("next reading", PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 10_000L, 5.6f))
 
         NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 5)
-        assertFalse("inside the interval", PeriodicGlucoseUpdates.claim(now, 5.7f))
-        assertFalse("never a stale reading", PeriodicGlucoseUpdates.claim(now - 400_000L, 5.7f))
-        assertFalse("never a non-value", PeriodicGlucoseUpdates.claim(now + 1_000L, 1.0f))
+        assertEquals("inside the interval", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now, 5.7f))
+        assertEquals("never a non-value", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now + 1_000L, 1.0f))
     }
 
-    @Test fun switchingOnSendsTheCurrentReadingOnce() {
+    @Test fun switchingOnSendsTheCurrentReadingOnceWithoutWaiting() {
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
         val now = System.currentTimeMillis()
         NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 20_000L, 5.5f))
         PeriodicGlucoseUpdates.onSettingChanged(true)
-        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
-        assertFalse(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
+        PeriodicGlucoseUpdates.onSettingChanged(true)
+        assertEquals("never a stale reading", PeriodicGlucoseUpdates.NOT_DUE,
+            PeriodicGlucoseUpdates.claim(now - 400_000L, 5.5f))
     }
 
-    @Test fun readingsFromBeforeProcessStartAndAlarmedReadingsAreNotAnnounced() {
+    @Test fun readingsFromBeforeProcessStartAreNotAnnounced() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        val cached = System.currentTimeMillis() - 30_000L
+        PeriodicGlucoseUpdates.onProcessStart()
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(cached, 5.5f))
+    }
+
+    @Test fun anAlarmPostedBeforeTheReadingIsShownCarriesIt() {
+        // Native alarms: the alarm notification goes out first, stamped with the reading.
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
         NotificationForwardingSettings.setPeriodicEnabled(app, true)
         NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
-        val cached = System.currentTimeMillis() - 30_000L
-        PeriodicGlucoseUpdates.onProcessStart()
-        assertFalse("the stored reading is not new", PeriodicGlucoseUpdates.claim(cached, 5.5f))
+        val reading = System.currentTimeMillis() - 5_000L
+        PeriodicGlucoseUpdates.noteAlertNotificationPosted(reading)
+        assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 3.1f))
+        settle()
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, PeriodicGlucoseUpdates.claim(reading, 3.1f))
+        assertEquals("the next reading is not the alarm's",
+            PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(reading + 60_000L, 3.0f))
+    }
 
-        val alarmed = System.currentTimeMillis() + 1_000L
-        PeriodicGlucoseUpdates.noteAlertNotificationPosted(alarmed)
-        assertFalse("the alarm already carried it", PeriodicGlucoseUpdates.claim(alarmed, 3.1f))
-        assertTrue(PeriodicGlucoseUpdates.claim(alarmed + 60_000L, 3.0f))
+    @Test fun aCustomAlertPostedAfterTheReadingIsShownCarriesIt() {
+        // Custom alerts run after the ongoing notification and stamp their own time.
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        val reading = System.currentTimeMillis() - 5_000L
+        assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 3.1f))
+        PeriodicGlucoseUpdates.noteAlertNotificationPosted(System.currentTimeMillis())
+        settle()
+        assertEquals("one watch message for the reading, the alarm's",
+            PeriodicGlucoseUpdates.NOT_DUE, PeriodicGlucoseUpdates.claim(reading, 3.1f))
+
+        // An alarm from before the next reading arrived does not swallow it.
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(reading + 60_000L, 3.0f))
     }
 
     @Test fun everyLocaleTranslatesTheNewCopyWithTheSamePlaceholders() {
