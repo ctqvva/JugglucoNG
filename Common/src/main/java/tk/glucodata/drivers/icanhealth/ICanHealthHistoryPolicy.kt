@@ -77,6 +77,27 @@ internal object ICanHealthHistoryPolicy {
         return readingIntervalMinutes
     }
 
+    /**
+     * Start sequence for one live-edge retry after the sensor answered RACP_RESULT_FAILED.
+     *
+     * A refusal is not proof that the sensor will not serve history at all: our request can be days
+     * behind the live edge when a full-session re-read is pending, and being far behind the live
+     * edge is the one thing every refusal on record has in common (`docs/ican-cgm-protocol.md`,
+     * section 6). Asking for the tail instead either recovers the newest records or proves that this
+     * sensor is refusing ranges at its own end too. Returns `null` when there is nothing new to try:
+     * the failed request already was a tail request, or the live edge is unknown.
+     */
+    fun tailRetryStartSequence(
+        readingIntervalMinutes: Int,
+        currentSequence: Int,
+        requestedSequence: Int,
+    ): Int? {
+        if (readingIntervalMinutes <= 0) return null
+        val liveEdge = currentSequence - readingIntervalMinutes
+        if (liveEdge < readingIntervalMinutes) return null
+        return liveEdge.takeIf { requestedSequence < it }
+    }
+
     fun shouldSkipHistoryOverlap(
         sequenceNumber: Int,
         sampleTimeMs: Long,

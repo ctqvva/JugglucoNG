@@ -165,6 +165,7 @@ class ICanHealthBleManager(
     @Volatile private var postAuthSetupStarted = false
     @Volatile private var historyBackfillRequested = false
     @Volatile private var historyBackfillAttemptedThisConnection = false
+    @Volatile private var tailRetryAttemptedThisConnection = false
     @Volatile private var shouldRequestAuthenticatedHistoryBackfill = true
     @Volatile private var suppressAutomaticHistoryBackfill = false
     @Volatile private var nativeLifetimeDeclaredFor: String? = null
@@ -1294,6 +1295,7 @@ class ICanHealthBleManager(
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
                 historyBackfillAttemptedThisConnection = false
+                tailRetryAttemptedThisConnection = false
                 awaitingFreshStatusForHistoryBackfill = false
                 awaitingMtuNegotiation = false
                 glucoseHistoryImportedRecordCount = 0
@@ -2731,9 +2733,44 @@ class ICanHealthBleManager(
                         "retrying after RACP-failed on modern glucose-history command"
                     )
                 } else {
-                    suppressAutomaticHistoryBackfill = false
-                    shouldRequestAuthenticatedHistoryBackfill = glucoseHistoryImportedRecordCount <= 0
-                    Log.w(TAG, "RACP history request failed; will retry on a later authenticated reconnect")
+                    val requestedSequence = pendingGlucoseHistoryStartSequence
+                    val tailRetryStartSequence = if (tailRetryAttemptedThisConnection) {
+                        null
+                    } else {
+                        ICanHealthHistoryPolicy.tailRetryStartSequence(
+                            readingIntervalMinutes = readingIntervalMinutes(),
+                            currentSequence = currentSequenceNumber,
+                            requestedSequence = requestedSequence,
+                        )
+                    }
+                    if (tailRetryStartSequence != null) {
+                        // Both command families refused the requested range. That is also what a
+                        // sensor without a correct code does, but every refusal on record asks for a
+                        // range days behind the live edge, so try the tail once before concluding
+                        // anything: it either recovers the newest records or shows that the refusal
+                        // is about history as a whole. See docs/ican-cgm-protocol.md, section 6.
+                        tailRetryAttemptedThisConnection = true
+                        useModernGlucoseHistoryCommand = true
+                        pendingGlucoseHistoryStartSequence = tailRetryStartSequence
+                        Log.w(
+                            TAG,
+                            "Glucose-history RACP failed for seq=$requestedSequence on both command " +
+                                "families; retrying from the live edge at seq=$tailRetryStartSequence"
+                        )
+                        if (!beginHistoryBackfillPhase(
+                                HistoryBackfillPhase.GLUCOSE,
+                                "retrying from the live edge after RACP-failed on both command families"
+                            )
+                        ) {
+                            suppressAutomaticHistoryBackfill = false
+                            shouldRequestAuthenticatedHistoryBackfill = glucoseHistoryImportedRecordCount <= 0
+                            Log.w(TAG, "RACP history request failed; will retry on a later authenticated reconnect")
+                        }
+                    } else {
+                        suppressAutomaticHistoryBackfill = false
+                        shouldRequestAuthenticatedHistoryBackfill = glucoseHistoryImportedRecordCount <= 0
+                        Log.w(TAG, "RACP history request failed; will retry on a later authenticated reconnect")
+                    }
                 }
             }
 
@@ -4184,6 +4221,7 @@ class ICanHealthBleManager(
         historyBackfillRequested = false
         historyBackfillPhase = HistoryBackfillPhase.NONE
         historyBackfillAttemptedThisConnection = false
+        tailRetryAttemptedThisConnection = false
         awaitingFreshStatusForHistoryBackfill = false
         glucoseHistoryImportedRecordCount = 0
         pendingHistoryBackfillReason = null
