@@ -161,6 +161,23 @@ class AiDexAlgorithmControllerTest {
             replacement.live(sample(index, raw = 100f + index % 4), refs))
     }
 
+    @Test fun `output anchored calibration agrees across live replay and restart during mapping catchup`() {
+        val selection = AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED
+        val sources = (0..1800).map { sample(it, factory = if (it < 1440) 105f else 160f, raw = 105f) }
+        val refs = listOf(AiDexReference(start + 1560 * 60_000L, 167f), AiDexReference(start + 1700 * 60_000L, 174f))
+        val live = AiDexAlgorithmContext(selection)
+        val outputs = sources.map { live.process(it, refs) }
+        val model = controller(selection)
+        model.record(sources)
+        assertEquals(outputs, replay(model, refs))
+        val restarted = AiDexAlgorithmController(model.journal, selection)
+        assertEquals(outputs, replay(restarted, refs))
+        assertTrue(outputs[1560].glucoseMgDl >= 150f)
+        assertTrue(outputs[1700].glucoseMgDl >= 160f)
+        assertEquals(live.process(sample(1801, 160f, 105f), refs),
+            restarted.live(sample(1801, 160f, 105f), refs))
+    }
+
     @Test fun `late history causes replay and cannot become current live`() {
         val model = controller(AiDexAlgorithmSelection.ADAPTIVE_V2)
         model.record((0..180).filter { it != 90 }.map { sample(it) })
