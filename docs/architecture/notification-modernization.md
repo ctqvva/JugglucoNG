@@ -119,8 +119,12 @@ View-based Watch screen and the Wear exchange toggle still expose them.
   one message per reading or interval. `PeriodicGlucoseNotificationPolicy` announces only a
   reading that is new, fresh by `glucosetimeout` and outside the interval. The
   interval uses elapsed realtime within one boot and falls back to wall time after
-  a reboot. The last reading announced is persisted, and readings measured before
-  the process started are a baseline, so a restart never replays a cached value.
+  a reboot. The last reading announced is persisted once its post succeeded (a
+  render that is superseded or fails to post hands the announcement back, and the
+  next render makes it), and readings measured before the process started are a
+  baseline, so a restart never replays a cached value. After the clock is set back,
+  the markers stop holding new readings back, but the reading last announced is
+  never announced again.
   A due reading settles for 2 s before a re-render announces it, because custom
   alerts run after the ongoing notification is posted and a forwarded message
   cannot be taken back. An alarm notification posted for the same measurement

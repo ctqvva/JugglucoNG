@@ -1482,8 +1482,14 @@ public class Notify {
                 Log.stack(LOG_ID, "reconcileRender", th);
                 return;
             }
-            publishVisualNotification(generation, capturedService, content.notification, effective,
-                    content.fingerprint);
+            if (publishVisualNotification(generation, capturedService, content.notification, effective,
+                    content.fingerprint)) {
+                PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
+            } else {
+                // A newer render owns the surface, or the post failed and will be retried:
+                // either one announces the reading instead.
+                PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
+            }
             return;
         }
         if (shouldPresentForegroundGlucose() && effective != null
@@ -1559,16 +1565,17 @@ public class Notify {
      *                    not reposted: listener apps would see every repost as an update
      *                    (#645). Everything else about a successful publication still
      *                    happens, including the freshness deadline.
+     * @return whether {@code notification} is what the phone shows now
      */
-    private void publishVisualNotification(long generation, Service capturedService,
+    private boolean publishVisualNotification(long generation, Service capturedService,
             Notification notification, CurrentDisplaySource.Snapshot freshSnapshot, long fingerprint) {
         synchronized (foregroundPublicationLock) {
             if (generation != foregroundVisualGeneration || !shouldKeepForegroundGlucoseNotification()) {
-                return;
+                return false;
             }
             if (capturedService != keeprunning.theservice) {
                 // A newer service epoch owns the surface; never overwrite it.
-                return;
+                return false;
             }
             final boolean unchanged = NotificationRefreshPolicy.isUnchangedPublication(
                     fingerprint, publishedContentFingerprint, capturedService, publishedContentOwner);
@@ -1593,7 +1600,7 @@ public class Notify {
                 // for this generation; it cannot spin if publication keeps failing.
                 Log.stack(LOG_ID, "publishVisual", th);
                 scheduleFailedPublicationRetryLocked(generation, capturedService);
-                return;
+                return false;
             }
             publicationRetryGeneration = 0L;
             publicationRetryService = null;
@@ -1608,6 +1615,7 @@ public class Notify {
             } else {
                 glucoseRefreshHandler.removeCallbacks(freshnessDeadlineRefreshRunnable);
             }
+            return true;
         }
     }
 
@@ -1730,9 +1738,11 @@ public class Notify {
             try {
                 publishPhoneForegroundLocked(content.notification, content.fingerprint);
             } catch (RuntimeException failure) {
+                PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
                 scheduleFailedPublicationRetryLocked(foregroundVisualGeneration, keeprunning.theservice);
                 throw failure;
             }
+            PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
             hasvalue = true;
             lastForegroundGlucoseTimeMs = displayedMillis;
             lastForegroundGlucoseValue = displayed != null ? displayed.getPrimaryValue() : glvalue;
@@ -4071,15 +4081,13 @@ public class Notify {
     }
 
     // UPDATE METHOD
+    /** For callers that post the notification right away, so its announcement counts as made. */
     public Notification makearrownotification(int draw, float glvalue, String message, notGlucose glucose, String type,
             boolean once) {
-        return renderGlucoseNotification(draw, glvalue, message, glucose, type, once, null, false).notification;
-    }
-
-    private Notification makearrownotification(int draw, float glvalue, String message, notGlucose glucose,
-            String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot) {
-        return renderGlucoseNotification(draw, glvalue, message, glucose, type, once,
-                startupSnapshot, startupSnapshot != null).notification;
+        final GlucoseNotificationContent content =
+                renderGlucoseNotification(draw, glvalue, message, glucose, type, once, null, false);
+        PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
+        return content.notification;
     }
 
     private static final class GlucoseNotificationContent {
@@ -4087,12 +4095,18 @@ public class Notify {
         final CurrentDisplaySource.Snapshot snapshot;
         /** {@link NotificationFingerprint} of the content; 0 when unknown. */
         final long fingerprint;
+        /**
+         * The reading this content announces as a periodic update, 0 for none. Whoever
+         * posts it reports the outcome to {@link PeriodicGlucoseUpdates}.
+         */
+        final long announcedReadingMillis;
 
         GlucoseNotificationContent(Notification notification, CurrentDisplaySource.Snapshot snapshot,
-                long fingerprint) {
+                long fingerprint, long announcedReadingMillis) {
             this.notification = notification;
             this.snapshot = snapshot;
             this.fingerprint = fingerprint;
+            this.announcedReadingMillis = announcedReadingMillis;
         }
     }
 
@@ -4459,6 +4473,7 @@ public class Notify {
         }
         String standardTitle = null;
         String standardText = null;
+        long announcedReadingMillis = 0L;
         if (customPhone) {
             final boolean always = NotificationForwardingSettings.isStandardTextEnabled(prefs);
             final long readingMillis = fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L;
@@ -4483,6 +4498,7 @@ public class Notify {
             } else if (announce) {
                 standardText = android.text.format.DateFormat.getTimeFormat(app)
                         .format(new java.util.Date(readingMillis));
+                announcedReadingMillis = readingMillis;
             }
         }
 
@@ -4551,7 +4567,7 @@ public class Notify {
                 Log.stack(LOG_ID, "notificationFingerprint", th);
             }
         }
-        return new GlucoseNotificationContent(notif, fallbackDisplay, fingerprint);
+        return new GlucoseNotificationContent(notif, fallbackDisplay, fingerprint, announcedReadingMillis);
     }
 
     Notification getforgroundnotification() {
@@ -5213,18 +5229,25 @@ public class Notify {
                 final float value = snapshot.getPrimaryValue();
                 final String message = format(usedlocale, glucoseformat, value);
                 final notGlucose legacy = toLegacyGlucose(snapshot);
-                final Notification notif = makearrownotification(
+                final GlucoseNotificationContent content = renderGlucoseNotification(
                         FOREGROUND_GLUCOSE_NOTIFICATION_KIND, value, message, legacy,
-                        GLUCOSENOTIFICATION, true, snapshot);
+                        GLUCOSENOTIFICATION, true, snapshot, true);
                 // Final check and publication are atomic under the gate: a genuine
                 // foreground publication in between invalidates instead of being
                 // overwritten. No history or rendering happens under this lock.
                 synchronized (foregroundPublicationLock) {
                     if (ticket != startupPendingTicket || startupPendingService != target
                             || keeprunning.theservice != target) {
+                        PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
                         return;
                     }
-                    publishPhoneForegroundLocked(notif);
+                    try {
+                        publishPhoneForegroundLocked(content.notification);
+                    } catch (RuntimeException failure) {
+                        PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
+                        throw failure;
+                    }
+                    PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
                     // A successful restore is a genuine epoch: later visual renders
                     // must not overwrite it, the displayed snapshot is retained for
                     // staleness fallback, and the freshness deadline is armed on the

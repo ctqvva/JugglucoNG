@@ -60,6 +60,9 @@ object PeriodicGlucoseNotificationPolicy {
         // it went out before the switch was turned off. The persisted record is kept, so
         // restarts still never replay.
         if (sendCurrentOnce) return Decision.SEND
+        // The reading last sent stays sent, even when the clock went back past it and
+        // the markers below stop counting: a refresh must not forward it again.
+        if (sameMeasurement(last.readingMillis, readingMillis)) return Decision.ALREADY_SENT
         // Markers from before a backwards clock change would hold back every new reading
         // until the clock caught up again; they no longer describe anything.
         val lastReading = trusted(last.readingMillis, nowWallMillis)

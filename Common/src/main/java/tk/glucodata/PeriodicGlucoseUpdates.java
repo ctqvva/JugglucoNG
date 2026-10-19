@@ -33,6 +33,14 @@ public final class PeriodicGlucoseUpdates {
      */
     static final long SETTLE_MS = 2_000L;
 
+    /**
+     * How long a render may hold an announcement before posting it. Only a render that
+     * threw holds it this long; it is then given up.
+     */
+    static final long PENDING_TIMEOUT_MS = 5_000L;
+    /** A render that finds another one posting an announcement looks again after this. */
+    static final long PENDING_RECHECK_MS = 250L;
+
     static final int NOT_DUE = 0;
     /** Due, but still settling: render again after {@link #settleRemainingMillis()}. */
     static final int LATER = 1;
@@ -50,6 +58,15 @@ public final class PeriodicGlucoseUpdates {
     /** The due reading that is settling, and since when. */
     private static long settlingReadingMillis;
     private static long settlingSinceElapsed;
+    /**
+     * The announcement handed to a render and not yet posted: recorded by
+     * {@link #commitAnnouncement} once it is out, or given back by
+     * {@link #releaseAnnouncement} when the render is discarded.
+     */
+    private static long pendingReadingMillis;
+    private static long pendingSinceElapsed;
+    private static long pendingSettlingSince;
+    private static boolean pendingForced;
 
     private static volatile long alertReadingMillis;
     private static volatile long alertPostedElapsedMillis;
@@ -75,9 +92,10 @@ public final class PeriodicGlucoseUpdates {
 
     /**
      * Whether this post of the ongoing notification announces the reading, i.e. carries
-     * standard title/text: {@link #NOT_DUE}, {@link #LATER} or {@link #ANNOUNCE}. An
-     * announcement is recorded, so later posts of the same reading (follow-up repaints,
-     * chart changes) stay without text.
+     * standard title/text: {@link #NOT_DUE}, {@link #LATER} or {@link #ANNOUNCE}. The
+     * caller reports what became of an announcement: {@link #commitAnnouncement} once it
+     * is posted, so later posts of the same reading (follow-up repaints, chart changes)
+     * stay without text, or {@link #releaseAnnouncement} if it never was.
      */
     static synchronized int claim(long readingMillis, float value) {
         if (isWearable) {
@@ -105,6 +123,15 @@ public final class PeriodicGlucoseUpdates {
         if (decision != PeriodicGlucoseNotificationPolicy.Decision.SEND) {
             return NOT_DUE;
         }
+        if (pendingReadingMillis != 0L) {
+            if (nowElapsed - pendingSinceElapsed < PENDING_TIMEOUT_MS) {
+                // Another render is posting an announcement; whether it gets out decides
+                // what this reading still needs.
+                return LATER;
+            }
+            // The render that held it threw.
+            releaseAnnouncement(pendingReadingMillis);
+        }
         if (settlingReadingMillis != readingMillis) {
             settlingReadingMillis = readingMillis;
             settlingSinceElapsed = nowElapsed;
@@ -115,25 +142,65 @@ public final class PeriodicGlucoseUpdates {
         }
         final long settlingSince = settlingSinceElapsed;
         settlingReadingMillis = 0L;
-        sendCurrentOnce = false;
-        state.edit().putLong(KEY_READING, readingMillis).putLong(KEY_WALL, nowWall)
-                .putLong(KEY_ELAPSED, nowElapsed).apply();
         if (!forced && alarmAlreadyCarried(readingMillis, settlingSince, nowElapsed)) {
             // An alarm notification just carried this reading to the watch. Count it as
             // this interval's message instead of sending the same value twice.
             if (doLog) {
                 Log.i(LOG_ID, "reading delivered by an alarm notification");
             }
+            record(state, readingMillis, nowWall, nowElapsed);
             return NOT_DUE;
         }
+        pendingReadingMillis = readingMillis;
+        pendingSinceElapsed = nowElapsed;
+        pendingSettlingSince = settlingSince;
+        pendingForced = forced;
         if (doLog) {
             Log.i(LOG_ID, "announce reading=" + readingMillis);
         }
         return ANNOUNCE;
     }
 
+    /** The announcement for {@code readingMillis} was posted (or is already shown). */
+    static synchronized void commitAnnouncement(long readingMillis) {
+        if (readingMillis == 0L || readingMillis != pendingReadingMillis) {
+            return;
+        }
+        pendingReadingMillis = 0L;
+        if (pendingForced) {
+            sendCurrentOnce = false;
+        }
+        record(Applic.app.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE), readingMillis,
+                System.currentTimeMillis(), SystemClock.elapsedRealtime());
+    }
+
+    /**
+     * The render carrying the announcement for {@code readingMillis} was discarded or
+     * failed to post: the next render announces the reading instead, without settling
+     * again.
+     */
+    static synchronized void releaseAnnouncement(long readingMillis) {
+        if (readingMillis == 0L || readingMillis != pendingReadingMillis) {
+            return;
+        }
+        pendingReadingMillis = 0L;
+        settlingReadingMillis = readingMillis;
+        settlingSinceElapsed = pendingSettlingSince;
+        if (doLog) {
+            Log.i(LOG_ID, "announcement not posted reading=" + readingMillis);
+        }
+    }
+
+    private static void record(SharedPreferences state, long readingMillis, long nowWall, long nowElapsed) {
+        state.edit().putLong(KEY_READING, readingMillis).putLong(KEY_WALL, nowWall)
+                .putLong(KEY_ELAPSED, nowElapsed).apply();
+    }
+
     /** How long the settling reading still waits; 0 when none is settling. */
     static synchronized long settleRemainingMillis() {
+        if (pendingReadingMillis != 0L) {
+            return PENDING_RECHECK_MS;
+        }
         if (settlingReadingMillis == 0L) {
             return 0L;
         }

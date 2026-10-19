@@ -154,6 +154,24 @@ class PeriodicGlucoseNotificationPolicyTests {
         assertEquals(Decision.TOO_SOON, phone.reading(phone.wall, 5))
     }
 
+    @Test fun clockMovedBackALittleNeverResendsTheCachedReading() {
+        for (interval in intArrayOf(1, 5)) {
+            val phone = Phone()
+            phone.reading(noon, interval)
+            // Back three minutes: the cached reading is now in the future, still fresh,
+            // and the last-sent marker no longer counts.
+            phone.wall = noon - 3 * minute + 10_000L
+            phone.bootAt = bootWall - 3 * minute
+            repeat(3) {
+                assertEquals("interval $interval", Decision.ALREADY_SENT, phone.reading(noon, interval))
+                phone.wall += 10_000L
+            }
+            // The next reading, stamped by the corrected clock, still goes out.
+            assertEquals("interval $interval", Decision.SEND, phone.reading(phone.wall, interval))
+            assertEquals(listOf(noon, phone.wall), phone.sent)
+        }
+    }
+
     @Test fun clockMovedForwardSendsAtMostOnceEarly() {
         val phone = Phone()
         phone.reading(noon, 5)

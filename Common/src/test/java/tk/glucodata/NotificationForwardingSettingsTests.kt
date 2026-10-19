@@ -149,7 +149,8 @@ class NotificationForwardingSettingsTests {
 
     private fun resetPeriodicState() {
         app.getSharedPreferences("periodic_glucose_notification_state", Context.MODE_PRIVATE).edit().clear().commit()
-        for (name in listOf("baselineReadingMillis", "settlingReadingMillis", "alertPostedElapsedMillis")) {
+        for (name in listOf("baselineReadingMillis", "settlingReadingMillis", "alertPostedElapsedMillis",
+                "pendingReadingMillis")) {
             PeriodicGlucoseUpdates::class.java.getDeclaredField(name).also { it.isAccessible = true }.setLong(null, 0L)
         }
         PeriodicGlucoseUpdates.onSettingChanged(false)
@@ -162,13 +163,19 @@ class NotificationForwardingSettingsTests {
 
     private fun settle() = ShadowSystemClock.advanceBy(Duration.ofMillis(PeriodicGlucoseUpdates.SETTLE_MS))
 
-    /** Renders of one reading until it is no longer settling: what the posts would carry. */
+    /** A render's claim whose notification is then posted. */
+    private fun claimPosted(readingMillis: Long, value: Float): Int =
+        PeriodicGlucoseUpdates.claim(readingMillis, value).also {
+            if (it == PeriodicGlucoseUpdates.ANNOUNCE) PeriodicGlucoseUpdates.commitAnnouncement(readingMillis)
+        }
+
+    /** Posted renders of one reading until it is no longer settling: what the posts would carry. */
     private fun claimSettled(readingMillis: Long, value: Float): Int {
-        val first = PeriodicGlucoseUpdates.claim(readingMillis, value)
+        val first = claimPosted(readingMillis, value)
         if (first != PeriodicGlucoseUpdates.LATER) return first
         assertTrue(PeriodicGlucoseUpdates.settleRemainingMillis() > 0L)
         settle()
-        return PeriodicGlucoseUpdates.claim(readingMillis, value)
+        return claimPosted(readingMillis, value)
     }
 
     @Test fun periodicUpdatesAnnounceEachReadingOnceOnTheOngoingNotification() {
@@ -182,7 +189,7 @@ class NotificationForwardingSettingsTests {
         assertEquals("the first post of a due reading waits for its alerts",
             PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
         settle()
-        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimPosted(now - 20_000L, 5.5f))
         assertEquals("repaints of the same reading carry no text",
             PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
         assertEquals(0L, PeriodicGlucoseUpdates.settleRemainingMillis())
@@ -219,11 +226,60 @@ class NotificationForwardingSettingsTests {
         NotificationForwardingSettings.setMode(app, 5)
         assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 20_000L, 5.5f))
         PeriodicGlucoseUpdates.onSettingChanged(true)
-        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimPosted(now - 20_000L, 5.5f))
         assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
         PeriodicGlucoseUpdates.onSettingChanged(true)
         assertEquals("never a stale reading", PeriodicGlucoseUpdates.NOT_DUE,
             PeriodicGlucoseUpdates.claim(now - 400_000L, 5.5f))
+    }
+
+    @Test fun anAnnouncementCountsOnlyOnceItIsPosted() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        val reading = System.currentTimeMillis() - 20_000L
+        NotificationForwardingSettings.setMode(app, 5)
+        assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        settle()
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        // A concurrent render waits for the one holding the announcement.
+        assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.PENDING_RECHECK_MS, PeriodicGlucoseUpdates.settleRemainingMillis())
+
+        // That render was superseded (or failed to post): the next one announces, without settling again.
+        PeriodicGlucoseUpdates.releaseAnnouncement(reading)
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        PeriodicGlucoseUpdates.commitAnnouncement(reading)
+        assertEquals("posted: later renders carry no text",
+            PeriodicGlucoseUpdates.NOT_DUE, claimSettled(reading, 5.5f))
+        PeriodicGlucoseUpdates.releaseAnnouncement(reading)
+        assertEquals("a late release changes nothing", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(reading, 5.5f))
+    }
+
+    @Test fun anAnnouncementHeldByARenderThatThrewIsGivenUp() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        val reading = System.currentTimeMillis() - 20_000L
+        NotificationForwardingSettings.setMode(app, 5)
+        assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        settle()
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        ShadowSystemClock.advanceBy(Duration.ofMillis(PeriodicGlucoseUpdates.PENDING_TIMEOUT_MS))
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimPosted(reading, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(reading, 5.5f))
+    }
+
+    @Test fun switchingOnStaysPendingUntilTheAnnouncementIsPosted() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        val reading = System.currentTimeMillis() - 20_000L
+        NotificationForwardingSettings.setMode(app, 5)
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(reading, 5.5f))
+        PeriodicGlucoseUpdates.onSettingChanged(true)
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(reading, 5.5f))
+        PeriodicGlucoseUpdates.releaseAnnouncement(reading)
+        assertEquals("still owed after a discarded render",
+            PeriodicGlucoseUpdates.ANNOUNCE, claimPosted(reading, 5.5f))
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(reading, 5.5f))
     }
 
     @Test fun readingsFromBeforeProcessStartAreNotAnnounced() {

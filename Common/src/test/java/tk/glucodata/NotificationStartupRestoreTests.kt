@@ -1115,8 +1115,13 @@ class NotificationStartupRestoreTests {
                         n.title = message;
                         return n;
                     }
+                    static class PeriodicGlucoseUpdates {
+                        static void commitAnnouncement(long readingMillis) {}
+                        static void releaseAnnouncement(long readingMillis) {}
+                    }
                     static class GlucoseNotificationContent {
                         Notification notification; CurrentDisplaySource.Snapshot snapshot; long fingerprint;
+                        long announcedReadingMillis;
                         GlucoseNotificationContent(Notification n, CurrentDisplaySource.Snapshot s) { notification = n; snapshot = s; }
                     }
                     GlucoseNotificationContent renderGlucoseNotification(int kind, float value, String message,
