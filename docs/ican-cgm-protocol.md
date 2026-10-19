@@ -197,13 +197,15 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   and, if experiment 1 wins, the fix: filed in issue #676 and implemented in PR #678 (one live-edge
   retry per connection, after both command families fail).
 * Independent of that: the code table comes from the vendor's server, and the write into the sensor
-  is implemented by packed (ijiami) native code. Both halves turned out to be more reachable than
-  §6 of the first revision claimed — the API paths and the data model are readable in the RU SDK
+  is implemented by packed (ijiami) native code — but both halves are more reachable than an earlier
+  revision of this section claimed. The API paths and the data model are readable in the RU SDK
   (`sino-deviceaccess/sdk/authentication|check-device|cgm-code-encrypt`, a 25-float JSON code), the
-  write key is the sensor's own `0xF3` payload rather than a server secret, and the native pieces can
-  be invoked rather than reimplemented. Not implemented here; see #676. Pointing the vendor app at an
-  unknown sensor is still not a repair path — its lifecycle operations act on the account's bound
-  device — and a log line when `F6 == 0xFFFF` is proposed in #676.
+  write key is the sensor's own `0xF3` payload rather than a server secret, the write sequence is
+  visible in Java with `F6` readable afterwards as an on-hardware check of each attempt, and the
+  native pieces can be invoked rather than reimplemented. The plan is therefore that the driver
+  fetches and writes the table itself during its own activation — tracked in issue #679. Pointing the
+  vendor app at an unknown sensor remains a non-repair (its lifecycle operations act on the account's
+  bound device), and a log line when `F6 == 0xFFFF` is proposed in #676.
 
 ## 7. Session clock
 
