@@ -10,11 +10,10 @@ import android.content.SharedPreferences
  * - **Standard text** puts the reading into the ongoing notification's title/text, as
  *   1.2.3–1.2.4 did. Listener apps that forward any titled notification then forward
  *   every update of it (#582, #645).
- * - **Periodic notifications** post the reading as a separate ordinary notification at a
- *   chosen interval ([PeriodicGlucoseNotifier]).
+ * - **Periodic updates** put it there only on the post that announces a reading, at a
+ *   chosen interval ([PeriodicGlucoseUpdates]).
  *
- * The two are exclusive: with periodic notifications on, standard text on the ongoing
- * notification would keep forwarding every update and defeat the interval.
+ * The two are exclusive: standard text on every post would defeat the interval.
  * Alarm notifications are not affected by either setting.
  */
 object NotificationForwardingSettings {

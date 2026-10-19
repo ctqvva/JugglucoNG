@@ -3051,16 +3051,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
-    <string name="notification_forwarding_section">Сумісність і пересилання</string>
-    <string name="notification_standard_text_title">Стандартний текст сповіщення</string>
-    <string name="notification_standard_text_desc">Показники в стандартному тексті сповіщення — для інших застосунків і функцій системи. Деякі застосунки годинників тоді пересилають кожне оновлення.</string>
-    <string name="notification_standard_text_blocked_desc">Вимкнено, поки ввімкнені періодичні сповіщення: застосунки годинників отримують лише їх.</string>
-    <string name="periodic_glucose_notifications_title">Періодичні сповіщення про глюкозу</string>
-    <string name="periodic_glucose_notifications_desc">Надсилати поточне значення окремим сповіщенням з вибраним інтервалом — для годинників і браслетів, які пересилають сповіщення телефона. Тривоги ніколи не затримуються.</string>
+    <string name="notification_forwarding_section">Годинники й браслети</string>
+    <string name="notification_standard_text_title">Показники в тексті сповіщення</string>
+    <string name="notification_standard_text_desc">Застосунки годинників можуть пересилати кожне оновлення</string>
+    <string name="periodic_glucose_notifications_title">Періодичні оновлення</string>
+    <string name="periodic_glucose_notifications_desc">Надсилати показники в застосунки годинників з інтервалом</string>
     <string name="periodic_glucose_interval_title">Інтервал</string>
-    <string name="periodic_glucose_interval_note">Надсилаються лише нові показники, не частіше, ніж вимірює сенсор. Чи покаже їх годинник, залежить від його застосунку.</string>
     <string name="periodic_glucose_interval_every">Кожне</string>
     <string name="periodic_glucose_interval_minutes">%1$d хв</string>
-    <string name="periodic_glucose_channel_name">Періодичні показники глюкози</string>
-    <string name="periodic_glucose_channel_desc">Поточне значення з інтервалом із налаштувань сповіщень, для годинників і браслетів</string>
 </resources>

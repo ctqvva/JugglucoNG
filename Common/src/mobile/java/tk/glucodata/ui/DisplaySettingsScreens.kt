@@ -69,7 +69,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import tk.glucodata.NotificationForwardingSettings
-import tk.glucodata.PeriodicGlucoseNotifier
+import tk.glucodata.PeriodicGlucoseUpdates
 import tk.glucodata.R
 import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
@@ -367,8 +367,7 @@ fun NotificationSettingsScreen(
         }
 
         // What watch and band companion apps get to read. The two switches are
-        // exclusive: standard text on the ongoing notification would forward every
-        // update and make the periodic interval meaningless.
+        // exclusive: standard text on every post would make the interval meaningless.
         SectionLabel(
             stringResource(R.string.notification_forwarding_section),
             topPadding = 16.dp,
@@ -380,10 +379,7 @@ fun NotificationSettingsScreen(
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_standard_text_title),
-                subtitle = stringResource(
-                    if (periodicEnabled) R.string.notification_standard_text_blocked_desc
-                    else R.string.notification_standard_text_desc
-                ),
+                subtitle = stringResource(R.string.notification_standard_text_desc),
                 checked = standardText && !periodicEnabled,
                 enabled = !periodicEnabled,
                 onCheckedChange = {
@@ -401,8 +397,8 @@ fun NotificationSettingsScreen(
                     periodicEnabled = enabled
                     if (enabled) standardText = false
                     NotificationForwardingSettings.setPeriodicEnabled(context, enabled)
-                    PeriodicGlucoseNotifier.onSettingChanged(enabled)
-                    // Drops standard text from the ongoing notification right away.
+                    PeriodicGlucoseUpdates.onSettingChanged(enabled)
+                    // Switching on sends the current reading right away.
                     viewModel.refreshNotificationSurfaces()
                 },
                 position = if (periodicEnabled) CardPosition.MIDDLE else CardPosition.BOTTOM
@@ -437,12 +433,6 @@ private fun PeriodicIntervalCard(selectedMinutes: Int, onSelected: (Int) -> Unit
             Text(
                 stringResource(R.string.periodic_glucose_interval_title),
                 style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.periodic_glucose_interval_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(12.dp))
             ConnectedButtonGroup(

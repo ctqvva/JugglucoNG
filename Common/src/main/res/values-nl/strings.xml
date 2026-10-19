@@ -3014,16 +3014,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_iob_help">eIOB en COB worden in het veld jugglucong van devicestatus verstuurd, los van de standaard-IOB.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
-    <string name="notification_forwarding_section">Compatibiliteit en doorsturen</string>
-    <string name="notification_standard_text_title">Standaard meldingstekst</string>
-    <string name="notification_standard_text_desc">Zet de waarde in de standaardtekst van de melding, voor andere apps en systeemfuncties. Sommige horloge-apps sturen dan elke update door.</string>
-    <string name="notification_standard_text_blocked_desc">Uit zolang periodieke glucosemeldingen aan staan: horloge-apps krijgen alleen die.</string>
-    <string name="periodic_glucose_notifications_title">Periodieke glucosemeldingen</string>
-    <string name="periodic_glucose_notifications_desc">Stuur de huidige waarde als aparte melding met het gekozen interval, voor horloges en bandjes die telefoonmeldingen doorsturen. Alarmen worden nooit uitgesteld.</string>
+    <string name="notification_forwarding_section">Horloges en bandjes</string>
+    <string name="notification_standard_text_title">Waarde in meldingstekst</string>
+    <string name="notification_standard_text_desc">Horloge-apps sturen mogelijk elke update door</string>
+    <string name="periodic_glucose_notifications_title">Periodieke updates</string>
+    <string name="periodic_glucose_notifications_desc">Stuur de waarde met een interval naar horloge-apps</string>
     <string name="periodic_glucose_interval_title">Interval</string>
-    <string name="periodic_glucose_interval_note">Alleen nieuwe waarden worden verstuurd, nooit vaker dan de sensor meet. Of het horloge ze toont, hangt af van zijn app.</string>
     <string name="periodic_glucose_interval_every">Elke waarde</string>
     <string name="periodic_glucose_interval_minutes">%1$d min</string>
-    <string name="periodic_glucose_channel_name">Periodieke glucosewaarden</string>
-    <string name="periodic_glucose_channel_desc">De huidige waarde met het interval uit de meldingsinstellingen, voor horloges en bandjes</string>
 </resources>

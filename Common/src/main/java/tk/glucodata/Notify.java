@@ -616,7 +616,7 @@ public class Notify {
         mkpaint();
         if (!isWearable) {
             NotificationForwardingSettings.pinStandardTextDefault(Applic.app);
-            PeriodicGlucoseNotifier.onProcessStart();
+            PeriodicGlucoseUpdates.onProcessStart();
             // Notify is a process singleton; use the application context for its receiver.
             // Screen-on reconciles freshness (and deferred charts); clock changes can flip
             // freshness without any incoming reading, so they reconcile too. Handler delays
@@ -752,8 +752,6 @@ public class Notify {
             channelSensorExpiry.setShowBadge(false);
             channelSensorExpiry.setLockscreenVisibility(VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channelSensorExpiry);
-
-            PeriodicGlucoseNotifier.createChannel(context, notificationManager);
         }
 
     }
@@ -1092,7 +1090,7 @@ public class Notify {
                 v -> format(usedlocale, glucoseFormat, v));
     }
 
-    static String resolveNotificationSensorSerial() {
+    private static String resolveNotificationSensorSerial() {
         return NotificationHistorySource.resolveSensorSerial(resolvePrimarySensorName());
     }
 
@@ -3559,11 +3557,6 @@ public class Notify {
         }
     }
 
-    /** The status-bar value icon, for the periodic notification. */
-    void applyGlucoseIcon(Notification.Builder builder, float glvalue, int sensorgen2) {
-        setIcon(builder, glvalue, sensorgen2);
-    }
-
     private void setIcon(Notification.Builder GluNotBuilder, float glvalue, int sensorgen2) {
         setIcon(GluNotBuilder, glvalue, sensorgen2, java.util.Collections.emptyList());
     }
@@ -3897,9 +3890,9 @@ public class Notify {
                 Notification notif = GluNotBuilder.build();
                 notif.when = glucose.time;
                 notificationManager.notify(glucosealarmid, notif);
-                // Lets a periodic glucose notification due for the same reading stand
-                // down; the alarm itself is already out.
-                PeriodicGlucoseNotifier.noteAlertNotificationPosted(glucose.time);
+                // Lets a periodic update due for the same reading stand down; the alarm
+                // itself is already out.
+                PeriodicGlucoseUpdates.noteAlertNotificationPosted(glucose.time);
             }
         }
     }
@@ -4060,37 +4053,6 @@ public class Notify {
             long mins = diff / 60000;
             return mins + "m";
         }
-    }
-
-    /**
-     * Signed change over the delta interval from the canonical trend points, as shown
-     * beside the arrow. Walks back to the first point old enough for the window; the
-     * tail can hold near-duplicates (persisted vs live timestamp of the same reading),
-     * so never take blind indices. Empty when no pair supports a delta.
-     */
-    static String notificationDeltaText(java.util.List<GlucosePoint> nativePoints, boolean isRawMode,
-            boolean isMmol, int deltaIntervalMinutes) {
-        if (nativePoints == null || nativePoints.size() < 2) {
-            return "";
-        }
-        final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
-        final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
-        GlucosePoint previous = null;
-        for (int i = nativePoints.size() - 2; i >= 0; i--) {
-            final GlucosePoint p = nativePoints.get(i);
-            final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
-            if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
-                previous = p;
-                break;
-            }
-        }
-        if (previous == null) {
-            return "";
-        }
-        final float previousValue = (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
-        return GlucoseDelta.format(
-                GlucoseDelta.delta(newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes),
-                isMmol);
     }
 
     // UPDATE METHOD
@@ -4312,13 +4274,33 @@ public class Notify {
         }
         // Signed change over the selected interval — a raw
         // number to sanity-check the estimated arrow against. Leftmost, right
-        // next to the arrow.
+        // next to the arrow. Walks back to the first point old enough for the
+        // window; the tail can hold near-duplicates (persisted vs live
+        // timestamp of the same reading), so never take blind indices.
         if (showDelta && nativePoints.size() >= 2) {
-            final String deltaText = notificationDeltaText(nativePoints, isRawMode, isMmol, deltaIntervalMinutes);
+            final GlucosePoint newest = nativePoints.get(nativePoints.size() - 1);
+            final float newestValue = (isRawMode && newest.rawValue > 0f) ? newest.rawValue : newest.value;
+            GlucosePoint previous = null;
+            for (int i = nativePoints.size() - 2; i >= 0; i--) {
+                final GlucosePoint p = nativePoints.get(i);
+                final float value = (isRawMode && p.rawValue > 0f) ? p.rawValue : p.value;
+                if (value > 0.1f && newest.timestamp - p.timestamp >= GlucoseDelta.minGapMillis(deltaIntervalMinutes)) {
+                    previous = p;
+                    break;
+                }
+            }
+            final float previousValue = previous == null ? Float.NaN
+                    : (isRawMode && previous.rawValue > 0f) ? previous.rawValue : previous.value;
+            final String deltaText = previous == null ? "" : GlucoseDelta.format(
+                    GlucoseDelta.delta(newest.timestamp, newestValue, previous.timestamp, previousValue, deltaIntervalMinutes),
+                    isMmol);
             if (doLog)
                 Log.i(LOG_ID, "notification delta=" + deltaText
                         + " points=" + nativePoints.size()
+                        + " gap=" + (previous == null ? -1L : (newest.timestamp - previous.timestamp))
                         + " mode=" + viewMode + " mmol=" + isMmol
+                        + " newest=" + newest.timestamp + ":" + newestValue
+                        + " previous=" + (previous == null ? -1L : previous.timestamp) + ":" + previousValue
                         + " displayed=" + (fallbackDisplay == null ? -1L : fallbackDisplay.getTimeMillis())
                         + ":" + displayGlucoseValue);
             if (!deltaText.isEmpty()) {
@@ -4449,8 +4431,9 @@ public class Notify {
 
         // Standard fields carry the value/status/unit fallback for TalkBack and system
         // notification surfaces that ignore the custom content. The ongoing phone
-        // notification carries them only with the standard-text setting: listener apps
-        // (watch companions) forward every update of a notification that has them.
+        // notification carries them only with the standard-text setting, or on the post
+        // that announces a periodic update: listener apps (watch companions) forward
+        // every post of a notification that has them.
         if (!customPhone) {
             GluNotBuilder.setContentTitle(valueText != null && valueText.length() > 0
                     ? valueText.toString() + " " + app.getString(isMmol ? R.string.mmolL : R.string.mgdL)
@@ -4461,14 +4444,26 @@ public class Notify {
         }
         String standardTitle = null;
         String standardText = null;
-        if (customPhone && NotificationForwardingSettings.isStandardTextEnabled(prefs)) {
-            final java.util.ArrayList<CharSequence> peerTexts = new java.util.ArrayList<>();
-            for (NotificationChartDrawer.ValueItem peer : peerValueItems) {
-                if (peer != null) peerTexts.add(peer.text);
+        if (customPhone) {
+            final boolean always = NotificationForwardingSettings.isStandardTextEnabled(prefs);
+            final long readingMillis = fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L;
+            // Periodic updates: text on the announcing post only, with the measurement
+            // time as its body (some watch apps skip notifications without one).
+            final boolean announce = !always && readingMillis > 0L
+                    && PeriodicGlucoseUpdates.claim(readingMillis, displayGlucoseValue);
+            if (always || announce) {
+                final java.util.ArrayList<CharSequence> peerTexts = new java.util.ArrayList<>();
+                for (NotificationChartDrawer.ValueItem peer : peerValueItems) {
+                    if (peer != null) peerTexts.add(peer.text);
+                }
+                standardTitle = GlucoseNotificationText.title(valueText, peerTexts, showArrow ? rate : Float.NaN);
             }
-            standardTitle = GlucoseNotificationText.title(valueText, peerTexts,
-                    app.getString(isMmol ? R.string.mmolL : R.string.mgdL), showArrow ? rate : Float.NaN);
-            standardText = newStatusText != null && newStatusText.length() > 0 ? newStatusText.toString() : null;
+            if (always) {
+                standardText = newStatusText != null && newStatusText.length() > 0 ? newStatusText.toString() : null;
+            } else if (announce) {
+                standardText = android.text.format.DateFormat.getTimeFormat(app)
+                        .format(new java.util.Date(readingMillis));
+            }
         }
 
         setIcon(GluNotBuilder, displayGlucoseValue, glucose.sensorgen2, peerValueItems);

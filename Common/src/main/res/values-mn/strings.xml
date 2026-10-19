@@ -3072,16 +3072,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
-    <string name="notification_forwarding_section">Нийцтэй байдал ба дамжуулалт</string>
-    <string name="notification_standard_text_title">Мэдэгдлийн стандарт текст</string>
-    <string name="notification_standard_text_desc">Утгыг мэдэгдлийн стандарт текстэд оруулна, бусад апп болон системийн функцэд зориулж. Зарим цагны апп тэгвэл шинэчлэл бүрийг дамжуулна.</string>
-    <string name="notification_standard_text_blocked_desc">Тогтмол глюкозын мэдэгдэл асаалттай үед унтраалттай: цагны апп зөвхөн тэдгээрийг авна.</string>
-    <string name="periodic_glucose_notifications_title">Тогтмол глюкозын мэдэгдэл</string>
-    <string name="periodic_glucose_notifications_desc">Одоогийн утгыг сонгосон интервалаар тусдаа мэдэгдлээр илгээх, утасны мэдэгдлийг дамжуулдаг цаг, бугуйвчинд зориулж. Дохиолол хэзээ ч хойшлогдохгүй.</string>
+    <string name="notification_forwarding_section">Цаг ба бугуйвч</string>
+    <string name="notification_standard_text_title">Мэдэгдлийн текстэд утга</string>
+    <string name="notification_standard_text_desc">Цагны апп шинэчлэл бүрийг дамжуулж болно</string>
+    <string name="periodic_glucose_notifications_title">Тогтмол шинэчлэл</string>
+    <string name="periodic_glucose_notifications_desc">Утгыг цагны апп руу интервалаар илгээх</string>
     <string name="periodic_glucose_interval_title">Интервал</string>
-    <string name="periodic_glucose_interval_note">Зөвхөн шинэ утга илгээгдэнэ, мэдрэгчийн хэмжилтээс илүү давтамжтай биш. Цаг тэдгээрийг харуулах эсэх нь түүний аппаас хамаарна.</string>
     <string name="periodic_glucose_interval_every">Утга бүр</string>
     <string name="periodic_glucose_interval_minutes">%1$d мин</string>
-    <string name="periodic_glucose_channel_name">Тогтмол глюкозын утга</string>
-    <string name="periodic_glucose_channel_desc">Мэдэгдлийн тохиргоонд сонгосон интервалаар одоогийн утга, цаг болон бугуйвчинд</string>
 </resources>

@@ -1,15 +1,12 @@
 package tk.glucodata
 
 import android.app.Application
-import android.app.Notification
-import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
 import org.junit.Before
@@ -106,68 +103,64 @@ class NotificationForwardingSettingsTests {
         assertEquals(1, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
-    @Test fun periodicNotificationIsAnOrdinaryReadingStampedNotification() {
-        // Phone feature: the Wear build never creates the channel or posts.
-        assumeFalse(Applic.isWearable)
-        val manager = app.getSystemService(NotificationManager::class.java)
-        PeriodicGlucoseNotifier.createChannel(app, manager)
-        val channel = manager.getNotificationChannel(PeriodicGlucoseNotifier.CHANNEL_ID)
-        assertNotNull(channel)
-        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, channel.importance)
-        assertNull("no sound of its own", channel.sound)
-        assertFalse(channel.shouldVibrate())
-
-        val readingAt = 1_760_000_000_000L
-        val notification = PeriodicGlucoseNotifier.builder(app, "9,0 mmol/L ↗", "Δ +0,2 · 12:40",
-            readingAt, readingAt + 60_000L, 330_000L)
-            .setSmallIcon(android.R.drawable.ic_dialog_info).build()
-        assertEquals(PeriodicGlucoseNotifier.CHANNEL_ID, notification.channelId)
-        assertEquals("9,0 mmol/L ↗", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
-        assertEquals("Δ +0,2 · 12:40", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
-        assertEquals("stamped with the measurement, not the post", readingAt, notification.`when`)
-        assertTrue(notification.extras.getBoolean(Notification.EXTRA_SHOW_WHEN))
-        assertEquals("removed when the reading turns stale", 270_000L, notification.timeoutAfter)
-        assertEquals(0, notification.flags and Notification.FLAG_ONLY_ALERT_ONCE)
-        assertEquals(0, notification.flags and Notification.FLAG_ONGOING_EVENT)
-        assertEquals(0, notification.flags and Notification.FLAG_FOREGROUND_SERVICE)
-        assertTrue(notification.category != Notification.CATEGORY_ALARM)
-        assertNull("dismissing it must not stop an alarm", notification.deleteIntent)
-        assertNull(notification.group)
+    private fun resetPeriodicState() {
+        app.getSharedPreferences("periodic_glucose_notification_state", Context.MODE_PRIVATE).edit().clear().commit()
+        PeriodicGlucoseUpdates::class.java.getDeclaredField("baselineReadingMillis")
+            .also { it.isAccessible = true }.setLong(null, 0L)
+        PeriodicGlucoseUpdates.onSettingChanged(false)
     }
 
-    @Test fun turningPeriodicOffCancelsTheOutstandingNotificationOnly() {
+    @Test fun periodicUpdatesAnnounceEachReadingOnceOnTheOngoingNotification() {
+        // Phone feature: the Wear build never announces.
         assumeFalse(Applic.isWearable)
-        val manager = app.getSystemService(NotificationManager::class.java)
-        PeriodicGlucoseNotifier.createChannel(app, manager)
-        val periodic = PeriodicGlucoseNotifier.builder(app, "9,0 mmol/L", "12:40", 1L, 1L, 330_000L)
-            .setSmallIcon(android.R.drawable.ic_dialog_info).build()
-        manager.notify(PeriodicGlucoseNotifier.NOTIFICATION_ID, periodic)
-        val alarm = Notification.Builder(app, PeriodicGlucoseNotifier.CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("LOW 3,1").build()
-        manager.notify(81432, alarm)
+        resetPeriodicState()
+        val now = System.currentTimeMillis()
+        assertFalse("off by default", PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
 
-        PeriodicGlucoseNotifier.onSettingChanged(false)
-        val handlerField = PeriodicGlucoseNotifier::class.java.getDeclaredField("handler").also { it.isAccessible = true }
-        shadowOf((handlerField.get(null) as android.os.Handler).looper).idle()
+        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertFalse("repaints of the same reading carry no text", PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertTrue("next reading", PeriodicGlucoseUpdates.claim(now - 10_000L, 5.6f))
 
-        assertNull(shadowOf(manager).getNotification(PeriodicGlucoseNotifier.NOTIFICATION_ID))
-        assertNotNull("alarms are left alone", shadowOf(manager).getNotification(81432))
-        assertEquals(1, shadowOf(manager).allNotifications.size)
+        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 5)
+        assertFalse("inside the interval", PeriodicGlucoseUpdates.claim(now, 5.7f))
+        assertFalse("never a stale reading", PeriodicGlucoseUpdates.claim(now - 400_000L, 5.7f))
+        assertFalse("never a non-value", PeriodicGlucoseUpdates.claim(now + 1_000L, 1.0f))
     }
 
-    @Test fun freshnessTimeoutNeverGoesBelowASecond() {
-        assertEquals(1_000L, PeriodicGlucoseNotifier.timeoutAfterMillis(0L, 400_000L, 330_000L))
-        assertEquals(330_000L, PeriodicGlucoseNotifier.timeoutAfterMillis(5_000L, 1_000L, 330_000L))
+    @Test fun switchingOnSendsTheCurrentReadingOnce() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        val now = System.currentTimeMillis()
+        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        PeriodicGlucoseUpdates.onSettingChanged(true)
+        assertTrue(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+        assertFalse(PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
+    }
+
+    @Test fun readingsFromBeforeProcessStartAndAlarmedReadingsAreNotAnnounced() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        val cached = System.currentTimeMillis() - 30_000L
+        PeriodicGlucoseUpdates.onProcessStart()
+        assertFalse("the stored reading is not new", PeriodicGlucoseUpdates.claim(cached, 5.5f))
+
+        val alarmed = System.currentTimeMillis() + 1_000L
+        PeriodicGlucoseUpdates.noteAlertNotificationPosted(alarmed)
+        assertFalse("the alarm already carried it", PeriodicGlucoseUpdates.claim(alarmed, 3.1f))
+        assertTrue(PeriodicGlucoseUpdates.claim(alarmed + 60_000L, 3.0f))
     }
 
     @Test fun everyLocaleTranslatesTheNewCopyWithTheSamePlaceholders() {
         val resDir = listOf("src/main/res", "Common/src/main/res").map(::File).first { it.isDirectory }
         val keys = listOf(
             "notification_forwarding_section", "notification_standard_text_title", "notification_standard_text_desc",
-            "notification_standard_text_blocked_desc", "periodic_glucose_notifications_title",
-            "periodic_glucose_notifications_desc", "periodic_glucose_interval_title", "periodic_glucose_interval_note",
-            "periodic_glucose_interval_every", "periodic_glucose_interval_minutes", "periodic_glucose_channel_name",
-            "periodic_glucose_channel_desc"
+            "periodic_glucose_notifications_title", "periodic_glucose_notifications_desc",
+            "periodic_glucose_interval_title", "periodic_glucose_interval_every", "periodic_glucose_interval_minutes"
         )
         fun value(file: File, key: String): String? =
             Regex("""<string name="$key"[^>]*>(.*?)</string>""").find(file.readText())?.groupValues?.get(1)

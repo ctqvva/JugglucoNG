@@ -2961,16 +2961,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB vengono inviati nel campo jugglucong di devicestatus, separatamente dall’IOB standard.</string>
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
-    <string name="notification_forwarding_section">Compatibilità e inoltro</string>
-    <string name="notification_standard_text_title">Testo standard della notifica</string>
-    <string name="notification_standard_text_desc">Mette il valore nel testo standard della notifica, per altre app e funzioni di sistema. Alcune app degli orologi inoltrano allora ogni aggiornamento.</string>
-    <string name="notification_standard_text_blocked_desc">Disattivato mentre le notifiche periodiche sono attive: le app degli orologi ricevono solo quelle.</string>
-    <string name="periodic_glucose_notifications_title">Notifiche periodiche della glicemia</string>
-    <string name="periodic_glucose_notifications_desc">Invia il valore attuale come notifica separata all\'intervallo scelto, per orologi e smartband che inoltrano le notifiche del telefono. Gli allarmi non vengono mai ritardati.</string>
+    <string name="notification_forwarding_section">Orologi e smartband</string>
+    <string name="notification_standard_text_title">Valore nel testo della notifica</string>
+    <string name="notification_standard_text_desc">Le app degli orologi possono inoltrare ogni aggiornamento</string>
+    <string name="periodic_glucose_notifications_title">Aggiornamenti periodici</string>
+    <string name="periodic_glucose_notifications_desc">Invia il valore alle app degli orologi a intervalli</string>
     <string name="periodic_glucose_interval_title">Intervallo</string>
-    <string name="periodic_glucose_interval_note">Vengono inviati solo valori nuovi, mai più spesso di quanto misura il sensore. Se l\'orologio li mostra dipende dalla sua app.</string>
     <string name="periodic_glucose_interval_every">Ogni valore</string>
     <string name="periodic_glucose_interval_minutes">%1$d min</string>
-    <string name="periodic_glucose_channel_name">Glicemia periodica</string>
-    <string name="periodic_glucose_channel_desc">Il valore attuale all\'intervallo scelto nelle impostazioni delle notifiche, per orologi e smartband</string>
 </resources>

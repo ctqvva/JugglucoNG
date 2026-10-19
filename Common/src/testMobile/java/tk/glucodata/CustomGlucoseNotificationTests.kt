@@ -248,10 +248,10 @@ class CustomGlucoseNotificationTests {
     @Test fun standardTextSettingAddsTitleAndTextBesideTheCustomViews() {
         val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
             .setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
-        val title = GlucoseNotificationText.title("5,7", listOf("5,5"), "mmol/L", 1.5f)
+        val title = GlucoseNotificationText.title("5,7", listOf("5,5"), 1.5f)
         CustomGlucoseNotification.apply(builder, title, "+0,2 · IOB 1,2", values(expanded = false), values())
         val notification = builder.build()
-        assertEquals("5,7 · 5,5 mmol/L \u2197", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("5,7 · 5,5 \u2197", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals("+0,2 · IOB 1,2", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         assertNotNull(notification.contentView)
         assertNotNull(notification.bigContentView)

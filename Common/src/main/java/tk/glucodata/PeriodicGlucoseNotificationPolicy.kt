@@ -4,7 +4,7 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * Decides whether a reading becomes a periodic glucose notification. Pure: the caller
+ * Decides whether a reading is announced as a periodic update. Pure: the caller
  * supplies the clocks, so restart, reboot and clock-change cases are testable.
  *
  * Sending is driven by readings, never by a timer: a reading is sent when it is new,

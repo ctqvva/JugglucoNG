@@ -2972,16 +2972,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB são enviados no campo jugglucong de devicestatus, separados da IOB padrão.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
-    <string name="notification_forwarding_section">Compatibilidade e reencaminhamento</string>
-    <string name="notification_standard_text_title">Texto padrão da notificação</string>
-    <string name="notification_standard_text_desc">Coloca a leitura no texto padrão da notificação, para outras apps e funções do sistema. Algumas apps de relógio reencaminham então cada atualização.</string>
-    <string name="notification_standard_text_blocked_desc">Desligado enquanto as notificações periódicas estão ligadas: as apps de relógio só recebem essas.</string>
-    <string name="periodic_glucose_notifications_title">Notificações periódicas de glicose</string>
-    <string name="periodic_glucose_notifications_desc">Enviar a leitura atual como notificação separada no intervalo escolhido, para relógios e pulseiras que reencaminham notificações do telefone. Os alarmes nunca são atrasados.</string>
+    <string name="notification_forwarding_section">Relógios e pulseiras</string>
+    <string name="notification_standard_text_title">Leitura no texto da notificação</string>
+    <string name="notification_standard_text_desc">As apps de relógio podem reencaminhar cada atualização</string>
+    <string name="periodic_glucose_notifications_title">Atualizações periódicas</string>
+    <string name="periodic_glucose_notifications_desc">Enviar a leitura às apps de relógio em intervalos</string>
     <string name="periodic_glucose_interval_title">Intervalo</string>
-    <string name="periodic_glucose_interval_note">Só são enviadas leituras novas, nunca mais vezes do que o sensor mede. Se o relógio as mostra depende da sua app.</string>
     <string name="periodic_glucose_interval_every">Cada leitura</string>
     <string name="periodic_glucose_interval_minutes">%1$d min</string>
-    <string name="periodic_glucose_channel_name">Glicose periódica</string>
-    <string name="periodic_glucose_channel_desc">A leitura atual no intervalo escolhido nas definições de notificação, para relógios e pulseiras</string>
 </resources>

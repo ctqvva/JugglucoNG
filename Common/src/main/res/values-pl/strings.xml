@@ -3013,16 +3013,12 @@
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
-    <string name="notification_forwarding_section">Zgodność i przekazywanie</string>
-    <string name="notification_standard_text_title">Standardowy tekst powiadomienia</string>
-    <string name="notification_standard_text_desc">Umieszcza odczyt w standardowym tekście powiadomienia, dla innych aplikacji i funkcji systemu. Niektóre aplikacje zegarków przekazują wtedy każdą aktualizację.</string>
-    <string name="notification_standard_text_blocked_desc">Wyłączone, gdy włączone są okresowe powiadomienia: aplikacje zegarków dostają tylko je.</string>
-    <string name="periodic_glucose_notifications_title">Okresowe powiadomienia o glukozie</string>
-    <string name="periodic_glucose_notifications_desc">Wysyłaj bieżący odczyt jako osobne powiadomienie w wybranym odstępie, dla zegarków i opasek przekazujących powiadomienia z telefonu. Alarmy nigdy nie są opóźniane.</string>
+    <string name="notification_forwarding_section">Zegarki i opaski</string>
+    <string name="notification_standard_text_title">Odczyt w tekście powiadomienia</string>
+    <string name="notification_standard_text_desc">Aplikacje zegarków mogą przekazywać każdą aktualizację</string>
+    <string name="periodic_glucose_notifications_title">Okresowe aktualizacje</string>
+    <string name="periodic_glucose_notifications_desc">Wysyłaj odczyt do aplikacji zegarków co wybrany czas</string>
     <string name="periodic_glucose_interval_title">Odstęp</string>
-    <string name="periodic_glucose_interval_note">Wysyłane są tylko nowe odczyty, nigdy częściej, niż mierzy sensor. Czy zegarek je pokaże, zależy od jego aplikacji.</string>
     <string name="periodic_glucose_interval_every">Każdy odczyt</string>
     <string name="periodic_glucose_interval_minutes">%1$d min</string>
-    <string name="periodic_glucose_channel_name">Okresowe odczyty glukozy</string>
-    <string name="periodic_glucose_channel_desc">Bieżący odczyt w odstępie wybranym w ustawieniach powiadomień, dla zegarków i opasek</string>
 </resources>
