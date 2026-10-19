@@ -175,10 +175,13 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   record is available" trigger — which is how the vendor app treats it (it requests history seconds
   after receiving one). One CN `iCGM-t3` field report looked different (plausible values), so the
   field's semantics may be variant-specific — issue #676 tracks the open decision and the
-  live-vs-history comparison that resolves it.
-* Our driver currently decrypts this frame with AES/ECB. That happens to preserve the glucose field
-  (the IV only touches bytes 1/6/10/15) but corrupts the parsed `statusByte` and `currentValue`, and
-  makes the logged "flags" byte `0x80 ⊕ challenge[0]`. See issue #676.
+  live-vs-history comparison that resolves it. The driver now compares live and history raw values
+  at the same sequence number, classifies each sensor (`VERIFIED_GLUCOSE` / `TRIGGER_ONLY` /
+  `UNKNOWN`) and stops publishing live values for `TRIGGER_ONLY` sensors (PR #683).
+* The driver used to decrypt this frame with AES/ECB — that happened to preserve the glucose field
+  (the IV only touches bytes 1/6/10/15) but corrupted the parsed `statusByte` and `currentValue`, and
+  made the logged "flags" byte `0x80 ⊕ challenge[0]`. Fixed to CBC/PKCS7 in PR #683, with captured
+  vectors as regression tests (see also the semantics note below).
 
 ## 6. Provisioning: `correctCode`, and what a refused history request means
 
@@ -275,10 +278,10 @@ original-history key and an auth key (`DEFAULT_{OLD,NEW}_{GLUCOSE,ORIGINAL_HISTO
 * Everything encrypted in a session uses **AES-128-CBC/PKCS7** with a 16-byte IV built from the
   session challenge: the four challenge bytes go to IV positions 1, 6, 10 and 15, everything else is
   zero (`ICanHealthParser.buildAuthIv`).
-* The IV layout is why an ECB decrypt still yields the right glucose (bytes 2–5 of the record are
+* The IV layout is why an ECB decrypt still yielded the right glucose (bytes 2–5 of the record are
   unaffected) — do not read that as evidence that ECB is correct anywhere in this protocol.
-  `ICanHealthConstants` still carries an outdated header comment claiming "glucose payloads:
-  AES-128-ECB"; it should say CBC/PKCS7 (tracked in #676).
+  `ICanHealthConstants` carried an outdated header comment claiming "glucose payloads:
+  AES-128-ECB"; corrected to CBC/PKCS7 in PR #683 (tracked in #676).
 * Encryption direction (auth token, F2/F7 writes) is CBC/PKCS7 too
   (`ICanHealthCrypto.encryptCbcPkcs7`).
 
