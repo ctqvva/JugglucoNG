@@ -366,6 +366,19 @@ object ICanHealthConstants {
     /** 0xFC: Fingerstick calibration write */
     const val CALIBRATION_OPCODE: Byte = 0xFC.toByte()
 
+    /** F2: correctCode calibration-table chunk write (vendor "CORRECT_COMMAND_CODE_F2"). */
+    const val CORRECT_CODE_CHUNK_OPCODE: Byte = 0xF2.toByte()
+
+    /** F7: commit the correctCode calibration table (vendor "CORRECT_COMMAND_CODE_F7"). */
+    const val CORRECT_CODE_COMMIT_OPCODE: Byte = 0xF7.toByte()
+
+    /**
+     * Value the F6 sensor-info answer reports while no calibration table is
+     * stored. A fresh sensor started by this driver answers exactly this;
+     * 500/510/530/600 were observed once the vendor app had written one.
+     */
+    const val CORRECT_CODE_ABSENT_VALUE = 0xFFFF
+
     const val LAUNCHER_STATE_IDLE = 0x00
     const val LAUNCHER_STATE_WARMUP = 0x01
     const val LAUNCHER_STATE_ENDED = 0x40

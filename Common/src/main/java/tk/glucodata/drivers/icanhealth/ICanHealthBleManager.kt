@@ -191,6 +191,16 @@ class ICanHealthBleManager(
     @Volatile private var currentSequenceObservedAtMs = 0L
     @Volatile private var launcherState = -1
     @Volatile private var lastAuthChallenge: ByteArray? = null
+    // Full payload of the F3 answer (the vendor SDK's "random command code"),
+    // which is the key material for the correctCode write path. The 4-byte
+    // challenge alone stays in lastAuthChallenge for the existing auth flow.
+    @Volatile private var lastF3Payload: ByteArray? = null
+    // Experimental correctCode state, per connection: whether the last F6 read
+    // reported 0xFFFF, whether a write batch is awaiting its read-back, and how
+    // many batches were sent (see ICanHealthCorrectCode.MAX_WRITE_ATTEMPTS_PER_CONNECTION).
+    @Volatile private var correctCodeAbsentSeen = false
+    @Volatile private var correctCodeWriteIssued = false
+    @Volatile private var correctCodeWriteAttempts = 0
     @Volatile private var serialFromDevice: String? = null
     @Volatile private var rawSerialFromDevice: String? = null
     @Volatile private var onboardingDeviceSn: String? = null
@@ -1300,6 +1310,10 @@ class ICanHealthBleManager(
                 pendingHistoryBackfillReason = null
                 pendingHistoryBatch.clear()
                 lastAuthChallenge = null
+                lastF3Payload = null
+                correctCodeAbsentSeen = false
+                correctCodeWriteIssued = false
+                correctCodeWriteAttempts = 0
                 receivedGlucoseThisConnection = false
                 currentSequenceObservedAtMs = 0L
                 startCommandIssuedThisConnection = false
@@ -1557,6 +1571,7 @@ class ICanHealthBleManager(
                         TAG,
                         "CGM status offset=$observedSequence launcherState=0x${"%02X".format(launcherState)}"
                     )
+                    maybeProvisionCorrectCodeOnIdleStatus()
                 }
                 if (awaitingFreshStatusForHistoryBackfill) {
                     continuePendingHistoryBackfill("after fresh status read")
@@ -2153,6 +2168,7 @@ class ICanHealthBleManager(
             ICanHealthParser.isChallengeResponse(data) -> {
                 val challenge = ICanHealthParser.extractChallenge(data) ?: return
                 lastAuthChallenge = challenge.copyOf()
+                lastF3Payload = data.copyOfRange(3, data.size)
                 val authKeyAscii = ICanHealthConstants.resolveBundledAuthKey(
                     resolveBundledKeySelector(),
                     vendorSoftwareVersion
@@ -2303,7 +2319,22 @@ class ICanHealthBleManager(
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
                 Log.i(TAG, "Sensor info: ${data.toHexString()}")
+                maybeProvisionCorrectCode(data)
                 startPostAuthSetup("sensor-info")
+            }
+
+            data.getOrNull(1) == ICanHealthConstants.CORRECT_CODE_CHUNK_OPCODE ||
+                data.getOrNull(1) == ICanHealthConstants.CORRECT_CODE_COMMIT_OPCODE -> {
+                // Acks for the experimental correctCode writes. Logged only from
+                // the gated path; the flag can never be on in a shipped build.
+                if (ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+                    Log.i(
+                        TAG,
+                        "correctCode vendor ack opcode=0x${"%02X".format(data[1])} " +
+                            "status=0x${"%02X".format(data.getOrElse(2) { 0 }.toInt() and 0xFF)} " +
+                            "hex=${data.toHexString()}"
+                    )
+                }
             }
 
             else -> {
@@ -2314,6 +2345,114 @@ class ICanHealthBleManager(
                 }
             }
         }
+    }
+
+    /**
+     * Experimental correctCode write path — debug-gated, off by default.
+     *
+     * Called for every F6 answer. With the vendor table absent (0xFFFF) it
+     * remembers that fact and lets [tryProvisionCorrectCode] decide; with a table
+     * present it logs the value and, if a write had been issued, says so — that
+     * read-back is the only oracle for the unknown wire framing.
+     */
+    private fun maybeProvisionCorrectCode(sensorInfo: ByteArray) {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        val f6Value = ICanHealthCorrectCode.parseF6Value(sensorInfo)
+        if (f6Value == null) {
+            Log.w(TAG, "correctCode: F6 answer not parseable ${sensorInfo.toHexString()}")
+            return
+        }
+        if (f6Value == ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE) {
+            correctCodeAbsentSeen = true
+            if (correctCodeWriteIssued) {
+                Log.w(
+                    TAG,
+                    "correctCode F6 read-back still 0xFFFF after attempt $correctCodeWriteAttempts — " +
+                        "framing/layout did not take"
+                )
+                correctCodeWriteIssued = false
+            } else {
+                Log.i(TAG, "correctCode F6=0xFFFF (no table), attempts=$correctCodeWriteAttempts")
+            }
+            tryProvisionCorrectCode("sensor-info")
+        } else {
+            val wasIssued = correctCodeWriteIssued
+            correctCodeAbsentSeen = false
+            correctCodeWriteIssued = false
+            Log.i(
+                TAG,
+                "correctCode F6=0x${"%04X".format(f6Value)} — table present" +
+                    if (wasIssued) " (write confirmed by F6 read-back)" else ""
+            )
+        }
+    }
+
+    /**
+     * The sensor became idle after its status was read, but the F6 answer that
+     * reported 0xFFFF may have arrived before that state was known. Retry the
+     * decision once the idle state is actually observed.
+     */
+    private fun maybeProvisionCorrectCodeOnIdleStatus() {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        if (!correctCodeAbsentSeen || correctCodeWriteIssued) {
+            return
+        }
+        if (launcherState != ICanHealthConstants.LAUNCHER_STATE_IDLE) {
+            return
+        }
+        tryProvisionCorrectCode("status-idle")
+    }
+
+    /**
+     * Issue one correctCode write batch if every gate agrees, then request the
+     * F6 read-back. Bounded by
+     * [ICanHealthCorrectCode.MAX_WRITE_ATTEMPTS_PER_CONNECTION]; the write itself
+     * lives in [ICanHealthCorrectCode.planCorrectCodeWrite], which never builds
+     * F2/F7 for a sensor that already reports a table.
+     */
+    private fun tryProvisionCorrectCode(reason: String) {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        if (!correctCodeAbsentSeen || correctCodeWriteIssued) {
+            return
+        }
+        val table = ICanHealthCorrectCode.parseCorrectCodeTable(ICanHealthCorrectCode.TEST_CORRECT_CODE_JSON)
+        val key = ICanHealthCorrectCode.buildCorrectCodeKey(lastF3Payload ?: lastAuthChallenge)
+        val iv = lastAuthChallenge?.let { ICanHealthParser.buildAuthIv(it) }
+        val plan = ICanHealthCorrectCode.planCorrectCodeWrite(
+            f6Value = ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE,
+            isAuthenticated = isAuthenticated,
+            launcherState = launcherState,
+            attemptsUsed = correctCodeWriteAttempts,
+            table = table,
+            key = key,
+            iv = iv,
+            versionFlag = ICanHealthExperimental.CORRECT_CODE_WRITE_VERSION_FLAG,
+            layout = ICanHealthExperimental.CORRECT_CODE_WRITE_LAYOUT,
+        ) ?: return
+        correctCodeWriteIssued = true
+        correctCodeWriteAttempts++
+        Log.i(
+            TAG,
+            "correctCode WRITE attempt $correctCodeWriteAttempts/" +
+                "${ICanHealthCorrectCode.MAX_WRITE_ATTEMPTS_PER_CONNECTION} " +
+                "trigger=$reason layout=${ICanHealthExperimental.CORRECT_CODE_WRITE_LAYOUT} " +
+                "versionFlag=${ICanHealthExperimental.CORRECT_CODE_WRITE_VERSION_FLAG} " +
+                "packets=${plan.writePackets.size} commit=${plan.commitPacket.toHexString()}"
+        )
+        plan.writePackets.forEachIndexed { index, packet ->
+            Log.i(TAG, "WIRE tx correctCode F2[$index] ${packet.size}B ${packet.toHexString()}")
+            enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, packet))
+        }
+        enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, plan.commitPacket))
+        // The hardware oracle: read F6 again and let maybeProvisionCorrectCode log the outcome.
+        enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, ICanHealthConstants.CMD_REQUEST_SENSOR_INFO))
+        drainGattQueue()
     }
 
     private fun resolveAuthUserId(): String {
@@ -4189,6 +4328,10 @@ class ICanHealthBleManager(
         pendingHistoryBackfillReason = null
         pendingHistoryBatch.clear()
         lastAuthChallenge = null
+        lastF3Payload = null
+        correctCodeAbsentSeen = false
+        correctCodeWriteIssued = false
+        correctCodeWriteAttempts = 0
         authRetryCount = 0
         receivedGlucoseThisConnection = false
         currentSequenceObservedAtMs = 0L
