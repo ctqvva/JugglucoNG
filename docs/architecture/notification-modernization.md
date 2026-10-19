@@ -81,9 +81,9 @@ keep their standard text, so alarms still reach the watch.
 
 The Watch settings screen now lets the user choose what listener apps can read:
 a "Via phone notifications" section between Transport and Wear OS. Its
-"Notification mode" row opens a menu (Standard Android, Alarms only, Every new
+"Notification mode" row opens the usual single-choice dialog (Standard Android, Alarms only, Every new
 reading, At an interval; `NotificationForwardingSettings.MODE_CHOICES`). At an
-interval adds an "Interval" row below it with a 3/5/10-minute menu. A choice
+interval adds an "Interval" row below it with its own 3/5/10-minute dialog. A choice
 applies at once; both rows store one `NotificationForwardingSettings.mode`, and
 choosing At an interval again brings back the last interval. The screen's help
 explains the modes. Alarms only is the 1.2.5 behaviour. Every mode works only through the standard

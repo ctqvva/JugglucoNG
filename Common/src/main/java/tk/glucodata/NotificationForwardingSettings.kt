@@ -15,7 +15,7 @@ import android.content.SharedPreferences
  *   refreshes of the notification stay without text.
  *
  * The user picks one [mode]: standard text on every post would defeat the interval. The
- * settings screen splits it in two menus: the [MODE_CHOICES] and, for [MODE_INTERVAL],
+ * settings screen splits it in two pickers: the [MODE_CHOICES] and, for [MODE_INTERVAL],
  * the [INTERVAL_CHOICES].
  * Alarm notifications are not affected by either setting.
  */
@@ -37,11 +37,11 @@ object NotificationForwardingSettings {
     /** Stands for whichever interval is chosen; [mode] reports the minutes instead. */
     const val MODE_INTERVAL = -2
 
-    /** The mode menu, in order. */
+    /** The mode picker, in order. */
     @JvmField
     val MODE_CHOICES = intArrayOf(MODE_STANDARD_TEXT, MODE_OFF, MODE_EVERY_READING, MODE_INTERVAL)
 
-    /** The interval menu: every interval except the 1-minute one, which is [MODE_EVERY_READING]. */
+    /** The interval picker: every interval except the 1-minute one, which is [MODE_EVERY_READING]. */
     @JvmField
     val INTERVAL_CHOICES = INTERVAL_OPTIONS.filter { it > MODE_EVERY_READING }.toIntArray()
 
@@ -110,12 +110,12 @@ object NotificationForwardingSettings {
     @JvmStatic
     fun mode(context: Context): Int = mode(prefs(context))
 
-    /** The mode menu entry for [mode]. */
+    /** The mode picker option for [mode]. */
     @JvmStatic
     fun choice(mode: Int): Int = if (mode in INTERVAL_CHOICES) MODE_INTERVAL else mode
 
     /**
-     * The mode a menu entry selects. [MODE_INTERVAL] brings back the last interval chosen,
+     * The mode a picker option selects. [MODE_INTERVAL] brings back the last interval chosen,
      * or the default when the stored one is every new reading.
      */
     @JvmStatic

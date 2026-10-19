@@ -96,7 +96,7 @@ class NotificationForwardingSettingsTests {
         assertEquals("the interval is remembered", 3, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
-    @Test fun theModeMenuKeepsEveryNewReadingApartFromTheIntervals() {
+    @Test fun theModePickerKeepsEveryNewReadingApartFromTheIntervals() {
         val settings = NotificationForwardingSettings
         assertEquals(listOf(settings.MODE_STANDARD_TEXT, settings.MODE_OFF, settings.MODE_EVERY_READING, settings.MODE_INTERVAL),
             settings.MODE_CHOICES.toList())
@@ -117,7 +117,7 @@ class NotificationForwardingSettingsTests {
         settings.setMode(app, settings.MODE_OFF)
         assertEquals(10, settings.modeForChoice(app, settings.MODE_INTERVAL))
 
-        // Every new reading is stored as the 1-minute interval, which the interval menu does not offer.
+        // Every new reading is stored as the 1-minute interval, which the interval picker does not offer.
         settings.setMode(app, settings.MODE_EVERY_READING)
         assertEquals(5, settings.modeForChoice(app, settings.MODE_INTERVAL))
 

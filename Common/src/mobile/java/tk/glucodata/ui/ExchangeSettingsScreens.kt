@@ -66,8 +66,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -119,7 +119,6 @@ import tk.glucodata.WearSensorClaimState
 import tk.glucodata.WearSensorClaimStatus
 import tk.glucodata.watchdrip
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.DropdownSettingsCard
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
@@ -139,8 +138,8 @@ fun WatchSettingsScreen(navController: NavController) {
     var wearOsEnabled by rememberSaveable { mutableStateOf(WatchInterop.isWearOsEnabled()) }
     var kerfstokEnabled by rememberSaveable { mutableStateOf(Natives.getusegarmin()) }
     var forwardingMode by rememberSaveable { mutableIntStateOf(NotificationForwardingSettings.mode(context)) }
-    var forwardingMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    var intervalMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    var showForwardingModeDialog by rememberSaveable { mutableStateOf(false) }
+    var showForwardingIntervalDialog by rememberSaveable { mutableStateOf(false) }
     val applyForwardingMode: (Int) -> Unit = { mode ->
         if (mode != forwardingMode) {
             forwardingMode = mode
@@ -241,53 +240,25 @@ fun WatchSettingsScreen(navController: NavController) {
                 val forwardingChoice = NotificationForwardingSettings.choice(forwardingMode)
                 val intervalChosen = forwardingChoice == NotificationForwardingSettings.MODE_INTERVAL
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    DropdownSettingsCard(
+                    SettingsItem(
                         title = stringResource(R.string.watch_forwarding_title),
-                        value = watchForwardingChoiceLabel(forwardingChoice),
+                        subtitle = watchForwardingChoiceLabel(forwardingChoice),
                         icon = Icons.AutoMirrored.Filled.Send,
                         iconTint = MaterialTheme.colorScheme.tertiary,
                         position = if (intervalChosen) CardPosition.TOP else CardPosition.SINGLE,
                         animatePosition = true,
-                        expanded = forwardingMenuExpanded,
-                        onExpandedChange = { forwardingMenuExpanded = it }
-                    ) {
-                        val choices = NotificationForwardingSettings.MODE_CHOICES
-                        choices.forEachIndexed { index, choice ->
-                            SelectableDropdownMenuItem(
-                                selected = choice == forwardingChoice,
-                                shapes = MenuDefaults.itemShape(index, choices.size),
-                                text = { Text(watchForwardingChoiceLabel(choice)) },
-                                onClick = {
-                                    forwardingMenuExpanded = false
-                                    applyForwardingMode(NotificationForwardingSettings.modeForChoice(context, choice))
-                                }
-                            )
-                        }
-                    }
+                        onClick = { showForwardingModeDialog = true }
+                    )
                     if (intervalChosen) {
-                        DropdownSettingsCard(
+                        SettingsItem(
                             title = stringResource(R.string.watch_forwarding_interval_title),
-                            value = pluralStringResource(R.plurals.watch_forwarding_minutes, forwardingMode, forwardingMode),
+                            subtitle = pluralStringResource(R.plurals.watch_forwarding_minutes, forwardingMode, forwardingMode),
                             icon = Icons.Default.Timer,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             position = CardPosition.BOTTOM,
                             animatePosition = true,
-                            expanded = intervalMenuExpanded,
-                            onExpandedChange = { intervalMenuExpanded = it }
-                        ) {
-                            val intervals = NotificationForwardingSettings.INTERVAL_CHOICES
-                            intervals.forEachIndexed { index, minutes ->
-                                SelectableDropdownMenuItem(
-                                    selected = minutes == forwardingMode,
-                                    shapes = MenuDefaults.itemShape(index, intervals.size),
-                                    text = { Text(pluralStringResource(R.plurals.watch_forwarding_minutes, minutes, minutes)) },
-                                    onClick = {
-                                        intervalMenuExpanded = false
-                                        applyForwardingMode(minutes)
-                                    }
-                                )
-                            }
-                        }
+                            onClick = { showForwardingIntervalDialog = true }
+                        )
                     }
                 }
             }
@@ -378,6 +349,33 @@ fun WatchSettingsScreen(navController: NavController) {
 
         }
     }
+    if (showForwardingModeDialog) {
+        val choice = NotificationForwardingSettings.choice(forwardingMode)
+        WatchForwardingPickerDialog(
+            title = stringResource(R.string.watch_forwarding_title),
+            options = NotificationForwardingSettings.MODE_CHOICES.map { watchForwardingChoiceLabel(it) to it },
+            selected = choice,
+            onSelect = {
+                showForwardingModeDialog = false
+                applyForwardingMode(NotificationForwardingSettings.modeForChoice(context, it))
+            },
+            onDismiss = { showForwardingModeDialog = false }
+        )
+    }
+    if (showForwardingIntervalDialog) {
+        WatchForwardingPickerDialog(
+            title = stringResource(R.string.watch_forwarding_interval_title),
+            options = NotificationForwardingSettings.INTERVAL_CHOICES.map {
+                pluralStringResource(R.plurals.watch_forwarding_minutes, it, it) to it
+            },
+            selected = forwardingMode,
+            onSelect = {
+                showForwardingIntervalDialog = false
+                applyForwardingMode(it)
+            },
+            onDismiss = { showForwardingIntervalDialog = false }
+        )
+    }
     if (showHelp) {
         InAppHelpDialog(
             title = stringResource(R.string.watches),
@@ -401,6 +399,53 @@ private fun watchForwardingChoiceLabel(choice: Int): String = stringResource(
         else -> R.string.watch_forwarding_alarms_only
     }
 )
+
+@Composable
+private fun WatchForwardingPickerDialog(
+    title: String,
+    options: List<Pair<String, Int>>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                options.forEach { (label, value) ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable { onSelect(value) }
+                            .padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = selected == value, onClick = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun WearOsConfigScreen(navController: NavController) {

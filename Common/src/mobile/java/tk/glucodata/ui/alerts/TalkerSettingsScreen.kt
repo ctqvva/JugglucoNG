@@ -95,7 +95,6 @@ import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.DropdownSettingsCard
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
@@ -593,6 +592,38 @@ private fun SummaryTag(text: String) {
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
+    }
+}
+
+@Composable
+private fun DropdownSettingsCard(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    iconTint: Color,
+    position: CardPosition,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    Box {
+        SettingsItem(
+            title = title,
+            subtitle = value,
+            onClick = if (enabled) ({ onExpandedChange(true) }) else null,
+            icon = icon,
+            iconTint = iconTint,
+            position = position
+        )
+        DropdownMenuPopup(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) }
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                content()
+            }
+        }
     }
 }
 

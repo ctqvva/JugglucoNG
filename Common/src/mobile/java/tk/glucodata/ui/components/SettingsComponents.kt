@@ -307,41 +307,6 @@ fun SettingsItem(
     }
 }
 
-/** A settings row whose value is picked from a menu that opens on the row itself. */
-@Composable
-fun DropdownSettingsCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    iconTint: Color,
-    position: CardPosition,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    enabled: Boolean = true,
-    animatePosition: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    Box {
-        SettingsItem(
-            title = title,
-            subtitle = value,
-            onClick = if (enabled) ({ onExpandedChange(true) }) else null,
-            icon = icon,
-            iconTint = iconTint,
-            position = position,
-            animatePosition = animatePosition
-        )
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
-        ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
-                content()
-            }
-        }
-    }
-}
-
 /**
  * A row that does two jobs: the body opens a screen, the switch turns the feature off
  * without going there. The chevron marks that split, and that is the only thing it is
