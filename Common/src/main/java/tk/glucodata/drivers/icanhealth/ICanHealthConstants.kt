@@ -366,6 +366,20 @@ object ICanHealthConstants {
     /** 0xFC: Fingerstick calibration write */
     const val CALIBRATION_OPCODE: Byte = 0xFC.toByte()
 
+    /** F2: correctCode calibration-table chunk write (vendor "CORRECT_COMMAND_CODE_F2"). */
+    const val CORRECT_CODE_CHUNK_OPCODE: Byte = 0xF2.toByte()
+
+    /** F7: commit the correctCode calibration table (vendor "CORRECT_COMMAND_CODE_F7"). */
+    const val CORRECT_CODE_COMMIT_OPCODE: Byte = 0xF7.toByte()
+
+    /**
+     * Value the F6 sensor-info answer reports while no calibration table is
+     * stored. A fresh sensor started by this driver answers exactly this;
+     * 500/510/530/570/600 were observed once a vendor or vendor-provisioned
+     * device had written one (570 = `1C F6 01 3A 02` from a provisioned iCGM-t3).
+     */
+    const val CORRECT_CODE_ABSENT_VALUE = 0xFFFF
+
     const val LAUNCHER_STATE_IDLE = 0x00
     const val LAUNCHER_STATE_WARMUP = 0x01
     const val LAUNCHER_STATE_ENDED = 0x40
@@ -829,6 +843,15 @@ object ICanHealthConstants {
 
     /** Preference key prefix for auto-recovered userId from F4 rejection (per-sensor) */
     const val PREF_RECOVERED_USER_ID_PREFIX = "icanhealth_recovered_user_id_"
+
+    /**
+     * Preference key prefix for the one-shot correctCode write record (per-sensor).
+     *
+     * Set when an experimental correctCode batch is sent, so a serial is written
+     * to at most once ever — across reconnects and app updates. Cleared only by
+     * a deliberate developer reset (ICanHealthExperimental.resetWriteAttempt).
+     */
+    const val PREF_CORRECT_CODE_ATTEMPTED_PREFIX = "icanhealth_correct_code_attempted_"
 
     /** Legacy preference key prefix for "skip unknown vendor auth" caching */
     const val PREF_AUTH_BYPASS_UNTIL_PREFIX = "icanhealth_auth_bypass_until_"

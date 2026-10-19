@@ -60,6 +60,13 @@ class ICanHealthBleManager(
 
         private const val GATT_OP_TIMEOUT_MS = 10_000L
         private const val MTU_REQUEST_TIMEOUT_MS = 12_000L
+        // How long to wait for the post-batch F6 read-back before declaring the
+        // correctCode transaction over with an unknown vendor-level outcome.
+        private const val CORRECT_CODE_READBACK_TIMEOUT_MS = 15_000L
+        // Stand-in GATT status for a correctCode write that never produced a
+        // callback (refused at dispatch or timed out); any non-zero value aborts
+        // the batch like a real failure.
+        private const val CORRECT_CODE_WRITE_FAILED = -1
         private const val TARGET_MTU = 517
         private const val MIN_VENDOR_HISTORY_MTU = 247
         private const val RECONNECT_ALARM_MIN_DELAY_MS = 10_000L
@@ -129,6 +136,22 @@ class ICanHealthBleManager(
     private val handlerThread = HandlerThread("iCan-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
 
+    /**
+     * Why a write is on the queue, so its GATT callback can be routed.
+     *
+     * `onCharacteristicWrite` only reports the characteristic, and every vendor
+     * op in this driver shares 0x2AAC, so a callback cannot be attributed by
+     * looking at it. The role is recorded when the write is dispatched and read
+     * back when the callback arrives; the queue is strictly serial, so at most
+     * one role is in flight.
+     */
+    private enum class WriteRole {
+        PLAIN,
+        CORRECT_CODE_CHUNK,
+        CORRECT_CODE_COMMIT,
+        CORRECT_CODE_READBACK,
+    }
+
     private sealed class GattOp {
         data class EnableNotify(val charUuid: UUID) : GattOp()
         data class EnableIndicate(val charUuid: UUID) : GattOp()
@@ -136,6 +159,7 @@ class ICanHealthBleManager(
             val charUuid: UUID,
             val data: ByteArray,
             val serviceUuid: UUID = ICanHealthConstants.CGM_SERVICE,
+            val role: WriteRole = WriteRole.PLAIN,
         ) : GattOp()
         data class Read(
             val charUuid: UUID,
@@ -145,6 +169,7 @@ class ICanHealthBleManager(
 
     private val gattQueue = ArrayDeque<GattOp>()
     @Volatile private var gattOpActive = false
+    @Volatile private var activeWriteRole = WriteRole.PLAIN
 
     private var cgmService: BluetoothGattService? = null
     private var disService: BluetoothGattService? = null
@@ -191,6 +216,19 @@ class ICanHealthBleManager(
     @Volatile private var currentSequenceObservedAtMs = 0L
     @Volatile private var launcherState = -1
     @Volatile private var lastAuthChallenge: ByteArray? = null
+    // Full F3 notification (`06 F3 01 <challenge>`). The vendor SDK's j2.java
+    // case 243 keeps the whole value and hands it to the native chunker as the
+    // correctCode key *input*; only the 4-byte challenge stays in
+    // lastAuthChallenge for the existing auth flow.
+    @Volatile private var lastF3Notification: ByteArray? = null
+    // Experimental correctCode state: whether this connection's last F6 answer
+    // reported 0xFFFF, plus the one in-flight batch and its plan. The one-shot
+    // per-serial attempt record is persisted (see ICanHealthExperimental), not
+    // kept here.
+    @Volatile private var correctCodeAbsentSeen = false
+    @Volatile private var correctCodeBatch: CorrectCodeBatch? = null
+    @Volatile private var correctCodeBatchPlan: CorrectCodePlan? = null
+    @Volatile private var correctCodeBatchReason: String = ""
     @Volatile private var serialFromDevice: String? = null
     @Volatile private var rawSerialFromDevice: String? = null
     @Volatile private var onboardingDeviceSn: String? = null
@@ -329,10 +367,30 @@ class ICanHealthBleManager(
                 Log.w(TAG, "GATT op timeout — forcing queue drain")
                 gattOpActive = false
                 handler.removeCallbacks(this)
+                // A correctCode write that never got its callback is a failed
+                // write, not an absent one: the batch must not hang waiting for
+                // an ack that will never come, nor commit after a partial send.
+                failCorrectCodeInFlightOp("timeout")
                 drainGattQueue()
                 maybeHandleQueueDrained()
             }
         }
+    }
+
+    /**
+     * The post-batch F6 read-back never arrived. The transaction ends with its
+     * GATT-level record intact and the vendor-level outcome unknown; it is never
+     * declared complete off the silence.
+     */
+    private val correctCodeReadbackTimeoutRunnable = Runnable {
+        val batch = correctCodeBatch ?: return@Runnable
+        if (batch.phase != CorrectCodeBatch.Phase.READBACK) return@Runnable
+        Log.w(
+            TAG,
+            "correctCode transaction incomplete: no F6 read-back within " +
+                "${CORRECT_CODE_READBACK_TIMEOUT_MS}ms (${batch.gattOutcomeSummary()})"
+        )
+        finishCorrectCodeTransaction(null)
     }
 
     private data class ReconnectPlan(
@@ -1300,6 +1358,9 @@ class ICanHealthBleManager(
                 pendingHistoryBackfillReason = null
                 pendingHistoryBatch.clear()
                 lastAuthChallenge = null
+                lastF3Notification = null
+                correctCodeAbsentSeen = false
+                clearCorrectCodeBatchState("disconnected")
                 receivedGlucoseThisConnection = false
                 currentSequenceObservedAtMs = 0L
                 startCommandIssuedThisConnection = false
@@ -1557,6 +1618,7 @@ class ICanHealthBleManager(
                         TAG,
                         "CGM status offset=$observedSequence launcherState=0x${"%02X".format(launcherState)}"
                     )
+                    maybeProvisionCorrectCodeOnIdleStatus()
                 }
                 if (awaitingFreshStatusForHistoryBackfill) {
                     continuePendingHistoryBackfill("after fresh status read")
@@ -1678,6 +1740,18 @@ class ICanHealthBleManager(
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "Write failed for ${characteristic.uuid} status=$status")
+        }
+        // Route by the role recorded at dispatch: all vendor writes share one
+        // characteristic, so the bytes alone cannot identify the operation.
+        when (activeWriteRole) {
+            WriteRole.CORRECT_CODE_CHUNK -> onCorrectCodeChunkWriteResult(status)
+            WriteRole.CORRECT_CODE_COMMIT -> onCorrectCodeCommitWriteResult(status)
+            WriteRole.CORRECT_CODE_READBACK -> {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    correctCodeBatch?.onReadbackRequestWritten()
+                }
+            }
+            WriteRole.PLAIN -> Unit
         }
         finishGattOp()
     }
@@ -2153,6 +2227,10 @@ class ICanHealthBleManager(
             ICanHealthParser.isChallengeResponse(data) -> {
                 val challenge = ICanHealthParser.extractChallenge(data) ?: return
                 lastAuthChallenge = challenge.copyOf()
+                // The whole notification, header included: that is what the
+                // vendor SDK keeps (j2.java case 243) as the correctCode key
+                // input, not the 4-byte challenge the auth path consumes.
+                lastF3Notification = data.copyOf()
                 val authKeyAscii = ICanHealthConstants.resolveBundledAuthKey(
                     resolveBundledKeySelector(),
                     vendorSoftwareVersion
@@ -2303,7 +2381,22 @@ class ICanHealthBleManager(
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
                 Log.i(TAG, "Sensor info: ${data.toHexString()}")
+                maybeProvisionCorrectCode(data)
                 startPostAuthSetup("sensor-info")
+            }
+
+            data.getOrNull(1) == ICanHealthConstants.CORRECT_CODE_CHUNK_OPCODE ||
+                data.getOrNull(1) == ICanHealthConstants.CORRECT_CODE_COMMIT_OPCODE -> {
+                // Acks for the experimental correctCode writes. Logged only from
+                // the gated path; the flag can never be on in a shipped build.
+                if (ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+                    Log.i(
+                        TAG,
+                        "correctCode vendor ack opcode=0x${"%02X".format(data[1])} " +
+                            "status=0x${"%02X".format(data.getOrElse(2) { 0 }.toInt() and 0xFF)} " +
+                            "hex=${data.toHexString()}"
+                    )
+                }
             }
 
             else -> {
@@ -2314,6 +2407,333 @@ class ICanHealthBleManager(
                 }
             }
         }
+    }
+
+    /**
+     * Experimental correctCode write path — debug-gated, off by default.
+     *
+     * Called for every F6 answer. With no batch in flight, F6 = 0xFFFF only arms
+     * [tryProvisionCorrectCode]. With a batch waiting for its read-back, the
+     * answer IS the vendor-level outcome and completes the transaction. The F6
+     * value is kept apart from the GATT-level result everywhere: the sensor never
+     * acknowledges the table directly, so the read-back is the only oracle.
+     */
+    private fun maybeProvisionCorrectCode(sensorInfo: ByteArray) {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        val f6Value = ICanHealthCorrectCode.parseF6Value(sensorInfo)
+        if (f6Value == null) {
+            Log.w(TAG, "correctCode: F6 answer not parseable ${sensorInfo.toHexString()}")
+            return
+        }
+        val batch = correctCodeBatch
+        if (batch != null) {
+            if (batch.phase == CorrectCodeBatch.Phase.READBACK && batch.readbackRequested) {
+                finishCorrectCodeTransaction(f6Value)
+            } else {
+                Log.i(
+                    TAG,
+                    "correctCode F6=0x${"%04X".format(f6Value)} arrived while batch " +
+                        "phase=${batch.phase.name} (read-back request not confirmed) — " +
+                        "recorded, not used as the transaction outcome"
+                )
+            }
+            return
+        }
+        if (f6Value == ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE) {
+            correctCodeAbsentSeen = true
+            Log.i(TAG, "correctCode F6=0xFFFF (no table)")
+            tryProvisionCorrectCode("sensor-info")
+        } else {
+            correctCodeAbsentSeen = false
+            Log.i(
+                TAG,
+                "correctCode F6=0x${"%04X".format(f6Value)} — table present, never touching it"
+            )
+        }
+    }
+
+    /**
+     * The sensor became idle after its status was read, but the F6 answer that
+     * reported 0xFFFF may have arrived before that state was known. Retry the
+     * decision once the idle state is actually observed.
+     */
+    private fun maybeProvisionCorrectCodeOnIdleStatus() {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        if (correctCodeBatch != null || !correctCodeAbsentSeen) {
+            return
+        }
+        if (launcherState != ICanHealthConstants.LAUNCHER_STATE_IDLE) {
+            return
+        }
+        tryProvisionCorrectCode("status-idle")
+    }
+
+    /**
+     * The serial the one-shot attempt record is keyed by.
+     *
+     * Prefers the serial resolved from the device information service before the
+     * local id, so a provisional `ICN-…` id can never consume — or be consumed
+     * by — a real serial. Null means the identity is not concrete enough to
+     * promise at-most-once, and the write refuses.
+     */
+    private fun correctCodeSerialKey(): String? =
+        serialFromDevice?.trim()?.takeIf { it.isNotEmpty() }
+            ?: SerialNumber.trim()
+                .takeIf { it.isNotEmpty() && !ICanHealthConstants.isProvisionalSensorId(it) }
+
+    /**
+     * Start one correctCode transaction if the gate agrees, or log why not.
+     *
+     * Order matters: semantic gate → explicit table/key/IV → MTU fit → persist
+     * the one-shot attempt record → send. Anything refused before the persist
+     * sends nothing and stays un-attempted; once an F2 is queued the serial is
+     * spent. The write itself lives in
+     * [ICanHealthCorrectCode.planCorrectCodeWrite], which never builds F2/F7 for
+     * a sensor that already reports a table.
+     */
+    private fun tryProvisionCorrectCode(reason: String) {
+        if (!ICanHealthExperimental.ENABLE_CORRECT_CODE_WRITE) {
+            return
+        }
+        if (correctCodeBatch != null || !correctCodeAbsentSeen) {
+            return
+        }
+        val serial = correctCodeSerialKey()
+        if (serial == null) {
+            Log.w(
+                TAG,
+                "correctCode write skipped: no concrete sensor serial yet " +
+                    "(the one-shot attempt record cannot be keyed)"
+            )
+            return
+        }
+        val attempted = ICanHealthExperimental.hasWriteAttempted(Applic.app, serial)
+        ICanHealthCorrectCode.gateSkipReason(
+            f6Value = ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE,
+            isAuthenticated = isAuthenticated,
+            launcherState = launcherState,
+            writeAttempted = attempted,
+        )?.let { skipped ->
+            Log.i(TAG, "correctCode write skipped: $skipped [serial=$serial]")
+            return
+        }
+        val tableJson = ICanHealthExperimental.CORRECT_CODE_WRITE_TABLE_JSON
+        if (tableJson.isNullOrBlank()) {
+            Log.w(
+                TAG,
+                "correctCode write skipped: no diagnostic table set in " +
+                    "CORRECT_CODE_WRITE_TABLE_JSON — nothing in a shipped build sets it"
+            )
+            return
+        }
+        val plan = ICanHealthCorrectCode.planCorrectCodeWrite(
+            f6Value = ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE,
+            isAuthenticated = isAuthenticated,
+            launcherState = launcherState,
+            writeAttempted = attempted,
+            table = ICanHealthCorrectCode.parseCorrectCodeTable(tableJson),
+            key = ICanHealthCorrectCode.buildCorrectCodeKey(
+                f3Notification = lastF3Notification,
+                authChallenge = lastAuthChallenge,
+                derivation = ICanHealthExperimental.CORRECT_CODE_WRITE_KEY_DERIVATION,
+            ),
+            iv = lastAuthChallenge?.let { ICanHealthParser.buildAuthIv(it) },
+            path = ICanHealthExperimental.CORRECT_CODE_PROVISIONING_PATH,
+            launcherVersionFlag = ICanHealthExperimental.CORRECT_CODE_WRITE_LAUNCHER_VERSION_FLAG,
+            layout = ICanHealthExperimental.CORRECT_CODE_WRITE_LAYOUT,
+        ) ?: return
+        if (!ICanHealthCorrectCode.planFitsMtu(plan, negotiatedMtu)) {
+            Log.e(
+                TAG,
+                "correctCode batch refused: largest packet ${plan.writePackets.maxOf { it.size }}B " +
+                    "(commit ${plan.commitPacket.size}B) exceeds one ATT write of " +
+                    "${negotiatedMtu - ICanHealthCorrectCode.ATT_WRITE_OVERHEAD_BYTES}B at " +
+                    "negotiatedMtu=$negotiatedMtu — sending nothing"
+            )
+            return
+        }
+        if (!ICanHealthExperimental.markWriteAttempted(Applic.app, serial)) {
+            Log.e(
+                TAG,
+                "correctCode batch refused: could not persist the one-shot attempt record " +
+                    "for $serial — sending nothing (at-most-once cannot be guaranteed)"
+            )
+            return
+        }
+        correctCodeBatchPlan = plan
+        correctCodeBatch = CorrectCodeBatch(plan.writePackets.size)
+        correctCodeBatchReason = reason
+        Log.i(
+            TAG,
+            "correctCode batch start trigger=$reason serial=$serial path=${plan.path} " +
+                "launcherVersionFlag=${plan.launcherVersionFlag} layout=${plan.layout} " +
+                "chunks=${plan.writePackets.size} commit=${plan.commitPacket.toHexString()} " +
+                "mtu=$negotiatedMtu"
+        )
+        plan.writePackets.forEachIndexed { index, packet ->
+            Log.i(TAG, "WIRE tx correctCode F2[$index] ${packet.size}B ${packet.toHexString()}")
+        }
+        advanceCorrectCodeBatch(CorrectCodeBatch.Next.SEND_CHUNK)
+        drainGattQueue()
+    }
+
+    /** Follows one step of the [CorrectCodeBatch] state machine. */
+    private fun advanceCorrectCodeBatch(next: CorrectCodeBatch.Next) {
+        val batch = correctCodeBatch ?: return
+        val plan = correctCodeBatchPlan ?: return
+        when (next) {
+            CorrectCodeBatch.Next.SEND_CHUNK -> enqueueOp(
+                GattOp.Write(
+                    ICanHealthConstants.CGM_SPECIFIC_OPS,
+                    plan.writePackets[batch.chunkInFlight],
+                    role = WriteRole.CORRECT_CODE_CHUNK,
+                )
+            )
+
+            CorrectCodeBatch.Next.SEND_COMMIT -> enqueueOp(
+                GattOp.Write(
+                    ICanHealthConstants.CGM_SPECIFIC_OPS,
+                    plan.commitPacket,
+                    role = WriteRole.CORRECT_CODE_COMMIT,
+                )
+            )
+
+            CorrectCodeBatch.Next.SEND_READBACK -> issueCorrectCodeReadback()
+            CorrectCodeBatch.Next.NONE -> Unit
+        }
+    }
+
+    /**
+     * One F2 chunk completed. A failure aborts the batch: the remaining F2
+     * packets and the F7 commit are dropped (never even enqueued), and the F6
+     * read-back still runs so the sensor's own state is recorded.
+     */
+    private fun onCorrectCodeChunkWriteResult(status: Int) {
+        val batch = correctCodeBatch ?: return
+        val failed = status != BluetoothGatt.GATT_SUCCESS
+        val next = batch.onChunkWriteResult(status)
+        if (failed) {
+            Log.e(
+                TAG,
+                "correctCode batch aborted after F2[${batch.abortedAtChunk}] status=$status — " +
+                    "F7 commit and remaining F2 dropped"
+            )
+        } else if (next == CorrectCodeBatch.Next.SEND_COMMIT) {
+            Log.i(
+                TAG,
+                "correctCode GATT-level: all ${batch.chunkCount} F2 chunks GATT_SUCCESS — " +
+                    "sending F7 commit"
+            )
+        }
+        advanceCorrectCodeBatch(next)
+    }
+
+    /** The F7 commit finished at the GATT level; the F6 read-back follows. */
+    private fun onCorrectCodeCommitWriteResult(status: Int) {
+        val batch = correctCodeBatch ?: return
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            Log.w(TAG, "correctCode F7 commit GATT status=$status — table may not be committed")
+        }
+        advanceCorrectCodeBatch(batch.onCommitWriteResult(status))
+    }
+
+    /**
+     * A correctCode write never produced a callback (refused at dispatch or GATT
+     * op timeout). Treat it as the failure it is, so the batch cannot hang and a
+     * commit can never follow a partial transmission.
+     */
+    private fun failCorrectCodeInFlightOp(reason: String) {
+        val batch = correctCodeBatch ?: return
+        when (activeWriteRole) {
+            WriteRole.CORRECT_CODE_CHUNK -> {
+                val next = batch.onChunkWriteResult(CORRECT_CODE_WRITE_FAILED)
+                Log.e(
+                    TAG,
+                    "correctCode batch aborted after F2[${batch.abortedAtChunk}] status=$reason"
+                )
+                advanceCorrectCodeBatch(next)
+            }
+
+            WriteRole.CORRECT_CODE_COMMIT -> {
+                val next = batch.onCommitWriteResult(CORRECT_CODE_WRITE_FAILED)
+                Log.e(TAG, "correctCode F7 commit did not complete ($reason) — GATT commit failure recorded")
+                advanceCorrectCodeBatch(next)
+            }
+
+            WriteRole.PLAIN, WriteRole.CORRECT_CODE_READBACK -> Unit
+        }
+    }
+
+    /**
+     * Issue the post-batch F6 read-back. It is queued even after an aborted
+     * batch: it does not change the table, it only records what the sensor now
+     * reports. The transaction stays open until that answer (or its timeout)
+     * arrives.
+     */
+    private fun issueCorrectCodeReadback() {
+        if (correctCodeBatch == null) {
+            return
+        }
+        handler.removeCallbacks(correctCodeReadbackTimeoutRunnable)
+        handler.postDelayed(correctCodeReadbackTimeoutRunnable, CORRECT_CODE_READBACK_TIMEOUT_MS)
+        enqueueOp(
+            GattOp.Write(
+                ICanHealthConstants.CGM_SPECIFIC_OPS,
+                ICanHealthConstants.CMD_REQUEST_SENSOR_INFO,
+                role = WriteRole.CORRECT_CODE_READBACK,
+            )
+        )
+    }
+
+    /**
+     * Close out the batch. [f6Value] is the post-batch F6 read-back, or null when
+     * it never arrived (timeout). GATT-level and vendor-level outcomes are logged
+     * separately, and the transaction is only called *complete* when the read-back
+     * was actually awaited — a timeout is closed with an unknown vendor outcome.
+     */
+    private fun finishCorrectCodeTransaction(f6Value: Int?) {
+        val batch = correctCodeBatch ?: return
+        val vendorOutcome = when {
+            f6Value == null -> "VENDOR_UNKNOWN (F6 read-back never arrived)"
+            f6Value == ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE ->
+                "VENDOR_REJECTED (F6=0xFFFF, no table stored)"
+            else -> "VENDOR_ACCEPTED (F6=0x${"%04X".format(f6Value)})"
+        }
+        Log.i(
+            TAG,
+            "correctCode transaction " +
+                (if (f6Value == null) "closed without a read-back" else "complete") +
+                " trigger=$correctCodeBatchReason " +
+                "GATT-level=${batch.gattOutcomeSummary()} vendor-level=$vendorOutcome"
+        )
+        if (f6Value != null) {
+            correctCodeAbsentSeen = f6Value == ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE
+        }
+        clearCorrectCodeBatchState()
+    }
+
+    /**
+     * Drop the batch bookkeeping. [midFlightReason] logs a warning when a
+     * transaction is being torn down before its F6 read-back (disconnect, reset):
+     * the outcome is then unknowable and must not be reported as one.
+     */
+    private fun clearCorrectCodeBatchState(midFlightReason: String? = null) {
+        val batch = correctCodeBatch
+        if (batch != null && midFlightReason != null) {
+            Log.w(
+                TAG,
+                "correctCode transaction dropped mid-flight ($midFlightReason) — " +
+                    "GATT-level=${batch.gattOutcomeSummary()}, vendor-level unknown"
+            )
+        }
+        handler.removeCallbacks(correctCodeReadbackTimeoutRunnable)
+        correctCodeBatch = null
+        correctCodeBatchPlan = null
+        correctCodeBatchReason = ""
     }
 
     private fun resolveAuthUserId(): String {
@@ -4022,15 +4442,21 @@ class ICanHealthBleManager(
                 val char = findCharacteristic(op.serviceUuid, op.charUuid) ?: run {
                     Log.w(TAG, "Write missing ${op.charUuid} in ${op.serviceUuid}")
                     gattOpActive = false
+                    if (op.role != WriteRole.PLAIN) {
+                        activeWriteRole = op.role
+                        failCorrectCodeInFlightOp("characteristic-missing")
+                    }
                     drainGattQueue()
                     return
                 }
                 Log.i(TAG, "WIRE tx write ${shortUuid(op.charUuid)} ${op.data.toHexString()}")
                 char.value = op.data
                 char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                activeWriteRole = op.role
                 if (!gatt.writeCharacteristic(char)) {
                     Log.e(TAG, "Write failed to start ${op.charUuid} in ${op.serviceUuid}")
                     gattOpActive = false
+                    failCorrectCodeInFlightOp("writeCharacteristic-refused")
                     drainGattQueue()
                 }
             }
@@ -4157,11 +4583,13 @@ class ICanHealthBleManager(
     ) {
         gattQueue.clear()
         gattOpActive = false
+        activeWriteRole = WriteRole.PLAIN
         handler.removeCallbacks(noDataWatchdog)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
         handler.removeCallbacks(gattOpTimeoutRunnable)
+        handler.removeCallbacks(correctCodeReadbackTimeoutRunnable)
         if (clearReconnect) {
             cancelScheduledReconnect()
         }
@@ -4189,6 +4617,9 @@ class ICanHealthBleManager(
         pendingHistoryBackfillReason = null
         pendingHistoryBatch.clear()
         lastAuthChallenge = null
+        lastF3Notification = null
+        correctCodeAbsentSeen = false
+        clearCorrectCodeBatchState("connection reset")
         authRetryCount = 0
         receivedGlucoseThisConnection = false
         currentSequenceObservedAtMs = 0L

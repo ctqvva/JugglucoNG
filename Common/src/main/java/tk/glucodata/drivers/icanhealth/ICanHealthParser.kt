@@ -616,7 +616,14 @@ object ICanHealthParser {
         }
     }
 
-    private fun buildAuthIv(challenge: ByteArray): ByteArray? {
+    /**
+     * Build the challenge-derived CBC IV (`0, c0, 0, 0, 0, 0, c1, 0, 0, 0, c2, 0, 0, 0, 0, c3`).
+     *
+     * Internal rather than private: the experimental correctCode write path
+     * (ICanHealthCorrectCode) reuses the exact IV construction the auth path
+     * uses, instead of growing a second crypto derivation.
+     */
+    internal fun buildAuthIv(challenge: ByteArray): ByteArray? {
         if (challenge.size != 4) {
             logError("buildAuthIv: expected 4 challenge bytes, got ${challenge.size}")
             return null
