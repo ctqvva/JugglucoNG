@@ -79,15 +79,16 @@ keep their standard text, so alarms still reach the watch.
 
 ### Compatibility & forwarding settings
 
-Notification settings now let the user choose what listener apps can read: one
-"Forward readings" row under "Watches & bands" with a single-choice dialog (Off,
-Every reading, every 3/5/10 minutes; `NotificationForwardingSettings.mode`).
-Both modes work only through the standard
+The Watch settings screen now lets the user choose what listener apps can read:
+one "Glucose forwarding" row in a "Via phone notifications" section, between
+Transport and Wear OS, with a single-choice dialog (Off, Always include standard
+text, Every new reading, every 3/5/10 minutes; `NotificationForwardingSettings.mode`).
+Off is the 1.2.5 behaviour. Every mode works only through the standard
 title/text of the ongoing notification (81431); there is no second notification.
 Its custom views ignore title/text, so the phone looks the same either way. Alarm
 notifications are the same under every combination.
 
-- **Every reading** (`notification_standard_text`). When on, every
+- **Always include standard text** (`notification_standard_text`). When on, every
   post of the ongoing notification has a standard title and text again, as in
   1.2.3–1.2.4. The title is the value(s) and trend glyph, without unit. The text
   is the status line. When off, the fields are absent rather than empty.
@@ -95,14 +96,17 @@ notifications are the same under every combination.
   An update starts with it off, because `firstInstallTime != lastUpdateTime`.
   This keeps the 1.2.5 behaviour for people who already rely on #646. A stored
   value is never overwritten.
-- **Every N minutes** (`periodic_glucose_notifications`, interval
-  `periodic_glucose_interval_minutes` ∈ {3, 5, 10}, default 5; anything else,
-  including the 1 an earlier test build stored, reads as 5).
+- **Every new reading / every N minutes** (`periodic_glucose_notifications`,
+  interval `periodic_glucose_interval_minutes` ∈ {1, 3, 5, 10}, default 5;
+  anything else reads as 5). Interval 1 is "Every new reading": each new
+  measurement is announced once, with no time spacing. Unlike standard text,
+  unrelated refreshes of the notification (repaints, chart or status changes)
+  stay without title/text.
   The render asks `PeriodicGlucoseUpdates.claim` whether this post announces the
   displayed reading. Only that post gets the title and, as text, the measurement
   time; every other post, including repaints of the same reading, has none.
   Listener apps forward the announcing post and skip the rest, so the watch gets
-  one message per interval. `PeriodicGlucoseNotificationPolicy` announces only a
+  one message per reading or interval. `PeriodicGlucoseNotificationPolicy` announces only a
   reading that is new, fresh by `glucosetimeout` and outside the interval. The
   interval uses elapsed realtime within one boot and falls back to wall time after
   a reboot. The last reading announced is persisted, and readings measured before
@@ -111,8 +115,8 @@ notifications are the same under every combination.
   alerts run after the ongoing notification is posted and a forwarded message
   cannot be taken back. An alarm notification posted for the same measurement
   (native alarms, posted first) or while the reading settled (custom alerts, which
-  stamp their own time) counts as that interval's message. Picking an interval
-  announces the current fresh reading once, without settling. The alarm itself
+  stamp their own time) counts as that interval's message. Picking one of these
+  modes announces the current fresh reading once, without settling. The alarm itself
   is never touched or delayed.
 - The two are exclusive by construction: the dialog stores exactly one mode.
   Rendering also enforces the rule (periodic wins), in case stored values from a

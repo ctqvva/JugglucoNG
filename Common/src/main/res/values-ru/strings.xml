@@ -3022,10 +3022,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB и COB передаются в поле jugglucong объекта devicestatus отдельно от обычного IOB.</string>
 
     <string name="alert_sound_volume">Громкость звука тревоги</string>
-    <string name="notification_forwarding_section">Часы и браслеты</string>
+    <string name="watch_forwarding_section">Через уведомления телефона</string>
     <string name="watch_forwarding_title">Пересылка показаний</string>
     <string name="watch_forwarding_off">Выключено</string>
-    <string name="watch_forwarding_every_reading">Каждое показание</string>
+    <string name="watch_forwarding_standard_text">Всегда со стандартным текстом</string>
+    <string name="watch_forwarding_every_reading">Каждое новое показание</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Каждую %d минуту</item>
         <item quantity="few">Каждые %d минуты</item>

@@ -10,8 +10,9 @@ import android.content.SharedPreferences
  * - **Standard text** puts the reading into the ongoing notification's title/text, as
  *   1.2.3–1.2.4 did. Listener apps that forward any titled notification then forward
  *   every update of it (#582, #645).
- * - **Periodic updates** put it there only on the post that announces a reading, at a
- *   chosen interval ([PeriodicGlucoseUpdates]).
+ * - **Periodic updates** put it there only on the post that announces a reading: every
+ *   new reading, or at a chosen interval ([PeriodicGlucoseUpdates]). Unrelated
+ *   refreshes of the notification stay without text.
  *
  * The user picks one [mode]: standard text on every post would defeat the interval.
  * Alarm notifications are not affected by either setting.
@@ -22,16 +23,18 @@ object NotificationForwardingSettings {
     const val KEY_PERIODIC_ENABLED = "periodic_glucose_notifications"
     const val KEY_PERIODIC_INTERVAL = "periodic_glucose_interval_minutes"
 
+    /** 1 means every new reading; the interval is never shorter than the sensor's. */
     @JvmField
-    val INTERVAL_OPTIONS = intArrayOf(3, 5, 10)
+    val INTERVAL_OPTIONS = intArrayOf(1, 3, 5, 10)
     const val DEFAULT_INTERVAL_MINUTES = 5
 
     const val MODE_OFF = 0
-    const val MODE_EVERY_READING = -1
+    const val MODE_STANDARD_TEXT = -1
+    const val MODE_EVERY_READING = 1
 
-    /** In the order the picker lists them. */
+    /** In the order the picker lists them; the intervals are their minutes. */
     @JvmField
-    val MODE_OPTIONS = intArrayOf(MODE_OFF, MODE_EVERY_READING, *INTERVAL_OPTIONS)
+    val MODE_OPTIONS = intArrayOf(MODE_OFF, MODE_STANDARD_TEXT, *INTERVAL_OPTIONS)
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -85,13 +88,13 @@ object NotificationForwardingSettings {
     fun periodicIntervalMinutes(context: Context): Int = periodicIntervalMinutes(prefs(context))
 
     /**
-     * The one choice the settings screen offers: [MODE_OFF], [MODE_EVERY_READING]
-     * (standard text) or an interval in minutes (periodic updates).
+     * The one choice the settings screen offers: [MODE_OFF], [MODE_STANDARD_TEXT] or an
+     * interval in minutes (periodic updates; [MODE_EVERY_READING] is the 1-minute one).
      */
     @JvmStatic
     fun mode(prefs: SharedPreferences): Int = when {
         isPeriodicEnabled(prefs) -> periodicIntervalMinutes(prefs)
-        isStandardTextPreferred(prefs) -> MODE_EVERY_READING
+        isStandardTextPreferred(prefs) -> MODE_STANDARD_TEXT
         else -> MODE_OFF
     }
 
@@ -102,7 +105,7 @@ object NotificationForwardingSettings {
     fun setMode(context: Context, mode: Int) {
         val periodic = INTERVAL_OPTIONS.contains(mode)
         val editor = prefs(context).edit()
-            .putBoolean(KEY_STANDARD_TEXT, mode == MODE_EVERY_READING)
+            .putBoolean(KEY_STANDARD_TEXT, mode == MODE_STANDARD_TEXT)
             .putBoolean(KEY_PERIODIC_ENABLED, periodic)
         if (periodic) editor.putInt(KEY_PERIODIC_INTERVAL, mode)
         editor.apply()

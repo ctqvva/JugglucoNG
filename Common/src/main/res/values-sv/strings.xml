@@ -2971,10 +2971,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
-    <string name="notification_forwarding_section">Klockor och band</string>
-    <string name="watch_forwarding_title">Vidarebefordra värden</string>
+    <string name="watch_forwarding_section">Via telefonaviseringar</string>
+    <string name="watch_forwarding_title">Vidarebefordra glukos</string>
     <string name="watch_forwarding_off">Av</string>
-    <string name="watch_forwarding_every_reading">Varje värde</string>
+    <string name="watch_forwarding_standard_text">Alltid med standardtext</string>
+    <string name="watch_forwarding_every_reading">Varje nytt värde</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Varje minut</item>
         <item quantity="other">Var %d:e minut</item>

@@ -66,16 +66,23 @@ class NotificationForwardingSettingsTests {
         assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
 
         installedAt(1_000L, 9_000L)
-        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_STANDARD_TEXT)
         NotificationForwardingSettings.pinStandardTextDefault(app)
         assertTrue(NotificationForwardingSettings.isStandardTextEnabled(app))
     }
 
     @Test fun eachModeIsOneExclusiveChoice() {
-        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
-        assertEquals(NotificationForwardingSettings.MODE_EVERY_READING, NotificationForwardingSettings.mode(app))
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_STANDARD_TEXT)
+        assertEquals(NotificationForwardingSettings.MODE_STANDARD_TEXT, NotificationForwardingSettings.mode(app))
         assertTrue(NotificationForwardingSettings.isStandardTextEnabled(app))
         assertFalse(NotificationForwardingSettings.isPeriodicEnabled(app))
+
+        // Not standard text: only the post announcing a new reading carries it.
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
+        assertEquals(NotificationForwardingSettings.MODE_EVERY_READING, NotificationForwardingSettings.mode(app))
+        assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
+        assertTrue(NotificationForwardingSettings.isPeriodicEnabled(app))
+        assertEquals(1, NotificationForwardingSettings.periodicIntervalMinutes(app))
 
         NotificationForwardingSettings.setMode(app, 3)
         assertEquals(3, NotificationForwardingSettings.mode(app))
@@ -107,9 +114,8 @@ class NotificationForwardingSettingsTests {
     @Test fun unknownIntervalsFallBackToTheDefault() {
         prefs.edit().putInt(NotificationForwardingSettings.KEY_PERIODIC_INTERVAL, 7).commit()
         assertEquals(5, NotificationForwardingSettings.periodicIntervalMinutes(app))
-        // "Each reading" was an interval in an earlier test build.
         prefs.edit().putInt(NotificationForwardingSettings.KEY_PERIODIC_INTERVAL, 1).commit()
-        assertEquals(5, NotificationForwardingSettings.periodicIntervalMinutes(app))
+        assertEquals("every new reading is kept", 1, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
     private fun resetPeriodicState() {
@@ -158,6 +164,23 @@ class NotificationForwardingSettingsTests {
         assertEquals("next interval", PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 5_000L, 5.7f))
         forgetLastAnnouncement()
         assertEquals("never a non-value", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now, 1.0f))
+    }
+
+    @Test fun everyNewReadingAnnouncesEachMeasurementOnce() {
+        assumeFalse(Applic.isWearable)
+        resetPeriodicState()
+        val now = System.currentTimeMillis()
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
+        assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 70_000L, 5.5f))
+        assertEquals("a refresh of the same reading carries no text",
+            PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 70_000L, 5.5f))
+        assertEquals("the next reading is due right away",
+            PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 10_000L, 5.6f))
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 10_000L, 5.6f))
+
+        // Standard text is on every post instead; nothing is announced.
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_STANDARD_TEXT)
+        assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now, 5.7f))
     }
 
     @Test fun switchingOnSendsTheCurrentReadingOnceWithoutWaiting() {
@@ -218,8 +241,8 @@ class NotificationForwardingSettingsTests {
     @Test fun everyLocaleTranslatesTheNewCopyWithTheSamePlaceholders() {
         val resDir = listOf("src/main/res", "Common/src/main/res").map(::File).first { it.isDirectory }
         val keys = listOf(
-            "notification_forwarding_section", "watch_forwarding_title", "watch_forwarding_off",
-            "watch_forwarding_every_reading"
+            "watch_forwarding_section", "watch_forwarding_title", "watch_forwarding_off",
+            "watch_forwarding_standard_text", "watch_forwarding_every_reading"
         )
         fun value(file: File, key: String): String? =
             Regex("""<string name="$key"[^>]*>(.*?)</string>""").find(file.readText())?.groupValues?.get(1)

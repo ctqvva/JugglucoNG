@@ -3046,10 +3046,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
-    <string name="notification_forwarding_section">Órák és karkötők</string>
-    <string name="watch_forwarding_title">Értékek továbbítása</string>
+    <string name="watch_forwarding_section">Telefonos értesítéseken keresztül</string>
+    <string name="watch_forwarding_title">Glükózérték továbbítása</string>
     <string name="watch_forwarding_off">Ki</string>
-    <string name="watch_forwarding_every_reading">Minden érték</string>
+    <string name="watch_forwarding_standard_text">Mindig szabványos szöveggel</string>
+    <string name="watch_forwarding_every_reading">Minden új érték</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">%d percenként</item>
         <item quantity="other">%d percenként</item>

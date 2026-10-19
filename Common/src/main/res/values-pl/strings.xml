@@ -3013,10 +3013,11 @@
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
-    <string name="notification_forwarding_section">Zegarki i opaski</string>
+    <string name="watch_forwarding_section">Przez powiadomienia telefonu</string>
     <string name="watch_forwarding_title">Przekazywanie odczytów</string>
     <string name="watch_forwarding_off">Wyłączone</string>
-    <string name="watch_forwarding_every_reading">Każdy odczyt</string>
+    <string name="watch_forwarding_standard_text">Zawsze ze standardowym tekstem</string>
+    <string name="watch_forwarding_every_reading">Każdy nowy odczyt</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Co minutę</item>
         <item quantity="few">Co %d minuty</item>

@@ -3223,10 +3223,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 
     <string name="alert_sound_volume">Alert sound volume</string>
-    <string name="notification_forwarding_section">Watches &amp; bands</string>
-    <string name="watch_forwarding_title">Forward readings</string>
+    <string name="watch_forwarding_section">Via phone notifications</string>
+    <string name="watch_forwarding_title">Glucose forwarding</string>
     <string name="watch_forwarding_off">Off</string>
-    <string name="watch_forwarding_every_reading">Every reading</string>
+    <string name="watch_forwarding_standard_text">Always include standard text</string>
+    <string name="watch_forwarding_every_reading">Every new reading</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Every minute</item>
         <item quantity="other">Every %d minutes</item>

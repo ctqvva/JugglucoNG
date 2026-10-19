@@ -3046,10 +3046,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB і COB перадаюцца ў полі jugglucong у devicestatus асобна ад стандартнага IOB.</string>
 
     <string name="alert_sound_volume">Гучнасць гуку трывогі</string>
-    <string name="notification_forwarding_section">Гадзіннікі і бранзалеты</string>
+    <string name="watch_forwarding_section">Праз апавяшчэнні тэлефона</string>
     <string name="watch_forwarding_title">Перасылка паказанняў</string>
     <string name="watch_forwarding_off">Выключана</string>
-    <string name="watch_forwarding_every_reading">Кожнае паказанне</string>
+    <string name="watch_forwarding_standard_text">Заўсёды са стандартным тэкстам</string>
+    <string name="watch_forwarding_every_reading">Кожнае новае паказанне</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Кожную %d хвіліну</item>
         <item quantity="few">Кожныя %d хвіліны</item>

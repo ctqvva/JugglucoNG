@@ -27,12 +27,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -41,20 +39,15 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SettingsAccessibility
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,15 +62,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
-import tk.glucodata.NotificationForwardingSettings
-import tk.glucodata.PeriodicGlucoseUpdates
 import tk.glucodata.R
 import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
@@ -128,8 +117,6 @@ fun NotificationSettingsScreen(
     var iobCobRiskColored by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_cob_risk_colored", false)) }
     var iobRiskWithoutCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_risk_without_cob", false)) }
     var statusIconScale by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
-    var forwardingMode by rememberSaveable { mutableIntStateOf(NotificationForwardingSettings.mode(prefs)) }
-    var showForwardingDialog by rememberSaveable { mutableStateOf(false) }
 
     fun save() {
         prefs.edit()
@@ -366,88 +353,6 @@ fun NotificationSettingsScreen(
                     onCheckedChange = { iobRiskWithoutCob = it; save() },
                     position = CardPosition.BOTTOM
                 )
-            }
-        }
-
-        // What watch and band companion apps get to read.
-        SectionLabel(
-            stringResource(R.string.notification_forwarding_section),
-            topPadding = 16.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-        SettingsItem(
-            title = stringResource(R.string.watch_forwarding_title),
-            subtitle = watchForwardingLabel(forwardingMode),
-            onClick = { showForwardingDialog = true },
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-    }
-
-    if (showForwardingDialog) {
-        WatchForwardingPickerDialog(
-            currentMode = forwardingMode,
-            onSelect = { mode ->
-                showForwardingDialog = false
-                if (mode != forwardingMode) {
-                    forwardingMode = mode
-                    NotificationForwardingSettings.setMode(context, mode)
-                    // A new interval sends the current reading right away.
-                    PeriodicGlucoseUpdates.onSettingChanged(mode > 0)
-                    viewModel.refreshNotificationSurfaces()
-                }
-            },
-            onDismiss = { showForwardingDialog = false }
-        )
-    }
-}
-
-@Composable
-private fun watchForwardingLabel(mode: Int): String = when (mode) {
-    NotificationForwardingSettings.MODE_OFF -> stringResource(R.string.watch_forwarding_off)
-    NotificationForwardingSettings.MODE_EVERY_READING -> stringResource(R.string.watch_forwarding_every_reading)
-    else -> pluralStringResource(R.plurals.watch_forwarding_every_minutes, mode, mode)
-}
-
-@Composable
-private fun WatchForwardingPickerDialog(
-    currentMode: Int,
-    onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
-        ) {
-            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
-                Text(
-                    text = stringResource(R.string.watch_forwarding_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                )
-                NotificationForwardingSettings.MODE_OPTIONS.forEach { mode ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .selectable(selected = currentMode == mode, role = Role.RadioButton) { onSelect(mode) }
-                            .padding(horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = currentMode == mode, onClick = null)
-                        Spacer(Modifier.width(16.dp))
-                        Text(watchForwardingLabel(mode), style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
-                }
             }
         }
     }

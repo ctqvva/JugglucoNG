@@ -3051,10 +3051,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
-    <string name="notification_forwarding_section">Годинники й браслети</string>
+    <string name="watch_forwarding_section">Через сповіщення телефона</string>
     <string name="watch_forwarding_title">Пересилання показів</string>
     <string name="watch_forwarding_off">Вимкнено</string>
-    <string name="watch_forwarding_every_reading">Кожен показ</string>
+    <string name="watch_forwarding_standard_text">Завжди зі стандартним текстом</string>
+    <string name="watch_forwarding_every_reading">Кожен новий показ</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Кожну %d хвилину</item>
         <item quantity="few">Кожні %d хвилини</item>

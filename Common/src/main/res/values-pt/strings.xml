@@ -2972,10 +2972,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB são enviados no campo jugglucong de devicestatus, separados da IOB padrão.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
-    <string name="notification_forwarding_section">Relógios e pulseiras</string>
-    <string name="watch_forwarding_title">Encaminhar leituras</string>
+    <string name="watch_forwarding_section">Pelas notificações do telefone</string>
+    <string name="watch_forwarding_title">Encaminhamento de glicose</string>
     <string name="watch_forwarding_off">Desativado</string>
-    <string name="watch_forwarding_every_reading">Cada leitura</string>
+    <string name="watch_forwarding_standard_text">Sempre incluir texto padrão</string>
+    <string name="watch_forwarding_every_reading">Cada nova leitura</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">A cada minuto</item>
         <item quantity="many">A cada %d minutos</item>

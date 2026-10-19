@@ -2986,10 +2986,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
 
     <string name="alert_sound_volume">警报音量</string>
-    <string name="notification_forwarding_section">手表和手环</string>
-    <string name="watch_forwarding_title">转发读数</string>
+    <string name="watch_forwarding_section">通过手机通知</string>
+    <string name="watch_forwarding_title">血糖转发</string>
     <string name="watch_forwarding_off">关闭</string>
-    <string name="watch_forwarding_every_reading">每次读数</string>
+    <string name="watch_forwarding_standard_text">始终包含标准文本</string>
+    <string name="watch_forwarding_every_reading">每个新读数</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="other">每 %d 分钟</item>
     </plurals>

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Share
@@ -64,6 +66,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,6 +75,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,7 +87,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -103,7 +110,9 @@ import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
 import tk.glucodata.GoogleServices
 import tk.glucodata.Natives
+import tk.glucodata.NotificationForwardingSettings
 import tk.glucodata.Notify
+import tk.glucodata.PeriodicGlucoseUpdates
 import tk.glucodata.R
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.WatchInterop
@@ -129,6 +138,8 @@ fun WatchSettingsScreen(navController: NavController) {
     var separateEnabled by rememberSaveable { mutableStateOf(Natives.getSeparate()) }
     var wearOsEnabled by rememberSaveable { mutableStateOf(WatchInterop.isWearOsEnabled()) }
     var kerfstokEnabled by rememberSaveable { mutableStateOf(Natives.getusegarmin()) }
+    var forwardingMode by rememberSaveable { mutableIntStateOf(NotificationForwardingSettings.mode(context)) }
+    var showForwardingDialog by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
     val gmsAvailable = remember { GoogleServices.isPlayServicesAvailable(Applic.app) }
     val wearConfigEnabled = wearOsEnabled && gmsAvailable
@@ -212,6 +223,19 @@ fun WatchSettingsScreen(navController: NavController) {
                         }
                     )
                 }
+            }
+
+            // What watch and band companion apps get to read from the phone notification.
+            item("watch_forwarding_section") {
+                SectionLabel(stringResource(R.string.watch_forwarding_section), topPadding = 0.dp)
+                SettingsItem(
+                    title = stringResource(R.string.watch_forwarding_title),
+                    subtitle = watchForwardingLabel(forwardingMode),
+                    icon = Icons.AutoMirrored.Filled.Send,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.SINGLE,
+                    onClick = { showForwardingDialog = true }
+                )
             }
 
             item("watch_wearos_section") {
@@ -300,6 +324,22 @@ fun WatchSettingsScreen(navController: NavController) {
 
         }
     }
+    if (showForwardingDialog) {
+        WatchForwardingPickerDialog(
+            currentMode = forwardingMode,
+            onSelect = { mode ->
+                showForwardingDialog = false
+                if (mode != forwardingMode) {
+                    forwardingMode = mode
+                    NotificationForwardingSettings.setMode(context, mode)
+                    // Periodic modes send the current reading right away.
+                    PeriodicGlucoseUpdates.onSettingChanged(mode > 0)
+                    Notify.showoldglucose()
+                }
+            },
+            onDismiss = { showForwardingDialog = false }
+        )
+    }
     if (showHelp) {
         InAppHelpDialog(
             title = stringResource(R.string.watches),
@@ -310,6 +350,59 @@ fun WatchSettingsScreen(navController: NavController) {
             ),
             onDismiss = { showHelp = false }
         )
+    }
+}
+
+@Composable
+private fun watchForwardingLabel(mode: Int): String = when (mode) {
+    NotificationForwardingSettings.MODE_OFF -> stringResource(R.string.watch_forwarding_off)
+    NotificationForwardingSettings.MODE_STANDARD_TEXT -> stringResource(R.string.watch_forwarding_standard_text)
+    NotificationForwardingSettings.MODE_EVERY_READING -> stringResource(R.string.watch_forwarding_every_reading)
+    else -> pluralStringResource(R.plurals.watch_forwarding_every_minutes, mode, mode)
+}
+
+@Composable
+private fun WatchForwardingPickerDialog(
+    currentMode: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Text(
+                    text = stringResource(R.string.watch_forwarding_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                NotificationForwardingSettings.MODE_OPTIONS.forEach { mode ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .selectable(selected = currentMode == mode, role = Role.RadioButton) { onSelect(mode) }
+                            .padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = currentMode == mode, onClick = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(watchForwardingLabel(mode), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        }
     }
 }
 

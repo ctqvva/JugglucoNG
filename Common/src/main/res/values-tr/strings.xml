@@ -2999,10 +2999,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
-    <string name="notification_forwarding_section">Saatler ve bileklikler</string>
-    <string name="watch_forwarding_title">Değerleri ilet</string>
+    <string name="watch_forwarding_section">Telefon bildirimleriyle</string>
+    <string name="watch_forwarding_title">Glukoz iletimi</string>
     <string name="watch_forwarding_off">Kapalı</string>
-    <string name="watch_forwarding_every_reading">Her değer</string>
+    <string name="watch_forwarding_standard_text">Her zaman standart metin</string>
+    <string name="watch_forwarding_every_reading">Her yeni değer</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">%d dakikada bir</item>
         <item quantity="other">%d dakikada bir</item>

@@ -3087,10 +3087,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
-    <string name="notification_forwarding_section">Uhren &amp; Bänder</string>
-    <string name="watch_forwarding_title">Werte weiterleiten</string>
+    <string name="watch_forwarding_section">Über Telefonbenachrichtigungen</string>
+    <string name="watch_forwarding_title">Glukose weiterleiten</string>
     <string name="watch_forwarding_off">Aus</string>
-    <string name="watch_forwarding_every_reading">Jeder Wert</string>
+    <string name="watch_forwarding_standard_text">Immer mit Standardtext</string>
+    <string name="watch_forwarding_every_reading">Jeder neue Wert</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Jede Minute</item>
         <item quantity="other">Alle %d Minuten</item>

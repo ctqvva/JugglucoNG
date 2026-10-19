@@ -3014,10 +3014,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_iob_help">eIOB en COB worden in het veld jugglucong van devicestatus verstuurd, los van de standaard-IOB.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
-    <string name="notification_forwarding_section">Horloges en bandjes</string>
-    <string name="watch_forwarding_title">Waarden doorsturen</string>
+    <string name="watch_forwarding_section">Via telefoonmeldingen</string>
+    <string name="watch_forwarding_title">Glucose doorsturen</string>
     <string name="watch_forwarding_off">Uit</string>
-    <string name="watch_forwarding_every_reading">Elke waarde</string>
+    <string name="watch_forwarding_standard_text">Altijd standaardtekst tonen</string>
+    <string name="watch_forwarding_every_reading">Elke nieuwe waarde</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Elke minuut</item>
         <item quantity="other">Elke %d minuten</item>

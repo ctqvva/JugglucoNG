@@ -2961,10 +2961,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB e COB vengono inviati nel campo jugglucong di devicestatus, separatamente dall’IOB standard.</string>
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
-    <string name="notification_forwarding_section">Orologi e smartband</string>
-    <string name="watch_forwarding_title">Inoltra valori</string>
+    <string name="watch_forwarding_section">Tramite le notifiche del telefono</string>
+    <string name="watch_forwarding_title">Inoltro glicemia</string>
     <string name="watch_forwarding_off">Disattivato</string>
-    <string name="watch_forwarding_every_reading">Ogni valore</string>
+    <string name="watch_forwarding_standard_text">Includi sempre il testo standard</string>
+    <string name="watch_forwarding_every_reading">Ogni nuovo valore</string>
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="one">Ogni minuto</item>
         <item quantity="many">Ogni %d minuti</item>
