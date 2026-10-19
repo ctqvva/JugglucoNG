@@ -3009,7 +3009,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
     <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
     <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>
-    <string name="watch_help_forwarding">Мэдэгдлийн горим нь цаг болон бугуйвчийн аппууд утасны мэдэгдлээс юу авахыг тодорхойлно. «Стандарт Android»: мэдэгдэл шинэчлэгдэх бүрт утга, тиймээс зарим цаг тухай бүрт чичирнэ. «Шинэ утга бүр» ба «Тодорхой хугацаагаар»: утга бүрийг нэг удаа. «Зөвхөн дохиолол»: утгагүй.</string>
+    <string name="watch_help_forwarding">«Глюкоз дамжуулах» нь цаг болон бугуйвчийн аппууд утасны мэдэгдлээс юу авахыг тодорхойлно. «Стандарт Android»: мэдэгдэл шинэчлэгдэх бүрт утга, тиймээс зарим цаг тухай бүрт чичирнэ. «Шинэ утга бүр» ба «Тодорхой хугацаагаар»: утга бүрийг нэг удаа. «Зөвхөн дохиолол»: утгагүй.</string>
     <string name="watch_help_wearos">Энэ апп-д цагны мессеж дамжуулалт ашиглахын тулд Wear OS-ийг идэвхжүүлнэ үү.</string>
     <string name="watch_help_config">Тохиргоо хэсгээс цагаа сонгож, мэдрэгчийн шууд чиглүүлэлтийг тохируулна уу.</string>
     <string name="watch_help_garmin">Garmin Connect IQ нь Kerfstok-оор ажилладаг бөгөөд тусдаа төлөвийн удирдлагатай.</string>
@@ -3092,7 +3092,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
     <string name="watch_forwarding_section">Утасны мэдэгдлээр</string>
-    <string name="watch_forwarding_title">Мэдэгдлийн горим</string>
+    <string name="watch_forwarding_title">Глюкоз дамжуулах</string>
     <string name="watch_forwarding_standard">Стандарт Android</string>
     <string name="watch_forwarding_alarms_only">Зөвхөн дохиолол</string>
     <string name="watch_forwarding_every_reading">Шинэ утга бүр</string>

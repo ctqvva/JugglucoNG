@@ -2982,7 +2982,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Транспортный мост Kerfstok</string>
     <string name="watch_garmin_status_desc">Состояние подключения и сопряжение</string>
     <string name="watch_garmin_enable_hint">Включите Kerfstok, чтобы видеть состояние</string>
-    <string name="watch_help_forwarding">Режим уведомлений определяет, что приложения часов и браслетов получают из уведомления телефона. «Стандартный Android» — показание при каждом обновлении уведомления, поэтому некоторые часы вибрируют каждый раз. «Каждое новое показание» и «С интервалом» — каждое показание один раз. «Только тревоги» — без показаний.</string>
+    <string name="watch_help_forwarding">«Передача показаний» определяет, что приложения часов и браслетов получают из уведомления телефона. «Стандартный Android» — показание при каждом обновлении уведомления, поэтому некоторые часы вибрируют каждый раз. «Каждое новое показание» и «С интервалом» — каждое показание один раз. «Только тревоги» — без показаний.</string>
     <string name="watch_help_wearos">Включите Wear OS, чтобы использовать передачу сообщений на часы в этом приложении.</string>
     <string name="watch_help_config">В разделе «Настройка» выберите часы и задайте прямую маршрутизацию датчика.</string>
     <string name="watch_help_garmin">Garmin Connect IQ работает через Kerfstok и имеет отдельное управление состоянием.</string>
@@ -3065,7 +3065,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Громкость звука тревоги</string>
     <string name="watch_forwarding_section">Через уведомления телефона</string>
-    <string name="watch_forwarding_title">Режим уведомлений</string>
+    <string name="watch_forwarding_title">Передача показаний</string>
     <string name="watch_forwarding_standard">Стандартный Android</string>
     <string name="watch_forwarding_alarms_only">Только тревоги</string>
     <string name="watch_forwarding_every_reading">Каждое новое показание</string>

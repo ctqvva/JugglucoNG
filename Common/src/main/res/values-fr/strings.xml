@@ -2914,7 +2914,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Passerelle de transport Kerfstok</string>
     <string name="watch_garmin_status_desc">État de la connexion et appairage</string>
     <string name="watch_garmin_enable_hint">Activez Kerfstok pour voir l’état</string>
-    <string name="watch_help_forwarding">Le mode de notification détermine ce que les applications de montres et de bracelets reçoivent de la notification du téléphone. « Android standard » : la valeur à chaque mise à jour de la notification, donc certaines montres vibrent à chaque fois. « Chaque nouvelle valeur » et « À intervalle » : chaque valeur une seule fois. « Alarmes uniquement » : aucune valeur.</string>
+    <string name="watch_help_forwarding">« Transfert de la glycémie » détermine ce que les applications de montres et de bracelets reçoivent de la notification du téléphone. « Android standard » : la valeur à chaque mise à jour de la notification, donc certaines montres vibrent à chaque fois. « Chaque nouvelle valeur » et « À intervalle » : chaque valeur une seule fois. « Alarmes uniquement » : aucune valeur.</string>
     <string name="watch_help_wearos">Activez Wear OS pour utiliser le transport de messages vers la montre dans cette app.</string>
     <string name="watch_help_config">Utilisez Configuration pour choisir une montre et définir le routage direct du capteur.</string>
     <string name="watch_help_garmin">Garmin Connect IQ passe par Kerfstok et dispose de ses propres commandes d’état.</string>
@@ -2997,7 +2997,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume du son d’alerte</string>
     <string name="watch_forwarding_section">Via les notifications du téléphone</string>
-    <string name="watch_forwarding_title">Mode de notification</string>
+    <string name="watch_forwarding_title">Transfert de la glycémie</string>
     <string name="watch_forwarding_standard">Android standard</string>
     <string name="watch_forwarding_alarms_only">Alarmes uniquement</string>
     <string name="watch_forwarding_every_reading">Chaque nouvelle valeur</string>

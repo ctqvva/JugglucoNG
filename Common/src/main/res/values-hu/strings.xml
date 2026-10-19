@@ -2983,7 +2983,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="watch_kerfstok_bridge">Kerfstok átviteli híd</string>
     <string name="watch_garmin_status_desc">Kapcsolat állapota és párosítás</string>
     <string name="watch_garmin_enable_hint">Az állapot megtekintéséhez engedélyezze a Kerfstokot</string>
-    <string name="watch_help_forwarding">Az értesítési mód határozza meg, mit kapnak az óra- és karkötőalkalmazások a telefon értesítéséből. „Szabványos Android”: az érték az értesítés minden frissítésekor, ezért egyes órák minden alkalommal rezegnek. „Minden új érték” és „Időközönként”: minden érték egyszer. „Csak riasztások”: nincs érték.</string>
+    <string name="watch_help_forwarding">A „Glükózérték továbbítása” határozza meg, mit kapnak az óra- és karkötőalkalmazások a telefon értesítéséből. „Szabványos Android”: az érték az értesítés minden frissítésekor, ezért egyes órák minden alkalommal rezegnek. „Minden új érték” és „Időközönként”: minden érték egyszer. „Csak riasztások”: nincs érték.</string>
     <string name="watch_help_wearos">Engedélyezze a Wear OS-t, hogy az alkalmazás használhassa az óra üzenetátvitelét.</string>
     <string name="watch_help_config">A Konfiguráció menüben válasszon órát, és állítsa be a közvetlen szenzor-útválasztást.</string>
     <string name="watch_help_garmin">A Garmin Connect IQ a Kerfstokon keresztül működik, és külön állapotvezérlőkkel rendelkezik.</string>
@@ -3066,7 +3066,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
     <string name="watch_forwarding_section">Telefonos értesítéseken keresztül</string>
-    <string name="watch_forwarding_title">Értesítési mód</string>
+    <string name="watch_forwarding_title">Glükózérték továbbítása</string>
     <string name="watch_forwarding_standard">Szabványos Android</string>
     <string name="watch_forwarding_alarms_only">Csak riasztások</string>
     <string name="watch_forwarding_every_reading">Minden új érték</string>

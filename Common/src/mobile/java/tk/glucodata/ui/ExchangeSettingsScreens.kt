@@ -42,7 +42,6 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.NotificationImportant
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
@@ -133,8 +132,6 @@ fun WatchSettingsScreen(navController: NavController) {
 
     var watchdripEnabled by rememberSaveable { mutableStateOf(Natives.getwatchdrip()) }
     var gadgetBridgeEnabled by rememberSaveable { mutableStateOf(Natives.getgadgetbridge()) }
-    var notifyEnabled by rememberSaveable { mutableStateOf(WatchInterop.isNotifyEnabled()) }
-    var separateEnabled by rememberSaveable { mutableStateOf(Natives.getSeparate()) }
     var wearOsEnabled by rememberSaveable { mutableStateOf(WatchInterop.isWearOsEnabled()) }
     var kerfstokEnabled by rememberSaveable { mutableStateOf(Natives.getusegarmin()) }
     var forwardingMode by rememberSaveable { mutableIntStateOf(NotificationForwardingSettings.mode(context)) }
@@ -198,7 +195,7 @@ fun WatchSettingsScreen(navController: NavController) {
                         checked = gadgetBridgeEnabled,
                         icon = Icons.Filled.Hub,
                         iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.MIDDLE,
+                        position = CardPosition.BOTTOM,
                         onCheckedChange = {
                             gadgetBridgeEnabled = it
                             Natives.setgadgetbridge(it)
@@ -208,58 +205,6 @@ fun WatchSettingsScreen(navController: NavController) {
                             tk.glucodata.WearToggleSync.push()
                         }
                     )
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.notify),
-                        checked = notifyEnabled,
-                        icon = Icons.Filled.NotificationImportant,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.MIDDLE,
-                        onCheckedChange = {
-                            notifyEnabled = it
-                            WatchInterop.setNotifyEnabled(it)
-                        }
-                    )
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.separate),
-                        checked = separateEnabled,
-                        icon = Icons.Filled.Devices,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.BOTTOM,
-                        onCheckedChange = {
-                            separateEnabled = it
-                            Notify.alertseparate = it
-                            Natives.setSeparate(it)
-                        }
-                    )
-                }
-            }
-
-            // What watch and band companion apps get to read from the phone notification.
-            item("watch_forwarding_section") {
-                SectionLabel(stringResource(R.string.watch_forwarding_section), topPadding = 0.dp)
-                val forwardingChoice = NotificationForwardingSettings.choice(forwardingMode)
-                val intervalChosen = forwardingChoice == NotificationForwardingSettings.MODE_INTERVAL
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsItem(
-                        title = stringResource(R.string.watch_forwarding_title),
-                        subtitle = watchForwardingChoiceLabel(forwardingChoice),
-                        icon = Icons.AutoMirrored.Filled.Send,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = if (intervalChosen) CardPosition.TOP else CardPosition.SINGLE,
-                        animatePosition = true,
-                        onClick = { showForwardingModeDialog = true }
-                    )
-                    if (intervalChosen) {
-                        SettingsItem(
-                            title = stringResource(R.string.watch_forwarding_interval_title),
-                            subtitle = pluralStringResource(R.plurals.watch_forwarding_minutes, forwardingMode, forwardingMode),
-                            icon = Icons.Default.Timer,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
-                            position = CardPosition.BOTTOM,
-                            animatePosition = true,
-                            onClick = { showForwardingIntervalDialog = true }
-                        )
-                    }
                 }
             }
 
@@ -347,6 +292,34 @@ fun WatchSettingsScreen(navController: NavController) {
                 }
             }
 
+            // What watch and band companion apps get to read from the phone notification.
+            item("watch_forwarding_section") {
+                SectionLabel(stringResource(R.string.watch_forwarding_section), topPadding = 0.dp)
+                val forwardingChoice = NotificationForwardingSettings.choice(forwardingMode)
+                val intervalChosen = forwardingChoice == NotificationForwardingSettings.MODE_INTERVAL
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.watch_forwarding_title),
+                        subtitle = watchForwardingChoiceLabel(forwardingChoice),
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = if (intervalChosen) CardPosition.TOP else CardPosition.SINGLE,
+                        animatePosition = true,
+                        onClick = { showForwardingModeDialog = true }
+                    )
+                    if (intervalChosen) {
+                        SettingsItem(
+                            title = stringResource(R.string.watch_forwarding_interval_title),
+                            subtitle = pluralStringResource(R.plurals.watch_forwarding_minutes, forwardingMode, forwardingMode),
+                            icon = Icons.Default.Timer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            position = CardPosition.BOTTOM,
+                            animatePosition = true,
+                            onClick = { showForwardingIntervalDialog = true }
+                        )
+                    }
+                }
+            }
         }
     }
     if (showForwardingModeDialog) {
@@ -380,10 +353,10 @@ fun WatchSettingsScreen(navController: NavController) {
         InAppHelpDialog(
             title = stringResource(R.string.watches),
             lines = listOf(
-                stringResource(R.string.watch_help_forwarding),
                 stringResource(R.string.watch_help_wearos),
                 stringResource(R.string.watch_help_config),
-                stringResource(R.string.watch_help_garmin)
+                stringResource(R.string.watch_help_garmin),
+                stringResource(R.string.watch_help_forwarding)
             ),
             onDismiss = { showHelp = false }
         )

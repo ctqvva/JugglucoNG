@@ -2951,7 +2951,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="watch_kerfstok_bridge">Kerfstok-transportbrug</string>
     <string name="watch_garmin_status_desc">Verbindingsstatus en koppelen</string>
     <string name="watch_garmin_enable_hint">Schakel Kerfstok in om de status te zien</string>
-    <string name="watch_help_forwarding">De meldingsmodus bepaalt wat horloge- en bandapps uit de telefoonmelding krijgen. “Standaard Android”: de waarde bij elke update van de melding, dus sommige horloges trillen elke keer. “Elke nieuwe waarde” en “Met interval”: elke waarde één keer. “Alleen alarmen”: geen waarden.</string>
+    <string name="watch_help_forwarding">“Glucose doorsturen” bepaalt wat horloge- en bandapps uit de telefoonmelding krijgen. “Standaard Android”: de waarde bij elke update van de melding, dus sommige horloges trillen elke keer. “Elke nieuwe waarde” en “Met interval”: elke waarde één keer. “Alleen alarmen”: geen waarden.</string>
     <string name="watch_help_wearos">Schakel Wear OS in om berichtentransport naar het horloge in deze app te gebruiken.</string>
     <string name="watch_help_config">Gebruik Configuratie om een horloge te kiezen en directe sensorroutering in te stellen.</string>
     <string name="watch_help_garmin">Garmin Connect IQ werkt via Kerfstok en heeft eigen statusbediening.</string>
@@ -3034,7 +3034,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
     <string name="watch_forwarding_section">Via telefoonmeldingen</string>
-    <string name="watch_forwarding_title">Meldingsmodus</string>
+    <string name="watch_forwarding_title">Glucose doorsturen</string>
     <string name="watch_forwarding_standard">Standaard Android</string>
     <string name="watch_forwarding_alarms_only">Alleen alarmen</string>
     <string name="watch_forwarding_every_reading">Elke nieuwe waarde</string>

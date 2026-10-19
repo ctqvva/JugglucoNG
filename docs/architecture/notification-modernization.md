@@ -80,8 +80,8 @@ keep their standard text, so alarms still reach the watch.
 ### Compatibility & forwarding settings
 
 The Watch settings screen now lets the user choose what listener apps can read:
-a "Via phone notifications" section between Transport and Wear OS. Its
-"Notification mode" row opens the usual single-choice dialog (Standard Android, Alarms only, Every new
+a "Via phone notifications" section at the bottom, after the dedicated
+integrations (Transport, Wear OS, Garmin). Its "Glucose forwarding" row opens the usual single-choice dialog (Standard Android, Alarms only, Every new
 reading, At an interval; `NotificationForwardingSettings.MODE_CHOICES`). At an
 interval adds an "Interval" row below it with its own 3/5/10-minute dialog. A choice
 applies at once; both rows store one `NotificationForwardingSettings.mode`, and
@@ -90,6 +90,13 @@ explains the modes. Alarms only is the 1.2.5 behaviour. Every mode works only th
 title/text of the ongoing notification (81431); there is no second notification.
 Its custom views ignore title/text, so the phone looks the same either way. Alarm
 notifications are the same under every combination.
+
+The same change took two legacy Juggluco switches off that screen. "Notify" set
+`Notify.alertwatch`, which re-alerted the ongoing notification on each reading;
+it was never persisted, so it was off again after every process restart. "Separate"
+set `Notify.alertseparate`, which `Notify` forces to true at start-up; switching it
+off stopped alarm notifications being posted until the next restart. The old
+View-based Watch screen and the Wear exchange toggle still expose them.
 
 - **Standard Android** (`notification_standard_text`). When on, every
   post of the ongoing notification has a standard title and text again, as in
