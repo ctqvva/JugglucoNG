@@ -1,7 +1,7 @@
 <resources>
   <string name="language">sv</string>
   <string name="languagename">Språk</string>
-  <string name="app_name">JugglucoNG</string>
+  <string name="app_name">GIS Monitor</string>
   <string name="ok">OK</string>
   <string name="cancel">Avbryt</string>
   <string name="garmin_initialization_error">"Misslyckades med att starta Garmin Connect SDK: "</string>

@@ -71,7 +71,7 @@ android {
                     : ['arm64-v8a', 'armeabi-v7a']))
         }
 
-        applicationId = "tk.glucodata.ng"
+        applicationId = "com.gismonitor"
         versionName = appVersionName
         versionCode = appVersionCode
 
@@ -161,8 +161,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.alg
-            minifyEnabled = true
-            shrinkResources = true
+            minifyEnabled = false
+            shrinkResources = false
 
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules.my', 'proguard-rules.log'
 

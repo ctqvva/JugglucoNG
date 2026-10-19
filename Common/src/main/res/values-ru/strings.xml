@@ -14,7 +14,7 @@
 	<string name="amountshort">@string/amountsname</string>
     <string name="amountsname">Значения</string>
 	<string name="android13">Android</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">GIS Monitor</string>
     <string name="background">Зад. фон</string>
     <string name="backgroundshort">Позади</string>
     <string name="blueormirror">Датчик через Bluetooth должен быть включен или он должен быть настроен как клон</string>

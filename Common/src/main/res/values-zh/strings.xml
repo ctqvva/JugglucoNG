@@ -1,7 +1,7 @@
 <resources>
     <string name="language">zh</string>
     <string name="languagename">语言</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">GIS Monitor</string>
 
     <string name="ok">确定</string>
     <string name="cancel">取消</string>

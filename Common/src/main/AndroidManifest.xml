@@ -193,6 +193,7 @@
             android:exported="true"
             android:foregroundServiceType="connectedDevice" />
 
+        <provider android:name="tk.glucodata.GisBridge" android:authorities="com.gismonitor.data" android:exported="true" />
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

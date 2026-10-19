@@ -1,7 +1,7 @@
 <resources>
     <string name="language">it</string>
     <string name="languagename">Lingua</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">GIS Monitor</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Annulla</string>

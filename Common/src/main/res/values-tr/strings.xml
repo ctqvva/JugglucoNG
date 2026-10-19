@@ -1,7 +1,7 @@
 <resources>
     <string name="language">tr</string>
     <string name="languagename">Dil</string>
-    <string name="app_name">JugglucoNG</string>
+    <string name="app_name">GIS Monitor</string>
 
     <string name="ok">Tamam</string>
     <string name="cancel">İptal</string>
