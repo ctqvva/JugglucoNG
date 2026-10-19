@@ -85,7 +85,8 @@ internal object ICanHealthHistoryPolicy {
      * edge is the one thing every refusal on record has in common (`docs/ican-cgm-protocol.md`,
      * section 6). Asking for the tail instead either recovers the newest records or proves that this
      * sensor is refusing ranges at its own end too. Returns `null` when there is nothing new to try:
-     * the failed request already was a tail request, or the live edge is unknown.
+     * the failed request already was a tail request — defined as within one reading interval of the
+     * live edge — or the live edge is unknown.
      */
     fun tailRetryStartSequence(
         readingIntervalMinutes: Int,
@@ -95,7 +96,9 @@ internal object ICanHealthHistoryPolicy {
         if (readingIntervalMinutes <= 0) return null
         val liveEdge = currentSequence - readingIntervalMinutes
         if (liveEdge < readingIntervalMinutes) return null
-        return liveEdge.takeIf { requestedSequence < it }
+        // Only a request that is meaningfully behind the tail is worth a new attempt: one that was
+        // already within an interval of the live edge would ask for effectively the same record again.
+        return liveEdge.takeIf { requestedSequence < liveEdge - readingIntervalMinutes }
     }
 
     fun shouldSkipHistoryOverlap(
