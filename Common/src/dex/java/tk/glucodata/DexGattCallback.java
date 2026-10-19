@@ -73,9 +73,16 @@ private static final String DIRECT_CONNECT_UNREACHABLE_PREFIX = "direct_unreacha
 private volatile boolean directConnectUnreachable;
 private BluetoothGatt connectedAttempt;
 private boolean known=false;
+private int authSlot;
     public DexGattCallback(String SerialNumber, long dataptr) {
         super(SerialNumber, dataptr, 0x40);
         known=dexKnownSensor(dataptr);
+        // A sensor paired before slots were selectable is paired on the mobile-app slot.
+        if (dataptr != 0L && !DexcomBluetoothSlot.isPinned(SerialNumber) && Natives.isAuthenticated(dataptr))
+            DexcomBluetoothSlot.pin(SerialNumber, DexcomBluetoothSlot.DEFAULT);
+        authSlot = DexcomBluetoothSlot.isPinned(SerialNumber)
+                ? DexcomBluetoothSlot.forSensor(SerialNumber)
+                : DexcomBluetoothSlot.forNewPairings();
         // Dexcom's saved identity remains usable after process death. getnew=true in
         // the base constructor hides it until another scan sets scannedAddress.
         if (mActiveDeviceAddress == null)
@@ -111,6 +118,8 @@ private boolean known=false;
     private static final int GetData = SendKeyChallengeOut + 1;
 
 private void docmd0(BluetoothGatt bluetoothGatt) {
+     // A full pairing claims the slot; from here on this sensor keeps it.
+     DexcomBluetoothSlot.pinIfUnset(SerialNumber, authSlot);
      certinbufiter = 0;
      certinbuf=new byte[160];
      phase = Round1;
@@ -525,11 +534,12 @@ private void sendcertthread() {
 
 
     private void requestAuth() {
-        {if(doLog) {Log.i(LOG_ID,"requestAuth()");};};
+        {if(doLog) {Log.i(LOG_ID,"requestAuth() slot="+authSlot);};};
         Random.fillbytes(random8);
         var uit = new byte[10];
         System.arraycopy(random8, 0, uit, 1, random8.length);
-        uit[0] = uit[9] = (byte) 0x02;
+        uit[0] = (byte) 0x02;
+        uit[9] = (byte) authSlot;
         charact[1].setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         tryer(()->write(1, uit));
       }
@@ -662,13 +672,17 @@ private boolean removedBond=false;
                   return;
                   }
                 boolean isbonded = bond == 1;
+                // Seen on a watch pairing on slot 3: there, certificates sent without
+                // auth==1 only make the sensor hang up, and a fresh pairing exchanges
+                // certificates even when Android kept a bond made for another slot.
+                final boolean watchSlot = authSlot == DexcomBluetoothSlot.SMART_WATCH;
 
-                if(!newcertificates&&auth != 1) {
+                if((watchSlot||!newcertificates)&&auth != 1) {
                     handshake = "auth != 1";
                     wrotepass[1] = System.currentTimeMillis();
                     resetCerts();
                 } else {
-                    if(auth==1&&isbonded||(bonded&&bond==2)) {
+                    if(auth==1&&isbonded||(bonded&&bond==2&&!(watchSlot&&newcertificates))) {
                         getdatacmd();
                     } else {
                         askcertificate(SendCertificate1);
@@ -900,6 +914,27 @@ private    void getdata(byte[] value) {
         Natives.dexResetKeys(dataptr);
          disconnect();
 //        docmd0(mBluetoothGatt);
+    }
+
+public int getAuthSlot() {
+    return authSlot;
+    }
+
+/**
+ * Moves this sensor to another slot. The key and bond belong to the old slot, so both are
+ * dropped and the next connection pairs again from the stored sensor code, as a new sensor
+ * does. Call while paused: a paused disconnect never reaches close(), so the old session's
+ * handshake phase is reset here, or the next connection would skip pairing.
+ */
+public synchronized boolean changeAuthSlot(int slot) {
+    if (!DexcomBluetoothSlot.isValid(slot) || slot == authSlot) return false;
+    {if(doLog) {Log.i(LOG_ID, SerialNumber + " changeAuthSlot " + authSlot + " -> " + slot);};};
+    close();
+    DexcomBluetoothSlot.pin(SerialNumber, slot);
+    authSlot = slot;
+    if (dataptr != 0L) Natives.dexResetKeys(dataptr);
+    unbond();
+    return true;
     }
 
 

@@ -78,6 +78,25 @@ object VirtualGlucoseSensorBridge {
         stored
     }
 
+    /**
+     * Native mirror only, for a driver that stores and publishes its readings itself (stock
+     * lanes, Room) but owns no native shell. Without it the built-in web server's
+     * /api/v1/entries, which reads native records only, never sees the sensor.
+     */
+    @JvmStatic
+    fun mirrorToNative(
+        sensorSerial: String,
+        readings: List<Reading>,
+        logLabel: String,
+        nativeFamily: ManagedSensorUiFamily,
+    ): Int {
+        if (sensorSerial.isBlank()) return 0
+        val nowMs = System.currentTimeMillis()
+        val valid = readings.filter { isUsableHistoryReading(it, nowMs) }
+        if (valid.isEmpty()) return 0
+        return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily)
+    }
+
     data class Reading(
         val timestampMs: Long,
         val glucoseMgdl: Float,

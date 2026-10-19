@@ -701,6 +701,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">Dexcom мэдрэгч дээрх дата матрицыг уншуулна уу</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth слот</string>
+    <string name="dexcom_slot_receiver_short">Насос</string>
+    <string name="dexcom_slot_app_short">Утас</string>
+    <string name="dexcom_slot_watch_short">Цаг</string>
+    <string name="dexcom_slot_receiver">Слот 1: хүлээн авагч эсвэл насос</string>
+    <string name="dexcom_slot_app">Слот 2: утасны апп (үндсэн)</string>
+    <string name="dexcom_slot_watch">Слот 3: ухаалаг цаг</string>
+    <string name="dexcom_slot_desc">Мэдрэгч слот бүрт тусдаа холболт хадгалдаг. Өөр төхөөрөмж ашигладаггүй слотыг сонгоно уу: Dexcom апп утасны слотыг эзэлдэг.</string>
+    <string name="dexcom_slot_button">Bluetooth слот: %1$s</string>
+    <string name="dexcom_slot_change_desc">Мэдрэгч хадгалсан кодоор шинэ слот дээр дахин холбогдоно. Дараа нь хуучин слотыг өөр төхөөрөмж ашиглаж болно.</string>
+    <string name="dexcom_slot_change_action">Слот солих</string>
     <string name="scan_dexcom">Dexcom уншуулах</string>
     <string name="dexcom_pairing_code_label">4 оронтой холбох код</string>
     <string name="dexcom_pairing_code_instruction">Мэдрэгчийн аппликатор дээр хэвлэгдсэн 4 оронтой холбох кодыг оруулна уу.</string>
@@ -2822,6 +2833,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2892,7 +2904,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sibionics_uncertainty_ribbon_desc">Глюкозын шугамын эргэн тойронд магадлалт мужийн зурвасыг харуулах</string>
     <string name="freeze_displayed_values">Харуулсан утгыг хадгалах</string>
     <string name="freeze_displayed_values_desc">Заалт нь харуулсан утгаа хадгална. Тохируулгын өөрчлөлт зөвхөн сүүлийн заалтад нөлөөлнө.</string>
-    <string name="freeze_displayed_values_on">Харуулсан утгыг хадгалж байна</string>
+    <string name="freeze_displayed_values_after">Түгжих хугацаа: %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Тэр хүртэл уншилт каллибрацийн өөрчлөлтийг дагасаар байх тул хожуу оруулсан хурууны хэмжилт түүнийг засаж чадна. Дараа нь харуулсан утгаа хадгална.</string>
     <string name="freeze_displayed_values_off">Өөрчлөлт бүрт дахин тооцоолно</string>
     <string name="anytime_credentials_backup">CT5 нэвтрэх мэдээллийг нөөцлөх</string>
     <string name="anytime_credentials_backup_warning">Энэ файл нь аппыг дахин суулгасны эсвэл мэдрэгчийг устгасны дараа дамжуулагчийн сессийг сэргээх боломжтой. Аюулгүй газар хадгална уу.</string>
@@ -3070,6 +3083,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
     <string name="nightscout_api_help">v1-д API нууц, v3-д Nightscout хандалтын токен ашиглана уу.</string>
     <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
+    <string name="medtrum_sensor_desc">Наалт дээр хэвлэсэн серийн дугаарыг оруулна уу (16-тын)</string>
+    <string name="medtrum_setup_saved_title">Мэдрэгч хадгалагдлаа</string>
+    <string name="medtrum_setup_searching">Одоогоор холбогдоогүй. Наалт ойр байх үед өөрөө холбогдоно.</string>
+    <string name="medtrum_setup_auth_failed">Наалт энэ серийн дугаарыг хүлээн аваагүй. Наалт дээрх дугаарыг шалгана уу.</string>
+    <string name="medtrum_setup_device_rejected">Энэ төхөөрөмж Medtrum наалт биш. Наалт ойрхон байгаа эсэхийг шалгаад дахин оролдоно уу.</string>
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
     <string name="watch_forwarding_section">Утасны мэдэгдлээр</string>
@@ -3081,4 +3099,27 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
         <item quantity="one">%d минут тутам</item>
         <item quantity="other">%d минут тутам</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Үзүүлэлтийг Dexcom Follow руу илгээх</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Dexcom руу илгээх</string>
+    <string name="dexcom_share_active_desc">Энэ утаснаас бодит цагийн үзүүлэлтийг Dexcom Follow руу илгээх</string>
+    <string name="dexcom_share_account">Dexcom бүртгэл</string>
+    <string name="dexcom_share_password">Нууц үг</string>
+    <string name="dexcom_share_region">Бүс нутаг</string>
+    <string name="dexcom_share_region_ous">АНУ-аас гадна</string>
+    <string name="dexcom_share_region_us">АНУ</string>
+    <string name="dexcom_share_serial">Хүлээн авагчийн серийн дугаар</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Танд Dexcom хүлээн авагч байхгүй бол анхдагч утгыг үлдээнэ үү</string>
+    <string name="dexcom_share_test">Холболтыг шалгах</string>
+    <string name="dexcom_share_test_ok">Холболт амжилттай</string>
+    <string name="dexcom_share_pending">Хүлээгдэж буй үзүүлэлт: %1$d</string>
+    <string name="dexcom_share_status_last_success">Сүүлийн амжилт: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Сүүлийн оролдлого: %1$s</string>
+    <string name="dexcom_share_status_error">Алдаа: %1$s</string>
+    <string name="dexcom_share_status_never">Хэзээ ч үгүй</string>
+    <string name="dexcom_share_auth_blocked">Нэвтрэлт хаагдсан — бүртгэл болон нууц үгээ шалгана уу</string>
+    <string name="dexcom_share_credentials_required">Эхлээд бүртгэл болон нууц үгээ оруулна уу</string>
+    <string name="dexcom_share_warning">Албан бус интерфейс: Dexcom үүнийг хэзээ ч өөрчлөх эсвэл хааж болно. Энэ нь эмнэлгийн хэрэгслийн функц биш.</string>
 </resources>

@@ -969,6 +969,7 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/ottai") { tk.glucodata.ui.setup.OttaiSettingsScreen(navController) }
     composable("settings/mirror") { MirrorSettingsScreen(navController) }
     composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
+    composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
     composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
     composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
     composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }

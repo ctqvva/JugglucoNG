@@ -22,6 +22,10 @@ import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.XdripBackfill
+import tk.glucodata.share.DexcomShareBackfillTrend
+import tk.glucodata.share.DexcomShareSettings
+import tk.glucodata.share.DexcomShareUploader
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -711,6 +715,39 @@ class HistoryRepository(context: Context = Applic.app) {
 
 
     /**
+     * Hands a stored batch to every exchange output that needs history: the xDrip broadcast, so
+     * readings missed live still reach AAPS, and Dexcom Share, so a disconnect does not leave a
+     * hole in the shared stream.
+     */
+    private fun forwardBackfillToExchanges(readings: List<HistoryReading>) {
+        readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+            val backfillRows = rows.map { XdripBackfill.Row(it.timestamp, it.value, it.rawValue, it.rate) }
+            XdripBackfill.onHistoryStored(serial, backfillRows)
+            // Resolving a row to the value a live send would carry costs a native snapshot,
+            // smoothing and calibration per row, so it is skipped for the many users who never
+            // switch Share on. The uploader checks the same flag again before it sends anything.
+            val app = Applic.app
+            if (app != null && DexcomShareSettings.isEnabled(app)) {
+                DexcomShareUploader.onHistoryStored(
+                    serial,
+                    dexcomRows(backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
+                )
+            }
+        }
+    }
+
+    /** The rows Dexcom Share should hear about, each with its trend ([DexcomShareBackfillTrend]). */
+    private fun dexcomRows(
+        rows: List<XdripBackfill.Row>,
+        displayed: List<XdripBackfill.DisplayedRow>,
+    ): List<DexcomShareUploader.Row> {
+        val rateByTime = rows.associate { it.timeMs to it.rate }
+        return DexcomShareBackfillTrend.rows(
+            displayed.map { DexcomShareBackfillTrend.Source(it.timeMs, it.mgdl, rateByTime[it.timeMs]) },
+        )
+    }
+
+    /**
      * Store multiple readings at once (used for backfill).
      * Readings must already have sensorSerial set.
      */
@@ -750,6 +787,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     dao.insertAll(readingsWithStableProvenance)
                 }
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
+                forwardBackfillToExchanges(filteredReadings)
                 // Only log small batches (likely genuine new data, not re-syncs)
                 if (filteredReadings.size <= 10) {
                     Log.d(TAG, "Stored ${filteredReadings.size} readings")
@@ -831,6 +869,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
+                forwardBackfillToExchanges(collapsedReadings)
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
@@ -1113,10 +1152,11 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapped
             } else {
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 val indexed = display.indexedDisplay()
                 mapped.map { point ->
                     val sealed = indexed[displayKey(point.timestamp)]
-                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                         ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
                         ?.takeIf { record ->
                             val serial = point.sensorSerial ?: return@takeIf true
@@ -1236,8 +1276,9 @@ class HistoryRepository(context: Context = Applic.app) {
             val freezeEnabled = indexed.isNotEmpty() &&
                 runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
             val nowMs = System.currentTimeMillis()
+            val graceMs = ReadingDisplay.sealGraceMs()
             mergeQueryReadings(readings, preferredSerial).map { reading ->
-                mapReadingForStats(reading, indexed, freezeEnabled, nowMs)
+                mapReadingForStats(reading, indexed, freezeEnabled, nowMs, graceMs)
             }
         }.flowOn(Dispatchers.IO)
     }
@@ -1310,8 +1351,9 @@ class HistoryRepository(context: Context = Applic.app) {
                 val readings = dao.getReadingsSince(startTime)
                 val display = displayRecordsFor(startTime)
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 mergeQueryReadings(readings, preferredSerial).map { reading ->
-                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs)
+                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs, graceMs)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting stats display history", e)
@@ -1687,8 +1729,9 @@ class HistoryRepository(context: Context = Applic.app) {
         val nowMs = System.currentTimeMillis()
         val freezeEnabled = display.isNotEmpty() &&
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+        val graceMs = if (freezeEnabled) ReadingDisplay.sealGraceMs() else 0L
         return readings.map { reading ->
-            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs)
+            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs, graceMs)
             GlucosePoint(
                 value = reading.value,
                 time = formatTime(reading.timestamp),
@@ -1779,18 +1822,17 @@ class HistoryRepository(context: Context = Applic.app) {
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay> = emptyMap(),
         freezeEnabled: Boolean = false,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        graceMs: Long = ReadingDisplay.sealGraceMs(),
     ): GlucosePoint {
-        // The lane tag travels with the value: StatsViewModel resolves each
-        // point's lane from its sensor's view mode and applies the record only
-        // where the lanes agree (recordAppliesToLane). A bare value without its
-        // lane cannot be gated, which is how raw-line records ended up in auto
-        // statistics.
+        // The lane tag travels with the value as provenance. It does not gate
+        // the record: a statistic describes the main value that was shown,
+        // whichever lane showed it — see HistoryChartModelBuilder.recordedMainValue.
         val sealed = if (!freezeEnabled) {
             null
         } else {
             display[displayKey(reading.timestamp)]
-                ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                 // The minute's record whoever showed it — but not a stale
                 // one of this reading's own sensor; see recordStillDescribes.
                 ?.takeIf { record ->
@@ -2161,10 +2203,8 @@ class HistoryRepository(context: Context = Applic.app) {
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
-     * the window is revised, because it is still settling — but only within the
-     * record's own lane (see [ReadingDisplayDao.reviseIfUnsealed]): a view-mode
-     * toggle resubmits the same minutes in the other lane's numbers, and
-     * letting that land would freeze wrong-lane values one toggle at a time.
+     * the window is revised, because it is still settling — by a calibration
+     * change or a view-mode switch alike, so it seals as it was last shown.
      * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
@@ -2178,7 +2218,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val nowMs = System.currentTimeMillis()
-                val sealHorizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+                val sealHorizon = nowMs - ReadingDisplay.sealGraceMs()
                 val fingerprints = HashMap<String, Long>()
                 val rows = entries.mapNotNull { entry ->
                     if (!entry.displayMgdl.isFinite() || entry.displayMgdl <= 0f) return@mapNotNull null
@@ -2260,7 +2300,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 displayDao.mainLineOwners(startTime).associate { it.timestamp to it.sensorSerial }
             }.getOrDefault(emptyMap())
         }
-        return MainSensorOwnership(recorded, nowMs)
+        return MainSensorOwnership(recorded, nowMs, ReadingDisplay.sealGraceMs())
     }
 
     /**
@@ -2277,10 +2317,11 @@ class HistoryRepository(context: Context = Applic.app) {
     private fun sealedRecordForLine(
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay>,
-        nowMs: Long
+        nowMs: Long,
+        graceMs: Long,
     ): ReadingDisplay? {
         val record = display[displayKey(reading.timestamp)] ?: return null
-        if (!record.isUsable || !record.isSealedAt(nowMs)) return null
+        if (!record.isUsable || !record.isSealedAt(nowMs, graceMs)) return null
         if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
         if (!recordStillDescribes(reading, record)) return null
         return record

@@ -687,6 +687,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_scan_instruction">Scan de datamatrix op je Dexcom-sensor</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-slot</string>
+    <string name="dexcom_slot_receiver_short">Pomp</string>
+    <string name="dexcom_slot_app_short">Telefoon</string>
+    <string name="dexcom_slot_watch_short">Horloge</string>
+    <string name="dexcom_slot_receiver">Slot 1: ontvanger of pomp</string>
+    <string name="dexcom_slot_app">Slot 2: telefoon-app (standaard)</string>
+    <string name="dexcom_slot_watch">Slot 3: smartwatch</string>
+    <string name="dexcom_slot_desc">De sensor bewaart per slot een aparte koppeling. Kies er een die geen ander apparaat gebruikt: de Dexcom-app neemt het telefoonslot.</string>
+    <string name="dexcom_slot_button">Bluetooth-slot: %1$s</string>
+    <string name="dexcom_slot_change_desc">De sensor wordt met de opgeslagen code opnieuw gekoppeld op het nieuwe slot. Een ander apparaat kan daarna het oude slot gebruiken.</string>
+    <string name="dexcom_slot_change_action">Slot wijzigen</string>
     <string name="dexcom_pairing_code_label">4-cijferige koppelcode</string>
     <string name="dexcom_pairing_code_instruction">Voer de 4-cijferige koppelcode in die op de sensorapplicator staat.</string>
     <string name="libre_setup_title">Libre Installatie</string>
@@ -2758,6 +2769,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2834,7 +2846,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sibionics_uncertainty_ribbon_desc">Toon de band met het waarschijnlijke bereik rond de glucoselijn</string>
     <string name="freeze_displayed_values">Weergegeven waarden behouden</string>
     <string name="freeze_displayed_values_desc">Een meting behoudt de weergegeven waarde. Kalibratiewijzigingen gelden alleen voor recente metingen.</string>
-    <string name="freeze_displayed_values_on">Weergegeven waarden worden behouden</string>
+    <string name="freeze_displayed_values_after">Vastgezet na %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Tot dan volgt een meting nog kalibratiewijzigingen, zodat een later ingevoerde vingerprik hem kan corrigeren. Daarna behoudt hij de weergegeven waarde.</string>
     <string name="freeze_displayed_values_off">Wordt bij elke wijziging herberekend</string>
     <string name="anytime_credentials_backup">CT5-inloggegevens back-uppen</string>
     <string name="anytime_credentials_backup_warning">Met dit bestand kan de zendersessie worden hersteld nadat de app opnieuw is geïnstalleerd of de sensor is verwijderd. Bewaar het veilig.</string>
@@ -3012,6 +3025,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_secret_label">API-secret of toegangstoken</string>
     <string name="nightscout_api_help">Gebruik een API-geheim voor v1 of een Nightscout-toegangstoken voor v3.</string>
     <string name="nightscout_iob_help">eIOB en COB worden in het veld jugglucong van devicestatus verstuurd, los van de standaard-IOB.</string>
+    <string name="medtrum_sensor_desc">Voer het serienummer in dat op de patch staat (hexadecimaal)</string>
+    <string name="medtrum_setup_saved_title">Sensor opgeslagen</string>
+    <string name="medtrum_setup_searching">Nog niet verbonden. De patch maakt vanzelf verbinding zodra hij binnen bereik is.</string>
+    <string name="medtrum_setup_auth_failed">De patch heeft dit serienummer geweigerd. Controleer het nummer op de patch.</string>
+    <string name="medtrum_setup_device_rejected">Dit apparaat is geen Medtrum-patch. Zorg dat de patch binnen bereik is en probeer het opnieuw.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
     <string name="watch_forwarding_section">Via telefoonmeldingen</string>
@@ -3023,4 +3041,27 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
         <item quantity="one">Elke minuut</item>
         <item quantity="other">Elke %d minuten</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Metingen naar Dexcom Follow sturen</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Delen met Dexcom</string>
+    <string name="dexcom_share_active_desc">Actuele metingen van deze telefoon naar Dexcom Follow sturen</string>
+    <string name="dexcom_share_account">Dexcom-account</string>
+    <string name="dexcom_share_password">Wachtwoord</string>
+    <string name="dexcom_share_region">Regio</string>
+    <string name="dexcom_share_region_ous">Buiten de VS</string>
+    <string name="dexcom_share_region_us">VS</string>
+    <string name="dexcom_share_serial">Serienummer ontvanger</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Laat de standaardwaarde staan als je geen Dexcom-ontvanger hebt</string>
+    <string name="dexcom_share_test">Verbinding testen</string>
+    <string name="dexcom_share_test_ok">Verbinding geslaagd</string>
+    <string name="dexcom_share_pending">Wachtende metingen: %1$d</string>
+    <string name="dexcom_share_status_last_success">Laatst gelukt: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Laatste poging: %1$s</string>
+    <string name="dexcom_share_status_error">Fout: %1$s</string>
+    <string name="dexcom_share_status_never">Nooit</string>
+    <string name="dexcom_share_auth_blocked">Inloggen geblokkeerd — controleer account en wachtwoord</string>
+    <string name="dexcom_share_credentials_required">Vul eerst account en wachtwoord in</string>
+    <string name="dexcom_share_warning">Onofficiële interface: Dexcom kan deze op elk moment wijzigen of blokkeren. Dit is geen functie van een medisch hulpmiddel.</string>
 </resources>

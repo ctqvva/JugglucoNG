@@ -51,10 +51,9 @@ object ExportCalibration {
      * applies. Null is returned when no active software calibration exists for
      * this sensor's primary lane, or the base value is missing/unusable.
      *
-     * [sealedDisplayValue] wins outright when present **and recorded for this
-     * lane**: a record is a fact about a minute *and a lane* (see
-     * [HistoryChartModelBuilder.recordAppliesToLane]), so a value shown on the
-     * raw line must not stand in for the auto line. An export that recomputed
+     * [sealedDisplayValue] wins outright when present, in whichever lane it was
+     * recorded: it is the main value the user was shown (see
+     * [HistoryChartModelBuilder.recordedMainValue]). An export that recomputed
      * a value the user was shown a different number for would contradict both
      * the chart and Nightscout, which is the disagreement this file exists to
      * prevent.
@@ -63,8 +62,8 @@ object ExportCalibration {
      * @param rawDisplayValue   the stored raw value in display units
      * @param sealedDisplayValue the recorded displayed value, in display units
      * @param sealedDisplayViewMode the view mode in force when [sealedDisplayValue]
-     *   was recorded (0/2 auto, 1/3 raw); null/negative when unknown, which is
-     *   taken at face value rather than discarded.
+     *   was recorded (0/2 auto, 1/3 raw). Provenance only; it does not gate the
+     *   record.
      */
     fun calibratedDisplayValue(
         autoDisplayValue: Float,
@@ -76,9 +75,7 @@ object ExportCalibration {
         sealedDisplayViewMode: Int? = null
     ): Float? {
         val raw = isRawMode(viewMode)
-        sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
-            ?.takeIf { HistoryChartModelBuilder.recordAppliesToLane(sealedDisplayViewMode ?: -1, raw) }
-            ?.let { return it }
+        sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         val base = laneBaseValue(autoDisplayValue, rawDisplayValue, viewMode) ?: return null
         val calSensorId = sensorId?.takeIf { it.isNotBlank() }
         if (!CalibrationManager.hasActiveCalibration(raw, calSensorId)) return null

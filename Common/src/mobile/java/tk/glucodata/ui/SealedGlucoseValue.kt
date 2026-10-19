@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import tk.glucodata.chart.HistoryChartModelBuilder
 import tk.glucodata.data.calibration.CalibrationManager
 
 /**
@@ -29,15 +28,10 @@ internal object SealedGlucoseValue {
         isRawMode: Boolean,
         sensorId: String?
     ): Float? {
-        // A record is a fact about a minute *and a lane*: a value shown on the
-        // raw line says nothing about what the auto line showed. Resolving the
-        // other lane takes nothing from the record — the same rule the chart
-        // builder applies, or rows and charts disagree minute by minute.
-        point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
-            ?.takeIf {
-                HistoryChartModelBuilder.recordAppliesToLane(point.sealedDisplayViewMode ?: -1, isRawMode)
-            }
-            ?.let { return it }
+        // The record is what the main line showed, whichever lane drew it —
+        // the same rule the chart builder applies (recordedMainValue), or rows
+        // and charts disagree minute by minute after a view-mode switch.
+        point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         return computeCalibrated(
             baseValue = if (isRawMode) point.rawValue else point.value,
             timestamp = point.timestamp,

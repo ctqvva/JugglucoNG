@@ -412,6 +412,7 @@ fun SensorCard(
     }
     var showForgetDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    var showDexcomSlotDialog by remember { mutableStateOf(false) }
     // Edit 79: showClearDialog removed — restart algorithm now in Sibionics Calibration bottom sheet
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showUnifiedResetDialog by remember { mutableStateOf(false) }
@@ -831,6 +832,17 @@ fun SensorCard(
                 }
             )
         }
+    }
+
+    if (showDexcomSlotDialog) {
+        tk.glucodata.ui.setup.DexcomBluetoothSlotDialog(
+            currentSlot = sensor.dexcomBluetoothSlot,
+            onDismiss = { showDexcomSlotDialog = false },
+            onConfirm = { slot ->
+                showDexcomSlotDialog = false
+                viewModel.setDexcomBluetoothSlot(sensor.serial, slot)
+            }
+        )
     }
 
     if (showResetDialog) {
@@ -1904,8 +1916,8 @@ fun SensorCard(
                     val pausedText = stringResource(R.string.disabled_status)
 
                     val displayName = sensor.displayName.ifBlank { sensor.serial }
-                    val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel) {
-                        sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel)
+                    val badge = remember(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand) {
+                        sensorBadge(sensor.vendor, sensor.sensorType, sensor.vendorModel, sensor.vendorBrand)
                     }
                     val canToggleEnabled = sensorCount > 1
 
@@ -2861,6 +2873,40 @@ fun SensorCard(
                 }
             }
 
+            if (sensor.isMedtrum && sensor.supportsManualCalibration) {
+                FilledTonalButton(
+                    onClick = { showSensorCalibrateDialog = true },
+                    enabled = sensor.isVendorConnected,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bloodtype,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (sensor.isVendorConnected) {
+                            stringResource(R.string.calibrate_action)
+                        } else {
+                            stringResource(R.string.calibrate_connect_first)
+                        },
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+
             if (sensor.isAnytime && sensor.supportsManualCalibration) {
                 val warmupComplete = AnytimeCalibrationPolicy.canAcceptManualCalibration(sensor.sensorAgeHours)
                 val canCalibrate = sensor.isVendorConnected && warmupComplete
@@ -3168,6 +3214,40 @@ fun SensorCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.reset_sensor))
+                }
+            }
+
+            // The slot is this phone's own pairing; a Clone record or a sensor the watch
+            // is reading has none here to move.
+            if (sensor.dexcomBluetoothSlot != 0 && !sensor.isCloneSource &&
+                sensor.handoffUiState == tk.glucodata.SensorHandoffUiState.NONE
+            ) {
+                FilledTonalButton(
+                    onClick = { showDexcomSlotDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bluetooth,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.dexcom_slot_button,
+                            tk.glucodata.ui.setup.dexcomSlotShortLabel(sensor.dexcomBluetoothSlot)
+                        ),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
                 }
             }
 

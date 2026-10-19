@@ -557,6 +557,7 @@ object ExportPackageExporter {
         val freezeDisplayedValues =
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
         val nowMs = System.currentTimeMillis()
+        val graceMs = ReadingDisplay.sealGraceMs()
         val displayDao = database.readingDisplayDao()
         val sealedIn: suspend (Long, Long) -> Map<Long, ReadingDisplay> = { fromMs, toMs ->
             if (!freezeDisplayedValues) {
@@ -564,7 +565,7 @@ object ExportPackageExporter {
             } else {
                 runCatching {
                     displayDao.getBetween(fromMs, toMs)
-                        .filter { it.isUsable && it.isSealedAt(nowMs) }
+                        .filter { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                         .associateBy { sealedDisplayKey(it.timestamp) }
                 }.getOrDefault(emptyMap())
             }
@@ -580,7 +581,7 @@ object ExportPackageExporter {
                 val page = runCatching { displayDao.getPageAfter(afterMs, EXPORT_PAGE_SIZE) }
                     .getOrDefault(emptyList())
                 if (page.isEmpty()) break
-                page.filter { it.isUsable && it.isSealedAt(nowMs) }.forEach { display ->
+                page.filter { it.isUsable && it.isSealedAt(nowMs, graceMs) }.forEach { display ->
                     sealedMinutes++
                     sealedViewModes += display.viewMode
                     sealedSerials += display.sensorSerial

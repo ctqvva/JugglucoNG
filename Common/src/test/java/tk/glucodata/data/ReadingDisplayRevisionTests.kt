@@ -61,15 +61,21 @@ class ReadingDisplayRevisionTests {
         }
     }
 
-    @Test fun crossLanePresentationDoesNotReviseUnsealedMinutes() {
-        // A record is a fact about a minute *and a lane*: toggling the view
-        // mode resubmits the visible minutes in the other lane's numbers, and
-        // letting that land froze wrong-lane values one toggle at a time. The
-        // seeded row is viewMode 0 (auto); raw-primary presentations of it are
-        // refused, while the same-lane dual mode still revises.
+    @Test fun aViewModeSwitchRevisesUnsealedMinutesLikeACalibrationChange() {
+        // Unsealed records are never drawn: after a raw/auto switch the grace
+        // hour is already on screen in the new lane. Refusing the revision
+        // sealed those minutes with the old lane's numbers an hour later.
         listOf(1, 3).forEach { mode ->
             database().use { db ->
-                assertEquals(0, revise(db, mapOf("viewMode" to mode, "displayMgdl" to 31.4f)))
+                assertEquals(1, revise(db, mapOf("viewMode" to mode, "displayMgdl" to 31.4f)))
+            }
+        }
+    }
+
+    @Test fun aViewModeSwitchCannotReachASealedMinute() {
+        listOf(1, 3).forEach { mode ->
+            database().use { db ->
+                assertEquals(0, revise(db, mapOf("sealHorizon" to 60000L, "viewMode" to mode, "displayMgdl" to 31.4f)))
             }
         }
     }
@@ -78,23 +84,16 @@ class ReadingDisplayRevisionTests {
         assertEquals(0, revise(db, mapOf("sealHorizon" to 60000L, "displayMgdl" to 130f, "sensorSerial" to "B")))
     }
 
-    @Test fun repeatedTogglesPreserveTheRecordedLaneInBothDirections() {
-        for (recordedMode in 0..3) {
-            database().use { db ->
-                db.createStatement().use { it.executeUpdate("UPDATE reading_display SET viewMode=$recordedMode") }
-                for ((index, requestedMode) in listOf(0, 1, 2, 3, 2, 1, 0).withIndex()) {
-                    val sameLane = (recordedMode and 1) == (requestedMode and 1)
-                    val changedValue = 130f + index
-                    assertEquals(
-                        if (sameLane) 1 else 0,
-                        revise(db, mapOf("viewMode" to requestedMode, "displayMgdl" to changedValue)),
-                    )
-                    db.createStatement().use { statement ->
-                        statement.executeQuery("SELECT viewMode FROM reading_display").use {
-                            it.next()
-                            assertEquals(recordedMode and 1, it.getInt(1) and 1)
-                        }
-                    }
+    @Test fun repeatedTogglesLeaveTheLastPresentationInsideTheGraceWindow() {
+        database().use { db ->
+            for ((index, requestedMode) in listOf(0, 1, 2, 3, 2, 1, 0, 3).withIndex()) {
+                assertEquals(1, revise(db, mapOf("viewMode" to requestedMode, "displayMgdl" to 130f + index)))
+            }
+            db.createStatement().use { statement ->
+                statement.executeQuery("SELECT viewMode, displayMgdl FROM reading_display").use {
+                    it.next()
+                    assertEquals(3, it.getInt(1))
+                    assertEquals(137f, it.getFloat(2), 0.001f)
                 }
             }
         }

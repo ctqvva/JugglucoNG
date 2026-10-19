@@ -1097,7 +1097,7 @@ fromjava(getSensorUiSnapshot)(JNIEnv *env, jclass cl, jstring jsensor) {
       static_cast<jlong>(sens->getstarttime()) * 1000LL,
       static_cast<jlong>(sens->expectedEndTime()) * 1000LL,
       static_cast<jlong>(sens->officialendtime()) * 1000LL,
-      static_cast<jlong>(info ? info->managedFamily : 0)};
+      static_cast<jlong>(info ? info->managedFamilyCode() : 0)};
   jlongArray result = env->NewLongArray(6);
   if (!result) {
     return nullptr;
@@ -1831,7 +1831,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorWearDays)(
 // driver that holds the sensor; read anywhere a dataptr is in hand.
 extern "C" JNIEXPORT void JNICALL fromjava(setSensorManagedFamily)(
     JNIEnv *env, jclass cl, jstring sensorId, jint code) {
-  if (!sensors || !sensorId || code < 0 || code > 7)
+  if (!sensors || !sensorId || code < 0 ||
+      code > static_cast<jint>(SensorGlucoseData::Info::maxManagedFamilyCode))
     return;
   const char *str = env->GetStringUTFChars(sensorId, NULL);
   if (!str)
@@ -1839,8 +1840,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorManagedFamily)(
   if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
     if (!hist->error()) {
       if (auto *info = hist->getinfo()) {
-        if (info->managedFamily != static_cast<unsigned>(code)) {
-          info->managedFamily = static_cast<unsigned>(code);
+        if (info->managedFamilyCode() != static_cast<unsigned>(code)) {
+          info->setManagedFamilyCode(static_cast<unsigned>(code));
           LOGGER("setSensorManagedFamily: %s family=%d\n", str, code);
         }
       }
@@ -1857,7 +1858,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getSensorManagedFamily)(
   if (!hist)
     return 0;
   const auto *info = hist->getinfo();
-  return info ? static_cast<jint>(info->managedFamily) : 0;
+  return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(hasSensorStreamCapacity)(

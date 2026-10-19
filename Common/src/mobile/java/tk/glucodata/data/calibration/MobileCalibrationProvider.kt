@@ -73,6 +73,13 @@ object MobileCalibrationProvider : CalibrationProvider {
         return true
     }
 
+    override fun declareSessionBoundary(sensorId: String, archiveId: String, cutoffMs: Long) =
+        CalibrationManager.declareSessionBoundary(sensorId, archiveId, cutoffMs)
+
+    override fun archiveSensorCalibrationsBlocking(sensorId: String, archiveId: String, cutoffMs: Long): Boolean =
+        // Handled even when the sensor had nothing to move; only an engine that is not ready yet fails.
+        CalibrationManager.archiveSensorCalibrationsBlocking(sensorId, archiveId, cutoffMs) >= 0
+
     override fun deleteCalibrationAtBlocking(timestamp: Long): Boolean =
         CalibrationManager.deleteCalibrationAtBlocking(timestamp)
 

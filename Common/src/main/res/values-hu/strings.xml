@@ -704,6 +704,17 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="dexcom_setup_title">Dexcom beállítása</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">A Dexcom szenzoron lévő Data Matrix kód szkennelése</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-hely</string>
+    <string name="dexcom_slot_receiver_short">Pumpa</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Óra</string>
+    <string name="dexcom_slot_receiver">1. hely: vevőkészülék vagy pumpa</string>
+    <string name="dexcom_slot_app">2. hely: telefonos alkalmazás (alapértelmezett)</string>
+    <string name="dexcom_slot_watch">3. hely: okosóra</string>
+    <string name="dexcom_slot_desc">A szenzor minden helyhez külön párosítást tárol. Válasszon olyat, amelyet más eszköz nem használ: a Dexcom alkalmazás a telefon helyét foglalja el.</string>
+    <string name="dexcom_slot_button">Bluetooth-hely: %1$s</string>
+    <string name="dexcom_slot_change_desc">A szenzor a tárolt kóddal újra párosodik az új helyen. Ezután más eszköz használhatja a régi helyet.</string>
+    <string name="dexcom_slot_change_action">Hely módosítása</string>
     <string name="scan_dexcom">Dexcom szkennelése</string>
     <string name="accuchek_setup_title">Accu-Chek beállítása</string>
     <string name="accuchek_scan_instruction">Az Accu-Chek SmartGuide szenzoron lévő Data Matrix kód szkennelése</string>
@@ -2805,6 +2816,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2877,7 +2889,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sibionics_uncertainty_ribbon_desc">A valószínű tartomány sávjának megjelenítése a glükózgörbe körül</string>
     <string name="freeze_displayed_values">Megjelenített értékek megőrzése</string>
     <string name="freeze_displayed_values_desc">A mérés megőrzi a megjelenített értékét. A kalibráció módosítása csak a legutóbbi méréseket érinti.</string>
-    <string name="freeze_displayed_values_on">Megjelenített értékek megőrzése</string>
+    <string name="freeze_displayed_values_after">Rögzítés %1$s után</string>
+    <string name="freeze_displayed_values_grace_desc">Addig a mérés még követi a kalibráció változásait, így egy később rögzített ujjbegyes mérés is javíthatja. Utána megtartja a megjelenített értéket.</string>
     <string name="freeze_displayed_values_off">Újraszámítás minden változáskor</string>
     <string name="anytime_credentials_backup">CT5-hitelesítő adatok mentése</string>
     <string name="anytime_credentials_backup_warning">Ezzel a fájllal visszaállítható a jeladó munkamenete az alkalmazás újratelepítése vagy a szenzor eltávolítása után. Tárolja biztonságos helyen.</string>
@@ -3044,6 +3057,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_secret_label">API-titok vagy hozzáférési token</string>
     <string name="nightscout_api_help">A v1-hez API-titkot, a v3-hoz Nightscout-hozzáférési tokent használj.</string>
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
+    <string name="medtrum_sensor_desc">Adja meg a tapaszra nyomtatott sorozatszámot (hexadecimális)</string>
+    <string name="medtrum_setup_saved_title">Szenzor mentve</string>
+    <string name="medtrum_setup_searching">Még nincs kapcsolat. A tapasz magától csatlakozik, ha hatótávon belül van.</string>
+    <string name="medtrum_setup_auth_failed">A tapasz elutasította ezt a sorozatszámot. Ellenőrizze a tapaszon lévő számot.</string>
+    <string name="medtrum_setup_device_rejected">Ez az eszköz nem Medtrum tapasz. Ellenőrizze, hogy a tapasz a közelben van-e, majd próbálja újra.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
     <string name="watch_forwarding_section">Telefonos értesítéseken keresztül</string>
@@ -3055,4 +3073,27 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
         <item quantity="one">%d percenként</item>
         <item quantity="other">%d percenként</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Értékek küldése a Dexcom Followba</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Megosztás a Dexcommal</string>
+    <string name="dexcom_share_active_desc">Élő értékek küldése erről a telefonról a Dexcom Followba</string>
+    <string name="dexcom_share_account">Dexcom-fiók</string>
+    <string name="dexcom_share_password">Jelszó</string>
+    <string name="dexcom_share_region">Régió</string>
+    <string name="dexcom_share_region_ous">USA-n kívül</string>
+    <string name="dexcom_share_region_us">USA</string>
+    <string name="dexcom_share_serial">Vevőegység sorozatszáma</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Hagyja meg az alapértéket, ha nincs Dexcom vevőegysége</string>
+    <string name="dexcom_share_test">Kapcsolat tesztelése</string>
+    <string name="dexcom_share_test_ok">Sikeres kapcsolat</string>
+    <string name="dexcom_share_pending">Várakozó értékek: %1$d</string>
+    <string name="dexcom_share_status_last_success">Utolsó sikeres: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Utolsó kísérlet: %1$s</string>
+    <string name="dexcom_share_status_error">Hiba: %1$s</string>
+    <string name="dexcom_share_status_never">Soha</string>
+    <string name="dexcom_share_auth_blocked">Bejelentkezés letiltva — ellenőrizze a fiókot és a jelszót</string>
+    <string name="dexcom_share_credentials_required">Először adja meg a fiókot és a jelszót</string>
+    <string name="dexcom_share_warning">Nem hivatalos felület: a Dexcom bármikor megváltoztathatja vagy letilthatja. Ez nem orvostechnikai eszköz funkciója.</string>
 </resources>

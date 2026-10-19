@@ -19,7 +19,8 @@ class ExchangeOutputPolicy {
         val sendOutboundApi: Boolean,
         val sendWearInt: Boolean,
         val sendGadgetbridge: Boolean,
-        val sendLoopFeed: Boolean
+        val sendLoopFeed: Boolean,
+        val sendDexcomShare: Boolean
     )
 
     private enum class Destination {
@@ -27,7 +28,8 @@ class ExchangeOutputPolicy {
         OUTBOUND_API,
         WEAR_INT,
         GADGETBRIDGE,
-        LOOP_FEED
+        LOOP_FEED,
+        DEXCOM_SHARE
     }
 
     private val gates = Destination.values().associateWith { ExchangeUpdateGate() }
@@ -41,7 +43,8 @@ class ExchangeOutputPolicy {
         outboundApiEnabled: Boolean,
         wearIntEnabled: Boolean,
         gadgetbridgeEnabled: Boolean,
-        loopFeedEnabled: Boolean
+        loopFeedEnabled: Boolean,
+        dexcomShareEnabled: Boolean = false
     ): Decision = Decision(
         sendJuggluco = shouldEmit(
             Destination.JUGGLUCO, jugglucoEnabled, true, sensorId, payloadTimeMs, intervalMinutes
@@ -60,6 +63,11 @@ class ExchangeOutputPolicy {
         sendLoopFeed = shouldEmit(
             Destination.LOOP_FEED, loopFeedEnabled, shouldBroadcastMinuteUpdate,
             sensorId, payloadTimeMs, intervalMinutes
+        ),
+        // Like OUTBOUND_API, Share is eligible on every reading: it is a five-minute stream with
+        // its own 4.5-minute queue spacing, so the minute gate has nothing to thin.
+        sendDexcomShare = shouldEmit(
+            Destination.DEXCOM_SHARE, dexcomShareEnabled, true, sensorId, payloadTimeMs, intervalMinutes
         )
     )
 

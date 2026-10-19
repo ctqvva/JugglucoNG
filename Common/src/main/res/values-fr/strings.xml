@@ -542,6 +542,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Scanner Dexcom</string>
     <string name="dexcom_scan_instruction">Scannez le code datamatrix sur votre capteur Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Emplacement Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Pompe</string>
+    <string name="dexcom_slot_app_short">Téléphone</string>
+    <string name="dexcom_slot_watch_short">Montre</string>
+    <string name="dexcom_slot_receiver">Emplacement 1 : récepteur ou pompe</string>
+    <string name="dexcom_slot_app">Emplacement 2 : application mobile (par défaut)</string>
+    <string name="dexcom_slot_watch">Emplacement 3 : montre connectée</string>
+    <string name="dexcom_slot_desc">Le capteur garde un appairage distinct pour chaque emplacement. Choisissez-en un qu\'aucun autre appareil n\'utilise : l\'application Dexcom occupe l\'emplacement du téléphone.</string>
+    <string name="dexcom_slot_button">Emplacement Bluetooth : %1$s</string>
+    <string name="dexcom_slot_change_desc">Le capteur sera de nouveau appairé sur le nouvel emplacement avec son code enregistré. Un autre appareil pourra ensuite utiliser l\'ancien.</string>
+    <string name="dexcom_slot_change_action">Changer d\'emplacement</string>
     <string name="dexcom_pairing_code_label">Code d’association à 4 chiffres</string>
     <string name="dexcom_pairing_code_instruction">Saisissez le code d’association à 4 chiffres imprimé sur l’applicateur du capteur.</string>
     <string name="libre_setup_title">Configuration Libre</string>
@@ -2721,6 +2732,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2797,7 +2809,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_uncertainty_ribbon_desc">Afficher la bande de plage probable autour de la courbe de glycémie</string>
     <string name="freeze_displayed_values">Conserver les valeurs affichées</string>
     <string name="freeze_displayed_values_desc">Une mesure conserve la valeur affichée. Les modifications d\'étalonnage n\'affectent que les mesures récentes.</string>
-    <string name="freeze_displayed_values_on">Valeurs affichées conservées</string>
+    <string name="freeze_displayed_values_after">Figées après %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">D’ici là, une mesure suit encore les changements de calibration, donc une glycémie capillaire saisie en retard peut la corriger. Ensuite, elle garde la valeur affichée.</string>
     <string name="freeze_displayed_values_off">Recalcul à chaque modification</string>
     <string name="anytime_credentials_backup">Sauvegarder les identifiants CT5</string>
     <string name="anytime_credentials_backup_warning">Ce fichier permet de restaurer la session de l’émetteur après la réinstallation de l’application ou la suppression du capteur. Conservez-le en lieu sûr.</string>
@@ -2975,6 +2988,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Secret API ou jeton d’accès</string>
     <string name="nightscout_api_help">Utilisez le secret API pour v1 ou un jeton d’accès Nightscout pour v3.</string>
     <string name="nightscout_iob_help">eIOB et COB sont envoyés dans le champ jugglucong de devicestatus, séparément de l’IOB standard.</string>
+    <string name="medtrum_sensor_desc">Saisissez le numéro de série imprimé sur le patch (hexadécimal)</string>
+    <string name="medtrum_setup_saved_title">Capteur enregistré</string>
+    <string name="medtrum_setup_searching">Pas encore connecté. Le patch se connectera seul dès qu\'il sera à portée.</string>
+    <string name="medtrum_setup_auth_failed">Le patch a refusé ce numéro de série. Vérifiez le numéro imprimé sur le patch.</string>
+    <string name="medtrum_setup_device_rejected">Cet appareil n\'est pas un capteur Medtrum. Vérifiez que le capteur est à portée, puis réessayez.</string>
 
     <string name="alert_sound_volume">Volume du son d’alerte</string>
     <string name="watch_forwarding_section">Via les notifications du téléphone</string>
@@ -2987,4 +3005,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">Toutes les %d minutes</item>
         <item quantity="other">Toutes les %d minutes</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Envoyer les mesures vers Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Partager avec Dexcom</string>
+    <string name="dexcom_share_active_desc">Envoyer les mesures en direct de ce téléphone vers Dexcom Follow</string>
+    <string name="dexcom_share_account">Compte Dexcom</string>
+    <string name="dexcom_share_password">Mot de passe</string>
+    <string name="dexcom_share_region">Région</string>
+    <string name="dexcom_share_region_ous">Hors États-Unis</string>
+    <string name="dexcom_share_region_us">États-Unis</string>
+    <string name="dexcom_share_serial">Numéro de série du récepteur</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Laissez la valeur par défaut si vous n\'avez pas de récepteur Dexcom</string>
+    <string name="dexcom_share_test">Tester la connexion</string>
+    <string name="dexcom_share_test_ok">Connexion réussie</string>
+    <string name="dexcom_share_pending">Mesures en attente : %1$d</string>
+    <string name="dexcom_share_status_last_success">Dernier succès : %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Dernière tentative : %1$s</string>
+    <string name="dexcom_share_status_error">Erreur : %1$s</string>
+    <string name="dexcom_share_status_never">Jamais</string>
+    <string name="dexcom_share_auth_blocked">Connexion bloquée — vérifiez le compte et le mot de passe</string>
+    <string name="dexcom_share_credentials_required">Saisissez d\'abord le compte et le mot de passe</string>
+    <string name="dexcom_share_warning">Interface non officielle : Dexcom peut la modifier ou la bloquer à tout moment. Ce n\'est pas une fonction de dispositif médical.</string>
 </resources>

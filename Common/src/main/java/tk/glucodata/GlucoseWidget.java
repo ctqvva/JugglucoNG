@@ -131,6 +131,7 @@ static private void updateAppWidget(Context context, AppWidgetManager appWidgetM
             views = remoteMessage(message);
             id = R.id.content;
          } else {
+            GlucoseUpdateBroadcaster.armFreshnessDeadline(time);
             views = remote.widgetRemote(current);
          }
       } else {

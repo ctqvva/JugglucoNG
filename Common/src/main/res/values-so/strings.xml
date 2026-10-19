@@ -749,6 +749,17 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="dexcom_scan_instruction">Sawir shaxanka xogta ee dareenkaaga Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Booska Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Bamka</string>
+    <string name="dexcom_slot_app_short">Taleefan</string>
+    <string name="dexcom_slot_watch_short">Saacad</string>
+    <string name="dexcom_slot_receiver">Booska 1: qalabka qaata ama bamka</string>
+    <string name="dexcom_slot_app">Booska 2: app-ka taleefanka (caadi)</string>
+    <string name="dexcom_slot_watch">Booska 3: saacad casri ah</string>
+    <string name="dexcom_slot_desc">Dareemuhu boos kasta wuxuu u hayaa isku xir gaar ah. Dooro mid aan qalab kale isticmaalin: app-ka Dexcom wuxuu qaataa booska taleefanka.</string>
+    <string name="dexcom_slot_button">Booska Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Dareemuhu wuxuu dib ugu xirmayaa booska cusub isagoo adeegsanaya koodhkiisa kaydsan. Qalab kale ayaa markaas isticmaali kara booskii hore.</string>
+    <string name="dexcom_slot_change_action">Beddel booska</string>
     <string name="scan_dexcom">Iskaan Dexcom</string>
     <string name="dexcom_pairing_code_label">Koodhka isku-xidhka ee 4 lambar</string>
     <string name="dexcom_pairing_code_instruction">Geli koodhka isku-xidhka ee 4 lambar ee ku qoran qalabka gelinta dareemaha.</string>
@@ -2906,6 +2917,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2976,7 +2988,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sibionics_uncertainty_ribbon_desc">Muuji xariiqda kala duwanaanshaha suurtogalka ah ee ku wareegsan xarigga sonkorta</string>
     <string name="freeze_displayed_values">Hay qiimaha la tusay</string>
     <string name="freeze_displayed_values_desc">Akhriska wuxuu hayaa qiimihii la tusay. Isbeddellada calibration-ka waxay saameeyaan akhrisyada dhow oo keliya.</string>
-    <string name="freeze_displayed_values_on">Qiimaha la tusay waa la hayaa</string>
+    <string name="freeze_displayed_values_after">Waa la xiraa %1$s kadib</string>
+    <string name="freeze_displayed_values_grace_desc">Ilaa markaas akhrintu waxay weli raacdaa isbeddellada qalabaynta, sidaas darteed cabbir far oo goor dambe la geliyay ayaa sixi kara. Kadib waxay haysaa qiimihii la tusay.</string>
     <string name="freeze_displayed_values_off">Dib ayaa loo xisaabinayaa isbeddel kasta</string>
     <string name="anytime_credentials_backup">Kaydi aqoonsiyada CT5</string>
     <string name="anytime_credentials_backup_warning">Faylkan wuxuu soo celin karaa fadhiga gudbiyaha kadib dib-u-rakibidda abka ama ka saarista dareemaha. Si ammaan ah u kaydi.</string>
@@ -3154,6 +3167,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_secret_label">Sirta API ama token-ka gelitaanka</string>
     <string name="nightscout_api_help">v1 u isticmaal sirta API, v3-na token-ka gelitaanka Nightscout.</string>
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
+    <string name="medtrum_sensor_desc">Geli lambarka taxanaha ee ku daabacan balastarka (hexadecimal)</string>
+    <string name="medtrum_setup_saved_title">Dareemaha waa la keydiyay</string>
+    <string name="medtrum_setup_searching">Weli lama xiriirin. Balastarku wuu isku xiri doonaa marka uu u dhow yahay.</string>
+    <string name="medtrum_setup_auth_failed">Balastarku wuu diiday lambarkan taxanaha. Hubi lambarka ku daabacan balastarka.</string>
+    <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum balastar. Hubi in balastarku uu dhow yahay oo mar kale isku day.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
     <string name="watch_forwarding_section">Iyada oo loo marayo ogeysiisyada taleefanka</string>
@@ -3165,4 +3183,27 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
         <item quantity="one">Daqiiqad kasta</item>
         <item quantity="other">%d daqiiqo kasta</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">U dir akhrisyada Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">La wadaag Dexcom</string>
+    <string name="dexcom_share_active_desc">U dir akhrisyada tooska ah ee taleefankan Dexcom Follow</string>
+    <string name="dexcom_share_account">Akoonka Dexcom</string>
+    <string name="dexcom_share_password">Furaha sirta</string>
+    <string name="dexcom_share_region">Gobolka</string>
+    <string name="dexcom_share_region_ous">Ka baxsan Mareykanka</string>
+    <string name="dexcom_share_region_us">Mareykanka</string>
+    <string name="dexcom_share_serial">Lambarka taxanaha qaataha</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Ka tag qiimaha caadiga ah haddii aadan haysan qaataha Dexcom</string>
+    <string name="dexcom_share_test">Tijaabi xiriirka</string>
+    <string name="dexcom_share_test_ok">Xiriirku wuu guuleystay</string>
+    <string name="dexcom_share_pending">Akhrisyada sugaya: %1$d</string>
+    <string name="dexcom_share_status_last_success">Guushii u dambeysay: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Isku daygii u dambeeyay: %1$s</string>
+    <string name="dexcom_share_status_error">Khalad: %1$s</string>
+    <string name="dexcom_share_status_never">Weligeed</string>
+    <string name="dexcom_share_auth_blocked">Gelitaanka waa la xannibay — hubi akoonka iyo furaha sirta</string>
+    <string name="dexcom_share_credentials_required">Marka hore geli akoonka iyo furaha sirta</string>
+    <string name="dexcom_share_warning">Interface aan rasmi ahayn: Dexcom wuu beddeli karaa ama xannibi karaa wakhti kasta. Tani maaha hawl qalab caafimaad.</string>
 </resources>

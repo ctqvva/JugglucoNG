@@ -602,6 +602,17 @@
     <string name="dexcom_15_day_models">%1$s（G7 / Flex）</string>
     <string name="scan_dexcom">扫描 Dexcom</string>
     <string name="dexcom_scan_instruction">扫描 Dexcom 传感器上的 DataMatrix 代码</string>
+    <string name="dexcom_bluetooth_slot">蓝牙槽位</string>
+    <string name="dexcom_slot_receiver_short">泵</string>
+    <string name="dexcom_slot_app_short">手机</string>
+    <string name="dexcom_slot_watch_short">手表</string>
+    <string name="dexcom_slot_receiver">槽位 1：接收器或胰岛素泵</string>
+    <string name="dexcom_slot_app">槽位 2：手机应用（默认）</string>
+    <string name="dexcom_slot_watch">槽位 3：智能手表</string>
+    <string name="dexcom_slot_desc">传感器为每个槽位单独保存配对。请选择其他设备未使用的槽位：Dexcom 应用占用手机槽位。</string>
+    <string name="dexcom_slot_button">蓝牙槽位：%1$s</string>
+    <string name="dexcom_slot_change_desc">传感器将使用已保存的代码在新槽位上重新配对。之后其他设备可以使用旧槽位。</string>
+    <string name="dexcom_slot_change_action">更换槽位</string>
     <string name="dexcom_pairing_code_label">4 位配对码</string>
     <string name="dexcom_pairing_code_instruction">输入传感器助针器上印刷的 4 位配对码。</string>
     <string name="libre_setup_title">Libre 设置</string>
@@ -2731,6 +2742,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2807,7 +2819,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_uncertainty_ribbon_desc">在血糖曲线周围显示可能范围色带</string>
     <string name="freeze_displayed_values">保留已显示的数值</string>
     <string name="freeze_displayed_values_desc">读数保留当时显示的数值。校准更改仅影响最近的读数。</string>
-    <string name="freeze_displayed_values_on">正在保留已显示的数值</string>
+    <string name="freeze_displayed_values_after">%1$s后锁定</string>
+    <string name="freeze_displayed_values_grace_desc">在此之前，读数仍会随校准变化而更新，因此稍后录入的指尖血糖仍可修正它。之后它将保留显示时的数值。</string>
     <string name="freeze_displayed_values_off">每次更改后重新计算</string>
     <string name="anytime_credentials_backup">备份 CT5 凭据</string>
     <string name="anytime_credentials_backup_warning">此文件可在重新安装应用或移除传感器后恢复发射器会话。请安全保存。</string>
@@ -2984,6 +2997,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API 密钥或访问令牌</string>
     <string name="nightscout_api_help">v1 使用 API 密钥，v3 使用 Nightscout 访问令牌。</string>
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
+    <string name="medtrum_sensor_desc">输入贴片上印的序列号（十六进制）</string>
+    <string name="medtrum_setup_saved_title">传感器已保存</string>
+    <string name="medtrum_setup_searching">尚未连接。贴片进入范围后会自动连接。</string>
+    <string name="medtrum_setup_auth_failed">贴片拒绝了此序列号。请检查贴片上印的号码。</string>
+    <string name="medtrum_setup_device_rejected">此设备不是 Medtrum 贴片。请确认贴片在附近，然后重试。</string>
 
     <string name="alert_sound_volume">警报音量</string>
     <string name="watch_forwarding_section">通过手机通知</string>
@@ -2994,4 +3012,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <plurals name="watch_forwarding_every_minutes">
         <item quantity="other">每 %d 分钟</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">将读数上传到 Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">分享到 Dexcom</string>
+    <string name="dexcom_share_active_desc">将此手机的实时读数发送到 Dexcom Follow</string>
+    <string name="dexcom_share_account">Dexcom 账户</string>
+    <string name="dexcom_share_password">密码</string>
+    <string name="dexcom_share_region">地区</string>
+    <string name="dexcom_share_region_ous">美国以外</string>
+    <string name="dexcom_share_region_us">美国</string>
+    <string name="dexcom_share_serial">接收器序列号</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">如果您没有 Dexcom 接收器，请保留默认值</string>
+    <string name="dexcom_share_test">测试连接</string>
+    <string name="dexcom_share_test_ok">连接成功</string>
+    <string name="dexcom_share_pending">待发送读数：%1$d</string>
+    <string name="dexcom_share_status_last_success">上次成功：%1$s</string>
+    <string name="dexcom_share_status_last_attempt">上次尝试：%1$s</string>
+    <string name="dexcom_share_status_error">错误：%1$s</string>
+    <string name="dexcom_share_status_never">从未</string>
+    <string name="dexcom_share_auth_blocked">登录已被阻止——请检查账户和密码</string>
+    <string name="dexcom_share_credentials_required">请先输入账户和密码</string>
+    <string name="dexcom_share_warning">非官方接口：Dexcom 可能随时更改或封锁它。这不是医疗器械功能。</string>
 </resources>

@@ -332,7 +332,9 @@ public:
     // phone receiving the sensor over Clone has no driver record to ask. The
     // family travels in info.dat with everything else. 0 is unknown, which is
     // what every shell written before this field existed reads as. Codes are
-    // ManagedSensorUiFamily.nativeCode on the Kotlin side.
+    // ManagedSensorUiFamily.nativeCode on the Kotlin side. These are the low
+    // three bits; managedFamilyHigh below is the fourth. Read and write the
+    // code through managedFamilyCode()/setManagedFamilyCode().
     uint16_t managedFamily : 3;
     uint16_t aidex : 1;
     uint16_t useCustomCalibration : 1;
@@ -347,7 +349,20 @@ public:
     // Upstream Juggluco keeps its air flag elsewhere; that bit is
     // autoResetAlgorithm here, so CareSens Air takes a reserved bit.
     bool air : 1;
-    uint8_t reserved : 1;
+    // Fourth bit of the managed family code (was reserved, so every existing
+    // info.dat reads 0 here). Codes 0-7 are unchanged; 8-15 set this bit, and a
+    // phone running an older build sees only the low three bits — 0, unknown —
+    // which is what it showed for such a sensor before the code existed.
+    uint8_t managedFamilyHigh : 1;
+
+    static constexpr unsigned maxManagedFamilyCode = 15;
+    unsigned managedFamilyCode() const {
+      return managedFamily | (static_cast<unsigned>(managedFamilyHigh) << 3);
+    }
+    void setManagedFamilyCode(unsigned code) {
+      managedFamily = code & 7u;
+      managedFamilyHigh = (code >> 3) & 1u;
+    }
     // CLEAN REFACTOR: Use timestamp instead of bool for reset mode.
     // 0 = not in reset mode. Non-zero = timestamp when reset mode started.
     // Auto-expires after 30 min or when gap closes.

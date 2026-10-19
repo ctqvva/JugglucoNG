@@ -47,7 +47,8 @@ object DisplayValueResolver {
         isMmol: Boolean,
         unitLabel: String = "",
         calibratedValue: Float? = null,
-        hideInitialWhenCalibrated: Boolean = false
+        hideInitialWhenCalibrated: Boolean = false,
+        calibratedIsRecorded: Boolean = false
     ): DisplayValues {
         val autoDisplayValue = autoValue.takeIf { it.isFinite() && it > 0f } ?: Float.NaN
         val rawDisplayValue = rawValue.takeIf {
@@ -59,7 +60,11 @@ object DisplayValueResolver {
         val effectiveCalibratedValue = when {
             calibratedValue == null -> null
             !calibratedValue.isFinite() || calibratedValue <= 0f -> null
-            isRawPrimaryMode && !rawDisplayValue.isFinite() -> null
+            // A live calibration of a missing raw value means nothing. A
+            // recorded value does not derive from this reading's raw value: it
+            // is the number already shown, possibly from the auto lane, and
+            // the chart keeps it whatever the raw input is now.
+            isRawPrimaryMode && !rawDisplayValue.isFinite() && !calibratedIsRecorded -> null
             else -> calibratedValue
         }
         val calStr = effectiveCalibratedValue?.let { format(it, isMmol) }
@@ -124,15 +129,17 @@ object DisplayValueResolver {
                 )
                 3 -> DisplayValues(
                     primaryValue = effectiveCalibratedValue,
-                    secondaryValue = rawDisplayValue.takeIf { it.isFinite() },
+                    secondaryValue = if (rawDisplayValue.isFinite()) rawDisplayValue
+                        else autoDisplayValue.takeIf { it.isFinite() },
                     tertiaryValue = autoDisplayValue.takeIf { it.isFinite() && rawDisplayValue.isFinite() },
                     primaryStr = calStr,
-                    secondaryStr = rawStr.takeUnless { it == "--" },
+                    secondaryStr = if (rawDisplayValue.isFinite()) rawStr else valStr.takeUnless { it == "--" },
                     tertiaryStr = valStr.takeIf { autoDisplayValue.isFinite() && rawDisplayValue.isFinite() },
                     fullFormatted = appendUnit(
                         when {
                             rawDisplayValue.isFinite() && autoDisplayValue.isFinite() -> "$calStr · $rawStr · $valStr"
                             rawDisplayValue.isFinite() -> "$calStr · $rawStr"
+                            autoDisplayValue.isFinite() -> "$calStr · $valStr"
                             else -> calStr
                         },
                         unitLabel

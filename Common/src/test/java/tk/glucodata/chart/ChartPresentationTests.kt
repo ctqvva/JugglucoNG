@@ -25,7 +25,7 @@ class ChartPresentationTests {
                 input("A", true, point(minute, "A", 100f), point(2*minute, "A", 110f)),
                 input("B", false, point(minute, "B", 200f), point(2*minute, "B", 210f)),
             ),
-            MainSensorOwnership(mapOf(minute to "B"), 10*MainSensorOwnership.SEAL_GRACE_MS), noCalibration,
+            MainSensorOwnership(mapOf(minute to "B"), 10*MainSensorOwnership.DEFAULT_SEAL_GRACE_MS), noCalibration,
         )
         assertEquals(
             listOf(PresentedChartValue(minute, 200f, "B", 0)),

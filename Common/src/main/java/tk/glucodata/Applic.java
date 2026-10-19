@@ -1056,6 +1056,12 @@ public class Applic extends Application implements androidx.work.Configuration.P
             }
             VariantBootstrapAccess.create().start(this);
             SensorOwnershipRuntime.start();
+            if (!isWearable) {
+                // Widgets keep their last picture across a process death, but the expiry
+                // alarm does not survive it. Redraw them from the saved reading: a fresh
+                // one re-arms its expiry, an expired one becomes "No new value since …".
+                GlucoseUpdateBroadcaster.send(this);
+            }
             if (isWearable) {
                 var refresh = GlucoseValueRefreshAccess.get();
                 if (refresh != null) refresh.updateAll();
