@@ -196,10 +196,14 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   the same old offset, which is what produced the 59-attempt run in the logs — is both the experiment
   and, if experiment 1 wins, the fix: filed in issue #676 and implemented in PR #678 (one live-edge
   retry per connection, after both command families fail).
-* Independent of that: the table comes from the vendor's server and is applied by native code we
-  cannot mirror, and pointing the vendor app at an unknown sensor is not a repair path — its
-  lifecycle operations act on the account's bound device. The workable order is: vendor app first,
-  Juggluco afterwards. A log line when `F6 == 0xFFFF` is proposed in issue #676.
+* Independent of that: the code table comes from the vendor's server, and the write into the sensor
+  is implemented by packed (ijiami) native code. Both halves turned out to be more reachable than
+  §6 of the first revision claimed — the API paths and the data model are readable in the RU SDK
+  (`sino-deviceaccess/sdk/authentication|check-device|cgm-code-encrypt`, a 25-float JSON code), the
+  write key is the sensor's own `0xF3` payload rather than a server secret, and the native pieces can
+  be invoked rather than reimplemented. Not implemented here; see #676. Pointing the vendor app at an
+  unknown sensor is still not a repair path — its lifecycle operations act on the account's bound
+  device — and a log line when `F6 == 0xFFFF` is proposed in #676.
 
 ## 7. Session clock
 
