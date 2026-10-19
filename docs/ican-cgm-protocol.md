@@ -193,8 +193,9 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
      refused ⇒ the sensor limits how far back it will serve.
   Until then, read `0x0A` as "the sensor would not serve that range" and do not treat `0xFFFF` as
   proof of the reason. A driver that retried from the live edge after `0x0A` — instead of repeating
-  the same old offset, which is what produced the 59-attempt run in the logs — would be both the
-  experiment and, if experiment 1 wins, the fix. Filed in issue #676.
+  the same old offset, which is what produced the 59-attempt run in the logs — is both the experiment
+  and, if experiment 1 wins, the fix: filed in issue #676 and implemented in PR #678 (one live-edge
+  retry per connection, after both command families fail).
 * Independent of that: the table comes from the vendor's server and is applied by native code we
   cannot mirror, and pointing the vendor app at an unknown sensor is not a repair path — its
   lifecycle operations act on the account's bound device. The workable order is: vendor app first,
