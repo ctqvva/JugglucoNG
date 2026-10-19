@@ -243,6 +243,8 @@ class AiDexBleManager(
         private const val OPTIONAL_STREAMING_METADATA_DELAY_MS = 5_000L
         private const val OPTIONAL_CALIBRATION_REFRESH_DELAY_MS = EXPECTED_LIVE_INTERVAL_MS + 5_000L
         private const val STARTUP_DEVICE_INFO_REQUEST_DELAY_MS = 2_000L
+        private const val PREF_SENSOR_REPORTED_WEAR_DAYS = "sensorReportedWearDays"
+        private const val PREF_ADVERTISED_BRAND = "advertisedBrand"
         private const val START_TIME_REPAIR_REQUERY_DELAY_MS = 1_000L
         private const val START_TIME_REPAIR_MAX_ATTEMPTS = 1
         private const val START_TIME_REPAIR_RESPONSE_MAX_BYTES = 12
@@ -505,7 +507,8 @@ class AiDexBleManager(
     private var defaultParamAutoProvisioning = false
     private var pendingDefaultParamApplyAfterProbe = false
     private var defaultParamApplyVerifying = false
-    private var startupDeviceInfoRequested = false
+    private var startupDeviceInfoAttempts = 0
+    private var startupDeviceInfoLastRequestAtMs = 0L
     private var legacyStartTimeRequested = false
     private var startTimeRepairProbePending = false
     private var startTimeRepairWritePending = false
@@ -1227,6 +1230,21 @@ class AiDexBleManager(
 
     private fun reportedWearDaysOrNull(): Int? =
         _wearDays.takeIf { sensorReportedWearDays && it > 0 }
+
+    // The byte this sensor sent on an earlier connection. Display only: the cutoffs, expiry and
+    // native writes read reportedWearDaysOrNull(), which is this connection's byte alone.
+    @Volatile private var rememberedSensorWearDays: Int =
+        readIntPref(PREF_SENSOR_REPORTED_WEAR_DAYS, 0).coerceAtLeast(0)
+
+    private fun rememberSensorWearDays(days: Int) {
+        if (days <= 0 || days == rememberedSensorWearDays) return
+        rememberedSensorWearDays = days
+        writeIntPref(PREF_SENSOR_REPORTED_WEAR_DAYS, days)
+    }
+
+    // Product brand from the advertisement ("Lumi-2222258CUW"), kept for the card badge while
+    // the stack has no name for the device yet. Never used for identity or protocol.
+    @Volatile private var rememberedAdvertisedBrand: String = readStringPref(PREF_ADVERTISED_BRAND)
 
     private fun hasCompleteStartupMetadata(): Boolean =
         _modelName.isNotBlank() &&
@@ -2155,7 +2173,8 @@ class AiDexBleManager(
             cccdRetryCount = 0
             pendingBondedCccdUuid = null
             startupMetadataComplete = hasCompleteStartupMetadata()
-            startupDeviceInfoRequested = false
+            startupDeviceInfoAttempts = 0
+            startupDeviceInfoLastRequestAtMs = 0L
             legacyStartTimeRequested = false
             startTimeRepairProbePending = false
             startTimeRepairWritePending = false
@@ -4138,7 +4157,15 @@ class AiDexBleManager(
     }
 
     private fun maybeRequestStartupDeviceInfo(reason: String) {
-        if (startupMetadataComplete || startupDeviceInfoRequested) return
+        val now = System.currentTimeMillis()
+        if (
+            !AiDexRuntimePolicy.shouldRequestStartupDeviceInfo(
+                startupMetadataComplete = startupMetadataComplete,
+                attemptsThisConnection = startupDeviceInfoAttempts,
+                lastRequestAtMs = startupDeviceInfoLastRequestAtMs,
+                nowMs = now,
+            )
+        ) return
         if (!keyExchange.isComplete) return
         if (hasCompleteStartupMetadata()) {
             startupMetadataComplete = true
@@ -4149,8 +4176,13 @@ class AiDexBleManager(
             Log.w(TAG, "maybeRequestStartupDeviceInfo($reason): session key not ready")
             return
         }
-        startupDeviceInfoRequested = true
-        Log.i(TAG, "Requesting startup device info (0x10, $reason)")
+        startupDeviceInfoAttempts++
+        startupDeviceInfoLastRequestAtMs = now
+        Log.i(
+            TAG,
+            "Requesting startup device info (0x10, $reason, attempt " +
+                "$startupDeviceInfoAttempts/${AiDexRuntimePolicy.STARTUP_DEVICE_INFO_MAX_ATTEMPTS})"
+        )
         enqueueGattOp(GattOp.Write(CHAR_F002, cmd))
     }
 
@@ -4637,10 +4669,10 @@ class AiDexBleManager(
         val payload = data.copyOfRange(1, payloadEndExclusive)
         val parsed = AiDexParser.parseStartupDeviceInfoFrame(data, payloadEndExclusive)
         if (parsed == null) {
-            Log.d(
+            Log.w(
                 TAG,
                 "Startup device info 0x10: unsupported payload len=${payload.size} " +
-                    "hex=${AiDexParser.hexString(payload.copyOfRange(0, minOf(payload.size, 16)))} — keeping DIS/2AAA as source of truth"
+                    "hex=${AiDexParser.hexString(payload)} — keeping DIS/2AAA as source of truth"
             )
             return
         }
@@ -4651,6 +4683,7 @@ class AiDexBleManager(
         if (parsed.wearDays > 0) {
             _wearDays = parsed.wearDays
             sensorReportedWearDays = true
+            rememberSensorWearDays(parsed.wearDays)
             if (dataptr != 0L) {
                 try {
                     Natives.aidexSetWearDays(dataptr, parsed.wearDays)
@@ -6253,7 +6286,40 @@ class AiDexBleManager(
     override fun getSensorReportedWearDays(): Int = reportedWearDaysOrNull() ?: -1
 
     override fun getDisplayWearDays(): Int =
-        AiDexWearProfile.resolve(reportedWearDaysOrNull(), AiDexWearProfile.ratedDays(_modelName)) ?: -1
+        AiDexWearProfile.resolve(
+            reportedWearDaysOrNull(),
+            rememberedSensorWearDays,
+            AiDexWearProfile.ratedDays(_modelName),
+        ) ?: -1
+
+    override val vendorBrandName: String
+        get() {
+            noteAdvertisedBrand(
+                try {
+                    super.mygetDeviceName()
+                } catch (_: Throwable) {
+                    null
+                }
+            )
+            return rememberedAdvertisedBrand
+        }
+
+    /**
+     * Keeps the badge brand from any name this sensor was seen under. The stack's cached name
+     * is often missing, and a scan matched by address never stores the advertised one, so the
+     * matched scan results below feed this too.
+     */
+    private fun noteAdvertisedBrand(advertisedName: String?) {
+        val brand = AiDexSerialIdentity.productBrandFromAdvertisement(advertisedName) ?: return
+        if (brand == rememberedAdvertisedBrand) return
+        rememberedAdvertisedBrand = brand
+        writeStringPref(PREF_ADVERTISED_BRAND, brand)
+    }
+
+    override fun onScanResult(result: ScanResult) {
+        super.onScanResult(result)
+        noteAdvertisedBrand(result.scanRecord?.deviceName)
+    }
 
     override fun shouldUseNativeOfficialEndFallback(): Boolean = false
 
@@ -6796,6 +6862,7 @@ class AiDexBleManager(
                         (advertisedName?.let { aiDexDeviceNameMatchesSerial(it, SerialNumber) } == true)
 
                     if (!identityMatches) return
+                    noteAdvertisedBrand(advertisedName)
 
                     if (
                         reconnect.isBroadcastOnlyMode &&

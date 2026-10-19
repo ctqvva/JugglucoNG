@@ -46,6 +46,9 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -546,6 +549,14 @@ fun ExpressiveSettingsScreen(
                     onClick = { navController.navigate("settings/outbound-api") }
                 )
                 SettingsItem(
+                    title = stringResource(R.string.dexcom_share_title),
+                    subtitle = stringResource(R.string.dexcom_share_desc),
+                    icon = Icons.Default.CloudUpload,
+                    iconTint = exchangeColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { navController.navigate("settings/dexcom-share") }
+                )
+                SettingsItem(
                     title = stringResource(R.string.mirror),
                     subtitle = stringResource(R.string.mirror_desc),
                     icon = Icons.Default.Devices,
@@ -798,27 +809,44 @@ fun ExpressiveSettingsScreen(
 
                 // A reading's displayed value is a record, not a derivation —
                 // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
-                // current behaviour so the common question is answered in place.
+                // current behaviour so the common question is answered in place;
+                // the body picks how long a value stays revisable, the switch
+                // turns keeping off.
                 val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
                     .freezeDisplayedValues.collectAsStateWithLifecycle()
-                SettingsSwitchItem(
+                val sealGraceHours by tk.glucodata.data.calibration.CalibrationManager
+                    .displaySealGraceHours.collectAsStateWithLifecycle()
+                var showSealGraceDialog by remember { mutableStateOf(false) }
+                SettingsNavSwitchItem(
                     title = stringResource(R.string.freeze_displayed_values),
-                    subtitle = stringResource(
-                        if (freezeDisplayedValues) {
-                            R.string.freeze_displayed_values_on
-                        } else {
-                            R.string.freeze_displayed_values_off
-                        }
-                    ),
+                    subtitle = if (freezeDisplayedValues) {
+                        stringResource(
+                            R.string.freeze_displayed_values_after,
+                            pluralStringResource(R.plurals.duration_hours, sealGraceHours, sealGraceHours)
+                        )
+                    } else {
+                        stringResource(R.string.freeze_displayed_values_off)
+                    },
                     checked = freezeDisplayedValues,
                     onCheckedChange = {
                         tk.glucodata.data.calibration.CalibrationManager
                             .setFreezeDisplayedValues(it)
                     },
+                    onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
                     iconTint = dataColor,
                     position = CardPosition.BOTTOM
                 )
+                if (showSealGraceDialog) {
+                    SealGraceDialog(
+                        currentHours = sealGraceHours,
+                        onSave = { hours ->
+                            tk.glucodata.data.calibration.CalibrationManager.setDisplaySealGraceHours(hours)
+                            showSealGraceDialog = false
+                        },
+                        onDismiss = { showSealGraceDialog = false }
+                    )
+                }
             }
         }
 
@@ -1198,6 +1226,89 @@ internal fun PredictiveSimulationParameterRow(
 // ============================================================================
 // DIALOGS - M3 Expressive Style with proper layout
 // ============================================================================
+
+/**
+ * How long a displayed value stays revisable — see
+ * `tk.glucodata.data.ReadingDisplay.isSealedAt`. The choices are not evenly
+ * spaced in hours, so the slider moves over their index: one stop per choice.
+ * Nothing is applied until Save.
+ */
+@Composable
+private fun SealGraceDialog(currentHours: Int, onSave: (Int) -> Unit, onDismiss: () -> Unit) {
+    val choices = tk.glucodata.data.calibration.CalibrationManager.DISPLAY_SEAL_GRACE_HOURS_CHOICES
+    var index by remember { mutableFloatStateOf(choices.indexOf(currentHours).coerceAtLeast(0).toFloat()) }
+    val selectedHours = choices[index.roundToInt().coerceIn(0, choices.lastIndex)]
+    val selectedDuration = pluralStringResource(R.plurals.duration_hours, selectedHours, selectedHours)
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Text(
+                    text = stringResource(R.string.freeze_displayed_values),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                Text(
+                    text = stringResource(R.string.freeze_displayed_values_grace_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+                Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = stringResource(R.string.freeze_displayed_values_after, selectedDuration),
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Slider(
+                        value = index,
+                        onValueChange = { index = it },
+                        valueRange = 0f..choices.lastIndex.toFloat(),
+                        steps = (choices.size - 2).coerceAtLeast(0),
+                        modifier = Modifier.semantics { stateDescription = selectedDuration }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = pluralStringResource(R.plurals.duration_hours, choices.first(), choices.first()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = pluralStringResource(R.plurals.duration_hours, choices.last(), choices.last()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    TextButton(onClick = { onSave(selectedHours) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun UnitPickerDialog(isMmol: Boolean, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {

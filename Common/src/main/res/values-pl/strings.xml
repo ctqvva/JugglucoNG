@@ -670,6 +670,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Skanuj Dexcom</string>
     <string name="dexcom_scan_instruction">Zeskanuj kod datamatrix na sensorze Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Gniazdo Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Pompa</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Zegarek</string>
+    <string name="dexcom_slot_receiver">Gniazdo 1: odbiornik lub pompa</string>
+    <string name="dexcom_slot_app">Gniazdo 2: aplikacja na telefon (domyślne)</string>
+    <string name="dexcom_slot_watch">Gniazdo 3: smartwatch</string>
+    <string name="dexcom_slot_desc">Sensor przechowuje osobne parowanie dla każdego gniazda. Wybierz takie, którego nie używa inne urządzenie: aplikacja Dexcom zajmuje gniazdo telefonu.</string>
+    <string name="dexcom_slot_button">Gniazdo Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Sensor zostanie ponownie sparowany w nowym gnieździe przy użyciu zapisanego kodu. Inne urządzenie będzie mogło potem użyć starego gniazda.</string>
+    <string name="dexcom_slot_change_action">Zmień gniazdo</string>
     <string name="dexcom_pairing_code_label">4-cyfrowy kod parowania</string>
     <string name="dexcom_pairing_code_instruction">Wpisz 4-cyfrowy kod parowania wydrukowany na aplikatorze sensora.</string>
     <string name="libre_setup_title">Konfiguracja Libre</string>
@@ -2753,6 +2764,7 @@
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2829,7 +2841,8 @@
     <string name="sibionics_uncertainty_ribbon_desc">Pokaż pasmo prawdopodobnego zakresu wokół linii glikemii</string>
     <string name="freeze_displayed_values">Zachowuj wyświetlone wartości</string>
     <string name="freeze_displayed_values_desc">Odczyt zachowuje wyświetloną wartość. Zmiany kalibracji dotyczą tylko ostatnich odczytów.</string>
-    <string name="freeze_displayed_values_on">Wyświetlone wartości są zachowywane</string>
+    <string name="freeze_displayed_values_after">Blokada po czasie: %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Do tego czasu odczyt nadal podąża za zmianami kalibracji, więc spóźniony pomiar z palca może go poprawić. Potem zachowuje wyświetloną wartość.</string>
     <string name="freeze_displayed_values_off">Przeliczanie przy każdej zmianie</string>
     <string name="anytime_credentials_backup">Kopia danych uwierzytelniających CT5</string>
     <string name="anytime_credentials_backup_warning">Ten plik pozwala przywrócić sesję nadajnika po ponownej instalacji aplikacji lub usunięciu sensora. Przechowuj go bezpiecznie.</string>
@@ -3011,6 +3024,11 @@
     <string name="nightscout_secret_label">Sekret API lub token dostępu</string>
     <string name="nightscout_api_help">Dla v1 użyj sekretu API, a dla v3 tokenu dostępu Nightscout.</string>
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
+    <string name="medtrum_sensor_desc">Wpisz numer seryjny wydrukowany na plastrze (szesnastkowy)</string>
+    <string name="medtrum_setup_saved_title">Sensor zapisany</string>
+    <string name="medtrum_setup_searching">Jeszcze nie połączono. Plaster połączy się sam, gdy będzie w zasięgu.</string>
+    <string name="medtrum_setup_auth_failed">Plaster odrzucił ten numer seryjny. Sprawdź numer wydrukowany na plastrze.</string>
+    <string name="medtrum_setup_device_rejected">To urządzenie nie jest plastrem Medtrum. Upewnij się, że plaster jest w pobliżu, i spróbuj ponownie.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
     <string name="notification_forwarding_section">Zegarki i opaski</string>
@@ -3023,4 +3041,27 @@
         <item quantity="many">Co %d minut</item>
         <item quantity="other">Co %d minuty</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Wysyłaj odczyty do Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Udostępniaj w Dexcom</string>
+    <string name="dexcom_share_active_desc">Wysyłaj bieżące odczyty z tego telefonu do Dexcom Follow</string>
+    <string name="dexcom_share_account">Konto Dexcom</string>
+    <string name="dexcom_share_password">Hasło</string>
+    <string name="dexcom_share_region">Region</string>
+    <string name="dexcom_share_region_ous">Poza USA</string>
+    <string name="dexcom_share_region_us">USA</string>
+    <string name="dexcom_share_serial">Numer seryjny odbiornika</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Pozostaw wartość domyślną, jeśli nie masz odbiornika Dexcom</string>
+    <string name="dexcom_share_test">Sprawdź połączenie</string>
+    <string name="dexcom_share_test_ok">Połączenie udane</string>
+    <string name="dexcom_share_pending">Oczekujące odczyty: %1$d</string>
+    <string name="dexcom_share_status_last_success">Ostatni sukces: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Ostatnia próba: %1$s</string>
+    <string name="dexcom_share_status_error">Błąd: %1$s</string>
+    <string name="dexcom_share_status_never">Nigdy</string>
+    <string name="dexcom_share_auth_blocked">Logowanie zablokowane — sprawdź konto i hasło</string>
+    <string name="dexcom_share_credentials_required">Najpierw wpisz konto i hasło</string>
+    <string name="dexcom_share_warning">Nieoficjalny interfejs: Dexcom może go w każdej chwili zmienić lub zablokować. To nie jest funkcja wyrobu medycznego.</string>
 </resources>

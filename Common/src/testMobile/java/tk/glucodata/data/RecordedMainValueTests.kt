@@ -14,7 +14,7 @@ class RecordedMainValueTests {
 
     private companion object {
         const val MINUTE = ReadingDisplay.MINUTE_MS
-        const val GRACE = ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+        const val GRACE = ReadingDisplay.DEFAULT_SEAL_GRACE_MS
         const val NOW = 1_800_000_000_000L
     }
 
@@ -50,13 +50,13 @@ class RecordedMainValueTests {
             calibrationFingerprint = 1L,
             recordedAt = NOW,
         )
-        assertTrue(old.isSealedAt(NOW))
+        assertTrue(old.isSealedAt(NOW, GRACE))
     }
 
     @Test
     fun theGraceWindowBoundaryFallsOnTheReadingsOwnAge() {
-        assertFalse(record(NOW - GRACE + MINUTE).isSealedAt(NOW))
-        assertTrue(record(NOW - GRACE - MINUTE).isSealedAt(NOW))
+        assertFalse(record(NOW - GRACE + MINUTE).isSealedAt(NOW, GRACE))
+        assertTrue(record(NOW - GRACE - MINUTE).isSealedAt(NOW, GRACE))
     }
 
     @Test
@@ -175,7 +175,7 @@ class RecordedMainValueTests {
             ),
         )
         assertTrue(
-            "the lane tag must travel with the value or no consumer can gate on it",
+            "the lane the record was shown on travels with it as provenance",
             stats.contains("sealedDisplayViewMode = sealed?.viewMode"),
         )
     }

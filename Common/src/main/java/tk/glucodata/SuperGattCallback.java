@@ -39,6 +39,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver;
+import tk.glucodata.share.DexcomShareSettings;
+import tk.glucodata.share.DexcomShareUploader;
 
 import static android.bluetooth.BluetoothDevice.BOND_BONDED;
 import static android.bluetooth.BluetoothDevice.BOND_BONDING;
@@ -771,6 +773,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
 
         glucosealarms.setagealarm(timmsec, showtime);
+        GlucoseUpdateBroadcaster.armFreshnessDeadline(timmsec);
         final var alertEvaluation = tk.glucodata.alerts.AlertRuntimeManager.INSTANCE.onNewReading(SerialNumber,
                 reading, rate, timmsec, sensorgen);
         final boolean runtimeHandledStandardGlucoseAlert = alertEvaluation.getStandardGlucoseAlertHandled();
@@ -897,10 +900,13 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             return;
         final boolean shouldBroadcastMinuteUpdate = tim > nexttime;
         final boolean outboundApiEnabled = OutboundApiSettings.isEnabled(app);
+        // Credentials and the pending queue live on the phone, so the watch never sends.
+        final boolean dexcomShareEnabled = !isWearable && DexcomShareSettings.isEnabled(app);
         final boolean loopFeedEnabled = Natives.getxbroadcast() || (!isWearable && Natives.getlibrelinkused());
         final boolean shouldResolveExchangePayload =
                 Natives.getJugglucobroadcast()
                 || outboundApiEnabled
+                || dexcomShareEnabled
                 || (shouldBroadcastMinuteUpdate && (
                         loopFeedEnabled
                         || doWearInt
@@ -921,7 +927,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 outboundApiEnabled,
                 !isWearable && doWearInt,
                 !isWearable && doGadgetbridge,
-                loopFeedEnabled);
+                loopFeedEnabled,
+                dexcomShareEnabled);
         // The loop feed shares the same payload JUGGLUCO/OUTBOUND_API get: it is resolved from the
         // same gl/rate/timmsec this call received, so reusing it can never carry a stale timestamp.
         final ExchangeGlucosePayload loopFeedPayload = exchangeOutputDecision.getSendLoopFeed()
@@ -946,6 +953,13 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getTrendName(),
                     exchangePayload.getTrendRate(),
                     alarm);
+        // Share wants the mg/dL value, never the display value, which may be mmol/L.
+        if (exchangeOutputDecision.getSendDexcomShare())
+            DexcomShareUploader.onLiveReading(
+                    exchangePayload.getSensorId(),
+                    exchangePayload.getPrimaryMgdl(),
+                    exchangePayload.getTrendIndex(),
+                    exchangePayload.getTimeMillis());
         // Readings travel to whichever device is not holding the sensor, so the
         // watch pushes too when it is the one reading. A reading that arrived
         // from the peer is not sent straight back.
@@ -973,6 +987,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                             + " exchangeOnly=" + DataSmoothing.smoothOnlyExchangeOutputs(app)
                             + " payloadAgeMs=" + (System.currentTimeMillis() - loopFeedPayload.getTimeMillis()));
                 SendLikexDrip.broadcastglucose(loopFeedPayload, sensorstartmsec);
+                XdripBackfill.recordLiveSent(loopFeedPayload.getSensorId(), loopFeedPayload.getTimeMillis(),
+                        loopFeedPayload.getSensorGen(), sensorstartmsec);
             }
             if (!isWearable) {
                 if (exchangeOutputDecision.getSendWearInt())

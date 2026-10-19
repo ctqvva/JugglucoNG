@@ -1599,7 +1599,7 @@ fun InteractiveGlucoseChart(
         // A minute inside its grace window can still change, so let it be
         // resubmitted; the database decides whether the revision lands.
         PresentedMinuteRecorder.releaseUnsealed(
-            nowMs - tk.glucodata.data.ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+            nowMs - tk.glucodata.data.ReadingDisplay.sealGraceMs()
         )
 
         val visible = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {

@@ -71,17 +71,9 @@ internal fun buildDisplayHistoryForPrediction(
         val sensorId = point.sensorSerial?.takeIf { it.isNotBlank() }
         // The prediction extrapolates the line the user is looking at, so it has
         // to read the same values that line draws — a recorded one included,
-        // but only one recorded for the lane being extrapolated. A raw-line
-        // record fed into an auto-lane prediction bends the forecast toward a
-        // line nobody drew.
+        // in whichever lane it was recorded, as the main line does.
         val sealed = if (useCalibration) {
             point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }
-                ?.takeIf {
-                    tk.glucodata.chart.HistoryChartModelBuilder.recordAppliesToLane(
-                        point.sealedDisplayViewMode ?: -1,
-                        useRaw
-                    )
-                }
         } else {
             null
         }
@@ -160,12 +152,28 @@ internal fun buildPredictionSeriesForChart(
         return seriesPoints.takeIf { it.size >= 2 }?.let { GlucosePredictionSeries(kind, it) }
     }
 
+    // Without a calibration the primary lane's own forecast is the primary
+    // forecast, so it has to start where the main line ends — on a recorded
+    // value when there is one, even one recorded in the other lane. The
+    // calibrated source is record-aware and, with no calibration active, is
+    // the lane's own value everywhere else. Secondary lanes stay plain.
+    val primaryLaneIsRecordAware = !hasCalibration
     return buildList {
         if (drawRaw) {
-            buildSeries(GlucosePredictionSeriesKind.RAW, PredictionHistorySource.RAW)?.let(::add)
+            val source = if (isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_RAW
+            } else {
+                PredictionHistorySource.RAW
+            }
+            buildSeries(GlucosePredictionSeriesKind.RAW, source)?.let(::add)
         }
         if (drawAuto) {
-            buildSeries(GlucosePredictionSeriesKind.AUTO, PredictionHistorySource.AUTO)?.let(::add)
+            val source = if (!isRawMode && primaryLaneIsRecordAware) {
+                PredictionHistorySource.CALIBRATED_AUTO
+            } else {
+                PredictionHistorySource.AUTO
+            }
+            buildSeries(GlucosePredictionSeriesKind.AUTO, source)?.let(::add)
         }
         if (hasCalibration) {
             buildSeries(
@@ -221,6 +229,8 @@ internal fun buildSmoothedConsumerHistory(
                     rawValue = point.rawValue,
                     rate = source?.rate,
                     sensorSerial = source?.sensorSerial,
+                    sealedDisplayValue = source?.sealedDisplayValue,
+                    sealedDisplayViewMode = source?.sealedDisplayViewMode,
                     // Smoothing displaces the value, so the interval follows it
                     // rather than being dropped or left behind around the
                     // unsmoothed one. The width is the estimator's claim and

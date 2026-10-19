@@ -607,6 +607,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Сканувати Dexcom</string>
     <string name="dexcom_scan_instruction">Скануйте datamatrix код на сенсорі Dexcom</string>
+    <string name="dexcom_bluetooth_slot">Слот Bluetooth</string>
+    <string name="dexcom_slot_receiver_short">Помпа</string>
+    <string name="dexcom_slot_app_short">Телефон</string>
+    <string name="dexcom_slot_watch_short">Годинник</string>
+    <string name="dexcom_slot_receiver">Слот 1: приймач або помпа</string>
+    <string name="dexcom_slot_app">Слот 2: застосунок на телефоні (типово)</string>
+    <string name="dexcom_slot_watch">Слот 3: смарт-годинник</string>
+    <string name="dexcom_slot_desc">Сенсор зберігає окреме підключення для кожного слота. Виберіть той, яким не користується інший пристрій: застосунок Dexcom займає слот телефона.</string>
+    <string name="dexcom_slot_button">Слот Bluetooth: %1$s</string>
+    <string name="dexcom_slot_change_desc">Сенсор знову підключиться в новому слоті за збереженим кодом. Після цього старий слот зможе використати інший пристрій.</string>
+    <string name="dexcom_slot_change_action">Змінити слот</string>
     <string name="dexcom_pairing_code_label">4-значний код сполучення</string>
     <string name="dexcom_pairing_code_instruction">Введіть 4-значний код сполучення, надрукований на аплікаторі сенсора.</string>
     <string name="libre_setup_title">Налаштування Libre</string>
@@ -2791,6 +2802,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2867,7 +2879,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_uncertainty_ribbon_desc">Показувати смугу ймовірного діапазону навколо лінії глюкози</string>
     <string name="freeze_displayed_values">Зберігати показані значення</string>
     <string name="freeze_displayed_values_desc">Вимірювання зберігає значення, яке було показано. Зміни калібрування впливають лише на свіжі вимірювання.</string>
-    <string name="freeze_displayed_values_on">Показані значення зберігаються</string>
+    <string name="freeze_displayed_values_after">Фіксуються через %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">До того часу показ ще стежить за змінами калібрування, тож пізній вимір з пальця може його виправити. Після цього він зберігає показане значення.</string>
     <string name="freeze_displayed_values_off">Перерахунок за кожної зміни</string>
     <string name="anytime_credentials_backup">Резервна копія облікових даних CT5</string>
     <string name="anytime_credentials_backup_warning">Цей файл дає змогу відновити сеанс передавача після перевстановлення програми або видалення датчика. Зберігайте його в безпечному місці.</string>
@@ -3049,6 +3062,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Секрет API або токен доступу</string>
     <string name="nightscout_api_help">Для v1 використовуйте секрет API, для v3 — токен доступу Nightscout.</string>
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
+    <string name="medtrum_sensor_desc">Введіть серійний номер, надрукований на патчі (шістнадцятковий)</string>
+    <string name="medtrum_setup_saved_title">Сенсор збережено</string>
+    <string name="medtrum_setup_searching">Поки не під’єднано. Патч під’єднається сам, коли буде поруч.</string>
+    <string name="medtrum_setup_auth_failed">Патч відхилив цей серійний номер. Перевірте номер на патчі.</string>
+    <string name="medtrum_setup_device_rejected">Цей пристрій не є патчем Medtrum. Переконайтеся, що патч поруч, і спробуйте ще раз.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
     <string name="notification_forwarding_section">Годинники й браслети</string>
@@ -3061,4 +3079,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="many">Кожні %d хвилин</item>
         <item quantity="other">Кожні %d хвилини</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Надсилати показники в Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Надсилати в Dexcom</string>
+    <string name="dexcom_share_active_desc">Передавати поточні показники з цього телефона в Dexcom Follow</string>
+    <string name="dexcom_share_account">Обліковий запис Dexcom</string>
+    <string name="dexcom_share_password">Пароль</string>
+    <string name="dexcom_share_region">Регіон</string>
+    <string name="dexcom_share_region_ous">Поза США</string>
+    <string name="dexcom_share_region_us">США</string>
+    <string name="dexcom_share_serial">Серійний номер приймача</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Залиште значення за замовчуванням, якщо у вас немає приймача Dexcom</string>
+    <string name="dexcom_share_test">Перевірити підключення</string>
+    <string name="dexcom_share_test_ok">Підключення встановлено</string>
+    <string name="dexcom_share_pending">У черзі: %1$d</string>
+    <string name="dexcom_share_status_last_success">Останній успіх: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Остання спроба: %1$s</string>
+    <string name="dexcom_share_status_error">Помилка: %1$s</string>
+    <string name="dexcom_share_status_never">Ніколи</string>
+    <string name="dexcom_share_auth_blocked">Вхід заблоковано — перевірте обліковий запис і пароль</string>
+    <string name="dexcom_share_credentials_required">Спочатку введіть обліковий запис і пароль</string>
+    <string name="dexcom_share_warning">Неофіційний інтерфейс: Dexcom може змінити або заблокувати його будь-коли. Це не функція медичного виробу.</string>
 </resources>

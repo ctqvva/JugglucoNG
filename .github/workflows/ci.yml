@@ -37,8 +37,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          submodules: recursive
       - name: Test distribution security and request validation
         run: python3 -m unittest discover -s scripts/dist/tests -v
+      - name: Test Clone with only TURN routes and one rejected relay
+        run: python3 tools/test-clone-turn.py
       - name: Audit bootstrap state and restore available pinned inputs
         run: scripts/update-build-inputs.sh --ci
 

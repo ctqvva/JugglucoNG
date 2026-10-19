@@ -95,8 +95,10 @@ data class SensorInfo(
     val vendorFirmware: String = "",  // AiDex: firmware version from GET_DEVICE_INFO
     val vendorHardware: String = "",  // AiDex: hardware version from GET_DEVICE_INFO
     val vendorModel: String = "",  // AiDex: model name from GET_DEVICE_INFO (e.g. "GX-01S")
+    val vendorBrand: String = "",  // AiDex: advertised rebrand for the badge (e.g. "LUMI"), blank = family
     val isIcan: Boolean = false,
     val isAnytime: Boolean = false,  // Anytime/Yuwell: vendor reports battery as percent + voltage
+    val isMedtrum: Boolean = false,  // Medtrum EasySense: manual calibration via the patch's 0x40 command
     val vendor: SensorVendor = SensorVendor.UNKNOWN,
     val sensorType: SensorTypeName = SensorTypeName.UNKNOWN,
     // Edit 59: Reset compensation state
@@ -107,6 +109,7 @@ data class SensorInfo(
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
     val sensorIndex: Int = -1,
     val isCloneSource: Boolean = false,
+    val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -378,6 +381,7 @@ class SensorViewModel : ViewModel() {
         val isMq = snapshot.uiFamily == ManagedSensorUiFamily.MQ
         val isIcan = snapshot.uiFamily == ManagedSensorUiFamily.ICAN
         val isAnytime = snapshot.uiFamily == ManagedSensorUiFamily.ANYTIME
+        val isMedtrum = snapshot.uiFamily == ManagedSensorUiFamily.MEDTRUM
         val isSibionics = snapshot.uiFamily == ManagedSensorUiFamily.SIBIONICS
         val isSibionics2 = isSibionics && snapshot.vendorModel.equals("Sibionics 2", ignoreCase = true)
         val detailsConnectionStatus = if (snapshot.showConnectionStatusInDetails) {
@@ -422,6 +426,7 @@ class SensorViewModel : ViewModel() {
             isMq = isMq,
             isIcan = isIcan,
             isAnytime = isAnytime,
+            isMedtrum = isMedtrum,
             vendor = SensorVendor.fromManagedFamily(snapshot.uiFamily),
             sensorType = SensorTypeName.fromManagedFamily(snapshot.uiFamily, snapshot.vendorModel),
             startMs = snapshot.startTimeMs,
@@ -453,6 +458,7 @@ class SensorViewModel : ViewModel() {
             vendorFirmware = snapshot.vendorFirmware,
             vendorHardware = snapshot.vendorHardware,
             vendorModel = snapshot.vendorModel,
+            vendorBrand = snapshot.vendorBrand,
             resetCompensationActive = snapshot.resetCompensationActive,
             resetCompensationStatus = snapshot.resetCompensationStatus,
             handoffUiState = handoffUiState,
@@ -686,6 +692,7 @@ class SensorViewModel : ViewModel() {
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
                             sensorIndex = sensorIndex,
+                            dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
                         )
                     }
                 } catch (e: Exception) {
@@ -1307,6 +1314,28 @@ class SensorViewModel : ViewModel() {
                 refreshSensors()
             }
         }
+    }
+
+    /** Moves a Dexcom sensor to another authentication slot; it pairs again on the next connection. */
+    fun setDexcomBluetoothSlot(serial: String, slot: Int) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) return
+        val gatt = findGatt(serial) as? tk.glucodata.DexGattCallback ?: return
+        if (gatt.authSlot == slot) return
+        val wasPaused = SensorBluetooth.isSensorPaused(gatt)
+        // Runs to the end here rather than in viewModelScope: leaving the screen mid-way
+        // would cancel it with the sensor still paused. changeAuthSlot closes the old
+        // session itself, so there is no disconnect to wait for.
+        gatt.setPause(true)
+        gatt.changeAuthSlot(slot)
+        if (gatt.dataptr != 0L) {
+            try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
+        }
+        // A sensor the user paused stays paused; it pairs on the new slot when resumed.
+        if (!wasPaused) {
+            gatt.setPause(false)
+            gatt.connectDevice(200)
+        }
+        refreshSensors()
     }
 
     fun returnSensorToPhone(serial: String) {

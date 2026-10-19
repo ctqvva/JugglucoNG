@@ -699,6 +699,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Dexcom scannen</string>
     <string name="dexcom_scan_instruction">Scannen Sie den Datamatrix-Code auf Ihrem Dexcom-Sensor</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-Slot</string>
+    <string name="dexcom_slot_receiver_short">Pumpe</string>
+    <string name="dexcom_slot_app_short">Handy</string>
+    <string name="dexcom_slot_watch_short">Uhr</string>
+    <string name="dexcom_slot_receiver">Slot 1: Empfänger oder Pumpe</string>
+    <string name="dexcom_slot_app">Slot 2: Handy-App (Standard)</string>
+    <string name="dexcom_slot_watch">Slot 3: Smartwatch</string>
+    <string name="dexcom_slot_desc">Der Sensor speichert für jeden Slot eine eigene Kopplung. Wählen Sie einen, den kein anderes Gerät nutzt: Die Dexcom-App belegt den Handy-Slot.</string>
+    <string name="dexcom_slot_button">Bluetooth-Slot: %1$s</string>
+    <string name="dexcom_slot_change_desc">Der Sensor wird mit seinem gespeicherten Code im neuen Slot neu gekoppelt. Ein anderes Gerät kann danach den alten Slot nutzen.</string>
+    <string name="dexcom_slot_change_action">Slot wechseln</string>
     <string name="dexcom_pairing_code_label">4-stelliger Kopplungscode</string>
     <string name="dexcom_pairing_code_instruction">Geben Sie den 4-stelligen Kopplungscode ein, der auf dem Sensorapplikator steht.</string>
     <string name="libre_setup_title">Libre Einrichtung</string>
@@ -2828,6 +2839,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2907,7 +2919,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="sibionics_uncertainty_ribbon_desc">Das Band des wahrscheinlichen Bereichs um die Glukosekurve anzeigen</string>
     <string name="freeze_displayed_values">Angezeigte Werte behalten</string>
     <string name="freeze_displayed_values_desc">Ein Messwert behält den angezeigten Wert. Kalibrierungsänderungen wirken nur auf aktuelle Messwerte.</string>
-    <string name="freeze_displayed_values_on">Angezeigte Werte werden behalten</string>
+    <string name="freeze_displayed_values_after">Fixiert nach %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Bis dahin folgt ein Messwert noch Kalibrierungsänderungen, sodass ein später eingetragener Fingerstich ihn korrigieren kann. Danach behält er den angezeigten Wert.</string>
     <string name="freeze_displayed_values_off">Wird bei jeder Änderung neu berechnet</string>
     <string name="anytime_credentials_backup">CT5-Zugangsdaten sichern</string>
     <string name="anytime_credentials_backup_warning">Mit dieser Datei kann die Sendersitzung nach einer Neuinstallation der App oder dem Entfernen des Sensors wiederhergestellt werden. Bewahre sie sicher auf.</string>
@@ -3085,6 +3098,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_secret_label">API-Secret oder Zugriffstoken</string>
     <string name="nightscout_api_help">Für v1 das API-Geheimnis verwenden, für v3 ein Nightscout-Zugriffstoken.</string>
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
+    <string name="medtrum_sensor_desc">Seriennummer vom Patch eingeben (hexadezimal)</string>
+    <string name="medtrum_setup_saved_title">Sensor gespeichert</string>
+    <string name="medtrum_setup_searching">Noch nicht verbunden. Der Patch verbindet sich selbst, sobald er in Reichweite ist.</string>
+    <string name="medtrum_setup_auth_failed">Der Patch hat diese Seriennummer abgelehnt. Prüfe die Nummer auf dem Patch.</string>
+    <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Patch. Stellen Sie sicher, dass sich der Patch in Reichweite befindet, und versuchen Sie es erneut.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
     <string name="notification_forwarding_section">Uhren &amp; Bänder</string>
@@ -3095,4 +3113,27 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
         <item quantity="one">Jede Minute</item>
         <item quantity="other">Alle %d Minuten</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Werte an Dexcom Follow senden</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">An Dexcom senden</string>
+    <string name="dexcom_share_active_desc">Aktuelle Werte von diesem Telefon an Dexcom Follow senden</string>
+    <string name="dexcom_share_account">Dexcom-Konto</string>
+    <string name="dexcom_share_password">Passwort</string>
+    <string name="dexcom_share_region">Region</string>
+    <string name="dexcom_share_region_ous">Außerhalb der USA</string>
+    <string name="dexcom_share_region_us">USA</string>
+    <string name="dexcom_share_serial">Seriennummer des Empfängers</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Standardwert beibehalten, wenn Sie keinen Dexcom-Empfänger haben</string>
+    <string name="dexcom_share_test">Verbindung testen</string>
+    <string name="dexcom_share_test_ok">Verbindung erfolgreich</string>
+    <string name="dexcom_share_pending">Ausstehende Werte: %1$d</string>
+    <string name="dexcom_share_status_last_success">Letzter Erfolg: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Letzter Versuch: %1$s</string>
+    <string name="dexcom_share_status_error">Fehler: %1$s</string>
+    <string name="dexcom_share_status_never">Nie</string>
+    <string name="dexcom_share_auth_blocked">Anmeldung gesperrt — Konto und Passwort prüfen</string>
+    <string name="dexcom_share_credentials_required">Zuerst Konto und Passwort eingeben</string>
+    <string name="dexcom_share_warning">Inoffizielle Schnittstelle: Dexcom kann sie jederzeit ändern oder sperren. Dies ist keine Funktion eines Medizinprodukts.</string>
 </resources>

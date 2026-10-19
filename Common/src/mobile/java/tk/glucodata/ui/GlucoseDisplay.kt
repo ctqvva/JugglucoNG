@@ -92,6 +92,9 @@ fun getDisplayValues(
     val isMmol = if (unit.isNotEmpty()) tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit) else tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
     val hideInitialWhenCalibrated = calibratedValue != null &&
         tk.glucodata.data.calibration.CalibrationManager.shouldHideInitialWhenCalibrated()
+    // Rows, the hero and the chart tooltip pass the point's own record when it
+    // has one (SealedGlucoseValue, the chart's main line), so equality says it.
+    val calibratedIsRecorded = calibratedValue != null && point.sealedDisplayValue == calibratedValue
     return DisplayValueResolver.resolve(
         autoValue = point.value,
         rawValue = point.rawValue,
@@ -99,7 +102,8 @@ fun getDisplayValues(
         isMmol = isMmol,
         unitLabel = unit,
         calibratedValue = calibratedValue,
-        hideInitialWhenCalibrated = hideInitialWhenCalibrated
+        hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+        calibratedIsRecorded = calibratedIsRecorded
     )
 }
 

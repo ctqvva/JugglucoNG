@@ -112,9 +112,14 @@ android {
         externalNativeBuild {
             cmake {
                 version = "$CMAKEVERSION"
-                // Distribution builds must not embed ignored local TURN/Twilio credentials.
+                // Explicit relay-only input; ignored local headers/account tokens stay excluded.
                 if (project.hasProperty('requireProductionSigning')) {
+                    if (!project.hasProperty('distributionTurnDirectory') ||
+                            !file("${project.property('distributionTurnDirectory')}/distribution-turn.hpp").isFile()) {
+                        throw new GradleException('Distribution requires Clone TURN input; use scripts/build-dist.sh')
+                    }
                     cppFlags "-DJUGGLUCO_DISTRIBUTION=1"
+                    arguments "-DJUGGLUCO_DISTRIBUTION_TURN_DIR=${file(project.property('distributionTurnDirectory')).absolutePath}"
                 }
                 cppFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 cFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "

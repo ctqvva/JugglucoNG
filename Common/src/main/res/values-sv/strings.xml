@@ -595,6 +595,17 @@
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Skanna Dexcom</string>
     <string name="dexcom_scan_instruction">Skanna datamatrix-koden på Dexcom-sensorn</string>
+    <string name="dexcom_bluetooth_slot">Bluetooth-plats</string>
+    <string name="dexcom_slot_receiver_short">Pump</string>
+    <string name="dexcom_slot_app_short">Telefon</string>
+    <string name="dexcom_slot_watch_short">Klocka</string>
+    <string name="dexcom_slot_receiver">Plats 1: mottagare eller pump</string>
+    <string name="dexcom_slot_app">Plats 2: telefonapp (standard)</string>
+    <string name="dexcom_slot_watch">Plats 3: smartklocka</string>
+    <string name="dexcom_slot_desc">Sensorn sparar en separat parkoppling för varje plats. Välj en som ingen annan enhet använder: Dexcom-appen tar telefonplatsen.</string>
+    <string name="dexcom_slot_button">Bluetooth-plats: %1$s</string>
+    <string name="dexcom_slot_change_desc">Sensorn parkopplas igen på den nya platsen med sin sparade kod. En annan enhet kan sedan använda den gamla platsen.</string>
+    <string name="dexcom_slot_change_action">Byt plats</string>
     <string name="dexcom_pairing_code_label">4-siffrig parkopplingskod</string>
     <string name="dexcom_pairing_code_instruction">Ange den 4-siffriga parkopplingskoden som står på sensorapplikatorn.</string>
     <string name="libre_setup_title">Libre Installation</string>
@@ -2715,6 +2726,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_glutec">Glutec</string>
     <string name="sensor_vendor_yuwell">Yuwell</string>
     <string name="sensor_vendor_ottai">Ottai</string>
+    <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
@@ -2791,7 +2803,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sibionics_uncertainty_ribbon_desc">Visa bandet för sannolikt intervall runt glukoskurvan</string>
     <string name="freeze_displayed_values">Behåll visade värden</string>
     <string name="freeze_displayed_values_desc">Ett värde behåller det som visades. Kalibreringsändringar påverkar bara de senaste värdena.</string>
-    <string name="freeze_displayed_values_on">Visade värden behålls</string>
+    <string name="freeze_displayed_values_after">Låses efter %1$s</string>
+    <string name="freeze_displayed_values_grace_desc">Fram till dess följer en mätning fortfarande kalibreringsändringar, så ett sent inmatat fingerstick kan rätta den. Därefter behåller den det visade värdet.</string>
     <string name="freeze_displayed_values_off">Räknas om vid varje ändring</string>
     <string name="anytime_credentials_backup">Säkerhetskopiera CT5-uppgifter</string>
     <string name="anytime_credentials_backup_warning">Filen kan återställa sändarsessionen efter att appen installerats om eller sensorn tagits bort. Förvara den säkert.</string>
@@ -2969,6 +2982,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API-hemlighet eller åtkomsttoken</string>
     <string name="nightscout_api_help">Använd API-hemligheten med v1 eller en Nightscout-åtkomsttoken med v3.</string>
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
+    <string name="medtrum_sensor_desc">Ange serienumret som står på plåstret (hexadecimalt)</string>
+    <string name="medtrum_setup_saved_title">Sensorn sparad</string>
+    <string name="medtrum_setup_searching">Inte ansluten än. Plåstret ansluter av sig själv när det är inom räckhåll.</string>
+    <string name="medtrum_setup_auth_failed">Plåstret avvisade serienumret. Kontrollera numret som står på plåstret.</string>
+    <string name="medtrum_setup_device_rejected">Den här enheten är inte ett Medtrum-plåster. Kontrollera att plåstret är inom räckhåll och försök igen.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
     <string name="notification_forwarding_section">Klockor och band</string>
@@ -2979,4 +2997,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">Varje minut</item>
         <item quantity="other">Var %d:e minut</item>
     </plurals>
+    <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Skicka värden till Dexcom Follow</string>
+    <string name="dexcom_share_settings_title">Dexcom Share</string>
+    <string name="dexcom_share_active">Dela till Dexcom</string>
+    <string name="dexcom_share_active_desc">Skicka aktuella värden från den här telefonen till Dexcom Follow</string>
+    <string name="dexcom_share_account">Dexcom-konto</string>
+    <string name="dexcom_share_password">Lösenord</string>
+    <string name="dexcom_share_region">Region</string>
+    <string name="dexcom_share_region_ous">Utanför USA</string>
+    <string name="dexcom_share_region_us">USA</string>
+    <string name="dexcom_share_serial">Mottagarens serienummer</string>
+    <string name="dexcom_share_serial_hint">SM00000000</string>
+    <string name="dexcom_share_serial_helper">Behåll standardvärdet om du inte har någon Dexcom-mottagare</string>
+    <string name="dexcom_share_test">Testa anslutning</string>
+    <string name="dexcom_share_test_ok">Anslutningen lyckades</string>
+    <string name="dexcom_share_pending">Väntande värden: %1$d</string>
+    <string name="dexcom_share_status_last_success">Senast lyckad: %1$s</string>
+    <string name="dexcom_share_status_last_attempt">Senaste försök: %1$s</string>
+    <string name="dexcom_share_status_error">Fel: %1$s</string>
+    <string name="dexcom_share_status_never">Aldrig</string>
+    <string name="dexcom_share_auth_blocked">Inloggning blockerad — kontrollera konto och lösenord</string>
+    <string name="dexcom_share_credentials_required">Ange konto och lösenord först</string>
+    <string name="dexcom_share_warning">Inofficiellt gränssnitt: Dexcom kan ändra eller blockera det när som helst. Detta är inte en funktion i en medicinteknisk produkt.</string>
 </resources>

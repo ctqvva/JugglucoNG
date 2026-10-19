@@ -43,8 +43,8 @@ class AiDexWearLifeWiringTests {
 
     @Test
     fun theRatingIsReadOnlyForDisplay() {
-        val display = "override fun getDisplayWearDays(): Int = " +
-            "AiDexWearProfile.resolve(reportedWearDaysOrNull(), AiDexWearProfile.ratedDays(_modelName)) ?: -1"
+        val display = "override fun getDisplayWearDays(): Int = AiDexWearProfile.resolve( " +
+            "reportedWearDaysOrNull(), rememberedSensorWearDays, AiDexWearProfile.ratedDays(_modelName), ) ?: -1"
         assertTrue(manager.contains(display))
         assertEquals(
             "AiDexWearProfile is used by getDisplayWearDays only",
@@ -58,6 +58,16 @@ class AiDexWearLifeWiringTests {
         assertEquals(2, Regex("getDisplayWearDays\\(").findAll(driver).count())
         assertTrue(driver.contains("val sensorWearDays = runCatching { getDisplayWearDays() }.getOrDefault(-1)"))
         assertTrue(driver.contains("fun getDisplayWearDays(): Int = getSensorReportedWearDays()"))
+    }
+
+    @Test
+    fun aRememberedByteIsReadOnlyForDisplay() {
+        // Declared, compared and set in rememberSensorWearDays, read by getDisplayWearDays.
+        // Any other use would let an earlier connection's byte reach a cutoff or native write.
+        assertEquals(4, Regex("\\brememberedSensorWearDays\\b").findAll(manager).count())
+        // Written only from the sensor's own 0x10 byte.
+        assertEquals(2, Regex("rememberSensorWearDays\\(").findAll(manager).count())
+        assertTrue(manager.contains("sensorReportedWearDays = true rememberSensorWearDays(parsed.wearDays)"))
     }
 
     @Test

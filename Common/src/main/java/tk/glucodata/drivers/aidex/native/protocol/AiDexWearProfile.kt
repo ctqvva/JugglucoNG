@@ -56,4 +56,14 @@ object AiDexWearProfile {
      */
     fun resolve(sensorDays: Int?, modelDays: Int?): Int? =
         sensorDays?.takeIf { it > 0 } ?: modelDays?.takeIf { it > 0 }
+
+    /**
+     * As [resolve], with the byte this sensor sent on an earlier connection in between.
+     *
+     * A 16-day sensor reports model `GX-01S`, whose rating is 15, so until `0x10` is read
+     * again after a restart or reconnect the rating alone shows the wrong end. The remembered
+     * byte is still the sensor's own report, so it ranks above the rating and below a fresh byte.
+     */
+    fun resolve(sensorDays: Int?, rememberedSensorDays: Int?, modelDays: Int?): Int? =
+        resolve(sensorDays?.takeIf { it > 0 } ?: rememberedSensorDays, modelDays)
 }

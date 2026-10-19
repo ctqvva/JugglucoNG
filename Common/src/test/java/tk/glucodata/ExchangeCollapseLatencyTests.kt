@@ -451,4 +451,56 @@ class ExchangeCollapseLatencyTests {
         )
         assertFalse("not eligible this callback", behindTheMinuteGate.sendLoopFeed)
     }
+
+    // --- Dexcom Share as a destination: eligible wherever the API is, thinned by its own queue --
+
+    @Test
+    fun dexcomShareIsEmittedWhenItIsTheOnlyDestinationAndCollapsesOnItsOwn() {
+        val policy = ExchangeOutputPolicy()
+
+        val first = policy.decide(
+            sensorId = sensorId, payloadTimeMs = base, intervalMinutes = 5,
+            shouldBroadcastMinuteUpdate = false, jugglucoEnabled = false, outboundApiEnabled = false,
+            wearIntEnabled = false, gadgetbridgeEnabled = false, loopFeedEnabled = false,
+            dexcomShareEnabled = true
+        )
+        assertTrue(
+            "Share is eligible on a reading the minute gate holds back, like the API",
+            first.sendDexcomShare,
+        )
+        assertFalse("and no destination that is off joins in", first.sendLoopFeed)
+
+        val sameInterval = policy.decide(
+            sensorId = sensorId, payloadTimeMs = base + minute, intervalMinutes = 5,
+            shouldBroadcastMinuteUpdate = false, jugglucoEnabled = false, outboundApiEnabled = false,
+            wearIntEnabled = false, gadgetbridgeEnabled = false, loopFeedEnabled = false,
+            dexcomShareEnabled = true
+        )
+        assertFalse("Share collapses like every other destination", sameInterval.sendDexcomShare)
+
+        val nextInterval = policy.decide(
+            sensorId = sensorId, payloadTimeMs = base + 5 * minute, intervalMinutes = 5,
+            shouldBroadcastMinuteUpdate = false, jugglucoEnabled = false, outboundApiEnabled = false,
+            wearIntEnabled = false, gadgetbridgeEnabled = false, loopFeedEnabled = false,
+            dexcomShareEnabled = true
+        )
+        assertTrue("the next interval sends again", nextInterval.sendDexcomShare)
+    }
+
+    @Test
+    fun dexcomShareDisabledNeverSends() {
+        val policy = ExchangeOutputPolicy()
+
+        val decision = policy.decide(
+            sensorId = sensorId, payloadTimeMs = base, intervalMinutes = 5,
+            shouldBroadcastMinuteUpdate = true, jugglucoEnabled = false, outboundApiEnabled = false,
+            wearIntEnabled = false, gadgetbridgeEnabled = false, loopFeedEnabled = false,
+            dexcomShareEnabled = false
+        )
+        assertFalse(decision.sendDexcomShare)
+
+        // The default keeps every positional caller of decide(...) unchanged.
+        val positional = policy.decide(sensorId, base, 3, true, false, false, false, false, false)
+        assertFalse(positional.sendDexcomShare)
+    }
 }
