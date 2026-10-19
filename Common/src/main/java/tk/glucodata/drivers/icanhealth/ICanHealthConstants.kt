@@ -3,8 +3,9 @@
 //
 // Protocol: Standard Bluetooth CGM Service (0x181F) with firmware-selected
 // hardcoded crypto:
-// - glucose payloads: AES-128-ECB
-// - F3/F4 auth: AES-128-CBC/PKCS7
+// - glucose payloads (live 19-byte frames and history): AES-128-CBC/PKCS7 with a
+//   challenge-derived IV
+// - F3/F4 auth: AES-128-CBC/PKCS7 (same IV scheme)
 // Reverse-engineered from iCanHealth app (com.sinocare.ican.health.ru v01.16.01.02).
 
 package tk.glucodata.drivers.icanhealth
@@ -79,7 +80,7 @@ object ICanHealthConstants {
     // ---- CGM Service Characteristics ----
 
     /** CGM Measurement (Notify) — glucose notifications (encrypted)
-     *  Wire format: 3 bytes cleartext header + 16 bytes AES-128-ECB encrypted payload = 19 bytes */
+     *  Wire format: 3 bytes cleartext header + 16 bytes AES-128-CBC/PKCS7 payload = 19 bytes */
     val CGM_MEASUREMENT: UUID = UUID.fromString("00002aa7-0000-1000-8000-00805f9b34fb")
 
     /** CGM Status (Read) — time offset from session start */
@@ -119,7 +120,7 @@ object ICanHealthConstants {
 
     // ---- Protocol Constants ----
 
-    /** AES-128-ECB block size */
+    /** AES block size (16); live frames and history use CBC/PKCS7, the snippet helpers above stay ECB */
     const val AES_BLOCK_SIZE = 16
 
     /** Glucose notification total size (3 header + 16 encrypted) */
@@ -657,24 +658,33 @@ object ICanHealthConstants {
     const val SN_HISTORY_RECORD_SIZE_ORIGINAL = 4
     const val SN_HISTORY_RECORD_SIZE_GLUCOSE = 2
 
-    // ---- Decrypted Payload Offsets (within 16-byte decrypted block) ----
+    // ---- Decrypted Payload Offsets ----
+    // Offsets within the PKCS7-unpadded 13-byte live frame (verified against the official iOS
+    // client's traffic, notes §10.8). The ECB read this replaced disagreed only at the IV byte
+    // positions, so the value/sequence offsets below were accidentally right all along.
 
-    /** Byte 0: constant 0x0D (size/flags marker) */
+    /** Byte 0: content length, constant 0x0D in the live frame */
     const val OFFSET_SIZE_FLAGS = 0
 
-    /** Byte 1: status byte */
+    /** Byte 1: launcher state (0x80 = RUNNING); misread as a "status byte" under ECB */
     const val OFFSET_STATUS = 1
 
-    /** Bytes 2-3: glucose value as u16 LE (mmol/L x 100) */
+    /** Bytes 2-3: glucose value as u16 LE (mmol/L x 100, or direct 16-bit variant) */
     const val OFFSET_GLUCOSE_U16LE = 2
 
     /** Bytes 4-5: sequence number as u16 LE (integrity check) */
     const val OFFSET_SEQ_CHECK_U16LE = 4
 
-    /** Bytes 9-10: processed electrochemical current (obfuscated u16 LE) */
+    /**
+     * Bytes 9-10: zero-filled tail of the live frame — the wire carries no current value live.
+     * The legacy vendor decode is kept for a future consumer / the history-family layout.
+     */
     const val OFFSET_CURRENT_U16LE = 9
 
-    /** Bytes 11-12: skin temperature as u16 LE / 10.0 */
+    /**
+     * Bytes 11-12: also zero fill in the live frame (no temperature live). The history family
+     * carries a real temperature at this offset.
+     */
     const val OFFSET_TEMPERATURE_U16LE = 11
 
     // ---- Device Name Patterns ----
