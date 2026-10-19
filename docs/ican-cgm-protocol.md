@@ -10,8 +10,11 @@ independent sources:
    ~2 h (2026-09-26/27) — the vendor client's own traffic, used to validate the crypto, the history
    flow and the live-notification format.
 
-Written 2026-10-19. The calibration fix for this driver is PR #635; the follow-ups that are *not*
-implemented yet are tracked in issue #676.
+Written 2026-10-19; §6 and §7 were corrected the same day after a field report from a user whose
+`iCGM-t3` stopped serving glucose — the two claims those sections used to make ("byte 7 is a
+constant", "a sensor without a code refuses history") turned out to be wider than the evidence. The
+calibration fix for this driver is PR #635; the follow-ups that are *not* implemented yet are
+tracked in issue #676.
 
 **Conventions.** `TX` = phone → sensor, `RX` = sensor → phone. Handles are the ones the sensors in
 those captures actually used, not spec defaults. All multi-byte integers are little-endian unless
@@ -129,7 +132,9 @@ holes behind the live edge. In the capture, the counter already read 42 while th
 independent tails, so one can lag the other.
 
 Our driver instead catches up from `lastKnown + interval` (`ICanHealthHistoryPolicy`), which never
-fills a hole behind the live edge. See issue #676 for the decision.
+fills a hole behind the live edge; and when it has no history at all for a session it asks from
+offset 3, which is far behind the live edge of any session that has been running for a while — see
+§6 for why those requests come back `0x0A`. See issue #676 for the decision.
 
 ## 5. Live notifications
 
@@ -162,24 +167,38 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   (the IV only touches bytes 1/6/10/15) but corrupts the parsed `statusByte` and `currentValue`, and
   makes the logged "flags" byte `0x80 ⊕ challenge[0]`. See issue #676.
 
-## 6. Provisioning: why an unprovisioned sensor refuses history
+## 6. Provisioning: `correctCode`, and what a refused history request means
 
 * History *reads* need a per-sensor calibration table (`correctCode`, 25 floats) that the vendor's
-  server hands out for a sensor serial and the vendor app writes into the sensor. Without it the
-  sensor refuses every RACP history request with `RX 06 00 F1 0A` and returns no records at all —
-  proven by an A/B on hardware: a sensor activated with our app never served a single record, one
-  activated with the vendor app served records normally.
-* The state is readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`. `0xFFFF` means "no code written".
-  Observed written values: 500, 510, 530, 600.
-* The vendor app writes the code during its own activation/binding flow, never during normal sync:
-  in the iOS capture there is **no** `F6` request and **no** `F2/F7` write in the whole window (the
-  byte pair `1C F6` does not occur at all), and history works because the sensor was provisioned
-  before the capture started.
-* Consequences for us: we cannot repair a sensor that was started with our app (the table comes from
-  the vendor's server and is applied by native, packed code), and pointing the vendor app at an
-  unknown sensor is not a repair path — its lifecycle operations act on the account's bound device.
-  The workable order is: vendor app first, Juggluco afterwards. A log line when `F6 == 0xFFFF` is
-  proposed in issue #676.
+  server hands out for a sensor serial and the vendor app writes into the sensor. The state is
+  readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`; `0xFFFF` means "no code written". Observed
+  written values: 500, 510, 530, 600.
+* The vendor app never asks for history before that code has been written — the gate is in the SDK
+  (`hasWriteCorrectCode`, `onPrepareReadHistoryData`, `onWriteCorrectCodeCompleted`) — and the write
+  happens during activation/binding, never during normal sync: the iOS capture contains no `F6` read
+  and no `F2/F7` write at all, and history works there because the sensor was provisioned before the
+  capture started.
+* On the sensor side a refusal is `RX 06 00 F1 0A` (legacy `01` family: `06 00 01 0A`), i.e. status
+  `0x0A` = "operation failed" rather than `0x06` = "no records found". What can be said about the
+  cause is less than it used to be. **Every refusal on record pairs an `F6 == 0xFFFF` sensor with a
+  request far behind its live edge** (asked from offset 3 while the `0x2AA9` counter read 72…8598),
+  and **every successful request on record is a tail request** on a sensor with a code (from the
+  counter itself or a few minutes behind it — which is also all the vendor app ever asks for, §4.3).
+  Provisioning and request range are therefore perfectly confounded, and the earlier reading "a
+  sensor started with our app refuses history" is not established by those logs.
+* Two one-line experiments would separate the explanations; each needs one live sensor:
+  1. on an `F6 == 0xFFFF` sensor request the *tail* (counter or counter − 3) — served ⇒ the sensor
+     does not gate on the code, and the failures are a request-range/driver-policy matter;
+  2. on a provisioned sensor request a *very old* offset (offset 3 in a session that is days old) —
+     refused ⇒ the sensor limits how far back it will serve.
+  Until then, read `0x0A` as "the sensor would not serve that range" and do not treat `0xFFFF` as
+  proof of the reason. A driver that retried from the live edge after `0x0A` — instead of repeating
+  the same old offset, which is what produced the 59-attempt run in the logs — would be both the
+  experiment and, if experiment 1 wins, the fix. Filed in issue #676.
+* Independent of that: the table comes from the vendor's server and is applied by native code we
+  cannot mirror, and pointing the vendor app at an unknown sensor is not a repair path — its
+  lifecycle operations act on the account's bound device. The workable order is: vendor app first,
+  Juggluco afterwards. A log line when `F6 == 0xFFFF` is proposed in issue #676.
 
 ## 7. Session clock
 
@@ -190,12 +209,24 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
 ```
 
 * The wall clock is the **local time of the phone that started the session**, not UTC.
-* Byte 7 is a **constant** the vendor's writer puts there (`20` = +5:00) regardless of the phone's
-  zone — verified on two captures: an Android phone at +08 and an iPhone at +05, both showing `14` in
-  this byte while the counter below agreed with the *local* wall clock. Treat it as "unknown" and
-  resolve the wall clock in the device zone (`ICanHealthConstants`/`parseSessionStartTime`; fixed in
-  PR #635). The vendor's own reader has the same problem from the other side: it interprets the wall
-  clock as `GMT+8` and never looks at bytes 7–8.
+* Byte 7 is a zone offset in 15-minute units (`sint8`), and it is **not** a constant:
+  * the vendor app's writer hard-codes `20` = +5:00 next to the wall clock (`j2.java:1115`),
+    whatever the phone's zone is — an Aug 2026 Android at `+08` reading a vendor-started sensor
+    shows `0x14`, and the `0x2AA9` counter contradicts that stored offset by exactly the 3 h that
+    `+08` versus `+05` predicts (`drift=179min` in the driver's own warning);
+  * every sensor this driver started itself stores its real zone — `0x20` (+08), `0x28` (+10) and
+    `0x0C` (+03) in three different logs.
+  So `20` reads as "written by the vendor app" *or* "a device genuinely at UTC+5:00", and the
+  payload cannot tell the two apart. `parseSessionStartTime` treats `20` as unknown and resolves the
+  wall clock in the device zone (PR #635) — correct whenever the reader is in the writer's zone, off
+  by the difference in the remaining case. The vendor's own reader has a related problem: it reads
+  the wall clock as `GMT+8` and never looks at bytes 7–8.
+* The stored time is when the app *wrote* it (activation/binding), which is not necessarily when the
+  sensor's session started — the count below is relative to the session, not to the write. A CN
+  `iCGM-t3` activated by our app stored `10:27:58` while the counter put its session start 2 h 14 min
+  later, at `12:42:11`; timestamps derived from the stored time lag the truth by that gap until the
+  counter re-anchors them. That is what the driver's "request the whole session again for timezone
+  repair" is for — and that request is exactly the refused pattern of §6.
 * `0x2AA9` (CGM Status, 6 bytes) starts with the **time offset in minutes** — the same number as the
   history sequence number — followed by status/CRC bytes that our driver ignores. In one capture the
   last byte flipped from `00` to `01` about two hours into the session; the meaning is unconfirmed.
@@ -246,8 +277,11 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 
 1. The `iCGM-t3` live value field (nonce? MAC? something else) — and whether it is safe to ignore the
    live lane entirely on that family.
-2. Exact meaning of the non-`0xFFFF` code-state values and of RACP `0x0A`.
-3. The 4 bytes after the time offset in `0x2AA9`.
+2. Exact meaning of the non-`0xFFFF` code-state values, and of RACP `0x0A` — which is confounded
+   between "no correct code" and "range not served" (§6); two one-line experiments settle it.
+3. The 4 bytes after the time offset in `0x2AA9` (the byte our driver calls `launcherState`; `0x01`
+   was seen on a stopped sensor and on the live `iCGM-t3`, `0x00` on working `iCGM-t6`s).
 4. The vendor's `0x0035` read.
-5. Whether the sensor serves arbitrarily old history ranges (a deliberate old-offset request on a live
-   sensor would settle it).
+5. Whether the sensor serves arbitrarily old history ranges. This is now one half of the §6
+   experiment — and the driver's "timezone repair" re-read (offset 3 on a long-running session) is
+   already an accidental instance of it, which has failed every time.
