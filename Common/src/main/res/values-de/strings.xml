@@ -3087,4 +3087,16 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+    <string name="notification_forwarding_section">Kompatibilität &amp; Weiterleitung</string>
+    <string name="notification_standard_text_title">Standard-Benachrichtigungstext</string>
+    <string name="notification_standard_text_desc">Den Wert in den Standardtext der Benachrichtigung schreiben, für andere Apps und Systemfunktionen. Manche Uhren-Apps leiten dann jede Aktualisierung weiter.</string>
+    <string name="notification_standard_text_blocked_desc">Aus, solange periodische Glukose-Benachrichtigungen an sind – Uhren-Apps erhalten nur diese.</string>
+    <string name="periodic_glucose_notifications_title">Periodische Glukose-Benachrichtigungen</string>
+    <string name="periodic_glucose_notifications_desc">Den aktuellen Wert im gewählten Abstand als eigene Benachrichtigung senden, für Uhren und Bänder, die Handy-Benachrichtigungen weiterleiten. Alarme werden nie verzögert.</string>
+    <string name="periodic_glucose_interval_title">Abstand</string>
+    <string name="periodic_glucose_interval_note">Es werden nur neue Werte gesendet, nie öfter als der Sensor misst. Ob die Uhr sie anzeigt, hängt von ihrer App ab.</string>
+    <string name="periodic_glucose_interval_every">Jeder Wert</string>
+    <string name="periodic_glucose_interval_minutes">%1$d Min.</string>
+    <string name="periodic_glucose_channel_name">Periodische Glukosewerte</string>
+    <string name="periodic_glucose_channel_desc">Der aktuelle Wert im in den Benachrichtigungseinstellungen gewählten Abstand, für Uhren und Bänder</string>
 </resources>

@@ -2971,4 +2971,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
+    <string name="notification_forwarding_section">Kompatibilitet och vidarebefordran</string>
+    <string name="notification_standard_text_title">Standardtext i aviseringen</string>
+    <string name="notification_standard_text_desc">Lägg värdet i aviseringens standardtext, för andra appar och systemfunktioner. Vissa klockappar vidarebefordrar då varje uppdatering.</string>
+    <string name="notification_standard_text_blocked_desc">Av medan periodiska glukosaviseringar är på: klockappar får bara dem.</string>
+    <string name="periodic_glucose_notifications_title">Periodiska glukosaviseringar</string>
+    <string name="periodic_glucose_notifications_desc">Skicka aktuellt värde som en separat avisering med valt intervall, för klockor och band som vidarebefordrar telefonens aviseringar. Larm fördröjs aldrig.</string>
+    <string name="periodic_glucose_interval_title">Intervall</string>
+    <string name="periodic_glucose_interval_note">Bara nya värden skickas, aldrig oftare än sensorn mäter. Om klockan visar dem beror på dess app.</string>
+    <string name="periodic_glucose_interval_every">Varje värde</string>
+    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="periodic_glucose_channel_name">Periodiska glukosvärden</string>
+    <string name="periodic_glucose_channel_desc">Aktuellt värde med intervallet från aviseringsinställningarna, för klockor och band</string>
 </resources>

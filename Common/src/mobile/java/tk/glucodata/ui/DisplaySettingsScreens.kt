@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
+import tk.glucodata.NotificationForwardingSettings
+import tk.glucodata.PeriodicGlucoseNotifier
 import tk.glucodata.R
 import tk.glucodata.accessibility.AODOverlayService
 import tk.glucodata.data.settings.FloatingSettingsRepository
@@ -76,6 +79,8 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 private val legacySettingsHorizontalPadding = 16.dp
@@ -117,6 +122,11 @@ fun NotificationSettingsScreen(
     var iobCobRiskColored by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_cob_risk_colored", false)) }
     var iobRiskWithoutCob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_iob_risk_without_cob", false)) }
     var statusIconScale by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_status_icon_scale", 1.0f)) }
+    var standardText by rememberSaveable { mutableStateOf(NotificationForwardingSettings.isStandardTextPreferred(prefs)) }
+    var periodicEnabled by rememberSaveable { mutableStateOf(NotificationForwardingSettings.isPeriodicEnabled(prefs)) }
+    var periodicInterval by rememberSaveable {
+        mutableIntStateOf(NotificationForwardingSettings.periodicIntervalMinutes(prefs))
+    }
 
     fun save() {
         prefs.edit()
@@ -354,6 +364,96 @@ fun NotificationSettingsScreen(
                     position = CardPosition.BOTTOM
                 )
             }
+        }
+
+        // What watch and band companion apps get to read. The two switches are
+        // exclusive: standard text on the ongoing notification would forward every
+        // update and make the periodic interval meaningless.
+        SectionLabel(
+            stringResource(R.string.notification_forwarding_section),
+            topPadding = 16.dp,
+            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+        ) {
+            SettingsSwitchItem(
+                title = stringResource(R.string.notification_standard_text_title),
+                subtitle = stringResource(
+                    if (periodicEnabled) R.string.notification_standard_text_blocked_desc
+                    else R.string.notification_standard_text_desc
+                ),
+                checked = standardText && !periodicEnabled,
+                enabled = !periodicEnabled,
+                onCheckedChange = {
+                    standardText = it
+                    NotificationForwardingSettings.setStandardText(context, it)
+                    viewModel.refreshNotificationSurfaces()
+                },
+                position = CardPosition.TOP
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.periodic_glucose_notifications_title),
+                subtitle = stringResource(R.string.periodic_glucose_notifications_desc),
+                checked = periodicEnabled,
+                onCheckedChange = { enabled ->
+                    periodicEnabled = enabled
+                    if (enabled) standardText = false
+                    NotificationForwardingSettings.setPeriodicEnabled(context, enabled)
+                    PeriodicGlucoseNotifier.onSettingChanged(enabled)
+                    // Drops standard text from the ongoing notification right away.
+                    viewModel.refreshNotificationSurfaces()
+                },
+                position = if (periodicEnabled) CardPosition.MIDDLE else CardPosition.BOTTOM
+            )
+            AnimatedVisibility(
+                visible = periodicEnabled,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                PeriodicIntervalCard(
+                    selectedMinutes = periodicInterval,
+                    onSelected = { minutes ->
+                        periodicInterval = minutes
+                        NotificationForwardingSettings.setPeriodicIntervalMinutes(context, minutes)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodicIntervalCard(selectedMinutes: Int, onSelected: (Int) -> Unit) {
+    val everyReading = stringResource(R.string.periodic_glucose_interval_every)
+    val minutesLabel = stringResource(R.string.periodic_glucose_interval_minutes)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(CardPosition.BOTTOM),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.periodic_glucose_interval_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.periodic_glucose_interval_note),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            ConnectedButtonGroup(
+                options = NotificationForwardingSettings.INTERVAL_OPTIONS.toList(),
+                selectedOption = selectedMinutes,
+                onOptionSelected = onSelected,
+                label = {},
+                labelText = { minutes -> if (minutes <= 1) everyReading else minutesLabel.format(minutes) },
+                modifier = Modifier.fillMaxWidth(),
+                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
         }
     }
 }

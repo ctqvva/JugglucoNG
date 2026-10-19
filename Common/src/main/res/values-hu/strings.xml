@@ -3046,4 +3046,16 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_iob_help">Az eIOB és COB a devicestatus jugglucong mezőjében kerül elküldésre, a hagyományos IOB-tól külön.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
+    <string name="notification_forwarding_section">Kompatibilitás és továbbítás</string>
+    <string name="notification_standard_text_title">Szabványos értesítési szöveg</string>
+    <string name="notification_standard_text_desc">Az érték bekerül az értesítés szabványos szövegébe más alkalmazások és rendszerfunkciók számára. Egyes óraalkalmazások ekkor minden frissítést továbbítanak.</string>
+    <string name="notification_standard_text_blocked_desc">Kikapcsolva, amíg a rendszeres glükózértesítések be vannak kapcsolva: az óraalkalmazások csak azokat kapják.</string>
+    <string name="periodic_glucose_notifications_title">Rendszeres glükózértesítések</string>
+    <string name="periodic_glucose_notifications_desc">Az aktuális érték küldése külön értesítésben a választott időközönként, a telefonértesítéseket továbbító órákhoz és karkötőkhöz. A riasztások sosem késnek.</string>
+    <string name="periodic_glucose_interval_title">Időköz</string>
+    <string name="periodic_glucose_interval_note">Csak új értékek mennek ki, sosem gyakrabban, mint ahogy a szenzor mér. Hogy az óra megjeleníti-e, az alkalmazásán múlik.</string>
+    <string name="periodic_glucose_interval_every">Minden érték</string>
+    <string name="periodic_glucose_interval_minutes">%1$d perc</string>
+    <string name="periodic_glucose_channel_name">Rendszeres glükózértékek</string>
+    <string name="periodic_glucose_channel_desc">Az aktuális érték az értesítési beállításokban választott időközönként, órákhoz és karkötőkhöz</string>
 </resources>

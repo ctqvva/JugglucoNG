@@ -31,6 +31,7 @@ object UiRefreshBus {
         bumpRevision()
         _events.tryEmit(Event.DataChanged)
         Notify.scheduleDataChangedRefresh()
+        PeriodicGlucoseNotifier.requestCheck()
         GlucoseUpdateBroadcaster.send(Applic.app)
         refreshWatchFaceSurfaces()
     }

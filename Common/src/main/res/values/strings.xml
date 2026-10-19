@@ -3223,4 +3223,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 
     <string name="alert_sound_volume">Alert sound volume</string>
+    <string name="notification_forwarding_section">Compatibility &amp; forwarding</string>
+    <string name="notification_standard_text_title">Standard notification text</string>
+    <string name="notification_standard_text_desc">Put the reading in the notification\'s standard text, for other apps and system features. Some watch apps then forward every update.</string>
+    <string name="notification_standard_text_blocked_desc">Off while periodic glucose notifications are on, so watch apps only get those.</string>
+    <string name="periodic_glucose_notifications_title">Periodic glucose notifications</string>
+    <string name="periodic_glucose_notifications_desc">Send the current reading as a separate notification at a set interval, for watches and bands that forward phone notifications. Alarms are never delayed.</string>
+    <string name="periodic_glucose_interval_title">Interval</string>
+    <string name="periodic_glucose_interval_note">Only new readings are sent, never more often than the sensor measures. Whether the watch shows them depends on its companion app.</string>
+    <string name="periodic_glucose_interval_every">Each reading</string>
+    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="periodic_glucose_channel_name">Periodic glucose updates</string>
+    <string name="periodic_glucose_channel_desc">The current reading at the interval chosen in notification settings, for watches and bands</string>
 </resources>

@@ -3046,4 +3046,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB і COB перадаюцца ў полі jugglucong у devicestatus асобна ад стандартнага IOB.</string>
 
     <string name="alert_sound_volume">Гучнасць гуку трывогі</string>
+    <string name="notification_forwarding_section">Сумяшчальнасць і перасылка</string>
+    <string name="notification_standard_text_title">Стандартны тэкст апавяшчэння</string>
+    <string name="notification_standard_text_desc">Паказанні ў стандартным тэксце апавяшчэння — для іншых праграм і функцый сістэмы. Некаторыя праграмы гадзіннікаў тады перасылаюць кожнае абнаўленне.</string>
+    <string name="notification_standard_text_blocked_desc">Выключана, пакуль уключаны перыядычныя апавяшчэнні: праграмы гадзіннікаў атрымліваюць толькі іх.</string>
+    <string name="periodic_glucose_notifications_title">Перыядычныя апавяшчэнні пра глюкозу</string>
+    <string name="periodic_glucose_notifications_desc">Адпраўляць бягучае значэнне асобным апавяшчэннем з выбраным інтэрвалам — для гадзіннікаў і бранзалетаў, якія перасылаюць апавяшчэнні тэлефона. Трывогі ніколі не затрымліваюцца.</string>
+    <string name="periodic_glucose_interval_title">Інтэрвал</string>
+    <string name="periodic_glucose_interval_note">Адпраўляюцца толькі новыя паказанні, не часцей, чым вымярае сэнсар. Ці пакажа іх гадзіннік, залежыць ад яго праграмы.</string>
+    <string name="periodic_glucose_interval_every">Кожнае</string>
+    <string name="periodic_glucose_interval_minutes">%1$d хв</string>
+    <string name="periodic_glucose_channel_name">Перыядычныя паказанні глюкозы</string>
+    <string name="periodic_glucose_channel_desc">Бягучае значэнне з інтэрвалам з налад апавяшчэнняў, для гадзіннікаў і бранзалетаў</string>
 </resources>

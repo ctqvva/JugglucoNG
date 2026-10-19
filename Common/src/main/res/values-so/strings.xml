@@ -3156,4 +3156,16 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+    <string name="notification_forwarding_section">Ku habboonaan iyo gudbin</string>
+    <string name="notification_standard_text_title">Qoraalka caadiga ah ee ogeysiiska</string>
+    <string name="notification_standard_text_desc">Akhriska geli qoraalka caadiga ah ee ogeysiiska, apps kale iyo nidaamka awgood. Apps-ka saacadaha qaarkood markaas way gudbiyaan cusbooneysiin kasta.</string>
+    <string name="notification_standard_text_blocked_desc">Waa dansan yahay inta ogeysiisyada joogtada ah ee gulukoosta shidan yihiin: apps-ka saacaduhu kaliya kuwaas ayay helaan.</string>
+    <string name="periodic_glucose_notifications_title">Ogeysiisyo joogto ah oo gulukoos</string>
+    <string name="periodic_glucose_notifications_desc">U dir akhriska hadda ogeysiis gooni ah wakhtiga la doortay, saacadaha iyo xargaha gudbiya ogeysiisyada taleefanka. Digniinaha weligood dib uma dhacaan.</string>
+    <string name="periodic_glucose_interval_title">Muddada</string>
+    <string name="periodic_glucose_interval_note">Kaliya akhrisyo cusub ayaa la diraa, weligood kama badna inta dareemuhu cabbiro. Haddii saacaddu muujiso waxay ku xiran tahay app-keeda.</string>
+    <string name="periodic_glucose_interval_every">Akhris kasta</string>
+    <string name="periodic_glucose_interval_minutes">%1$d daq</string>
+    <string name="periodic_glucose_channel_name">Gulukoos joogto ah</string>
+    <string name="periodic_glucose_channel_desc">Akhriska hadda muddada lagu doortay dejinta ogeysiisyada, saacadaha iyo xargaha</string>
 </resources>

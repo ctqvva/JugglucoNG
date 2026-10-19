@@ -2986,4 +2986,16 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
 
     <string name="alert_sound_volume">警报音量</string>
+    <string name="notification_forwarding_section">兼容与转发</string>
+    <string name="notification_standard_text_title">标准通知文本</string>
+    <string name="notification_standard_text_desc">将读数写入通知的标准文本，供其他应用和系统功能使用。部分手表应用会因此转发每次更新。</string>
+    <string name="notification_standard_text_blocked_desc">开启定期血糖通知时关闭：手表应用只会收到定期通知。</string>
+    <string name="periodic_glucose_notifications_title">定期血糖通知</string>
+    <string name="periodic_glucose_notifications_desc">按所选间隔以单独通知发送当前读数，适用于会转发手机通知的手表和手环。警报绝不延迟。</string>
+    <string name="periodic_glucose_interval_title">间隔</string>
+    <string name="periodic_glucose_interval_note">只发送新读数，频率不会超过传感器的测量频率。手表是否显示取决于其配套应用。</string>
+    <string name="periodic_glucose_interval_every">每次读数</string>
+    <string name="periodic_glucose_interval_minutes">%1$d 分钟</string>
+    <string name="periodic_glucose_channel_name">定期血糖读数</string>
+    <string name="periodic_glucose_channel_desc">按通知设置中所选间隔发送的当前读数，适用于手表和手环</string>
 </resources>

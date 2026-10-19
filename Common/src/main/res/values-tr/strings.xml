@@ -2999,4 +2999,16 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
+    <string name="notification_forwarding_section">Uyumluluk ve iletme</string>
+    <string name="notification_standard_text_title">Standart bildirim metni</string>
+    <string name="notification_standard_text_desc">Değeri bildirimin standart metnine yazar; diğer uygulamalar ve sistem özellikleri için. Bazı saat uygulamaları bu durumda her güncellemeyi iletir.</string>
+    <string name="notification_standard_text_blocked_desc">Periyodik glikoz bildirimleri açıkken kapalıdır; saat uygulamaları yalnızca onları alır.</string>
+    <string name="periodic_glucose_notifications_title">Periyodik glikoz bildirimleri</string>
+    <string name="periodic_glucose_notifications_desc">Güncel değeri seçilen aralıkla ayrı bir bildirim olarak gönder; telefon bildirimlerini ileten saatler ve bileklikler için. Alarmlar asla geciktirilmez.</string>
+    <string name="periodic_glucose_interval_title">Aralık</string>
+    <string name="periodic_glucose_interval_note">Yalnızca yeni değerler gönderilir, sensörün ölçtüğünden sık değil. Saatin bunları gösterip göstermeyeceği kendi uygulamasına bağlıdır.</string>
+    <string name="periodic_glucose_interval_every">Her değer</string>
+    <string name="periodic_glucose_interval_minutes">%1$d dk</string>
+    <string name="periodic_glucose_channel_name">Periyodik glikoz değerleri</string>
+    <string name="periodic_glucose_channel_desc">Bildirim ayarlarında seçilen aralıkla güncel değer, saatler ve bileklikler için</string>
 </resources>
