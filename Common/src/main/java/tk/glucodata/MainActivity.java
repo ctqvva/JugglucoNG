@@ -1,0 +1,2438 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 15:31:05 CET 2023                                                 */
+
+package tk.glucodata;
+
+import static android.content.Intent.EXTRA_PERMISSION_GROUP_NAME;
+import static android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS;
+import static android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM;
+import static android.view.View.GONE;
+import static androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener;
+import static tk.glucodata.Applic.DontTalk;
+import static tk.glucodata.Applic.RunOnUiThread;
+import static tk.glucodata.Applic.TargetSDK;
+import static tk.glucodata.Applic.app;
+import static tk.glucodata.Applic.explicit;
+import static tk.glucodata.Applic.isRelease;
+import static tk.glucodata.Applic.isWearable;
+import static tk.glucodata.Applic.talkbackoff;
+import static tk.glucodata.Applic.talkbackon;
+import static tk.glucodata.Applic.useZXing;
+import static tk.glucodata.BuildConfig.SiBionics;
+import static tk.glucodata.Floating.setfloatglucose;
+import static tk.glucodata.Floating.shoulduseadb;
+import static tk.glucodata.GlucoseCurve.STEPBACK;
+import static tk.glucodata.Log.doLog;
+import static tk.glucodata.Log.showbytes;
+import static tk.glucodata.Natives.getInvertColors;
+import static tk.glucodata.Natives.hasNeedScan;
+import static tk.glucodata.Natives.setShownintro;
+import static tk.glucodata.Natives.wakelibreview;
+import static tk.glucodata.XInfuus.sendSensorActivateBroadcast;
+import static tk.glucodata.help.hidekeyboard;
+import static tk.glucodata.settings.Settings.removeContentView;
+
+import android.Manifest;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.AlarmManager;
+//import androidx.appcompat.app.AlertDialog;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.ConfigurationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.nfc.NfcAdapter;
+import android.nfc.Tag;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Looper;
+import android.os.ParcelFileDescriptor;
+import android.provider.Settings;
+import android.util.DisplayMetrics;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.accessibility.AccessibilityManager;
+import android.widget.Toast;
+
+import androidx.activity.EdgeToEdge;
+import androidx.annotation.UiThread;
+import androidx.annotation.Keep;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+
+//import androidx.activity.OnBackPressedCallback;
+//import androidx.activity.OnBackPressedDispatcher;
+//import com.google.android.apps.auto.sdk.CarActivity;
+;
+
+//import static tk.glucodata.Natives.hidescanresults;
+
+//public class MainActivity extends ComponentActivity implements NfcAdapter.ReaderCallback  {
+public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
+    public MainActivity() {
+        clearonback();
+    }
+    // Extending from AppCompatActivity requires to use an AppCompat theme for the
+    // Activity.
+    // In the manifest, for the activity, use android:theme="@style/Theme.AppCompat"
+
+    // public class MainActivity extends CarActivity implements
+    // NfcAdapter.ReaderCallback {
+    // boolean hideSystem=true;
+    HealthPermissionRequester permHealth = isWearable ? null : HealthPermissionsAccess.create(this);
+    public GlucoseCurve curve = null;
+    // Button okbutton=null;
+    private static final String LOG_ID = "MainActivity";
+    private NfcAdapter mNfcAdapter = null;
+    private boolean started = false;
+
+    private void startall() {
+        if (doLog) {
+            Log.d(LOG_ID, "startall");
+        }
+        ;
+        if (!started) {
+            startdisplay();
+            netinitstep();
+            if (isWearable) {
+                if (Natives.hasData()) {
+                    final int unit = Natives.getunit();
+                    if (!(unit == 1 || unit == 2)) {
+                        Applic.postDelayed(() -> tk.glucodata.settings.Settings.set(this), 1000L);
+                    }
+                } else {
+                    VariantBootstrapAccess.create().initScreen(this);
+                }
+            }
+        }
+    }
+
+    boolean askNotify() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            var perm = Manifest.permission.POST_NOTIFICATIONS;
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "askNotify");
+                    }
+                    ;
+                }
+                ;
+                var permar = new String[] { perm };
+                if (shouldShowRequestPermissionRationale(perm)) {
+                    help.help(R.string.notificationpermission, this, l -> {
+                        requestPermissions(permar, NOTIFICATION_PERMISSION_REQUEST_CODE);
+                    });
+                } else {
+                    requestPermissions(permar, NOTIFICATION_PERMISSION_REQUEST_CODE);
+                }
+                return false;
+            }
+        }
+        explicit(this);
+        return true;
+    }
+
+    public static int systembarTop = 0;
+    public static int systembarBottom = 0;
+    public static int systembarLeft = 0;
+    public static int systembarRight = 0;
+
+    // public static int navigationbarLeft=0;
+    private void startdisplay() {
+        if (doLog) {
+            Log.i(LOG_ID, "startdisplay");
+        }
+        ;
+        Applic app = (Applic) getApplication();
+        app.setbackgroundcolor(this);
+        if (Applic.Nativesloaded)
+            app.needsnatives();
+
+        curve = new GlucoseCurve(this);
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "After curve = new GlucoseCurve(this);");
+            }
+            ;
+        }
+        ;
+        if (!isWearable) {
+            if (Build.VERSION.SDK_INT >= 30) {
+                setOnApplyWindowInsetsListener(curve, (v, windowInsets) -> {
+                    setsizes(this);
+                    if (screenwidth >= screenheight) {
+                        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "systemBars: left=" + insets.left + " right=" + insets.right + " bottom="
+                                        + insets.bottom + " top=" + insets.top);
+                            }
+                            ;
+                        }
+                        ;
+                        Natives.systembar(insets.left, insets.top, insets.right, insets.bottom);
+
+                        systembarLeft = insets.left;
+                        systembarTop = insets.top;
+                        systembarRight = insets.right;
+                        systembarBottom = insets.bottom;
+
+                        requestRender();
+                        if (getlibrary.showintro) {
+                            getlibrary.showintro = false;
+                            MainActivity act = this;
+                            act.lightBars(false);
+                            help.help(R.string.introhelp, act,
+                                    l -> {
+                                        setShownintro(true);
+                                        act.lightBars(!Natives.getInvertColors());
+                                        final int unit = Natives.getunit();
+                                        if (!(unit == 1 || unit == 2)) {
+                                            tk.glucodata.settings.Settings.set(act);
+                                        }
+                                    });
+                        }
+                    }
+                    return windowInsets;
+                });
+                // showSystemBarsAppearance();
+            }
+            lightBars(!getInvertColors());
+        }
+        setContentView(curve);
+        // Orientation forcing removed per user request
+        // try {
+        // setRequestedOrientation(Natives.getScreenOrientation());
+        // } catch (Throwable error) {
+        // Log.e(LOG_ID, "Orientation error", error);
+        // }
+        getlibrary.getlibrary(this);// after setfilesdir for settings
+        handleIntent(getIntent());
+        var langstring = getString(R.string.language);
+        var lang = util.getlocale().getLanguage();
+        if (doLog) {
+            Log.i(LOG_ID, "curlang=" + Applic.curlang + " newlang=" + langstring + " locale=" + lang);
+        }
+        ;
+        if (!lang.equals(Applic.curlang)) {
+            Natives.setlocale(lang);
+            Applic.curlang = lang;
+            if (!DontTalk) {
+                if (Talker.istalking())
+                    SuperGattCallback.newtalker(this);
+            }
+        }
+    }
+
+    static int openglversion = 0;
+
+    boolean glversion() {
+        if (openglversion == 0) {
+            ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            ConfigurationInfo configurationInfo = activityManager.getDeviceConfigurationInfo();
+            openglversion = Natives.openglversion();
+            try {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "OpenGl " + Double.parseDouble(configurationInfo.getGlEsVersion()));
+                    }
+                    ;
+                }
+                ;
+                if ((configurationInfo.reqGlEsVersion >> 16) < openglversion) {
+                    help.help("This program requires OpenGL ES " + openglversion
+                            + ".0 or higher. This device has OpenGL ES "
+                            + Double.parseDouble(configurationInfo.getGlEsVersion()) + " so can't be used.\n\n\n\n\n",
+                            this, l -> finish());
+                    return false;
+                }
+            } catch (Throwable e) {
+                Log.stack(LOG_ID, "glversion", e);
+
+            }
+            // if(configurationInfo.reqGlEsVersion >=0x30000) openglversion=3;
+        }
+        return true;
+    }
+
+    // static int initscreenwidth;
+    // FragmentManager fragmentManager = getSupportFragmentManager();
+    // public static boolean wearable=false;
+    public static volatile MainActivity thisone = null;
+
+    @Keep
+    public static void openSettingsPanel() {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> tk.glucodata.settings.Settings.set(thisone));
+        }
+    }
+
+    /**
+     * The export screen's status line. A local rather than five repetitions of the
+     * null-check, and it tolerates a registry that was never registered (a flavour without
+     * the export screen), which is what a flavour without a Dialogs now has.
+     */
+    private void exportStatus(int resId) {
+        LegacyScreensAccess.get().setExportStatus(resId);
+    }
+
+    private void exportStatus(CharSequence text) {
+        LegacyScreensAccess.get().setExportStatus(text);
+    }
+
+    @Keep
+    public static void openSensorListPanel() {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> {
+                tk.glucodata.LegacyScreensAccess.get().openMeterList(thisone, null); });
+        }
+    }
+
+    @Keep
+    public static void launchQrScan() {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> PhotoScan.scan(thisone, REQUEST_BARCODE));
+        }
+    }
+
+    @Keep
+    public static void launchQrScan(int requestCode) {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> PhotoScan.scan(thisone, requestCode));
+        }
+    }
+
+    @Keep
+    public static void launchQrScan(int requestCode, String title) {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> PhotoScan.scan(thisone, requestCode, title));
+        }
+    }
+
+    @Keep
+    public static void launchLibreNfcScan() {
+        if (thisone != null) {
+            thisone.runOnUiThread(() -> {
+                thisone.setnfc();
+                Applic.argToaster(thisone, thisone.getString(R.string.libre_nfc_instruction), Toast.LENGTH_SHORT);
+            });
+        }
+    }
+
+    @Keep
+    public static void handleInlineQrScan(String rawValue, int requestCode) {
+        if (thisone == null || rawValue == null || rawValue.isEmpty()) {
+            return;
+        }
+        thisone.runOnUiThread(() -> PhotoScan.connectSensor(rawValue, thisone, requestCode, 0L));
+    }
+
+    // Callbacks for Compose Wizard integration
+    public interface SensorScanCallback {
+        void onResult(String name, long sensorPtr, int libreType);
+    }
+
+    public interface TransmitterScanCallback {
+        void onResult(boolean success);
+    }
+
+    public static SensorScanCallback onSensorScanResult = null;
+    public static TransmitterScanCallback onTransmitterScanResult = null;
+    public static boolean useComposeWizard = true;
+
+    static void alarmsExact(Context context) {
+        if (TargetSDK > 30) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                AlarmManager manager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
+                if (manager.canScheduleExactAlarms()) {
+                    {
+                        if (doLog) {
+                            Log.d(LOG_ID, "canScheduleExactAlarms");
+                        }
+                        ;
+                    }
+                    ;
+                } else {
+                    {
+                        if (doLog) {
+                            Log.d(LOG_ID, "not canScheduleExactAlarms");
+                        }
+                        ;
+                    }
+                    ;
+                    try {
+                        Intent intent = new Intent();
+                        intent.setAction(ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                        context.startActivity(intent);
+                    } catch (Throwable th) {
+                        Log.stack(LOG_ID, "ACTION_REQUEST_SCHEDULE_EXACT_ALARM", th);
+
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+     * void setDirection(Locale locale) {
+     * Resources resources =getResources();
+     * Configuration config = resources.getConfiguration();
+     * config.setLayoutDirection(locale);
+     * resources.updateConfiguration(config, resources.getDisplayMetrics());
+     * }
+     * private void supportLTR() {
+     * setDirection(Locale.US);
+     * }
+     * private void supportRTL() {
+     * setDirection(new Locale("iw"));
+     * }
+     */
+    public void lightBars(boolean light) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            var win = getWindow();
+            var view = win.getDecorView();
+            WindowInsetsControllerCompat windowInsetsController = WindowCompat.getInsetsController(win, view);
+            windowInsetsController.setAppearanceLightStatusBars(light);
+            windowInsetsController.setAppearanceLightNavigationBars(light);
+            // win.setNavigationBarColor(Color.TRANSPARENT);
+            // win.setNavigationBarColor(BLUE);
+            // {if(doLog)
+            // {Log.i(LOG_ID,"getNavigationBarColor()="+win.getNavigationBarColor());};};
+            // {if(doLog) {Log.i(LOG_ID,"isNavigationBarContrastEnforced()
+            // "+win.isNavigationBarContrastEnforced());};};
+        }
+
+    }
+
+    // s/android.view.WindowInsetsController.\([A-Z_]*\),/if((status\&android.view.WindowInsetsController.\1)!=0)
+    // {message+=" "+"\1";};/g
+    // s/\([A-Z_]*\),/if((status\&android.view.WindowInsetsController.\1)!=0)
+    // {message+=" "+"\1";};/g
+    /*
+     * void showSystemBarsAppearance() {
+     * if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+     * var win = getWindow();
+     * WindowInsetsController windowInsetsController = null;
+     * windowInsetsController = win.getInsetsController();
+     * final int status = windowInsetsController.getSystemBarsAppearance();
+     * String message = "getSystemBarsAppearance()="+String.format("%x",status);
+     * //if((status&android.view.WindowInsetsController.
+     * APPEARANCE_OPAQUE_STATUS_BARS)!=0)
+     * {message+=" "+"APPEARANCE_OPAQUE_STATUS_BARS";};
+     * if((status&android.view.WindowInsetsController.
+     * APPEARANCE_OPAQUE_NAVIGATION_BARS)!=0)
+     * {message+=" "+"APPEARANCE_OPAQUE_NAVIGATION_BARS";};
+     * if((status&android.view.WindowInsetsController.APPEARANCE_LOW_PROFILE_BARS)!=
+     * 0) {message+=" "+"APPEARANCE_LOW_PROFILE_BARS";};
+     * if((status&android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)!
+     * =0) {message+=" "+"APPEARANCE_LIGHT_STATUS_BARS";};
+     * if((status&android.view.WindowInsetsController.
+     * APPEARANCE_LIGHT_NAVIGATION_BARS)!=0)
+     * {message+=" "+"APPEARANCE_LIGHT_NAVIGATION_BARS";};
+     * if ((status & android.view.WindowInsetsController.
+     * APPEARANCE_TRANSPARENT_CAPTION_BAR_BACKGROUND) != 0) {
+     * message += " " + "APPEARANCE_TRANSPARENT_CAPTION_BAR_BACKGROUND";
+     * }
+     * ;
+     * if ((status &
+     * android.view.WindowInsetsController.APPEARANCE_LIGHT_CAPTION_BARS) != 0) {
+     * message += " " + "APPEARANCE_LIGHT_CAPTION_BARS";
+     * }
+     * ;
+     * ;
+     * {if(doLog) {Log.i(LOG_ID, message);};};
+     * }
+     * }
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        }
+
+        super.onCreate(savedInstanceState);
+        thisone = this;
+
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            Log.i(LOG_ID, "sdk 21 or larger");
+        } else {
+            Log.i(LOG_ID, "smaller than sdk 21");
+        }
+
+        if (isWearable) {
+            VariantBootstrapAccess.create().splash(this);
+        }
+        if (Applic.stopprogram > 0) {
+            Log.e(LOG_ID, "Stop program");
+            if (Applic.stopprogram == 1)
+                outofStorageSpace();
+            else {
+                makefilesfailed();
+            }
+            return;
+        }
+        if (!VariantBootstrapAccess.create().historyDatabaseCompatible(this)) {
+            showHistoryDatabaseIncompatible();
+            return;
+        }
+        DisplayMetrics metrics = this.getResources().getDisplayMetrics();
+        screenheight = metrics.heightPixels;
+        screenwidth = metrics.widthPixels;
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onCreate start target=" + TargetSDK);
+            }
+            ;
+        }
+        ;
+        if (TargetSDK > 30) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                alarmsExact(this);
+            }
+        }
+        showSystemUI();
+        if (!glversion())
+            return;
+        startall();
+        Natives.onCreate();
+        if (LegacyScreensAccess.getMenusOn())
+            LegacyScreensAccess.get().openMenus(this);
+
+        initComposeUI();
+
+        // var gestureListener= new Layout.ScrollListener(); mGestureDetector = new
+        // GestureDetector(this, gestureListener);
+        if (doLog) {
+            Log.i(LOG_ID, "onCreate end");
+        }
+        ;
+    }
+
+    private void showHistoryDatabaseIncompatible() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.history_database_incompatible_title)
+                .setMessage(R.string.history_database_incompatible_message)
+                .setPositiveButton(R.string.ok, (ignoredDialog, ignoredButton) -> finishAndRemoveTask())
+                .setCancelable(false)
+                .create();
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
+    }
+
+    static boolean composeUIActive;
+
+    private void initComposeUI() {
+        // Each flavour registers its Compose host in Specific.registerBridges; the
+        // legacy `small` flavor registers none and falls back to the native View UI.
+        tk.glucodata.ui.ComposeHost host = tk.glucodata.ui.ComposeHostAccess.get();
+        if (host == null) {
+            Log.i(LOG_ID, "Compose UI not found (normal for Legacy)");
+            return;
+        }
+        try {
+            host.setComposeContent(this, curve);
+            composeUIActive = true;
+            Log.i(LOG_ID, "Initialized Compose UI and hid legacy view");
+        } catch (Exception e) {
+            Log.e(LOG_ID, "Failed to init Compose UI: " + e);
+        }
+    }
+
+    // GestureDetector mGestureDetector;
+    void handleIntent(Intent intent) {
+        if (intent == null)
+            return;
+        final Bundle extras = intent.getExtras();
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            // A screen asked for from outside Compose: the quick-settings tile's long
+            // press, or a notification carrying a route. The Compose host navigates
+            // once it is composed, so this also works from a cold start.
+            if ("android.service.quicksettings.action.QS_TILE_PREFERENCES".equals(intent.getAction())) {
+                tk.glucodata.ui.PendingNavigation.request("settings/alerts");
+                return;
+            }
+            final String route = intent.getStringExtra(tk.glucodata.ui.PendingNavigation.EXTRA_ROUTE);
+            if (route != null && !route.isEmpty()) {
+                tk.glucodata.ui.PendingNavigation.request(route);
+                return;
+            }
+        }
+        if (extras != null) {
+            if (extras.getBoolean(Notify.fromnotification, false)) {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "fromnotification");
+                    }
+                    ;
+                }
+                ;
+                Notify.acknowledgeCurrentAlert(extras.getString(Notify.EXTRA_CUSTOM_ALERT_ID));
+                return;
+            } else {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "not fromnotification");
+                    }
+                    ;
+                }
+                ;
+                if (extras.containsKey(setbluetoothon)) {
+                    Applic.setbluetooth(this, extras.getBoolean(setbluetoothon, false));
+                    return;
+                }
+                var message = extras.getString("alarmMessage");
+                if (message != null) {
+                    var cancel = extras.getBoolean("Cancel", false);
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "alarmMessage " + message + " cancel=" + cancel);
+                        }
+                        ;
+                    }
+                    ;
+                    showindialog(message, cancel);
+                    return;
+                }
+            }
+        }
+        var action = intent.getAction();
+
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
+                && "android.nfc.action.TECH_DISCOVERED".intern() == action) {
+            curve.waitnfc = true;
+            {
+                if (doLog) {
+                    Log.d(LOG_ID, "TECH_DISCOVERED");
+                }
+                ;
+            }
+            ;
+            try {
+                Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+                startnfc(tag);
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "handleIntent", th);
+            }
+            return;
+        }
+        if ("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE".intern() == action) {
+            help.help(R.string.healthpermission, this);
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if ("android.intent.action.VIEW_PERMISSION_USAGE".intern() == action) {
+                if (extras != null) {
+                    final String groupname;
+                    groupname = extras.getString(EXTRA_PERMISSION_GROUP_NAME);
+                    switch (groupname) {
+                        case "android.permission-group.HEALTH" ->
+                            help.help(R.string.healthpermission, this);
+                        case "android.permission-group.NOTIFICATIONS" ->
+                            help.help(R.string.notificationpermission, this);
+                        case "android.permission-group.NEARBY_DEVICES" ->
+                            help.help(R.string.nearbypermission, this);
+                        case "android.permission-group.CAMERA" ->
+                            help.help(R.string.camerapermission, this);
+                        default -> {
+                            if (doLog) {
+                                Log.i(LOG_ID, "EXTRA_PERMISSION_GROUP_NAME=" + groupname);
+                            }
+                            ;
+                        }
+                    }
+                    ;
+                }
+            }
+            return;
+        }
+
+        // else hideSystem=true;
+    }
+
+    static final String setbluetoothon = "setbluetoothon";
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        {
+            if (doLog) {
+                Log.d(LOG_ID, "onNewIntent");
+            }
+            ;
+        }
+        ;
+        super.onNewIntent(intent);
+        handleIntent(intent);
+    }
+
+    public static boolean hasnfc = false;
+
+    private static boolean askNFC = true;
+
+    private static final int nfcflags = NfcAdapter.FLAG_READER_NFC_V | NfcAdapter.FLAG_READER_NFC_A
+            | NfcAdapter.FLAG_READER_NFC_B | NfcAdapter.FLAG_READER_NFC_F | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+            | NfcAdapter.FLAG_READER_NFC_BARCODE; // =415. Activation of sensor was only possible if app not at the
+                                                  // foreground, so I add some flags
+    // private static final int nfcflags=NfcAdapter.FLAG_READER_NFC_V
+    // |NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK;
+
+    public void setnfc() {
+        try {
+            if (mNfcAdapter == null) {
+                mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+            }
+
+            if (mNfcAdapter == null) {
+                if (!isWearable) {
+                    if (askNFC) {
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "No NFC adapter found!");
+                            }
+                            ;
+                        }
+                        ;
+                        Applic.argToaster(this, getResources().getString(R.string.error_nfc_device_not_supported),
+                                Toast.LENGTH_SHORT);
+                        askNFC = false;
+                        return;
+                    }
+                }
+            } else {
+                if (!mNfcAdapter.isEnabled()) {
+                    if (!isWearable) {
+                        if (askNFC) {
+                            Applic.argToaster(this, getResources().getString(R.string.error_nfc_disabled),
+                                    Toast.LENGTH_LONG);
+                            if (Natives.backuphostNr() == 0) {
+                                try {
+                                    startActivity(new Intent(Settings.ACTION_NFC_SETTINGS));
+                                } catch (Throwable th) {
+                                    Log.stack(LOG_ID, "Settings.ACTION_NFC_SETTINGS", th);
+                                }
+                            }
+                            askNFC = false;
+                        }
+                    }
+
+                    return;
+                } else {
+
+                    // mNfcAdapter.enableReaderMode(this, this,
+                    // NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS|NfcAdapter.FLAG_READER_NFC_V ,
+                    // null);
+
+                    // int nosound=NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS;
+                    // final int
+                    // flags=NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS|NfcAdapter.FLAG_READER_NFC_V
+                    // |
+                    // NfcAdapter.FLAG_READER_NFC_A|NfcAdapter.FLAG_READER_NFC_B|NfcAdapter.FLAG_READER_NFC_F|NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK|
+                    // NfcAdapter.FLAG_READER_NFC_BARCODE; //=415. Activation of sensor was only
+                    // possible if app not at the foreground, so I add some flags
+                    final int flags = (Natives.nfcsound() ? 0 : NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS) | nfcflags; // =415.
+                                                                                                                       // Activation
+                                                                                                                       // of
+                                                                                                                       // sensor
+                                                                                                                       // was
+                                                                                                                       // only
+                                                                                                                       // possible
+                                                                                                                       // if
+                                                                                                                       // app
+                                                                                                                       // not
+                                                                                                                       // at
+                                                                                                                       // the
+                                                                                                                       // foreground,
+                                                                                                                       // so
+                                                                                                                       // I
+                                                                                                                       // add
+                                                                                                                       // some
+                                                                                                                       // flags
+                    Log.i(LOG_ID, "mNfcAdapter.enableReaderMode(this, this," + flags + ", null)");
+                    // final int flags=NfcAdapter.FLAG_READER_NFC_V ;
+                    mNfcAdapter.enableReaderMode(this, this, flags, null);
+                    hasnfc = true;
+                }
+
+            }
+        } catch (Throwable error) {
+            String mess = error != null ? error.getMessage() : null;
+            if (mess == null) {
+                mess = "error";
+            }
+            Log.e(LOG_ID, "setnfc " + mess);
+        }
+    }
+
+    boolean active = false;
+
+    /** Started and not stopped: the reader mode is armed and a tag belongs to it. */
+    public static boolean isInForeground() {
+        final MainActivity act = thisone;
+        return act != null && act.active;
+    }
+    /*
+     * static final class ShowMessage {
+     * public String mess;
+     * public boolean cancel;
+     * };
+     */
+    static Deque<String> shownummessage = new ArrayDeque<>();
+    static String showmessage = null;
+
+    static public int tryHealth = 5;
+    private static int resumenr = isRelease ? 10 : 2;
+    static boolean tocalendarapp = false;
+
+    @Override
+    protected void onResume() {
+        if (doLog) {
+            Log.i(LOG_ID, "onResume");
+        }
+        ;
+        ;
+        super.onResume();
+        thisone = this;
+        // Bluetooth was turned on while no Activity could show the permission
+        // dialog (companion message, handoff, restart). Now there is one.
+        if (Applic.scanPermissionPending && Applic.Nativesloaded && Natives.getusebluetooth()) {
+            finepermission();
+        }
+        if (curve != null) {
+            if (!curve.waitnfc) {
+                {
+                    if (doLog) {
+                        Log.d(LOG_ID, "onResume setnfc");
+                    }
+                    ;
+                }
+                ;
+                setnfc();
+            } else {
+                if (doLog) {
+                    Log.d(LOG_ID, "onResume no setnfc");
+                }
+                ;
+            }
+            ;
+        }
+        // Resolve stored values and render notification charts on the notification worker.
+        Notify.scheduleStoredGlucoseRefresh();
+        if (Applic.Nativesloaded) {
+            // A Nightscout follower shows whatever its last poll fetched, and the next poll
+            // can be minutes away. Opening the app is when someone is looking: fetch now.
+            try {
+                tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                        .refreshOnForeground(this);
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "onResume follower refresh", th);
+            }
+        }
+        if (Applic.isWearable && Applic.Nativesloaded) {
+            // The companion stream routinely stalls while the watch app is
+            // backgrounded/dozed; ask the phone for the stream immediately on
+            // open instead of showing minutes-old data until the next push.
+            try {
+                MessageSender.sendwakestream();
+                Natives.wakestreamsender();
+                // Opening the app is the moment to fill in whatever the tail
+                // syncs missed; the alarm path stays incremental.
+                WearSync2.requestSync(true);
+                UiRefreshBus.requestDataRefresh();
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "onResume wakestream", th);
+            }
+        }
+        return;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        thisone = this;
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onStart");
+            }
+            ;
+        }
+        ;
+        if (Applic.stopprogram > 0)
+            return;
+        if (!DiskSpace.check(this)) {
+            Log.e(LOG_ID, "Stop program");
+            Applic.stopprogram = 1;
+            outofStorageSpace();
+            return;
+        }
+        if (!Applic.Nativesloaded)
+            return;
+        selectionSystemUI();
+        hidekeyboard(this);
+        active = true;
+        if (curve != null) {
+            Natives.setpaused(curve);
+            curve.onResume();
+        }
+        if (openfile != null) {
+            openfile.showchoice(this, true);
+        }
+        if (Natives.gethidefloatinJuggluco())
+            Floating.removeFloating();
+        boolean showsdialog = false;
+        for (var el : shownummessage) {
+            showindialog(el, false);
+            showsdialog = true;
+        }
+        shownummessage.clear();
+        final var mess = showmessage;
+        if (mess != null) {
+            showindialog(mess, true);
+            showsdialog = true;
+        }
+        if (!isWearable) {
+            if (SiBionics == 1) {
+                if (tocalendarapp) {
+                    final String name = Natives.getUsedSensorName();
+                    if (name != null) {
+                        ScanNfcV.calendar(this, 0, name, 0L);
+                        tocalendarapp = false;
+                    }
+                }
+            }
+            if (!showsdialog) {
+                if (tryHealth > 0) {
+                    if (Natives.gethealthConnect() && Build.VERSION.SDK_INT >= 28) {
+                        --tryHealth;
+                        var health = HealthConnectAccess.get();
+                        if (health != null) health.start(this);
+                    } else
+                        tryHealth = 0;
+                }
+            }
+            var am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+            List list;
+            if (am.isEnabled() && am.isTouchExplorationEnabled()
+                    && (list = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN)) != null
+                    && !list.isEmpty()) {
+                if (!DontTalk) {
+                    talkbackon(this);
+                }
+                if (!LegacyScreensAccess.getMenusOn())
+                    LegacyScreensAccess.get().openMenus(this);
+            } else {
+                if (!DontTalk) {
+                    talkbackoff();
+                }
+            }
+        }
+
+        // Notify.testnot();
+    }
+
+    long nexttime = 0L;
+
+    /**
+     * Separate guard for insulin pens. A pen read that lost contact is retried by the user
+     * within a second — that is what a person does when a tap does not take — and the five
+     * second guard that keeps a sensor tap from being processed twice used to swallow the
+     * retry silently, so the app looked like it had stopped reading pens altogether.
+     */
+    private long nextpentime = 0L;
+
+    private static boolean isPenTag(String[] techs) {
+        return techs != null && techs.length > 0 && "android.nfc.tech.IsoDep".equals(techs[0]);
+    }
+
+    synchronized void startnfc(Tag tag) {
+        // Ottai debug ISO15693 dump (read-only): consumes the tap only when the
+        // setup wizard's NFC-dump mode is active; otherwise falls through to Libre.
+        if (tk.glucodata.drivers.ottai.OttaiNfc.onTag(tag)) {
+            if (tk.glucodata.drivers.ottai.OttaiNfc.consumeWakeHaptic()) {
+                final int feedback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                        ? android.view.HapticFeedbackConstants.CONFIRM
+                        : android.view.HapticFeedbackConstants.KEYBOARD_TAP;
+                runOnUiThread(() -> getWindow().getDecorView().performHapticFeedback(feedback));
+            }
+            return;
+        }
+        var techs = tag.getTechList();
+        final boolean pen = !isWearable && isPenTag(techs);
+        long nu = System.currentTimeMillis();
+        if (pen) {
+            if (nu < nextpentime)
+                return;
+            nextpentime = nu + 1000;
+        } else {
+            if (nu < nexttime)
+                return;
+            nexttime = nu + 1000 * 5;
+        }
+
+        runOnUiThread(() -> {
+            if (curve != null) {
+                curve.searchaway();
+                if (curve.numberview != null) {
+                    if (curve.numberview.datepicker != null)
+                        curve.numberview.datepicker.setVisibility(GONE);
+                    if (curve.numberview.timepicker != null)
+                        curve.numberview.timepicker.setVisibility(GONE);
+                }
+
+            }
+        }
+
+        );
+        String all = "onTagDiscovered: ";
+
+        if (techs != null) {
+            for (var t : techs) {
+                all += t;
+                all += " ";
+            }
+            {
+                if (doLog) {
+                    Log.i(LOG_ID, all);
+                }
+                ;
+            }
+            ;
+
+            if (!isWearable) {
+                if (techs.length > 0) {
+                    switch (techs[0]) {
+                        case "android.nfc.tech.IsoDep": {
+                            if (doLog) {
+                                showbytes("tag", tag.getId());
+                            }
+                            ;
+                        }
+                            // Reader mode delivers off the main thread; a TECH_DISCOVERED
+                            // intent (the background receiver handing a pen on) arrives on
+                            // it, and a pen read is seconds of I/O — same split as below.
+                            if (Thread.currentThread().equals(Looper.getMainLooper().getThread())) {
+                                new Thread(() -> {
+                                    var scan = NovoPenAccess.get();
+                                    if (scan != null) scan.onTag(this, tag); }).start();
+                            } else {
+                                var scan = NovoPenAccess.get();
+                                if (scan != null) scan.onTag(this, tag);
+                            }
+                            // A full pen read takes seconds. Taps that arrived while it
+                            // was running are queued on this monitor and would each start
+                            // another read of the same pen, so re-arm the guard from now.
+                            nextpentime = System.currentTimeMillis() + 1000;
+                            return;
+                    }
+                }
+            }
+        } else {
+            if (doLog) {
+                Log.i(LOG_ID, all);
+            }
+            ;
+        }
+        ;
+        if (Thread.currentThread().equals(Looper.getMainLooper().getThread())) {
+            new Thread(() -> ScanNfcV.scan(curve, tag)).start();
+        } else
+            ScanNfcV.scan(curve, tag);
+    }
+
+    private void outofStorageSpace() {
+        String message = "Not enough Storage Space!!";
+        Applic.argToaster(this, message, Toast.LENGTH_SHORT);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setNegativeButton(R.string.ok, (dialog, id) -> { // User cancelled the dialog
+            finish();
+            keeprunning.stop();
+            System.exit(7);
+        }).setTitle("Juggluco has to exit").setMessage(message).show().setCanceledOnTouchOutside(false);
+
+    }
+
+    private void makefilesfailed() {
+        File files = getFilesDir();
+        String filespath = files.getAbsolutePath();
+        String message = "Can't create directory:\n" + filespath
+                + (files.isFile() ? "\nA regular file with that name exists" : "\nNot enough storage space?");
+        Applic.argToaster(this, message, Toast.LENGTH_SHORT);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        Runnable end = () -> {
+            finish();
+            keeprunning.stop();
+            System.exit(8);
+        };
+        var dialog = builder.setNegativeButton(R.string.ok, (dial, id) -> {
+            end.run();
+            // User cancelled the dialog
+        }).setTitle("Juggluco has to exit").setMessage(message).create();
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnShowListener(d -> {
+            Log.e(LOG_ID, "setOnShowListener");
+            if (files.isDirectory() || files.mkdirs()) {
+                Log.i(LOG_ID, filespath + " accessible again, dismissing fatal dialog");
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
+
+    }
+
+    void activateresult(boolean res) {
+        String message = "Activation " + (res ? "successfull" : "failed");
+        Applic.argToaster(this, message, Toast.LENGTH_SHORT);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setNegativeButton(R.string.ok, (dialog, id) -> { // User cancelled the dialog
+            requestRender();
+        }).setTitle("  ").setMessage(message).show().setCanceledOnTouchOutside(false);
+    }
+
+    @Override
+    public void onTagDiscovered(Tag tag) {
+        startnfc(tag);
+    }
+
+    @Override
+    protected void onPause() {
+        if (doLog) {
+            Log.i(LOG_ID, "onPause");
+        }
+        ;
+        if (mNfcAdapter != null) {
+            try {
+                mNfcAdapter.disableReaderMode(this);
+            } catch (Throwable error) {
+                String mess = error != null ? error.getMessage() : null;
+                if (mess == null) {
+                    mess = "error";
+                }
+                Log.e(LOG_ID, "mNfcAdapter.disableReaderMode " + mess);
+            } finally {
+                mNfcAdapter = null;
+            }
+        }
+        super.onPause();
+        if (!Applic.Nativesloaded)
+            return;
+        Natives.wakeuploader();
+        if (!isWearable) {
+            wakelibreview(20);
+            if (Natives.getlibrelinkused()) {
+                final var starttime = Natives.laststarttime();
+                if (starttime != 0L) {
+                    sendSensorActivateBroadcast(app, Natives.lastsensorname(), starttime);
+                }
+            }
+        } else {
+            if (Natives.stopWifi()) {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "stopWifi");
+                    }
+                    ;
+                }
+                ;
+                UseWifi.stopusewifi();
+            }
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onStop");
+            }
+            ;
+        }
+        ;
+        super.onStop();
+        active = false;
+        if (!Applic.Nativesloaded)
+            return;
+        if (Natives.getfloatglucose() && Natives.gethidefloatinJuggluco())
+            Floating.makefloat();
+        Natives.setpaused(null);
+        if (curve != null)
+            curve.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onDestroy()");
+            }
+            ;
+        }
+        ;
+        final var alert = shownglucosealert;
+        if (alert != null) {
+            alert.dismiss();
+            shownglucosealert = null;
+        }
+        if (thisone == this) {
+            thisone = null;
+        }
+        super.onDestroy();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        {
+            if (doLog) {
+                Log.d(LOG_ID, "onWindowFocusChanged(hasFocus=" + hasFocus + ")");
+            }
+            ;
+        }
+        ;
+        // if (hasFocus&&hideSystem)
+        if (hasFocus) {
+            hideSystemUI();
+            requestRender();
+        }
+    }
+
+    @UiThread
+    @SuppressWarnings("deprecation")
+    void setSystemUI(boolean val) {
+        try {
+            View decorView = getWindow().getDecorView();
+            final int hideuiflags = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN;
+            decorView.setSystemUiVisibility(val ? 0 : hideuiflags);
+
+        } catch (Throwable e) {
+            Log.stack(LOG_ID, "setSystemUI", e);
+        }
+
+    }
+    /*
+     * void switchSystemUI() {
+     * View decorView = getWindow().getDecorView();
+     * setSystemUI(decorView.getSystemUiVisibility()!=0);
+     * }
+     */
+
+    public boolean showui = false;
+
+    void selectionSystemUI() {
+        setSystemUI(showui || Natives.getsystemUI());
+    }
+
+    // Enables regular immersive mode.
+    // For "lean back" mode, remove SYSTEM_UI_FLAG_IMMERSIVE.
+    // Or for "sticky immersive," replace it with SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    public void hideSystemUI() {
+        {
+            if (doLog) {
+                Log.d(LOG_ID, "hideSystemUI");
+            }
+            ;
+        }
+        ;
+        if (!(Natives.getsystemUI() || showui))
+            setSystemUI(false);
+    }
+
+    // int: Bitwise-or of flags SYSTEM_UI_FLAG_LOW_PROFILE,
+    // SYSTEM_UI_FLAG_HIDE_NAVIGATION, SYSTEM_UI_FLAG_FULLSCREEN,
+    // SYSTEM_UI_FLAG_LAYOUT_STABLE, SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION,
+    // SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN, SYSTEM_UI_FLAG_IMMERSIVE, and
+    // SYSTEM_UI_FLAG_IMMERSIVE_STICKY.
+    // Shows the system bars by removing all the flags
+    // except for the ones that make the content appear under the system bars.
+    public void showSystemUI() {
+        setSystemUI(true);
+    }
+
+    /*
+     * private void openBluetoothSettings() {
+     * Intent intent = new Intent();
+     * intent.setAction("android.settings.BLUETOOTH_SETTINGS");
+     * startActivity(intent);
+     * }
+     */
+    public static int screenwidth = 0;
+    public static int screenheight = 0;
+
+    public static void setsizes(Context context) {
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        screenheight = metrics.heightPixels;
+        screenwidth = metrics.widthPixels;
+    }
+
+    public static int getscreenheight(Context context) {
+        if (screenwidth == 0) {
+            setsizes(context);
+        }
+        return screenheight;
+    }
+
+    public static int getscreenwidth(Context context) {
+        if (screenwidth == 0) {
+            setsizes(context);
+
+        }
+        return screenwidth;
+    }
+
+    // static public ViewGroup settings=null;
+    void removeconfig() {
+        screenwidth = 0;
+        if (Applic.Nativesloaded) {
+            if (app.needsnatives()) {
+                if (curve != null) {
+                    while (doonback())
+                        ;
+                    curve.removeviews();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onConfigurationChanged height=" + newConfig.screenHeightDp + " width="
+                        + newConfig.screenWidthDp + " sw=" + newConfig.smallestScreenWidthDp);
+            }
+            ;
+        }
+        ;
+        removeconfig();
+    }
+
+    public void requestRender() {
+        if (curve != null)
+            curve.requestRender();
+    }
+
+    private void netinitstep() {
+        if (!started) {
+            if (Build.VERSION.SDK_INT < 26 || Build.VERSION.SDK_INT > 30 || hasNeedScan()) {
+                useBluetooth(Natives.getusebluetooth() && finepermission());
+            } else
+                useBluetooth(Natives.getusebluetooth());
+            started = true;
+            if (!isWearable) {
+                if (Natives.gethealthConnect()) {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        var health = HealthConnectAccess.get();
+                        if (health != null) health.start(this);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean gaverational = false;
+    private boolean locationPermissionRequestInFlight = false;
+
+    /**
+     * True when a scan permission is missing and the system will no longer show
+     * the runtime dialog for it, so the only way left is the app's settings.
+     */
+    private boolean permissionBlocked() {
+        if (Build.VERSION.SDK_INT < 23) {
+            return false;
+        }
+        for (var perm : Applic.hasPermissions(this, Applic.foregroundscanpermissions)) {
+            if (!shouldShowRequestPermissionRationale(perm)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void openAppSettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", getPackageName(), null))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "openAppSettings", th);
+        }
+    }
+
+    private void requestLocationPermissions(String[] permissions) {
+        if (locationPermissionRequestInFlight) {
+            return;
+        }
+        locationPermissionRequestInFlight = true;
+        requestPermissions(permissions, LOCATION_PERMISSION_REQUEST_CODE);
+    }
+
+    boolean finepermission() {
+        MainActivity act = this;
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "finepermission");
+            }
+            ;
+        }
+        ;
+        if (Build.VERSION.SDK_INT >= 23) {
+            // Whatever happens below, this Activity is now handling the ask, so
+            // it must not be repeated from onResume as well.
+            Applic.scanPermissionPending = false;
+            if (locationPermissionRequestInFlight) {
+                return false;
+            }
+            var noperm = Applic.hasPermissions(act, Applic.foregroundscanpermissions);
+            if (noperm.length == 0) {
+                if (Applic.needsBackgroundScanPermission() && !Applic.hasBackgroundScanPermission(act)) {
+                    RunOnUiThread(() -> requestLocationPermissions(
+                            new String[] { Manifest.permission.ACCESS_BACKGROUND_LOCATION }));
+                    return false;
+                }
+                return systemlocation();
+            }
+            RunOnUiThread(() -> {
+                for (var scanpermission : noperm) {
+                    if (shouldShowRequestPermissionRationale(scanpermission)) {
+                        gaverational = true;
+                                help.help(Build.VERSION.SDK_INT > 30 ? R.string.nearbypermission : R.string.locationpermission,
+                                act, l -> {
+                                    if (help.whelplayout != null && help.whelplayout.get() != null) {
+                                        removeContentView(help.whelplayout.get()); // setContentView makes view
+                                                                                   // inaccessable
+                                        help.whelplayout = null;
+                                    }
+                                    requestLocationPermissions(noperm);
+                                });
+                        break;
+                    } else {
+                        requestLocationPermissions(noperm);
+                        break;
+                    }
+                }
+            });
+
+            return false;
+        } else
+            return true;
+    }
+    /*
+     * public static final String[] flashpermissions={ Manifest.permission.CAMERA};
+     * 
+     * public int flashpermission() {
+     * if (Build.VERSION.SDK_INT >= 23) {
+     * var noperm=Applic.hasPermissions( this, flashpermissions);
+     * if(noperm.length==0) {
+     * useflash(true);
+     * return 1;
+     * }
+     * for(var flashperm:noperm) {
+     * if(shouldShowRequestPermissionRationale(flashperm)) {
+     * help.help(R.string.flashpermission,this,l-> {
+     * if(help.whelplayout!=null&&help.whelplayout.get()!=null) {
+     * removeContentView(help.whelplayout.get()); //setContentView makes view
+     * inaccessable
+     * help.whelplayout=null;
+     * }
+     * requestPermissions(noperm, FLASH_PERMISSION_REQUEST_CODE);
+     * });
+     * return 0 ;
+     * }
+     * else {
+     * requestPermissions( noperm, FLASH_PERMISSION_REQUEST_CODE);
+     * return 0 ;
+     * }
+     * }
+     * return 1;
+     * }
+     * else {
+     * useflash(true);
+     * return 1;
+     * }
+     * }
+     */
+
+    static public final int SENSOR_PERMISSION_REQUEST_CODE = 0x23457;
+    static final int FLASH_PERMISSION_REQUEST_CODE = 0x11224;
+
+    static final int LOCATION_PERMISSION_REQUEST_CODE = 0x942365;
+    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 0x8878;
+
+    // private final int STORAGE_PERMISSION_REQUEST_CODE=0x445533;
+    private void hasLocationContinue() {
+        if (Natives.getusebluetooth()) {
+            if (Build.VERSION.SDK_INT < 26 || Build.VERSION.SDK_INT > 30 || hasNeedScan())
+                useBluetooth(true);
+            else
+                SensorBluetooth.goscan();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        var granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        switch (requestCode) {
+            case NOTIFICATION_PERMISSION_REQUEST_CODE: {
+                if (granted) {
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "Required Notification permission");
+                        }
+                        ;
+                    }
+                    ;
+                    keeprunning.start(this);
+                } else {
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "Required NO Notification permission");
+                        }
+                        ;
+                    }
+                    ;
+                }
+
+                explicit(this);
+            }
+                ;
+                break;
+            /*
+             * case FLASH_PERMISSION_REQUEST_CODE: {
+             * {if(doLog) {Log.i(LOG_ID,"FLASH_PERMISSION_REQUEST_CODE");};};
+             * if (granted) {
+             * useflash(true);
+             * } else {
+             * {if(doLog) {Log.i(LOG_ID,"Flash denied");};};
+             * useflash(false);
+             * }
+             * } return;
+             */
+            case LOCATION_PERMISSION_REQUEST_CODE: {
+                locationPermissionRequestInFlight = false;
+                if (doLog) {
+                    Log.i(LOG_ID, "onRequestPermissionsResult(LOCATION_PERMISSION_REQUEST_CODE) " + granted);
+                }
+                ;
+            }
+                ;
+                if (granted) {
+                    if (Applic.needsBackgroundScanPermission() && Applic.hasForegroundScanPermissions(this)
+                            && !Applic.hasBackgroundScanPermission(this)) {
+                        finepermission();
+                        break;
+                    }
+                    if (systemlocation())
+                        hasLocationContinue();
+                } else {
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "denied");
+                        }
+                        ;
+                    }
+                    ;
+                    // setbluetoothmain(false);
+                    Applic.argToaster(this, "No permission. Sensor via Bluetooth turned off", Toast.LENGTH_LONG);
+
+                    if (isWearable && permissionBlocked()) {
+                        // The system will not show the dialog again. On a watch
+                        // the app's permission screen takes a lot of scrolling
+                        // to find, so offer to open it directly.
+                        bluediag.returntoblue = false;
+                        help.basehelp(R.string.nearbypermission, this, l -> openAppSettings());
+                        break;
+                    }
+                    if (!gaverational) {
+                        bluediag.returntoblue = false;
+                        if (Build.VERSION.SDK_INT > 30) {
+                            help.basehelp(R.string.nearbypermission,
+                                    this, l -> {
+                                        useBluetooth(false);
+                                    });
+                        } else {
+                            if (Build.VERSION.SDK_INT < 26 || hasNeedScan()) {
+                                help.basehelp(R.string.locationpermission,
+                                        this, l -> {
+                                            useBluetooth(false);
+                                        });
+                            } else {
+                                help.help(R.string.locationpermission, this);
+                            }
+                        }
+                    }
+                }
+                if (bluediag.returntoblue) {
+                    bluediag.returntoblue = false;
+                    bluediag.start(this);
+                }
+                return;
+        }
+        // Other 'case' lines to check for other
+        // permissions this app might request.
+    }
+
+    static final String[] keys = { "privkey.pem", "fullchain.pem" };
+    public static final int PRIVATE_REQUEST = 0x80;
+    public static final int CHAIN_REQUEST = 0x81;
+    private static final int REQUEST_NOTIFICATION = 0x50;
+    public static final int REQUEST_BARCODE = 0x10;
+    public static final int REQUEST_BARCODE_SIB2 = 0x11;
+    public static final int REQUEST_EXPORT = 0x70;
+    // public static final int REQUEST_EXPORT=0x54e806d0;
+    public static final int REQUEST_RINGTONE = 0x60;
+    public static final int REQUEST_LIB = 0x200;
+    public static final int REQUEST_MASK = 0xFFFFFF00;
+    public static final int IGNORE_BATTERY_OPTIMIZATION_SETTINGS = 0x100;
+    static final int OVERLAY_PERMISSION_REQUEST_CODE = 0x40;
+    public static final int REQUEST_SAVE_LOG = 0x300;
+    public static final int REQUEST_SAVE_LOGCAT = 0x301;
+    // static final private int REQUEST_CHECK_SETTINGS=0x20;
+    // public static final int REQUEST_IGNORE_BATTERY_OPTIMIZATIONS=0x300;
+    Openfile openfile = null;
+
+    private void savekey(FileInputStream input, String outkeystr) {
+        File outkey = new File(getFilesDir(), outkeystr);
+        byte[] buf = new byte[2 * 4096];
+        int total = 0;
+        try (FileOutputStream out = new FileOutputStream(outkey)) {
+            while (true) {
+                int res = input.read(buf);
+                if (res <= 0) {
+                    out.flush(); // TODO: remove
+                    out.getFD().sync(); // TODO: remove
+
+                    return;
+                }
+                total += res;
+                out.write(buf, 0, res);
+            }
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "savekey " + outkeystr, th);
+        } finally {
+            try {
+                input.close();
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "wrote " + total + " to " + outkeystr);
+                    }
+                    ;
+                }
+                ;
+                if (total < 50) {
+                    outkey.delete();
+                }
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "savekey finally " + outkeystr, th);
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Log.format("Main.onActivityResult requestCode%x resultCode=%d\n", requestCode, resultCode);
+        switch (requestCode) {
+            /*
+             * case REQUEST_CHECK_SETTINGS:
+             * switch (resultCode) {
+             * case Activity.RESULT_OK:
+             * // All required changes were successfully made
+             * {if(doLog) {Log.i(LOG_ID,"REQUEST_CHECK_SETTINGS OK");};};
+             * hasLocationContinue();
+             * break;
+             * case Activity.RESULT_CANCELED:
+             * // The user was asked to change settings, but chose not to
+             * {if(doLog) {Log.i(LOG_ID,"REQUEST_CHECK_SETTINGS CANCELLED");};};
+             * Applic.Toaster("Location is turned off, can't scan for devices");
+             * break;
+             * default: break;
+             * }; break;
+             */
+            case OVERLAY_PERMISSION_REQUEST_CODE: {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "OVERLAY_PERMISSION_REQUEST_CODE ");
+                    }
+                    ;
+                }
+                ;
+                if (Floating.cannotoverlay()) {
+                    shoulduseadb(this);
+                    return;
+                }
+                setfloatglucose(this, true);
+            }
+                ;
+                break;
+            case REQUEST_NOTIFICATION: {
+                Log.i(LOG_ID, "Notification");
+                Natives.setaskedNotify(true);
+            }
+                ;
+                break;
+            case IGNORE_BATTERY_OPTIMIZATION_SETTINGS: {
+                if (!isWearable) {
+                    Battery.batteryscreen(this, null);
+                }
+            }
+                ;
+                return;
+            case REQUEST_LIB: {
+                if (resultCode == Activity.RESULT_OK && openfile != null)
+                    openfile.getlib(data, this);
+            }
+                ;
+                return;
+            case PRIVATE_REQUEST:
+            case CHAIN_REQUEST:
+                if (!isWearable) {
+                    if (resultCode == Activity.RESULT_OK) {
+                        Uri uri;
+                        if (data == null || (uri = data.getData()) == null) {
+                            // TODO error
+                            return;
+                        }
+                        try (var filedescr = getContentResolver().openFileDescriptor(uri, "r")) {
+                            var input = new FileInputStream(filedescr.getFileDescriptor());
+                            savekey(input, keys[requestCode & ~PRIVATE_REQUEST]);
+                        } catch (Throwable th) {
+                            Log.stack(LOG_ID, "openFileDescriptor", th);
+                        }
+                    }
+                    ;
+                }
+                return;
+            case REQUEST_BARCODE_SIB2:
+            case REQUEST_BARCODE:
+                if (SiBionics == 1 && !isWearable) {
+                    if (PhotoScan.handleUnifiedScanResult(resultCode, data, this, requestCode)) {
+                        return;
+                    }
+                    if (useZXing) {
+                        ZXing.zXingResult(resultCode, data, this, requestCode);
+                        return;
+                    }
+                }
+                ;
+                break;
+            case REQUEST_SAVE_LOGCAT:
+            case REQUEST_SAVE_LOG: {
+                if (resultCode == Activity.RESULT_OK) {
+                    Uri uri;
+                    if (data == null || (uri = data.getData()) == null) {
+                        Log.i(LOG_ID, "onActivityResult data=null");
+                        // TODO error
+                        return;
+                    }
+                    int fd = -1;
+                    try (ParcelFileDescriptor filedescr = getContentResolver().openFileDescriptor(uri, "w")) {
+                        if (filedescr != null)
+                            fd = filedescr.detachFd();
+                    } catch (Throwable e) {
+                        Log.stack(LOG_ID, e);
+                        return;
+                    }
+                    if (requestCode == REQUEST_SAVE_LOG)
+                        Natives.saveLog(fd);
+                    else
+                        Natives.saveLogcat(fd);
+                } else {
+                    Log.i(LOG_ID, "savelog: resultCode=" + resultCode);
+                }
+            }
+                ;
+                break;
+
+        }
+        ;
+        if (!isWearable) {
+            if ((requestCode & (REQUEST_MASK | REQUEST_EXPORT)) == REQUEST_EXPORT) {
+                try {
+                    if (resultCode == Activity.RESULT_OK) {
+                        int type = requestCode & 0xF;
+                        Uri uri;
+                        if (data == null || (uri = data.getData()) == null) {
+                            exportStatus(R.string.nodata);
+                            return;
+                        }
+                        int fd = -1;
+                        try (ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(uri,
+                                "w")) {
+                            if (parcelFileDescriptor != null)
+                                fd = parcelFileDescriptor.detachFd();
+                            else {
+                                exportStatus("Can't save: parcelFileDescriptor == null");
+                                return;
+                            }
+
+                        } catch (IOException e) {
+
+                            Log.stack(LOG_ID, e);
+                            exportStatus(R.string.failedbyexception);
+                            return;
+                        }
+                        if (Natives.exportdata(type, fd, LegacyScreensAccess.getExportShowDays())) {
+                            exportStatus(R.string.saved);
+                        } else {
+                            exportStatus(R.string.savefailed);
+                        }
+                    } else {
+
+                        exportStatus(R.string.notsaved);
+                    }
+
+                } catch (Throwable th) {
+                    Log.stack(LOG_ID, "onActivityResult", th);
+                }
+                hidekeyboard(this);
+                return;
+            }
+        }
+        if ((requestCode & (REQUEST_MASK | REQUEST_RINGTONE)) == REQUEST_RINGTONE) {
+            if (resultCode == Activity.RESULT_OK) {
+                try {
+                    Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+                    if (uri == null) {
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)==null");
+                            }
+                            ;
+                        }
+                        ;
+                    } else {
+                        String uristr = uri.toString();
+                        if (uristr != null) {
+                            int kind = requestCode & 0xF;
+                            tk.glucodata.RingTones.setring(kind, uristr);
+                        }
+                    }
+                } catch (Throwable e) {
+                    Log.stack(LOG_ID, e);
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        {
+            if (doLog) {
+                Log.v(LOG_ID, "OnKeyDown");
+            }
+            ;
+        }
+        ;
+        if (isWearable) {
+            // With the Compose UI active, back must reach the Compose
+            // BackHandler (via onBackPressed); the legacy path below assumes
+            // the View UI and swallows every key.
+            if (composeUIActive && keyCode == KeyEvent.KEYCODE_BACK) {
+                return super.onKeyDown(keyCode, event);
+            }
+            if (!backinapp())
+                moveTaskToBack(true);
+            return true;
+        } else {
+            if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "keyCode== KeyEvent.KEYCODE_CAMERA)");
+                    }
+                    ;
+                }
+                ;
+
+                final int camkey = Natives.camerakey();
+                switch (camkey) {
+                    case 0:
+                        Natives.setcamerakey(2);
+                        break;
+                    case 1: {
+                        curve.render.badscan = 8;
+                        curve.requestRender();
+                        {
+                            if (doLog) {
+                                Log.v(LOG_ID, "Camara");
+                            }
+                            ;
+                        }
+                        ;
+                    }
+                        ;
+                        return true;
+                    default:
+                        break;
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+
+    }
+
+    @Override
+    public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+        {
+            if (doLog) {
+                Log.v(LOG_ID, "OnLongKeyPress");
+            }
+            ;
+        }
+        ;
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            final int camkey = Natives.camerakey();
+            switch (camkey) {
+                case 0:
+                    Natives.setcamerakey(2);
+                    break;
+                case 1: {
+                    curve.render.badscan = 8;
+                    curve.requestRender();
+                    {
+                        if (doLog) {
+                            Log.v(LOG_ID, "Camara");
+                        }
+                        ;
+                    }
+                    ;
+                }
+                    ;
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.onKeyLongPress(keyCode, event);
+    }
+
+    public NumberView getnumberview() {
+        return curve.numberview;
+    }
+
+    final static private Deque<Runnable> backrun = new ArrayDeque<>();
+
+    static public int onbacknr() {
+        return backrun.size();
+    }
+
+    static public void setonback(Runnable run) {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "setonback");
+            }
+            ;
+        }
+        ;
+        backrun.addFirst(run);
+    }
+
+    static public boolean doonback() {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "doonback");
+            }
+            ;
+        }
+        ;
+        if (!backrun.isEmpty()) {
+            Runnable wasback = backrun.removeFirst();
+            wasback.run();
+            return true;
+        }
+        return false;
+    }
+
+    static public void poponback() {
+        if (!backrun.isEmpty())
+            backrun.removeFirst();
+    }
+
+    static public void clearonback() {
+        backrun.clear();
+    }
+
+    boolean backinapp() {
+        {
+            if (doLog) {
+                Log.d(LOG_ID, "backinapp");
+            }
+            ;
+        }
+        ;
+        if (curve != null && (curve.render.stepresult & STEPBACK) == STEPBACK) {
+            {
+                if (doLog) {
+                    Log.d(LOG_ID, "backinapp natives");
+                }
+                ;
+            }
+            ;
+            Natives.pressedback();
+            curve.render.stepresult = 0;
+            curve.render.badscan = 0;
+            hideSystemUI();
+            if (LegacyScreensAccess.getMenusOn())
+                LegacyScreensAccess.get().openMenus(this);
+            else
+                curve.requestRender();
+            return true;
+        } else {
+            {
+                if (doLog) {
+                    Log.d(LOG_ID, "backinapp doonback");
+                }
+                ;
+            }
+            ;
+            return doonback();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        {
+            if (doLog) {
+                Log.d(LOG_ID, "onBackPressed");
+            }
+            ;
+        }
+        ;
+        if (isWearable && composeUIActive) {
+            // Compose navigation owns back on the watch (pop or background).
+            super.onBackPressed();
+            return;
+        }
+        if (!backinapp()) {
+            {
+                if (doLog) {
+                    Log.d(LOG_ID, "moveTaskToBack");
+                }
+                ;
+            }
+            ;
+            // moveTaskToBack(true);
+            super.onBackPressed();
+        }
+    }
+
+    void tonotaccesssettings() {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "tonotaccesssettings()");
+            }
+            ;
+        }
+        ;
+        try {
+            Intent intent = new Intent(ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
+            startActivityForResult(intent, REQUEST_NOTIFICATION);
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)", th);
+
+        }
+    }
+
+    public void asknotificationAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                var context = this;
+                NotificationManager n = (NotificationManager) context.getApplicationContext()
+                        .getSystemService(Context.NOTIFICATION_SERVICE);
+                if (n != null && !n.isNotificationPolicyAccessGranted()) {
+                    if (isWearable)
+                        tonotaccesssettings();
+                    else {
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "disturbe");
+                            }
+                            ;
+                        }
+                        ;
+                        help.basehelp(R.string.disturbhelp, this, l -> tonotaccesssettings());
+                    }
+                    return;
+                } else {
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "don't ask disturbe");
+                        }
+                        ;
+                    }
+                    ;
+                    Natives.setaskedNotify(true);
+                }
+            } catch (Throwable th) {
+                Log.stack("ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS", th);
+            }
+        }
+    }
+
+    AlertDialog shownglucosealert = null;
+
+    void cancelglucosedialog() {
+        showmessage = null;
+        if (shownglucosealert != null) {
+            shownglucosealert.dismiss();
+            shownglucosealert = null;
+        }
+    }
+
+    void replaceDialogMessage(String message) {
+        if (shownglucosealert != null) {
+            showmessage = null;
+            shownglucosealert.setMessage(message);
+        }
+    }
+
+    void showindialog(String message, boolean cancel) {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "showindialog " + message);
+            }
+            ;
+        }
+        ;
+        var cont = this;
+        if (cancel) {
+            cancelglucosedialog();
+        }
+        final AlertDialog.Builder builder = new AlertDialog.Builder(cont);
+        final var dialog = builder.setNegativeButton(R.string.cancel, (dia, id) -> {
+            if (cancel) {
+                shownglucosealert = null;
+            }
+            Notify.stopalarmnotsend(false);
+            if (!isWearable) {
+                Applic.app.numdata.stopalarm();
+            }
+        }).setTitle("  ").setMessage(message).create();
+        ;
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnShowListener(a -> {
+            // final var colres= android.R.color.holo_red_light;
+            final var colres = android.R.color.holo_orange_light;
+            // final var colres= android.R.color.holo_blue_bright;
+            // final var colres= android.R.color.holo_blue_light; //Very infrequently button
+            // not shown. Maybe this helps.
+            final var col = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                    ? getResources().getColor(colres, getTheme())
+                    : getResources().getColor(colres);
+            var negbut = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            negbut.setTextColor(col);
+            // negbut.setAllCaps(false);
+            // var dens=GlucoseCurve.getDensity();
+            // negbut.setPadding((int)(dens*10),0,0,0);
+        });
+
+        dialog.show();
+
+        if (cancel)
+            shownglucosealert = dialog;
+    }
+
+    call fineres = null;
+
+    public void setfineres(call proc) {
+        fineres = proc;
+    }
+
+    private static int getLocationMode(Context context) {
+        return Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.LOCATION_MODE,
+                Settings.Secure.LOCATION_MODE_OFF);
+    }
+
+    public static boolean isLocationEnabled(Context context) {
+        return getLocationMode(context) != Settings.Secure.LOCATION_MODE_OFF;
+    }
+
+    boolean systemlocation() {
+        if (Build.VERSION.SDK_INT > 30 || Build.VERSION.SDK_INT < 23
+                || !(hasNeedScan() || Build.VERSION.SDK_INT < 26)) {
+            return true;
+        }
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "systemlocation()");
+            }
+            ;
+        }
+        ;
+        try {
+            if (!isLocationEnabled(this)) {
+                {
+                    if (doLog) {
+                        Log.i(LOG_ID, "Location not Enabled");
+                    }
+                    ;
+                }
+                ;
+                RunOnUiThread(() -> needsLocation());
+                return false;
+            } else {
+                if (doLog) {
+                    Log.i(LOG_ID, "Location Enabled");
+                }
+                ;
+            }
+            ;
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "Settings.Secure.LOCATION_MODE", th);
+            return false;
+        }
+        return true;
+    }
+
+    /*
+     * private boolean systemlocation() {
+     * if(Build.VERSION.SDK_INT > 30||Build.VERSION.SDK_INT <
+     * 23||!(hasSibionics()||Build.VERSION.SDK_INT<26)) {
+     * return true;
+     * }
+     * 
+     * {if(doLog) {Log.i(LOG_ID,"systemlocation()");};};
+     * try {
+     * LocationManager locationManager =
+     * (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+     * final boolean locationEnabled =
+     * locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)||
+     * locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+     * 
+     * if (!locationEnabled) {
+     * {if(doLog) {Log.i(LOG_ID, "Location not enabled");};};
+     * // Build an alert dialog here that requests that the user enable
+     * // the location services, then when the user clicks the "OK" button,
+     * enableLocationSettings();
+     * } else
+     * {if(doLog) {Log.i(LOG_ID, "Location enabled");};};
+     * }
+     * catch (Throwable th) {
+     * Log.stack(LOG_ID,"LocationManager.isProviderEnabled",th);
+     * }
+     * return true;
+     * }
+     */
+    private static void needsLocation() {
+        MainActivity main = thisone;
+        if (main != null) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(main);
+            builder.setTitle("Location").setMessage("System Location needs to be turned on to find Bluetooth devices")
+                    .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            enableLocationSettings();
+                        }
+                    }).setOnCancelListener(l -> enableLocationSettings()).show().setCanceledOnTouchOutside(false);
+        } else {
+            Applic.Toaster("Turn on Location in System settings");
+        }
+    }
+
+    private static void enableLocationSettings() {
+        MainActivity main = thisone;
+        if (thisone != null) {
+            {
+                if (doLog) {
+                    Log.i(LOG_ID, "ACTION_LOCATION_SOURCE_SETTINGS");
+                }
+                ;
+            }
+            ;
+            Intent settingsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            main.startActivity(settingsIntent);
+        }
+    }
+    /*
+     * Doesn't work on a lot of phones and watches
+     * private boolean systemlocation() {
+     * if(Build.VERSION.SDK_INT > 30||Build.VERSION.SDK_INT <
+     * 23||!(hasSibionics()||Build.VERSION.SDK_INT<26)) {
+     * return true;
+     * }
+     * {if(doLog) {Log.i(LOG_ID,"systemlocation()");};};
+     * try {
+     * LocationRequest locr= new Builder(PRIORITY_HIGH_ACCURACY,10000).build();
+     * //How else to ask for android location settings
+     * LocationSettingsRequest.Builder builder = new
+     * LocationSettingsRequest.Builder().addLocationRequest(locr);
+     * builder.setNeedBle(true).setAlwaysShow(true);
+     * Task<LocationSettingsResponse> task =
+     * LocationServices.getSettingsClient(this).checkLocationSettings(builder.build(
+     * ));
+     * task.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>()
+     * {
+     * 
+     * @Override
+     * public void onComplete(Task<LocationSettingsResponse> task) {
+     * try {
+     * LocationSettingsResponse response = task.getResult(ApiException.class);
+     * {if(doLog) {Log.i(LOG_ID,"settings are satisfied");};};
+     * // All location settings are satisfied. The client can initialize location
+     * // requests here.
+     * } catch (ApiException exception) {
+     * {if(doLog) {Log.i(LOG_ID,"exception "+exception.toString());};};
+     * switch (exception.getStatusCode()) {
+     * case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+     * // Location settings are not satisfied. But could be fixed by showing the
+     * // user a dialog.
+     * try {
+     * // Cast to a resolvable exception.
+     * ResolvableApiException resolvable = (ResolvableApiException) exception;
+     * // Show the dialog by calling startResolutionForResult(),
+     * // and check the result in onActivityResult().
+     * 
+     * resolvable.startResolutionForResult( MainActivity.this,
+     * REQUEST_CHECK_SETTINGS);
+     * {if(doLog) {Log.i(LOG_ID,"startResolutionForResult");};};
+     * return;
+     * } catch (IntentSender.SendIntentException e) {
+     * // Ignore the error.
+     * } catch (ClassCastException e) {
+     * // Ignore, should be an impossible error.
+     * }
+     * break;
+     * case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+     * // Location settings are not satisfied. However, we have no way to fix the
+     * // settings so we won't show the dialog.
+     * Applic.Toaster("No location, don't know how to fix it");
+     * break;
+     * }
+     * }
+     * hasLocationContinue();
+     * }
+     * });
+     * return false;
+     * }
+     * catch (Throwable th) {
+     * Log.stack(LOG_ID,"LocationSettingsRequest",th);
+     * return true;
+     * }
+     * 
+     * }
+     */
+
+    /*
+     * LocationSettingsRequest.Builder builder = new
+     * LocationSettingsRequest.Builder();
+     * SettingsClient client = LocationServices.getSettingsClient(this);
+     * Task<LocationSettingsResponse> task =
+     * client.checkLocationSettings(builder.build());
+     * task.addOnSuccessListener(this, new
+     * OnSuccessListener<LocationSettingsResponse>() {
+     * 
+     * @Override
+     * public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
+     * }
+     * });
+     * task.addOnFailureListener(this, new OnFailureListener() {
+     * 
+     * @Override
+     * public void onFailure(@NonNull Exception e) {
+     * if (e instanceof ResolvableApiException) {
+     * try {
+     * // Show the dialog by calling startResolutionForResult(),
+     * // and check the result in onActivityResult().
+     * ResolvableApiException resolvable = (ResolvableApiException) e;
+     * resolvable.startResolutionForResult(MainActivity.this,
+     * REQUEST_CHECK_SETTINGS);
+     * } catch (IntentSender.SendIntentException sendEx) {
+     * }
+     * }
+     * } });
+     */
+
+    public void useBluetooth(boolean val) {
+        Applic.app.initbluetooth(val, this, true);
+        if (fineres != null)
+            fineres.call();
+    }
+
+    public void setbluetoothmain(boolean on) {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "setbluetoothmain " + on);
+            }
+            ;
+        }
+        ;
+        if (on) {
+            Natives.setusebluetooth(on);
+            if (Build.VERSION.SDK_INT < 26 || Build.VERSION.SDK_INT > 30 || hasNeedScan()) {
+                if (!finepermission()) {
+                    return;
+                }
+            }
+        }
+        Applic.setbluetooth(this, on);
+        if (fineres != null)
+            fineres.call();
+    }
+    /*
+     * class ScrollListener extends GestureDetector.SimpleOnGestureListener {
+     * 
+     * @Override
+     * public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
+     * float distanceY) {
+     * {if(doLog) {Log.i(LOG_ID,"onScroll dX="+distanceX+" dY="+distanceY);};};
+     * return false;
+     * }
+     * 
+     * @Override
+     * public boolean onFling (MotionEvent e1, MotionEvent e2, float velocityX,
+     * float velocityY) {
+     * {if(doLog) {Log.i(LOG_ID,"onFling volX="+velocityX+"volY="+velocityY);};};
+     * return false;
+     * }
+     * };
+     * private GestureDetector mGestureDetector;
+     * 
+     * @Override
+     * public boolean onTouchEvent(MotionEvent event){
+     * mGestureDetector.onTouchEvent(event);
+     * return super.onTouchEvent(event);
+     * }
+     */
+}

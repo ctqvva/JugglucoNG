@@ -1,0 +1,376 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 15:31:05 CET 2023                                                 */
+
+
+package tk.glucodata
+
+import android.content.Intent
+import com.google.android.gms.wearable.*
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.launch
+import tk.glucodata.Applic.isWearable
+import tk.glucodata.Log.doLog
+import tk.glucodata.MainActivity.setbluetoothon
+import tk.glucodata.MessageSender.Companion.isGalaxy
+//import tk.glucodata.MessageSender.Companion.messagesender
+import tk.glucodata.MessageSender.Companion.sendnetinfo
+import tk.glucodata.Natives
+import tk.glucodata.Natives.setWearosdefaults
+
+class MessageReceiver: WearableListenerService() {
+    override fun onMessageReceived(messageEvent: MessageEvent) {
+        super.onMessageReceived(messageEvent)
+        val data= messageEvent.getData();
+        val path= messageEvent.path
+        if (!isWearable && !MessageSender.outgoingAllowed()) {
+            val now = System.currentTimeMillis()
+            val previous = lastDisabledMessageLogMs.get()
+            if (now - previous >= DISABLED_MESSAGE_LOG_INTERVAL_MS &&
+                lastDisabledMessageLogMs.compareAndSet(previous, now)
+            ) {
+                Log.i(LOG_ID, "ignoring Wear messages: companion disabled")
+            }
+            return
+        }
+        Log.i(LOG_ID,"onMessageReceived start $path"  )
+        when(WearMessagePath.fromWire(path)) {
+            WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
+            WearMessagePath.DEFAULTS ->  {
+                val sender = tk.glucodata.MessageSender.getMessageSender()
+                if (sender == null) {
+                    Log.d(LOG_ID, "messagesender==null")
+                    return
+                    }
+                val source=  sender.localnode
+                 if(doLog) {Log.i(LOG_ID,"path==WearMessagePath.DEFAULTS "+source );}
+                  setWearosdefaults(source,true);
+                   val context=if(MainActivity.thisone==null)Applic.app;else MainActivity.thisone;
+                   Applic.setbluetooth(context,false)
+                 }
+            WearMessagePath.WAKE -> {
+                Natives.wakehereonly()
+                }
+            WearMessagePath.WAKESTREAM -> {
+                Natives.wakestreamhereonly()
+                }
+            WearMessagePath.PROTOCOL -> {
+                // Each side advertises its protocol version on the handshake; a mismatch is logged
+                // here instead of the peers silently disagreeing about message shapes.
+                WearProtocol.onPeerVersionReport(data)
+                WearAlertSync.pushTo(messageEvent.sourceNodeId)
+                }
+            WearMessagePath.DATA   -> {
+                // Phone-to-phone mirroring only. On the watch this legacy
+                // stream wrote the sensor's uncalibrated values into the same
+                // minute slots WearSync2 fills with calibrated ones, so the
+                // displayed value flipped between the two depending on which
+                // arrived last.
+                if (isWearable) {
+                    if (doLog) Log.i(LOG_ID, "ignoring legacy /data on wear; WearSync2 owns the store")
+                } else {
+                    Natives.message(data);
+                }
+            }
+            WearMessagePath.SYNC2_REQ -> {
+                if (!isWearable) {
+                    WearSync2.onRequest(data)
+                    // Rides along with the sync the watch already asks for, and
+                    // sends nothing while the scheme is unchanged. Without it a
+                    // watch that missed the change-time push would keep the
+                    // compiled-in defaults for good.
+                    GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // A previous prefs reply may have been lost, even if sendMessage succeeded.
+                    WearPrefsSync.pushTo(messageEvent.sourceNodeId)
+                    WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // Answer the handshake with this build's protocol version.
+                    MessageSender.sendProtocol(messageEvent.sourceNodeId)
+                }
+            }
+            WearMessagePath.SYNC2_CHUNK -> {
+                // Either device may be the one holding the sensor, so both accept
+                // readings; WearSync2 drops any for a sensor it reads itself.
+                WearSync2.onChunk(data)
+            }
+            WearMessagePath.SYNC2_CAL -> {
+                if (isWearable) WearSync2.onCalibration(data)
+            }
+            WearMessagePath.SYNC2_CALCMD -> {
+                if (!isWearable) WearCalibrationCommand.onCommand(data)
+            }
+            WearMessagePath.SYNC2_REMOVE -> {
+                if (isWearable) WearSync2.onRemove(data)
+            }
+            WearMessagePath.SYNC2_JOURNAL_REQ -> {
+                if (!isWearable) WearJournalSync.onRequest(
+                    if (data != null && data.size >= 9) {
+                        java.nio.ByteBuffer.wrap(data, 1, 8).long
+                    } else {
+                        0L
+                    }
+                )
+            }
+            WearMessagePath.SYNC2_JOURNAL_DATA -> {
+                if (isWearable) WearJournalSync.onServed(data)
+            }
+            WearMessagePath.SYNC2_OWN -> {
+                // Both devices arbitrate, so neither side is gated here.
+                SensorOwnershipRuntime.onPeerReport(data)
+            }
+            WearMessagePath.SYNC2_JOURNAL_CMD -> {
+                if (!isWearable) WearJournalSync.onCommand(data)
+            }
+            WearMessagePath.SENSOR_HANDOFF -> {
+                if (isWearable) {
+                    // Persist the identity only. Do NOT flip the watch into
+                    // "I own the sensor" here: the watch advertises that in
+                    // netinfo, and the phone answers by dropping its own BLE
+                    // and stopping the stream (netinfo.cpp) — so claiming it
+                    // before a real local connection exists kills data on both
+                    // devices. The watch starts owning the sensor only once it
+                    // actually connects.
+                    val context = if (MainActivity.thisone == null) Applic.app else MainActivity.thisone
+                    val ok = ManagedSensorHandoff.applyIncoming(context, data)
+                    Log.i(LOG_ID, "sensor handoff stored=$ok")
+                }
+            }
+            WearMessagePath.SENSOR_CLAIM_STATUS -> {
+                if (!isWearable) {
+                    WearSensorClaimStatus.onRemoteStatus(messageEvent.sourceNodeId, data)
+                }
+            }
+            WearMessagePath.CALIBRATE -> {
+                // Watch-relayed fingerstick calibration; applied to the local
+                // driver that owns the BLE connection.
+                if (data != null && data.size >= 4) {
+                    val mgdl = java.nio.ByteBuffer.wrap(data).int
+                    MessageSender.scope.launch {
+                        tk.glucodata.drivers.ManagedCalibration.applyFingerstickCalibration(mgdl)
+                    }
+                }
+            }
+            WearMessagePath.NETINFO   -> {
+                // The switch may have changed after this callback entered. Do
+                // not let an in-flight /netinfo recreate the native Wear host
+                // after shutdown has just deactivated it.
+                if (!isWearable && !MessageSender.outgoingAllowed()) return
+                MessageSender.markNetInfoExchanged()
+                val sender = tk.glucodata.MessageSender.getMessageSender()
+                if (sender == null) {
+                    Log.d(LOG_ID, "messagesender==null")
+                    return
+                }
+                val nodes = sender.nodes
+                if(nodes == null || nodes.isEmpty()) {
+                    Log.e(LOG_ID, "no nodes")
+                    MessageSender.scope.launch {
+                        sender.findWearDevicesWithApp()
+                    }
+                    return
+                }
+                val sourceId = messageEvent.getSourceNodeId()
+                val name: String
+                val galaxy: Boolean
+                if (isWearable) {
+                    name = sender.localnode
+                    galaxy = true;
+                } else {
+                    name = sourceId
+                    val it = sender.findnodeid(sourceId)
+                    if (it < 0)
+                        return
+                    val node: Node = nodes.elementAt(it)
+                    galaxy = isGalaxy(node)
+                }
+
+
+
+                if(Natives.setmynetinfo(name, data, galaxy)) {
+                    sendnetinfo(sourceId)
+                    if (isWearable) {
+                        MessageSender.sendSensorClaimStatus()
+                    }
+                }
+            }
+            WearMessagePath.START ->  {
+               if(isWearable)
+                  UseWifi.usewifi()
+               val context=Applic.getContext()
+               Applic.setinittext(context.getString(R.string.connected));
+               Applic.initStarted=Natives.ontbytesettings(data)
+               Notify.mkunitstr(context,Natives.getunit())
+               sendnetinfo(messageEvent.getSourceNodeId())
+            }
+             WearMessagePath.TOGGLES_REQ -> {
+                 if (!isWearable) WearToggleSync.pushTo(messageEvent.sourceNodeId)
+                }
+             WearMessagePath.TOGGLES_SET -> {
+                 // The phone owns these; it applies and then reports back what
+                 // it actually holds, so a refused switch snaps back on the
+                 // watch rather than showing a state that is not real.
+                 if (!isWearable) WearToggleSync.onCommand(data, messageEvent.sourceNodeId)
+                }
+             WearMessagePath.TOGGLES -> {
+                 if (isWearable) WearToggleSync.onState(data)
+                }
+             WearMessagePath.DISPLAY_PREFS_REQ -> {
+                 // Pull, not push. Relying on the phone to push at the right
+                 // moment meant a watch whose app opened outside that window
+                 // kept the compiled-in defaults with no way to ask; the journal
+                 // has always worked request/serve for the same reason.
+                 if (!isWearable) {
+                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
+                     GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
+                     WearToggleSync.pushTo(messageEvent.sourceNodeId)
+                     MessageSender.sendProtocol(messageEvent.sourceNodeId)
+                 }
+                }
+             WearMessagePath.DISPLAY_PREFS_MAINSENSOR -> {
+                 // The watch changed its sensor selection; the phone follows,
+                 // and the preferences it pushes on the change carry the
+                 // result back.
+                 if (!isWearable) WearSensorSelectionSync.onCommand(data)
+                }
+             WearMessagePath.DISPLAY_PREFS -> {
+                 // The phone owns these settings; the watch only mirrors them,
+                 // so smoothing and prediction behave the same on both.
+                 // apply() raises UiRefreshBus, which is what the watch's history
+                 // store listens on; this file compiles into both variants, so it
+                 // must not name a wear-only class directly.
+                 if (isWearable && WearPrefsSync.apply(Applic.app, data) == 0) {
+                     Log.w(LOG_ID, "unusable display-prefs payload; keeping current settings")
+                 }
+                }
+             WearMessagePath.GLUCOSE_COLORS -> {
+                 // The phone owns the palette; the watch only mirrors it, so a
+                 // preset or custom band edit shows on both without a rebuild.
+                 if (isWearable) {
+                     if (!GlucoseColorSync.apply(Applic.app, data)) {
+                         Log.w(LOG_ID, "unusable glucose colour payload; keeping current scheme")
+                     }
+                 }
+                }
+             WearMessagePath.MESSAGES -> {
+                 val sender=tk.glucodata.MessageSender.getMessageSender()
+                 if(sender==null) {
+                     Log.d(LOG_ID,"2: messagesender==null")
+                     return
+                 }
+                 val sourceId= messageEvent.getSourceNodeId()
+                 val name:String=(if(isWearable) sender.localnode; else sourceId)?:return
+                val on=booldata(data)
+                if(on==null) {
+                    Log.w(LOG_ID,"ignoring /messages with an unusable payload")
+                    return
+                    }
+                Natives.setBlueMessage(name,on)
+                }
+             WearMessagePath.BLUETOOTH -> {
+                val context=if(MainActivity.thisone==null)Applic.app;else MainActivity.thisone;
+                val on=booldata(data)
+                if(on==null) {
+                    Log.w(LOG_ID,"ignoring /bluetooth with an unusable payload")
+                    return
+                    }
+                if(tk.glucodata.Log.doLog) {Log.i(LOG_ID,"set bluetooth $on  ${data[0]}");}
+                if (isWearable) WearSensorClaim.setDirectRequested(on)
+                // The phone tells the watch to drop Bluetooth whenever it means
+                // to own the sensor itself -- native netinfo does it on its own,
+                // seconds after any handshake. That is right for the explicit
+                // handover this message was built for, and fatal for automatic
+                // switching: the watch was disarmed while the phone was present
+                // and so had no radio left to take the sensor with when the
+                // phone went away. Keep the radio; ownership is decided by
+                // SensorOwnershipRuntime, which pauses the driver while the
+                // phone is the one reading.
+                if (isWearable && !on && AutoSensorSwitch.isEnabled()) {
+                    Log.i(LOG_ID, "keeping watch Bluetooth up: automatic sensor switching is on")
+                } else {
+                    Applic.setbluetooth(context,on )
+                }
+                }
+             WearMessagePath.ASKFORSTART -> {
+                 if(!isWearable) {
+                     // Fresh watch: serve the full sync2 backfill alongside the
+                     // legacy start flow.
+                     WearSync2.serveAll()
+                     // Colours are pushed on every change, but a watch that was
+                     // off or unpaired then missed them; the handshake is the
+                     // one point where it is certain to be listening.
+                     GlucoseColorSync.pushTo(messageEvent.sourceNodeId)
+                     WearPrefsSync.pushTo(messageEvent.sourceNodeId)
+                     val sender = tk.glucodata.MessageSender.getMessageSender()
+                     if (sender == null) {
+                         Log.d(LOG_ID, "3: messagesender==null")
+                         return
+                     }
+                     val sourceId = messageEvent.sourceNodeId
+                     val it = sender.findnodeid(sourceId)
+                     if (it < 0) {
+                         Log.e(LOG_ID, "sender.findnodeid(sourceId)<0")
+                         return
+                     }
+                     val nodes = sender.nodes
+                     if (nodes.isNullOrEmpty()) {
+                         Log.e(LOG_ID, "3: no nodes")
+                         MessageSender.scope.launch {
+                             sender.findWearDevicesWithApp()
+                         }
+                         return;
+                     }
+                     val node: Node = nodes.elementAt(it)
+                     Wearos.sendinitwatchapp(node);
+                     MessageSender.sendProtocol(messageEvent.sourceNodeId)
+                 }
+               }
+            null -> {
+                // A path this build does not handle. Ignoring it is right; doing so in silence is
+                // not, because a message from a mismatched peer then disappears with no trace
+                // (plan §6 Q2). Log each unknown path once.
+                //
+                // `null`, not `else`: with every entry listed and no `else`, the compiler rejects
+                // this `when` the moment WearMessagePath gains an entry nobody dispatches.
+                if (unknownPaths.add(path)) {
+                    Log.w(LOG_ID, "ignoring unknown wear message path=$path")
+                }
+            }
+        }
+        Log.i(LOG_ID,"onMessageReceived end $path"  )
+      }
+
+ companion object {
+   private const val LOG_ID = "MessageReceiver"
+   private val unknownPaths = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+   private const val DISABLED_MESSAGE_LOG_INTERVAL_MS = 60_000L
+   private val lastDisabledMessageLogMs = AtomicLong(0L)
+    private const val offbyte:Byte=0
+    /**
+     * The on/off a one-byte payload carries, or null when it carries nothing usable.
+     *
+     * Null rather than false on purpose: a payload that cannot be read is not the same
+     * message as "off", and acting on it would drop a sensor's Bluetooth or its messages
+     * over a truncated send. The callers ignore it and keep what they have, which is what
+     * /displayprefs and /glucosecolors already do with a payload they cannot apply.
+     */
+    fun booldata(data:ByteArray?):Boolean? {
+        if(data==null||data.isEmpty()) return null
+        return data[0]!=offbyte
+        }
+       }
+   }

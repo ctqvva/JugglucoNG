@@ -1,0 +1,22 @@
+{
+  "low": {
+    "seconds": 2.28,
+    "peak_dbfs": -7.47,
+    "sha256": "922d6868582ee0b6d361afb60f63a3b3eec98d5ca1ae1661f49b7595365aa588"
+  },
+  "high": {
+    "seconds": 2.45,
+    "peak_dbfs": -9.74,
+    "sha256": "1cd336daa21040f0c80908b15cda209bd634e241830c45e72a9184d2e4422af3"
+  },
+  "signal": {
+    "seconds": 1.27,
+    "peak_dbfs": -3.0,
+    "sha256": "a19458b0084af0bc6e28a4e554ed2c27dfed6b9e434e3169a14e202e439f3fc0"
+  },
+  "reminder": {
+    "seconds": 2.3,
+    "peak_dbfs": -6.96,
+    "sha256": "99112d3e8666bd0dd66b1f863d281818cce425ddf7a8a82bde9e9270c8d0c3bc"
+  }
+}

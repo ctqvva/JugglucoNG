@@ -1,0 +1,18 @@
+# Files allowed to call getCalibratedValue — see ArchitectureGateTests
+# .calibrationProjectionCallersStayAllowListed and issue #523. One projection
+# decision, one place: every line here is a copy that #523's extraction removes.
+src/main/java/tk/glucodata/CalibrationAccess.kt
+src/main/java/tk/glucodata/CurrentDisplaySource.kt
+src/main/java/tk/glucodata/NightscoutCalibration.java
+src/main/java/tk/glucodata/NotificationChartDrawer.java
+src/main/java/tk/glucodata/NotificationChartModelSource.kt
+src/main/java/tk/glucodata/SuperGattCallback.java
+src/main/java/tk/glucodata/WearInt.java
+src/mobile/java/tk/glucodata/data/ExportCalibration.kt
+src/mobile/java/tk/glucodata/data/calibration/MobileCalibrationProvider.kt
+src/mobile/java/tk/glucodata/ui/DashboardChartPipeline.kt
+src/mobile/java/tk/glucodata/ui/SealedGlucoseValue.kt
+src/mobile/java/tk/glucodata/ui/calibration/CalibrationBottomSheet.kt
+src/mobile/java/tk/glucodata/ui/calibration/CalibrationModelTableScreen.kt
+src/mobile/java/tk/glucodata/ui/overlay/FloatingGlucoseOverlay.kt
+src/wear/java/tk/glucodata/ui/WearGlucoseStore.kt

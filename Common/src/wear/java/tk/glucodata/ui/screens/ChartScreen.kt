@@ -1,0 +1,899 @@
+package tk.glucodata.ui.screens
+
+import android.text.format.DateFormat
+import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeText
+import java.util.Date
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlinx.coroutines.launch
+import tk.glucodata.Applic
+import tk.glucodata.CalibrationAccess
+import tk.glucodata.CurrentDisplaySource
+import tk.glucodata.GlucosePoint
+import tk.glucodata.GlucoseRangeColors
+import tk.glucodata.GlucoseValuePlausibility
+import tk.glucodata.Natives
+import tk.glucodata.R
+import tk.glucodata.UiRefreshBus
+import tk.glucodata.ui.WearGlucoseStore
+
+internal val CHART_RANGES = intArrayOf(3, 6, 12, 24, 72)
+
+private const val HOUR_MS = 3_600_000L
+// Matches the WearSync2 backfill horizon so panning can reach the
+// oldest synced reading instead of stopping a day back.
+private const val MAX_HISTORY_HOURS = 14 * 24
+private const val RIGHT_GAP_FRACTION = 0.09f
+
+/**
+ * The most of the visible window the forecast may occupy. The horizon is set on
+ * the phone and can be hours; without a cap a 3h view spent nearly half its
+ * width on the future.
+ */
+private const val PREDICTION_MAX_FRACTION = 0.22f
+private const val MIN_VIEWPORT_MS = 45 * 60_000L
+
+private fun plausibleRawValue(point: GlucosePoint, isMmol: Boolean): Float? =
+    point.rawValue.takeIf {
+        GlucoseValuePlausibility.isPlausibleDisplayValue(it, isMmol)
+    }
+
+internal data class ChartThresholds(val low: Float, val high: Float, val veryLow: Float, val veryHigh: Float)
+internal data class CalibrationMark(val timestamp: Long, val value: Float)
+
+/**
+ * A second sensor's trace, drawn under the primary in its own colour as the
+ * phone draws its peers. Only the lane the peer's view mode shows first is
+ * drawn; the watch has no room for two lanes per sensor.
+ */
+internal data class WearPeerSeries(
+    val sensorId: String,
+    val points: List<GlucosePoint>,
+    val useRaw: Boolean,
+    val color: Color,
+)
+
+internal data class WearChartData(
+    val points: List<GlucosePoint>,
+    val calibrations: List<CalibrationMark>,
+    val thresholds: ChartThresholds,
+    val start: Long,
+    val end: Long,
+    val historyStart: Long,
+    val isMmol: Boolean,
+    /** Forward simulation of the auto lane; empty when switched off. */
+    val prediction: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
+    /** Forward simulation of the raw lane, for the modes that show it. */
+    val predictionRaw: List<tk.glucodata.data.prediction.GlucosePredictionPoint> = emptyList(),
+    /** The other selected sensors, in the phone's order. */
+    val peers: List<WearPeerSeries> = emptyList(),
+)
+
+private fun thresholds(isMmol: Boolean): ChartThresholds {
+    fun nativeOrDefault(value: () -> Float, fallback: Float) =
+        runCatching(value).getOrNull()?.takeIf { it.isFinite() && it > 0f } ?: fallback
+    return ChartThresholds(
+        nativeOrDefault(Natives::targetlow, GlucoseRangeColors.defaultLow(isMmol)),
+        nativeOrDefault(Natives::targethigh, GlucoseRangeColors.defaultHigh(isMmol)),
+        nativeOrDefault(Natives::alarmverylow, GlucoseRangeColors.defaultVeryLow(isMmol)),
+        nativeOrDefault(Natives::alarmveryhigh, GlucoseRangeColors.defaultVeryHigh(isMmol)),
+    )
+}
+
+/**
+ * Projects the shared snapshot onto a viewport. Pure: the reading of native and
+ * Room happens once in [WearGlucoseStore], off the main thread, instead of here
+ * on every range change, refresh and minute tick.
+ */
+internal fun chartDataFrom(snapshot: WearGlucoseStore.Snapshot, hours: Int): WearChartData {
+    val now = System.currentTimeMillis()
+    val duration = hours * HOUR_MS
+    val start = now - duration
+    val isMmol = snapshot.isMmol
+    val historyStart = if (snapshot.isLoaded) snapshot.horizonStartMs else start
+    val conversion = if (isMmol) 18.0182f else 1f
+    val anchors = snapshot.anchors
+    val marks = anchors.indices.step(3).mapNotNull { offset ->
+        if (offset + 2 >= anchors.size) return@mapNotNull null
+        CalibrationMark(anchors[offset + 2].toLong(), anchors[offset + 1].toFloat() / conversion)
+            .takeIf { it.timestamp in historyStart..now && it.value.isFinite() && it.value > 0f }
+    }
+    // Both lanes are projected; which of them is drawn is the view mode's call,
+    // as it is on the phone.
+    val prediction = runCatching {
+        tk.glucodata.ui.WearPrediction.forecast(snapshot.points, isMmol)
+    }.getOrDefault(emptyList())
+    val predictionRaw = runCatching {
+        tk.glucodata.ui.WearPrediction.forecast(snapshot.points, isMmol, useRaw = true)
+    }.getOrDefault(emptyList())
+    // The window reaches far enough forward to show the forecast, but no more
+    // than PREDICTION_MAX_FRACTION of it: a two-hour horizon on a three-hour
+    // view was giving the future 40% of the screen and squeezing the readings
+    // that actually happened into the left half.
+    val forecastEnd = maxOf(
+        prediction.lastOrNull()?.timestamp ?: 0L,
+        predictionRaw.lastOrNull()?.timestamp ?: 0L,
+    )
+    val forecastRoom = (duration * PREDICTION_MAX_FRACTION).toLong()
+    val end = maxOf(
+        now + (duration * RIGHT_GAP_FRACTION).toLong(),
+        minOf(forecastEnd, now + forecastRoom),
+    )
+    val peers = snapshot.peers.map { peer ->
+        WearPeerSeries(peer.sensorId, peer.points, peer.isRawMode, Color(peer.colorArgb))
+    }
+    return WearChartData(
+        snapshot.points, marks, thresholds(isMmol), start, end, historyStart, isMmol,
+        prediction, predictionRaw, peers,
+    )
+}
+
+private fun clampedViewport(data: WearChartData, start: Long, end: Long): Pair<Long, Long> {
+    val availableDuration = (data.end - data.historyStart).coerceAtLeast(MIN_VIEWPORT_MS)
+    val duration = (end - start).coerceIn(MIN_VIEWPORT_MS, availableDuration)
+    val clampedStart = start.coerceIn(data.historyStart, data.end - duration)
+    return clampedStart to (clampedStart + duration)
+}
+
+@Composable
+fun ChartScreen() {
+    ScreenScaffold(timeText = { TimeText() }) {
+        InteractiveWearChartPanel(
+            modifier = Modifier.fillMaxSize().padding(top = 22.dp),
+        )
+    }
+}
+
+@Composable
+internal fun InteractiveWearChartPanel(
+    modifier: Modifier = Modifier,
+    initialRangeIndex: Int = 1,
+    requestInitialFocus: Boolean = true,
+    rangeIndexOverride: Int? = null,
+    showRangeOverlay: Boolean = true,
+    onRangeIndexChange: ((Int) -> Unit)? = null,
+    onGestureOwnership: ((Boolean) -> Unit)? = null,
+    /** Tapping the scrub chip acts on the reading it is showing. */
+    onSelectedReadingClick: ((GlucosePoint) -> Unit)? = null,
+    headlineTopPadding: androidx.compose.ui.unit.Dp = 3.dp,
+) {
+    var rangeIndex by remember { mutableIntStateOf(initialRangeIndex.coerceIn(CHART_RANGES.indices)) }
+    LaunchedEffect(Unit) { WearGlucoseStore.start() }
+    val storeSnapshot by WearGlucoseStore.snapshot.collectAsState()
+    val isMmol = storeSnapshot.isMmol
+    // The full mode, not a raw/auto boolean: collapsing it here meant the
+    // second trace of auto+raw / raw+auto could never be drawn.
+    val viewMode = storeSnapshot.viewMode
+    val data = remember(storeSnapshot, rangeIndex) {
+        chartDataFrom(storeSnapshot, CHART_RANGES[rangeIndex])
+    }
+    var viewportStart by remember { mutableLongStateOf(data.start) }
+    var viewportEnd by remember { mutableLongStateOf(data.end) }
+    // Whether the viewport is parked at "now" and should follow new readings, or
+    // the user has panned back and should be left where they put it.
+    var followNow by remember { mutableStateOf(true) }
+    var selected by remember { mutableStateOf<GlucosePoint?>(null) }
+    val requester = remember { FocusRequester() }
+    val context = LocalContext.current
+    val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
+
+    fun resetViewport(nextData: WearChartData = data) {
+        viewportStart = nextData.start
+        viewportEnd = nextData.end
+        followNow = true
+        selected = null
+    }
+
+    fun zoomViewport(zoomFactor: Float, focusFraction: Float = 0.5f) {
+        val oldDuration = (viewportEnd - viewportStart).coerceAtLeast(1L)
+        val maxDuration = data.end - data.historyStart
+        val duration = (oldDuration / zoomFactor).toLong().coerceIn(MIN_VIEWPORT_MS, maxDuration)
+        val focus = viewportStart + (oldDuration * focusFraction).toLong()
+        val start = focus - (duration * focusFraction).toLong()
+        clampedViewport(data, start, start + duration).let {
+            viewportStart = it.first
+            viewportEnd = it.second
+        }
+        followNow = abs(viewportEnd - data.end) < 2 * 60_000L
+        selected = null
+    }
+
+    // Picking a wider range needs history that deep; anything shorter draws from
+    // what is already loaded.
+    LaunchedEffect(rangeIndex) {
+        WearGlucoseStore.ensureHorizon(CHART_RANGES[rangeIndex] * HOUR_MS * 2)
+        resetViewport(chartDataFrom(storeSnapshot, CHART_RANGES[rangeIndex]))
+    }
+    LaunchedEffect(rangeIndexOverride) {
+        rangeIndexOverride?.let { rangeIndex = it.coerceIn(CHART_RANGES.indices) }
+    }
+    // New data shifts "now": follow it while parked at the right edge, otherwise
+    // just keep the panned viewport inside the available range.
+    LaunchedEffect(data.start, data.end) {
+        if (followNow) {
+            viewportStart = data.start
+            viewportEnd = data.end
+        } else {
+            clampedViewport(data, viewportStart, viewportEnd).let {
+                viewportStart = it.first
+                viewportEnd = it.second
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) requester.requestFocus()
+    }
+
+    val primaryRaw = viewMode == 1 || viewMode == 3
+    val showSecondary = viewMode == 2 || viewMode == 3
+    val neutralLineColor = MaterialTheme.colorScheme.onSurface
+    val lineColor = data.points.lastOrNull()?.let {
+        rangeColor(
+            if (primaryRaw) plausibleRawValue(it, isMmol) ?: it.value else it.value,
+            isMmol,
+            neutralLineColor,
+        )
+    } ?: neutralLineColor
+    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.13f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val targetColor = Color(GlucoseRangeColors.inRange(true))
+    val alarmColor = MaterialTheme.colorScheme.error
+    val selectionColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier
+            .onRotaryScrollEvent { event ->
+                zoomViewport(if (event.verticalScrollPixels < 0f) 1.16f else 1f / 1.16f)
+                true
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    requester.requestFocus()
+                    var hasPressedPointers: Boolean
+                    do {
+                        hasPressedPointers = awaitPointerEvent().changes.any { it.pressed }
+                    } while (hasPressedPointers)
+                }
+            }
+            .focusRequester(requester)
+            .focusable(),
+    ) {
+            WearChart(
+                data = data,
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
+                lineColor = lineColor,
+                neutralColor = neutralLineColor,
+                rawColor = labelColor.copy(alpha = 0.52f),
+                primaryRaw = primaryRaw,
+                showSecondary = showSecondary,
+                peerNeutralColor = labelColor,
+                targetColor = targetColor,
+                alarmColor = alarmColor,
+                gridColor = gridColor,
+                labelColor = labelColor,
+                selected = selected,
+                selectionColor = selectionColor,
+                formatTime = { timeFormat.format(Date(it)) },
+                onSelect = { selected = it },
+                // Tapping the selected reading again clears it, which is the way
+                // out of scrubbing and what brings the range chip back.
+                onToggleSelect = { picked ->
+                    selected = picked?.takeIf { it.timestamp != selected?.timestamp }
+                },
+                onViewportChange = { start, end ->
+                    clampedViewport(data, start, end).let {
+                        viewportStart = it.first
+                        viewportEnd = it.second
+                    }
+                    // Panning to the loaded edge pulls in more history, so the
+                    // deep horizon is read only when someone goes looking for it.
+                    followNow = abs(viewportEnd - data.end) < 2 * 60_000L
+                    if (viewportStart <= data.historyStart + HOUR_MS) {
+                        WearGlucoseStore.ensureHorizon(
+                            (System.currentTimeMillis() - viewportStart) * 2,
+                        )
+                    }
+                    selected = null
+                },
+                onReset = { resetViewport() },
+                onGestureOwnership = onGestureOwnership,
+                modifier = Modifier.fillMaxSize().padding(top = 24.dp, bottom = 8.dp),
+            )
+            // The selected reading's time takes the range chip's place: same
+            // pill, same spot, so the swap costs no layout and the bottom is
+            // never left holding two chips in the one gap between axis labels.
+            val scrubbed = selected
+            if (scrubbed != null) {
+                WearChartChip(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                ) {
+                    Text(
+                        timeFormat.format(Date(scrubbed.timestamp)),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            } else if (showRangeOverlay) {
+                WearChartRangeChip(
+                    rangeIndex = rangeIndex,
+                    onClick = {
+                        rangeIndex = (rangeIndex + 1) % CHART_RANGES.size
+                        onRangeIndexChange?.invoke(rangeIndex)
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                )
+            }
+            // The value butts straight against the bottom of the host's header,
+            // so it sits in the band the hero already occupies rather than out
+            // over the trace. It tracks the cursor horizontally; the selection
+            // line is what actually ties it to a reading.
+            scrubbed?.let { point ->
+                val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
+                    autoValue = point.value,
+                    rawValue = point.rawValue,
+                    viewMode = viewMode,
+                    isMmol = isMmol,
+                )
+                val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+                val onSurface = MaterialTheme.colorScheme.onSurface
+                WearChartChip(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = headlineTopPadding)
+                        .then(
+                            onSelectedReadingClick?.let { act ->
+                                Modifier.pointerInput(point.timestamp) {
+                                    detectTapGestures { act(point) }
+                                }
+                            } ?: Modifier,
+                        )
+                        .cursorAnchored(
+                            fraction = (point.timestamp - viewportStart).toFloat() /
+                                (viewportEnd - viewportStart).toFloat().coerceAtLeast(1f),
+                            edgeInset = 16.dp,
+                        ),
+                ) {
+                    Text(
+                        tk.glucodata.ui.buildGlucoseString(
+                            dvs = dvs,
+                            primaryColor = onSurface,
+                            secondaryColor = onSurfaceVariant.copy(alpha = 0.75f),
+                            unitColor = onSurfaceVariant.copy(alpha = 0.6f),
+                            tertiaryColor = onSurfaceVariant.copy(alpha = 0.5f),
+                        ),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (data.points.isEmpty()) {
+                Text(
+                    stringResource(R.string.nodata),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+    }
+}
+
+/**
+ * The chart's chip shell: the tonal pill the range control already used, reused
+ * so the scrub readouts read as the same family rather than as loose text.
+ */
+@Composable
+private fun WearChartChip(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f), CircleShape)
+            .padding(horizontal = 9.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+/**
+ * Centres this element on [fraction] of the parent's width — the cursor's
+ * position — and keeps it wholly on screen.
+ *
+ * The phone can let its scrub card hang off the plot and rely on the margins.
+ * A round watch has no margins: a chip centred on a cursor near either end
+ * disappears under the bezel, so it is clamped to [edgeInset] instead, which
+ * leaves the selection line to say precisely which reading is meant.
+ */
+private fun Modifier.cursorAnchored(fraction: Float, edgeInset: Dp): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints.copy(minWidth = 0))
+        if (!constraints.hasBoundedWidth) {
+            return@layout layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+        }
+        val parentWidth = constraints.maxWidth
+        val inset = edgeInset.roundToPx()
+        val centred = (parentWidth * fraction.coerceIn(0f, 1f)).toInt() - placeable.width / 2
+        val minX = inset.coerceAtMost((parentWidth - placeable.width).coerceAtLeast(0))
+        val maxX = (parentWidth - placeable.width - inset).coerceAtLeast(minX)
+        // Span the full width so the chip's own bounds stay inside this node
+        // rather than being drawn outside a narrow one.
+        layout(parentWidth, placeable.height) {
+            placeable.placeRelative(centred.coerceIn(minX, maxX), 0)
+        }
+    }
+
+@Composable
+internal fun WearChartRangeChip(
+    rangeIndex: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        CHART_RANGES[rangeIndex.coerceIn(CHART_RANGES.indices)].let { h ->
+            if (h >= 48) "${h / 24}D" else "${h}H"
+        },
+        style = MaterialTheme.typography.labelMedium,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f), CircleShape)
+            .pointerInput(Unit) { detectTapGestures { onClick() } }
+            .padding(horizontal = 9.dp, vertical = 3.dp),
+    )
+}
+
+private fun currentWearViewMode(): Int {
+    val sensor = tk.glucodata.ui.WearSensorSelection.resolve()
+    return CurrentDisplaySource.resolveViewModeForSensor(sensor).coerceIn(0, 3)
+}
+
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectChartTransforms(
+    onOwnership: (Boolean) -> Unit = {},
+    onTransform: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
+) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var accumulatedPan = Offset.Zero
+        var chartOwnsGesture = false
+        // Ownership pauses the parent list's scrolling, so it must be released
+        // on every exit from this loop: a missed release left the whole screen
+        // unscrollable until the app was restarted.
+        try {
+            while (true) {
+                val event = awaitPointerEvent()
+                val pressedCount = event.changes.count { it.pressed }
+                if (pressedCount == 0) break
+                if (!chartOwnsGesture && event.changes.any { it.isConsumed }) break
+
+                val pan = event.calculatePan()
+                val zoom = event.calculateZoom()
+                accumulatedPan += pan
+                if (!chartOwnsGesture) {
+                    // A thumb drag on a round screen is never purely horizontal,
+                    // so the chart takes a mostly sideways drag; a clearly
+                    // vertical one is left to the list.
+                    val dx = abs(accumulatedPan.x)
+                    val dy = abs(accumulatedPan.y)
+                    val pastSlop = accumulatedPan.getDistance() > viewConfiguration.touchSlop * 0.5f
+                    if (pastSlop && dy > dx * 1.2f) break
+                    chartOwnsGesture = pressedCount >= 2 || (pastSlop && dx >= dy)
+                    if (chartOwnsGesture) onOwnership(true)
+                }
+                if (chartOwnsGesture) {
+                    onTransform(event.calculateCentroid(), pan, zoom)
+                    event.changes.forEach { change ->
+                        if (change.positionChanged()) change.consume()
+                    }
+                }
+            }
+        } finally {
+            if (chartOwnsGesture) onOwnership(false)
+        }
+    }
+}
+
+private fun pointAtLive(
+    x: Float,
+    width: Int,
+    start: Long,
+    end: Long,
+    points: List<GlucosePoint>,
+): GlucosePoint? {
+    if (width <= 0) return null
+    val timestamp = start + ((x / width) * (end - start)).toLong()
+    return points.minByOrNull { abs(it.timestamp - timestamp) }
+}
+
+@Composable
+internal fun WearChart(
+    data: WearChartData,
+    onGestureOwnership: ((Boolean) -> Unit)? = null,
+    viewportStart: Long = data.start,
+    viewportEnd: Long = data.end,
+    lineColor: Color,
+    /** The in-range trace tone. Must not be range-derived, or the banding
+     *  paints every in-range stretch with whatever the newest reading is. */
+    neutralColor: Color = lineColor,
+    rawColor: Color = Color.Transparent,
+    primaryRaw: Boolean = false,
+    showSecondary: Boolean = false,
+    /** What peer colours are toned down toward, as the phone tones its peers. */
+    peerNeutralColor: Color = Color.Gray,
+    targetColor: Color,
+    alarmColor: Color,
+    gridColor: Color,
+    labelColor: Color,
+    selected: GlucosePoint?,
+    selectionColor: Color,
+    formatTime: (Long) -> String,
+    /** Drag scrubbing: follows the finger, always selects what is under it. */
+    onSelect: (GlucosePoint?) -> Unit,
+    /** Tap: selects, or clears when the tapped reading is already selected. */
+    onToggleSelect: (GlucosePoint?) -> Unit,
+    onViewportChange: ((Long, Long) -> Unit)? = null,
+    onReset: (() -> Unit)? = null,
+    modifier: Modifier,
+) {
+    val selectedState = rememberUpdatedState(selected)
+    val viewportPoints = remember(data.points, viewportStart, viewportEnd) {
+        data.points.filter { it.timestamp in viewportStart..viewportEnd }
+    }
+    val viewportPeers = remember(data.peers, viewportStart, viewportEnd) {
+        data.peers.map { peer ->
+            peer.copy(points = peer.points.filter { it.timestamp in viewportStart..viewportEnd })
+        }
+    }
+    fun pointAt(x: Float, width: Int): GlucosePoint? {
+        if (width <= 0) return null
+        val timestamp = viewportStart + ((x / width) * (viewportEnd - viewportStart)).toLong()
+        return viewportPoints.minByOrNull { abs(it.timestamp - timestamp) }
+    }
+    // The pointerInput keys must not contain the viewport: it changes on every
+    // frame of a pan, which tore down and restarted the gesture detector
+    // mid-drag. Each touch then moved the chart once and waited for a fresh
+    // touch slop, which is why panning crawled. The handlers read the live
+    // viewport through state instead, so the detector survives the gesture.
+    val liveStart = rememberUpdatedState(viewportStart)
+    val liveEnd = rememberUpdatedState(viewportEnd)
+    val livePoints = rememberUpdatedState(viewportPoints)
+    val gestures = if (onViewportChange == null) {
+        Modifier
+    } else {
+        Modifier
+            .pointerInput(Unit) {
+                detectChartTransforms(onOwnership = onGestureOwnership ?: {}) { centroid, pan, zoom ->
+                    val width = size.width.toFloat().coerceAtLeast(1f)
+                    val start = liveStart.value
+                    val oldDuration = (liveEnd.value - start).coerceAtLeast(1L)
+                    val duration = (oldDuration / zoom).toLong().coerceAtLeast(1L)
+                    val focusFraction = (centroid.x / width).coerceIn(0f, 1f)
+                    val focus = start + (oldDuration * focusFraction).toLong()
+                    val zoomedStart = focus - (duration * focusFraction).toLong()
+                    val panMillis = (-(pan.x / width) * duration).toLong()
+                    onViewportChange(zoomedStart + panMillis, zoomedStart + panMillis + duration)
+                }
+            }
+            .pointerInput(Unit) {
+                // Scrubbing holds gesture ownership for its whole duration, the
+                // same lever panning uses. Without it the parent list kept its
+                // scrolling live, so dragging the finger down off the curve
+                // pushed the whole screen away mid-scrub.
+                val ownership = onGestureOwnership ?: {}
+                var owned = false
+                fun release() {
+                    if (owned) {
+                        owned = false
+                        ownership(false)
+                    }
+                }
+                // Ownership must survive every exit, cancellation included: the
+                // pan path carries the same guard because a leaked claim leaves
+                // the screen unscrollable until the app is restarted.
+                try {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            owned = true
+                            ownership(true)
+                            onSelect(pointAtLive(it.x, size.width, liveStart.value, liveEnd.value, livePoints.value))
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            onSelect(pointAtLive(change.position.x, size.width, liveStart.value, liveEnd.value, livePoints.value))
+                        },
+                        onDragEnd = { release() },
+                        onDragCancel = { release() },
+                    )
+                } finally {
+                    release()
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { onReset?.invoke() },
+                    // Only a tap toggles. Routing the drag through the same
+                    // callback made scrubbing flicker: the nearest reading stays
+                    // the same across many pixels of travel, and every repeat
+                    // read as "tapped the selected one again" and cleared it.
+                    onTap = { onToggleSelect(pointAt(it.x, size.width)) },
+                )
+            }
+    }
+    Box(
+        modifier.then(gestures).drawWithCache {
+            val floor = if (data.isMmol) 2.2f else 40f
+            // Fit the value range to the visible data, not the alarm limits —
+            // forcing veryLow..veryHigh into view squashed a flat curve into a
+            // sliver. Threshold/target lines simply clip when out of range.
+            fun primaryValue(point: GlucosePoint) =
+                if (primaryRaw) plausibleRawValue(point, data.isMmol) ?: point.value else point.value
+            var minValue = viewportPoints.minOfOrNull(::primaryValue) ?: data.thresholds.low
+            var maxValue = viewportPoints.maxOfOrNull(::primaryValue) ?: data.thresholds.high
+            val minSpan = if (data.isMmol) 3f else 54f
+            if (maxValue - minValue < minSpan) {
+                val mid = (maxValue + minValue) / 2f
+                minValue = mid - minSpan / 2f
+                maxValue = mid + minSpan / 2f
+            }
+            if (showSecondary) {
+                viewportPoints.forEach { point ->
+                    val value = if (primaryRaw) point.value else plausibleRawValue(point, data.isMmol)
+                    if (value != null && value.isFinite() && value > 0f) {
+                        minValue = minOf(minValue, value)
+                        maxValue = maxOf(maxValue, value)
+                    }
+                }
+            }
+            // A peer that sits outside the primary's range is still on the
+            // chart, so the range fits both — the phone fits every series.
+            viewportPeers.forEach { peer ->
+                peer.points.forEach { point ->
+                    val value = if (peer.useRaw) plausibleRawValue(point, data.isMmol) else point.value
+                    if (value != null && value.isFinite() && value > 0f) {
+                        minValue = minOf(minValue, value)
+                        maxValue = maxOf(maxValue, value)
+                    }
+                }
+            }
+            fun forecastFor(raw: Boolean) = if (raw) data.predictionRaw else data.prediction
+            // Only the lanes actually drawn may stretch the range.
+            val drawnForecasts = buildList {
+                add(forecastFor(primaryRaw))
+                if (showSecondary) add(forecastFor(!primaryRaw))
+            }
+            drawnForecasts.forEach { series ->
+                series.forEach { point ->
+                    if (point.timestamp in viewportStart..viewportEnd && point.value.isFinite()) {
+                        minValue = minOf(minValue, point.value)
+                        maxValue = maxOf(maxValue, point.value)
+                    }
+                }
+            }
+            val padding = ((maxValue - minValue) * 0.12f).coerceAtLeast(if (data.isMmol) 0.4f else 8f)
+            minValue = (minValue - padding).coerceAtLeast(floor)
+            maxValue += padding
+            val valueRange = (maxValue - minValue).coerceAtLeast(0.1f)
+            val timeRange = (viewportEnd - viewportStart).toFloat().coerceAtLeast(1f)
+            val plotTop = 8.dp.toPx()
+            val plotBottom = (size.height - 10.dp.toPx()).coerceAtLeast(plotTop + 1f)
+            val plotHeight = plotBottom - plotTop
+            fun x(time: Long) = ((time - viewportStart).toFloat() / timeRange) * size.width
+            fun y(value: Float) = plotBottom - ((value - minValue) / valueRange) * plotHeight
+
+            fun buildCurve(raw: Boolean, series: List<GlucosePoint> = viewportPoints): Path {
+                val curve = Path()
+                var previous: Offset? = null
+                series.forEach { point ->
+                    val value = if (raw) plausibleRawValue(point, data.isMmol) else point.value
+                    if (value == null || !value.isFinite() || value <= 0f) {
+                        previous = null
+                    } else {
+                        val current = Offset(x(point.timestamp), y(value))
+                        val last = previous
+                        if (last == null) {
+                            curve.moveTo(current.x, current.y)
+                        } else {
+                            val controlX = (last.x + current.x) / 2f
+                            curve.cubicTo(controlX, last.y, controlX, current.y, current.x, current.y)
+                        }
+                        previous = current
+                    }
+                }
+                return curve
+            }
+
+            val curve = buildCurve(primaryRaw)
+            val secondaryCurve = if (showSecondary) buildCurve(!primaryRaw) else null
+            // Peers are toned toward neutral and drawn thinner, under the
+            // primary, the way the phone's chart keeps its peers legible
+            // without competing with the main trace.
+            val peerCurves = viewportPeers.mapNotNull { peer ->
+                if (peer.points.size < 2) return@mapNotNull null
+                val tone = androidx.compose.ui.graphics.lerp(peer.color, peerNeutralColor, 0.46f).copy(alpha = 0.76f)
+                buildCurve(peer.useRaw, peer.points) to tone
+            }
+            // The trace is banded by height, as the phone's is: the stretch that
+            // sits below target comes out low-coloured wherever it is in the
+            // window. Colouring the whole line from the newest reading — what
+            // the watch did — hid every excursion the moment it recovered.
+            val curveBrush = tk.glucodata.ui.GlucoseChartBands.verticalStops(
+                veryHigh = Color(GlucoseRangeColors.veryHigh(true)),
+                high = Color(GlucoseRangeColors.high(true)),
+                // Neutral, never lineColor: that is derived from the newest
+                // reading, so while the sensor sat low the in-range stops were
+                // handed the low tone and the whole curve came out salmon —
+                // including the stretches that were squarely in range.
+                inRange = neutralColor,
+                low = Color(GlucoseRangeColors.low(true)),
+                veryLow = Color(GlucoseRangeColors.veryLow(true)),
+                yVeryHigh = y(data.thresholds.veryHigh),
+                yHigh = y(data.thresholds.high),
+                yLow = y(data.thresholds.low),
+                yVeryLow = y(data.thresholds.veryLow),
+                chartHeightPx = size.height,
+                // The watch canvas is a fraction of the phone's; the phone's
+                // 18px fade would swallow the in-range band whole.
+                fadePx = 6.dp.toPx(),
+            ).takeIf { it.isNotEmpty() }?.let { stops ->
+                Brush.verticalGradient(*stops.toTypedArray(), startY = 0f, endY = size.height)
+            }
+            // Drawn dashed and dimmed, so it never reads as measured data. One
+            // path per lane on show: the phone forecasts every series it draws,
+            // and a raw trace with no forecast beside a projected auto one reads
+            // as the raw lane having stopped.
+            fun forecastPath(series: List<tk.glucodata.data.prediction.GlucosePredictionPoint>): Path? {
+                if (series.size < 2) return null
+                val path = Path()
+                var started = false
+                series.forEach { point ->
+                    if (!point.value.isFinite() || point.value <= 0f) return@forEach
+                    if (point.timestamp > viewportEnd) return@forEach
+                    val px = x(point.timestamp)
+                    val py = y(point.value)
+                    if (!started) {
+                        path.moveTo(px, py)
+                        started = true
+                    } else {
+                        path.lineTo(px, py)
+                    }
+                }
+                return if (started) path else null
+            }
+            val predictionPath = forecastPath(forecastFor(primaryRaw))
+            val predictionSecondaryPath =
+                if (showSecondary) forecastPath(forecastFor(!primaryRaw)) else null
+            val predictionDash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
+            val alarmDash = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+            val calibrationDrops = data.calibrations.mapNotNull { mark ->
+                if (mark.timestamp !in viewportStart..viewportEnd) return@mapNotNull null
+                val center = Offset(x(mark.timestamp), y(mark.value))
+                Path().apply {
+                    moveTo(center.x, center.y - 6.dp.toPx())
+                    cubicTo(center.x - 5.dp.toPx(), center.y, center.x - 4.dp.toPx(), center.y + 5.dp.toPx(), center.x, center.y + 5.dp.toPx())
+                    cubicTo(center.x + 4.dp.toPx(), center.y + 5.dp.toPx(), center.x + 5.dp.toPx(), center.y, center.x, center.y - 6.dp.toPx())
+                    close()
+                }
+            }
+            val textPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.argb((labelColor.alpha * 255).toInt(), (labelColor.red * 255).toInt(), (labelColor.green * 255).toInt(), (labelColor.blue * 255).toInt())
+                textSize = 9.dp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+                isAntiAlias = true
+            }
+            val yStep = if (data.isMmol) 2f else 50f
+            val yLabels = buildList {
+                var value = ceil(minValue / yStep) * yStep
+                while (value < maxValue) { add(value); value += yStep }
+            }
+            val yLabelTexts = yLabels.map { value -> value to formatWearGlucose(value, data.isMmol) }
+            val bandColor = targetColor.copy(alpha = 0.06f)
+            val lowAlarmColor = alarmColor.copy(alpha = 0.56f)
+            val selectedLineColor = selectionColor.copy(alpha = 0.6f)
+            val quarterTimes = longArrayOf(
+                viewportStart + (viewportEnd - viewportStart) / 4,
+                viewportStart + (viewportEnd - viewportStart) * 3 / 4,
+            )
+            val quarterLabels = quarterTimes.map { timestamp -> timestamp to formatTime(timestamp) }
+            onDrawBehind {
+                val bandTop = y(data.thresholds.high)
+                val bandBottom = y(data.thresholds.low)
+                drawRect(bandColor, Offset(0f, bandTop), Size(size.width, bandBottom - bandTop))
+                yLabelTexts.forEach { (value, text) ->
+                    val lineY = y(value)
+                    drawLine(gridColor, Offset(0f, lineY), Offset(size.width, lineY), 1f)
+                    textPaint.textAlign = android.graphics.Paint.Align.LEFT
+                    drawContext.canvas.nativeCanvas.drawText(text, 14.dp.toPx(), lineY - 2.dp.toPx(), textPaint)
+                }
+                drawLine(lowAlarmColor, Offset(0f, y(data.thresholds.veryLow)), Offset(size.width, y(data.thresholds.veryLow)), 1.dp.toPx(), pathEffect = alarmDash)
+                drawLine(lowAlarmColor, Offset(0f, y(data.thresholds.veryHigh)), Offset(size.width, y(data.thresholds.veryHigh)), 1.dp.toPx(), pathEffect = alarmDash)
+                quarterLabels.forEach { (timestamp, text) ->
+                    val lineX = x(timestamp)
+                    drawLine(gridColor, Offset(lineX, 0f), Offset(lineX, size.height), 1f)
+                    textPaint.textAlign = android.graphics.Paint.Align.CENTER
+                    drawContext.canvas.nativeCanvas.drawText(text, lineX, size.height - 2.dp.toPx(), textPaint)
+                }
+                predictionSecondaryPath?.let {
+                    drawPath(
+                        it,
+                        rawColor.copy(alpha = 0.75f),
+                        style = Stroke(1.2.dp.toPx(), pathEffect = predictionDash),
+                    )
+                }
+                predictionPath?.let {
+                    drawPath(
+                        it,
+                        neutralColor.copy(alpha = 0.55f),
+                        style = Stroke(1.8.dp.toPx(), pathEffect = predictionDash),
+                    )
+                }
+                secondaryCurve?.let { drawPath(it, rawColor, style = Stroke(1.35.dp.toPx())) }
+                peerCurves.forEach { (path, tone) -> drawPath(path, tone, style = Stroke(1.8.dp.toPx())) }
+                if (viewportPoints.size >= 2) {
+                    val stroke = Stroke(2.6.dp.toPx())
+                    if (curveBrush != null) drawPath(curve, curveBrush, style = stroke)
+                    else drawPath(curve, lineColor, style = stroke)
+                }
+                calibrationDrops.forEach { drawPath(it, selectionColor) }
+                selectedState.value?.takeIf { it.timestamp in viewportStart..viewportEnd }?.let {
+                    val sx = x(it.timestamp)
+                    drawLine(selectedLineColor, Offset(sx, 0f), Offset(sx, size.height), 1.dp.toPx())
+                    drawCircle(selectionColor, 4.dp.toPx(), Offset(sx, y(it.value)))
+                }
+            }
+        },
+    )
+}

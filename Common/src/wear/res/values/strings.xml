@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+     <string name="libresetalllabels">First specify (on the companion phone) for each label what should be done with it.</string>
+    <string name="watch_face_name" translatable="false">Juggluco</string>
+    <string name="colors_style_setting">@string/colors</string>
+    <!-- Subtitle for the menu option to select the watch face color theme [CHAR LIMIT=20] -->
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="ambient_style_name">Ambient Style</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="red_style_name">Red Style</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="green_style_name">Green Style</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="blue_style_name">Blue Style</string>
+    <string name="gray_style_name">Gray Style</string>
+    <string name="yellow_style_name">Yellow Style</string>
+
+    <!-- Name of watchface style [CHAR LIMIT=20] -->
+    <string name="white_style_name">White Style</string>
+
+    <string name="title_activity_watch_face_config">Configuration</string>
+    <string name="talkhelp" />
+    <string name="wear_sensor_day_label">Day</string>
+    <string name="wear_sensor_day_format">Day %1$s</string>
+    <string name="wear_return_sensor_to_phone">Return sensor to phone</string>
+    <string name="wear_claim_watch_owns">Watch is reading the sensor</string>
+    <string name="wear_claim_waiting">Waiting to connect to the sensor</string>
+    <string name="wear_calibration_on">Calibration on</string>
+    <string name="wear_calibration_off">Calibration off</string>
+    <string name="wear_calibration_clear">Clear calibrations</string>
+    <string name="wear_calibration_delete">Delete calibration</string>
+    <string name="wear_color_in_range">Colour in-range readings</string>
+    <string name="wear_color_in_range_on">All readings coloured</string>
+    <string name="wear_color_in_range_off">Only highs and lows coloured</string>
+    <string name="wear_journal_disabled">Enable the journal on the phone to use it here.</string>
+    <string name="wear_journal_insulin">Insulin</string>
+    <string name="wear_journal_carbs">Carbs</string>
+    <string name="wear_journal_add">Add journal item</string>
+    <string name="wear_reading_actions_title">Reading</string>
+    <string name="wear_calibration_edit">Edit calibration</string>
+    <string name="wear_journal_delete">Delete</string>
+    <!-- Not yet confirmed by the phone: saved on the watch only (#502). -->
+    <string name="wear_journal_pending">Waiting for the phone</string>
+    <string name="wear_sensor_forget">Forget sensor</string>
+    <string name="wear_multi_sensor_complication">Multi-sensor values</string>
+    <string name="wear_multi_sensor_arrow_complication">Multi-sensor values + arrows</string>
+</resources>

@@ -1,0 +1,16 @@
+# Signing runs main or an immutable PR snapshot explicitly approved by the owner.
+# Changes to the trust boundary need owner review.
+/.github/ @ctqvva
+/scripts/build-dist.sh @ctqvva
+/scripts/restore-build-inputs.sh @ctqvva
+/scripts/update-build-inputs.sh @ctqvva
+/scripts/release-local.sh @ctqvva
+/scripts/dist/ @ctqvva
+/scripts/make-update-manifest.sh @ctqvva
+/*.gradle @ctqvva
+/gradle.properties @ctqvva
+/gradlew* @ctqvva
+/gradle/ @ctqvva
+/.gitmodules @ctqvva
+/Common/build.gradle @ctqvva
+/Common/src/main/cpp/net/ICE/ICE.cpp @ctqvva

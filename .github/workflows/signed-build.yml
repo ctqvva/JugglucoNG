@@ -1,0 +1,90 @@
+# Reusable implementation. No PR trigger and no arbitrary source-ref input.
+name: Trusted distribution build
+on:
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+      test_artifacts:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-signing
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          submodules: recursive
+          persist-credentials: false
+      - name: Check licensing and signing setup
+        env:
+          LICENSE_APPROVED: ${{ vars.DISTRIBUTION_LICENSE_APPROVED }}
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+        run: |
+          test "$LICENSE_APPROVED" = true || { echo 'Approve JNI redistribution in production-signing before publishing new APKs'; exit 1; }
+          test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Complete the four production-signing environment secrets'; exit 1; }
+          python3 -c 'import sys; sys.path.insert(0, "scripts/dist"); import turn; turn.load()'
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android toolchain
+        run: scripts/dist/install-sdk.sh
+      - name: Restore checksummed JNI inputs
+        run: scripts/restore-build-inputs.sh
+      # No Gradle cache: configuration caches may contain signing properties.
+      # Material is confined to this step, outside the repository and artifacts.
+      - name: Build through the canonical distribution entry point
+        env:
+          TARGET: ${{ inputs.target }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ORG_GRADLE_PROJECT_thepassword: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_thekeyalias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_thekeypassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/juggluco-signing.XXXXXX")
+          trap 'rm -rf "$signing_dir"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing_dir/production.keystore"
+          unset KEYSTORE_BASE64
+          export ORG_GRADLE_PROJECT_thekeyfile="$signing_dir/production.keystore"
+          scripts/build-dist.sh "$TARGET" --no-daemon --no-configuration-cache --max-workers=2
+      - name: Stage named main test APKs
+        if: inputs.test_artifacts
+        env:
+          TARGET: ${{ inputs.target }}
+        run: python3 scripts/dist/dist.py test-stage --dir "build/dist/$TARGET" --target "$TARGET" --sha "$GITHUB_SHA"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: '!inputs.test_artifacts'
+        with:
+          name: distribution-${{ inputs.target }}-${{ github.sha }}
+          path: build/dist/${{ inputs.target }}/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: inputs.test_artifacts
+        with:
+          name: distribution-main-${{ inputs.target }}-${{ github.sha }}
+          path: |
+            build/dist/test/${{ inputs.target }}/*.apk
+            build/dist/test/${{ inputs.target }}/build-info.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download instructions
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          echo "Verified production-signed **$TARGET** APKs from trusted main commit **$GITHUB_SHA** are in this run's Artifacts section (7 days)." >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="76" viewBox="0 0 320 76" role="img" aria-labelledby="title">
+  <title id="title">Download JugglucoNG for Android</title>
+  <rect x="1" y="1" width="318" height="74" rx="14" fill="#1f7a50" stroke="#339768" stroke-width="2"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="22" y="18" width="25" height="40" rx="5"/>
+    <path d="M31 24h7M35 31v13m-5-5 5 5 5-5M33 52h4"/>
+  </g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#ffffff">
+    <text id="download-version" x="65" y="34" font-size="19" font-weight="600">Download 1.2.5-Alpha</text>
+    <text x="65" y="55" font-size="13" fill="#e0f2e9">Android phone APK</text>
+  </g>
+</svg>

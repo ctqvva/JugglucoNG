@@ -1,0 +1,838 @@
+// AnytimeRegistry.kt — SharedPreferences-backed persistence for Anytime sensors.
+//
+// Records:
+//   anytime_sensors          → "id|address|displayName" newline-separated set
+//   anytime_qr_<id>          → raw QR string (for re-decode after upgrade)
+//   anytime_k_<id>           → factory K (Float bits as Int)
+//   anytime_r_<id>           → factory R (Float bits as Int)
+//   anytime_lifetime_<id>    → days
+//   anytime_last_id_<id>     → highest seen glucose ID
+//   anytime_started_at_<id>  → session start ms (epoch)
+//   anytime_warmup_at_<id>   → warmup start ms (== session start, kept separate
+//                              for compatibility with the official UI semantics)
+//   anytime_voltage_<id>     → 0 / 1 (CT4 voltage flag)
+//   anytime_device_name_<id> → advertised name (for family resolve after restart)
+//   anytime_tx_version_<id>  → firmware version string (e.g. "V1300")
+//   anytime_bound_<id>       → 1/0 ("known bound from previous session")
+//   anytime_ref_bg_x10_<id>  → latest accepted fingerstick reference, mg/dL × 10
+//   anytime_ref_bg_id_<id>   → glucose id the reference applies to
+//   anytime_ref_bg_applied_id_<id>
+//                            → latest reference glucose id already observed by the algorithm
+//   anytime_ref_bg_history_<id>
+//                            → compact accepted/applied fingerstick calibration event list
+//   anytime_raw_history_<id> → compact raw id/Ib/Iw/T history for JNI restore
+//   anytime_temp_history_<id>
+//                            → compact timestamped T history for Stats
+//   anytime_ct5_cipher_<id>  → CT5 session cipher byte (0..255), -1 if unknown
+//   anytime_ct5_randomb_<id> → CT5 reconnect identity randomB, hex encoded
+//   anytime_ct5_tempid_<id>  → CT5 4-digit temporary ID used by setParameters
+
+package tk.glucodata.drivers.anytime
+
+import android.content.Context
+import android.content.SharedPreferences
+import kotlin.math.roundToInt
+import tk.glucodata.Log
+import tk.glucodata.Natives
+import tk.glucodata.SensorBluetooth
+import tk.glucodata.SensorIdentity
+import tk.glucodata.SuperGattCallback
+import tk.glucodata.drivers.ManagedSensorUiSignals
+
+object AnytimeRegistry {
+    private const val TAG = AnytimeConstants.TAG
+    private const val PREFS_NAME = "tk.glucodata_preferences"
+
+    data class SensorRecord(
+        val sensorId: String,
+        val address: String,
+        val displayName: String,
+    ) {
+        fun matchesId(id: String?): Boolean {
+            val candidate = id?.trim().takeIf { !it.isNullOrBlank() } ?: return false
+            return listOf(sensorId, address, displayName)
+                .any { AnytimeConstants.matchesCanonicalOrKnownNativeAlias(it, candidate) }
+        }
+    }
+
+    private fun prefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    data class TemperatureRecord(
+        val glucoseId: Int,
+        val timestampMs: Long,
+        val temperatureC: Float,
+    )
+
+    // ---- Record set ----
+
+    @JvmStatic
+    fun ensureSensorRecord(
+        context: Context,
+        sensorId: String,
+        address: String,
+        displayName: String,
+    ) {
+        val canonical = AnytimeConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
+        val records = persistedRecords(context).toMutableList()
+        val existing = records.indexOfFirst { it.matchesId(canonical) }
+        val existingRecord = existing.takeIf { it >= 0 }?.let { records[it] }
+        val effectiveAddress = address.ifBlank {
+            existingRecord?.address?.takeIf { it.isNotBlank() }
+                ?: AnytimeConstants.macAddressFromSensorId(canonical).orEmpty()
+        }
+        val effectiveName = displayName.ifBlank { existingRecord?.displayName ?: canonical }
+        val record = SensorRecord(canonical, effectiveAddress, effectiveName)
+        if (existing >= 0) records[existing] = record else records.add(record)
+        writeRecords(context, records)
+    }
+
+    @JvmStatic
+    fun persistedRecords(context: Context): List<SensorRecord> {
+        val raw = prefs(context).getStringSet(AnytimeConstants.PREF_SENSORS_KEY, emptySet()) ?: return emptyList()
+        return raw.mapNotNull { line ->
+            val parts = line.split('|')
+            if (parts.size < 3) return@mapNotNull null
+            val canonical = AnytimeConstants.canonicalSensorId(parts[0]).ifEmpty { parts[0] }
+            val address = parts[1].ifBlank { AnytimeConstants.macAddressFromSensorId(canonical).orEmpty() }
+            SensorRecord(canonical, address, parts[2])
+        }
+    }
+
+    @JvmStatic
+    fun findRecord(context: Context?, sensorId: String?): SensorRecord? {
+        val ctx = context ?: return null
+        val id = sensorId?.trim().takeIf { !it.isNullOrBlank() } ?: return null
+        return persistedRecords(ctx).firstOrNull { record ->
+            record.matchesId(id) ||
+                AnytimeConstants.matchesCanonicalOrKnownNativeAlias(loadDeviceName(ctx, record.sensorId), id)
+        }
+    }
+
+    @JvmStatic
+    fun resolveCanonicalSensorId(context: Context?, sensorId: String?): String? {
+        val rec = findRecord(context, sensorId) ?: return null
+        return rec.sensorId
+    }
+
+    @JvmStatic
+    fun removeSensor(context: Context, sensorId: String?) {
+        val id = sensorId?.trim() ?: return
+        val canonical = AnytimeConstants.canonicalSensorId(id).ifEmpty { id }
+        val remaining = persistedRecords(context).filter { !it.matchesId(canonical) }
+        writeRecords(context, remaining)
+        clearPerSensorState(context, canonical)
+        AnytimeAlgorithm.clearCalibratorState(canonical)
+        AnytimeAlgorithm.clearNativePortState(canonical)
+    }
+
+    private fun writeRecords(context: Context, records: List<SensorRecord>) {
+        val set = records.map { "${it.sensorId}|${it.address}|${it.displayName}" }.toSet()
+        prefs(context).edit().putStringSet(AnytimeConstants.PREF_SENSORS_KEY, set).apply()
+        // Records feed AnytimeManagedSensorIdentityAdapter.resolveCanonicalSensorId.
+        tk.glucodata.SensorIdentity.invalidateCaches()
+    }
+
+    // ---- Per-sensor state ----
+
+    @JvmStatic fun loadQrContent(c: Context, id: String): String =
+        prefs(c).getString(AnytimeConstants.PREF_QR_CONTENT_PREFIX + id, null).orEmpty()
+    @JvmStatic fun saveQrContent(c: Context, id: String, qr: String) {
+        prefs(c).edit().putString(AnytimeConstants.PREF_QR_CONTENT_PREFIX + id, qr).apply()
+    }
+
+    @JvmStatic fun loadKValue(c: Context, id: String): Float =
+        prefs(c).getFloat(AnytimeConstants.PREF_K_PREFIX + id, 0f)
+    @JvmStatic fun saveKValue(c: Context, id: String, v: Float) {
+        prefs(c).edit().putFloat(AnytimeConstants.PREF_K_PREFIX + id, v).apply()
+    }
+
+    @JvmStatic fun loadRValue(c: Context, id: String): Float =
+        prefs(c).getFloat(AnytimeConstants.PREF_R_PREFIX + id, 0f)
+    @JvmStatic fun saveRValue(c: Context, id: String, v: Float) {
+        prefs(c).edit().putFloat(AnytimeConstants.PREF_R_PREFIX + id, v).apply()
+    }
+
+    @JvmStatic fun loadLifetimeDays(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_LIFETIME_PREFIX + id, AnytimeConstants.DEFAULT_RATED_LIFETIME_DAYS)
+    @JvmStatic fun saveLifetimeDays(c: Context, id: String, days: Int) {
+        prefs(c).edit().putInt(AnytimeConstants.PREF_LIFETIME_PREFIX + id, days).apply()
+    }
+
+    @JvmStatic fun loadLastGlucoseId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_LAST_GLUCOSE_ID_PREFIX + id, -1)
+    @JvmStatic fun saveLastGlucoseId(c: Context, id: String, gid: Int) {
+        prefs(c).edit().putInt(AnytimeConstants.PREF_LAST_GLUCOSE_ID_PREFIX + id, gid).apply()
+    }
+
+    @JvmStatic fun loadSensorStartAt(c: Context, id: String): Long =
+        prefs(c).getLong(AnytimeConstants.PREF_SENSOR_START_AT_PREFIX + id, 0L)
+    @JvmStatic fun saveSensorStartAt(c: Context, id: String, ms: Long) {
+        prefs(c).edit().putLong(AnytimeConstants.PREF_SENSOR_START_AT_PREFIX + id, ms).apply()
+    }
+
+    @JvmStatic fun loadTimelineStartAt(c: Context, id: String): Long =
+        prefs(c).getLong(AnytimeConstants.PREF_TIMELINE_START_AT_PREFIX + id, 0L)
+    @JvmStatic fun saveTimelineStartAt(c: Context, id: String, ms: Long) {
+        prefs(c).edit().putLong(AnytimeConstants.PREF_TIMELINE_START_AT_PREFIX + id, ms).apply()
+    }
+
+    @JvmStatic fun loadWarmupStartedAt(c: Context, id: String): Long =
+        prefs(c).getLong(AnytimeConstants.PREF_WARMUP_STARTED_AT_PREFIX + id, 0L)
+    @JvmStatic fun saveWarmupStartedAt(c: Context, id: String, ms: Long) {
+        prefs(c).edit().putLong(AnytimeConstants.PREF_WARMUP_STARTED_AT_PREFIX + id, ms).apply()
+    }
+
+    @JvmStatic fun loadVoltageFlag(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_VOLTAGE_PREFIX + id, 0)
+    @JvmStatic fun saveVoltageFlag(c: Context, id: String, v: Int) {
+        prefs(c).edit().putInt(AnytimeConstants.PREF_VOLTAGE_PREFIX + id, v).apply()
+    }
+
+    @JvmStatic fun loadDeviceName(c: Context, id: String): String =
+        prefs(c).getString(AnytimeConstants.PREF_DEVICE_NAME_PREFIX + id, null).orEmpty()
+    @JvmStatic fun saveDeviceName(c: Context, id: String, name: String) {
+        prefs(c).edit().putString(AnytimeConstants.PREF_DEVICE_NAME_PREFIX + id, name).apply()
+        // The device name participates in findRecord matching — resolution may change.
+        tk.glucodata.SensorIdentity.invalidateCaches()
+    }
+
+    @JvmStatic fun loadTransmitterVersion(c: Context, id: String): String =
+        prefs(c).getString(AnytimeConstants.PREF_TRANSMITTER_VERSION_PREFIX + id, null).orEmpty()
+    @JvmStatic fun saveTransmitterVersion(c: Context, id: String, v: String) {
+        prefs(c).edit().putString(AnytimeConstants.PREF_TRANSMITTER_VERSION_PREFIX + id, v).apply()
+    }
+
+    @JvmStatic fun loadBound(c: Context, id: String): Boolean =
+        prefs(c).getBoolean(AnytimeConstants.PREF_BOUND_PREFIX + id, false)
+    @JvmStatic fun saveBound(c: Context, id: String, bound: Boolean) {
+        prefs(c).edit().putBoolean(AnytimeConstants.PREF_BOUND_PREFIX + id, bound).apply()
+    }
+
+    @JvmStatic fun loadReferenceBgMgdlTimes10(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgMgdlTimes10(c: Context, id: String, value: Int) {
+        val editor = prefs(c).edit()
+        if (value > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id, value)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id)
+        editor.apply()
+    }
+
+    @JvmStatic fun loadReferenceBgGlucoseId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgGlucoseId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    /**
+     * CT3 native-port continuity state (the pure-Kotlin vendor chain), so a restart
+     * resumes the same series instead of re-warming the filters from zero.
+     */
+    @JvmStatic fun loadCt3NativeState(c: Context, id: String): String? =
+        prefs(c).getString(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id, null)
+
+    @JvmStatic fun saveCt3NativeState(c: Context, id: String, encoded: String?) {
+        val editor = prefs(c).edit()
+        if (encoded.isNullOrBlank()) editor.remove(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id)
+        else editor.putString(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + id, encoded)
+        editor.apply()
+    }
+
+    /** AnytimeCalibrator continuity state (MODEL fallback), so a restart resumes the same series. */
+    @JvmStatic fun loadCalibratorState(c: Context, id: String): AnytimeCalibrator.State? {
+        val p = prefs(c)
+        val lastGlucoseId = p.getInt(AnytimeConstants.PREF_CALIBRATOR_LAST_ID_PREFIX + id, -1)
+        if (lastGlucoseId < 0) return null
+        return AnytimeCalibrator.State(
+            tempSmoothPrev = p.getFloat(AnytimeConstants.PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX + id, Float.NaN),
+            filteredPrev = p.getFloat(AnytimeConstants.PREF_CALIBRATOR_FILTERED_PREV_PREFIX + id, Float.NaN),
+            lastGlucoseId = lastGlucoseId,
+        )
+    }
+    @JvmStatic fun saveCalibratorState(c: Context, id: String, state: AnytimeCalibrator.State?) {
+        val editor = prefs(c).edit()
+        if (state == null || state.lastGlucoseId < 0) {
+            editor.remove(AnytimeConstants.PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CALIBRATOR_FILTERED_PREV_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CALIBRATOR_LAST_ID_PREFIX + id)
+        } else {
+            editor.putFloat(AnytimeConstants.PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX + id, state.tempSmoothPrev)
+            editor.putFloat(AnytimeConstants.PREF_CALIBRATOR_FILTERED_PREV_PREFIX + id, state.filteredPrev)
+            editor.putInt(AnytimeConstants.PREF_CALIBRATOR_LAST_ID_PREFIX + id, state.lastGlucoseId)
+        }
+        editor.apply()
+    }
+
+    @JvmStatic fun loadReferenceBgAppliedGlucoseId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgAppliedGlucoseId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    @JvmStatic
+    fun loadReferenceBgHistory(c: Context, id: String): List<AnytimeReferenceCalibrationRecord> {
+        val encoded = prefs(c).getString(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id, null).orEmpty()
+        if (encoded.isBlank()) return emptyList()
+        return encoded.split(';')
+            .mapNotNull { token ->
+                if (token.isBlank()) return@mapNotNull null
+                val parts = token.split(',')
+                if (parts.size != 6) return@mapNotNull null
+                val targetId = parts[0].toIntOrNull() ?: return@mapNotNull null
+                val refX10 = parts[1].toIntOrNull() ?: return@mapNotNull null
+                val acceptedAt = parts[2].toLongOrNull() ?: return@mapNotNull null
+                val appliedId = parts[3].toIntOrNull() ?: return@mapNotNull null
+                val appliedAt = parts[4].toLongOrNull() ?: return@mapNotNull null
+                val outputX10 = parts[5].toIntOrNull() ?: return@mapNotNull null
+                if (targetId <= 0 || refX10 <= 0) return@mapNotNull null
+                AnytimeReferenceCalibrationRecord(
+                    targetGlucoseId = targetId,
+                    referenceMgdlTimes10 = refX10,
+                    acceptedAtMs = acceptedAt.coerceAtLeast(0L),
+                    appliedGlucoseId = appliedId.coerceAtLeast(0),
+                    appliedAtMs = appliedAt.coerceAtLeast(0L),
+                    outputMgdlTimes10 = outputX10.coerceAtLeast(0),
+                )
+            }
+            .distinctBy { it.targetGlucoseId }
+            .sortedWith(compareByDescending<AnytimeReferenceCalibrationRecord> { it.acceptedAtMs }
+                .thenByDescending { it.targetGlucoseId })
+    }
+
+    @JvmStatic
+    fun saveReferenceBgHistory(c: Context, id: String, records: Collection<AnytimeReferenceCalibrationRecord>) {
+        val ordered = records
+            .asSequence()
+            .filter { it.targetGlucoseId > 0 && it.referenceMgdlTimes10 > 0 }
+            .distinctBy { it.targetGlucoseId }
+            .sortedWith(compareByDescending<AnytimeReferenceCalibrationRecord> { it.acceptedAtMs }
+                .thenByDescending { it.targetGlucoseId })
+            .take(12)
+            .toList()
+        val editor = prefs(c).edit()
+        if (ordered.isEmpty()) {
+            editor.remove(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id).apply()
+            return
+        }
+        val encoded = buildString(ordered.size * 40) {
+            ordered.forEach { rec ->
+                append(rec.targetGlucoseId)
+                append(',')
+                append(rec.referenceMgdlTimes10.coerceAtLeast(0))
+                append(',')
+                append(rec.acceptedAtMs.coerceAtLeast(0L))
+                append(',')
+                append(rec.appliedGlucoseId.coerceAtLeast(0))
+                append(',')
+                append(rec.appliedAtMs.coerceAtLeast(0L))
+                append(',')
+                append(rec.outputMgdlTimes10.coerceAtLeast(0))
+                append(';')
+            }
+        }
+        editor.putString(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + id, encoded).apply()
+    }
+
+    @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int {
+        val preferences = prefs(c)
+        val active = preferences.getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
+        return if (active in 0..255) active else {
+            preferences.getInt(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id, -1)
+        }
+    }
+
+    @JvmStatic fun saveCt5CipherKey(c: Context, id: String, key: Int) {
+        val editor = prefs(c).edit()
+        if (key in 0..255) {
+            editor
+                .putInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, key)
+                .putInt(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id, key)
+        } else {
+            editor.remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id)
+        }
+        editor.apply()
+    }
+
+    /**
+     * Highest CT5 id actually imported as a glucose point. Warm-up ids advance
+     * the cursor but never this, so gap repair after a restart asks for exactly
+     * the ids that are missing rather than replaying the session.
+     */
+    @JvmStatic fun loadCt5HighestImportedId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id, -1)
+    @JvmStatic fun saveCt5HighestImportedId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId >= 0) editor.putInt(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + id)
+        editor.apply()
+    }
+
+    /** Pending CT5 gap repair, so an interrupted repair resumes after a restart. */
+    @JvmStatic
+    fun loadCt5PendingGap(c: Context, id: String): IntArray? {
+        val p = prefs(c)
+        val from = p.getInt(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id, -1)
+        val stopBefore = p.getInt(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id, -1)
+        if (from < 0 || stopBefore <= from) return null
+        return intArrayOf(from, stopBefore)
+    }
+
+    @JvmStatic
+    fun saveCt5PendingGap(c: Context, id: String, fromId: Int, stopBeforeId: Int) {
+        val editor = prefs(c).edit()
+        if (fromId < 0 || stopBeforeId <= fromId) {
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id)
+        } else {
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + id, fromId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + id, stopBeforeId)
+        }
+        editor.apply()
+    }
+
+    @JvmStatic
+    fun loadCt5SkippedHistoryIds(c: Context, id: String): Set<Int> =
+        prefs(c).getStringSet(AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + id, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toIntOrNull()?.takeIf { value -> value >= 0 } }
+
+    @JvmStatic
+    fun saveCt5SkippedHistoryIds(c: Context, id: String, ids: Set<Int>) {
+        val key = AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + id
+        prefs(c).edit().apply {
+            if (ids.isEmpty()) remove(key) else putStringSet(key, ids.mapTo(linkedSetOf()) { it.toString() })
+        }.apply()
+    }
+
+    @JvmStatic
+    fun loadCt5ResolvedHistoryIds(c: Context, id: String): Set<Int> =
+        prefs(c).getStringSet(AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + id, emptySet())
+            .orEmpty()
+            .mapNotNullTo(linkedSetOf()) { it.toIntOrNull()?.takeIf { value -> value >= 0 } }
+
+    @JvmStatic
+    fun saveCt5ResolvedHistoryIds(c: Context, id: String, ids: Set<Int>) {
+        val key = AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + id
+        prefs(c).edit().apply {
+            if (ids.isEmpty()) remove(key) else putStringSet(key, ids.mapTo(linkedSetOf()) { it.toString() })
+        }.apply()
+    }
+
+    /** fromId, stopBeforeId, failed GATT sessions; null means no failed range is pending. */
+    internal fun loadCt5GapFailure(c: Context, id: String): IntArray? {
+        val p = prefs(c)
+        val fromId = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id, -1)
+        val stopBeforeId = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id, -1)
+        val count = p.getInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id, 0)
+        if (fromId < 0 || stopBeforeId <= fromId || count <= 0) return null
+        return intArrayOf(fromId, stopBeforeId, count)
+    }
+
+    internal fun saveCt5GapFailure(
+        c: Context,
+        id: String,
+        snapshot: AnytimeCt5GapFailureSnapshot?,
+    ) {
+        val editor = prefs(c).edit()
+        if (snapshot == null) {
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id)
+            editor.remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id)
+        } else {
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + id, snapshot.fromId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + id, snapshot.stopBeforeId)
+            editor.putInt(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + id, snapshot.failures)
+        }
+        editor.apply()
+    }
+
+    @JvmStatic fun loadCt5RawScale(c: Context, id: String): Float =
+        prefs(c).getFloat(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id, Float.NaN)
+
+    @JvmStatic fun loadCt5RawScaleSamples(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id, 0)
+
+    @JvmStatic fun saveCt5RawScale(c: Context, id: String, scale: Float, samples: Int) {
+        val editor = prefs(c).edit()
+        if (scale.isFinite() && samples > 0) {
+            editor
+                .putFloat(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id, scale)
+                .putInt(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id, samples)
+        } else {
+            editor
+                .remove(AnytimeConstants.PREF_CT5_RAW_SCALE_PREFIX + id)
+                .remove(AnytimeConstants.PREF_CT5_RAW_SCALE_SAMPLES_PREFIX + id)
+        }
+        editor.apply()
+    }
+
+    @JvmStatic fun loadCt5TempId(c: Context, id: String): String {
+        val preferences = prefs(c)
+        return preferences.getString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, null)
+            .orEmpty()
+            .ifBlank {
+                preferences.getString(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id, null).orEmpty()
+            }
+    }
+
+    @JvmStatic fun saveCt5TempId(c: Context, id: String, tempId: String) {
+        val editor = prefs(c).edit()
+        if (tempId.length == 4 && tempId.toByteArray(Charsets.US_ASCII).size == 4) {
+            editor
+                .putString(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id, tempId)
+                .putString(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id, tempId)
+        } else {
+            editor.remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + id)
+        }
+        editor.apply()
+    }
+
+    @JvmStatic
+    fun loadCt5RandomB(c: Context, id: String): IntArray? {
+        val preferences = prefs(c)
+        val encoded = preferences.getString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, null)
+            .orEmpty()
+            .ifBlank {
+                preferences.getString(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id, null).orEmpty()
+            }
+        if (encoded.length != 8) return null
+        val out = IntArray(4)
+        for (i in 0 until 4) {
+            out[i] = encoded.substring(i * 2, i * 2 + 2).toIntOrNull(16) ?: return null
+        }
+        return out
+    }
+
+    @JvmStatic
+    fun saveCt5RandomB(c: Context, id: String, randomB: IntArray?) {
+        val editor = prefs(c).edit()
+        if (randomB == null || randomB.size != 4) {
+            editor.remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id).apply()
+            return
+        }
+        val encoded = randomB.joinToString("") { "%02X".format(it and 0xFF) }
+        editor
+            .putString(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + id, encoded)
+            .putString(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id, encoded)
+            .apply()
+    }
+
+    /** Forget recovery credentials only after the transmitter acknowledges unbind. */
+    @JvmStatic
+    fun clearCt5RecoveryIdentity(c: Context, id: String) {
+        prefs(c).edit()
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_CIPHER_KEY_PREFIX + id)
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_RANDOM_B_PREFIX + id)
+            .remove(AnytimeConstants.PREF_CT5_RECOVERY_TEMP_ID_PREFIX + id)
+            .apply()
+    }
+
+    /** Returns a portable CT5 session only when every authentication field is available. */
+    @JvmStatic
+    fun exportCt5Credentials(c: Context, id: String): String? {
+        val record = findRecord(c, id) ?: return null
+        val deviceName = loadDeviceName(c, record.sensorId).ifBlank { record.displayName }
+        return AnytimeCt5CredentialFile.encode(
+            sensorId = record.sensorId,
+            address = record.address,
+            deviceName = deviceName,
+            cipherKey = loadCt5CipherKey(c, record.sensorId),
+            randomB = loadCt5RandomB(c, record.sensorId) ?: return null,
+            temporaryId = loadCt5TempId(c, record.sensorId),
+        )
+    }
+
+    /** Validates and installs one CT5 session without importing glucose/history data. */
+    @JvmStatic
+    fun importCt5Credentials(c: Context, jsonText: String): SensorRecord? {
+        val parsed = AnytimeCt5CredentialFile.decode(jsonText) ?: return null
+        ensureSensorRecord(
+            context = c,
+            sensorId = parsed.sensorId,
+            address = parsed.address,
+            displayName = parsed.deviceName,
+        )
+        saveDeviceName(c, parsed.sensorId, parsed.deviceName)
+        saveBound(c, parsed.sensorId, true)
+        saveCt5CipherKey(c, parsed.sensorId, parsed.cipherKey)
+        saveCt5RandomB(c, parsed.sensorId, parsed.randomB)
+        saveCt5TempId(c, parsed.sensorId, parsed.temporaryId)
+        ManagedSensorUiSignals.markDeviceListDirty()
+        return findRecord(c, parsed.sensorId)
+    }
+
+    /** Reload imported state into the current CT5 callback and open a fresh GATT session. */
+    @JvmStatic
+    fun reconnectAfterCt5CredentialImport(c: Context, sensorId: String) {
+        val callback = SensorBluetooth.gattcallbacks.firstOrNull { candidate ->
+            val driver = candidate as? AnytimeDriver ?: return@firstOrNull false
+            SensorIdentity.matches(candidate.SerialNumber, sensorId) ||
+                driver.matchesManagedSensorId(sensorId)
+        }
+        if (callback is AnytimeBleManager) {
+            callback.restoreFromPersistence(c)
+            callback.softReconnect()
+        } else {
+            connectSensor(c, sensorId)
+        }
+    }
+
+    @JvmStatic
+    fun loadRawHistory(c: Context, id: String): List<AnytimeRawRecord> {
+        val encoded = prefs(c).getString(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + id, null).orEmpty()
+        if (encoded.isBlank()) return emptyList()
+        val out = ArrayList<AnytimeRawRecord>()
+        encoded.split(';').forEach { token ->
+            if (token.isBlank()) return@forEach
+            val parts = token.split(',')
+            if (parts.size != 4) return@forEach
+            val glucoseId = parts[0].toIntOrNull() ?: return@forEach
+            val ibRaw = parts[1].toIntOrNull() ?: return@forEach
+            val iwRaw = parts[2].toIntOrNull() ?: return@forEach
+            val tempRaw = parts[3].toIntOrNull() ?: return@forEach
+            if (glucoseId < 0 || ibRaw < 0 || iwRaw < 0 || tempRaw < 0) return@forEach
+            out.add(
+                AnytimeRawRecord(
+                    indexInPacket = 0,
+                    glucoseId = glucoseId,
+                    ibNa = ibRaw / 100f,
+                    iwNa = iwRaw / 100f,
+                    temperatureC = tempRaw / 100f - AnytimeConstants.TEMP_INT_OFFSET,
+                    recordBytes = ByteArray(0),
+                )
+            )
+        }
+        return out.distinctBy { it.glucoseId }.sortedBy { it.glucoseId }
+    }
+
+    @JvmStatic
+    fun saveRawHistory(c: Context, id: String, records: Collection<AnytimeRawRecord>) {
+        val ordered = records
+            .asSequence()
+            .filter { it.glucoseId >= 0 }
+            .distinctBy { it.glucoseId }
+            .sortedBy { it.glucoseId }
+            .toList()
+        val editor = prefs(c).edit()
+        if (ordered.isEmpty()) {
+            editor.remove(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + id).apply()
+            return
+        }
+        val encoded = buildString(ordered.size * 20) {
+            ordered.forEach { rec ->
+                append(rec.glucoseId)
+                append(',')
+                append((rec.ibNa * 100f).roundToInt().coerceIn(0, 0xFFFF))
+                append(',')
+                append((rec.iwNa * 100f).roundToInt().coerceIn(0, 0xFFFF))
+                append(',')
+                append(((rec.temperatureC + AnytimeConstants.TEMP_INT_OFFSET) * 100f).roundToInt().coerceIn(0, 0xFFFF))
+                append(';')
+            }
+        }
+        editor.putString(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + id, encoded).apply()
+    }
+
+    @JvmStatic
+    fun loadTemperatureHistory(c: Context, id: String): List<TemperatureRecord> {
+        val encoded = prefs(c).getString(AnytimeConstants.PREF_TEMPERATURE_HISTORY_PREFIX + id, null).orEmpty()
+        if (encoded.isBlank()) return emptyList()
+        val out = ArrayList<TemperatureRecord>()
+        encoded.split(';').forEach { token ->
+            if (token.isBlank()) return@forEach
+            val parts = token.split(',')
+            if (parts.size != 3) return@forEach
+            val glucoseId = parts[0].toIntOrNull() ?: return@forEach
+            val timestampMs = parts[1].toLongOrNull() ?: return@forEach
+            val tempRaw = parts[2].toIntOrNull() ?: return@forEach
+            val temperatureC = tempRaw / 10f
+            if (glucoseId < 0 || timestampMs <= 0L || !temperatureC.isFinite()) return@forEach
+            out.add(TemperatureRecord(glucoseId, timestampMs, temperatureC))
+        }
+        return out
+            .distinctBy { it.timestampMs }
+            .sortedBy { it.timestampMs }
+    }
+
+    @JvmStatic
+    fun appendTemperatureHistory(c: Context, id: String, records: Collection<TemperatureRecord>) {
+        if (records.isEmpty()) return
+        val merged = (loadTemperatureHistory(c, id).asSequence() + records.asSequence())
+            .filter { it.glucoseId >= 0 && it.timestampMs > 0L }
+            .filter { it.temperatureC.isFinite() && it.temperatureC > -20f && it.temperatureC < 80f }
+            .distinctBy { it.timestampMs }
+            .sortedBy { it.timestampMs }
+            .toList()
+            .takeLast(9000)
+        val editor = prefs(c).edit()
+        if (merged.isEmpty()) {
+            editor.remove(AnytimeConstants.PREF_TEMPERATURE_HISTORY_PREFIX + id).apply()
+            return
+        }
+        val encoded = buildString(merged.size * 24) {
+            merged.forEach { rec ->
+                append(rec.glucoseId)
+                append(',')
+                append(rec.timestampMs)
+                append(',')
+                append((rec.temperatureC * 10f).roundToInt())
+                append(';')
+            }
+        }
+        editor.putString(AnytimeConstants.PREF_TEMPERATURE_HISTORY_PREFIX + id, encoded).apply()
+    }
+
+    private fun clearPerSensorState(context: Context, sensorId: String) {
+        prefs(context).edit().apply {
+            remove(AnytimeConstants.PREF_QR_CONTENT_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_K_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_R_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_LIFETIME_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_LAST_GLUCOSE_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_SENSOR_START_AT_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_WARMUP_STARTED_AT_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_VOLTAGE_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_DEVICE_NAME_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_TRANSMITTER_VERSION_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_BOUND_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_HISTORY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_TEMPERATURE_HISTORY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CALIBRATOR_TEMP_SMOOTH_PREV_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CALIBRATOR_FILTERED_PREV_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CALIBRATOR_LAST_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT3_NATIVE_STATE_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_TEMP_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_HIGHEST_IMPORTED_ID_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FROM_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_STOP_BEFORE_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_SKIPPED_HISTORY_IDS_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_RESOLVED_HISTORY_IDS_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_FROM_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_STOP_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_CT5_GAP_FAILURE_COUNT_PREFIX + sensorId)
+        }.apply()
+    }
+
+    // ---- Restore (called by the identity adapter) ----
+
+    @JvmStatic
+    fun createRestoredCallback(
+        context: Context,
+        sensorId: String,
+        dataptr: Long,
+    ): SuperGattCallback? {
+        val canonical = AnytimeConstants.canonicalSensorId(sensorId).ifEmpty { sensorId }
+        val record = findRecord(context, canonical) ?: return null
+        return runCatching {
+            AnytimeBleManager(record.sensorId, dataptr).also {
+                it.mActiveDeviceAddress = record.address.takeIf { address -> address.isNotBlank() }
+                it.restoreFromPersistence(context)
+            }
+        }.onFailure { Log.stack(TAG, "createRestoredCallback", it) }.getOrNull()
+    }
+
+    // ---- Wizard-facing API ----
+
+    /**
+     * Register a new Anytime sensor. Returns the canonical sensor id, or null
+     * if neither an address nor a QR string was supplied.
+     *
+     * If [qrCodeContent] is set, we run the QR through the algorithm SDK and
+     * persist K/R + chemistry IDs for later use during the BLE handshake.
+     *
+     * If [connectNow] is true, immediately schedule a BLE connect attempt.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun addSensor(
+        context: Context,
+        displayName: String?,
+        address: String?,
+        deviceName: String? = null,
+        qrCodeContent: String? = null,
+        connectNow: Boolean = true,
+    ): String? {
+        val normalizedAddress = address?.trim().orEmpty()
+        val normalizedQr = qrCodeContent?.trim().orEmpty()
+        if (normalizedAddress.isEmpty() && normalizedQr.isEmpty() && deviceName.isNullOrBlank()) {
+            Log.w(TAG, "addSensor: no address, QR, or device name provided")
+            return null
+        }
+        val safeName = displayName?.trim().takeUnless { it.isNullOrEmpty() }
+            ?: deviceName?.trim().takeUnless { it.isNullOrEmpty() }
+            ?: AnytimeConstants.DEFAULT_DISPLAY_NAME
+        val sensorId = AnytimeConstants.deriveInitialSensorId(safeName, normalizedAddress)
+
+        ensureSensorRecord(
+            context = context,
+            sensorId = sensorId,
+            address = normalizedAddress,
+            displayName = safeName,
+        )
+
+        deviceName?.takeIf { it.isNotBlank() }?.let { saveDeviceName(context, sensorId, it) }
+
+        if (normalizedQr.isNotEmpty()) {
+            saveQrContent(context, sensorId, normalizedQr)
+            val parsed = AnytimeAlgorithm.decodeQr(normalizedQr)
+            if (parsed != null) {
+                saveKValue(context, sensorId, parsed.k)
+                saveRValue(context, sensorId, parsed.r)
+                saveLifetimeDays(context, sensorId, parsed.lifeTime)
+                saveVoltageFlag(context, sensorId, parsed.voltageFlag)
+                if (parsed.isFactoryCalibration) {
+                    Log.i(TAG, "Anytime sensor $sensorId QR decoded: K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d")
+                } else {
+                    Log.i(
+                        TAG,
+                        "Anytime sensor $sensorId QR recognized as product/UDI metadata; " +
+                                "using linear fallback K=${parsed.k} R=${parsed.r} life=${parsed.lifeTime}d"
+                    )
+                }
+            } else {
+                Log.w(TAG, "Anytime sensor $sensorId QR decode failed: $normalizedQr")
+            }
+        }
+
+        if (connectNow) connectSensor(context, sensorId)
+        ManagedSensorUiSignals.markDeviceListDirty()
+        return sensorId
+    }
+
+    /** Spin up a BLE callback for the given sensor and request a connect. */
+    @JvmStatic
+    fun connectSensor(context: Context, sensorId: String) {
+        val blue = SensorBluetooth.blueone ?: return
+        val record = findRecord(context, sensorId) ?: return
+        val existing = SensorBluetooth.gattcallbacks.firstOrNull { cb ->
+            val driver = cb as? AnytimeDriver ?: return@firstOrNull false
+            SensorIdentity.matches(cb.SerialNumber, sensorId) ||
+                driver.matchesManagedSensorId(sensorId)
+        }
+        val callback = existing ?: createRestoredCallback(context, record.sensorId, 0L)?.also {
+            SensorBluetooth.gattcallbacks.add(it)
+            runCatching { Natives.setmaxsensors(SensorBluetooth.gattcallbacks.size) }
+        } ?: return
+        if (callback is AnytimeBleManager) {
+            callback.mActiveDeviceAddress = record.address.takeIf { it.isNotBlank() }
+            callback.restoreFromPersistence(context)
+        }
+        runCatching { SensorBluetooth.ensureCurrentSensorSelection() }
+        if (SensorBluetooth.blueone === blue) {
+            callback.connectDevice(0)
+        }
+        ManagedSensorUiSignals.markDeviceListDirty()
+    }
+}

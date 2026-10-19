@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="0dp"
+    android:paddingTop="0dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="0dp"
+    android:gravity="center_vertical"
+    android:minHeight="48dp">
+
+    <!-- LEFT COLUMN: Value, Arrow, Status (compact) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/notification_alert_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:background="@drawable/notification_alert_badge_neutral"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
+            android:text=""
+            android:textColor="#FFF5EEE6"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <!-- Row 1: Glucose + Arrow -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/notification_glucose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:includeFontPadding="false"
+                android:text="" />
+
+            <ImageView
+                android:id="@+id/notification_glucose_image"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:adjustViewBounds="true"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                android:contentDescription="Glucose Value" />
+
+            <!-- Trend Arrow with left padding -->
+            <ImageView
+                android:id="@+id/notification_arrow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:adjustViewBounds="true"
+                android:scaleType="fitCenter"
+                android:src="@drawable/novalue"
+                android:contentDescription="Trend" />
+
+        </LinearLayout>
+
+        <!-- Row 2: Status (Custom Font via TextView) -->
+        <TextView
+            android:id="@+id/notification_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="" />
+
+        <TextView
+            android:id="@+id/notification_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#B3FFFFFF"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- RIGHT COLUMN: Sparkline Chart with clipping on left and bottom only -->
+    <FrameLayout
+        android:id="@+id/chart_container"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/notification_chart"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="0dp"
+            android:layout_marginTop="0dp"
+            android:layout_marginBottom="0dp"
+            android:scaleType="fitXY"
+            android:contentDescription="Glucose Chart" />
+
+    </FrameLayout>
+
+</LinearLayout>

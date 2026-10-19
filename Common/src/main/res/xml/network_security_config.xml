@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Glutec's HTTPS endpoint currently omits the GlobalSign intermediate.
+         Scope the workaround to their host instead of weakening TLS globally. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">monitor.glutec.ru</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/globalsign_gcc_r6_alphassl_ca_2025" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

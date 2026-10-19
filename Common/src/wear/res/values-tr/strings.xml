@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wear_sensor_day_label">Gün</string>
+    <string name="wear_sensor_day_format">Gün %1$s</string>
+    <string name="wear_return_sensor_to_phone">Sensörü telefona geri ver</string>
+    <string name="wear_claim_watch_owns">Saat sensörü okuyor</string>
+    <string name="wear_claim_waiting">Sensöre bağlanmayı bekliyor</string>
+    <string name="wear_calibration_on">Kalibrasyon açık</string>
+    <string name="wear_calibration_off">Kalibrasyon kapalı</string>
+    <string name="wear_calibration_clear">Kalibrasyonları temizle</string>
+    <string name="wear_calibration_delete">Kalibrasyonu sil</string>
+    <string name="wear_color_in_range">Hedefteki değerleri renklendir</string>
+    <string name="wear_color_in_range_on">Tüm değerler renkli</string>
+    <string name="wear_color_in_range_off">Sadece yüksek ve düşük renkli</string>
+    <string name="wear_journal_disabled">Burada kullanmak için günlüğü telefonda etkinleştirin.</string>
+    <string name="wear_journal_insulin">İnsülin</string>
+    <string name="wear_journal_carbs">Karbonhidrat</string>
+    <string name="wear_journal_add">Günlük kaydı ekle</string>
+    <string name="wear_reading_actions_title">Ölçüm</string>
+    <string name="wear_calibration_edit">Kalibrasyonu düzenle</string>
+    <string name="wear_journal_delete">Sil</string>
+    <string name="wear_sensor_forget">Sensörü unut</string>
+</resources>

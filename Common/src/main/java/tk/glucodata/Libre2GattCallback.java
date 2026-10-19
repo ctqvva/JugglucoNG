@@ -1,0 +1,901 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 15:31:05 CET 2023                                                 */
+
+
+package tk.glucodata;
+
+import android.annotation.SuppressLint;
+import android.app.Application;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
+import android.os.Build;
+import android.os.PowerManager;
+
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import androidx.annotation.Keep;
+import androidx.annotation.RequiresApi;
+
+import static android.bluetooth.BluetoothDevice.PHY_LE_1M;
+import static android.bluetooth.BluetoothDevice.PHY_LE_2M;
+import static android.bluetooth.BluetoothDevice.PHY_LE_CODED;
+import static android.bluetooth.BluetoothGatt.CONNECTION_PRIORITY_BALANCED;
+import static android.bluetooth.BluetoothGatt.CONNECTION_PRIORITY_HIGH;
+import static android.bluetooth.BluetoothGatt.GATT_SUCCESS;
+import static android.content.Context.POWER_SERVICE;
+import static java.util.Objects.nonNull;
+import static tk.glucodata.Applic.app;
+import static tk.glucodata.Applic.isWearable;
+//import static tk.glucodata.DexGattCallback.setalarm;
+import static tk.glucodata.Gen2.errorP1;
+import static tk.glucodata.Gen2.v1check;
+import static tk.glucodata.Log.doLog;
+import static tk.glucodata.LossOfSensorAlarm.cancelalarm;
+import static tk.glucodata.Natives.V1;
+import static tk.glucodata.Natives.V2;
+import static tk.glucodata.Natives.abbottinit;
+import static tk.glucodata.Natives.getstreamingAuthenticationData;
+import static tk.glucodata.Natives.hasalarmloss;
+import static tk.glucodata.Natives.processTooth;
+
+
+public class Libre2GattCallback extends SuperGattCallback {
+	private int conphase = 0;
+	private BluetoothGatt disconnectingGatt;
+	private long reconnectDelayMillis;
+	private final GattConnectDeadline<BluetoothGatt> disconnectDeadline = new GattConnectDeadline<>(
+			this, (task, delay) -> {
+				var future = Applic.scheduler.schedule(task, delay, TimeUnit.MILLISECONDS);
+				return () -> future.cancel(false);
+			}, this::retryAfterDisconnect);
+
+	@Override
+	protected boolean useAutoConnect() {
+		return false;
+	}
+
+	@Override
+	protected long connectionAttemptTimeoutMillis() {
+		// Recovery policy for a connectGatt attempt that never reports a result.
+		return 120_000L;
+	}
+
+	private boolean acceptGattCallback(BluetoothGatt gatt) {
+		return gatt != null && gatt == mBluetoothGatt && disconnectingGatt == null && !stop;
+	}
+
+	private void cancelDisconnectDeadline() {
+		disconnectDeadline.cancel();
+		disconnectingGatt = null;
+		reconnectDelayMillis = 0L;
+	}
+
+	private void resetConnectionState() {
+		endBLEHandler();
+		connected = false;
+		conphase = 0;
+		pack1 = pack2 = false;
+		BLELogincharacteristic = null;
+		CompositeRawDatacharacteristic = null;
+		characteristic = null;
+	}
+
+	private synchronized void retryAfterDisconnect(BluetoothGatt gatt) {
+		if (gatt != mBluetoothGatt) return;
+		final long delay = reconnectDelayMillis;
+		cancelDisconnectDeadline();
+		resetConnectionState();
+		// Retire the reference before close(), so late callbacks cannot affect its replacement.
+		closeGattTransport();
+		connectDevice(delay);
+	}
+
+	private synchronized void requestDisconnect(BluetoothGatt gatt, long delayMillis) {
+		if (gatt == null || gatt != mBluetoothGatt) return;
+		// Retain the latest reconnect delay without restarting an in-progress disconnect.
+		reconnectDelayMillis = delayMillis;
+		if (disconnectingGatt == gatt) return;
+		disconnectingGatt = gatt;
+		endBLEHandler();
+		// Android can omit DISCONNECTED. Repeated recovery requests must not extend this wait.
+		disconnectDeadline.arm(gatt, 2_000L);
+		try {
+			super.disconnect();
+		} catch (Throwable e) {
+			Log.stack(LOG_ID, SerialNumber + " disconnect", e);
+			retryAfterDisconnect(gatt);
+		}
+	}
+
+	@Override
+	public synchronized void disconnect() {
+		if (mBluetoothGatt == null) super.disconnect();
+		else requestDisconnect(mBluetoothGatt, 0L);
+	}
+
+	@Override
+	public synchronized boolean connectDevice(long delayMillis) {
+		if (stop || dataptr == 0L || CloneSensorRegistry.isCloneSensor(SerialNumber)
+				|| SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return false;
+		if (mBluetoothGatt != null) {
+			requestDisconnect(mBluetoothGatt, delayMillis);
+			return true;
+		}
+		cancelDisconnectDeadline();
+		resetConnectionState();
+		return super.connectDevice(delayMillis);
+	}
+
+	@Override
+	public synchronized boolean reconnect(long now) {
+		final long old = now - showtime + 20;
+		if (charcha[1] < old && connectTime < now - 60_000L) {
+			noteLossOfSignal(now);
+			return connectDevice(0L);
+		}
+		return true;
+	}
+
+	@Override
+	public synchronized void setPause(boolean pause) {
+		if (pause) {
+			cancelDisconnectDeadline();
+			endBLEHandler();
+		}
+		super.setPause(pause);
+	}
+
+       static private final UUID mADCCustomServiceUUID = UUID.fromString("0000fde3-0000-1000-8000-00805f9b34fb");
+	static private final String LOG_ID = "Libre2GattCallback";
+
+	public Libre2GattCallback(String SerialNumber, long dataptr) {
+		super(SerialNumber,dataptr,Natives.getsensorgen(dataptr));
+		{if(doLog) {Log.d(LOG_ID, "Libre2GattCallback(..)");};};
+	}
+
+
+	boolean pack1 = false, pack2 = false;
+	final byte[] packet = new byte[46];
+
+
+	@SuppressLint("MissingPermission")
+	final void writeBLELogin() {
+		conphase = 2;
+		byte[] bArr = new byte[1];
+		bArr[0] = 32;
+		try {
+			{if(doLog) {Log.i(LOG_ID, "Sent read security challenge");};};
+			if(!BLELogincharacteristic.setValue(bArr)) {
+				var mess="BLELogincharacteristic.setValue";
+				wrotepass[1] = System.currentTimeMillis();
+				handshake = mess;
+				Log.e(LOG_ID,SerialNumber+" "+mess);
+				var gatt= mBluetoothGatt;
+				if(gatt!=null)
+					requestDisconnect(gatt, 0L);
+				return;
+				}
+			if(!mBluetoothGatt.writeCharacteristic(BLELogincharacteristic)) {
+				var mess="writeCharacteristic(BLELogincharacteristic)";
+				Log.e(LOG_ID,SerialNumber+" "+mess);
+				handshake = mess;
+				wrotepass[1] = System.currentTimeMillis();
+				var gatt= mBluetoothGatt;
+				if(gatt!=null)
+					requestDisconnect(gatt, 0L);
+				}
+		} catch(Throwable e) {
+			Log.stack(LOG_ID, SerialNumber+" onDescriptorWrite", e);
+			if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
+				Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+			var gatt= mBluetoothGatt;
+			if(gatt!=null)
+				requestDisconnect(gatt, 0L);
+
+		}
+	}
+static void showCharacter(String label, BluetoothGattCharacteristic characteristic) {
+	byte[] value=characteristic.getValue();
+        {if(doLog){Log.showbytes(label + " UUID: " + characteristic.getUuid().toString(), value);};}
+    }
+@Override // android.bluetooth.BluetoothGattCallback
+	public synchronized void onDescriptorWrite(BluetoothGatt bluetoothGatt, BluetoothGattDescriptor bluetoothGattDescriptor, int status) {
+		if (!acceptGattCallback(bluetoothGatt)) return;
+		super.onDescriptorWrite(bluetoothGatt, bluetoothGattDescriptor, status);
+		if(doLog)  {
+		   BluetoothGattCharacteristic characteristic = bluetoothGattDescriptor.getCharacteristic();
+			showCharacter(SerialNumber+" onDescriptorWrite status="+status, characteristic);
+          }
+      if(status!=GATT_SUCCESS ) {
+				requestDisconnect(bluetoothGatt, 0L);
+            return;
+         }
+         
+		if (sensorgen == 2 && conphase == 1) {
+			writeBLELogin();
+		}
+	}
+private boolean connected=false;
+	@SuppressLint("MissingPermission")
+	@Override
+	public synchronized void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
+		if (bluetoothGatt == null || bluetoothGatt != mBluetoothGatt) return;
+		if (stop) {
+			close();
+			return;
+		}
+		if (disconnectingGatt != null && newState != BluetoothProfile.STATE_DISCONNECTED) return;
+		if (!acceptConnectionAttemptCallback(bluetoothGatt, newState)) return;
+		noteFirstGattCallback("onConnectionStateChange", bluetoothGatt);
+		super.onConnectionStateChange(bluetoothGatt, status, newState);
+		endBLEHandler();
+		long tim = System.currentTimeMillis();
+		try {
+			if (doLog) {
+				final String[] states = {"DISCONNECTED", "CONNECTING", "CONNECTED", "DISCONNECTING"};
+				Log.i(LOG_ID, SerialNumber + " onConnectionStateChange, status:" + status + ", state: "
+						+ (newState >= 0 && newState < states.length ? states[newState] : newState));
+			}
+			if (newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS) {
+				connected = true;
+				constatchange[0] = tim;
+				setpriority(bluetoothGatt);
+				if (!bluetoothGatt.discoverServices()) {
+					Log.e(LOG_ID, "bluetoothGatt.discoverServices() failed");
+					requestDisconnect(bluetoothGatt, 0L);
+				}
+			} else {
+				connected = false;
+				setConStatus(status);
+				constatchange[1] = tim;
+				if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+					// Keep the existing Libre 2 notification/authentication recovery policy.
+					if (status == 19 && justenablednotification) {
+						Natives.resetbluetooth(dataptr);
+						justenablednotification = false;
+					}
+					retryAfterDisconnect(bluetoothGatt);
+				} else if (status != GATT_SUCCESS) {
+					requestDisconnect(bluetoothGatt, 0L);
+				}
+			}
+		} catch (Throwable e) {
+			Log.stack(LOG_ID, SerialNumber + " onConnectionStateChange", e);
+			if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
+				Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+			setConStatus(status);
+			constatchange[1] = tim;
+			requestDisconnect(bluetoothGatt, 0L);
+		}
+	}
+
+	BluetoothGattCharacteristic BLELogincharacteristic;
+	BluetoothGattCharacteristic CompositeRawDatacharacteristic;
+
+
+	private  boolean m2831x() {
+		try {
+			var sensorbluetooth=SensorBluetooth.blueone;
+			if(sensorbluetooth==null)
+				return false;
+			BluetoothGattService service = mBluetoothGatt.getService(mADCCustomServiceUUID);
+			if (service != null) {
+				BLELogincharacteristic = service.getCharacteristic(mCharacteristicUUID_BLELogin);
+				CompositeRawDatacharacteristic = service.getCharacteristic(mCharacteristicUUID_CompositeRawData);
+				if (BLELogincharacteristic != null && CompositeRawDatacharacteristic != null) {
+					if (sensorgen == 2) {
+						{if(doLog) {Log.i(LOG_ID, "Using security generation 2");};};
+						conphase = 1;
+						boolean isEnabled = asknotification(BLELogincharacteristic);
+						{if(doLog) {Log.i(LOG_ID, "Enabled Security notification: " + isEnabled);};};
+						return true;
+					}
+					{if(doLog) {Log.i(LOG_ID, "Using security generation 1");};};
+
+					long tim = System.currentTimeMillis();
+					byte[] key = Natives.sensorUnlockKey(dataptr);
+					if (key != null) {
+						conphase = 5;
+						if(BLELogincharacteristic.setValue(key)) {
+							if(mBluetoothGatt.writeCharacteristic(BLELogincharacteristic)) {
+								if(doLog) {
+									{if(doLog) {Log.v(LOG_ID, SerialNumber + " writeCharacteristic passcode: " + new String(showhex.hexstr(key, 0, key.length)));};};
+									}
+								return true;
+								}
+							else {
+								Log.e(LOG_ID,SerialNumber + " writeCharacteristic failed passcode: " + new String(showhex.hexstr(key, 0, key.length)));
+								wrotepass[1] = tim;
+								handshake="writeCharacteristic";
+								return false;
+								}
+
+							}
+						else {
+							wrotepass[1] = tim;
+							handshake="setValue";
+						Log.e(LOG_ID,SerialNumber + " setValue failed: passcode: " + new String(showhex.hexstr(key, 0, key.length)));
+							return false;
+							}
+						} 
+					else {
+						wrotepass[1] = tim;
+						handshake ="No key";
+
+						return false;
+					}
+				}
+				else {
+					{if(doLog) {Log.i(LOG_ID,BLELogincharacteristic==null?"BLELogincharacteristic==null ":""+ CompositeRawDatacharacteristic==null?"CompositeRawDatacharacteristic==null":"");};};
+					return false;
+
+					}
+			}
+			else {
+				{if(doLog) {Log.i(LOG_ID,"mBluetoothGatt.getService(mADCCustomServiceUUID)==null");};};
+				return false;
+				}
+		} catch (Throwable e) {
+			Log.stack(LOG_ID, "onServicesDiscovered", e);
+			if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
+				Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+			return false;
+		}
+	}
+
+
+	@SuppressLint("MissingPermission")
+    @Override // android.bluetooth.BluetoothGattCallback
+	public synchronized void onServicesDiscovered(BluetoothGatt bluetoothGatt, int status) {
+		if (!acceptGattCallback(bluetoothGatt)) return;
+		{if(doLog) {Log.i(LOG_ID, "BLE onServicesDiscovered invoked, status: " + status);};};
+//		readrssi=9999; mBluetoothGatt.readRemoteRssi();
+		if(status != GATT_SUCCESS||! m2831x()) {
+			requestDisconnect(mBluetoothGatt, 0L);
+			}
+
+	}
+
+
+	/*
+public void onCharacteristicWrite (BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic,
+                int status)
+Callback indicating the result of a characteristic write operation.
+
+If this callback is invoked while a reliable write transaction is in progress, the value of the characteristic represents the value reported by the remote device. An application should compare this value to the desired value to be written. If the values don't match, the application must abort the reliable write transaction.
+
+Parameters
+gatt	BluetoothGatt: GATT client invoked BluetoothGatt#writeCharacteristic
+characteristic	BluetoothGattCharacteristic: Characteristic that was written to the associated remote device.
+status	int: The result of the write operation BluetoothGatt#GATT_SUCCESS if the operation succeeds.
+*/
+private	boolean justenablednotification = false;
+ private   BluetoothGattCharacteristic characteristic;
+private   boolean failedbefore=false;
+	@Override
+	public synchronized void onCharacteristicWrite(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic, int status) {
+		if (!acceptGattCallback(bluetoothGatt)) return;
+		{if(doLog) {Log.d(LOG_ID, bluetoothGatt.getDevice().getAddress() + " onCharacteristicWrite, status:" + status + " UUID:" + bluetoothGattCharacteristic.getUuid().toString());};};
+		if (sensorgen == 2)
+			return;
+		try {
+			var sensorbluetooth=SensorBluetooth.blueone;
+			if(sensorbluetooth==null) {
+				{if(doLog) {Log.i(LOG_ID, "onCharacteristicWrite sensorbluetooth==null");};};
+				return ;
+				}
+            BluetoothGattService service;
+			BluetoothGattDescriptor descriptor;
+			//noinspection MissingPermission
+			boolean success = true;
+			long tim = System.currentTimeMillis();
+			justenablednotification = true;
+			if(status == GATT_SUCCESS &&
+                (service = bluetoothGatt.getService(mADCCustomServiceUUID)) != null &&
+                (characteristic = service.getCharacteristic(mCharacteristicUUID_CompositeRawData)) != null &&
+                bluetoothGatt.setCharacteristicNotification(characteristic, true) &&
+                (descriptor = characteristic.getDescriptor(mCharacteristicConfigDescriptor)) != null) {
+                        if(!descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                            Log.e(LOG_ID,"descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)  failed");
+                            }
+                        success = bluetoothGatt.writeDescriptor(descriptor);
+                        } 
+            else success = false;
+			if (!success) {
+				wrotepass[1] = tim;
+				handshake = "Enabling notification failed";
+				{if(doLog) {Log.i(LOG_ID, SerialNumber + " onCharacteristicWrite:  enabling notification failed");};};
+                if(failedbefore) {
+                   Natives.resetbluetooth(dataptr);
+                   failedbefore=false;
+                   }
+                else failedbefore=true;
+                requestDisconnect(bluetoothGatt, 0L);
+                return;
+                }
+
+         failedbefore=false;
+			conphase = 4;
+			wrotepass[0] = tim;
+			pack1 = false;
+			pack2 = false;
+		} catch (Throwable e) {
+			Log.stack(LOG_ID, SerialNumber+" onCharacteristicWrite", e);
+			if (Build.VERSION.SDK_INT > 30 && !Applic.mayscan())
+				Applic.Toaster(R.string.turn_on_nearby_devices_permission);
+			requestDisconnect(bluetoothGatt, 0L);
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+private static PowerManager.WakeLock getwakelock() {
+		return ((PowerManager) app.getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Juggluco::processTooth");
+		}
+	/*
+private static PowerManager.WakeLock wakeLock=null; 
+private static PowerManager.WakeLock getwakelock() {
+		if(wakeLock==null) {
+			PowerManager powerManager= (PowerManager) app.getSystemService(POWER_SERVICE);
+			wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Juggluco::processTooth");
+			}
+		return wakeLock;
+		}
+		*/
+
+private boolean setDescriptor(BluetoothGattCharacteristic ch, byte[] type) {
+       var gatt=mBluetoothGatt;
+        BluetoothGattDescriptor descriptor = ch.getDescriptor(mCharacteristicConfigDescriptor);
+        if(!descriptor.setValue(type)) {
+            Log.e(LOG_ID, SerialNumber + " " + "descriptor.setValue())  failed");
+            return false;
+        }
+        return gatt.writeDescriptor(descriptor);
+        }
+private long datatime=0L;
+private	void oldonCharacteristicChanged(byte[] value) {
+		justenablednotification = false;
+		int length = value.length;
+		{if(doLog) {Log.d(LOG_ID, SerialNumber + " oldonCharacteristicChanged " + length);};};
+		switch (length) {
+			case 20: {
+				System.arraycopy(value, 0, packet, 0, 20);
+				pack1 = true;
+				pack2 = false;
+			}
+			;
+			break;
+			case 18: {
+				if (pack1) {
+					System.arraycopy(value, 0, packet, 20, 18);
+					pack2 = true;
+				}
+			}
+			;
+			break;
+			case 8: {
+				if (pack1 && pack2) {
+					final var wakeLock=Natives.hasRootcheck()?getwakelock():null;
+					if(wakeLock!=null) {
+						wakeLock.setReferenceCounted(false);
+						wakeLock.acquire(Applic.GLUCOSE_WAKELOCK_TIMEOUT_MS);
+						}
+                        /*
+                    if(isWearable) {
+                        if(Natives.getDisconnectSensor()) {
+                            Log.i(LOG_ID,"enableNotification(mBluetoothGatt, characteristic)");
+                            setDescriptor(characteristic,  BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+                            Applic.scheduler.schedule(()-> {
+                                if(connected) {
+                                   setDescriptor(characteristic,  BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                    }
+                                    }, 30, TimeUnit.SECONDS);
+
+                            }
+                        } */
+
+					try {
+						pack1 = false;
+						pack2 = false;
+						System.arraycopy(value, 0, packet, 38, 8);
+						final long timmsec = System.currentTimeMillis();
+						final var newpacket= sensorgen==2?V2(773, tovalue, packet, null):packet;
+						if(newpacket!=null) {
+							long res = processTooth(dataptr, newpacket);
+							if(res!=1L) {
+								handleGlucoseResult(res,timmsec);
+								}
+							}
+						datatime=timmsec;
+						}
+					finally {
+						Applic.releasewakelock(wakeLock);
+						}
+                  /*  if(isWearable) {
+                        if(Natives.getDisconnectSensor()&&!autoconnect) {
+                            disconnect();  
+                            }
+                        } */
+				}
+			}
+			;
+			break;
+			default: {
+				{if(doLog) {Log.i(LOG_ID, SerialNumber + " onCharacteristicChanged: wrong length=" + value.length);};};
+			}
+			;
+		}
+		;
+	}
+
+	int contactint = 0;
+
+	private int authlastv1v2(int i, byte[] bArr, byte[] bArr2, byte[] bArr3,int numb) {
+		int P1res = V1(28960, numb, bArr, null);
+		if (P1res < 0) {
+			return P1res;
+		}
+		byte[] bArr4 = new byte[2];
+		bArr4[0] = 1;
+		bArr4[1] = (byte) i;
+		byte[] P2res = V2(6505, P1res, bArr4, bArr2);
+		if (P2res == null) {
+			errorP1(P1res);
+			return -99;
+		}
+		System.arraycopy(P2res, 0, bArr3, 0, P2res.length);
+		return P1res;
+	}
+
+	private byte[] authenticateStream(byte[] bArr) {
+		int i = contactint;
+		if(i > 0) {
+			V1(37400, i, null, null);
+			contactint = 0;
+			}
+		byte[] Ew = Natives.getsensorident(dataptr); //uid sensorident
+		if(Ew == null) { 
+			handshake= "No ident";
+			wrotepass[1] = System.currentTimeMillis();
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+			Log.e(LOG_ID, SerialNumber+ " No ident");
+			return null;
+			}
+
+		if(doLog) {
+			{if(doLog) {Log.i(LOG_ID, "sensdorident: " + showhex.showbytes(Ew));};};
+			}
+//  streamingAuthenticationData
+		byte[] auth = getstreamingAuthenticationData(dataptr);
+		if(auth == null ) { 
+			handshake= "No Auth";
+			wrotepass[1] = System.currentTimeMillis();
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+			{if(doLog) {Log.i(LOG_ID,SerialNumber+" " +  showhex.showbytes(Ew));};};
+			return null;
+			}
+		if(doLog) {
+			{if(doLog) {Log.i(LOG_ID, "Authenticationdata: " + showhex.showbytes(auth));};};
+			}
+		int numb;
+		if(Gen2.newVersion) {
+			if(auth.length == 12) {
+			   numb = ((auth[11] << 8) | auth[10]) & 0xFFFF;
+			   } 
+			else {
+			var mess="Authenticationdata: len="+auth.length;
+			   if (auth.length < 10) {
+				Log.e(LOG_ID,SerialNumber+" "+mess);
+				handshake= mess;
+				wrotepass[1] = System.currentTimeMillis();
+				var gatt = mBluetoothGatt;
+				if (gatt != null)
+					requestDisconnect(gatt, 0L);
+				return null;
+			   } else {
+			   	{if(doLog) {Log.i(LOG_ID,mess);};};
+			       numb = -1; //-1
+				}
+			    }
+			   }
+		else {
+			numb=0;
+			}
+
+		byte[] bArr2 = new byte[bArr.length+10];
+		System.arraycopy(auth, 0, bArr2, 0, 10);
+		System.arraycopy(bArr, 0, bArr2, 10, bArr.length);
+		byte[] bArr3 = new byte[19];
+		contactint = authlastv1v2(31, Ew, bArr2, bArr3,numb);
+		if(contactint > 0)
+			return bArr3;
+		handshake= "Auth = "+contactint;
+		wrotepass[1] = System.currentTimeMillis();
+		var gatt = mBluetoothGatt;
+		if (gatt != null)
+			requestDisconnect(gatt, 0L);
+		Log.e(LOG_ID,SerialNumber+" "+handshake);
+		return null;
+	}
+
+
+	//mCharacteristicUUID_BLELogin.toString().equals(bluetoothGattCharacteristic.getUuid().toString())
+	byte[] buf25 = new byte[25];// this.f14472dGb = new byte[25];
+	public final void phase2(byte[] value) {
+		if (value.length != 14) {
+			Log.e(LOG_ID, SerialNumber+" phase2 wrong " + value);
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+			return;
+		}
+		try {
+			byte[] a = authenticateStream(value);
+			if(a==null)  {
+                		Log.e(LOG_ID, SerialNumber+" phase2 wrong (a == null)");
+				var gatt = mBluetoothGatt;
+				if (gatt != null)
+					requestDisconnect(gatt, 0L);
+				return;
+				}
+//            this.f14472dGb = new byte[25];
+		    mBLELoginHandler = forCurrentGatt(() -> {
+			BLELogincharacteristic.setValue(a);
+            var gatt = mBluetoothGatt;
+            if(gatt==null)
+                return;
+			if(!gatt.writeCharacteristic(BLELogincharacteristic)) {
+			    var mess = "phase2 retry=" + BLELoginposted + " writeCharacteristic(BLELogincharacteristic)";
+			    Log.e(LOG_ID, SerialNumber+" "+mess);
+			    handshake = mess;
+			    wrotepass[1] = System.currentTimeMillis();
+			    if(BLELoginposted < 5) {
+                    ++BLELoginposted;
+                    Applic.app.getHandler().postDelayed(mBLELoginHandler, 100);
+                    return;
+                    }
+			  //  var gatt = mBluetoothGatt;
+			    if(gatt != null)
+                    requestDisconnect(gatt, 0L);
+			    return;
+                }
+			conphase = 3;
+			justenablednotification = true;
+			BLELoginposted = 0;
+			mBLELoginHandler = null;
+		    });
+		    mBLELoginHandler.run();
+		} catch (Exception e) {
+			handshake = "streamingUnlock failed";
+			Log.e(LOG_ID, SerialNumber+" "+handshake);
+			wrotepass[1] = System.currentTimeMillis();
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+		}
+	}
+
+	private void contactintZero(int i) {
+		V1(37400, i, null, null);
+		contactint = 0;
+	}
+
+	int tovalue;
+/*
+static	public final boolean enableNotification(BluetoothGatt bluetoothGatt,BluetoothGattCharacteristic bluetoothGattCharacteristic) {
+	bluetoothGatt.setCharacteristicNotification(bluetoothGattCharacteristic, true);
+	BluetoothGattDescriptor descriptor = bluetoothGattCharacteristic.getDescriptor(mCharacteristicConfigDescriptor);
+	descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+	return bluetoothGatt.writeDescriptor(descriptor);
+	}
+private final boolean enableNotification(BluetoothGattCharacteristic bluetoothGattCharacteristic) {
+	return enableNotification(mBluetoothGatt, bluetoothGattCharacteristic);
+	} */
+
+	public final void phase3(byte[] value) {
+		int i;
+		if (value.length == 7) {
+			System.arraycopy(value, 0, buf25, 0, value.length);
+		} 
+	else {
+		if (value.length == 18) {
+			System.arraycopy(value, 0, buf25, 7, value.length);
+			byte[] bArr = buf25;
+			if (v1check(contactint, 1, bArr) != 0) {
+				contactintZero(contactint);
+				i = 0;
+			} else
+				i = contactint;
+			tovalue = i;
+			if (i <= 0) {
+				handshake= "phase3 i<=0";
+				wrotepass[1] = System.currentTimeMillis();
+				Log.e(LOG_ID, SerialNumber+" Error creating session context");
+				var gatt = mBluetoothGatt;
+				if (gatt != null)
+					requestDisconnect(gatt, 0L);
+				return;
+				}
+			{if(doLog) {Log.i(LOG_ID, "Gen2 session " + i);};};
+			conphase = 4;
+
+            mBLELoginHandler = forCurrentGatt(() -> {
+                if (!asknotification(CompositeRawDatacharacteristic)) {
+                    Log.e(LOG_ID, SerialNumber+" phase3 retry=" + BLELoginposted + " enableNotification failed");
+                    handshake = "Enable CompositeRawDatacharacteristic failed";
+                    wrotepass[1] = System.currentTimeMillis();
+                    if (BLELoginposted < 5) {
+                        ++BLELoginposted;
+                        Applic.app.getHandler().postDelayed(mBLELoginHandler, 100);
+                        return;
+                    }
+                    conphase = 0;
+                    var gatt = mBluetoothGatt;
+                    if (gatt != null)
+                        requestDisconnect(gatt, 0L);
+                    return;
+                }
+                BLELoginposted = 0;
+                mBLELoginHandler = null;
+                wrotepass[0] = System.currentTimeMillis();
+            });
+            mBLELoginHandler.run();
+
+		} else {
+			handshake= "phase3 wrong length";
+			wrotepass[1] = System.currentTimeMillis();
+			Log.e(LOG_ID, SerialNumber+" Erroneous response length " + value.length);
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+		}
+		}
+	}
+
+@Override // android.bluetooth.BluetoothGattCallback
+public synchronized void onCharacteristicChanged(BluetoothGatt bluetoothGatt, BluetoothGattCharacteristic bluetoothGattCharacteristic) {
+		if (!acceptGattCallback(bluetoothGatt)) return;
+	byte[] value = bluetoothGattCharacteristic.getValue();
+	var uuid=bluetoothGattCharacteristic.getUuid();
+	var uuidstr=uuid.toString();
+	if(sensorgen != 2) {
+		if (!uuid.equals(mCharacteristicUUID_CompositeRawData)) {
+			if(doLog) {
+				{if(doLog) {Log.i(LOG_ID, SerialNumber + " onCharacteristicChanged: wrong UUID:" + uuidstr);};};
+				}
+			return;
+			}
+		oldonCharacteristicChanged(value);
+		return;
+		}
+
+	if(doLog) {
+//      boolean str=uuidstr.equals(mCharacteristicUUID_CompositeRawData.toString());
+      final boolean isRawData=uuid.equals(mCharacteristicUUID_CompositeRawData);
+      {if(doLog) {Log.i(LOG_ID, "UUID: "+(isRawData?"CompositeRawData, ":"")+ " conphase=" + conphase);};};
+		{if(doLog) {Log.i(LOG_ID, "onCharacteristicChanged " + uuidstr);};};
+	     }
+	if (!mCharacteristicUUID_BLELogin.equals(uuid)) {
+		if (uuid.equals(mCharacteristicUUID_CompositeRawData) && conphase == 4) {
+			oldonCharacteristicChanged(value);
+		}
+		}
+	else {
+		if(conphase == 2) {
+			phase2(value);
+			}
+		else  {
+			if(conphase == 3) {
+				phase3(value);
+				}
+			}; 
+		}
+	}
+private int BLELoginposted=0;
+private Runnable		mBLELoginHandler=null; 
+private long bleLoginGeneration;
+
+// A Handler retry may already be dispatched when removeCallbacks() runs.
+private Runnable forCurrentGatt(Runnable task) {
+    final BluetoothGatt gatt = mBluetoothGatt;
+    final long generation = ++bleLoginGeneration;
+    return () -> {
+        synchronized (this) {
+            if (generation == bleLoginGeneration && acceptGattCallback(gatt)) task.run();
+        }
+    };
+}
+
+private void endBLEHandler() {
+        ++bleLoginGeneration;
+        BLELoginposted = 0;
+        if (mBLELoginHandler != null) {
+            Applic.app.getHandler().removeCallbacks(mBLELoginHandler);
+            mBLELoginHandler = null;
+        }
+    }
+@Override
+	public synchronized void close() {
+	   cancelDisconnectDeadline();
+	   endBLEHandler();
+      final var gatt=mBluetoothGatt;
+      if(nonNull(gatt)) {
+         disablenotification(gatt,BLELogincharacteristic);
+         disablenotification(gatt, CompositeRawDatacharacteristic) ;
+         }
+		super.close();
+		resetConnectionState();
+		}
+@Override
+public synchronized void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status)  {
+		if (!acceptGattCallback(gatt)) return;
+	{if(doLog) {Log.i(LOG_ID,"onReadRemoteRssi(BluetoothGatt,"+ rssi+","+status+(status==GATT_SUCCESS?" SUCCESS":" FAILURE"));};};
+	if(status==GATT_SUCCESS) {
+		readrssi=rssi;
+		}
+	}
+
+@Override
+public boolean matchDeviceName(String deviceName,String address) {
+	if(deviceName==null||!deviceName.startsWith("ABBOTT")) {
+		return false;
+		}
+	return SerialNumber.equals(deviceName.substring(6));
+	}
+@Override
+void free() {
+    super.free();
+    cancelalarm();
+    }
+@Override
+public UUID getService() {
+   return mADCCustomServiceUUID;
+   }
+/*@Override
+public void setGattOptions(BluetoothGatt gatt) {
+	if(Build.VERSION.SDK_INT >= 26 ) {
+        if(doLog) {Log.i(LOG_ID,"setGattOptions(BluetoothGatt gatt) setPreferredPhy PHY_LE_2M_MASK");};
+        gatt.setPreferredPhy(
+         BluetoothDevice.PHY_LE_2M_MASK,
+         BluetoothDevice.PHY_LE_2M_MASK,
+         BluetoothDevice.PHY_OPTION_NO_PREFERRED); 
+         }
+        } */
+
+}

@@ -1,0 +1,207 @@
+Always gen2 with Libre2Plus?
+
+Talk->Test on WearOS is terrible slow
+Kijk naar logs Sibionics 2
+Als iemand een oude sensor met zelfde pin heeft liggen leidt dit tot problemen.
+Die sensor kan geaccepteerd worden. Daarna neemt Juggluco nog alleen maar die sensor. Als het niet zo was zouden data door elkaar raken.
+Oplossingen:
+- Mogelijkheid toevoegen alle data van sensor te wissen;
+
+Creates second connection?
+
+Complications:
+        - press large image complication no effect;
+
+Bij kleine help tekst scrolled tekst toch.
+Zeg waiting for connection, inplaats van ready in .. seconds
+In the google Play version when a new language is selected that isn't used before, so has to be downloaded, the menu stays in the previous language until the users leaves Juggluco and returns.
+
+
+android_fdsan_close_with_tag
+AlertDialog allCaps on phone
+
+
+
+Graph range not set to right value
+Geen controls nodig in settings
+
+In WearInitView eindigen taps in curve below:
+Enkel key proberen als bonded?
+Als nearby devices faalt moet het later gevraagd worden
+
+remove NONOJVM
+Knoppen over scherm
+-Sensor scherm door rssi
+-uploader?
+
+in wearOS settings:
+   voor labels meer linker margin
+hostname in mirror kan aan staat bij passive only.
+Procompiled shared libraries don't run under Android 15 TargetSDK=35 with 16kb
+On Android 15, is notification only shown after restart of Juggluco
+
+
+
+Bij klein scherm linker en rechter menu buiten beeld.
+Na failure to give nearby device permission, wordt ook niet om andere permissions gevraagd.
+Data overzenden naar remote device duurt te lang.
+
+state messages?
+
+After screen unlock, no floating glucose above Android home.
+TEST verwijderen
+Sometimes on watch in mirror "active only" is changed to both.
+Should newer TicWatch use active only on watch?
+
+When one of two sensors are terminated, this is known in a direct mirror, but not an indirect mirror.
+US Libre 2 doesn't run under unhit rooted Ticwatch
+
+Gaat nooit meer naar WIFI als messages worden aangezet. Messages wordt ook aangezet wanneer het niet functioneert.
+
+Bij wisselen wifi network, wordt verbinding horloge-telefoon verbroken. Reinit, sync doet het weer werken.
+
+Test bij nieuwe installatie. 
+The mirror connection didn't work. After changing the password it did, but earlier they already looked the same. Why?
+In Mirror Phone verdwijnt stream als eind uit beeld.
+Libre3 getservice in both onConnectionStateChange and onServiceDisc?
+[x] over System UI en Dark mode en te dicth bij Amounts
+
+Bij sluiten reminder wordt notificatie niet verwijderd.
+While compiling juggluco server -lz is added.
+Drukken op menu toont soms niets? Om is er geen menu?
+Verbinding vaak verbroken tussen horloge en telefoon.
+cors
+
+Regelmatig connectie problemen tussen Jugglucos' op verschillend devices na nieuwe modem.
+
+Verkeerde port wordt getoond bij Juggluco server when passive
+ 
+Vanaf bepaald tijdstip enkel zenden naar Nightscout?
+
+libreview staat uit, toch lijkt er contact gemaakt te worden.
+Text size headsize lijkt niet zo groot
+
+"Health connect" verder terug bij nieuwe sensor?
+
+Roep sync ergens aan in watchserver wanneer gevraagd wordt.
+	REMOVE sync bij enkel connectie
+
+
+No relevant changes: https://github.com/j-kaltes/Juggluco/compare/ecfb46b..678de7a
+
+Geen nieuw id in juggluco server
+What do com.google.android.gms.auth.api.signin and com.google.android.gms.dynamite in my app??
+
+
+Beperk aantal connecties webserver?
+Resend data wordt niet doorgezonden.
+
+Terug naar Juggluco, geen menus
+
+Reinit sync maakt dat WearOS weer glucose waarden ontvangt. Kan dat niet automatisch gebeuren?
+- In onDraw of floating glucose?
+- Timers in app.
+- redraw of app.
+
+
+Verwijderen van de verkeerde notificatie? Delete verwijdered Foreground service notification.
+Starthistory? Moet niet al verkregen data terugzenden. 
+- Gelijk zetten met Stream vanaf zelfde tijd.
+- Ook zetten bij wisseling watch.
+- wordt history doorgezonden?
+See setbackuptime
+
+US sensors only work from Android 8. only add library to Libre3 version.
+
+"Streaming not enabled" confusing
+Soms wordt steeds sendstream op telefoon uitgezet in verbinding met horloge.?
+Add how to give logfile
+Juggluco can only be used with one Garmin device running Kerfstok at a time and can not be easily changed to a new Garmin Watch.
+Possible solution:
+	- add seperate data for every watch;
+	- In each watch only difference between own and others data;
+
+Ereader doesn't respect Landscape mode, but Juggluco does assume it does. Dialogs don't wrong.
+Small (time and glucose) lines not good visible on ereader
+	
+Libreview saved in Local time. Goes wrong after a time zone change. Librelink has the same problem.
+
+
+Terminated sensor wordt doorgegeven aan direct verbonden kloon, maar niet verder.
+
+
+Also in Galaxy something with active receive?
+Libreview:
+	- Als librelink naar Libre3 gegaan worden nummers ook met de andere app ingevoerd. Dit kan tot gevolg hebben dat een oude
+	waarde met een andere app gewijzigd wordt. Die oude waarde wordt daardoor niet verwijderd en enkel toegevoegd.
+	Oplossingen:
+		- Alle nummbers met zelfde app invoeren;
+		- Bijhouden welke app toen gebruikt werd.
+	- Horloge schrijft soms zelfde waarde weer terug
+	- Beter: zenden wanneer er nieuwe amounts zijn, i.p.v. wachten op glucose.
+
+Beter bestand tegen ontbrekende data. Niet direct problemen wanneer files missen.
+
+Iets met oude patched libre3
+
+Na uitzetten wearos zitten er nog threads.
+
+With two sensors after switch to watch, second sensor seems to make no bluetooth contact before opening sensor menu.
+new socket formed every time Mirror is opened.
+Met messages on maakt open connectie ook als passiveonly.
+opened ook connectie wannneer er al eentje is.
+Rare lastpos na scan
+Soms usebluetooth uit, maar wel contact.
+
+Password Nightscout etc less obvious?
+sometimes no nodes
+setmynetinfo never called.
+Waarom reinit/sync nodig?
+Turn on Bluetooth
+
+-pinch (scale time) difficult. scale near zero
+
+
+Sensor via bluetooth staat uit, maar sensor scherm toont gegevens
+Maak directe sensor-watch verbinding onmogelijk wanneer backfill nog niet klaar is.
+terminate niet verzonden naar horloge
+Soms worden amounts niet naar horloge gezonden.
+ - Soms sync all?
+Geen nieuwe waarde since ... wordt niet geheel getoond in Floating glucose
+*****Some worden nummers niet van telefoon naar horloge gezonden, waardoor reminders afgaan. ****
+
+active receiver wordt niet gewaakt bij configuratie veranderingen
+Enige problemen met lege bestanden in mirror device.
+	current.dat e.d. niet voor Libre3 creeren?
+What doet libreview als netwerk uitstaat?
+More often problems with deleted items?
+
+
+
+ZEgt sensor error, wanneer er daarna een connectie error bestaat.
+Touches in Color dialog komen in view eronder terecht.
+
+In licht display mode is notificatie onzichtbaar op lockscreen.
+Omdraaien mode, pas invloed op notificatie na restart.
+
+Network problem remark and countdown at the same time.
+
+Bij uitschakeling van WIFI worden messages some niet automatisch aangezet.
+
+setMaintenancealarm niet op main thread
+
+
+
+Message Bluetooth soms niet doorgezonden naar horloge.
+
+
+Screen not updated when receiving new glucose value from watch.
+In mobile app. netinfo wordt niet overgezonen naar watch
+Remove reenable button
+Ook in Notification
+Update sensor screen
+
+Remove GenVersion modification
+Tijd wordt afgerond op minuten
+- Advanced?
+

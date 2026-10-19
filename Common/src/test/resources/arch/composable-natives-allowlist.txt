@@ -1,0 +1,24 @@
+# Composable files that call Natives.* directly (plan §2.3, ArchitectureGateTests).
+#
+# Every screen here reads or writes native state at composition time instead of through a
+# ViewModel, which is exactly the pattern behind screens silently losing state on restore. This
+# list may only shrink: a new file added to it, or a stale line for one already fixed, fails the
+# build (ArchitectureGateTests.composablesDoNotGrowInCallsToNatives).
+src/mobile/java/tk/glucodata/ui/AlarmScreen.kt
+src/mobile/java/tk/glucodata/ui/CgmReadiness.kt
+src/mobile/java/tk/glucodata/ui/CloneHistoryRecoverySheet.kt
+src/mobile/java/tk/glucodata/ui/DebugSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/ExchangeSettingsScreens.kt
+src/mobile/java/tk/glucodata/ui/ExpressiveSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/HistoryDataTransfer.kt
+src/mobile/java/tk/glucodata/ui/LibreViewSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/MirrorSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/NightscoutSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/TurnServerSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/alerts/TalkerSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/overlay/FloatingGlucoseOverlay.kt
+src/mobile/java/tk/glucodata/ui/setup/LibreSetupWizard.kt
+src/mobile/java/tk/glucodata/ui/setup/SibionicsSetupWizard.kt
+src/mobile/java/tk/glucodata/ui/stats/StatsViewModel.kt
+src/wear/java/tk/glucodata/ui/screens/MainScreen.kt
+src/wear/java/tk/glucodata/ui/screens/SensorScreen.kt

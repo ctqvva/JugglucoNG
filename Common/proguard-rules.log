@@ -1,0 +1,30 @@
+-assumenosideeffects public final class android.util.Log {
+    public static int v(...);
+    public static int w(...);
+    public static int d(...);
+    public static int i(...) ;
+     public static String getStackTraceString(...);
+}
+-whyareyoukeeping class android.util.Log 
+# NOTE: this block is INERT and has been for as long as it has existed. R8 matches the
+# modifiers in a class specification as required flags, and tk.glucodata.Log (Log.java:39) is
+# `public class Log` — not final — so nothing below is stripped. That is why trace.log is still
+# written by release builds while the android.util.Log block above (that class IS final) really
+# does take effect: a shipped APK has 272 android.util.Log.e call sites left but only 10 .w.
+# Deleting `final` here would silence the on-device trace log that CGM diagnosis depends on, so
+# the discrepancy is left as it is. Do not read this block as evidence that a tk.glucodata.Log
+# line cannot reach a release build — the reverse is true, and it is android.util.Log warnings
+# that vanish.
+-assumenosideeffects public final class tk.glucodata.Log {
+   private static void log(...);
+    public static void v(...);
+    public static void w(...);
+    public static void d(...);
+    public static void e(...);
+    public static void stack(...);
+    public static void d(String,String);
+    public static void i(...) ;
+    public static void format(...) ;
+}
+
+-whyareyoukeeping class tk.glucodata.Log 

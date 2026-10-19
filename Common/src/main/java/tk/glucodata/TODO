@@ -1,0 +1,228 @@
+Add WearOS option to mirror
+
+Longer sensorid Dexcom
+
+Add multiple alarms with different times.
+
+Remove meer c++ code met #ifdef SIBIONICS DEXCOM LIBRE3
+No am/pm for current time
+
+Look at order complication types
+
+
+Enter numbers on all devices.
+
+
+naar Libreview  in WearOS
+
+In plaats van uitzetten "Send amounts" maken dat erop klikken uitleg geeft.
+   $m/settings/LibreNumberHolder.java
+   $m/settings/LibreNumbers.java
+Toevoegen toelichting?
+
+
+Makkelijkere reset en restore
+
+Seconden toevoegen aan tijd punten? Minuten afronden naar seconden.
+
+
+Betere barcode scanner, keuze optie?
+
+Remove start and stop search for sensors.
+
+Simple WearOS manual.
+Simple Libre3 manual.
+
+Verwijderen files die niet gebruikt worden.
+Parallel sibionics in manual
+Meerdere alarmen?
+Refer to direct watch manual.
+
+Send from watch to Libreview
+
+try out updates
+Complete OpenGL mirror version for windows, Linux, IOS and AsteroidOS
+	AsteroidOS Bluetooth, NFC
+Simplified version that immediately updates values, instead of dependence on poll frequency.
+
+Iets met instellen IOB:
+	- Instellen variabele categorien?
+	- Verschillende typen insuline
+	- ga geen nummers af als er geen Insuline category bestaat.
+
+Help:
+	- uploader, broadcast. Bij langzame hologe/telefoon kan android device laten slapen voordat alles afgehandeld wordt.
+	Verander inleidende tekst:
+
+Version for Android Wear and Huawei watch 4 and ColorOS?
+- Of grootte testen en WearOS opmaak gebruiken.
+- Speciale compile for watch?
+
+Use libreids for web server and uploads.
+
+Add NFC/Bluetooth glucose meters?
+IOB beter:
+	- langer dan 6 uur
+
+Watchdrip stoppen alarm?
+- Voorkomen dat oude waarden gezonden worden:
+	- Aangeven vanaf wanneer
+	- Informatie vanaf telefoon naar horloge
+Clicken ofzo op floating glucose app laten starten?
+
+Ook scans tonen in Nightscout server?
+
+Nightscout Webserver
+
+Helptext:
+	- mg/dL pictures
+	- Manual title
+	- links in libreview, watch
+	- links to overview
+	- add translations
+
+Make interface truncate alarm thresholds etc ?
+
+Ask leave without saving in:
+	-add connection
+	-settings
+TALK also in WearOS versie?
+
+Blind:
+	- Long press History read text too long
+	- spreek statistiek
+	- View under shortcuts is spoken out.
+	- Glucose:
+		- Glucose lijst, 
+		- Glucose bij amounts. Mogelijkheden:
+			- Toevoegen aan modificatie scherm. Nadeel: verwarrend, gecompliceerd;
+	- read end date?
+
+Option to use a different http Web server port?
+Problem: xDrip watch apps don't work with a different port
+
+Analyse History values for statistics:
+    - how interpolate to so values are aligned?
+
+Toon glucose waarde op webpagina als nightscout url opgevraagd wordt.
+- pijljes
+- glucose waarde
+- tijd/age
+
+Use end thread ook in Libre3
+
+Write frequently asked questions.
+
+
+Do something with webpages:
+	- more about Libre 3
+
+
+Make accessible for the blind:
+	Search control buttons unlabeled.
+	raakt underliggende vensers
+
+
+
+Separate android from rest in cpp
+Maak het makkelijker mirror connectie tussen smartphones te vormen:
+	- script om cloud server in te richten?
+Analyse Libre 3 PatchEvents and scans to generate error messages:  replace sensor, sensor ended etc.
+
+
+Do iets met libre3 events:
+- Remove?
+- LOG?
+
+Test apps?
+send to tidepool
+Categories set somewhere else in app:
+	add BG category?
+
+
+show serialnumbers bij scan errors
+
+Statistics ook van history 5 en 15
+
+Wacht op meer informatie
+
+Make also an history and backfill and amounts broadcasts?  Better some other interface.
+
+Deactivate dialogs in for example meals.
+
+Als Bluetooth aangezet wordt, wordt oldnotification niet uitgevoerd.
+
+Herschrijven documentatie:
+-Sensor Errors
+- Do not disturbe
+
+
+Kijk naar scope in watchface
+Refresh screen libreview
+
+Multidata app mogelijk maken.
+
+Add to add watch, de mogelijkheid broadcast op te vangen en via android app of phone of direct in wearos app op te vangen.
+Write watch face on broadcast. 
+Watchface more configuratie mogelijkheden
+savepollallIDs zet datums enkel als start terug gaat.
+Removes XX from sensorname.
+Write Mirror connection guide.
+
+
+Move in glucose in Status bar
+
+Add the following lines to your proguard configuration.
+
+-renamesourcefileattribute SourceFile
+-keepattributes SourceFile,LineNumberTable
+Now your stack traces will include line numbers, and by using the retrace tool that ships with proguard (included in the Android SDK), you are able to debug like normal.
+
+Note that even if you didn't use these two configuration options, retrace still can output useful information provided you have the mappings file, albeit not totally unambiguously.
+
+Note: the file with the mappings is produced by the proguard configuration option:
+
+ -printmapping outputfile.txt
+
+
+The Urgent Low Soon alert is designed to notify you when your Dexcom G6 reading is predicted to reach 55 mg/dL within 20 minutes. The Fall Rate is designed to notify you when your glucose level is falling 2 or 3 mg/dL each minute. For more information, please visit page 144 in our Dexcom G6 CGM User Guide.
+
+Calibratie
+
+Onnodige libraries eruit gooien:
+- Kotlin weg?
+
+
+Waarschuwingen aflopen
+Test Android 12
+
+Disable/enable librelink
+
+Test librelink running
+
+Exchange netinfo knop.
+
+
+
+aparte notification in Notify
+Wordt scaninfomatie verwijderd?
+
+turn off in watch Natives.getusegarmin()
+
+Extra notificatie met setTimeoutAfter?
+
+
+
+add running librelink to sensor status:
+    - requires queries for every libre app in every country
+    - killing is not possible
+
+test also on hostname for localhost only
+
+
+watch ip is verschilllend afhankelijk via bluetooth or wifi.
+
+Netwerk Informatie schermpje?
+
+
+zet network weer af als er geen is.

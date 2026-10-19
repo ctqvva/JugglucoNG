@@ -1,0 +1,12 @@
+{
+  "low": {
+    "active_rms_dbfs": -20.0,
+    "peak_dbfs": -8.49,
+    "sha256": "29fdc545ccc5df94aafcd76285d37cd2b474971370b666c0e3f482f2d9b74148"
+  },
+  "high": {
+    "active_rms_dbfs": -20.0,
+    "peak_dbfs": -5.49,
+    "sha256": "858dce977796effffc8318d4b7a1f7ffc1d85ff6dfbd73e5ad45e7a40ea806c0"
+  }
+}

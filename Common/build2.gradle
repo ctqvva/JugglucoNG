@@ -1,0 +1,7 @@
+android {
+    // ... other android configurations
+
+    packagingOptions {
+        pickFirst 'lib/arm64-v8a/libg.so'
+    }
+}

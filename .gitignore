@@ -1,0 +1,71 @@
+# macOS
+.DS_Store
+
+# Gradle / build outputs
+.gradle/
+build/
+*/build/
+
+# CMake / NDK build cache
+.cxx/
+
+# Android local config
+local.properties
+
+# IntelliJ / Android Studio
+.idea/
+
+# Keystores (keep them private)
+*.jks
+*.keystore
+/.local/
+
+# Misc
+*.iml
+
+#libs
+*/jniLibs/
+Common/src/main/jniLibs/
+Common/src/libre3/jniLibs/
+BTautoconnect.patch
+Common/src/mobileSi/jniLibs/
+*/mobileLibre*
+.idea/
+
+.gemini/
+gha-creds-*.json
+c-logs/
+
+lint/intermediates/
+lint/generated/
+
+# Kotlin
+*.kotlin_module
+
+# Compiled JVM artifacts
+*.class
+
+# Local agent scratch reports
+.claude-scratch-*_report.md
+
+# Crash logs
+hs_err_pid*
+
+.kotlin/errors
+
+# --- Misc ---
+out/
+tmp/
+Common/printmappingout.txt
+
+# Android Studio "Generate Signed APK" wizard output (Destination Folder)
+/Common/mobileGoogle/
+/Common/mobile/
+/Common/wear/
+/update-manifest.json
+
+__pycache__/
+*.pyc
+
+# Private algorithm replays and local build artifacts
+/.local/

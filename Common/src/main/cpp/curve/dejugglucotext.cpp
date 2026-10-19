@@ -1,0 +1,190 @@
+/*      This file is part of Juggluco, an Android app to receive and display */
+/*      glucose values from Freestyle Libre 2 and 3 sensors. */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com> */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify */
+/*      it under the terms of the GNU General Public License as published */
+/*      by the Free Software Foundation, either version 3 of the License, or */
+/*      (at your option) any later version. */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. */
+/*      See the GNU General Public License for more details. */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>. */
+/*                                                                                   */
+/*      Fri Jan 27 15:20:04 CET 2023 */
+
+#include "jugglucotext.hpp"
+#ifdef INJUGGLUCO
+#ifndef WEAROS
+constexpr static std::string_view delabels[] = {
+    "Kohlenhydra", "Dextrose", "Ins schnell", "Langes Insu",
+    "radeln",      "Gehen",     "Blut"};
+constexpr static Shortcut_t deshortinit[] = {
+    {"Brot", .48},         {"Rosinenbr1", .56f}, {"Rosinenbr2", .595f},
+    {"Trauben", .165f},      {"Fruchtjogh.", .058f},   {"Reis", .75f},
+    {"Makkaroni", .65f},     {"Tomate", .03f},      {"Mexiko-Mix", .078f},
+    {"Orangensaft", .109f}, {"Möhrenmix", .07f}, {"Pilzmix", .07300000f}};
+#endif
+#endif // INJUGGLUCO
+// DIT IS EEN NIEUWE FILE
+jugglucotext detext{
+    .daylabel = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"},
+
+#ifdef INJUGGLUCO
+    .speakdaylabel = {"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag",
+                      "Freitag", "Samstag"},
+    .monthlabel = {"Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug",
+                   "Sep", "Okt", "Nov", "Dez"},
+    .scanned = "Gescannt",
+    .readysecEnable = "Sensor in %d Minuten bereit. Erneut scannen, um "
+                      "Streaming zu aktivieren.",
+    .readysec = "Sensor bereit in %d Minuten.",
+    .networkproblem = "Keine Glukose vom Klon",
+    .enablebluetooth = "Bluetooth aktivieren",
+    .useBluetoothOff = "'Bluetooth nutzen' aus",
+    .noconnectionerror = ": Keine Verbindung",
+    .stsensorerror = ": Sensorfehler",
+    .streplacesensor = ": Sensor ersetzen?",
+    .endedformat = "Sensor %s funktioniert nicht mehr. Status=%d",
+    .notreadyformat = "Sensor %s nicht bereit. Status=%d",
+#ifndef WEAROS
+    .median = "Median",
+    .middle = "mittlere",
+#endif
+    .history = "Verlauf",
+
+    .historyinfo = "Einmal alle 15 Minuten.\nAuf dem Sensor gespeichert für 8 "
+                   "Stunden.\nDurch das Scannen werden sie an dieses Programm "
+                   "übertragen.\nSensor: ",
+    .history3info =
+        "Einmal alle 5 Minuten.\nWird 14 Tage lang auf dem Sensor "
+        "gespeichert.\nÜber Bluetooth an dieses Programm übertragen.\nSensor: ",
+    .sensorstarted = "Gestartet:",
+    .lastscanned = "Zuletzt gescannt:",
+    .laststream = "Letzter Stream:",
+    .sensorends = "Endet offiziell:",
+    .sensorexpectedend = "Erwartetes Ende:",
+#endif // INJUGGLUCO
+#ifndef WEAROS
+#ifdef INJUGGLUCO
+    .newamount = "Neue Menge",
+    .averageglucose = "Durchschnittliche Glukose: ",
+    .duration = "Dauer: %.1f Tage",
+    .timeactive = "%.1f%% der Zeit aktiv",
+    .nrmeasurement = "Anzahl Messungen: %d",
+    .EstimatedA1C = "Geschätzter HbA1c: %.1f%% (%d mmol/mol)",
+    .GMI = "Glukose-Management-Indikator: %.1f%% (%d mmol/mol)",
+    .SD = "SD: %.2f",
+    .glucose_variability = "Glukosevariabilität: %.1f%%",
+    .menustr0 = {"Systemoberfläche", "Menüs", "Uhren", "Sensor",
+                 "Einstellungen",
+
+#if defined(SIBIONICS)
+                 "Foto",
+#else
+                 "Über die App",
+#endif
+                 "Schließen", "Alarm stoppen"},
+    .menustr1 = {"Export", "Klon", detext.newamount, "Liste",
+#else
+    .statistics =
+#endif // INJUGGLUCO
+                 "Statistiken",
+#ifdef INJUGGLUCO
+                 "Sprechen", "Schweben       "},
+    .menustr2 = {"Kalibriert", "Scans", "Stream", "Verlauf", "Mengen",
+                 "Mahlzeiten", "Dunkelmodus       "},
+    .menustr3 = {hourminstr, "Suche", "Datum", "Vortag", "Tag später",
+                 "Woche zurück", "Woche später"},
+
+#endif // INJUGGLUCO
+#else
+    .amount = "Menge",
+    .menustr0 = {"        Klon", "Sensor", "Anzeige", "Einstellen",
+                 "Alarm stoppen"},
+    .menustr2 = {"Datum      ", hourminstr, "Vortag                         ",
+                 detext.amount},
+#endif
+
+#ifdef INJUGGLUCO
+    .scanerrors = {{"Scanfehler (%d)", "Versuchen Sie es erneut"},
+                   {"Installationsfehler", "?"},
+                   {"Datenverarbeitungsfehler", "Versuchen Sie es erneut"},
+                   {"Sensor wird aktiviert", ""},
+                   {"Sensor ist definitiv beendet", ""},
+                   {"Sensor bereit in", "%d Minuten"},
+                   {"Sensorfehler (373)", "Versuchen Sie es später erneut"},
+                   {"Neuer Sensor initialisiert",
+                    "Zur Verwendung erneut scannen"},
+                   {"", "Blockiert Berührungen während des Scannens"},
+                   {"", ""},
+                   {"Fehler bei Bibliotheksinitialisierung",
+                    "Neuinstallation durch Entfernen der Bibliothek erzwingen"},
+                   {"Klasseninitialisierungsfehler", "Mach etwas"},
+                   {"Vorgang dauert zu lange", "Ich beende das Programm"},
+                   {"Sensor ersetzen (365)",
+                    "Ihr Sensor funktioniert nicht. Bitte entfernen Sie Ihren "
+                    "Sensor und starten Sie einen neuen."},
+                   {"Sensor ersetzen (368)",
+                    "Ihr Sensor funktioniert nicht. Bitte entfernen Sie Ihren "
+                    "Sensor und starten Sie einen neuen."},
+                   {"", ""},
+                   {"Scanfehler", "Versuchen Sie es erneut"}},
+
+    .libre3scanerror = {"FreeStyle Libre 3, Scanfehler",
+                        "Versuchen Sie es erneut"},
+    .libre3wrongID =
+        {"Falsche Konto-ID?",
+         R"(Sollte dasselbe sein wie beim Aktivieren des Sensors. Verwenden Sie Linkes Menü->Einstellungen->Daten austauschen->Libreview->"Konto-ID erhalten", um sie von Libreview abzurufen.)"},
+    .libre3scansuccess = {"FreeStyle Libre 3-Sensor",
+                          "Glukosewerte werden jetzt von Juggluco empfangen"},
+    .unknownNFC = {"Unerkannter NFC-Scanfehler", "Versuchen Sie es erneut"},
+
+    .nolibre3 = {"FreeStyle Libre 3 Sensor",
+                 "Holen Sie sich die richtige Version von "
+                 "https://www.juggluco.nl/download.html"},
+    .libre3zeroID =
+        {"Fehler: Konto-ID null?",
+         R"(Verwenden Sie Linkes Menü->Einstellungen->Daten austauschen->Libreview->"Konto-ID erhalten", um eine Konto-ID ungleich null festzulegen.)"},
+    .needsandroid8 = "Benötigt mindestens Android 8"sv,
+#ifndef WEAROS
+    .advancedstart = R"(<h1>Geändertes Gerät</h1>
+<p>Eine der von dieser Anwendung verwendeten Bibliotheken hat einen BUG, der sie zum Absturz bringt, wenn sie bestimmte Dateien erkennt. Ihr Gerät enthält einige dieser Dateien. Dieses Programm enthält einen Hack, um diesen BUG zu umgehen, aber es ist wahrscheinlich besser, diese Dateien auf andere Weise unauffindbar zu machen. Magisk hat beispielsweise die Möglichkeit, Root für bestimmte Anwendungen zu verbergen (Magiskhide oder Denylist) und den eigenen Namen zu ändern, beides wird benötigt. In Ihrem Fall hat es Probleme mit der folgenden Datei)",
+    .add_s = false,
+    .shortinit = deshortinit,
+    .labels = delabels,
+#endif
+#ifndef DONTTALK
+    .checked = "markiert",
+    .unchecked = "nicht markiert",
+    .Undetermined = "",
+    .FallingQuickly = "Fällt rasch",
+    .Falling = "Fällt",
+    .Stable = "Ändert sich langsam",
+    .Rising = "Steigt",
+    .RisingQuickly = "Steigt rasch",
+
+#endif
+    .receivingpastvalues = "Alte Glukosewerte kommen rein",
+    .receivingdata = "Daten kommen herein",
+    .unsupportedSibionics = "Nicht unterstützter Sibionics-Sensor"sv,
+    .waitingforconnection = "Wartet auf Verbindung"sv,
+    .deleted = "Gelöscht"sv,
+    .nolocationpermission = "Benötigt Standortberechtigung"sv,
+    .nonearbydevicespermission =
+        "Benötigt Berechtigung für Geräte in der Nähe"sv
+
+#endif // INJUGGLUCO
+    ,
+    .summarygraph = "Übersichtsdiagramm"sv,
+    .logdays = "Tage"sv,
+    .unhide = "Einblenden"sv}
+
+;
+
+addlang(de);

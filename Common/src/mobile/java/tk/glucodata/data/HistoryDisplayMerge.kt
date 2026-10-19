@@ -1,0 +1,594 @@
+package tk.glucodata.data
+
+import tk.glucodata.GlucoseReadingSource
+import tk.glucodata.SensorIdentity
+import kotlin.math.abs
+
+internal object HistoryDisplayMerge {
+    private const val SENSOR_MINUTE_BUCKET_MS = 60_000L
+    /**
+     * How far past its own rows a sensor keeps ownership of a stretch.
+     *
+     * This is the chart's own gap rule, not a number of its own, and that is the whole point.
+     * The chart connects two readings up to [tk.glucodata.GlucoseChartGap.THRESHOLD_MS] apart;
+     * a hole narrower than that is not drawn as a hole. While this padding was five minutes,
+     * every dropout between ten and seventeen minutes fell in the space between the two rules:
+     * the merge handed the middle of it to a lower-ranked sensor, and the chart — which breaks
+     * the line on a sensor change — drew a line it was about to bridge as two holes with a
+     * fragment between them, at another sensor's calibration.
+     *
+     * A 2026-08-30 trace has it exactly: sixteen minutes missing from the live sensor, filled
+     * by a third sensor reading half a mmol lower, rendered as an outage that was not one.
+     *
+     * So another sensor may only own what the chart would genuinely draw broken.
+     */
+    private const val OVERLAP_PADDING_MS = tk.glucodata.GlucoseChartGap.THRESHOLD_MS
+    private const val COVERAGE_SEGMENT_GAP_MS = 15L * 60L * 1000L
+    private const val REPLICA_TIMESTAMP_TOLERANCE_MS = 30_000L
+    private const val REPLICA_VALUE_TOLERANCE_MGDL = 1f
+
+
+    private data class LogicalSensorBucket(
+        val sensorId: String,
+        val bucket: Long
+    )
+
+    private data class StableDeliveryCollapse(
+        val readings: List<HistoryReading>,
+        val winners: Set<HistoryReading>,
+    )
+
+    private class PreferredMatchResolver(preferredSerial: String?) {
+        private val canonicalPreferred = SensorIdentity.resolveAppSensorId(preferredSerial)
+        private val matchCache = HashMap<String, Boolean>()
+
+        /**
+         * Whether a preferred sensor was named at all — not whether it has any
+         * readings here. The distinction matters: a selected main that has gone
+         * quiet still names a preference, and ranking the other sensors against
+         * each other is exactly what that case needs.
+         */
+        val hasPreferred: Boolean get() = canonicalPreferred != null
+
+        fun matches(sensorSerial: String?): Boolean {
+            val preferred = canonicalPreferred ?: return false
+            val raw = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+            return matchCache.getOrPut(raw) {
+                SensorIdentity.matches(raw, preferred)
+            }
+        }
+    }
+
+    private class LogicalSensorResolver {
+        private val cache = HashMap<String, String?>()
+
+        fun resolve(sensorSerial: String?): String? {
+            val raw = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            return cache.getOrPut(raw) {
+                SensorIdentity.resolveRoomStorageSensorId(raw)
+                    ?: SensorIdentity.resolveAppSensorId(raw)
+                    ?: raw
+            }
+        }
+    }
+
+    /**
+     * [readings] must be the **whole** stored timeline, not a slice of it.
+     *
+     * [applyPreferredOverlapDominance] decides which sensor wins by building the
+     * preferred sensor's coverage segments out of the rows it is handed. Given a
+     * window that contains none of that sensor's rows — any span older than the
+     * current sensor — it suppresses nothing and every other sensor draws raw;
+     * given a window that clips those rows, the segments are truncated and rows
+     * are dropped at the seam. Both were shipped once, as a bounded dashboard
+     * query, and showed up as a foreign sensor's line on the chart and a hole in
+     * the middle of it.
+     *
+     * Slice after merging, never before — or merge the slice against the
+     * store's coverage with [mergeWindow], which is the same answer.
+     */
+    fun mergeReadings(
+        readings: List<HistoryReading>,
+        preferredSerial: String?
+    ): List<HistoryReading> {
+        if (readings.isEmpty()) return emptyList()
+
+        val resolver = PreferredMatchResolver(preferredSerial)
+        val logicalResolver = LogicalSensorResolver()
+        if (hasSingleStoredSensor(readings)) {
+            return collapseSingleLogicalSensorBuckets(readings, resolver)
+        }
+        singleLogicalSensorId(readings, logicalResolver)?.let {
+            return collapseSingleLogicalSensorBuckets(readings, resolver)
+        }
+
+        val coalesced = collapseLogicalSensorBuckets(readings, resolver, logicalResolver)
+        return mergeCoalesced(coalesced, resolver, RowCoverage(coalesced, resolver, logicalResolver))
+    }
+
+    /**
+     * Merges a *window* of the store so that the result is exactly the whole
+     * timeline's merge restricted to that window.
+     *
+     * The whole-timeline rule above holds because dominance is a property of
+     * where each sensor has readings across the whole store — and that is the
+     * only whole-store fact it needs. [coverage] supplies it from the
+     * timestamps alone (see [HistoryTimestampIndex]), so the rows themselves
+     * are read only for the window. Everything else the merge does — per-minute
+     * bucket collapse, richest-row choice, the final one-per-timestamp pass —
+     * is local to a minute, so a window padded by [WINDOW_PADDING_MS] on each
+     * side and trimmed afterwards agrees with the full merge at its edges.
+     *
+     * [readings] are the stored rows in the padded window, ascending; the
+     * caller trims the result back to the window it asked for.
+     */
+    fun mergeWindow(
+        readings: List<HistoryReading>,
+        preferredSerial: String?,
+        coverage: HistoryCoverage,
+    ): List<HistoryReading> {
+        if (readings.isEmpty()) return emptyList()
+
+        val resolver = PreferredMatchResolver(preferredSerial)
+        val logicalResolver = LogicalSensorResolver()
+        // The fast paths are decided by the sensors the *store* holds, exactly
+        // as the whole merge decides them, not by which sensors happen to have
+        // rows in this window.
+        val storedSerials = coverage.rawSerials
+        if (storedSerials.size <= 1) {
+            return collapseSingleLogicalSensorBuckets(readings, resolver)
+        }
+        if (singleLogicalSensorId(storedSerials, logicalResolver) != null) {
+            return collapseSingleLogicalSensorBuckets(readings, resolver)
+        }
+
+        val coalesced = collapseLogicalSensorBuckets(readings, resolver, logicalResolver)
+        return mergeCoalesced(coalesced, resolver, StoreCoverage(coverage, resolver, logicalResolver))
+    }
+
+    /**
+     * How far beyond the requested window the rows must be read for
+     * [mergeWindow] to agree with the whole merge at the edges: a minute bucket
+     * can straddle the edge, and the row that wins a bucket may sit just
+     * outside it.
+     */
+    const val WINDOW_PADDING_MS = 2L * SENSOR_MINUTE_BUCKET_MS
+
+    /**
+     * The rows to read for a window: [WINDOW_PADDING_MS] each side, without
+     * running off either end of the clock. An open-ended tail is asked for
+     * with `Long.MAX_VALUE`, and padding that wrapped to a negative bound and
+     * read nothing at all.
+     */
+    fun paddedWindow(startTime: Long, endTime: Long): LongRange {
+        val start = if (startTime < Long.MIN_VALUE + WINDOW_PADDING_MS) Long.MIN_VALUE else startTime - WINDOW_PADDING_MS
+        val end = if (endTime > Long.MAX_VALUE - WINDOW_PADDING_MS) Long.MAX_VALUE else endTime + WINDOW_PADDING_MS
+        return start..end
+    }
+
+    private fun mergeCoalesced(
+        coalesced: List<HistoryReading>,
+        resolver: PreferredMatchResolver,
+        coverage: DominanceCoverage,
+    ): List<HistoryReading> {
+        // A Nightscout pull and Clone can persist the same physical reading under
+        // different virtual sensors. Pick its first delivery before applying the
+        // currently selected sensor's coverage, otherwise changing receivers
+        // retroactively relabels the entire visible timeline.
+        val stableDeliveries = collapseEquivalentDeliveries(coalesced, resolver)
+        val filtered = applyPreferredOverlapDominance(
+            stableDeliveries.readings,
+            resolver,
+            coverage,
+            stableDeliveries.winners,
+        )
+        val merged = ArrayList<HistoryReading>(filtered.size)
+        var currentTimestamp = Long.MIN_VALUE
+        var currentBest: HistoryReading? = null
+
+        for (reading in filtered) {
+            if (currentBest == null || reading.timestamp != currentTimestamp) {
+                currentBest?.let(merged::add)
+                currentTimestamp = reading.timestamp
+                currentBest = reading
+            } else {
+                currentBest = choosePreferred(currentBest, reading, resolver)
+            }
+        }
+
+        currentBest?.let(merged::add)
+        return merged
+    }
+
+    private fun hasSingleStoredSensor(readings: List<HistoryReading>): Boolean {
+        if (readings.size < 2) return true
+        val firstSensor = readings.first().sensorSerial
+        for (index in 1 until readings.size) {
+            if (readings[index].sensorSerial != firstSensor) return false
+        }
+        return true
+    }
+
+    private fun singleLogicalSensorId(
+        readings: List<HistoryReading>,
+        logicalResolver: LogicalSensorResolver
+    ): String? {
+        var firstSensorId: String? = null
+        for (reading in readings) {
+            val sensorId = logicalResolver.resolve(reading.sensorSerial) ?: return null
+            if (firstSensorId == null) {
+                firstSensorId = sensorId
+            } else if (sensorId != firstSensorId) {
+                return null
+            }
+        }
+        return firstSensorId
+    }
+
+    private fun singleLogicalSensorId(
+        serials: Collection<String>,
+        logicalResolver: LogicalSensorResolver
+    ): String? {
+        var firstSensorId: String? = null
+        for (serial in serials) {
+            val sensorId = logicalResolver.resolve(serial) ?: return null
+            if (firstSensorId == null) {
+                firstSensorId = sensorId
+            } else if (sensorId != firstSensorId) {
+                return null
+            }
+        }
+        return firstSensorId
+    }
+
+    private fun collapseSingleLogicalSensorBuckets(
+        readings: List<HistoryReading>,
+        resolver: PreferredMatchResolver
+    ): List<HistoryReading> {
+        if (readings.size < 2) return readings
+        if (!hasAdjacentMinuteBucketDuplicates(readings)) return readings
+
+        val collapsed = ArrayList<HistoryReading>(readings.size)
+        var currentBucket = Long.MIN_VALUE
+        var currentBest: HistoryReading? = null
+
+        for (reading in readings) {
+            val bucket = reading.timestamp / SENSOR_MINUTE_BUCKET_MS
+            if (currentBest == null || bucket != currentBucket) {
+                currentBest?.let(collapsed::add)
+                currentBucket = bucket
+                currentBest = reading
+            } else {
+                currentBest = choosePreferred(currentBest, reading, resolver)
+            }
+        }
+
+        currentBest?.let(collapsed::add)
+        return collapsed
+    }
+
+    private fun hasAdjacentMinuteBucketDuplicates(readings: List<HistoryReading>): Boolean {
+        var previousBucket = readings.first().timestamp / SENSOR_MINUTE_BUCKET_MS
+        for (index in 1 until readings.size) {
+            val bucket = readings[index].timestamp / SENSOR_MINUTE_BUCKET_MS
+            if (bucket == previousBucket) {
+                return true
+            }
+            previousBucket = bucket
+        }
+        return false
+    }
+
+    private fun collapseLogicalSensorBuckets(
+        readings: List<HistoryReading>,
+        resolver: PreferredMatchResolver,
+        logicalResolver: LogicalSensorResolver
+    ): List<HistoryReading> {
+        val byBucket = LinkedHashMap<LogicalSensorBucket, HistoryReading>(readings.size)
+        for (reading in readings) {
+            val sensorSerial = reading.sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            val resolvedSensorId = logicalResolver.resolve(sensorSerial) ?: continue
+            val key = LogicalSensorBucket(
+                sensorId = resolvedSensorId,
+                bucket = reading.timestamp / SENSOR_MINUTE_BUCKET_MS
+            )
+            val existing = byBucket[key]
+            byBucket[key] = if (existing == null) reading else choosePreferred(existing, reading, resolver)
+        }
+        return byBucket.values.sortedBy { it.timestamp }
+    }
+
+    private fun collapseEquivalentDeliveries(
+        readings: List<HistoryReading>,
+        resolver: PreferredMatchResolver,
+    ): StableDeliveryCollapse {
+        if (readings.size < 2) return StableDeliveryCollapse(readings, emptySet())
+
+        val collapsed = ArrayList<HistoryReading>(readings.size)
+        val winners = LinkedHashSet<HistoryReading>()
+        for (candidate in readings) {
+            var equivalentIndex = -1
+            for (index in collapsed.lastIndex downTo 0) {
+                val existing = collapsed[index]
+                if (candidate.timestamp - existing.timestamp > REPLICA_TIMESTAMP_TOLERANCE_MS) break
+                if (sameReplicatedDelivery(existing, candidate)) {
+                    equivalentIndex = index
+                    break
+                }
+            }
+            if (equivalentIndex < 0) {
+                collapsed.add(candidate)
+                continue
+            }
+            val existing = collapsed[equivalentIndex]
+            val winner = chooseFirstDelivery(existing, candidate, resolver)
+            collapsed[equivalentIndex] = winner
+            winners.remove(existing)
+            winners.remove(candidate)
+            winners.add(winner)
+        }
+        return StableDeliveryCollapse(collapsed.sortedBy(HistoryReading::timestamp), winners)
+    }
+
+    private fun sameReplicatedDelivery(left: HistoryReading, right: HistoryReading): Boolean {
+        if (!isNightscoutClonePair(left.source, right.source)) return false
+        if (abs(left.timestamp - right.timestamp) > REPLICA_TIMESTAMP_TOLERANCE_MS) return false
+        val leftValue = left.value.takeIf { it.isFinite() && it > 0f }
+            ?: left.rawValue.takeIf { it.isFinite() && it > 0f }
+        val rightValue = right.value.takeIf { it.isFinite() && it > 0f }
+            ?: right.rawValue.takeIf { it.isFinite() && it > 0f }
+        return leftValue != null && rightValue != null &&
+            abs(leftValue - rightValue) <= REPLICA_VALUE_TOLERANCE_MGDL
+    }
+
+    private fun isNightscoutClonePair(leftSource: String, rightSource: String): Boolean {
+        val leftNightscout = leftSource == GlucoseReadingSource.NIGHTSCOUT
+        val rightNightscout = rightSource == GlucoseReadingSource.NIGHTSCOUT
+        val leftClone = GlucoseReadingSource.cloneTransport(leftSource) != null
+        val rightClone = GlucoseReadingSource.cloneTransport(rightSource) != null
+        return (leftNightscout && rightClone) || (rightNightscout && leftClone)
+    }
+
+    private fun chooseFirstDelivery(
+        current: HistoryReading,
+        candidate: HistoryReading,
+        resolver: PreferredMatchResolver,
+    ): HistoryReading {
+        val currentOrder = current.firstStoredAt.takeIf { it > 0L } ?: current.id
+        val candidateOrder = candidate.firstStoredAt.takeIf { it > 0L } ?: candidate.id
+        if (candidateOrder != currentOrder) {
+            return if (candidateOrder < currentOrder) candidate else current
+        }
+        if (candidate.id != current.id) {
+            return if (candidate.id < current.id) candidate else current
+        }
+        return choosePreferred(current, candidate, resolver)
+    }
+
+    /**
+     * Decides, per stretch of time, which single sensor draws the line.
+     *
+     * The rule used to have exactly two ranks: the preferred sensor won inside
+     * its own coverage, and *everything else* passed through. That is fine while
+     * the preferred sensor is the one producing readings, and wrong the moment it
+     * is not — which happens whenever the user's selected main is a sensor that
+     * has gone quiet while another streams. A trace with three sensors
+     * (`liveMain=70D07…, selectedMain=BB368A3`) showed the failure: the preferred
+     * sensor had no recent coverage, so it suppressed nothing, and two live
+     * sensors' readings interleaved minute by minute. The chart starts a new
+     * segment on every sensor change, so an unbroken stream drew as a row of
+     * disconnected fragments — holes where there was no missing data at all.
+     *
+     * So the ranking is now the full list rather than a pair: preferred first,
+     * then the remaining sensors by how recently each last read. A reading is
+     * kept only where no higher-ranked sensor covers its moment, which means at
+     * most one sensor contributes to any stretch and the line cannot alternate.
+     * Where the preferred sensor does have coverage this is exactly the old
+     * behaviour, since it outranks everything.
+     *
+     * Rows no sensor owns keep their own rule: they are not a sensor competing
+     * for a stretch, they are filler, and they are dropped only where the
+     * preferred sensor already has that minute.
+     *
+     * That fixed the case where two sensors alternate minute by minute. The case it left
+     * is the one where they do not: a single sensor cleanly owns the middle of a short
+     * hole in the higher-ranked sensor's stream. The result is not a row of fragments but
+     * one of them — and it was still wrong, because a hole that narrow is not a hole at
+     * all as far as the chart is concerned. See [OVERLAP_PADDING_MS]: ownership now
+     * reaches exactly as far as the chart would bridge, so a lower-ranked sensor gets a
+     * stretch only when leaving it empty would genuinely read as missing data.
+     */
+    private fun applyPreferredOverlapDominance(
+        readings: List<HistoryReading>,
+        resolver: PreferredMatchResolver,
+        coverage: DominanceCoverage,
+        stableReplicaWinners: Set<HistoryReading> = emptySet(),
+    ): List<HistoryReading> {
+        // With no preferred sensor named there is nothing to rank against, and
+        // the caller wants the richest reading per timestamp instead — that is
+        // the final dedupe's job, so leave the list alone for it.
+        if (!resolver.hasPreferred) return readings
+
+        val rankedOthers = coverage.rankedOthers
+        val preferredSegments = coverage.preferredSegments
+
+        val filtered = ArrayList<HistoryReading>(readings.size)
+        for (reading in readings) {
+            if (resolver.matches(reading.sensorSerial) || reading in stableReplicaWinners) {
+                filtered.add(reading)
+                continue
+            }
+            if (isImportedSerial(reading.sensorSerial)) {
+                if (!coverage.preferredHasMinute(reading.timestamp / SENSOR_MINUTE_BUCKET_MS)) {
+                    filtered.add(reading)
+                }
+                continue
+            }
+            if (covers(preferredSegments, reading.timestamp)) continue
+
+            val sensorId = coverage.logicalIdOf(reading.sensorSerial)
+            var outranked = false
+            for ((otherId, otherSegments) in rankedOthers) {
+                if (otherId == sensorId) break
+                if (covers(otherSegments, reading.timestamp)) {
+                    outranked = true
+                    break
+                }
+            }
+            if (!outranked) filtered.add(reading)
+        }
+        return filtered
+    }
+
+    /**
+     * The whole-store facts dominance ranks by: the preferred sensor's coverage
+     * and minutes, and every other sensor's coverage, most recently read first.
+     */
+    private interface DominanceCoverage {
+        val preferredSegments: List<LongRange>
+        /** Logical sensor id to its coverage, most recently read first. */
+        val rankedOthers: List<Pair<String, List<LongRange>>>
+        fun preferredHasMinute(minuteBucket: Long): Boolean
+        fun logicalIdOf(sensorSerial: String?): String?
+    }
+
+    /** Coverage read off the rows themselves — the whole timeline's rows, for [mergeReadings]. */
+    private class RowCoverage(
+        readings: List<HistoryReading>,
+        private val resolver: PreferredMatchResolver,
+        private val logicalResolver: LogicalSensorResolver,
+    ) : DominanceCoverage {
+        private val preferredReadings = readings.filter { resolver.matches(it.sensorSerial) }
+        private val preferredMinuteBuckets = preferredReadings
+            .mapTo(HashSet(preferredReadings.size)) { it.timestamp / SENSOR_MINUTE_BUCKET_MS }
+        override val preferredSegments: List<LongRange> = buildCoverageSegments(preferredReadings)
+        override val rankedOthers: List<Pair<String, List<LongRange>>>
+
+        init {
+            // Rank the sensors that are not the preferred one, most recently read
+            // first: the sensor still streaming should own the recent stretch, and a
+            // retired one should own only what predates it.
+            val ownedBySensor = LinkedHashMap<String, MutableList<HistoryReading>>()
+            for (reading in readings) {
+                if (resolver.matches(reading.sensorSerial)) continue
+                if (isImportedSerial(reading.sensorSerial)) continue
+                val sensorId = logicalResolver.resolve(reading.sensorSerial) ?: continue
+                ownedBySensor.getOrPut(sensorId) { ArrayList() }.add(reading)
+            }
+            rankedOthers = ownedBySensor.entries
+                .sortedByDescending { it.value.last().timestamp }
+                .map { it.key to buildCoverageSegments(it.value) }
+        }
+
+        override fun preferredHasMinute(minuteBucket: Long): Boolean = minuteBucket in preferredMinuteBuckets
+        override fun logicalIdOf(sensorSerial: String?): String? = logicalResolver.resolve(sensorSerial)
+    }
+
+    /**
+     * Coverage read off the store's timestamp index, for [mergeWindow]. The same
+     * three facts as [RowCoverage], from every reading ever stored rather than
+     * from the rows in the window.
+     */
+    private class StoreCoverage(
+        private val coverage: HistoryCoverage,
+        private val resolver: PreferredMatchResolver,
+        private val logicalResolver: LogicalSensorResolver,
+    ) : DominanceCoverage {
+        private val preferredSerials: List<String>
+        override val preferredSegments: List<LongRange>
+        override val rankedOthers: List<Pair<String, List<LongRange>>>
+
+        init {
+            val serials = coverage.rawSerials
+            preferredSerials = serials.filter { resolver.matches(it) }
+            preferredSegments = coverage.segmentsOf(preferredSerials, COVERAGE_SEGMENT_GAP_MS)
+            val othersByLogicalId = LinkedHashMap<String, MutableList<String>>()
+            for (serial in serials) {
+                if (resolver.matches(serial)) continue
+                if (isImportedSerial(serial)) continue
+                val sensorId = logicalResolver.resolve(serial) ?: continue
+                othersByLogicalId.getOrPut(sensorId) { ArrayList() }.add(serial)
+            }
+            rankedOthers = othersByLogicalId.entries
+                .map { (sensorId, raws) ->
+                    Triple(sensorId, coverage.segmentsOf(raws, COVERAGE_SEGMENT_GAP_MS), coverage.lastTimestampOf(raws) ?: Long.MIN_VALUE)
+                }
+                .filter { it.second.isNotEmpty() }
+                // Most recently read first; between equals, the one that started
+                // earlier, which is the order the rows would have introduced them.
+                .sortedWith(compareByDescending<Triple<String, List<LongRange>, Long>> { it.third }.thenBy { it.second.first().first })
+                .map { it.first to it.second }
+        }
+
+        override fun preferredHasMinute(minuteBucket: Long): Boolean =
+            coverage.hasReadingInMinute(preferredSerials, minuteBucket)
+
+        override fun logicalIdOf(sensorSerial: String?): String? = logicalResolver.resolve(sensorSerial)
+    }
+
+    /** Whether [segments] reach [timestamp], allowing the handover padding. */
+    private fun covers(segments: List<LongRange>, timestamp: Long): Boolean {
+        for (segment in segments) {
+            if (timestamp < segment.first - OVERLAP_PADDING_MS) return false
+            if (timestamp <= segment.last + OVERLAP_PADDING_MS) return true
+        }
+        return false
+    }
+
+    private fun isImportedSerial(sensorSerial: String?): Boolean {
+        val raw = sensorSerial?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+        return raw == HistoryRepository.IMPORTED_SENSOR_SERIAL ||
+            raw.equals("imported", ignoreCase = true) ||
+            raw.equals("unknown", ignoreCase = true)
+    }
+
+    private fun buildCoverageSegments(readings: List<HistoryReading>): List<LongRange> {
+        if (readings.isEmpty()) return emptyList()
+
+        val segments = ArrayList<LongRange>()
+        var segmentStart = readings.first().timestamp
+        var segmentEnd = segmentStart
+
+        for (index in 1 until readings.size) {
+            val timestamp = readings[index].timestamp
+            if ((timestamp - segmentEnd) > COVERAGE_SEGMENT_GAP_MS) {
+                segments.add(segmentStart..segmentEnd)
+                segmentStart = timestamp
+            }
+            segmentEnd = timestamp
+        }
+
+        segments.add(segmentStart..segmentEnd)
+        return segments
+    }
+
+    private fun choosePreferred(
+        current: HistoryReading,
+        candidate: HistoryReading,
+        resolver: PreferredMatchResolver
+    ): HistoryReading {
+        val currentScore = score(current, resolver)
+        val candidateScore = score(candidate, resolver)
+        if (candidateScore != currentScore) {
+            return if (candidateScore > currentScore) candidate else current
+        }
+        return if (candidate.id > current.id) candidate else current
+    }
+
+    private fun score(reading: HistoryReading, resolver: PreferredMatchResolver): Int {
+        var score = 0
+        if (resolver.matches(reading.sensorSerial)) {
+            score += 100
+        }
+        if (reading.value.isFinite() && reading.value > 0f) {
+            score += 10
+        }
+        if (reading.rawValue.isFinite() && reading.rawValue > 0f) {
+            score += 5
+        }
+        if (reading.rate != null && reading.rate.isFinite()) {
+            score += 1
+        }
+        return score
+    }
+}

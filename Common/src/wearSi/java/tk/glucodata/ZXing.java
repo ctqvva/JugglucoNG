@@ -1,0 +1,1 @@
+../../../../nosi/java/tk/glucodata/ZXing.java

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wear_sensor_day_label">Дзень</string>
+    <string name="wear_sensor_day_format">Дзень %1$s</string>
+    <string name="wear_return_sensor_to_phone">Вярнуць датчык тэлефону</string>
+    <string name="wear_claim_watch_owns">Гадзіннік чытае датчык</string>
+    <string name="wear_claim_waiting">Чаканне падключэння да датчыка</string>
+    <string name="wear_calibration_on">Каліброўка ўключана</string>
+    <string name="wear_calibration_off">Каліброўка выключана</string>
+    <string name="wear_calibration_clear">Ачысціць каліброўкі</string>
+    <string name="wear_calibration_delete">Выдаліць каліброўку</string>
+    <string name="wear_color_in_range">Колер значэнняў у норме</string>
+    <string name="wear_color_in_range_on">Усе значэнні ў колеры</string>
+    <string name="wear_color_in_range_off">У колеры толькі высокія і нізкія</string>
+    <string name="wear_journal_disabled">Увключыце журнал на тэлефоне, каб карыстацца ім тут.</string>
+    <string name="wear_journal_insulin">Інсулін</string>
+    <string name="wear_journal_carbs">Вугляводы</string>
+    <string name="wear_journal_add">Дадаць запіс у журнал</string>
+    <string name="wear_reading_actions_title">Паказчык</string>
+    <string name="wear_calibration_edit">Змяніць каліброўку</string>
+    <string name="wear_journal_delete">Выдаліць</string>
+    <string name="wear_sensor_forget">Забыць сэнсар</string>
+</resources>

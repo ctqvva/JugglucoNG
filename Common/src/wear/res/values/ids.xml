@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ids referenced from shared code (bluediag.java) that only exist in mobile layouts.
+     The code paths are guarded by !isWearable at runtime; these ids just satisfy compilation. -->
+<resources>
+    <item name="finish" type="id" />
+    <item name="reconnect" type="id" />
+</resources>

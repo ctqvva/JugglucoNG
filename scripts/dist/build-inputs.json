@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "source": {
+    "url": "https://github.com/ctqvva/JugglucoNG/releases/download/1.2.3-Alpha/JugglucoNG-1.2.3-Alpha.apk",
+    "sha256": "6374954ca6c9c7681434343220437437a8378748c303975af92c46c7d74b74b1"
+  },
+  "files": [
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libCALCULATION.so",
+      "size": 656872,
+      "sha256": "0bc4e28b98b8ba4e9ea47db0f4cf413febf596eb94bfe87162432031cd02d4cf"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libalgorithm-jni.so",
+      "size": 1591056,
+      "sha256": "1303a4488524d66e37c64d93c315d40de6c5695972b606252e220d664acd18ce"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libc++_shared.so",
+      "size": 936368,
+      "sha256": "a4340b99a7e1050db0f926d80b9bc42cd5ffac1238f7da0cb11a4f232676d15c"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libcalibrat2.so",
+      "size": 3475016,
+      "sha256": "c15a1efa60a7d2b17ac6cab8e3efffbcb5d6d4e5c8085e68d5812c3d4bf49a93"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libcgat-lib.so",
+      "size": 118128,
+      "sha256": "c7eab74fb538985b779217381d8e00ef54625334ab130826872c5f4b25dad58c"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libcrl_dp.so",
+      "size": 740536,
+      "sha256": "19afe7e21e25d98072d90864bf7ad03f8d4fb6d2fcf66def7622adc140af86d8"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libinit.so",
+      "size": 33177,
+      "sha256": "0d1b9696af9c52781df8f7d7ec16584e74ac3aaf41abcd337b6a606eef2c07d1"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libjniPdfium.so",
+      "size": 493432,
+      "sha256": "a5d8ef0c371a6bae6fcbf6c854e1b06f62851549ce054512f5fa52fba84d601a"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/liblibre3extension.so",
+      "size": 3942448,
+      "sha256": "1e1c6ef4a723fcde932f2cff36cdc3461cb946b4e0892a075634e0fcd8119dac"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libmarsxlog.so",
+      "size": 649560,
+      "sha256": "8020ced28dbf3eca9d7b558a2d6dada3de2dc2fd90e66ccd6fd5263362c2384f"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libmmkv.so",
+      "size": 740056,
+      "sha256": "792e8f3de687c9a23da0444b96f78ac68bd4ac83534a97ef1bebf859a214c320"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libmodft2.so",
+      "size": 554880,
+      "sha256": "ee6738c76d276b17d4756036096c94eb523f5d302a790162b0acd6ae6a919c77"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libmodpdfium.so",
+      "size": 5367744,
+      "sha256": "c7d0c84a5a2e0470be9385b4e57f5ce089e3c862bc84c43cb4d64967fe761447"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libmodpng.so",
+      "size": 214840,
+      "sha256": "ca64c45707a5419af63ef29aff35445fdd65b8d7dd7c689ece5f6317d8185aa6"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libobjectbox-jni.so",
+      "size": 1864232,
+      "sha256": "df790bf5b377059e86bdaa5be63f8b31d5e0442991a66b9e580e82fe5480e915"
+    },
+    {
+      "path": "Common/src/main/jniLibs/arm64-v8a/libscannative.so",
+      "size": 2603456,
+      "sha256": "94a581aae902ab314e6b63fcd91cbe855befa5e9e7c2fe6ea3cf7737d356e1f0"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libCALCULATION.so",
+      "size": 460157,
+      "sha256": "d3d7f162b38e4d0bbe635abc25998ed92d2afc8b5cfae5f3b51df94ba2d613e9"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libalgorithm-jni.so",
+      "size": 1418800,
+      "sha256": "66dd8ebaf1cf1006b10720b03691c2b14433c72be1eb8daa77ff8f2a17bd0ef6"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libc++_shared.so",
+      "size": 558988,
+      "sha256": "365572ee3157908217c3ff6047dbe6a04d61ff70633c3f48a95e3bf1b14c1df6"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libcalibrat2.so",
+      "size": 3171368,
+      "sha256": "6aefcef0d7fc995ace8f1b2c4e3809c8ce349e013ad0a53fbab97c02d16d1f6a"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libcalibrate.so",
+      "size": 669842,
+      "sha256": "b815e7d0392c9e8217a652662acd19584a051909b8fc05e3aabb5bbc28fe2091"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libcgat-lib.so",
+      "size": 78140,
+      "sha256": "54e2de05b53fe24d778face593ee65d67f9a766ca47031cf5fb1a3453ecbf7f8"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libcrl_dp.so",
+      "size": 570032,
+      "sha256": "a0f58cc7d6f0b18bb12dd86dfc72fcfdf3080c0ad6f77d1b62b02e7e83942512"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libgetuiext3.so",
+      "size": 42364,
+      "sha256": "2d8286345b0752ece26546db57ffb4957da0ffd64541f46534362cc1c6787b57"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libinit.so",
+      "size": 33177,
+      "sha256": "0d1b9696af9c52781df8f7d7ec16584e74ac3aaf41abcd337b6a606eef2c07d1"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libjniPdfium.so",
+      "size": 107796,
+      "sha256": "4c66b9315834a9a0727fb322b944c26769a9251919c005b783f8a645d898ad6b"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/liblibre3extension.so",
+      "size": 4067532,
+      "sha256": "034a45892828a4bf8fb9ee64b545f4ec215ab9a5f31598a55faa9ec9a26270b1"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libmarsxlog.so",
+      "size": 333844,
+      "sha256": "9647e92627366c2f851d88c0b35bd61c5681abe9f4b8d0044f5e5753088b5a8d"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libmmkv.so",
+      "size": 396028,
+      "sha256": "a1344a473f9c73c7c705fb35bb8ad11b3233a2cbf92c9869dc1131b2f72e4118"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libmodft2.so",
+      "size": 521640,
+      "sha256": "9f1639103faf03f7b4e024414b26a56b9159b9ced197a4565c29d1bdf6344cc9"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libmodpdfium.so",
+      "size": 4802700,
+      "sha256": "1223aaf5096204ee8ade9e21d5e384846e2fa5ebe30d138196935acb892306c5"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libmodpng.so",
+      "size": 148852,
+      "sha256": "3991ef38392d9e1eaac78293ba7be4e7731c6e193737079ac8e064a8a0fa4880"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libobjectbox-jni.so",
+      "size": 1282672,
+      "sha256": "601cbbd88eb3b238022ca8d1d3a397faf5559797c7c1de58f69370f3178cc065"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/libscannative.so",
+      "size": 1570684,
+      "sha256": "19c1eb554c1bcfc9aad389d62b40f8f5d60d8e3457f0fb17100eb7c7c267a307"
+    }
+  ]
+}

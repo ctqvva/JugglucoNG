@@ -1,0 +1,115 @@
+
+-assumenosideeffects final class tk.glucodata.showhex {
+	public static char[] hexstr(...);
+}
+-assumenosideeffects public final class java.lang.System {
+	public static native long currentTimeMillis();
+
+}
+-assumenosideeffects public class java.lang.Throwable {
+	    public String toString() ;
+           public String getMessage();
+
+
+	}
+-assumenosideeffects public final class android.bluetooth.BluetoothDevice {
+ public String getAddress();
+
+}
+-assumenosideeffects public class android.bluetooth.BluetoothGattCharacteristic {
+	   public UUID getUuid();
+
+	}
+-assumenosideeffects public final class java.util.UUID {
+       public String toString() ;
+	}
+-assumenosideeffects public class android.view.View {
+ public final int getWidth();
+ }
+
+
+-keep class androidx.wear.watchface.complications.rendering.ComplicationDrawable
+
+# AGP 9 enables R8 full mode. ML Kit 17.3.0/18.3.1 discovers its registrars through manifest
+# metadata, but its consumer rules do not preserve the complete runtime component graph under
+# full-mode optimization. The release build then keeps MlKitInitProvider and BarcodeRegistrar
+# while BarcodeScanning.getClient() receives a null barcode factory and crashes. Keep ML Kit's
+# dynamically registered components until the upstream artifacts provide full-mode-safe rules.
+-keep class com.google.mlkit.** { *; }
+
+# Keep AiDex vendor bridge classes/fields/methods used by libblecomm-lib JNI.
+-keep class com.microtechmd.blecomm.** { *; }
+
+# Keep the hidden-framework connection-parameter callback.
+# BluetoothGattCallback#onConnectionUpdated exists since Android O but is absent from the SDK
+# stubs, so SuperGattCallback declares it without @Override and nothing in the compiled code
+# ever calls it -- the platform binds it at runtime by name+descriptor. R8 sees an unreachable
+# method and does not rename it but DELETES it: no shipped mapping.txt has ever contained
+# onConnectionUpdated, and in the 2026-08-01 jamming storm the framework invoked it 210/207
+# times into the two running apps while the app logged zero "conn params" lines. Same failure
+# class as the HistoryRepository note above -- dispatch by name that R8 cannot see -- and the
+# same silence: with the method gone the link-parameter history of an outage exists nowhere.
+# The declaration also carries @Keep, which cannot drift; keep both in sync.
+-keepclassmembers class * extends android.bluetooth.BluetoothGattCallback {
+    public void onConnectionUpdated(android.bluetooth.BluetoothGatt, int, int, int, int);
+}
+
+-keep class tk.glucodata.CalibrationProfileAccess { *; }
+
+# Keep the native exported-value bridge stable. uploader.cpp and common.cpp resolve
+# these by GetStaticMethodID, which R8 cannot see as a reference: without them the
+# Nightscout uploader and the webserver silently fall back to unsmoothed,
+# uncalibrated stored values in minified builds only. The declarations also carry
+# @Keep; keep the two in sync.
+-keep class tk.glucodata.NightscoutCalibration { *; }
+
+# Keep the LibreView journal bridge stable. journalentries.cpp resolves
+# LibreviewJournal by FindClass/GetStaticMethodID, so its own name and methods must
+# survive R8. It no longer resolves LibreviewJournalEntries by name -- that goes
+# through the registered LibreviewJournalEntriesBridge -- so those rules are gone.
+-keep class tk.glucodata.LibreviewJournal { *; }
+
+# Keep TrendEngine names and reflected members stable.
+# TrendAccess in src/main resolves these mobile-only methods by name for
+# notification/dashboard/AOD trend arrows in minified builds.
+-keepnames class tk.glucodata.logic.TrendEngine
+-keepclassmembers class tk.glucodata.logic.TrendEngine {
+    public static final tk.glucodata.logic.TrendEngine INSTANCE;
+    public final tk.glucodata.logic.TrendEngine$TrendResult calculateTrend(java.util.List,boolean,boolean);
+}
+
+-keepnames class tk.glucodata.logic.TrendEngine$TrendResult
+-keepclassmembers class tk.glucodata.logic.TrendEngine$TrendResult {
+    public final float getVelocity();
+}
+
+#-keep class tk.glucodata.watchface.WatchFaceService
+#-keep class tk.glucodata.watchface.WatchFaceService.editor.WatchFaceConfigActivity
+
+-whyareyoukeeping class com.google.firebase.*
+-whyareyoukeeping class com.google.android.gms.auth.api.signin.*
+-whyareyoukeeping class com.google.android.gms.dynamite.*
+
+-renamesourcefileattribute SourceFile
+-keepattributes SourceFile,LineNumberTable
+-printmapping printmappingout.txt
+
+# Anytime / Yuwell native algorithm JNI uses reflection/GetMethodID on these classes.
+# Do not obfuscate or strip class names, fields, constructors, or accessors.
+-keep class ist.com.sdk.** { *; }
+-keepclassmembers class ist.com.sdk.** { *; }
+-keepnames class ist.com.sdk.**
+
+# If any SDK models are in com.sdk instead of ist.com.sdk in this build:
+-keep class com.sdk.** { *; }
+-keepclassmembers class com.sdk.** { *; }
+-keepnames class com.sdk.**
+
+# In-app updater. WorkManager instantiates the worker by class name and the PackageInstaller
+# status PendingIntent resolves the receiver by component, neither of which R8 can see as a
+# reference. Both also carry @Keep at their declaration; keep the two in sync.
+-keep class tk.glucodata.update.AppUpdateCheckWorker { public <init>(...); }
+-keep class tk.glucodata.update.AppUpdateInstallReceiver { public <init>(...); }
+
+# Looked up by name from native code (g.cpp isManagedDirectStreamSensorId); R8 would otherwise rename it.
+-keep class tk.glucodata.SensorIdentity { public static boolean usesNativeDirectStreamShell(java.lang.String); }

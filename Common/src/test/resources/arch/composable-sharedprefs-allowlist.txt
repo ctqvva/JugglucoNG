@@ -1,0 +1,19 @@
+# Composable files that touch SharedPreferences directly, instead of through a repository or
+# store (plan §2.3, ArchitectureGateTests).
+#
+# This list may only shrink: a new file added to it, or a stale line for one already fixed, fails
+# the build (ArchitectureGateTests.composablesDoNotGrowInDirectSharedPreferencesUse).
+src/mobile/java/tk/glucodata/ui/AlarmScreen.kt
+src/mobile/java/tk/glucodata/ui/CgmReadiness.kt
+src/mobile/java/tk/glucodata/ui/DashboardChart.kt
+src/mobile/java/tk/glucodata/ui/DashboardScreen.kt
+src/mobile/java/tk/glucodata/ui/DebugSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/DisplaySettingsScreens.kt
+src/mobile/java/tk/glucodata/ui/ExpressiveSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/InsulinPenSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/SensorScreen.kt
+src/mobile/java/tk/glucodata/ui/alerts/AlertSettingsScreen.kt
+src/mobile/java/tk/glucodata/ui/alerts/SoundPicker.kt
+src/mobile/java/tk/glucodata/ui/calibration/CalibrationListScreen.kt
+src/mobile/java/tk/glucodata/ui/stats/StatsScreen.kt
+src/mobile/java/tk/glucodata/widget/ExpressiveAppWidget.kt

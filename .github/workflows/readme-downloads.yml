@@ -1,0 +1,31 @@
+name: Refresh README downloads
+on:
+  # Also covers releases published/promoted manually and retries of README updates.
+  release:
+    types: [published, released]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write # Start read-only CI for the README commit made by GITHUB_TOKEN.
+jobs:
+  update:
+    # Shared with Release's post-publication refresh. Select releases only after
+    # this job acquires the lock; queued older events then select the newest one.
+    concurrency:
+      group: readme-downloads
+      cancel-in-progress: false
+    if: >-
+      github.repository == 'ctqvva/JugglucoNG' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'release')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Refresh versioned manual downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/update-readme-downloads.py

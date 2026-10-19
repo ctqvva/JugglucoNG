@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:overrideLibrary="androidx.health.connect.client" >
+<!--   <uses-sdk android:minSdkVersion="${minSDK}" android:targetSdkVersion="${targetSDK}"/>-->
+
+<!--    <uses-sdk tools:overrideLibrary="com.google.android.gms.common, androidx.appcompat.resources, com.google.android.gms.tasks, com.google.android.gms.base, com.google.android.gms.wearable, androidx.health.connect.client"/> -->
+   <uses-sdk tools:overrideLibrary="com.google.android.gms.common,com.google.android.gms.base,com.google.android.gms.tasks,androidx.profileinstaller,androidx.activity,androidx.recyclerview,androidx.startup,androidx.health.connect.client,com.garmin.android.connectiq,androidx.core.ktx,androidx.core,androidx.core.viewtree"/>
+
+
+<!-- s/^[	 ]*\(.*\)[	 ]*$/<uses-permission android:name="\1"\/>/g -->
+<uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE"/>
+<uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+<uses-permission android:name="android.permission.health.READ_STEPS"/>
+<uses-feature android:name="android.hardware.type.automotive" android:required="false" />
+
+<queries>
+    <package android:name="com.google.android.apps.healthdata" />
+</queries>
+
+    <queries>
+        <intent>
+            <action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" />
+        </intent>
+    </queries>
+    <queries>
+        <intent>
+            <action android:name="com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE" />
+        </intent>
+    </queries>
+    <queries>
+        <package android:name="com.garmin.android.apps.connectmobile" />
+    </queries>
+
+
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:resizeable="true"
+        android:smallScreens="true"
+        android:xlargeScreens="true" />
+
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+
+    <!-- Merged in from the old src/mobileSi/AndroidManifest.xml, which was carried by
+         the mobileGoogle flavour-combination source set. That combination no longer
+         exists now that the Google dimension is gone, and a source set has only one
+         manifest slot, which src/mobile already occupies. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- In-app updater. JugglucoNG is distributed as a direct APK from GitHub Releases, so it
+         has to be able to ask the platform installer to replace itself. The user still grants
+         "install unknown apps" once, and Android still shows its own confirmation every time. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application
+        android:name=".Applic"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <activity
+            android:name=".UnifiedScanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <receiver
+            android:name=".GlucoseWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="tk.glucodata.action.GLUCOSE_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/glucose_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ExpressiveWidgetReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="tk.glucodata.action.GLUCOSE_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/expressive_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".receivers.AapsJournalReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="info.nightscout.client.NEW_TREATMENT" />
+                <action android:name="info.nightscout.client.CHANGED_TREATMENT" />
+                <action android:name="info.nightscout.client.REMOVED_TREATMENT" />
+                <action android:name="info.nightscout.client.NEW_FOOD" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".MainActivity"
+            android:allowEmbedded="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:screenOrientation="user"
+            tools:ignore="DiscouragedApi">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <!-- Long press on the quiet-window tile: the alert settings. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- Quick-settings tile for the alarm quiet window: one tap starts the
+             default duration, one tap on a running window ends it. -->
+        <service
+            android:name=".ui.QuietWindowTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_quiet_window_inactive"
+            android:label="@string/quiet_window_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="false" />
+        </service>
+        
+        <!-- Takes an insulin-pen tap while the app is not in front and imports the
+             doses without bringing the UI up. Disabled until the "import in the
+             background" setting enables it; see InsulinPenManager. -->
+        <activity
+            android:name=".ui.PenTagReceiverActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PenTagReceiver">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_pen_tech_filter" />
+        </activity>
+
+        <activity
+            android:name=".ui.ComposeUIActivity"
+            android:label="Search"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+  <activity-alias
+      android:name="ViewPermissionUsageActivity"
+      android:exported="true"
+      android:targetActivity=".MainActivity"
+      android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+    <intent-filter>
+      <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+      <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+    </intent-filter>
+  </activity-alias>
+
+        <service
+            android:name=".MessageReceiver"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:host="*" android:pathPrefix="/data" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/messages" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/netinfo" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/wake" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/wakestream" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/protocol" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/alertack" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/askforstart" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/calibrate" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/sync2" android:scheme="wear" />
+                <!-- Every path this service handles must be listed: a
+                     WearableListenerService is only delivered the prefixes its
+                     filter names, so an unlisted one is dropped in silence. -->
+                <data android:host="*" android:pathPrefix="/displayprefs" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/toggles" android:scheme="wear" />
+                            <data android:host="*" android:pathPrefix="/bluetooth" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/defaults" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/glucosecolors" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/sensorclaimstatus" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/sensorhandoff" android:scheme="wear" />
+                <data android:host="*" android:pathPrefix="/start" android:scheme="wear" />
+</intent-filter>
+        </service>
+
+        <!-- PackageInstaller session status for the in-app updater. Never exported: the commit
+             PendingIntent targets this component explicitly. -->
+        <receiver
+            android:name="tk.glucodata.update.AppUpdateInstallReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+    </application>
+
+</manifest>

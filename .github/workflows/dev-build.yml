@@ -1,0 +1,206 @@
+name: Signed dev build
+run-name: Signed dev build requested by ${{ github.actor }}
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Distribution target
+        type: choice
+        options: [phone, phone-all, wear, wear-all, all]
+        default: phone
+      pr_number:
+        description: 'PR number to test (empty = main; PR builds require owner approval)'
+        type: string
+        default: ''
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+concurrency:
+  group: signed-dev-${{ github.actor }}
+  cancel-in-progress: false
+jobs:
+  request:
+    if: github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      accepted: ${{ steps.request.outputs.accepted }}
+      target: ${{ steps.request.outputs.target }}
+      pr_number: ${{ steps.snapshot.outputs.pr_number }}
+      source_sha: ${{ steps.snapshot.outputs.source_sha }}
+      head_repo: ${{ steps.snapshot.outputs.head_repo }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: request
+        name: Validate request (owner and JetFoxy user IDs)
+        run: python3 scripts/dist/request.py >> "$GITHUB_OUTPUT"
+      - id: snapshot
+        if: steps.request.outputs.accepted == 'true' && steps.request.outputs.pr_number != ''
+        name: Capture exact PR head for owner review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.request.outputs.pr_number }}
+        run: python3 scripts/dist/pr-build.py capture >> "$GITHUB_OUTPUT"
+  build:
+    needs: request
+    if: needs.request.outputs.accepted == 'true' && needs.request.outputs.pr_number == ''
+    uses: ./.github/workflows/signed-build.yml
+    # Required for the called job to resolve protected environment secrets.
+    secrets: inherit
+    with:
+      target: ${{ needs.request.outputs.target }}
+      test_artifacts: true
+  approve-pr:
+    needs: request
+    if: needs.request.outputs.accepted == 'true' && needs.request.outputs.pr_number != ''
+    name: Approve PR ${{ needs.request.outputs.pr_number }} at ${{ needs.request.outputs.source_sha }}
+    runs-on: ubuntu-24.04
+    # This environment has no signing secrets; only ctqvva can approve it.
+    environment:
+      name: production-pr-review
+      url: https://github.com/${{ needs.request.outputs.head_repo }}/commit/${{ needs.request.outputs.source_sha }}
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reject a changed PR or missing owner approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.request.outputs.pr_number }}
+          SOURCE_SHA: ${{ needs.request.outputs.source_sha }}
+          HEAD_REPO: ${{ needs.request.outputs.head_repo }}
+        run: python3 scripts/dist/pr-build.py check
+  build-pr:
+    needs: [request, approve-pr]
+    if: github.repository == 'ctqvva/JugglucoNG' && github.ref == 'refs/heads/main' && needs.approve-pr.result == 'success'
+    name: Build approved PR ${{ needs.request.outputs.pr_number }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-signing
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    env:
+      PR_NUMBER: ${{ needs.request.outputs.pr_number }}
+      SOURCE_SHA: ${{ needs.request.outputs.source_sha }}
+      HEAD_REPO: ${{ needs.request.outputs.head_repo }}
+      TARGET: ${{ needs.request.outputs.target }}
+      SOURCE_DIR: ${{ github.workspace }}/source
+    steps:
+      - name: Checkout trusted main controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Recheck source and approval before checking out PR code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 control/scripts/dist/pr-build.py check
+      - name: Checkout immutable owner-approved source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ needs.request.outputs.head_repo }}
+          ref: ${{ needs.request.outputs.source_sha }}
+          path: source
+          submodules: recursive
+          persist-credentials: false
+      - name: Check licensing and signing setup
+        env:
+          LICENSE_APPROVED: ${{ vars.DISTRIBUTION_LICENSE_APPROVED }}
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+        run: |
+          test "$LICENSE_APPROVED" = true || { echo 'Approve JNI redistribution in production-signing'; exit 1; }
+          test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Complete production-signing environment secrets'; exit 1; }
+          python3 -c 'import sys; sys.path.insert(0, "control/scripts/dist"); import turn; turn.load()'
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install approved source toolchain with trusted installer
+        run: control/scripts/dist/install-sdk.sh "$SOURCE_DIR"
+      - name: Restore checksummed JNI inputs with trusted controller
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 control/scripts/dist/pr-build.py restore
+      # The approval makes this exact source snapshot trusted, including Gradle,
+      # native code, scripts and dependencies. No unapproved PR job receives keys.
+      # No Gradle cache; key properties are confined to this step.
+      - name: Build approved source through build-dist.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ORG_GRADLE_PROJECT_thepassword: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_thekeyalias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_thekeypassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+        run: |
+          set -euo pipefail
+          python3 control/scripts/dist/pr-build.py check
+          unset GH_TOKEN
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/juggluco-signing.XXXXXX")
+          trap 'rm -rf "$signing_dir"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing_dir/production.keystore"
+          unset KEYSTORE_BASE64
+          export ORG_GRADLE_PROJECT_thekeyfile="$signing_dir/production.keystore"
+          "$SOURCE_DIR/scripts/build-dist.sh" "$TARGET" --no-daemon --no-configuration-cache --max-workers=2
+      - name: Independently verify APKs with trusted main certificate and verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 control/scripts/dist/pr-build.py verify
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: distribution-pr${{ needs.request.outputs.pr_number }}-${{ needs.request.outputs.target }}-${{ needs.request.outputs.source_sha }}
+          path: |
+            source/build/dist/test/${{ needs.request.outputs.target }}/*.apk
+            source/build/dist/test/${{ needs.request.outputs.target }}/build-info.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Download instructions
+        run: |
+          echo "Verified production-signed **$TARGET** APKs of PR **#$PR_NUMBER**, exact head **$SOURCE_SHA**, are in this run's Artifacts section (7 days). They update the matching existing app; they do not install beside it. Native sensor behavior still needs device testing." >> "$GITHUB_STEP_SUMMARY"
+  post-build:
+    needs: [request, build, build-pr]
+    # One alternative build is skipped. Explicit always() lets the successful
+    # alternative post; rejected/failed/cancelled requests never get a ready link.
+    if: >-
+      always() && github.repository == 'ctqvva/JugglucoNG' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'issue_comment' &&
+      needs.request.outputs.accepted == 'true' &&
+      (needs.build.result == 'success' || needs.build-pr.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      # Timeline comments on PRs also need this scope for the Actions App token.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reply with verified build download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ needs.request.outputs.target }}
+          SOURCE_SHA: ${{ needs.request.outputs.source_sha }}
+          HEAD_REPO: ${{ needs.request.outputs.head_repo }}
+        run: python3 scripts/dist/post-build.py

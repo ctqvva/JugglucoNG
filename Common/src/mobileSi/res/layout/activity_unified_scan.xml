@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scanRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/scanPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_scan_overlay_scrim" />
+
+    <LinearLayout
+        android:id="@+id/scanTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp">
+
+        <ImageButton
+            android:id="@+id/scanCancelButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_scan_chip"
+            android:contentDescription="@string/cancel"
+            android:padding="14dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_scan_back_24"
+            android:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/scanTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="start|center_vertical"
+            android:maxLines="1"
+            android:text="@string/scan_qr_button"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/scanFlashButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_scan_chip"
+            android:contentDescription="@string/flash"
+            android:padding="14dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_scan_flash_off_24"
+            android:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/scanFrame"
+        android:layout_width="296dp"
+        android:layout_height="296dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_scan_frame_stroke"
+        android:padding="22dp">
+
+        <View
+            android:id="@+id/scanLine"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:background="@drawable/bg_scan_line" />
+
+    </FrameLayout>
+</FrameLayout>

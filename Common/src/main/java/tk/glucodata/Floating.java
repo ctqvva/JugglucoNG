@@ -1,0 +1,792 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Wed Feb 08 11:40:32 CET 2023                                                 */
+
+package tk.glucodata;
+
+import static android.graphics.Color.BLACK;
+import static android.graphics.Color.WHITE;
+import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+import static java.lang.Float.isNaN;
+import static java.util.Collections.swap;
+import static tk.glucodata.Applic.DontTalk;
+import static tk.glucodata.Applic.backgroundcolor;
+import static tk.glucodata.Applic.isWearable;
+import static tk.glucodata.Applic.startMain;
+import static tk.glucodata.CommonCanvas.drawarrow;
+import static tk.glucodata.Log.doLog;
+import static tk.glucodata.MainActivity.OVERLAY_PERMISSION_REQUEST_CODE;
+import static tk.glucodata.MainActivity.doonback;
+import static tk.glucodata.MainActivity.setonback;
+import static tk.glucodata.Notify.glucosetimeoutSEC;
+import static tk.glucodata.Notify.timef;
+import static tk.glucodata.NumberView.minhourstr;
+import static tk.glucodata.util.getbutton;
+import static tk.glucodata.util.getlabel;
+
+import android.app.Activity;
+import androidx.appcompat.app.AlertDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
+import android.graphics.Rect;
+import android.os.Build;
+import android.provider.Settings;
+import android.text.InputType;
+import android.text.method.ScrollingMovementMethod;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import java.text.DateFormat;
+import java.util.Date;
+
+import tk.glucodata.Applic;
+import tk.glucodata.Notify;
+import tk.glucodata.R;
+
+public class Floating extends View {
+
+    static private final String LOG_ID = "Floating";
+    static private final int oldage = glucosetimeoutSEC;
+
+    static void init() {
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "init()");
+            }
+            ;
+        }
+        ;
+        var pos = Natives.getfloatingPos();
+        final var metrics = Applic.app.getResources().getDisplayMetrics();
+        density = metrics.density;
+        // movethreshold=density*2.0f;
+        movethreshold = density * 2.0f;
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "density=" + density);
+            }
+            ;
+        }
+        ;
+        if (pos != 0) {
+            Floating.xview = pos & 0xFFFF;
+            Floating.yview = pos >> 16;
+        } else {
+            var h = metrics.heightPixels;
+            var w = metrics.widthPixels;
+            if (h > w) {
+                xview = h * .5f;
+                yview = w * .5f;
+            } else {
+                xview = w * .5f;
+                yview = h * .5f;
+            }
+        }
+        Floating.showtime = Natives.getfloattime();
+    }
+
+    public Floating(Context context) {
+        super(context);
+    }
+
+    public static void setTouchable(boolean isChecked) {
+        Natives.setfloatingTouchable(isChecked);
+        if (!isChecked) {
+            int y = (int) yview;
+            Natives.setfloatingPos(((int) xview) | (0xFFFFFFFF & (y << 16)));
+        }
+        rewritefloating();
+    }
+
+    static void setbackgroundcolor(int c) {
+        Natives.setfloatingbackground(c);
+        var getc = Natives.getfloatingbackground();
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "getfloatingbackground(" + (getc & 0xFFFFFFFF) + ")");
+            }
+            ;
+        }
+        ;
+        floatingbackground = c;
+    }
+
+    static void setforegroundcolor(int c) {
+        Natives.setfloatingforeground(c);
+        floatingforeground = c;
+        ;
+    }
+
+    static public void setbackgroundalpha(int alpha) {
+        int initialColor = Natives.getfloatingbackground();
+        setbackgroundcolor(0xFFFFFFFF & ((initialColor & 0xFFFFFF) | alpha << 24));
+    }
+
+    public static Paint floatPaint;
+    private static WindowManager windowMana;
+    static float floatdensity;
+    public static int floatglucosex;
+    static Floating floatview = null;
+
+    public static void invalidatefloat() {
+        final var view = floatview;
+        if (view != null)
+            view.postInvalidate();
+    }
+
+    public static void rewritefloating(Activity context) {
+        setfloatglucose(context, true);
+    }
+
+    public static void rewritefloating() {
+        makefloat();
+    }
+
+    static void shoulduseadb(Context context) {
+        final var builder = new AlertDialog.Builder(context);
+        String title = context.getString(R.string.overlaypermission);
+        if (title.length() > 16) {
+            builder.setTitle(" ");
+            builder.setMessage(title + "\n" + context.getString(R.string.overlaypermissionmessage));
+        } else {
+            builder.setTitle(title);
+            builder.setMessage(R.string.overlaypermissionmessage);
+        }
+        var dialog = builder.setPositiveButton(R.string.ok, (dia, id) -> {
+            {
+                if (doLog) {
+                    Log.i(LOG_ID, "now ask overlay permission");
+                }
+                ;
+            }
+            ;
+        }).create();
+        dialog.setCanceledOnTouchOutside(false);
+        final var metrics = Applic.app.getResources().getDisplayMetrics();
+        /*
+         * dialog.setOnShowListener(a -> {
+         * final var colres= android.R.color.holo_orange_light;
+         * final var col=
+         * (Build.VERSION.SDK_INT >=
+         * Build.VERSION_CODES.M)?context.getResources().getColor(colres,
+         * context.getTheme()):
+         * context.getResources().getColor(colres);
+         * var posbut=dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+         * posbut.setTextColor(col);
+         * posbut.setPadding(0,0,0,0);
+         * ViewGroup parent=(ViewGroup)posbut.getParent();
+         * if(parent!=null) {
+         * parent.setPadding(0,0,0,0);
+         * parent.setMinimumHeight(0);
+         * parent.set
+         * {if(doLog) {Log.i(LOG_ID,"dialog.setOnShowListener");};};
+         * // var dens=GlucoseCurve.getDensity();
+         * // negbut.setPadding((int)(dens*10),0,0,0);
+         * }
+         * }
+         * );
+         */
+        dialog.show();
+        TextView messageText = (TextView) dialog.findViewById(android.R.id.message);
+        var screenwidth = metrics.widthPixels;
+        density = metrics.density;
+        int pad = (int) (screenwidth * .05);
+        messageText.setGravity(Gravity.LEFT);
+        messageText.setPadding(pad, 0, pad, 0);
+
+    }
+
+    public static void setfloatglucose(Activity context, boolean val) {
+        {
+            if (val) {
+                if (!makefloat()) {
+                    if (isWearable) {
+                        shoulduseadb(context);
+                    } else {
+                        try {
+                            var settingsIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                            context.startActivityForResult(settingsIntent, OVERLAY_PERMISSION_REQUEST_CODE);
+                        } catch (Throwable th) {
+                            Log.stack(LOG_ID, "Settings.ACTION_MANAGE_OVERLAY_PERMISSION", th);
+                            shoulduseadb(context);
+                        }
+                    }
+                    return;
+                }
+            } else {
+                turnoffFloating();
+            }
+        }
+    }
+
+    public static void removeFloating() {
+        if (floatview != null) {
+            {
+                if (doLog) {
+                    Log.i(LOG_ID, "removeFloating()");
+                }
+                ;
+            }
+            ;
+            windowMana.removeView(floatview);
+            floatview = null;
+        }
+    }
+
+    private static void turnoffFloating() {
+        removeFloating();
+        Natives.setfloatglucose(false);
+    }
+
+    private static void hidefloating() {
+        Log.i(LOG_ID, "hidefloating() density=" + density);
+        hide = true;
+        removeFloating();
+        windowMana = (WindowManager) Applic.app.getSystemService(Context.WINDOW_SERVICE);
+        floatview = new Floating(Applic.app);
+        floatPaint = new Paint();
+        floatPaint.setTextAlign(Paint.Align.LEFT);
+        floatPaint.setColor(floatingforeground);
+        final int nrdens = (isWearable && density < 2) ? 20 : 14;
+
+        final int floatingheight = (int) (density * nrdens), floatingwidth = floatingheight * 2;
+        floatPaint.setTextSize(floatingheight);
+        final var type = (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) ? WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                : WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        final var flags = FLAG_NOT_FOCUSABLE;
+        var params = new WindowManager.LayoutParams(floatingwidth, (int) (floatingheight), (int) floatingx,
+                (int) floatingy, type, flags, PixelFormat.TRANSLUCENT);
+        windowMana.addView(floatview, params);
+    }
+
+    private boolean asking = false;
+
+    private void untouchable() {
+        if (asking)
+            return;
+        asking = true;
+        final var type = (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) ? WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                : WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        final var flags = FLAG_NOT_FOCUSABLE;
+        final int x = isWearable ? 0 : (int) floatingx;
+        final int y = isWearable ? 0 : (int) floatingy;
+        var params = new WindowManager.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, x, y, type, flags, PixelFormat.OPAQUE);
+        /*
+         * Context context= MainActivity.thisone;
+         * if(context==null)
+         * context=keeprunning.theservice;
+         */
+        final Context context = Applic.app;
+        var ok = getbutton(context, R.string.ok);
+        var cancel = getbutton(context, R.string.cancel);
+        var untouch = getlabel(context, R.string.untouchablequestion);
+        untouch.setTextColor(Color.WHITE);
+        untouch.setElegantTextHeight(true);
+        untouch.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        untouch.setSingleLine(false);
+
+        untouch.setPadding((int) (density * 5), 0, 0, 0);
+        // untouch.setImeOptions(EditorInfo.IME_FLAG_NO_ENTER_ACTION);
+        // untouch.setMinLines(2);
+        // untouch.setVerticalScrollBarEnabled(true);
+        // untouch.setMovementMethod(ScrollingMovementMethod.getInstance());
+        // untouch.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
+        // var lp = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        // ViewGroup.LayoutParams.WRAP_CONTENT); untouch.setLayoutParams(lp);
+
+        var layout = new Layout(context,
+                (v, w, h) -> {
+                    var wid = ok.getMeasuredWidth() + cancel.getMeasuredWidth();
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "layout width=" + w + " ok+cancel=" + wid);
+                        }
+                        ;
+                    }
+                    ;
+                    if (wid > 0) {
+                        untouch.setWidth(wid);
+                        w = wid;
+                    }
+                    return new int[] { w, h };
+                },
+                new View[] { untouch }, new View[] { cancel, ok });
+        layout.setBackgroundColor(Color.BLACK);
+        ok.setOnClickListener(
+                v -> {
+                    setTouchable(false);
+                    windowMana.removeView(layout);
+                    asking = false;
+                });
+        cancel.setOnClickListener(
+                v -> {
+                    windowMana.removeView(layout);
+                    asking = false;
+                });
+        windowMana.addView(layout, params);
+    }
+
+    static float xview;
+    static float yview;
+    static int transnr = 0;
+
+    static private void translate(float dx, float dy) {
+        xview += dx;
+        yview += dy;
+        final var metrics = Applic.app.getResources().getDisplayMetrics();
+        var screenwidth = metrics.widthPixels;
+        var screenheight = metrics.heightPixels;
+        var maxx = screenwidth;
+        var maxy = screenheight;
+
+        if (xview < 0)
+            xview = 0;
+        if (xview > maxx)
+            xview = maxx;
+        if (yview < 0)
+            yview = 0;
+        if (yview > maxy)
+            yview = maxy;
+        var params = makeparams(screenwidth, (int) (screenheight));
+        if (floatview == null) {
+            Log.e(LOG_ID, "floatview==null");
+            return;
+        }
+        windowMana.updateViewLayout(floatview, params);
+    }
+
+    static float floatingx, floatingy;
+
+    private static WindowManager.LayoutParams makeparams(int screenwidth, int screenheight) {
+        var xpos = -screenwidth * .5f + xview;
+        var ypos = -screenheight * .5f + yview;
+        floatingx = xpos;
+        floatingy = ypos;
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "Floating glucose: x=" + xpos + " y=" + ypos);
+            }
+            ;
+        }
+        ;
+
+        var type = (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) ? WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                : WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        var flags = FLAG_NOT_FOCUSABLE
+                | (Natives.getfloatingTouchable() ? 0 : WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        return new WindowManager.LayoutParams(floatingwidth, (int) (floatingheight), (int) xpos, (int) ypos, type,
+                flags, PixelFormat.TRANSLUCENT);
+    }
+
+    static boolean cannotoverlay() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(Applic.app)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    static int floatingbackground = WHITE;
+    static int floatingforeground = BLACK;
+
+    static int floatingwidth;
+    static int floatingheight;
+    private static int timesize;
+    private static int timeHeight;
+    public static boolean showtime = true;
+    private static float density;
+    public static int floatfontsize;
+    private static float valueWidth;
+
+    static boolean makefloat() {
+        {
+            {
+                if (doLog) {
+                    Log.i(LOG_ID, "makefloat");
+                }
+                ;
+            }
+            ;
+
+            hide = false;
+
+            if (floatview != null) {
+                windowMana.removeView(floatview);
+                floatview = null;
+            }
+            if (cannotoverlay())
+                return false;
+
+            try {
+                windowMana = (WindowManager) Applic.app.getSystemService(Context.WINDOW_SERVICE);
+                floatview = new Floating(Applic.app);
+                var metrics = Applic.app.getResources().getDisplayMetrics();
+                int screenwidth = metrics.widthPixels;
+                int screenheight = metrics.heightPixels;
+                floatPaint = new Paint();
+                floatfontsize = Natives.getfloatingFontsize();
+                floatingforeground = Natives.getfloatingforeground();
+                floatingbackground = Natives.getfloatingbackground();
+                Log.format(LOG_ID + " Natives.getfloatingforeground()=0x%x\n", floatingforeground);
+                Log.format(LOG_ID + " Natives.getfloatingbackground()=0x%x\n", floatingbackground);
+                if (floatfontsize < 5 || floatfontsize > (int) (screenheight * .8)) {
+                    floatfontsize = (int) Notify.glucosesize;
+                }
+                floatPaint.setAntiAlias(true);
+                floatPaint.setTextAlign(Paint.Align.LEFT);
+                float notheight = floatfontsize * 0.8f;
+                var notwidth = notheight * 3.40;
+
+                floatdensity = notheight / 54.0f;
+                if (showtime) {
+                    Rect bounds = new Rect();
+                    timesize = (int) (floatfontsize * .25f);
+                    floatPaint.setTextSize(timesize);
+                    floatPaint.getTextBounds(":58", 0, 3, bounds);
+                    timeHeight = (int) (bounds.height() * 1.2f);
+                    notheight += timeHeight;
+                } else {
+                    timeHeight = timesize = 0;
+                }
+
+                floatPaint.setTextSize(floatfontsize);
+                /*
+                 * if(colorAge) {
+                 * Rect bounds=new Rect();
+                 * final var value=(Applic.unit==1)?"27.8":"488";
+                 * floatPaint.getTextBounds( value, 0,value.length() ,bounds);
+                 * valueWidth=bounds.width();
+                 * }
+                 */
+
+                floatglucosex = (int) (notwidth * .272f);
+                floatingwidth = (int) notwidth;
+
+                floatingheight = (int) (notheight);
+
+                windowMana.addView(floatview, makeparams(screenwidth, (int) (screenheight)));
+
+                Natives.setfloatglucose(true);
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "makefloat", th);
+                floatview = null;
+            }
+        }
+        return true;
+    }
+
+    private void oldfloatmessage(Canvas floatCanvas, long timeMillis) {
+        floatCanvas.drawColor(floatingbackground);
+        floatPaint.setColor(floatingforeground);
+        final String tformat = timef.format(timeMillis);
+        float fontsize = floatfontsize;
+        var gety = floatCanvas.getHeight() * 0.37f;
+        floatPaint.setTextSize(fontsize * .3f);
+        var xpos = 0.2f;
+        String message = getContext().getString(R.string.nonewvalue);
+        floatCanvas.drawText(message, xpos, gety, floatPaint);
+        gety = floatCanvas.getHeight() * 0.88f;
+        floatCanvas.drawText(tformat, xpos, gety, floatPaint);
+        floatPaint.setTextSize(fontsize);
+    }
+
+    static boolean hide = false;
+
+    /*
+     * public void drawRect (float left,
+     * float top,
+     * float right,
+     * float bottom,
+     * Paint paint)
+     */
+    private void showAgeColor(Canvas floatCanvas, int age, float xposin, float getyin, float w, float h) {
+        float gety = getyin;
+        // h-=5*density;
+        float xpos = xposin;
+        float agewidth = w * age / oldage;
+        floatPaint.setColor(floatingforeground);
+        float midx = xpos + agewidth;
+
+        floatCanvas.drawRect(xpos, gety, midx, gety + h, floatPaint);
+        final var restcolor = floatingbackground | 0xFF000000;
+        if (restcolor == floatingbackground)
+            floatPaint.setColor((restcolor + floatingforeground) / 2);
+        else
+            floatPaint.setColor(restcolor);
+        floatCanvas.drawRect(midx, gety, xpos + w, gety + h, floatPaint);
+    }
+
+    // private static final boolean colorAge=true;
+    @Override
+    protected void onDraw(Canvas floatCanvas) {
+        super.onDraw(floatCanvas);
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onDraw");
+            }
+            ;
+        }
+        ;
+        final var current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, SensorIdentity.resolveMainSensor());
+        if (current != null) {
+            final var now = System.currentTimeMillis();
+            final var age = now - current.getTimeMillis();
+            if (age < (oldage * 1000L)) {
+                if (hide) {
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "onDraw hide");
+                        }
+                        ;
+                    }
+                    ;
+                    final var gety = floatCanvas.getHeight() * 0.85f;
+                    final var xpos = 0.2f;
+                    floatCanvas.drawColor(floatingbackground);
+                    floatPaint.setColor(floatingforeground);
+                    floatCanvas.drawText(current.getPrimaryStr(), xpos, gety, floatPaint);
+                    return;
+                }
+                floatCanvas.drawColor(floatingbackground);
+                floatPaint.setColor(floatingforeground);
+                var gety = (floatCanvas.getHeight() - timeHeight) * 0.98f;
+                var xpos = floatglucosex;
+                var rate = current.getRate();
+                if (!isNaN(rate)) {
+                    float weightrate = (rate > 1.6 ? -1.0f : (rate < -1.6 ? 1.0f : (rate / -1.6f)));
+                    float arrowy = gety - floatfontsize * .4f + weightrate * floatfontsize * .4f;
+                    drawarrow(floatCanvas, floatPaint, floatdensity, rate, xpos * .85f, arrowy);
+                }
+                final var value = current.getPrimaryStr();
+                floatCanvas.drawText(value, xpos, gety * .9659f, floatPaint);
+                /*
+                 * if(colorAge) {
+                 * // Rect bounds=new Rect();
+                 * // floatPaint.getTextBounds( value, 0,value.length() ,bounds);
+                 * showAgeColor(floatCanvas, (int) age,xpos,gety,valueWidth, timeHeight);
+                 * }
+                 */
+                if (showtime) {
+                    var timestr = minhourstr(current.getTimeMillis());
+                    floatPaint.setTextSize(timesize);
+                    floatCanvas.drawText(timestr, density, gety + timeHeight, floatPaint);
+                    floatPaint.setTextSize(floatfontsize);
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "time: " + current.getTimeMillis() + " " + timestr);
+                        }
+                        ;
+                    }
+                    ;
+                }
+                return;
+            } else {
+                if (!hide) {
+                    oldfloatmessage(floatCanvas, current.getTimeMillis());
+                    return;
+                }
+            }
+
+        } else {
+            if (!hide) {
+                final var gety = floatCanvas.getHeight() * 0.8f;
+                final var xpos = 0.2f;
+                final float fontsize = floatfontsize;
+                floatCanvas.drawColor(floatingbackground);
+                floatPaint.setColor(floatingforeground);
+                floatPaint.setTextSize(fontsize * .68f);
+                floatCanvas.drawText(getContext().getString(R.string.novalue), xpos, gety, floatPaint);
+                floatPaint.setTextSize(fontsize);
+                return;
+            }
+        }
+        {
+            if (doLog) {
+                Log.i(LOG_ID, "onDraw hide");
+            }
+            ;
+        }
+        ;
+        final var gety = floatCanvas.getHeight() * 0.82f;
+        final var xpos = 0.2f;
+        floatCanvas.drawColor(floatingbackground);
+        floatPaint.setColor(floatingforeground);
+        floatCanvas.drawText(" X ", xpos, gety, floatPaint);
+
+    }
+
+    private boolean moved = false;
+    private long downstart;
+    private int mindowntime = 400;
+    private int maxdoubletime = 500;
+    private float startX, startY;
+
+    @Override
+    public void onScreenStateChanged(int state) {
+        switch (state) {
+            case SCREEN_STATE_ON: {
+                Log.i(LOG_ID, "onScreenStateChanged(int state)");
+                invalidatefloat();
+            }
+        }
+        ;
+
+    }
+
+    private static float movethreshold = 6.0f;
+    private boolean startedMain = false;
+
+    public boolean onTouchEvent(MotionEvent event) {
+        if (Natives.turnoffalarm())
+            Notify.stopalarm();
+        {
+            if (doLog) {
+                Log.i(LOG_ID, event.toString());
+            }
+            ;
+        }
+        ;
+        try {
+            switch (event.getAction() & MotionEvent.ACTION_MASK) {
+                case MotionEvent.ACTION_BUTTON_PRESS:
+                case MotionEvent.ACTION_DOWN: {
+                    if (doLog) {
+                        Log.i(LOG_ID, "Down");
+                    }
+                    ;
+                }
+                    ;
+                    startX = event.getX();
+                    startY = event.getY(); {
+                    if (doLog) {
+                        Log.i(LOG_ID, "startX=" + startX + " startY=" + xview + " floatglucosex=" + floatglucosex);
+                    }
+                    ;
+                }
+                    ;
+                    if (hide) {
+                        {
+                            if (doLog) {
+                                Log.i(LOG_ID, "unhide");
+                            }
+                            ;
+                        }
+                        ;
+                        hide = false;
+                        if (Natives.getfloatglucose())
+                            makefloat();
+                        moved = false;
+                        downstart = event.getEventTime();
+                        return true;
+                    } else {
+                        if (startX < floatglucosex) {
+                            {
+                                if (doLog) {
+                                    Log.i(LOG_ID, "<floatglucosex");
+                                }
+                                ;
+                            }
+                            ;
+                            startedMain = true;
+                            startMain();
+                        }
+                        if ((event.getEventTime() - downstart) < maxdoubletime) {
+                            untouchable();
+                        }
+                    }
+                    moved = false;
+                    downstart = event.getEventTime();
+                    break;
+
+                case MotionEvent.ACTION_BUTTON_RELEASE:
+                case MotionEvent.ACTION_POINTER_UP:
+                case MotionEvent.ACTION_UP:
+                    if (!moved) {
+                        if ((event.getEventTime() - downstart) > mindowntime) {
+                            hidefloating();
+                            // final var act=(Activity)getContext();
+
+                            downstart = 0;
+                        } else {
+                            if (!DontTalk) {
+                                if (!startedMain) {
+                                    long time = Natives.saylastglucose();
+                                    if (time >= 0) {
+                                        var talker = SuperGattCallback.talker;
+                                        if (talker == null) {
+                                            SuperGattCallback.newtalker(null);
+                                            talker = SuperGattCallback.talker;
+                                        }
+                                        talker.speak(time == 0L ? getContext().getString(R.string.novalue)
+                                                : getContext().getString(R.string.nonewvalue) + timef.format(time));
+                                    }
+                                } else
+                                    startedMain = false;
+                            }
+
+                        }
+                    } else
+                        downstart = 0;
+                    break;
+                case MotionEvent.ACTION_MOVE: {
+                    final var newx = event.getX();
+                    final var newy = event.getY();
+                    final var distanceX = newx - startX;
+                    final var distanceY = newy - startY;
+                    {
+                        if (doLog) {
+                            Log.i(LOG_ID, "DRAG dx=" + distanceX + " dy=" + distanceY);
+                        }
+                        ;
+                    }
+                    ;
+                    // startX= newx; startY= newy;
+                    if (Math.abs(distanceX) > movethreshold || Math.abs(distanceY) > movethreshold) {
+                        moved = true;
+                        // translate(distanceX*.45f,distanceY*.45f);
+                        translate(distanceX * .30f, distanceY * .30f);
+                    } else {
+                        if (!moved) {
+                            if ((event.getEventTime() - downstart) > mindowntime)
+                                hidefloating();
+                        }
+                    }
+
+                }
+                    break;
+            }
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "onTouchEvent", th);
+        }
+        return true;
+    }
+
+};

@@ -1,0 +1,1717 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 15:31:05 CET 2023                                                 */
+
+package tk.glucodata;
+
+import android.os.Build;
+
+import com.eveningoutpost.dexdrip.services.broadcastservice.models.GraphLine;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+
+import tk.glucodata.nums.item;
+
+public class Natives {
+        static final private String LOG_ID = "Natives";
+        // static long numptr=0;
+        static {
+                try {
+                        android.util.Log.d(LOG_ID, "before LoadLibrary");
+                        System.loadLibrary("g");
+                        android.util.Log.d(LOG_ID, "after LoadLibrary");
+                        Applic.Nativesloaded = true;
+                }
+
+                catch (Throwable error) {
+                        Applic.Nativesloaded = false;
+                        String mess = error != null ? error.getMessage() : null;
+                        if (mess == null) {
+                                mess = "error";
+                        }
+                        android.util.Log.e(LOG_ID, mess);
+                }
+
+        }
+
+        public static native int nfcdata(byte[] uid, byte[] info, byte[] dat);
+
+        // public stratic native boolean shouldenableStreaming(byte[] uid);
+        // public static native void enabledStreaming(byte[] uid,byte[] info,boolean
+        // val);
+        public static native void enabledStreaming(byte[] uid, byte[] info, int val, byte[] address); // address!=null
+                                                                                                      // enables,
+                                                                                                      // address==null
+                                                                                                      // don't
+                                                                                                      // ask again
+
+        public static native boolean hasBluetooth(byte[] sensorident, byte[] patchinfo);
+
+        public static native int openglversion();
+
+        // public static native void showlast();
+        // public static native void hidescanresults();
+
+
+        public static native int setfilesdir(String dir, String country, String nativedir);
+
+        // public static native void calccurvegegs();
+        public static native void startthreads();
+
+        public static native void startmeals();
+
+        public static native void startsensors();
+
+        public static native void setlocale(String loc);
+
+        public static native int step();
+
+
+        // public static native void clear();
+
+
+        public static native void prevday(int day);
+
+        public static native void nextday(int day);
+
+        // public static native void savestate();
+        public static native int translate(float dx, float dy, float yold, float y);
+
+
+
+
+        public static native long tap(float x, float y);
+
+
+        public static native long getstarttime();
+
+        public static native long oldestdatatime();
+
+        public static native void movedate(long date, int year, int month, int day);
+
+        public static native long getendtime();
+
+        // public static native void
+        // search(time[0],time[1],labelsel,funder,fabove,fgunder,fgabove,minutes[0],minutes[1]);
+        public static native int search(int label, float vunder, float vabove, int frommin, int tomin, boolean forward,
+                        String regexingr, float amount);
+
+        public static native int earliersearch();
+
+        public static native int latersearch();
+
+        public static native void stopsearch();
+
+        public static native byte activationcommand(byte[] info);
+
+        public static native byte[] activationpayload(byte[] id, byte[] info, byte person);
+
+        public static native long getdataptr(String sensorname);
+
+        public static native long getsensorptr(long dataptr);
+
+        // Temperature data from temppolls.dat.
+        // Values are in 0.1°C units. Returns null if the sensor has no temperature channel.
+        public static native int[] getTemperatureData(long sensorptr);
+
+        public static native int[] getTemperatureDataByName(String sensorname);
+
+        public static native boolean sameSensor(long one, long two);
+
+        public static native String getSensorName(long dataptr);
+
+        public static native String resolveFullSensorName(String sensorId);
+
+        public static native int getSensorIndex(String sensorId);
+
+        public static native int getSensorIndexFromDataPtr(long dataptr);
+
+        public static native void freedataptr(long dataptr);
+
+        public static native void setDeviceAddress(long dataptr, String deviceAddress);
+
+        // public static native void setDeviceAddressB(long dataptr,byte[] address );
+
+        public static native String getDeviceAddress(long dataptr, boolean getnew);
+        // public static native void backupstream(long dataptr);
+
+        public static native byte[] sensorUnlockKey(long dataptr);
+
+        public static native void resetbluetooth(long dataptr);
+        // public static native void saveState(long dataptr);
+
+        public static native long processTooth(long dataptr, byte[] bluetoothdata);
+
+        // public static native boolean iswaiting(long dataptr);
+        // public static native void setwaiting(long dataptr,boolean val);
+        public static native void setcurrentsensor(String name);
+
+        public static native String lastsensorname();
+
+        public static native long laststarttime();
+
+        public static native long getSensorEndTime(long dataptr, boolean official);
+
+        public static native long[] getSensorUiSnapshot(String sensorname);
+
+        public static native String getSensorStatusByName(String sensorname);
+
+        public static native long getSensorEndTimeFromSensorptr(long sensorptr, boolean official);
+
+        public static native String[] activeSensors();
+
+        public static native byte[] bluetoothOnKey(byte[] sensorident, byte[] patchinfo);
+
+        public static native void bluetoothback(byte[] sensorident, byte[] info);
+
+        // public static native void setglucose(long time,float glu,String sensor,int
+        // index);
+        public static native void setmaxsensors(int nr);
+
+
+        public static native long openNums(String base, long ident);
+
+        public static native long getident(long ptr);
+
+        public static native void setident(long numptr, long ident);
+
+        public static native void closeNums(long ptr);
+
+        public static native void saveNum(long ptr, long time, float value, int type, int mealptr);
+
+        public static native void saveNumpos(long ptr, int pos, long time, float value, int type, int mealptr);
+
+        public static native void removeNum(long ptr, int pos);
+
+        public static native item getNumitem(long ptr, int pos);
+
+        public static native int getfirstNum(long ptr);
+
+        public static native int getlastNum(long ptr);
+
+        public static native int getlastpolledNum(long ptr);
+
+        public static native void setlastpolledNum(long ptr, int pos);
+
+        public static native int getchangedNum(long ptr);
+
+        public static native int getonechangeNum(long ptr);
+
+        public static native boolean receivedbackup(long ptr);
+
+        public static native boolean isreceiving();
+
+        // public static native void setfirstNum(long ptr,int pos); //unused
+        public static native void setlastNum(long ptr, int pos); // unused
+
+        public static native void setchangedNumLater(long ptr, int pos);
+
+        public static native void setchangedNum(long ptr, int pos);
+
+        public static native void updatedNum(long ptr, int pos);
+
+        public static native void updatedNumstartend(long ptr, int start, int end);
+
+        public static native int getNumindex(long ptr);
+
+        // Operate on results
+        public static native long newhit();
+
+        public static native long mkhitptr(long ptr, int pos);
+
+        public static native long hittime(long hitptr);
+
+        public static native float hitvalue(long hitptr);
+
+        public static native int hitmeal(long hitptr);
+
+        public static native int hitremove(long hitptr);
+
+        public static native int hittype(long hitptr);
+
+        public static native void hitchange(long hitptr, long time, float value, int type, int mealptr);
+
+        // public static native boolean hitneedsync(long hitptr);
+        public static native int gethitindex(long ptr);
+
+        public static native void freehitptr(long hitptr);
+
+        public static native ArrayList<String> getLabels();
+
+        public static native float getPrecision(int i);
+
+        // public static native void setranges(float glow, float ghigh, float tlow,
+        // float thigh);
+        public static native void setGraphRange(float glow, float ghigh);
+
+        public static native void setTargetRange(float tlow, float thigh);
+
+        public static native void setalarms(float alow, float ahigh, boolean lowalarm, boolean highalarm,
+                        boolean availablealarm, boolean lossalarm);
+
+        public static native void setunit(int unit);
+
+        public static native boolean setlabel(int pos, String label, float prec, float weight);
+
+        public static native void setnrlabel(int nr);
+
+        public static native boolean shouldsendlabels();
+
+        public static native void setshouldsendlabels(boolean val);
+
+        public static native int getunit();
+
+        public static native float graphlow();
+
+        public static native float graphhigh();
+
+        public static native float targetlow();
+
+        public static native float targethigh();
+
+        public static native float alarmlow();
+
+        public static native float alarmhigh();
+
+        public static native boolean hasalarmhigh();
+
+        public static native boolean hasalarmlow();
+
+        public static native boolean hasalarmloss();
+
+        public static native boolean hasvaluealarm();
+
+        // public static native boolean toCalendarApp();
+        public static native float getweight(int pos);
+
+        public static native float getprec(int pos);
+
+        public static native void log(String mess);
+
+        public static native void dolog(boolean val);
+
+        public static native boolean islogging();
+
+        public static native long getLogfilesize();
+
+        public static native void zeroLog();
+
+        public static native boolean saveLog(int out);
+
+        public static native boolean saveLogcat(int out);
+
+        public static native void zeroLogcat();
+
+        public static native long getLogcatfilesize();
+
+        public static native void dologcat(boolean val);
+
+        public static native boolean islogcat();
+
+        public static native String advanced();
+
+        public static native boolean exportdata(int type, int fd, float showdays);
+
+        // public static native void setlibversion(String version);
+        public static native int getcolumns(int width);
+
+        public static native int numcontrol(int w, int h);
+
+        public static native void endnumlist();
+
+        public static native void forwardnumlist();
+
+        public static native void backwardnumlist();
+
+        public static native void firstpage();
+
+        public static native void lastpage();
+
+        public static native String getLibraryName();
+        // s/^extern.*JNIEXPORT[ ]*j*\([a-zA-Z]*\)[ ]*JNICALL[
+        // ]*fromjava(\([^)]*\))(JNIEnv[^,]*,[^,)]*[,)]\([^){]*\)[^a-zA-Z0-9]*$/public
+        // static native \1 \2(\3);/g
+
+        public static native long sensorends();
+
+        public static native String getserial(byte[] uid, byte[] info);
+
+        public static native ArrayList<ArrayList<Object>> getShortcuts();
+
+        public static native int setShortcut(int index, String name, String value);
+
+        public static native void setnrshortcuts(int nr);
+
+        public static native boolean sendcuts();
+
+        public static native void setsendcuts(boolean val);
+
+        public static native void setnodebug(boolean val);
+
+        public static native void sethaslibrary(boolean val);
+
+        // public static native void sethaslib(boolean val);
+        public static native boolean gethaslibrary();
+
+        public static native int getScreenOrientation();
+
+        public static native void setScreenOrientation(int val);
+
+        public static native boolean gethasgarmin();
+
+        public static native void sethasgarmin(boolean val);
+
+        public static native void setusebluetooth(boolean val);
+
+        public static native boolean getusebluetooth();
+
+        public static native boolean streamingAllowed();
+
+        // public static native void systemUI(boolean val);
+        public static native boolean getsystemUI();
+        // public static native void startbackup();
+
+        public static native boolean backuphasrestore();
+
+        public static native int backuphostNr();
+
+        public static native int activeBackupHostNr();
+
+        public static native String[] getbackupIPs(int pos);
+
+        public static native boolean getbackupHasHostname(int pos);
+
+        public static native String getbackuphostport(int pos);
+
+        public static native String getbackuppassword(int pos);
+
+        public static native boolean isWearOS(int pos);
+
+        public static native boolean isBackupHostPending(int pos);
+
+        public static native int changebackuphost(int pos, String[] names, int nr, boolean detect, String port,
+                        boolean nums, boolean stream, boolean scans, boolean recover, boolean receive,
+                        boolean activeonly,
+                        boolean passiveonly, String pass, long starttime, String label, boolean testip, boolean hasname,
+                        String icelabel, boolean side);
+
+        public static native boolean detectIP(int pos);
+
+        public static native long lastuptodate(int pos);
+
+        // public static native int addbackuphost(String name,String port,boolean
+        // nums,boolean stream,boolean scans );
+        public static native boolean getbackuphostnums(int pos);
+
+        public static native boolean getbackuphoststream(int pos);
+
+        public static native boolean getbackuphostscans(int pos);
+
+        public static native int getbackuphostreceive(int pos);
+
+        public static native boolean getbackuphostactive(int pos);
+
+        public static native boolean getbackuphostpassive(int pos);
+
+        public static native boolean getbackuptestip(int pos);
+
+        public static native boolean getbackupTestLabel(int pos);
+
+        public static native boolean getbackupActiveOnly(int pos);
+
+        public static native String getbackuplabel(int pos);
+
+        public static native void wakestreamsender();
+
+        public static native void wakebackup();
+
+        public static native String probeCloneRecovery(int allindex);
+
+        public static native String startCloneRecovery(int allindex, String modeWire,
+                        boolean includeJournal, boolean recoverFromReceiver);
+
+        public static native String cancelCloneRecovery(int allindex);
+
+        public static native String cloneRecoveryStatus(int allindex);
+
+        /** Called by the durable Java recovery scheduler after preparation or backoff. */
+        public static native boolean wakeCloneRecovery(String iceLabel);
+
+        public static native void wakestreamhereonly();
+
+        public static native void wakehereonly();
+
+        public static native void resetbackuphost(int pos);
+
+        public static native void deletebackuphost(int pos);
+
+        public static native boolean resetbylabel(String label, boolean galaxy);
+
+        public static native void setreceiveport(String port);
+
+        public static native String getreceiveport();
+
+        public static native void networkpresent();
+
+        public static native void networkhandover();
+
+        public static native void networkabsent();
+
+        public static native void resetnetwork();
+
+        public static native void setpaused(GlucoseCurve val);
+
+        // public static native boolean usemeal();
+        public static native boolean staticnum();
+
+        public static native void setstaticnum(boolean val);
+
+        public static native int[] numAlarmEvents();
+
+        public static native long firstAlarm();
+
+        public static native void setNumAlarm(int type, float value, int start, int end);
+
+        public static native Object[] getNumAlarm(int pos);
+
+        public static native void delNumAlarm(int pos);
+
+        public static native int getNumAlarmCount();
+
+        public static native int camerakey();
+
+        public static native void setcamerakey(int on);
+        /*
+         * public static native String readlowring( );
+         * public static native void writelowring(String juristr);
+         * public static native String readhighring( );
+         * public static native String readagainring( );
+         * public static native void writeagainring(String juristr);
+         * public static native String readnumring( );
+         * public static native void writenumring(String juristr);
+         */
+        // s/^extern.*JNIEXPORT[ ]*j*\([a-zA-Z]*\)[ ]*JNICALL[
+        // ]*fromjava(\([^)]*\))(JNIEnv[^,]*,[^,)]*[,)]\([^){]*\)[^a-zA-Z0-9]*$/public
+        // static native \1 \2(\3);/g
+
+        public static native boolean askstreamingEnabled(long dataptr);
+
+        public static native boolean getshowalways();
+
+        public static native void setshowalways(boolean val);
+
+        public static native String readring(int type);
+
+        public static native boolean writering(int type, String uristr, boolean sound, boolean flash, boolean vibrate);
+
+        public static native boolean alarmhasflash(int type);
+
+        public static native boolean alarmhassound(int type);
+
+        public static native boolean alarmhasvibration(int type);
+
+        public static native boolean getalarmdisturb(int type);
+
+        public static native void setalarmdisturb(int type, boolean dist);
+
+        public static native int readalarmduration(int type);
+
+        public static native void writealarmduration(int type, int dur);
+
+        public static native short readalarmsuspension(int type);
+
+        public static native void writealarmsuspension(int type, short sus);
+
+        public static native boolean getInvertColors();
+
+        public static native void setInvertColors(boolean val);
+
+        public static native boolean getfixatex();
+
+        public static native void setfixatex(boolean val);
+
+        public static native boolean getfixatey();
+
+        public static native void setfixatey(boolean val);
+
+        public static native void pressedback();
+
+        // public static native String chmod(String filename,int mode);
+        // public static native void resendtowatch();
+        public static native void saveingredient(int pos, String name, String unit, float carb);
+
+        public static native void deleteingredient(int pos);
+
+        public static native boolean ingredientdeleteable(int pos);
+
+        public static native int ingredientNr();
+
+        public static native float ingredientCarb(int index);
+        // public static native int ingredientUsed(int index);
+
+        public static native String ingredientUnitName(int index);
+
+        public static native int ingredientUnit(int index);
+
+        public static native String ingredientName(int index);
+
+        // public static native int additemtomeal(int mealptr,int ingr,float amount);
+        public static native int changemealitem(int mealptr, int pos, int ingre, float amount);
+
+        public static native float getitemamount(int mealptr, int pos);
+
+        public static native int getitemingredient(int mealptr, int pos);
+
+        public static native String getitemingredientname(int mealptr, int pos);
+
+        public static native int getmealitemnr(int mealptr);
+
+        public static native float carbinmeal(int mealptr);
+
+        public static native void deletemeal(int mealptr);
+
+        public static native int getnewmealptr();
+
+        public static native void closemeal(int mealptr);
+
+        public static native int deletefrommeal(int mealptr, int pos);
+
+        public static native void hitsetmealptr(long ptr, int mealptr);
+
+        public static native void setmealvar(byte val);
+
+        public static native byte getmealvar();
+
+        public static native ArrayList<String> getunits();
+
+        public static native float getroundto();
+
+        public static native void setroundto(float val);
+
+        public static native long foodsearch(String zoek);
+
+        public static native void freefoodptr(long ptr);
+
+        public static native int foodhitnr(long ptr);
+
+        public static native String foodlabel(long ptr, int pos);
+
+        public static native int[] getcomponents(int ingr);
+
+        public static native String[] getcomponentlabels();
+
+        public static native String[] getcomponentunits();
+
+        public static native int getfoodid(long ptr, int pos);
+
+        public static native String idfoodlabel(int ind);
+
+        public static native int foodnr();
+
+        public static native int cpmeal(int mealptr);
+
+        public static native void setlastcolor(int color);
+
+        public static native int getlastcolor();
+
+        public static native void summarygraph(boolean val);
+
+        public static native void analysedays(int days);
+
+        public static native void endstats();
+
+        public static native boolean setgarminid(String id);
+
+        public static native String getgarminid();
+
+        public static native String getdefaultid();
+
+        public static native boolean getuseflash();
+
+        public static native void setuseflash(boolean val);
+
+        // public static native void zeromeal( );
+        public static native boolean getwaitwithenablestreaming();
+
+        public static native void setwaitwithenablestreaming(boolean val);
+
+
+        public static native boolean nfcsound();
+
+        public static native void setnfcsound(boolean val);
+
+        // public static native void setxinfuus(boolean val);
+        public static native boolean getxbroadcast();
+
+        public static native void setxbroadcast(boolean val);
+
+        public static native boolean getJugglucobroadcast();
+        // public static native void setJugglucobroadcast(boolean val);
+
+        public static native void setlevelleft(boolean val);
+
+        public static native boolean getlevelleft();
+
+        /*
+         * public static native long nfcptr(byte[] uid,byte[] info);
+         * public static native int nfcstart(long ptr);
+         * public static native int nfcadd(long ptr,byte[] scanned);
+         * public static native byte[] nfcgetresults(long ptr);
+         */
+        public static native boolean getisalarm();
+
+        public static native void setisalarm(boolean val);
+
+        // public static native boolean gettoucheverywhere( );
+        // public static native void settoucheverywhere(boolean val);
+        public static native boolean turnoffalarm();
+
+        public static native void maintenance();
+
+        public static native boolean shouldwakesender();
+
+        public static native boolean getusegarmin();
+
+        public static native void setusegarmin(boolean val);
+
+        public static native boolean getusexdripwebserver();
+
+        public static native void setusexdripwebserver(boolean val);
+
+        // public static native void startwatchserver( );
+        // public static native void stopwatchserver( );
+        public static native int V1(int i, int i2, byte[] ar1, byte[] ar2);
+
+        public static native byte[] V2(int i, int i2, byte[] ar1, byte[] ar2);
+
+        public static native boolean abbottinit();
+
+        public static native boolean abbottreinit();
+
+        public static native byte[] getstreamingAuthenticationData(long dataptr);
+
+        public static native byte[] getsensorident(long dataptr);
+
+        public static native int getsensorgen(long dataptr);
+
+        public static native int getLibreVersion(long dataptr);
+
+        public static native void USenabledStreaming(byte[] sensorident, byte[] jauth, byte[] address);
+
+        public static native void closedynlib();
+
+        public static native strGlucose lastglucose();
+        /** Latest valid stream reading for this sensor only; never falls back to a peer. */
+        public static native strGlucose lastglucoseForSensor(String sensorName);
+
+        public static native long[] getGlucoseHistory(long starttime);
+
+        /**
+         * Multi-sensor variant: get glucose history for a specific sensor by its short name.
+         * Returns same format as getGlucoseHistory: [time_sec, auto_mgdl*10, raw_mgdl*10, ...]
+         * Returns null if sensor not found or has no data.
+         */
+        public static native long[] getGlucoseHistoryForSensor(String sensorName, long starttime);
+
+        public static native byte[] getmynetinfo(String name, boolean create, int watchhassensor, boolean galaxy,
+                        int setnums);
+
+        public static native boolean setmynetinfo(String name, byte[] jar, boolean galaxy);
+
+        public static native long lastglucosetime();
+
+        public static native void addGlucoseInjection(long time, float glucose, String sensorId);
+
+        public static native boolean addGlucoseStream(long time, float glucose, String sensorId);
+
+        public static native boolean addGlucoseStreamWithTemp(long time, float glucose, float temperatureC, String sensorId);
+
+        public static native int addGlucoseStreamBatchWithTemp(long[] times, float[] glucoses, float[] temperatures, String sensorId);
+
+        public static native boolean addGlucoseStreamWithRawTemp(long time, float glucose, float rawGlucose, float temperatureC, String sensorId);
+
+        /**
+         * Batched sibling of {@link #addGlucoseStreamWithRawTemp}: same
+         * overwrite semantics for raw and temperature, but the shell resolve,
+         * state seeding, stream-cursor rewind and setstreaming happen once for
+         * the whole array instead of once per reading. Use this for any history
+         * mirror; the single-reading form is for live readings only.
+         * Arrays must be equal length; returns the number of samples stored.
+         */
+        public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
+        public static native long ensureSensorShell(String sensorId, long startTimeSec);
+
+        public static native long ensureSensorShellWithCapacity(String sensorId, long startTimeSec, int minimumRecords);
+
+        // Set a direct-stream sensor's wear duration (days) by id -> info->wearduration2,
+        // so the main graph's sensor-end reflects the real activated lifetime (Ottai).
+        public static native void setSensorWearDays(String sensorId, int days);
+        /** ManagedSensorUiFamily.nativeCode; 0 clears. Travels in info.dat, so a Clone receiver sees it. */
+        public static native void setSensorManagedFamily(String sensorId, int code);
+        public static native int getSensorManagedFamily(long dataptr);
+
+        public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
+
+        public static native void rebaseDirectStreamWindow(String sensorId, long startTimeSec);
+
+        public static native void addRawGlucoseStream(long time, float rawGlucose, String sensorId);
+
+        public static native byte[] bytesettings();
+
+        public static native boolean ontbytesettings(byte[] ar);
+
+        public static native int directsensorwatch(String ident);
+
+        public static native boolean getshowscans();
+
+        public static native boolean getshowhistories();
+
+        public static native boolean getshowstream();
+
+        public static native boolean getshownumbers();
+
+        public static native boolean getshowcalibrated();
+
+        public static native void setshowcalibrated(boolean val);
+
+        public static native boolean getshowmeals();
+
+        public static native void setshowmeals(boolean val);
+
+        public static native void setshowscans(boolean val);
+
+        public static native void setshowhistories(boolean val);
+
+        public static native void setshowstream(boolean val);
+
+        public static native void setshownumbers(boolean val);
+
+        public static native String getsensortext(long dataptr);
+
+        public static native void reenableStreaming();
+
+        public static native boolean getaskedNotify();
+
+        public static native void setaskedNotify(boolean val);
+
+        /*
+         * public static native boolean getuseWearos( );
+         * public static native void setuseWearos(boolean val);
+         */
+
+        // public static native byte[] glucose2bytearray( Glucose val);
+        // public static native Glucose bytearray2glucose( byte[] in);
+
+        public static native boolean hasstreamed();
+
+        public static native boolean hasscans();
+
+        public static native void setXdripServerLocal(boolean val);
+
+        public static native boolean getXdripServerLocal();
+
+        // s/^extern.*JNIEXPORT[ ]*\([a-zA-Z]*\)[ ]*JNICALL[ ]*fromjava(\([^)]*\))
+        // *(JNIEnv[^,]*,[^,)]*[,)]\([^){]*\)[^a-zA-Z0-9]*$/public static native \1
+        // \2(\3);/g
+        // public static native int getlastGen( );
+        // public static native void setlastGen(int val);
+        public static native boolean switchgen2();
+
+        // public static native void logBluetoothGattCharacteristic(String jmess,
+        // BluetoothGattCharacteristic bluetoothGattCharacteristic);
+
+        public static native void clearlibreFromMSec(long from);
+
+        public static native void wakelibreview(int min);
+
+        public static native void setlibrebaseurl(boolean l3, String baseurl);
+
+        public static native String getlibrebaseurl(boolean l3);
+
+        public static native void setlibreemail(String email);
+
+        public static native String getlibreemail();
+
+        public static native void setlibrepass(String pass);
+
+        public static native String getlibrepass();
+
+        public static native String getlibreDeviceID(boolean l3);
+
+        public static native void setlibreAccountID(String AccountID);
+
+        public static native void askServerforAccountID();
+
+        public static native long getlibreAccountIDnumber();
+
+        public static native void setlibreAccountIDnumber(long num);
+
+        public static native String getlibreAccountID();
+
+        public static native void setlibreUserToken(boolean l3, String UserToken);
+
+        public static native String getlibreUserToken(boolean l3);
+
+        public static native void setnewYuApiKey(boolean l3, String jpass);
+
+        public static native String getnewYuApiKey(boolean l3);
+
+        public static native boolean getuselibreview();
+
+        public static native void setuselibreview(boolean val);
+
+        public static native void savelibrerubbish(String FirstName, String LastName, int dat, String GardianFirstName,
+                        String GuardianLastName);
+        /*
+         * public static native int getDateOfBirth( );
+         * public static native String getLastName( );
+         * public static native String getFirstName( );
+         * public static native String getGuardianFirstNameName( );
+         * public static native String getGuardianLastNameName( );
+         */
+
+        // public static native long interpret3NFC1(byte[] b);
+        public static native long interpret3NFC2(byte[] nfc1, byte[] b, long time);
+
+        public static native long getLibre3secs(byte[] nfc1ar);
+
+        public static native long getLibre3Sensorptr(String sensorid, long starttime);
+
+        public static native long getLibre3SensorptrPD(String sensorid, long starttime, byte[] pin,
+                        String deviceaddress);
+
+        public static native long saveLibre3MinuteL(long sensorptr, byte[] mindata);
+
+        public static native boolean saveLibre3fastData(long sensorptr, byte[] mindata);
+
+        public static native boolean saveLibre3History(long sensorptr, byte[] mindata);
+
+        public static native int libre3EventLog(long sensorptr, byte[] logs);
+
+        public static native void setLibre3kAuth(long sensorptr, byte[] kauthin);
+
+        public static native byte[] getLibre3kAuth(long sensorptr);
+
+        public static native int libre3processpatchstatus(long sensorptr, byte[] status);
+
+        public static native byte[] getpin(long sensorptr);
+
+        public static native int getlastLifeCountReceived(long sensorptr);
+
+        public static native int getlastHistoricLifeCountReceived(long sensorptr);
+
+        public static native byte[] libre3ControlHistory(int arg, int from);
+
+        public static native byte[] libre3ClinicalControl(int arg, int from);
+
+        public static native byte[] libre3EventLogControl(int arg);
+
+        public static native void initjuggluco(String filesdir);
+
+        public static native boolean getpriority();
+
+        public static native void setpriority(boolean val);
+
+        public static native boolean stopWifi();
+
+        public static native void setWifi(boolean val);
+
+        public static native boolean getWifi();
+
+        public static native void showbytes(String mess, byte[] ar);
+
+        // public static native boolean loadECDHCrypto( );
+        // public static native boolean loadNFC( );
+        public static native int startTimeIDsum(byte[] uit, long time, long accountID);
+
+        public static native int processint(int i2, byte[] bArr, byte[] bArr2);
+
+        public static native byte[] processbar(int i2, byte[] bArr, byte[] bArr2);
+
+        public static native boolean getShownintro();
+
+        public static native void setShownintro(boolean val);
+
+        public static native void setDevice(String mani, String model, int SDK_INT);
+
+        public static native String getxDripTrendName(float rate);
+
+        public static native boolean getkerfstokblack();
+
+        public static native void setkerfstokblack(boolean val);
+
+        public static native long initcrypt(long prev, byte[] key, byte[] iv);
+
+        public static native void endcrypt(long jptr);
+
+        public static native byte[] intEncrypt(long cryptptr, int kind, byte[] plain);
+
+        public static native byte[] intDecrypt(long cryptptr, int kind, byte[] encrypted);
+
+        public static native float thresholdchange(float drate);
+
+        // public static native void enddebug();
+        public static native boolean message(byte[] data);
+
+        public static native boolean getBlueMessage(int index);
+
+        public static native void setBlueMessage(String name, boolean val);
+
+        public static native void setwakelock(boolean val);
+
+        public static native boolean getwakelock();
+
+        public static native boolean hasRootcheck();
+
+        public static native void setheartrate(boolean val);
+
+        public static native boolean getheartrate();
+
+        public static native String[] librelinkRecepters();
+
+        public static native void setlibrelinkRecepters(String[] jnames);
+
+        public static native boolean getlibrelinkused();
+
+        public static native String[] xdripRecepters();
+
+        public static native void setxdripRecepters(String[] jnames);
+
+        public static native String[] glucodataRecepters();
+
+        public static native void setglucodataRecepters(String[] jnames);
+
+        public static native void setinitVersion(int val);
+
+        public static native int getinitVersion();
+
+        public static native void setfloatglucose(boolean val);
+
+        public static native boolean getfloatglucose();
+
+        public static native void setfloatingFontsize(int val);
+
+        public static native int getfloatingFontsize();
+
+        public static native void setfloatingbackground(int val);
+
+        public static native int getfloatingbackground();
+
+        public static native void setfloatingforeground(int val);
+
+        public static native int getfloatingforeground();
+
+        public static native void setfloatingTouchable(boolean val);
+
+        public static native boolean getfloatingTouchable();
+
+        public static native void setfloatingPos(int val);
+
+        public static native int getfloatingPos();
+
+        public static native void finishSensor(long dataptr);
+
+        public static native boolean removeSensorById(String sensorId);
+
+        public static native boolean finishSensorById(String sensorId);
+
+        public static native void unfinishSensor(long dataptr);
+
+        public static native long manualLibreAccountIDnumber();
+
+        public static native void setApiSecret(String japisecret);
+
+        public static native String getApiSecret();
+
+        public static native String setuseSSL(boolean val);
+
+        public static native boolean getuseSSL();
+
+        public static native void setsslport(int val);
+
+        public static native int getsslport();
+
+        /**
+         * Port the plain-HTTP web server listens on. The setting was always in the native
+         * settings file and always honoured by the desktop build; both Android start sites
+         * passed the compile-time default instead, so it could not be changed from the
+         * phone. Setting it rebinds a running server on a background thread.
+         */
+        public static native int getxdripport();
+
+        public static native void setxdripport(int val);
+
+        public static native void setsaytreatments(boolean val);
+
+        public static native boolean getsaytreatments();
+
+        public static native boolean getuseuploader();
+
+        public static native String getnightuploadurl();
+
+        public static native String getnightuploadsecret();
+
+        public static native void setNightUploader(String jurl, String Secret, boolean active, boolean v3);
+
+        public static native void wakeuploader();
+
+        /**
+         * A journal entry was written, changed or deleted. Wakes the treatments branch of
+         * the uploader on its own reason, so a dose no longer waits for a calibration or a
+         * backup to come along and wake it by accident.
+         */
+        public static native void waketreatments();
+
+        public static native boolean wakeNightscoutForLiveReading(String source, long timestampMillis);
+
+        public static native void resetuploader();
+
+        public static native int getnightscoutlastresponsecode();
+
+        public static native long getnightscoutlastattempttime();
+
+        public static native long getnightscoutlastsuccesstime();
+
+        public static native int getnightscoutretryminutes();
+
+        public static native boolean getnightscoutuploaderrunning();
+
+        public static native void setAndroid13(boolean val);
+
+        public static native boolean getAndroid13();
+
+        public static native long[] getlastGlucose();
+
+        public static native void setwatchdrip(boolean val);
+
+        public static native boolean getwatchdrip();
+
+        public static native boolean mkWearIntgraph(long start, long end, GraphLine low, GraphLine within,
+                        GraphLine high);
+
+        public static native void isGalaxyWatch(boolean val);
+
+        public static native long novopentype(String serial);
+
+        public static native int savenovopen(long time, String serial, int type, byte[] gegs, boolean last);
+
+        // public static native long lasttimenovopen(String serial);
+        public static native boolean oldnovopenvalue(long referencetime, String serial, byte[] rawdoses);
+
+        public static native void setnovopenttimeandtype(long time, int type, String serial);
+
+        public static native String mirrorStatus(int allindex);
+        public static native int getCloneConnectionTransport(String connectionIdentity);
+        public static native String getCloneRendezvousHost(int allindex);
+        public static native int getCloneRendezvousPort(int allindex);
+        public static native int getCloneRendezvousCertificateVerification(int allindex);
+        public static native int getCloneSignalingSource(int allindex);
+
+        public static native void setWearosdefaults(String jident, boolean galaxy);
+
+        public static native void setSeparate(boolean val);
+
+        public static native boolean getSeparate();
+
+        public static native void setLibreCurrent(boolean val);
+
+        public static native boolean getLibreCurrent();
+
+        public static native String getCPUarch();
+
+        public static native void setUSEALARM(boolean val);
+
+        public static native boolean getUSEALARM();
+
+        public static native void setgadgetbridge(boolean val);
+
+        public static native boolean getgadgetbridge();
+
+        public static native void saveVoice(float speed, float pitch, int voicesep, int voice, boolean active);
+
+        public static native int getVoiceTalker();
+
+        public static native int getVoiceSeparation();
+
+        public static native float getVoiceSpeed();
+
+        public static native float getVoicePitch();
+
+        public static native boolean getVoiceActive();
+
+        public static native boolean getSendNumbers();
+
+        public static native void setSendNumbers(boolean val);
+
+        public static native void setlibrenum(int night, int index, int kind, float weight);
+
+        public static native int getlibrenumkind(int night, int index);
+
+        public static native float getlibrefoodweight(int night, int index);
+
+        public static native boolean canSendNumbers(int night);
+
+        public static native int getinfogen(byte[] info);
+
+        public static native void setStreamHistory(boolean val);
+
+        public static native boolean getStreamHistory();
+
+        public static native boolean optionStreamHistory(long dataptr);
+
+        public static native void setLibreIsViewed(boolean val);
+
+        public static native boolean getLibreIsViewed();
+
+        public static native void setRTL(boolean val);
+
+        public static native boolean getRTL();
+
+        public static native boolean makepercentages();
+
+        public static native void makenumbers();
+
+        public static native void settouchtalk(boolean val);
+
+        public static native boolean gettouchtalk();
+
+        public static native boolean getsystemui();
+
+        public static native void setsystemui(boolean val);
+
+        public static native void settonow();
+
+        public static native boolean showlastscan();
+
+        public static native long saylastglucose();
+
+        public static native void setspeakmessages(boolean val);
+
+        public static native boolean speakmessages();
+
+        public static native void setspeakalarms(boolean val);
+
+        public static native boolean speakalarms();
+
+        public static native int getLibreCountry();
+
+        public static native void setLibreCountry(int val);
+
+        public static native void setinterval(int val);
+
+        public static native int getinterval();
+
+        public static native boolean getpostTreatments();
+
+        public static native void setpostTreatments(boolean val);
+
+        public static native long getSensorStartmsec(long dataptr);
+        public static native int getSensorWarmupMinutes(long dataptr);
+
+        public static native long getSensorStartmsecFromSensorptr(long sensorptr);
+
+        // public static native void setnightscoutV3(boolean val);
+        public static native boolean getnightscoutV3();
+
+        public static native long streamfromSensorptr(long sensorptr, int pos);
+
+        public static native int healthConnectfromSensorptr(long sensorptr);
+
+        public static native void healthConnectWritten(long sensorptr, int pos);
+
+        public static native void sethealthConnect(boolean val);
+
+        public static native boolean gethealthConnect();
+
+        public static native void healthConnectReset();
+
+        public static native boolean setIOB(boolean val);
+
+        public static native boolean getIOB();
+
+        public static native float getIOBvalue(long time);
+
+        // Hands the journal's insulin/carb totals to the native webserver for
+        // /pebble. NaN marks "no journal data of that kind"; the next30 values
+        // (delivered/absorbed within 30 minutes after timeMillis) let the
+        // native side decay-correct between pushes.
+        public static native void setJournalIob(float iob, float iobNext30, float cob, float cobNext30, long timeMillis);
+
+        public static native String serverError();
+
+        public static native String nightError();
+
+        public static native void setcurrentRelative(boolean val);
+
+        public static native boolean getcurrentRelative();
+
+        public static native void setfloattime(boolean val);
+
+        public static native boolean getfloattime();
+
+        public static native void sethidefloatinJuggluco(boolean val);
+
+        public static native boolean gethidefloatinJuggluco();
+
+        public static native boolean getHostDeactivated(int pos);
+
+        public static native void prepareHostDeactivation(int pos);
+
+        public static native void setHostDeactivated(int pos, boolean val);
+
+        // public static native long makeSIdataptr(String gegs);
+        // public static native int getSIindex(long dataptr);
+        public static native void siSaveDeviceName(long dataptr, String deviceName);
+
+        public static native void siClearTransmitterBinding(long dataptr);
+
+        public static native String siGetDeviceName(long dataptr);
+
+        public static native long SIprocessData(long dataptr, byte[] bluetoothdata, long mmsec);
+
+        public static native String getSiBluetoothNum(long dataptr);
+
+        public static native byte[] siAsknewdata(long dataptr);
+
+        public static native String addSIscangetName(String jgegs, int[] indexptr);
+
+        public static native boolean hasNeedScan();
+        // public static native String getShowSensorName(long dataptr);
+
+        public static native String getUsedSensorName();
+
+        public static native float getthreshold();
+
+        public static native void setthreshold(float val);
+
+        public static native void systembar(int left, int top, int right, int bottom);
+
+        public static native void sethour24(boolean val);
+
+        public static native boolean gethour24();
+
+        public static native void setComplicationArrowColor(int val);
+
+        public static native int getComplicationArrowColor();
+
+        public static native void setComplicationTextColor(int val);
+
+        public static native int getComplicationTextColor();
+
+        public static native void setComplicationBackgroundColor(int val);
+
+        public static native int getComplicationBackgroundColor();
+
+        public static native void setComplicationTextBorderColor(int val);
+
+        public static native int getComplicationTextBorderColor();
+
+        public static native byte[] ingredientNameBytes(int index);
+
+        public static native byte[] getSItimecmd();
+
+        public static native byte[] siAuthBytes(long dataptr);
+
+        public static native boolean siNotchinese(long dataptr);
+
+        public static native byte[] getSIActivation();
+
+        public static native boolean dexPutPubKey(long dataptr, int which, byte[] input);
+
+        public static native byte[] makeRound12bytes(long dataptr, int which);
+
+        public static native boolean dex8AES(long dataptr, byte[] data, int datstart, byte[] out, int outoutstart);
+
+        public static native void dexResetKeys(long dataptr);
+
+        public static native boolean dexcomProcessData(long dataptr, byte[] bluetoothdata, long[] timeres);
+
+        public static native byte[] getDexbackfillcmd(long dataptr);
+
+        public static native boolean dexbackfill(long dataptr, byte[] bluetoothdata);
+
+        public static native byte[] makeRound3bytes(long dataptr);
+
+        public static native byte[] dexChallenger(byte[] data);
+
+        public static native boolean isAuthenticated(long dataptr);
+
+        public static native int getDexCertSize(byte[] ar);
+
+        public static native void dexSaveDeviceName(long dataptr, String deviceName);
+
+        public static native String dexGetDeviceName(long dataptr);
+
+        public static native boolean dexCandidate(long dataptr, String deviceName, String address);
+
+        public static native void dexEndBackfill(long dataptr);
+
+        public static native void setdexcomPredict(boolean val);
+
+        public static native boolean getdexcomPredict();
+
+        public static native boolean hasData();
+
+        public static native void setdontuseclose(boolean val);
+
+        public static native boolean getdontuseclose();
+
+        public static native void setalarmclock(boolean val);
+
+        public static native boolean getalarmclock();
+
+        public static native int[] searchIngredient(String label);
+
+        public static native boolean dexKnownSensor(long dataptr);
+
+        public static native long[] activeSensorPtrs();
+
+        public static native String namefromSensorptr(long sensorptr);
+
+        public static native String sensortextfromSensorptr(long sensorptr);
+
+        public static native int getViewModeFromSensorptr(long sensorptr);
+
+        public static native void finishfromSensorptr(long sensorptr);
+
+        public static native void setInsulinType(int index, int type);
+
+        public static native int getInsulinType(int index);
+
+        public static native int getSiSubtype(long dataptr);
+
+        public static native void setSiSubtype(long dataptr, int type);
+
+        public static native byte[] getSIResetBytes();
+
+        public static native String getbackJson(int pos);
+
+        public static native int makeHomeSender();
+
+        public static native int makeHomeReceiver();
+
+        public static native int makeICESender();
+
+        public static native int makeICEReceiver();
+
+        public static native void setGoogleScan(boolean val);
+
+        public static native boolean getGoogleScan();
+
+        public static native boolean hasalarmverylow();
+
+        public static native float alarmverylow();
+
+        public static native boolean hasalarmveryhigh();
+
+        public static native float alarmveryhigh();
+
+        public static native boolean hasalarmprelow();
+
+        public static native float alarmprelow();
+
+        public static native boolean hasalarmprehigh();
+
+        public static native float alarmprehigh();
+
+        public static native int getProfile();
+
+        public static native void setProfile(int pro);
+
+        public static native void setAdvancedAlarms(float verylow, float veryhigh, boolean verylowalarm,
+                        boolean veryhighalarm, boolean prelowalarm, boolean prehighalarm, float prelow, float prehigh);
+
+        public static native int setScheduleProfile(int index, int min, int profile);
+
+        public static native short[] getScheduleProfile(int index);
+
+        public static native int nrScheduledProfiles();
+
+        public static native void removeScheduleProfile(int index);
+
+        public static native long nextScheduledProfileMSEC();
+
+        public static native boolean set2Schedule();
+
+        public static native void setSoundType(int val);
+
+        public static native int getSoundType();
+
+        // public static native boolean siTransmitterScan(long dataptr,String scancode);
+        public static native long percentileEndtime(int days);
+
+        public static native int getAnalysedays();
+
+        public static native void onCreate();
+
+        public static native void setbloodvar(byte val);
+
+        public static native byte getbloodvar();
+
+        public static native boolean hitexclude(long ptr);
+
+        public static native int calibrateNR(long sensorptr);
+
+        public static native boolean getCalibrator(long sensorptr, int pos, CaliPara calip);
+
+        public static native boolean removeCalibrator(long sensorptr, int pos);
+
+        public static native void requestMirrorCalibrationSync(String sensorId);
+        // public static native float calibrateNow(long dataptr,float mgdL);
+
+        public static native void setDoCalibrate(boolean val);
+
+        public static native boolean getDoCalibrate();
+
+        public static native void setCalibratePast(boolean val);
+
+        public static native boolean getCalibratePast();
+
+        public static native void setCalibrateA(boolean val);
+
+        public static native boolean getCalibrateA();
+
+        public static native void setStartTime(long milli);
+
+        public static native int hasWatchNums(String ident);
+
+        public static native void setHidefromSensorptr(long sensorptr, boolean hide);
+
+        public static native boolean getHidefromSensorptr(long sensorptr);
+
+        public static native boolean shouldExclude(long msec);
+
+        public static native void setAllValues(boolean val);
+
+        public static native boolean getAllValues();
+
+        public static native void setResetSibionics2(long dataptr, boolean val);
+        public static native void prepareSibionicsHardwareReset(long dataptr);
+
+        public static native void setAutoResetDays(long dataptr, int val);
+
+        public static native int getAutoResetDays(long dataptr);
+
+        public static native boolean isSibionics2(long dataptr);
+
+        public static native boolean isSibionics(long dataptr);
+
+        public static native boolean getResetSibionics2(long dataptr);
+
+        public static native void siClearCalibration(long dataptr);
+
+        public static native void siClearAll(long dataptr);
+
+        public static native void setCustomCalibrationSettings(long dataptr, boolean enabled, int index,
+                        boolean autoReset);
+
+        public static native long getCustomCalibrationSettings(long dataptr);
+
+        public static native void siWipeDataOnly(long dataptr);
+
+        public static native void siLocalReplay(long dataptr);
+
+        public static native boolean siRestoreOriginalPolls(long dataptr);
+
+        public static native boolean siRebindNativeContext(long dataptr, int preservedViewMode);
+
+        public static native boolean siRestartNativeFresh(long dataptr, int preservedViewMode);
+
+        public static native void setViewMode(long dataptr, int mode);
+
+        public static native int getViewMode(long dataptr);
+
+        public static native long str2sensorptr(String sensor);
+
+        public static native void setSensorptrResetSibionics2(long sensorptr, boolean val);
+
+        public static native boolean getSensorptrResetSibionics2(long sensorptr);
+
+        public static native int getSensorptrSiSubtype(long sensorptr);
+
+        public static native void setSensorptrSiSubtype(long sensorptr, int type);
+
+        public static native int getSensorptrLibreVersion(long sensorptr);
+
+        public static native boolean siSensorptrTransmitterScan(long sensorptr, String scancode);
+
+        public static native String sensorptr2str(long sensorptr);
+
+        public static native void watchBluetooth(String name, boolean sensor, boolean watch);
+
+        public static native long getnumlasttime();
+
+        public static native byte[] accuAskValues(long dataptr);
+
+        public static native long accuProcessData(long dataptr, byte[] value, long mmsec);
+
+        // CareSens Air (cpp/air/java.cpp)
+        public static native long airProcessData(long dataptr, byte[] value, long[] msecptr);
+
+        public static native int airGetLast(long dataptr);
+
+        public static native boolean airSaveSensorInfo(long dataptr, byte[] value);
+
+        public static native boolean airSaveSensorInfo2(long dataptr, byte[] value);
+
+        public static native void airSaveStartSensor(long dataptr, float eapp, float vref, int elapsedSecs);
+
+        public static native byte[] airGetPin(long dataptr);
+
+        /**
+         * Pass as {@code trendByte} when the AiDex frame carried no trend field — the direct F003
+         * live frame does not, only the 0x11 broadcast sample does. Native stores NaN for the rate
+         * in that case and the exchange serializers derive a fallback from the poll series.
+         * Must match {@code aidextrendunknown} in cpp/aidex/java.cpp.
+         */
+        public static final int AIDEX_TREND_UNKNOWN = Integer.MIN_VALUE;
+
+        public static native long aidexProcessData(long dataptr, byte[] value, long mmsec, float glucose,
+                                                   float rawGlucose, float calibrationFactor,
+                                                   int trendByte);
+
+        public static native void aidexStoreHistoryData(long dataptr, long mmsec, float glucose,
+                                                        float rawGlucose);
+
+        public static native void aidexSetStartTime(long dataptr, long timeMs);
+
+        public static native void aidexSetWearDays(long dataptr, int days);
+
+        public static native void accuSetStartTime(long dataptr, byte[] value);
+
+        public static native void updateUsedSensors();
+
+        public static native byte[] careSenseTimeCMD();
+
+        public static native int GlucoseMeterGetLastPos(int meterIndex);
+
+        public static native boolean GlucoseMeterSetLastPos(int meterIndex, int newpos);
+
+        public static native int GlucoseMeterGetIndex(String deviceName);
+
+        public static native boolean GlucoseMeterSave(int meterIndex, byte[] value);
+
+        /** Returns timestamp millis, mg/dL tenths, and recent-legacy flag for a newly accepted reading. */
+        public static native long[] GlucoseMeterSaveResult(int meterIndex, byte[] value);
+        public static native long[] GlucoseMeterSaveDecodedResult(int meterIndex, long timestampMillis, int mgdlTenths);
+
+        public static native boolean GlucoseMeterProcessContext(int meterIndex, byte[] value);
+
+        public static native boolean GlucoseMeterSaveTime(int meterIndex, byte[] value);
+
+        public static native int[] getActiveGlucoseMeters();
+
+        public static native String GlucoseMeterDeviceName(int meterIndex);
+
+        public static native String GlucoseMeterDeviceAddress(int meterIndex);
+
+        public static native boolean GlucoseMeterSetDeviceAddress(int meterIndex, String address);
+
+        public static native byte[] getGlucoseMeterNewCMD(int meterIndex);
+
+        // public static native void calibrateLast();
+
+        public static native boolean recordCharacteristicChanged(byte[] value);
+
+        public static native long GlucoseMeterGetLastTime(int meterIndex);
+
+        public static native void GlucoseMeterSetLastTime(int meterIndex, long lasttime);
+
+        public static native boolean GlucoseMeterSetActive(int meterIndex, boolean active);
+
+        public static native boolean GlucoseMeterGetActive(int meterIndex);
+
+        public static native int GlucoseMeterCount();
+
+        public static native int GlucoseMeterHasIndex(String deviceName);
+
+        public static native void setDisconnectSensor(boolean val);
+
+        public static native boolean getDisconnectSensor();
+
+        public static native long getSensorEndData(String sensor);
+
+        public static native String getICElabel(int pos);
+
+        public static native boolean getICEside(int pos);
+
+        public static native void deleteTurnServer(int pos);
+
+        public static native String getTurnHost(int pos);
+
+        public static native String getTurnUser(int pos);
+
+        public static native String getTurnPassword(int pos);
+
+        public static native int getTurnPort(int pos);
+
+        public static native void setTurnHost(int pos, String jhost);
+
+        public static native void setTurnUser(int pos, String juser);
+
+        public static native void setTurnPassword(int pos, String jpassword);
+
+        public static native void setTurnPort(int pos, int port);
+
+        public static native void setTurnServer(int pos, String host, int port, String username, String password);
+
+        public static native void setCloneICEConfig(String rendezvousHost, int rendezvousPort,
+                                                     boolean useTurnForStun,
+                                                     boolean verifyRendezvousCertificate,
+                                                     boolean useLocalDiscovery,
+                                                     boolean preferIPv4);
+
+        public static native int TurnServerNR();
+
+        // s/^[ ]*extern.*JNIEXPORT[ ]*\([a-zA-Z]*\)[ ]*JNICALL[ ]*fromjava(\([^)]*\))
+        // *(JNIEnv[^,]*,[^,)]*[,)]\([^){]*\)[^a-zA-Z0-9]*$/public static native \1
+        // \2(\3);/g
+        /**
+         * Unified wrapper to update alerts without touching C++ layer.
+         * Maps generic type/threshold/enabled to the complex legacy native calls.
+         */
+        static public void setAlertConfig(int type, float threshold, boolean enabled) {
+                if (type <= 4) { // Legacy: Low(0), High(1), Available(2), Amount(3), Loss(4)
+                        float low = (type == 0) ? threshold : alarmlow();
+                        float high = (type == 1) ? threshold : alarmhigh();
+                        boolean lowEnabled = (type == 0) ? enabled : hasalarmlow();
+                        boolean highEnabled = (type == 1) ? enabled : hasalarmhigh();
+                        // Legacy "value available" is intentionally disabled in NG Compose.
+                        // Never preserve or re-arm it while syncing other alerts.
+                        boolean availableEnabled = false;
+                        boolean lossEnabled = (type == 4) ? enabled : hasalarmloss();
+
+                        setalarms(low, high, lowEnabled, highEnabled, availableEnabled, lossEnabled);
+                } else if (type <= 8) { // Advanced: VeryLow(5), VeryHigh(6), PreLow(7), PreHigh(8)
+                        float veryLow = (type == 5) ? threshold : alarmverylow();
+                        float veryHigh = (type == 6) ? threshold : alarmveryhigh();
+                        boolean veryLowEnabled = (type == 5) ? enabled : hasalarmverylow();
+                        boolean veryHighEnabled = (type == 6) ? enabled : hasalarmveryhigh();
+                        boolean preLowEnabled = (type == 7) ? enabled : hasalarmprelow();
+                        boolean preHighEnabled = (type == 8) ? enabled : hasalarmprehigh();
+                        float preLow = (type == 7) ? threshold : alarmprelow();
+                        float preHigh = (type == 8) ? threshold : alarmprehigh();
+
+                        setAdvancedAlarms(veryLow, veryHigh, veryLowEnabled, veryHighEnabled, preLowEnabled,
+                                        preHighEnabled, preLow, preHigh);
+                }
+        }
+}

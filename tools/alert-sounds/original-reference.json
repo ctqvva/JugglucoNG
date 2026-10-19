@@ -1,0 +1,83 @@
+{
+  "low": {
+    "source": "siren.mp3",
+    "sha256": "3e923aad141b44412868c99233c05ece0f2f53b1b236cf5d4fb4e26856dccef2",
+    "frames": 756864,
+    "seconds": 15.768,
+    "peak_dbfs": -3.3584954992205684,
+    "rms_dbfs": -16.88838068100856,
+    "active_rms_dbfs": -16.45737928567962
+  },
+  "high": {
+    "source": "classic.mp3",
+    "sha256": "aad762f08c6d687b09ecbe0945599a7d56cc6924cb7f02fa4f173dd98863dab9",
+    "frames": 385920,
+    "seconds": 8.04,
+    "peak_dbfs": -10.795768035573188,
+    "rms_dbfs": -22.9927850348206,
+    "active_rms_dbfs": -20.839553002615297
+  },
+  "notice": {
+    "source": "ghost.ogg",
+    "sha256": "2123ddbe148c8adf9a3243547c291aadceb4aae531bbf5f1ef6871f602cbfad1",
+    "frames": 427991,
+    "seconds": 8.916479166666667,
+    "peak_dbfs": -2.8924477435068403,
+    "rms_dbfs": -18.828669694736696,
+    "active_rms_dbfs": -15.98028214708677
+  },
+  "reminder": {
+    "source": "nudge.ogg",
+    "sha256": "37f17196911afdc221691aa6cc1d7842366a62897cb33c04980303e5d0b1bd40",
+    "frames": 306412,
+    "seconds": 6.383583333333333,
+    "peak_dbfs": -1.8933863082230504,
+    "rms_dbfs": -19.935447448232424,
+    "active_rms_dbfs": -13.28582104546866
+  },
+  "signal": {
+    "source": "elves.ogg",
+    "sha256": "00bef6f66116211e1a45d171b0ae87aebc0673c2699a6e54272f4870d934f2a9",
+    "frames": 198002,
+    "seconds": 4.125041666666666,
+    "peak_dbfs": -6.496762742922259,
+    "rms_dbfs": -28.555784641400898,
+    "active_rms_dbfs": -25.928511326317132
+  },
+  "urgent_low": {
+    "source": "verylow.mp3",
+    "sha256": "fe9bddf26b5a635fd4e06b5dbd4116ed559a46b73130aa20a6944b49d6423c09",
+    "frames": 372096,
+    "seconds": 7.752,
+    "peak_dbfs": -7.730679130117619,
+    "rms_dbfs": -18.361063235852857,
+    "active_rms_dbfs": -18.156210967848146
+  },
+  "urgent_high": {
+    "source": "veryhigh.mp3",
+    "sha256": "dfece2e4bbe9c80eb5212dfdd8359f938b5794f94f78b67b481fbbcdb2cf1a79",
+    "frames": 235008,
+    "seconds": 4.896,
+    "peak_dbfs": -1.7304364013279538,
+    "rms_dbfs": -13.343486244140617,
+    "active_rms_dbfs": -13.028367754296086
+  },
+  "falling": {
+    "source": "lowsoon.mp3",
+    "sha256": "697fb45d641a29f58b901b5796e05d6a2a3d70df3701ca5efd3107747b2b4d4f",
+    "frames": 452736,
+    "seconds": 9.432,
+    "peak_dbfs": -4.803232410482325,
+    "rms_dbfs": -15.2429804112051,
+    "active_rms_dbfs": -15.096711226112308
+  },
+  "rising": {
+    "source": "highsoon.mp3",
+    "sha256": "89ce38de35e0b87adb11ff00c931044a1b224206df7d42879ad799fcd9cf2ea1",
+    "frames": 371147,
+    "seconds": 7.7322291666666665,
+    "peak_dbfs": -3.004107458842941,
+    "rms_dbfs": -16.08688976009732,
+    "active_rms_dbfs": -15.912995718946
+  }
+}

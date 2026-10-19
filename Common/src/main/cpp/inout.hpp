@@ -1,0 +1,595 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+/*                                                                                   */
+/*      Fri Jan 27 12:35:09 CET 2023                                                 */
+
+
+#ifndef INOUT_H
+#define INOUT_H
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <string>
+#include <array>
+#include <string_view>
+#include <vector>
+#include <new>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#ifdef _WIN32
+#include "win/windows-mmap.h"
+#else
+#include <sys/mman.h>
+#endif
+#include <errno.h>
+#include <math.h>
+#include <iomanip>
+#include <stdarg.h>
+#include <unistd.h>
+//#include "myfdsan.h"
+//#include <span>
+//#ifdef OWNLOGGER
+//#define LOGGER(...)  { fprintf(stderr,__VA_ARGS__); fflush(stderr); }
+//#endif
+//#define LOGGER(...)  { fprintf(stderr,__VA_ARGS__); fflush(stderr); }
+#ifndef NOLOGS_H
+#include "logs.hpp"
+#endif
+#ifndef LOGGER
+//#define LOGGER(...)  { fprintf(stderr,__VA_ARGS__); fflush(stderr); }
+inline  int LOGGER( const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+	int res=	vfprintf(stderr, fmt, args);
+        va_end(args);
+	return res;
+	}
+#define lerror perror
+inline void flerror(const char* fmt, ...){
+	int waser=errno;
+	const int maxbuf=160;
+	char buf[maxbuf];
+        va_list args;
+        va_start(args, fmt);
+	vsnprintf(buf,maxbuf, fmt, args);
+	va_end(args);
+	LOGGER("%s: %s\n",buf,strerror(waser));
+	}
+
+#endif
+
+#include "sizear.hpp"
+//using namespace std;
+using std::string_view;
+class pathconcat {
+char *name;
+int namelen;
+public:
+template<typename T,typename ...Ts> char *	nconcat(int len,  T &&one,  Ts &&... args) {
+	char *ptr;
+	int en=sizear(one);
+
+	const char *asstr=reinterpret_cast<const char *>( &one[0]);
+	if constexpr(sizeof...(Ts)==0) {
+		namelen=len+en;
+		ptr= new char[namelen+1];
+		ptr[namelen]='\0';
+		}
+	else {
+		do {
+			en--;
+			} while(en>=0&&(asstr[en]=='/'||asstr[en]=='\0'));
+		en++;
+		ptr=nconcat(len+en+1,args...);
+		ptr[len+en]='/';
+		}
+	memcpy(ptr+len,asstr,en);
+	return ptr;
+	}
+
+	pathconcat():name(nullptr),namelen(0) {}
+
+	template <typename ...Ts>
+	pathconcat(  Ts &&... args) {
+	name=nconcat(0,args ...);
+	}
+	pathconcat(pathconcat &&in)  noexcept :name(in.name),namelen(in.namelen) {
+		in.name=nullptr;
+		in.namelen=0;
+		LOGGER("pathconcat( pathconcat &&in=%s)\n",name?name:"(null)");
+	}
+
+	pathconcat(const pathconcat &in):name(in.namelen?new char[in.namelen+1]:nullptr),namelen(in.namelen) {
+		if(name)
+			memcpy(name,in.name,in.namelen+1);
+		LOGGER("pathconcat( const pathconcat &in=%s)\n",name?name:"(null)");
+		}
+	pathconcat(const pathconcat &&in):pathconcat(static_cast<const pathconcat &>(in)) {
+		}
+	pathconcat( pathconcat &in):pathconcat(static_cast<const pathconcat &>(in)) {
+	}
+	pathconcat &operator=( pathconcat &&in)   noexcept {
+		LOGGER("pathconcat &operator=(pathconcat &&in %s) {\n",in.name?in.name:"(null)");
+		std::swap(name,in.name);
+		std::swap(namelen,in.namelen);
+		return *this;
+		}
+	pathconcat &operator=(const pathconcat &&in) {
+		return operator=(static_cast<const pathconcat &>(in));
+		}
+	pathconcat &operator=(const pathconcat &in) {
+		LOGGER("pathconcat &operator=(const pathconcat &in %s) {\n",in.name?in.name:"(null)");
+		if(this==&in)
+			return *this;
+		char *newname=in.namelen?new char[in.namelen+1]:nullptr;
+		if(newname)
+			memcpy(newname,in.name,in.namelen+1);
+		delete[] name;
+		name=newname;
+		namelen=in.namelen;
+		return *this;
+		}
+	pathconcat &operator=(pathconcat &in) {
+		return operator=(static_cast<const pathconcat &>(in));
+		}
+~pathconcat() {
+	delete[] name;
+	}
+operator const std::string_view() const {
+	return std::string_view(name,namelen);
+	}
+char *begin() {return data();}
+char *end() {return begin()+size();}
+const char *cbegin() const {return data();}
+const char *cend() const {return begin()+size();}
+const char *begin() const {return cbegin();}
+const char *end() const {return cend();}
+char * data() { return name;}
+const char * data() const { return name;}
+const char *c_str() const {
+	return data();
+	}
+char *c_str()  {
+	return data();
+	}
+operator char *() {
+	return name;
+	}
+operator const char *() const {
+	return name;
+	}
+int size() const {return namelen;}
+int length() const {return size();}
+
+template <typename ...Ts>
+void set(  Ts &&... args) {
+	delete[] name;
+	name=nconcat(0,args ...);
+	}
+};
+
+
+class Open {
+int fp;
+public:
+Open(const char *name,int flags,int mode): fp{open(name,flags,mode)} {
+	//exchange_owner_tag(fp, 0, getTag());
+       }
+Open(const char *name,int flags): fp{open(name,flags)} {
+       }
+
+#ifdef __ANDROID_API__
+uint64_t getTag() const {
+	return  reinterpret_cast<uint64_t>(this);
+	}
+#endif
+virtual ~Open() {
+  close(fp);
+  }
+operator int() {return fp;}
+ };
+class Create:public Open {
+public:
+Create(const char *name): Open(name,O_RDWR|O_CREAT|O_TRUNC ,S_IRUSR |S_IWUSR) {
+       }
+/*Create(std::string &name):Create(name.data()) {}
+Create(std::string_view name):Create(name.data()) {}
+*/
+
+ };
+
+inline bool writeall(const char *name,const void *data,const int len) {
+      Create file(name);
+      if(file==-1||write(file,data,len)!=len) {
+      	lerror(name);
+      	return false;
+	}
+	return true;
+     }
+inline int readfile(const char *name,void *data,int len) {
+	Open file(name,O_RDONLY);
+	if(file<0)
+		return -2;
+	return read(file,data,len);
+	}
+template<class T>
+inline T readtype(const char *name) {
+	T out;
+	readfile(name,&out,sizeof(out));
+	return out;
+	}
+   
+template <typename T=char>
+class Readall {
+size_t len;
+T *all;
+public:
+Readall():len(0),all(nullptr){}
+Readall(const char *data,size_t lenin):len(lenin/sizeof(T)), all(new T[len+1]){
+	memcpy(all,data,sizeof(T)*len);
+	all[len]='\0';
+	}
+template <typename T1=T>
+Readall(const T1 *data,size_t len):len(len),all(new T1[len]) {
+	memcpy(all,data,sizeof(T1)*len);
+	}
+
+T* fromfile(const char *name) {
+	struct stat st;
+	if(stat(name,&st)==-1) {
+		all=NULL;
+		return nullptr;
+		}
+	len=(st.st_size+sizeof(T)-1)/sizeof(T);
+	if	constexpr (sizeof(T)==1) {
+		all=new T[len+1];
+		all[len]='\0';
+		}
+	else
+		all=new T[len];
+	if(readfile(name,all,st.st_size)!=st.st_size) {
+		delete[] all;
+		all=nullptr;
+		return nullptr;
+		}
+	return all;
+	}
+Readall(const char *name) {
+	fromfile(name);
+	}
+Readall(Readall &&in):all(in.all),len(in.len) {
+//	std::cerr<<"Readall(&&) "<<all<<std::endl;
+	in.all=nullptr;
+	}
+Readall(const Readall &&in):Readall(std::move(const_cast<Readall &&>(in))) {
+	}
+void assign(const char *data,size_t lenin) {
+	len=lenin/sizeof(T);
+	delete[] all;
+	all=new T[len+1];
+	memcpy(all,data,sizeof(T)*len);
+	all[len]='\0';
+	}
+	
+//Readall(string_view base,string_view endname): Readall(pathconcat(base,endname)) {}
+~Readall() {
+//	std::cerr<<"~Readall() "<<std::endl;
+	delete[] all;
+	}
+int length()const { return len;}
+int size()const { return length();}
+T * data()  { return all;}
+const T * data()const { return all;}
+const  T *c_str() const {
+	return data();
+	}
+const T *begin() {return data();}
+const T *end() {return data()+length();}
+operator  T *() {return data();}
+operator  const T *() const  {return data();}
+//operator  std::basic_string_view<T>() const { return {all,(size_t)len};}
+    operator  std::string_view() const { return {reinterpret_cast<char *>(all),(size_t)len};}
+
+void shrink(size_t siz) {
+	len=siz;
+	}
+//operator  span<char>() { return span<char>{all,len};}
+};
+
+template <class T> class Mmap {
+protected:
+size_t  len;
+void *buf;
+
+
+void *mopen(const char *filename) {
+	if(!filename)
+		return nullptr;
+      int    fp= open(filename,O_RDWR|O_CREAT,S_IRUSR |S_IWUSR);
+        if(fp==-1) {
+               // cout<<"open "<<name<<" failed"<<std::endl;
+	       lerror(filename);
+                return nullptr;
+                }
+	 struct stat st;
+        if(fstat(fp,&st)!=0) {
+	        lerror(filename);
+		close(fp);
+                return nullptr;
+                }
+	if(len && st.st_size<len) {
+		if(ftruncate(fp,len)) {
+			lerror("ftruncate");
+			close(fp);
+			return nullptr;
+			}
+		}
+	else
+		len=st.st_size;
+        void *mmapbuf=mmap(NULL, len, PROT_READ |PROT_WRITE,MAP_SHARED, fp, 0);
+       close(fp);
+       if(mmapbuf== MAP_FAILED) {
+       		flerror("mmap(%s len=%zu,fp=%d)",filename,len,fp);
+                return nullptr;
+		}
+        return mmapbuf;
+        }
+
+void *mopen(const std::string_view base,const std::string_view endname) {
+      return mopen(pathconcat(base,endname));
+      }
+public:
+typedef T unittype;
+Mmap(Mmap && ander):len(ander.len),buf(ander.buf) {
+//	LOGSTRING(" Mmap(Mmap && ander)\n");
+	ander.buf=nullptr;
+	}
+Mmap& operator=(Mmap&& ander) {
+//	LOGSTRING("Mmap& operator=(Mmap&& ander) {");
+	this->~Mmap() ;
+	buf=ander.buf;
+	len=ander.len;
+	ander.buf=nullptr;
+	return *this;
+	}
+Mmap(size_t count):len(count*sizeof(T)),buf(mmap(NULL,len, PROT_READ |PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0)) {
+//	LOGSTRING(" Mmap(size_t)\n");
+if(MAP_FAILED==buf)
+	buf=nullptr;
+
+}
+Mmap(const char *filename,size_t  count=0):len(count*sizeof(T)),buf(mopen(filename)) {
+//	LOGGER("Mmap %s %p %zu\n",filename,buf,len);
+}
+Mmap(const std::string_view base,const std::string_view endname,int count=0):Mmap(pathconcat(base,endname),count) { 
+//LOGGER("MMap string_view %s\n",endname.data());
+
+}
+Mmap():len(0),buf(nullptr) {}
+
+T* data() {
+	return (T*) buf;
+}
+const T* data() const {
+	return (const T*) buf;
+}
+T* begin() {
+	return (T*) buf;
+}
+const T* begin() const {
+	return (const T*) buf;
+}
+T* end() {
+//	return (T*) (((char *)buf)+len);
+	return begin()+count();
+}
+const T* end() const {
+	return begin()+count();
+//	return (const T*) (((char *)buf)+len);
+}
+operator T*() {
+	return data();
+	}
+operator const T*() const {
+	return data();
+	}
+/*	
+T &operator [](int ind) {
+	return ((T *)buf)[ind];
+	}
+T & operator[](int index) 
+	{ return this()[index];};
+	*/
+
+auto count() const {
+
+	return len/sizeof(T);
+	}
+auto size() const {
+	return count();
+	}
+
+template <typename... Ts>
+void extend(Ts... args) {
+	this->~Mmap();
+	new(this) Mmap(args...);
+	}
+
+
+
+virtual ~Mmap() {
+//	LOGGER("munmap %p %zu\n",buf,len);
+	if(buf&&buf!=MAP_FAILED) {
+		munmap(buf,len);
+                buf=nullptr;
+                }
+	}
+        
+};
+
+template <typename T>
+struct gegs{
+typedef T type;
+int len;
+T buf[];
+
+void clear() {
+	memset(buf,'\0',len*sizeof(T));
+	}
+int length() const { return len; };
+int size() const { return length(); }
+T * data() { return buf; };
+const T * data() const { return buf; };
+T * end() { return buf+size(); };
+const T * end() const { return buf+size(); };
+static gegs *readfile(const char name[]) ;
+//static gegs * newex(int len) ;
+static gegs * newex(int len) {
+		gegs *ar= reinterpret_cast<gegs *>(new(std::align_val_t(alignof(struct gegs)))  unsigned char[sizeof(gegs)+len*sizeof(T)]);
+		ar->len=len;
+		return ar;
+		}
+
+template <typename Typ,  std::size_t  N> 
+static gegs * newex( const std::array<Typ,N> &ar) {
+	gegs<T> *ptr=gegs<T>::newex(N);
+	memcpy(ptr->buf,ar.data(),N*sizeof(T));
+	return ptr;
+	}
+
+template <typename Typ,  std::size_t  N> 
+static gegs * newex(const Typ (&array)[N]) {
+	gegs<T> *ptr=gegs<T>::newex(N);
+	memcpy(ptr->buf,array,N*sizeof(T));
+	return ptr;
+	}
+template <typename Typ> 
+static gegs * newex( const std::vector<Typ> &ar) {
+       static_assert(sizeof(T)==sizeof(Typ), "Elements should be the same size");
+	gegs<T> *ptr=gegs<T>::newex(ar.size());
+	memcpy(ptr->buf,ar.data(),ar.size()*sizeof(T));
+	return ptr;
+	}
+template <typename Con> requires requires(Con t) {t.size();}
+static gegs * newex( Con &ar) {
+       static_assert(sizeof(T)==sizeof(ar[0]), "Elements should be the same size");
+	gegs<T> *ptr=gegs<T>::newex(ar.size());
+	memcpy(ptr->buf,ar.data(),ar.size()*sizeof(T));
+	return ptr;
+	}
+static gegs * newex( const gegs *in) {
+	gegs *ptr=newex(in->length());
+	memcpy(ptr->buf,in->buf,in->length()*sizeof(T));
+	return ptr;
+	}
+static void deleteex( const gegs *geg) {
+	operator delete[] (reinterpret_cast<unsigned char *>(const_cast<gegs*>(geg)), std::align_val_t(alignof(struct gegs)));
+	}
+void operator delete(void * p) {
+   operator delete[] (reinterpret_cast<unsigned char *>(p), std::align_val_t(alignof(struct gegs)));
+    } 
+};
+//typedef gegs<unsigned char> data_t;
+
+template<typename T> gegs<T> *gegs<T>::readfile(const char name[]) {
+	struct stat st;
+	if(stat(name,&st)==-1) {
+		return nullptr;
+		}
+	gegs *ar= newex((st.st_size+sizeof(T)-1)/sizeof(T));
+	if(::readfile(name,ar->buf,st.st_size) )
+		return ar;
+	delete[] reinterpret_cast<unsigned char *>(ar);
+	return nullptr;
+	}
+typedef gegs<signed char> data_t;
+
+class _jbyteArray;
+typedef _jbyteArray*    jbyteArray;
+class _jintArray;
+typedef _jintArray*    jintArray;
+
+template <typename T>
+struct Gegs {
+   gegs<T> *data;
+   int used;
+Gegs(int len):data(gegs<T>::newex(len)),used(0) {
+   }
+void clear() {
+	data->clear();
+	used=0;
+	}
+int size() const {
+   return used;
+   };
+int capacity() const {
+   return data->size();
+   };
+template <typename Typ,  std::size_t  N> 
+Gegs( const std::array<Typ,N> &ar): data(gegs<T>::newex(N)),used(N) {
+	memcpy(data->buf,ar.data(),N*sizeof(T));
+	}
+
+template <typename Typ,  std::size_t  N> 
+Gegs(const Typ (&array)[N]): data(gegs<T>::newex(N)),used(N) {
+	memcpy(data->buf,array,N*sizeof(T));
+	}
+operator jbyteArray() {
+	static_assert(sizeof(T)==1);
+	return (jbyteArray)data;
+	}
+operator jintArray() {
+	static_assert(sizeof(T)==4);
+	return (jintArray)data;
+	}
+template <typename Typ> 
+Gegs( const std::vector<Typ> &ar): data(gegs<T>::newex(ar.size())),used(ar.size()) {
+    static_assert(sizeof(T)==sizeof(Typ), "Elements should be the same size");
+	memcpy(data->buf,ar.data(),ar.size()*sizeof(T));
+	}
+Gegs( const Gegs &in):data(gegs<T>::newex(in.data->length())),used(in.used)  {
+	memcpy(data->buf,in.data->buf,in.data->length()*sizeof(T));
+	}
+Gegs( Gegs &&in):data(in.data),used(in.used)  {
+   in.data=nullptr;
+   in.used=0;
+	}
+Gegs( gegs<T> *dat,int used):data(dat),used(used)  { 
+   }
+~Gegs() {
+   gegs<T>::deleteex(data);
+   };
+ Gegs operator=(Gegs&& other) {
+   std::swap(data,other.data);
+   used=other.used;
+   return *this;
+   }
+ Gegs operator=(const Gegs& other) {
+   gegs<T>::deleteex(data);
+   data=gegs<T>::newex(other.data);
+   used=other.used;
+   return *this;
+   }
+   };
+
+typedef Gegs<signed char> Data_t;
+
+
+#endif

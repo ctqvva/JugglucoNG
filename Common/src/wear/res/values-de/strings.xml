@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="libresetalllabels">Geben Sie zunächst (auf dem Begleittelefon) für jedes Etikett an, was damit geschehen soll.</string>
+    <string name="colors_style_setting">@string/colors</string>
+    <string name="ambient_style_name">Ruhemodus</string>
+    <string name="red_style_name">Rot</string>
+    <string name="green_style_name">Grün</string>
+    <string name="blue_style_name">Blau</string>
+    <string name="gray_style_name">Grau</string>
+    <string name="yellow_style_name">Gelb</string>
+    <string name="white_style_name">Weiß</string>
+    <string name="title_activity_watch_face_config">Konfiguration</string>
+<string name="wear_sensor_day_label">Tag</string>
+<string name="wear_sensor_day_format">Tag %1$s</string>
+    <string name="wear_return_sensor_to_phone">Sensor an Telefon zurückgeben</string>
+    <string name="wear_claim_watch_owns">Uhr liest den Sensor</string>
+    <string name="wear_claim_waiting">Warte auf Verbindung zum Sensor</string>
+    <string name="wear_calibration_on">Kalibrierung ein</string>
+    <string name="wear_calibration_off">Kalibrierung aus</string>
+    <string name="wear_calibration_clear">Kalibrierungen löschen</string>
+    <string name="wear_calibration_delete">Kalibrierung löschen</string>
+    <string name="wear_color_in_range">Werte im Zielbereich färben</string>
+    <string name="wear_color_in_range_on">Alle Werte farbig</string>
+    <string name="wear_color_in_range_off">Nur Hoch- und Tiefwerte farbig</string>
+    <string name="wear_journal_disabled">Aktiviere das Journal auf dem Telefon, um es hier zu nutzen.</string>
+    <string name="wear_journal_insulin">Insulin</string>
+    <string name="wear_journal_carbs">Kohlenhydrate</string>
+    <string name="wear_journal_add">Journaleintrag hinzufügen</string>
+    <string name="wear_reading_actions_title">Messwert</string>
+    <string name="wear_calibration_edit">Kalibrierung bearbeiten</string>
+    <string name="wear_journal_delete">Löschen</string>
+    <string name="wear_sensor_forget">Sensor entfernen</string>
+</resources>
+

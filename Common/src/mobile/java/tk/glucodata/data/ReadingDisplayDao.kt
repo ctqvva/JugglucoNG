@@ -1,0 +1,144 @@
+package tk.glucodata.data
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+
+/** Which sensor owned the main line for one minute. */
+data class ReadingDisplayOwner(
+    val timestamp: Long,
+    val sensorSerial: String,
+)
+
+/**
+ * Reads and writes [ReadingDisplay] rows.
+ *
+ * Two writes, and no others. [sealAll] records minutes that have none and
+ * ignores those that do. [reviseIfUnsealed] revises a minute that is still
+ * inside its grace window, and refuses — in SQL — to touch one that is not.
+ * There is no REPLACE and no unconditional update, so no caller can move a
+ * sealed value whatever it passes.
+ */
+@Dao
+interface ReadingDisplayDao {
+
+    /**
+     * Records main values for minutes that do not have one yet.
+     *
+     * `IGNORE`, not `REPLACE`: replaying a seal pass over minutes that are
+     * already recorded must be a no-op, whatever today's settings would compute
+     * for them.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun sealAll(rows: List<ReadingDisplay>): List<Long>
+
+    /**
+     * Revises a record that has not sealed yet.
+     *
+     * The seal is enforced here, in SQL, rather than by whichever caller
+     * remembers to check: `timestamp > :sealHorizon` is the whole guarantee, and
+     * the caller supplies the horizon from the current clock and grace window.
+     * Identical presentations are no-ops: changing only recordedAt must not
+     * invalidate every chart query observing the table.
+     * A stale or incorrect horizon would weaken this bound. There is no other update
+     * and no REPLACE anywhere in this DAO.
+     *
+     * A view-mode toggle revises like a calibration change does. Unsealed
+     * records are never drawn, so the hour before a toggle is already shown in
+     * the new lane; refusing the revision (#499) sealed those minutes with the
+     * old lane's numbers an hour later, and the line moved under the user.
+     */
+    @Query(
+        """
+        UPDATE reading_display
+        SET displayMgdl = :displayMgdl,
+            sensorSerial = :sensorSerial,
+            viewMode = :viewMode,
+            calibrationFingerprint = :calibrationFingerprint,
+            recordedAt = :recordedAt
+        WHERE timestamp = :timestamp AND timestamp > :sealHorizon
+          AND (displayMgdl != :displayMgdl OR sensorSerial != :sensorSerial
+               OR viewMode != :viewMode OR calibrationFingerprint != :calibrationFingerprint)
+        """
+    )
+    suspend fun reviseIfUnsealed(
+        timestamp: Long,
+        sensorSerial: String,
+        displayMgdl: Float,
+        viewMode: Int,
+        calibrationFingerprint: Long,
+        recordedAt: Long,
+        sealHorizon: Long,
+    ): Int
+
+    @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
+    suspend fun getAllSince(startTime: Long): List<ReadingDisplay>
+
+    @Query("SELECT * FROM reading_display WHERE timestamp > :afterTimestamp ORDER BY timestamp ASC LIMIT :limit")
+    suspend fun getPageAfter(afterTimestamp: Long, limit: Int): List<ReadingDisplay>
+
+    @Query(
+        "SELECT * FROM reading_display WHERE timestamp >= :startTime AND timestamp <= :endTime " +
+            "ORDER BY timestamp ASC"
+    )
+    suspend fun getBetween(startTime: Long, endTime: Long): List<ReadingDisplay>
+
+    @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
+    fun getFlow(startTime: Long): Flow<List<ReadingDisplay>>
+
+    @Query(
+        "SELECT * FROM reading_display WHERE timestamp >= :startTime AND timestamp <= :endTime " +
+            "ORDER BY timestamp ASC"
+    )
+    fun getBetweenFlow(startTime: Long, endTime: Long): Flow<List<ReadingDisplay>>
+
+    /** Which sensor owned the main line, minute by minute, since [startTime]. */
+    @Query("SELECT timestamp, sensorSerial FROM reading_display WHERE timestamp >= :startTime")
+    suspend fun mainLineOwners(startTime: Long): List<ReadingDisplayOwner>
+
+    /** The newest minute already recorded, so a seal pass resumes rather than rescans. */
+    @Query("SELECT MAX(timestamp) FROM reading_display")
+    suspend fun getNewestSealedMinute(): Long?
+
+    @Query("SELECT COUNT(*) FROM reading_display")
+    suspend fun getCount(): Int
+
+
+    /**
+     * Recovered display rows in minute order. The table is keyed by the minute
+     * since the seal went in, so a page cursor is the minute alone.
+     */
+    @Query(
+        """
+        SELECT * FROM reading_display display
+        WHERE display.timestamp > :afterTimestamp
+        ORDER BY display.timestamp ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecoveryPage(
+        afterTimestamp: Long,
+        limit: Int,
+    ): List<ReadingDisplay>
+    @Query("DELETE FROM reading_display WHERE timestamp < :cutoff")
+    suspend fun deleteOlderThan(cutoff: Long)
+
+    /** A removed sensor takes its recorded display values with it when its history goes. */
+    @Query("DELETE FROM reading_display WHERE sensorSerial IN (:serials)")
+    suspend fun deleteForSensors(serials: List<String>)
+
+    /**
+     * Voids records whose sensor has rewritten the number they were drawn from —
+     * see [tk.glucodata.data.RecordedDisplayVoiding]. A deletion, not a
+     * revision: the minute goes back to having no record, and is recorded again
+     * the next time it is presented.
+     */
+    @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes)")
+    suspend fun deleteAtMinutes(minutes: List<Long>): Int
+
+    @Query("DELETE FROM reading_display")
+    suspend fun deleteAll()
+
+}

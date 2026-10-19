@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wear_sensor_day_label">Jour</string>
+    <string name="wear_sensor_day_format">Jour %1$s</string>
+    <string name="wear_return_sensor_to_phone">Rendre le capteur au téléphone</string>
+    <string name="wear_claim_watch_owns">La montre lit le capteur</string>
+    <string name="wear_claim_waiting">En attente de connexion au capteur</string>
+    <string name="wear_calibration_on">Calibration activée</string>
+    <string name="wear_calibration_off">Calibration désactivée</string>
+    <string name="wear_calibration_clear">Effacer les calibrations</string>
+    <string name="wear_calibration_delete">Supprimer la calibration</string>
+    <string name="wear_color_in_range">Colorer les valeurs dans la cible</string>
+    <string name="wear_color_in_range_on">Toutes les valeurs colorées</string>
+    <string name="wear_color_in_range_off">Seuls les hauts et bas colorés</string>
+    <string name="wear_journal_disabled">Activez le journal sur le téléphone pour l\'utiliser ici.</string>
+    <string name="wear_journal_insulin">Insuline</string>
+    <string name="wear_journal_carbs">Glucides</string>
+    <string name="wear_journal_add">Ajouter au journal</string>
+    <string name="wear_reading_actions_title">Mesure</string>
+    <string name="wear_calibration_edit">Modifier la calibration</string>
+    <string name="wear_journal_delete">Supprimer</string>
+    <string name="wear_sensor_forget">Oublier le capteur</string>
+</resources>
