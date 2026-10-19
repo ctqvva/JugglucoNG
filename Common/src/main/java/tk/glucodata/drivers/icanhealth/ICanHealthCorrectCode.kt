@@ -9,21 +9,34 @@
 //
 // Verified against the vendor SDK (decompiled plaintext half):
 // - vendor opcodes go to characteristic 0x2AAC; answers arrive as
-//   `1C <opcode> <status> <payload…>`
-// - F6 answers `1C F6 01 <lo> <hi>`: 0xFFFF = no table, 500/510/530/600 = written
-// - the SDK's sequence is: build the float list from a `CodeValueBean` JSON →
-//   serialise/encrypt with AES-128-CBC/PKCS7 using the F3 payload ("random
-//   command code", which we already receive as lastAuthChallenge) as key
-//   material → one BLE write per chunk (F2) → F7 commit
+//   `1C <opcode> <status> <payload…>` (the F3 challenge answer is its own
+//   `06 F3 01 <4-byte challenge>` shape)
+// - F6 answers `1C F6 01 <lo> <hi>`: 0xFFFF = no table; 500/510/530/600/570 have
+//   been observed from provisioned sensors
+// - the SDK has two writes that share its native chunker: `writeCorrectCode`
+//   (a `CodeValueBean` server table, chunker 4th arg `false`) and
+//   `writeInitParameter` (a serial-derived list, chunker 4th arg `true`). Only
+//   the server-table path is modelled here; see
+//   [CorrectCodeProvisioningPath.SN_DERIVED] for why the other one must not be
+//   guessed at.
+// - `j2.java` case 243 stores the whole 7-byte F3 notification
+//   (`if (value.length >= 7) { f4759m = value; }`, log `encryptRandomResponse:
+//   06F301…`) and hands *that* to the chunker, not the 4-byte challenge. How the
+//   chunker expands it into a 16-byte AES key is inside the native half, so the
+//   expansion here is an explicitly unverified candidate
+//   ([CorrectCodeKeyDerivation]).
 //
 // Unknown: the chunk framing — the serialisation of the float list, the IV
-// handling, and how each F2 packet is laid out. That guess is isolated in the
-// single function ICanHealthCorrectCode.buildCorrectCodeChunks; everything else
-// in this file is gating, logging, and testable arithmetic. Field iteration
-// flips one constant in ICanHealthExperimental and watches the F6 read-back.
+// handling, and how each F2 packet is laid out. That guess is isolated in
+// ICanHealthCorrectCode.buildCorrectCodeChunks; everything else in this file is
+// gating, transaction bookkeeping, logging, and testable arithmetic. Field
+// iteration flips one constant in ICanHealthExperimental and watches the F6
+// read-back.
 
 package tk.glucodata.drivers.icanhealth
 
+import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONObject
 import tk.glucodata.Log
 
@@ -54,6 +67,54 @@ internal enum class CorrectCodeLayout {
 }
 
 /**
+ * Which vendor write the experimental path models.
+ *
+ * The two writes share the vendor's native chunker and differ only in what is
+ * fed into it. They are not interchangeable: the chunker's 4th argument is
+ * `false` for the server table and `true` for the serial-derived list, and a
+ * wrong list is written into a sensor the user is already wearing.
+ */
+internal enum class CorrectCodeProvisioningPath {
+    /**
+     * The vendor SDK's `writeCorrectCode`: a 25-value `CodeValueBean` JSON table
+     * from the vendor cloud, handed to the native chunker with its 4th argument
+     * `false`. The only path implemented here.
+     */
+    SERVER_TABLE,
+
+    /**
+     * The vendor SDK's `writeInitParameter`: a serial-derived value list handed
+     * to the same chunker with its 4th argument `true`.
+     *
+     * NOT implemented: the list is built inside the vendor SDK from
+     * launcher/serial data we have not reproduced, so anything we could send
+     * would be a guess at a per-sensor table. It must never be selected as a
+     * stand-in for [SERVER_TABLE], and [ICanHealthCorrectCode.buildCorrectCodeChunks]
+     * refuses it with a loud log rather than substituting anything.
+     */
+    SN_DERIVED,
+}
+
+/**
+ * Candidate inputs for the correctCode key material.
+ *
+ * The vendor SDK stores the whole F3 notification (`j2.java` case 243) and hands
+ * it to the native chunker, which expands it to a 16-byte AES key; how is not
+ * known. Both candidates therefore zero-pad (or truncate) their input to
+ * [ICanHealthConstants.AES_BLOCK_SIZE] — an explicit guess, not a derivation
+ * anyone has reproduced. [ICanHealthExperimental.CORRECT_CODE_WRITE_KEY_DERIVATION]
+ * picks one per field run, and every attempt logs the raw input hex and the
+ * candidate so two runs can be told apart from the log alone.
+ */
+internal enum class CorrectCodeKeyDerivation {
+    /** The full `06 F3 01 <challenge>` notification, zero-padded to 16 bytes. */
+    FULL_NOTIFICATION_ZERO_PAD,
+
+    /** Just the 4-byte challenge (what the old driver kept), zero-padded to 16 bytes. */
+    CHALLENGE_ZERO_PAD,
+}
+
+/**
  * Field-iteration switches for the experimental correctCode write path.
  *
  * Nothing in this path may run by accident. A wrong table, or a correct table
@@ -76,11 +137,22 @@ internal object ICanHealthExperimental {
     const val ENABLE_CORRECT_CODE_WRITE = false
 
     /**
-     * The vendor SDK's own `versionFlag` branch selector. `true` = the 25-value
-     * table, `false` = the i3/h3 15-value branch. Which family reports which is
-     * itself a guess, so it is a knob rather than a per-device decision.
+     * Which vendor write is modelled. Only
+     * [CorrectCodeProvisioningPath.SERVER_TABLE] is implemented; the SN-derived
+     * path is refused rather than substituted (see the enum).
      */
-    const val CORRECT_CODE_WRITE_VERSION_FLAG = true
+    val CORRECT_CODE_PROVISIONING_PATH: CorrectCodeProvisioningPath =
+        CorrectCodeProvisioningPath.SERVER_TABLE
+
+    /**
+     * The native chunker's 3rd argument ("launcher version flag").
+     *
+     * Kept separate from both [CORRECT_CODE_PROVISIONING_PATH] and the table
+     * length. What it changes on the wire is unknown, so the framing model does
+     * not alter the bytes with it; it rides along in the plan and the attempt log
+     * so a field session can vary it independently of the other knobs.
+     */
+    const val CORRECT_CODE_WRITE_LAUNCHER_VERSION_FLAG = true
 
     /**
      * The single framing knob: change this one line, rebuild, repeat. Every
@@ -88,61 +160,262 @@ internal object ICanHealthExperimental {
      * diffed without re-reading this file.
      */
     val CORRECT_CODE_WRITE_LAYOUT: CorrectCodeLayout = CorrectCodeLayout.CBC_SINGLE_BLOB
+
+    /**
+     * Which unverified key-input candidate is on the wire. The raw input hex and
+     * the candidate are logged on every attempt.
+     */
+    val CORRECT_CODE_WRITE_KEY_DERIVATION: CorrectCodeKeyDerivation =
+        CorrectCodeKeyDerivation.FULL_NOTIFICATION_ZERO_PAD
+
+    /**
+     * Explicit table input for a hand-run field session; `null` in any shipped
+     * build, and nothing in the app sets it.
+     *
+     * The 25-value JSON recovered from the vendor app is a test-only fixture (see
+     * `ICanHealthCorrectCodeTests`), not a production fallback: the connected
+     * sensor's real table is per-sensor and only the vendor cloud has it. With
+     * this null the write path refuses, which is the shipped behaviour. A bench
+     * session sets it together with [ENABLE_CORRECT_CODE_WRITE] and, if the
+     * batch is aborted before it is sent, still wants
+     * [resetWriteAttempt] before another run.
+     */
+    @Volatile
+    var CORRECT_CODE_WRITE_TABLE_JSON: String? = null
+
+    /** SharedPreferences file the driver already uses for per-sensor state. */
+    private const val PREFS_NAME = "tk.glucodata_preferences"
+
+    /**
+     * Read the persisted one-shot record for [serial].
+     *
+     * Fails closed: a null context or blank serial cannot prove the serial is
+     * clean, so this reports `true` and the write gate refuses.
+     */
+    fun hasWriteAttempted(context: Context?, serial: String?): Boolean {
+        val prefs = attemptPrefs(context) ?: return true
+        val key = correctCodeAttemptStorageKey(serial) ?: return true
+        return prefs.getBoolean(key, false)
+    }
+
+    /**
+     * Persist that a batch for [serial] has been sent. Returns whether the record
+     * was stored; the caller must refuse to send when it was not, because that is
+     * the only guarantee of at-most-once.
+     */
+    fun markWriteAttempted(context: Context?, serial: String?): Boolean {
+        val prefs = attemptPrefs(context) ?: return false
+        val key = correctCodeAttemptStorageKey(serial) ?: return false
+        val stored = prefs.edit().putBoolean(key, true).commit()
+        if (stored) {
+            Log.i(
+                ICanHealthConstants.TAG,
+                "correctCode one-shot record stored for serial=$serial"
+            )
+        }
+        return stored
+    }
+
+    /**
+     * Deliberate developer reset of the one-shot record for [serial].
+     *
+     * There is no automatic reset — not on reconnect, not on app update. This is
+     * the only way to make a serial writable again, and it is meant to be called
+     * by hand (bench build, debugger, or a temporary call site) when another
+     * field run with different framing constants is wanted. Returns whether a
+     * record existed.
+     */
+    fun resetWriteAttempt(context: Context?, serial: String?): Boolean {
+        val prefs = attemptPrefs(context) ?: return false
+        val key = correctCodeAttemptStorageKey(serial) ?: return false
+        val existed = prefs.contains(key)
+        prefs.edit().remove(key).commit()
+        if (existed) {
+            Log.w(
+                ICanHealthConstants.TAG,
+                "correctCode one-shot record RESET for serial=$serial — the next batch will be sent"
+            )
+        }
+        return existed
+    }
+
+    private fun attemptPrefs(context: Context?): SharedPreferences? =
+        context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
 
-/** What was decided for one write attempt: the F2 packets and the F7 commit. */
+/**
+ * Storage key for the one-shot record of [serial], or null when the serial is
+ * not usable as one (null/blank).
+ *
+ * A null key always means "cannot prove this serial is clean" — the callers
+ * treat it as fail-closed, never as "never attempted". Kept a pure function so
+ * the key rule and the gate it feeds are testable without Android.
+ */
+internal fun correctCodeAttemptStorageKey(serial: String?): String? =
+    serial?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { ICanHealthConstants.PREF_CORRECT_CODE_ATTEMPTED_PREFIX + it }
+
+/**
+ * One fully-built correctCode write: the F2 packets, the F7 commit, and the
+ * experiment knobs that produced them.
+ *
+ * The knobs ride along so the attempt log (and the eventual F6 read-back record)
+ * can say exactly which candidate combination was on the wire without re-reading
+ * the constants file.
+ */
 internal data class CorrectCodePlan(
     val writePackets: List<ByteArray>,
     val commitPacket: ByteArray,
+    val path: CorrectCodeProvisioningPath,
+    val launcherVersionFlag: Boolean,
+    val layout: CorrectCodeLayout,
 )
+
+/**
+ * Pure state machine for one correctCode batch, driven by GATT write callbacks.
+ *
+ * It exists to pin the transaction rule the BLE layer must obey: an F2 chunk
+ * whose GATT write fails aborts the batch, so the F7 commit is never sent after
+ * a partially transmitted table. The manager follows [Next]; this class holds no
+ * bytes and no Android state, so the rule is unit-testable. Vendor-level success
+ * is a separate matter — that is whatever the post-batch F6 read-back reports.
+ */
+internal class CorrectCodeBatch(val chunkCount: Int) {
+    init {
+        require(chunkCount > 0) { "correctCode batch needs at least one F2 chunk" }
+    }
+
+    enum class Phase {
+        CHUNKS,
+        COMMIT,
+        READBACK,
+    }
+
+    /** What the caller may queue next; [NONE] means nothing. */
+    enum class Next {
+        SEND_CHUNK,
+        SEND_COMMIT,
+        SEND_READBACK,
+        NONE,
+    }
+
+    var phase: Phase = Phase.CHUNKS
+        private set
+
+    /** Index of the F2 chunk whose write callback has not arrived yet. */
+    var chunkInFlight: Int = 0
+        private set
+
+    var chunksAcked: Int = 0
+        private set
+
+    /** Index of the first F2 chunk whose write failed, or -1 when none did. */
+    var abortedAtChunk: Int = -1
+        private set
+
+    var commitSent: Boolean = false
+        private set
+
+    var commitGattStatus: Int? = null
+        private set
+
+    /** True once the post-batch F6 request write itself completed at the GATT layer. */
+    var readbackRequested: Boolean = false
+        private set
+
+    /**
+     * One F2 write finished with [status]. A failure ends the transmission: the
+     * phase moves straight to the read-back and no commit can follow.
+     */
+    fun onChunkWriteResult(status: Int): Next {
+        if (phase != Phase.CHUNKS) return Next.NONE
+        if (status != ICanHealthCorrectCode.GATT_SUCCESS) {
+            abortedAtChunk = chunkInFlight
+            phase = Phase.READBACK
+            return Next.SEND_READBACK
+        }
+        chunksAcked++
+        val next = chunkInFlight + 1
+        if (next < chunkCount) {
+            chunkInFlight = next
+            return Next.SEND_CHUNK
+        }
+        phase = Phase.COMMIT
+        return Next.SEND_COMMIT
+    }
+
+    fun onCommitWriteResult(status: Int): Next {
+        if (phase != Phase.COMMIT) return Next.NONE
+        commitSent = true
+        commitGattStatus = status
+        phase = Phase.READBACK
+        return Next.SEND_READBACK
+    }
+
+    fun onReadbackRequestWritten() {
+        readbackRequested = true
+    }
+
+    /** GATT-level outcome only; the vendor-level outcome is the F6 value. */
+    fun gattOutcomeSummary(): String = when {
+        abortedAtChunk >= 0 ->
+            "GATT_ABORTED after F2[$abortedAtChunk] (${chunksAcked}/${chunkCount} F2 acked, F7 never sent)"
+        commitGattStatus != null && commitGattStatus != ICanHealthCorrectCode.GATT_SUCCESS ->
+            "GATT_COMMIT_FAILED status=$commitGattStatus after ${chunksAcked}/${chunkCount} F2"
+        commitSent -> "GATT_SUCCESS (${chunksAcked}/${chunkCount} F2 + F7 commit)"
+        else -> "GATT_INCOMPLETE (${chunksAcked}/${chunkCount} F2, no commit)"
+    }
+}
 
 /**
  * CorrectCode table arithmetic, gating, and the (single) framing function.
  *
  * The gate is deliberately paranoid: the write only happens when the sensor
- * itself said F6 = 0xFFFF (so there is no existing table to clobber), the
- * vendor auth handshake completed, the sensor is idle, and the attempt cap has
- * not been reached. Every refusal and every packet goes to the log.
+ * itself said F6 = 0xFFFF (so there is no existing table to clobber), the vendor
+ * auth handshake completed, the sensor is idle, and this serial has never had a
+ * batch sent for it. Every refusal and every packet goes to the log. The MTU fit
+ * of each packet is checked by the caller with [planFitsMtu] before anything is
+ * queued.
  */
 internal object ICanHealthCorrectCode {
 
     private const val TAG = "ICanHealthCorrectCode"
 
-    /** Number of floats in the full vendor `CodeValueBean` table (x1..x25). */
-    const val TABLE_VALUE_COUNT_FULL = 25
+    /**
+     * `android.bluetooth.BluetoothGatt.GATT_SUCCESS`, duplicated so the batch
+     * state machine above stays plain-JVM testable.
+     */
+    const val GATT_SUCCESS = 0
 
-    /** i3/h3 branch size the vendor SDK's `versionFlag` may select (x1..x15). */
-    const val TABLE_VALUE_COUNT_I3H3 = 15
+    /** Number of floats in the vendor `CodeValueBean` server table (x1..x25). */
+    const val TABLE_VALUE_COUNT_SERVER_TABLE = 25
+
+    /**
+     * Length of the serial-derived list written by the vendor's
+     * `writeInitParameter` (chunker 4th arg `true`). This is an
+     * [CorrectCodeProvisioningPath.SN_DERIVED]-path shape, not a selectable
+     * layout for the server table, and the path itself is not implemented.
+     */
+    const val TABLE_VALUE_COUNT_SN_DERIVED = 15
 
     /**
      * F2 payload size per BLE write.
      *
      * Conservative on purpose: the default ATT MTU of 23 leaves 20 bytes of
-     * payload, so this framing works before any MTU negotiation. If the real
-     * vendor framing turns out to use the negotiated MTU, that is a candidate
-     * to add rather than a value to raise blindly.
+     * payload, so a packet built at this size works on a link where MTU
+     * negotiation did not happen. It does not work for the F2 header itself
+     * (2 bytes) on such a link — that is exactly why
+     * [planFitsMtu] has to refuse the whole batch instead of letting the write
+     * silently truncate.
      */
     const val CHUNK_PAYLOAD_BYTES = 20
 
     /**
-     * Write attempts per connection. A wrong framing fails silently at the
-     * sensor, so a retry only makes sense while the attempt budget lasts; a
-     * sensor that rejects the same bytes twice will reject them the third time,
-     * and the cap keeps a faulty framing from becoming a BLE storm.
+     * Fixed overhead of an ATT write: 1 opcode byte + 2 handle bytes, so a write
+     * on a link with MTU `m` can carry `m - 3` bytes.
      */
-    const val MAX_WRITE_ATTEMPTS_PER_CONNECTION = 3
-
-    /**
-     * CorrectCode table recovered from the vendor app, used as the default table
-     * for field experiments.
-     *
-     * This is TEST DATA, not the connected sensor's factory table: it carries the
-     * 25 floats (`x1`..`x25`) a vendor `CodeValueBean` holds. The real table is
-     * per-sensor and only the vendor cloud/app has it; writing this one into a
-     * sensor is precisely what this debug-gated experiment exists to try.
-     */
-    const val TEST_CORRECT_CODE_JSON =
-        """{"x1":0.015,"x10":1.2,"x11":13.0,"x12":1.4,"x13":0.4,"x14":3.5,"x15":15.0,"x16":15.0,"x17":0.1,"x18":0.6,"x19":0.2,"x2":32.0,"x20":0.6,"x21":0.1,"x22":16.0,"x23":1.0,"x24":2.1,"x25":2.2,"x3":25.0,"x4":1.0,"x5":0.8,"x6":0.3,"x7":40.0,"x8":0.5,"x9":0.5}"""
+    const val ATT_WRITE_OVERHEAD_BYTES = 3
 
     /**
      * Decode the calibration-table field of an F6 (`0x1C F6 01 <lo> <hi>`) answer.
@@ -160,12 +433,13 @@ internal object ICanHealthCorrectCode {
      * Parse the vendor's `CodeValueBean` JSON into the ordered float table.
      *
      * `x1`..`xN` map to list elements 0..N-1, which is the order the vendor
-     * gives its chunk builder. A missing key or malformed JSON returns null: a
-     * partially-filled table must never be written.
+     * gives its chunk builder. A missing key, malformed JSON, a non-numeric
+     * value, or a non-finite value returns null: a partially-filled or NaN table
+     * must never be written.
      */
     fun parseCorrectCodeTable(
         json: String,
-        expectedCount: Int = TABLE_VALUE_COUNT_FULL,
+        expectedCount: Int = TABLE_VALUE_COUNT_SERVER_TABLE,
     ): FloatArray? {
         if (expectedCount <= 0) return null
         val obj = try {
@@ -181,69 +455,108 @@ internal object ICanHealthCorrectCode {
                 Log.w(TAG, "correctCode JSON missing $key")
                 return null
             }
-            table[index] = obj.getDouble(key).toFloat()
+            val value = try {
+                obj.getDouble(key)
+            } catch (e: Exception) {
+                Log.w(TAG, "correctCode JSON $key is not a number: ${e.message}")
+                return null
+            }
+            val asFloat = value.toFloat()
+            // Reject NaN/infinity both as a Double and as the Float that goes on
+            // the wire (a finite Double can still overflow Float).
+            if (!value.isFinite() || !asFloat.isFinite()) {
+                Log.w(TAG, "correctCode JSON $key is not finite: $value")
+                return null
+            }
+            table[index] = asFloat
         }
         return table
     }
 
     /**
-     * Derive the 16-byte AES key from the sensor's own F3 payload.
+     * Build the 16-byte AES key candidate from the sensor's own F3 data.
      *
-     * The vendor SDK calls the F3 payload the "random command code" and uses it
-     * as the key material for the correctCode writes; our driver receives the
-     * F3 notification on every connect. When the payload is not exactly 16
-     * bytes it is zero-padded (or truncated), which is a guess that has to be
-     * checked against hardware like everything else in this file.
+     * [derivation] selects the input ([CorrectCodeKeyDerivation]); the expansion
+     * itself happens inside the vendor's native chunker and is not reproduced, so
+     * this zero-pads (or truncates) — an explicitly unverified candidate. The raw
+     * input hex and the candidate are logged on every attempt so two field runs
+     * can be compared from the log alone.
      */
-    fun buildCorrectCodeKey(f3Payload: ByteArray?): ByteArray? {
-        if (f3Payload == null || f3Payload.isEmpty()) {
+    fun buildCorrectCodeKey(
+        f3Notification: ByteArray?,
+        authChallenge: ByteArray?,
+        derivation: CorrectCodeKeyDerivation,
+    ): ByteArray? {
+        val raw = when (derivation) {
+            CorrectCodeKeyDerivation.FULL_NOTIFICATION_ZERO_PAD -> f3Notification
+            CorrectCodeKeyDerivation.CHALLENGE_ZERO_PAD -> authChallenge
+        }
+        if (raw == null || raw.isEmpty()) {
+            Log.w(
+                TAG,
+                "correctCode key derivation ${derivation.name}: no input " +
+                    "(F3 notification / challenge missing)"
+            )
             return null
         }
-        if (f3Payload.size == ICanHealthConstants.AES_BLOCK_SIZE) {
-            return f3Payload.copyOf()
-        }
-        Log.w(
+        Log.i(
             TAG,
-            "F3 payload is ${f3Payload.size} bytes, not ${ICanHealthConstants.AES_BLOCK_SIZE} — " +
-                "zero-padding to AES-128 key (guess, unverified)"
+            "correctCode key derivation candidate=${derivation.name} raw=${raw.toHexString()} " +
+                "(${raw.size}B) → zero-pad/truncate to ${ICanHealthConstants.AES_BLOCK_SIZE}B " +
+                "(UNVERIFIED: the native expansion is unknown)"
         )
         return ByteArray(ICanHealthConstants.AES_BLOCK_SIZE).apply {
-            System.arraycopy(f3Payload, 0, this, 0, minOf(f3Payload.size, size))
+            System.arraycopy(raw, 0, this, 0, minOf(raw.size, size))
         }
     }
 
     /**
      * THE framing function: the one place the unknown wire shape lives.
      *
-     * Every other part of the write path (gate, attempts, logging, read-back)
-     * is independent of the layout, so a field session can flip
-     * [ICanHealthExperimental.CORRECT_CODE_WRITE_LAYOUT] (and, for the i3/h3
-     * branch, [ICanHealthExperimental.CORRECT_CODE_WRITE_VERSION_FLAG]) without
-     * touching the driver. The three candidate combinations are:
+     * The only implemented path is [CorrectCodeProvisioningPath.SERVER_TABLE]: the
+     * vendor's `writeCorrectCode`, its 25-value `CodeValueBean` JSON table, and
+     * the native chunker's 4th argument `false`.
+     * [CorrectCodeProvisioningPath.SN_DERIVED] (the vendor's `writeInitParameter`,
+     * whose serial-derived list we cannot reproduce) is refused with a loud log
+     * and never silently substituted.
      *
-     * 1. `versionFlag = true` + [CorrectCodeLayout.CBC_SINGLE_BLOB] (default):
-     *    25 floats little-endian = 100 bytes, one AES-CBC/PKCS7 blob, sliced
-     *    into 20-byte F2 packets.
-     * 2. `versionFlag = true` + [CorrectCodeLayout.CBC_PER_CHUNK]: same 100
-     *    bytes sliced first, each 20-byte slice encrypted on its own.
-     * 3. `versionFlag = false` + [CorrectCodeLayout.CBC_SINGLE_BLOB]: the i3/h3
-     *    15-value branch, 60 bytes, one blob, sliced.
+     * [launcherVersionFlag] is the chunker's 3rd argument, a knob separate from
+     * [path] and from the table length. Its byte-level effect is unknown, so it
+     * does not alter the bytes this model emits; it is recorded in the plan and
+     * logged with every attempt.
+     *
+     * Within [CorrectCodeLayout] the two candidate wire shapes are:
+     *
+     * 1. [CorrectCodeLayout.CBC_SINGLE_BLOB] (default): 25 floats little-endian =
+     *    100 bytes, one AES-CBC/PKCS7 blob, sliced into 20-byte F2 packets.
+     * 2. [CorrectCodeLayout.CBC_PER_CHUNK]: the same 100 bytes sliced first, each
+     *    20-byte slice encrypted on its own.
      *
      * Each F2 packet is framed like the other vendor writes on the same
      * characteristic (`F4 10 <token>`, `FC <len> <cipher>`): opcode, payload
      * length, payload. That header is itself part of the guess and is logged.
      *
-     * @return the F2 packets to write in order, or null when the table is too
-     *   short or the key/IV are not AES-128 sized. Never throws.
+     * @return the F2 packets to write in order, or null when the path is not
+     *   implemented, the table is too short, or the key/IV are not AES-128
+     *   sized. Never throws.
      */
     fun buildCorrectCodeChunks(
         table: FloatArray,
         key: ByteArray,
         iv: ByteArray,
-        versionFlag: Boolean,
+        path: CorrectCodeProvisioningPath,
+        launcherVersionFlag: Boolean,
         layout: CorrectCodeLayout,
     ): List<ByteArray>? {
-        val valueCount = if (versionFlag) TABLE_VALUE_COUNT_FULL else TABLE_VALUE_COUNT_I3H3
+        if (path != CorrectCodeProvisioningPath.SERVER_TABLE) {
+            Log.e(
+                TAG,
+                "correctCode path=$path is not implemented (no reproducible source for the " +
+                    "serial-derived list) — refusing to substitute a guessed table"
+            )
+            return null
+        }
+        val valueCount = TABLE_VALUE_COUNT_SERVER_TABLE
         if (table.size < valueCount) {
             Log.w(TAG, "correctCode table has ${table.size} values, need $valueCount")
             return null
@@ -274,8 +587,8 @@ internal object ICanHealthCorrectCode {
         val packets = payloads.map { it.toF2Packet() }
         Log.i(
             TAG,
-            "correctCode framing layout=$layout versionFlag=$versionFlag values=$valueCount " +
-                "plaintext=${plaintext.size}B packets=${packets.size} " +
+            "correctCode framing path=$path launcherVersionFlag=$launcherVersionFlag " +
+                "layout=$layout values=$valueCount plaintext=${plaintext.size}B packets=${packets.size} " +
                 "sizes=${packets.joinToString(",") { it.size.toString() }}"
         )
         Log.i(TAG, "correctCode packets=${packets.joinToString(" ") { it.toHexString() }}")
@@ -286,45 +599,69 @@ internal object ICanHealthCorrectCode {
     fun buildCommitPacket(): ByteArray = byteArrayOf(ICanHealthConstants.CORRECT_CODE_COMMIT_OPCODE)
 
     /**
+     * True when every packet of [plan] fits one ATT write on a link with [mtu].
+     *
+     * A GATT write carries `mtu - 3` bytes (1 opcode + 2 handle). The driver asks
+     * for MTU 517 but falls back to 23 when negotiation is refused, where a
+     * 22-byte F2 packet cannot fit; a `writeCharacteristic` at that size is
+     * truncated or rejected by the stack with nothing in the log saying so. The
+     * caller checks this before queueing anything, so a batch that does not fit
+     * is never partially transmitted.
+     */
+    fun planFitsMtu(plan: CorrectCodePlan, mtu: Int): Boolean {
+        val maxWriteBytes = mtu - ATT_WRITE_OVERHEAD_BYTES
+        if (maxWriteBytes < 1) return false
+        return plan.writePackets.all { it.size <= maxWriteBytes } &&
+            plan.commitPacket.size <= maxWriteBytes
+    }
+
+    /**
      * Why a write is not allowed right now, or null when it is.
      *
      * The F6 value is the primary gate: F2/F7 must never be sent to a sensor
      * that already reports a table (anything but 0xFFFF), because a second
-     * table would clobber one that may have come from the vendor app.
+     * table would clobber one that may have come from the vendor app. Then comes
+     * the one-shot per-serial record: a batch is sent at most once for a given
+     * sensor serial, ever, across reconnects and app updates, because the write
+     * is irreversible and a repeated failure is just BLE noise against a sensor
+     * someone is wearing.
      */
     fun gateSkipReason(
         f6Value: Int?,
         isAuthenticated: Boolean,
         launcherState: Int,
-        attemptsUsed: Int,
+        writeAttempted: Boolean,
     ): String? = when {
         f6Value == null -> "F6 unreadable"
         f6Value != ICanHealthConstants.CORRECT_CODE_ABSENT_VALUE ->
             "F6=0x${"%04X".format(f6Value)} (table already present, never overwrite)"
+        writeAttempted ->
+            "one-shot attempt record already exists for this sensor serial " +
+                "(developer reset: ICanHealthExperimental.resetWriteAttempt)"
         !isAuthenticated -> "vendor auth not completed"
         launcherState != ICanHealthConstants.LAUNCHER_STATE_IDLE ->
             "launcherState=0x${"%02X".format(launcherState and 0xFF)} (not idle)"
-        attemptsUsed >= MAX_WRITE_ATTEMPTS_PER_CONNECTION ->
-            "attempt cap reached ($attemptsUsed/$MAX_WRITE_ATTEMPTS_PER_CONNECTION)"
         else -> null
     }
 
     /**
      * Build the full write plan, or null when the gate refuses or the framing
-     * cannot be built. Pure: no BLE, no state. The caller owns attempt counting.
+     * cannot be built. Pure: no BLE, no persistence, no state. The caller owns
+     * the one-shot record and the MTU fit check.
      */
     fun planCorrectCodeWrite(
         f6Value: Int?,
         isAuthenticated: Boolean,
         launcherState: Int,
-        attemptsUsed: Int,
+        writeAttempted: Boolean,
         table: FloatArray?,
         key: ByteArray?,
         iv: ByteArray?,
-        versionFlag: Boolean,
+        path: CorrectCodeProvisioningPath,
+        launcherVersionFlag: Boolean,
         layout: CorrectCodeLayout,
     ): CorrectCodePlan? {
-        gateSkipReason(f6Value, isAuthenticated, launcherState, attemptsUsed)?.let { reason ->
+        gateSkipReason(f6Value, isAuthenticated, launcherState, writeAttempted)?.let { reason ->
             Log.i(TAG, "correctCode write skipped: $reason")
             return null
         }
@@ -344,12 +681,20 @@ internal object ICanHealthCorrectCode {
             table = safeTable,
             key = safeKey,
             iv = safeIv,
-            versionFlag = versionFlag,
+            path = path,
+            launcherVersionFlag = launcherVersionFlag,
             layout = layout,
         ) ?: return null
+        if (writePackets.isEmpty()) {
+            Log.e(TAG, "correctCode framing produced no F2 packets — refusing to commit an empty batch")
+            return null
+        }
         return CorrectCodePlan(
             writePackets = writePackets,
             commitPacket = buildCommitPacket(),
+            path = path,
+            launcherVersionFlag = launcherVersionFlag,
+            layout = layout,
         )
     }
 
