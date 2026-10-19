@@ -103,6 +103,12 @@ data class ICanHealthSnHistoryRecord(
     val subtype: Int,
     val glucoseMmolL: Float? = null,
     val glucoseMgdl: Float? = null,
+    /**
+     * Unsigned raw value field exactly as decoded (hundredths of mmol/L, or the direct 16-bit
+     * variant). Exposed so the live-semantics classifier can compare it with the live frame's
+     * field on the same scale instead of round-tripping through the mmol/L float.
+     */
+    val mantissa: Int? = null,
     val dataState: Int = 0,
     val currentValue: Float? = null,
     val temperatureC: Float? = null,
@@ -437,6 +443,7 @@ object ICanHealthParser {
                         subtype = subtype,
                         glucoseMmolL = glucoseMmolL,
                         glucoseMgdl = glucoseMgdl,
+                        mantissa = field.mantissa,
                         dataState = dataState,
                     )
                 }
@@ -745,6 +752,7 @@ object ICanHealthParser {
                     subtype = subtype,
                     glucoseMmolL = glucoseMmolL,
                     glucoseMgdl = glucoseMgdl,
+                    mantissa = field.mantissa,
                     dataState = dataState,
                     currentValue = currentValue,
                     temperatureC = temperature,

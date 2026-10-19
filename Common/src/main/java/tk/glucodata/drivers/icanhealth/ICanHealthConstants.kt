@@ -861,4 +861,10 @@ object ICanHealthConstants {
 
     /** Preference key prefix for the repair generation already applied to a given iCan sensor */
     const val PREF_HISTORY_TZ_REPAIR_PREFIX = "icanhealth_history_tz_repair_"
+
+    /** Preference key prefix for the count of live-vs-history same-sequence raw matches */
+    const val PREF_LIVE_SEMANTICS_MATCHES_PREFIX = "icanhealth_live_semantics_matches_"
+
+    /** Preference key prefix for the count of live-vs-history same-sequence raw mismatches */
+    const val PREF_LIVE_SEMANTICS_MISMATCHES_PREFIX = "icanhealth_live_semantics_mismatches_"
 }

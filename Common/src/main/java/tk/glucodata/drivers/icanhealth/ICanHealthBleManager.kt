@@ -87,6 +87,7 @@ class ICanHealthBleManager(
         private const val MAX_LIVE_TIMESTAMP_FUTURE_SKEW_MS = 5_000L
         private const val MAX_LIVE_TIMESTAMP_LAG_MS = 10 * 60 * 1000L
         private const val RECENT_GLUCOSE_WINDOW_SIZE = 24
+        private const val HISTORY_DERIVED_SEQUENCE_WINDOW = 64
         private const val NATIVE_MIRROR_STREAM_WINDOW_SEC = 15L * 24L * 60L * 60L
         private const val HISTORY_SYNC_STATUS_STEP = 500
         private const val LIVE_GAP_BACKFILL_MIN_INTERVAL_MS = 10 * 60 * 1000L
@@ -199,6 +200,7 @@ class ICanHealthBleManager(
     @Volatile private var authRetryCount = 0
     @Volatile private var lastHandledLiveSequence = -1
     @Volatile private var lastHandledLiveTimestampMs = 0L
+    @Volatile private var liveSemanticsEvidence = ICanHealthLiveSemanticsEvidence()
     @Volatile private var lastLiveGapBackfillAtMs = 0L
     @Volatile private var pendingLiveHistoryGap: ICanHealthSequenceGap? = null
     @Volatile private var historyTzRepairLoadedSensorId: String? = null
@@ -229,6 +231,15 @@ class ICanHealthBleManager(
     @Volatile private var vendorSoftwareVersion: String = ""
     private val pendingHistoryBatch = LinkedHashMap<Int, PendingHistoryReading>()
     private val recentLiveGlucoseMgdl = ArrayDeque<Float>(RECENT_GLUCOSE_WINDOW_SIZE)
+
+    /**
+     * Live-semantics state. Notifications can arrive on the GATT callback thread while identity
+     * promotion runs elsewhere, so both the pairing and the derived-sequence window are guarded
+     * by a plain lock rather than assumed handler-thread confined.
+     */
+    private val liveSemanticsLock = Any()
+    private val liveSemanticsPairing = ICanHealthLiveSemanticsPairing()
+    private val historyDerivedSequences = LinkedHashSet<Int>()
     private val rejectedOnboardingAddresses = CopyOnWriteArraySet<String>()
     // The address the onboarding scan picked by name or advert, as opposed to one the user or the
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
@@ -982,6 +993,113 @@ class ICanHealthBleManager(
         return "len=${normalized.length}, suffix=$suffix"
     }
 
+    /**
+     * Load the persisted live-vs-history evidence for this sensor.
+     *
+     * Only the raw counts are stored; the verdict is re-derived from them so a threshold change
+     * does not leave stale answers behind in preferences. Called alongside [loadAesKeyFromPrefs]
+     * on connection/identity promotion, like the other per-sensor state.
+     */
+    fun loadLiveSemanticsFromPrefs(context: Context?, sensorIdOverride: String? = null) {
+        val ctx = context ?: return
+        val sensorId = sensorIdOverride?.takeIf { it.isNotBlank() } ?: SerialNumber
+        if (sensorId.isBlank()) return
+        val prefs = ctx.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+        liveSemanticsEvidence = ICanHealthLiveSemanticsEvidence(
+            matches = prefs.getInt("${ICanHealthConstants.PREF_LIVE_SEMANTICS_MATCHES_PREFIX}$sensorId", 0),
+            mismatches = prefs.getInt("${ICanHealthConstants.PREF_LIVE_SEMANTICS_MISMATCHES_PREFIX}$sensorId", 0),
+        )
+        Log.i(
+            TAG,
+            "Loaded live semantics for $sensorId: matches=${liveSemanticsEvidence.matches} " +
+                "mismatches=${liveSemanticsEvidence.mismatches} -> ${liveSemanticsEvidence.verdict}"
+        )
+    }
+
+    private fun persistLiveSemanticsEvidence() {
+        val ctx = Applic.app ?: return
+        val sensorId = SerialNumber.takeIf { it.isNotBlank() } ?: return
+        val evidence = liveSemanticsEvidence
+        ctx.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("${ICanHealthConstants.PREF_LIVE_SEMANTICS_MATCHES_PREFIX}$sensorId", evidence.matches)
+            .putInt("${ICanHealthConstants.PREF_LIVE_SEMANTICS_MISMATCHES_PREFIX}$sensorId", evidence.mismatches)
+            .apply()
+    }
+
+    private val liveSemantics: ICanHealthLiveSemantics
+        get() = liveSemanticsEvidence.verdict
+
+    /**
+     * Feed a live raw value into the same-sequence classifier.
+     *
+     * Called for every parsed live frame, before the glucose range check: on TRIGGER_ONLY
+     * sensors the live field is a nonce that is frequently out of range, and those comparisons
+     * are exactly the evidence that proves the sensor is TRIGGER_ONLY.
+     */
+    private fun observeLiveRawForSemantics(sequenceNumber: Int, liveRaw: Int) {
+        val comparison = synchronized(liveSemanticsLock) {
+            liveSemanticsPairing.observeLive(sequenceNumber, liveRaw)
+        } ?: return
+        recordLiveSemanticsComparison(comparison)
+    }
+
+    /**
+     * Feed a history raw value into the same-sequence classifier. Called for every parsed
+     * glucose-bearing history record, whether or not it is later stored: a record skipped as an
+     * overlap still proves what the history lane says about that sequence.
+     */
+    private fun observeHistoryRawForSemantics(sequenceNumber: Int, historyRaw: Int?) {
+        if (historyRaw == null) return
+        val comparison = synchronized(liveSemanticsLock) {
+            liveSemanticsPairing.observeHistory(sequenceNumber, historyRaw)
+        } ?: return
+        recordLiveSemanticsComparison(comparison)
+    }
+
+    /**
+     * Log and persist one live-vs-history comparison.
+     *
+     * The log line is deliberately unconditional: it is the shadow evidence that resolves the CN
+     * iCGM-t3 variant question, where the only packet-level data we have is the global t3 and the
+     * CN report has none.
+     */
+    private fun recordLiveSemanticsComparison(comparison: ICanHealthLiveSemanticsPairing.Comparison) {
+        val isMatch = ICanHealthLiveSemanticsClassifier.isMatch(
+            liveRaw = comparison.liveRaw,
+            historyRaw = comparison.historyRaw,
+        )
+        val updated = synchronized(liveSemanticsLock) {
+            liveSemanticsEvidence = liveSemanticsEvidence.record(isMatch)
+            liveSemanticsEvidence
+        }
+        persistLiveSemanticsEvidence()
+        Log.i(
+            TAG,
+            "live-vs-history seq=${comparison.sequenceNumber} liveRaw=${comparison.liveRaw} " +
+                "historyRaw=${comparison.historyRaw} ${if (isMatch) "MATCH" else "MISMATCH"} " +
+                "-> ${updated.verdict} (matches=${updated.matches} mismatches=${updated.mismatches})"
+        )
+    }
+
+    /**
+     * Remember that the history lane is about to store glucose for this sequence.
+     *
+     * The live path consults this to prefer the history-derived value when both lanes describe
+     * the same reading, so exactly one value is published per sequence.
+     */
+    private fun rememberHistoryDerivedSequence(sequenceNumber: Int) {
+        synchronized(liveSemanticsLock) {
+            historyDerivedSequences.add(sequenceNumber)
+            while (historyDerivedSequences.size > HISTORY_DERIVED_SEQUENCE_WINDOW) {
+                historyDerivedSequences.remove(historyDerivedSequences.first())
+            }
+        }
+    }
+
+    private fun historyOwnsSequence(sequenceNumber: Int): Boolean =
+        synchronized(liveSemanticsLock) { sequenceNumber in historyDerivedSequences }
+
     private fun shouldSkipHistoryOverlap(sequenceNumber: Int, sampleTimeMs: Long): Boolean {
         loadPersistedCoveredEdge()
         val coveredTimestampMs = maxOf(persistedHistoryTailTimestampMs, persistedCoveredTimestampMs)
@@ -1244,6 +1362,7 @@ class ICanHealthBleManager(
                 if (recoveredAuthUserId == null) {
                     loadRecoveredUserIdFromPrefs(Applic.app)
                 }
+                loadLiveSemanticsFromPrefs(Applic.app)
                 Applic.app?.let { clearLegacyAuthBypassState(it) }
                 cancelScheduledReconnect()
                 handler.removeCallbacks(postMeasurementDisconnectRunnable)
@@ -1697,6 +1816,7 @@ class ICanHealthBleManager(
             if (Applic.app != null) {
                 loadAesKeyFromPrefs(Applic.app, canonicalSerial)
                 loadRecoveredUserIdFromPrefs(Applic.app, canonicalSerial)
+                loadLiveSemanticsFromPrefs(Applic.app, canonicalSerial)
                 clearLegacyAuthBypassState(Applic.app, canonicalSerial)
             }
         }
@@ -1771,7 +1891,21 @@ class ICanHealthBleManager(
                 }
                 return
             }
-        if (reading.glucoseMgdl !in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL) {
+        // Classify every parsed live frame, including out-of-range ones: on TRIGGER_ONLY
+        // sensors the value field is a nonce and being out of range is itself part of the
+        // evidence that the field is not glucose.
+        observeLiveRawForSemantics(reading.sequenceNumber, reading.mantissa)
+        // The publish policy decides whether the value field is glucose at all. Only a value
+        // that would actually be published is rejected for its range: on a TRIGGER_ONLY sensor
+        // out-of-range values are expected and must not stop the packet from triggering the
+        // history fetch.
+        val livePublishMode = ICanHealthLivePublishPolicy.modeFor(
+            semantics = liveSemantics,
+            suppressUnverifiedLiveGlucose = ICanHealthExperimental.SUPPRESS_UNVERIFIED_LIVE_GLUCOSE,
+        )
+        val glucoseInRange =
+            reading.glucoseMgdl in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL
+        if (!glucoseInRange && livePublishMode == ICanHealthLivePublishMode.PUBLISH_LIVE) {
             reportInvalidGlucoseFromSensor(reading.glucoseMgdl, "live")
             return
         }
@@ -1789,7 +1923,9 @@ class ICanHealthBleManager(
         if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE && !liveSequence) {
             if (historySampleTimeMs == null) {
                 logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
-            } else if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
+            } else if (glucoseInRange && !shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
+                // Range-gated so a TRIGGER_ONLY frame (whose value is a nonce and may be
+                // out of range) can never leak into the history store.
                 recordHistoryBackfillSample(
                     sequenceNumber = reading.sequenceNumber,
                     sampleTimeMs = historySampleTimeMs,
@@ -1825,11 +1961,32 @@ class ICanHealthBleManager(
                 scheduleNoDataWatchdog()
                 return
             }
-            if (historyCoveredLiveEdge) {
+            // Prefer the history-derived value when both lanes describe the same reading. The
+            // timestamp check above is the "history arrived first" half; historyOwnsSequence is
+            // the "history record already accepted for this sequence" half, and
+            // shouldSkipHistoryOverlap keeps the reverse case (a late history record for an
+            // already live-covered sequence) from publishing the sequence twice.
+            if (historyCoveredLiveEdge || historyOwnsSequence(reading.sequenceNumber)) {
                 phase = Phase.STREAMING
                 setUiStatus(UiStatusKind.CONNECTED)
                 lastHandledLiveSequence = reading.sequenceNumber
                 lastHandledLiveTimestampMs = maxOf(sampleTimeMs, persistedCoveredTimestampMs)
+                scheduleNoDataWatchdog()
+                return
+            }
+            if (livePublishMode == ICanHealthLivePublishMode.HISTORY_TRIGGER) {
+                // The value field is not glucose on this sensor: treat the frame as "one new
+                // record is available" and make the history lane fetch that sequence. Nothing is
+                // published from the live value, and lastHandledLiveSequence is deliberately not
+                // advanced so the history record for this sequence is not skipped as an overlap
+                // and the automatic fetch start lands exactly here.
+                phase = Phase.STREAMING
+                setUiStatus(UiStatusKind.CONNECTED)
+                engageHistoryBackfillForLiveTrigger(
+                    previousSequence = lastHandledLiveSequence,
+                    sequenceNumber = reading.sequenceNumber,
+                    nowMs = nowMs,
+                )
                 scheduleNoDataWatchdog()
                 return
             }
@@ -1876,6 +2033,7 @@ class ICanHealthBleManager(
         return when (record.subtype) {
             ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {
                 val glucoseMgdl = record.glucoseMgdl ?: return false
+                observeHistoryRawForSemantics(record.sequenceNumber, record.mantissa)
                 if (glucoseMgdl !in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL) {
                     Log.w(TAG, "Discarding encrypted history glucose ${glucoseMgdl} mg/dL seq=${record.sequenceNumber}")
                     return false
@@ -1962,6 +2120,7 @@ class ICanHealthBleManager(
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
                 for (record in batch.records) {
+                    observeHistoryRawForSemantics(record.sequenceNumber, record.mantissa)
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
                         glucoseMgdl !in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL) {
@@ -2931,6 +3090,33 @@ class ICanHealthBleManager(
         return Float.NaN
     }
 
+    /**
+     * Engage the existing RACP backfill machinery for a live frame that carries no trustworthy
+     * glucose (TRIGGER_ONLY, or UNKNOWN with [ICanHealthExperimental.SUPPRESS_UNVERIFIED_LIVE_GLUCOSE]).
+     *
+     * The frame means "one new record is available", so the trigger sequence itself must come
+     * from history. A real sequence gap widens the fetch window through
+     * [rearmHistoryBackfillForLiveGap]; otherwise the automatic start sequence is exactly this
+     * sequence because `lastHandledLiveSequence` does not advance here. If history never arrives,
+     * no value is published for the sequence — the live raw is never used and never carried.
+     */
+    private fun engageHistoryBackfillForLiveTrigger(
+        previousSequence: Int,
+        sequenceNumber: Int,
+        nowMs: Long,
+    ) {
+        if (!isAuthenticated || charRacp == null) {
+            return
+        }
+        rearmHistoryBackfillForLiveGap(previousSequence, sequenceNumber, nowMs)
+        if (suppressAutomaticHistoryBackfill || historyBackfillRequested) {
+            return
+        }
+        historyBackfillAttemptedThisConnection = false
+        shouldRequestAuthenticatedHistoryBackfill = true
+        requestHistoryBackfill()
+    }
+
     private fun rememberRecentGlucose(glucoseMgdl: Float) {
         if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) {
             return
@@ -2957,6 +3143,9 @@ class ICanHealthBleManager(
         }
         if (glucoseMgdl.isFinite() && glucoseMgdl > 0f) {
             entry.glucoseMgdl = glucoseMgdl
+            // The record is past the overlap checks and will be flushed to Room, so the history
+            // lane now owns this sequence's glucose; the live path prefers it over its own value.
+            rememberHistoryDerivedSequence(sequenceNumber)
         }
         if (rawCurrent.isFinite() && rawCurrent > 0f) {
             entry.rawCurrent = rawCurrent
