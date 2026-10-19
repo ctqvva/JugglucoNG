@@ -6,6 +6,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
@@ -29,9 +31,17 @@ jobs:
           echo "::error title=Gradle::$(grep -n -i -E 'What went wrong|error:|FAILED|not found|Could not|No such|Execution failed' -A3 build.log | head -25 | tr '\n' '|' | cut -c1-3500)"
           echo "::error title=Variants::$(./gradlew --no-daemon -q tasks --all 2>/dev/null | grep -i '^assemble' | head -20 | tr '\n' '|')"
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: GIS-Monitor-apk
           path: "**/build/outputs/apk/**/*.apk"
+      - name: Publish APK to monitor-apk branch
+        run: |
+          f=$(find . -path "*/build/outputs/apk/*" -name "*.apk" | head -1)
+          mkdir -p "$RUNNER_TEMP/apk"; cp "$f" "$RUNNER_TEMP/apk/gis-monitor.apk"
+          cd "$RUNNER_TEMP/apk"; git init -q; git checkout -q -b monitor-apk; git add gis-monitor.apk
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "APK for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" monitor-apk
 
   emu:
     needs: apk
