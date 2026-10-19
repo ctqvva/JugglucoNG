@@ -206,6 +206,17 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   fetches and writes the table itself during its own activation — tracked in issue #679. Pointing the
   vendor app at an unknown sensor remains a non-repair (its lifecycle operations act on the account's
   bound device), and a log line when `F6 == 0xFFFF` is proposed in #676.
+* The cloud half of that plan is mapped as of 2026-10-19 (tracked in #679). All of the SDK's endpoints
+  are plain `GET`s; `sino-deviceaccess/sdk/cgm-code-encrypt` takes `deviceSn`, `key`, `timestamp`,
+  `sign`, and the server rejects the call without `deviceSn` and then `sign`. `sign` is an MD5-family
+  digest over `appId=…&deviceSn=…&timestamp=…&key=…`, where `appId` and `key` come from native getters —
+  the one piece with no readable implementation, so a capture of one real fetch is the remaining
+  evidence. The response is doubly encrypted: `data.k` RSA-decrypts (1024-bit, PKCS#1; the public key
+  is a literal in the SDK) to an `aesKey` string, and `data.v` is AES/CBC/PKCS7 with that key and its
+  first 16 characters as the IV; the plaintext is `{"code":200,"data":{"code":"<25-float JSON>"}}`.
+  Auth-family requests sign with `lowercaseHex(MD5(joined fields + "&salt=" + nonce + millis))` and
+  carry an `appSignature` that is the uppercase-hex SHA1 of the APK signing certificate. None of this
+  gates the write path: the hardware test writes a table directly and reads `F6` back.
 
 ## 7. Session clock
 
