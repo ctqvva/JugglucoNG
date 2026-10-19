@@ -3073,11 +3073,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
     <string name="notification_forwarding_section">Цаг ба бугуйвч</string>
-    <string name="notification_standard_text_title">Мэдэгдлийн текстэд утга</string>
-    <string name="notification_standard_text_desc">Цагны апп шинэчлэл бүрийг дамжуулж болно</string>
-    <string name="periodic_glucose_notifications_title">Тогтмол шинэчлэл</string>
-    <string name="periodic_glucose_notifications_desc">Утгыг цагны апп руу интервалаар илгээх</string>
-    <string name="periodic_glucose_interval_title">Интервал</string>
-    <string name="periodic_glucose_interval_every">Утга бүр</string>
-    <string name="periodic_glucose_interval_minutes">%1$d мин</string>
+    <string name="watch_forwarding_title">Утга дамжуулах</string>
+    <string name="watch_forwarding_off">Унтраалттай</string>
+    <string name="watch_forwarding_every_reading">Утга бүр</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">%d минут тутам</item>
+        <item quantity="other">%d минут тутам</item>
+    </plurals>
 </resources>

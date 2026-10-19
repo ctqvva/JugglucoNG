@@ -2962,11 +2962,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
     <string name="notification_forwarding_section">Orologi e smartband</string>
-    <string name="notification_standard_text_title">Valore nel testo della notifica</string>
-    <string name="notification_standard_text_desc">Le app degli orologi possono inoltrare ogni aggiornamento</string>
-    <string name="periodic_glucose_notifications_title">Aggiornamenti periodici</string>
-    <string name="periodic_glucose_notifications_desc">Invia il valore alle app degli orologi a intervalli</string>
-    <string name="periodic_glucose_interval_title">Intervallo</string>
-    <string name="periodic_glucose_interval_every">Ogni valore</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Inoltra valori</string>
+    <string name="watch_forwarding_off">Disattivato</string>
+    <string name="watch_forwarding_every_reading">Ogni valore</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Ogni minuto</item>
+        <item quantity="many">Ogni %d minuti</item>
+        <item quantity="other">Ogni %d minuti</item>
+    </plurals>
 </resources>

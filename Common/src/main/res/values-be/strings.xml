@@ -3047,11 +3047,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Гучнасць гуку трывогі</string>
     <string name="notification_forwarding_section">Гадзіннікі і бранзалеты</string>
-    <string name="notification_standard_text_title">Паказанні ў тэксце апавяшчэння</string>
-    <string name="notification_standard_text_desc">Праграмы гадзіннікаў могуць перасылаць кожнае абнаўленне</string>
-    <string name="periodic_glucose_notifications_title">Перыядычныя абнаўленні</string>
-    <string name="periodic_glucose_notifications_desc">Адпраўляць паказанні ў праграмы гадзіннікаў з інтэрвалам</string>
-    <string name="periodic_glucose_interval_title">Інтэрвал</string>
-    <string name="periodic_glucose_interval_every">Кожнае</string>
-    <string name="periodic_glucose_interval_minutes">%1$d хв</string>
+    <string name="watch_forwarding_title">Перасылка паказанняў</string>
+    <string name="watch_forwarding_off">Выключана</string>
+    <string name="watch_forwarding_every_reading">Кожнае паказанне</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Кожную %d хвіліну</item>
+        <item quantity="few">Кожныя %d хвіліны</item>
+        <item quantity="many">Кожныя %d хвілін</item>
+        <item quantity="other">Кожныя %d хвіліны</item>
+    </plurals>
 </resources>

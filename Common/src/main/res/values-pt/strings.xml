@@ -2973,11 +2973,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
     <string name="notification_forwarding_section">Relógios e pulseiras</string>
-    <string name="notification_standard_text_title">Leitura no texto da notificação</string>
-    <string name="notification_standard_text_desc">As apps de relógio podem reencaminhar cada atualização</string>
-    <string name="periodic_glucose_notifications_title">Atualizações periódicas</string>
-    <string name="periodic_glucose_notifications_desc">Enviar a leitura às apps de relógio em intervalos</string>
-    <string name="periodic_glucose_interval_title">Intervalo</string>
-    <string name="periodic_glucose_interval_every">Cada leitura</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Encaminhar leituras</string>
+    <string name="watch_forwarding_off">Desativado</string>
+    <string name="watch_forwarding_every_reading">Cada leitura</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">A cada minuto</item>
+        <item quantity="many">A cada %d minutos</item>
+        <item quantity="other">A cada %d minutos</item>
+    </plurals>
 </resources>

@@ -3224,11 +3224,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Alert sound volume</string>
     <string name="notification_forwarding_section">Watches &amp; bands</string>
-    <string name="notification_standard_text_title">Reading in notification text</string>
-    <string name="notification_standard_text_desc">Watch apps may forward every update</string>
-    <string name="periodic_glucose_notifications_title">Periodic updates</string>
-    <string name="periodic_glucose_notifications_desc">Send the reading to watch apps at an interval</string>
-    <string name="periodic_glucose_interval_title">Interval</string>
-    <string name="periodic_glucose_interval_every">Each reading</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Forward readings</string>
+    <string name="watch_forwarding_off">Off</string>
+    <string name="watch_forwarding_every_reading">Every reading</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Every minute</item>
+        <item quantity="other">Every %d minutes</item>
+    </plurals>
 </resources>

@@ -41,7 +41,8 @@ class NotificationForwardingSettingsTests {
         shadowOf(app.packageManager).installPackage(info)
     }
 
-    @Test fun periodicNotificationsAreOffAtFiveMinutesByDefault() {
+    @Test fun forwardingIsOffAtFiveMinutesByDefault() {
+        assertEquals(NotificationForwardingSettings.MODE_OFF, NotificationForwardingSettings.mode(app))
         assertFalse(NotificationForwardingSettings.isPeriodicEnabled(app))
         assertEquals(5, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
@@ -60,39 +61,44 @@ class NotificationForwardingSettingsTests {
 
     @Test fun anExplicitChoiceIsNeverOverwritten() {
         installedAt(1_000L, 1_000L)
-        NotificationForwardingSettings.setStandardText(app, false)
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_OFF)
         NotificationForwardingSettings.pinStandardTextDefault(app)
         assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
 
         installedAt(1_000L, 9_000L)
-        NotificationForwardingSettings.setStandardText(app, true)
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
         NotificationForwardingSettings.pinStandardTextDefault(app)
         assertTrue(NotificationForwardingSettings.isStandardTextEnabled(app))
     }
 
-    @Test fun enablingPeriodicTurnsStandardTextOffAndDisablingLeavesItOff() {
-        NotificationForwardingSettings.setStandardText(app, true)
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
-        assertFalse(NotificationForwardingSettings.isStandardTextPreferred(prefs))
-
-        NotificationForwardingSettings.setPeriodicEnabled(app, false)
+    @Test fun eachModeIsOneExclusiveChoice() {
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_EVERY_READING)
+        assertEquals(NotificationForwardingSettings.MODE_EVERY_READING, NotificationForwardingSettings.mode(app))
+        assertTrue(NotificationForwardingSettings.isStandardTextEnabled(app))
         assertFalse(NotificationForwardingSettings.isPeriodicEnabled(app))
-        assertFalse("not silently restored", NotificationForwardingSettings.isStandardTextEnabled(app))
+
+        NotificationForwardingSettings.setMode(app, 3)
+        assertEquals(3, NotificationForwardingSettings.mode(app))
+        assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
+        assertTrue(NotificationForwardingSettings.isPeriodicEnabled(app))
+
+        NotificationForwardingSettings.setMode(app, NotificationForwardingSettings.MODE_OFF)
+        assertEquals(NotificationForwardingSettings.MODE_OFF, NotificationForwardingSettings.mode(app))
+        assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
+        assertFalse(NotificationForwardingSettings.isPeriodicEnabled(app))
+        assertEquals("the interval is remembered", 3, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
-    @Test fun bothCanNeverBeOnTogether() {
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        NotificationForwardingSettings.setStandardText(app, true)
+    @Test fun aStoredConflictResolvesToPeriodic() {
+        // An old backup or a hand-edited file can hold both.
+        prefs.edit().putBoolean(NotificationForwardingSettings.KEY_STANDARD_TEXT, true)
+            .putBoolean(NotificationForwardingSettings.KEY_PERIODIC_ENABLED, true).commit()
         assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
-        // Even a stored conflict (an old backup, a hand-edited file) resolves to periodic.
-        prefs.edit().putBoolean(NotificationForwardingSettings.KEY_STANDARD_TEXT, true).commit()
-        assertFalse(NotificationForwardingSettings.isStandardTextEnabled(app))
+        assertEquals(5, NotificationForwardingSettings.mode(app))
     }
 
     @Test fun settingsPersistAcrossAReread() {
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 10)
+        NotificationForwardingSettings.setMode(app, 10)
         val reread = app.getSharedPreferences(NotificationForwardingSettings.PREFS, Context.MODE_PRIVATE)
         assertTrue(NotificationForwardingSettings.isPeriodicEnabled(reread))
         assertEquals(10, NotificationForwardingSettings.periodicIntervalMinutes(reread))
@@ -101,8 +107,9 @@ class NotificationForwardingSettingsTests {
     @Test fun unknownIntervalsFallBackToTheDefault() {
         prefs.edit().putInt(NotificationForwardingSettings.KEY_PERIODIC_INTERVAL, 7).commit()
         assertEquals(5, NotificationForwardingSettings.periodicIntervalMinutes(app))
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
-        assertEquals(1, NotificationForwardingSettings.periodicIntervalMinutes(app))
+        // "Each reading" was an interval in an earlier test build.
+        prefs.edit().putInt(NotificationForwardingSettings.KEY_PERIODIC_INTERVAL, 1).commit()
+        assertEquals(5, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
     private fun resetPeriodicState() {
@@ -111,6 +118,11 @@ class NotificationForwardingSettingsTests {
             PeriodicGlucoseUpdates::class.java.getDeclaredField(name).also { it.isAccessible = true }.setLong(null, 0L)
         }
         PeriodicGlucoseUpdates.onSettingChanged(false)
+    }
+
+    /** As if nothing had been announced yet, so the next reading is due regardless of the interval. */
+    private fun forgetLastAnnouncement() {
+        app.getSharedPreferences("periodic_glucose_notification_state", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
     private fun settle() = ShadowSystemClock.advanceBy(Duration.ofMillis(PeriodicGlucoseUpdates.SETTLE_MS))
@@ -131,8 +143,7 @@ class NotificationForwardingSettingsTests {
         val now = System.currentTimeMillis()
         assertEquals("off by default", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
 
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        NotificationForwardingSettings.setMode(app, 3)
         assertEquals("the first post of a due reading waits for its alerts",
             PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
         settle()
@@ -140,18 +151,20 @@ class NotificationForwardingSettingsTests {
         assertEquals("repaints of the same reading carry no text",
             PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 20_000L, 5.5f))
         assertEquals(0L, PeriodicGlucoseUpdates.settleRemainingMillis())
-        assertEquals("next reading", PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 10_000L, 5.6f))
+        assertEquals("inside the interval", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now - 10_000L, 5.6f))
 
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 5)
-        assertEquals("inside the interval", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now, 5.7f))
-        assertEquals("never a non-value", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now + 1_000L, 1.0f))
+        // The interval itself is PeriodicGlucoseNotificationPolicyTests' business.
+        forgetLastAnnouncement()
+        assertEquals("next interval", PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 5_000L, 5.7f))
+        forgetLastAnnouncement()
+        assertEquals("never a non-value", PeriodicGlucoseUpdates.NOT_DUE, claimSettled(now, 1.0f))
     }
 
     @Test fun switchingOnSendsTheCurrentReadingOnceWithoutWaiting() {
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
         val now = System.currentTimeMillis()
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        NotificationForwardingSettings.setMode(app, 5)
         assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(now - 20_000L, 5.5f))
         PeriodicGlucoseUpdates.onSettingChanged(true)
         assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, PeriodicGlucoseUpdates.claim(now - 20_000L, 5.5f))
@@ -164,7 +177,7 @@ class NotificationForwardingSettingsTests {
     @Test fun readingsFromBeforeProcessStartAreNotAnnounced() {
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
+        NotificationForwardingSettings.setMode(app, 5)
         val cached = System.currentTimeMillis() - 30_000L
         PeriodicGlucoseUpdates.onProcessStart()
         assertEquals(PeriodicGlucoseUpdates.NOT_DUE, claimSettled(cached, 5.5f))
@@ -174,13 +187,13 @@ class NotificationForwardingSettingsTests {
         // Native alarms: the alarm notification goes out first, stamped with the reading.
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        NotificationForwardingSettings.setMode(app, 3)
         val reading = System.currentTimeMillis() - 5_000L
         PeriodicGlucoseUpdates.noteAlertNotificationPosted(reading)
         assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 3.1f))
         settle()
         assertEquals(PeriodicGlucoseUpdates.NOT_DUE, PeriodicGlucoseUpdates.claim(reading, 3.1f))
+        forgetLastAnnouncement()
         assertEquals("the next reading is not the alarm's",
             PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(reading + 60_000L, 3.0f))
     }
@@ -189,8 +202,7 @@ class NotificationForwardingSettingsTests {
         // Custom alerts run after the ongoing notification and stamp their own time.
         assumeFalse(Applic.isWearable)
         resetPeriodicState()
-        NotificationForwardingSettings.setPeriodicEnabled(app, true)
-        NotificationForwardingSettings.setPeriodicIntervalMinutes(app, 1)
+        NotificationForwardingSettings.setMode(app, 3)
         val reading = System.currentTimeMillis() - 5_000L
         assertEquals(PeriodicGlucoseUpdates.LATER, PeriodicGlucoseUpdates.claim(reading, 3.1f))
         PeriodicGlucoseUpdates.noteAlertNotificationPosted(System.currentTimeMillis())
@@ -199,15 +211,15 @@ class NotificationForwardingSettingsTests {
             PeriodicGlucoseUpdates.NOT_DUE, PeriodicGlucoseUpdates.claim(reading, 3.1f))
 
         // An alarm from before the next reading arrived does not swallow it.
+        forgetLastAnnouncement()
         assertEquals(PeriodicGlucoseUpdates.ANNOUNCE, claimSettled(reading + 60_000L, 3.0f))
     }
 
     @Test fun everyLocaleTranslatesTheNewCopyWithTheSamePlaceholders() {
         val resDir = listOf("src/main/res", "Common/src/main/res").map(::File).first { it.isDirectory }
         val keys = listOf(
-            "notification_forwarding_section", "notification_standard_text_title", "notification_standard_text_desc",
-            "periodic_glucose_notifications_title", "periodic_glucose_notifications_desc",
-            "periodic_glucose_interval_title", "periodic_glucose_interval_every", "periodic_glucose_interval_minutes"
+            "notification_forwarding_section", "watch_forwarding_title", "watch_forwarding_off",
+            "watch_forwarding_every_reading"
         )
         fun value(file: File, key: String): String? =
             Regex("""<string name="$key"[^>]*>(.*?)</string>""").find(file.readText())?.groupValues?.get(1)
@@ -224,8 +236,13 @@ class NotificationForwardingSettingsTests {
                     placeholders.findAll(value(english, key)!!).map { it.value }.toList(),
                     placeholders.findAll(translated!!).map { it.value }.toList())
             }
-            assertTrue("${file.parentFile.name}: description still English",
-                value(file, "periodic_glucose_notifications_desc") != value(english, "periodic_glucose_notifications_desc"))
+            assertTrue("${file.parentFile.name}: title still English",
+                value(file, "watch_forwarding_title") != value(english, "watch_forwarding_title"))
+            val plural = Regex("""<plurals name="watch_forwarding_every_minutes">(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
+                .find(file.readText())?.groupValues?.get(1)
+            assertNotNull("${file.parentFile.name}: missing watch_forwarding_every_minutes", plural)
+            assertTrue("${file.parentFile.name}: plural without other or count",
+                Regex("""<item quantity="other">[^<]*%d""").containsMatchIn(plural!!))
         }
     }
 }

@@ -3015,11 +3015,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
     <string name="notification_forwarding_section">Horloges en bandjes</string>
-    <string name="notification_standard_text_title">Waarde in meldingstekst</string>
-    <string name="notification_standard_text_desc">Horloge-apps sturen mogelijk elke update door</string>
-    <string name="periodic_glucose_notifications_title">Periodieke updates</string>
-    <string name="periodic_glucose_notifications_desc">Stuur de waarde met een interval naar horloge-apps</string>
-    <string name="periodic_glucose_interval_title">Interval</string>
-    <string name="periodic_glucose_interval_every">Elke waarde</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Waarden doorsturen</string>
+    <string name="watch_forwarding_off">Uit</string>
+    <string name="watch_forwarding_every_reading">Elke waarde</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Elke minuut</item>
+        <item quantity="other">Elke %d minuten</item>
+    </plurals>
 </resources>

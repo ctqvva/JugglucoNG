@@ -3088,11 +3088,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
     <string name="notification_forwarding_section">Uhren &amp; Bänder</string>
-    <string name="notification_standard_text_title">Wert im Benachrichtigungstext</string>
-    <string name="notification_standard_text_desc">Uhren-Apps leiten evtl. jede Aktualisierung weiter</string>
-    <string name="periodic_glucose_notifications_title">Periodische Updates</string>
-    <string name="periodic_glucose_notifications_desc">Den Wert in festem Abstand an Uhren-Apps senden</string>
-    <string name="periodic_glucose_interval_title">Abstand</string>
-    <string name="periodic_glucose_interval_every">Jeder Wert</string>
-    <string name="periodic_glucose_interval_minutes">%1$d Min.</string>
+    <string name="watch_forwarding_title">Werte weiterleiten</string>
+    <string name="watch_forwarding_off">Aus</string>
+    <string name="watch_forwarding_every_reading">Jeder Wert</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Jede Minute</item>
+        <item quantity="other">Alle %d Minuten</item>
+    </plurals>
 </resources>

@@ -3000,11 +3000,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
     <string name="notification_forwarding_section">Saatler ve bileklikler</string>
-    <string name="notification_standard_text_title">Bildirim metninde değer</string>
-    <string name="notification_standard_text_desc">Saat uygulamaları her güncellemeyi iletebilir</string>
-    <string name="periodic_glucose_notifications_title">Periyodik güncellemeler</string>
-    <string name="periodic_glucose_notifications_desc">Değeri saat uygulamalarına aralıklarla gönder</string>
-    <string name="periodic_glucose_interval_title">Aralık</string>
-    <string name="periodic_glucose_interval_every">Her değer</string>
-    <string name="periodic_glucose_interval_minutes">%1$d dk</string>
+    <string name="watch_forwarding_title">Değerleri ilet</string>
+    <string name="watch_forwarding_off">Kapalı</string>
+    <string name="watch_forwarding_every_reading">Her değer</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">%d dakikada bir</item>
+        <item quantity="other">%d dakikada bir</item>
+    </plurals>
 </resources>

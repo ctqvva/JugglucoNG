@@ -3157,11 +3157,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
 
     <string name="alert_sound_volume">Codka digniinta</string>
     <string name="notification_forwarding_section">Saacadaha iyo xargaha</string>
-    <string name="notification_standard_text_title">Akhriska qoraalka ogeysiiska</string>
-    <string name="notification_standard_text_desc">Apps-ka saacadaha waxay gudbin karaan cusbooneysiin kasta</string>
-    <string name="periodic_glucose_notifications_title">Cusbooneysiin joogto ah</string>
-    <string name="periodic_glucose_notifications_desc">U dir akhriska apps-ka saacadaha muddo kasta</string>
-    <string name="periodic_glucose_interval_title">Muddada</string>
-    <string name="periodic_glucose_interval_every">Akhris kasta</string>
-    <string name="periodic_glucose_interval_minutes">%1$d daq</string>
+    <string name="watch_forwarding_title">U gudbi akhrisyada</string>
+    <string name="watch_forwarding_off">Demin</string>
+    <string name="watch_forwarding_every_reading">Akhris kasta</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Daqiiqad kasta</item>
+        <item quantity="other">%d daqiiqo kasta</item>
+    </plurals>
 </resources>

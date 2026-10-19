@@ -3052,11 +3052,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
     <string name="notification_forwarding_section">Годинники й браслети</string>
-    <string name="notification_standard_text_title">Показники в тексті сповіщення</string>
-    <string name="notification_standard_text_desc">Застосунки годинників можуть пересилати кожне оновлення</string>
-    <string name="periodic_glucose_notifications_title">Періодичні оновлення</string>
-    <string name="periodic_glucose_notifications_desc">Надсилати показники в застосунки годинників з інтервалом</string>
-    <string name="periodic_glucose_interval_title">Інтервал</string>
-    <string name="periodic_glucose_interval_every">Кожне</string>
-    <string name="periodic_glucose_interval_minutes">%1$d хв</string>
+    <string name="watch_forwarding_title">Пересилання показів</string>
+    <string name="watch_forwarding_off">Вимкнено</string>
+    <string name="watch_forwarding_every_reading">Кожен показ</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Кожну %d хвилину</item>
+        <item quantity="few">Кожні %d хвилини</item>
+        <item quantity="many">Кожні %d хвилин</item>
+        <item quantity="other">Кожні %d хвилини</item>
+    </plurals>
 </resources>

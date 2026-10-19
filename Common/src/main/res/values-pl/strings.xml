@@ -3014,11 +3014,13 @@
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
     <string name="notification_forwarding_section">Zegarki i opaski</string>
-    <string name="notification_standard_text_title">Odczyt w tekście powiadomienia</string>
-    <string name="notification_standard_text_desc">Aplikacje zegarków mogą przekazywać każdą aktualizację</string>
-    <string name="periodic_glucose_notifications_title">Okresowe aktualizacje</string>
-    <string name="periodic_glucose_notifications_desc">Wysyłaj odczyt do aplikacji zegarków co wybrany czas</string>
-    <string name="periodic_glucose_interval_title">Odstęp</string>
-    <string name="periodic_glucose_interval_every">Każdy odczyt</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Przekazywanie odczytów</string>
+    <string name="watch_forwarding_off">Wyłączone</string>
+    <string name="watch_forwarding_every_reading">Każdy odczyt</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Co minutę</item>
+        <item quantity="few">Co %d minuty</item>
+        <item quantity="many">Co %d minut</item>
+        <item quantity="other">Co %d minuty</item>
+    </plurals>
 </resources>

@@ -2987,11 +2987,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">警报音量</string>
     <string name="notification_forwarding_section">手表和手环</string>
-    <string name="notification_standard_text_title">通知文本中显示读数</string>
-    <string name="notification_standard_text_desc">手表应用可能会转发每次更新</string>
-    <string name="periodic_glucose_notifications_title">定期更新</string>
-    <string name="periodic_glucose_notifications_desc">按间隔将读数发送到手表应用</string>
-    <string name="periodic_glucose_interval_title">间隔</string>
-    <string name="periodic_glucose_interval_every">每次读数</string>
-    <string name="periodic_glucose_interval_minutes">%1$d 分钟</string>
+    <string name="watch_forwarding_title">转发读数</string>
+    <string name="watch_forwarding_off">关闭</string>
+    <string name="watch_forwarding_every_reading">每次读数</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="other">每 %d 分钟</item>
+    </plurals>
 </resources>

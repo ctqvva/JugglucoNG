@@ -79,13 +79,15 @@ keep their standard text, so alarms still reach the watch.
 
 ### Compatibility & forwarding settings
 
-Notification settings now let the user choose what listener apps can read. The
-settings sit under "Watches & bands". Both work only through the standard
+Notification settings now let the user choose what listener apps can read: one
+"Forward readings" row under "Watches & bands" with a single-choice dialog (Off,
+Every reading, every 3/5/10 minutes; `NotificationForwardingSettings.mode`).
+Both modes work only through the standard
 title/text of the ongoing notification (81431); there is no second notification.
 Its custom views ignore title/text, so the phone looks the same either way. Alarm
 notifications are the same under every combination.
 
-- **Reading in notification text** (`notification_standard_text`). When on, every
+- **Every reading** (`notification_standard_text`). When on, every
   post of the ongoing notification has a standard title and text again, as in
   1.2.3–1.2.4. The title is the value(s) and trend glyph, without unit. The text
   is the status line. When off, the fields are absent rather than empty.
@@ -93,8 +95,9 @@ notifications are the same under every combination.
   An update starts with it off, because `firstInstallTime != lastUpdateTime`.
   This keeps the 1.2.5 behaviour for people who already rely on #646. A stored
   value is never overwritten.
-- **Periodic updates** (`periodic_glucose_notifications`, interval
-  `periodic_glucose_interval_minutes` ∈ {1 = each reading, 3, 5, 10}, default 5).
+- **Every N minutes** (`periodic_glucose_notifications`, interval
+  `periodic_glucose_interval_minutes` ∈ {3, 5, 10}, default 5; anything else,
+  including the 1 an earlier test build stored, reads as 5).
   The render asks `PeriodicGlucoseUpdates.claim` whether this post announces the
   displayed reading. Only that post gets the title and, as text, the measurement
   time; every other post, including repaints of the same reading, has none.
@@ -108,12 +111,12 @@ notifications are the same under every combination.
   alerts run after the ongoing notification is posted and a forwarded message
   cannot be taken back. An alarm notification posted for the same measurement
   (native alarms, posted first) or while the reading settled (custom alerts, which
-  stamp their own time) counts as that interval's message. Switching the setting
-  on announces the current fresh reading once, without settling. The alarm itself
+  stamp their own time) counts as that interval's message. Picking an interval
+  announces the current fresh reading once, without settling. The alarm itself
   is never touched or delayed.
-- The two settings are exclusive. Turning periodic on turns standard text off and
-  disables its switch. Turning periodic off leaves standard text off. Rendering
-  also enforces the rule, in case the stored values ever conflict.
+- The two are exclusive by construction: the dialog stores exactly one mode.
+  Rendering also enforces the rule (periodic wins), in case stored values from a
+  backup ever conflict.
 
 Device findings so far, from user reports rather than our own testing: Mi Fitness
 (Mi Band 10) on 1.2.4 forwarded the ongoing notification only after a disconnect

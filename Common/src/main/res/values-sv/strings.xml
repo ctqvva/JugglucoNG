@@ -2972,11 +2972,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Volym för larmljud</string>
     <string name="notification_forwarding_section">Klockor och band</string>
-    <string name="notification_standard_text_title">Värdet i aviseringstexten</string>
-    <string name="notification_standard_text_desc">Klockappar kan vidarebefordra varje uppdatering</string>
-    <string name="periodic_glucose_notifications_title">Periodiska uppdateringar</string>
-    <string name="periodic_glucose_notifications_desc">Skicka värdet till klockappar med intervall</string>
-    <string name="periodic_glucose_interval_title">Intervall</string>
-    <string name="periodic_glucose_interval_every">Varje värde</string>
-    <string name="periodic_glucose_interval_minutes">%1$d min</string>
+    <string name="watch_forwarding_title">Vidarebefordra värden</string>
+    <string name="watch_forwarding_off">Av</string>
+    <string name="watch_forwarding_every_reading">Varje värde</string>
+    <plurals name="watch_forwarding_every_minutes">
+        <item quantity="one">Varje minut</item>
+        <item quantity="other">Var %d:e minut</item>
+    </plurals>
 </resources>
