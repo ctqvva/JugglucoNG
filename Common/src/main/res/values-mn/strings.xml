@@ -3009,6 +3009,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
     <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
     <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>
+    <string name="watch_help_forwarding">Мэдэгдлийн горим нь цаг болон бугуйвчийн аппууд утасны мэдэгдлээс юу авахыг тодорхойлно. «Стандарт Android»: мэдэгдэл шинэчлэгдэх бүрт утга, тиймээс зарим цаг тухай бүрт чичирнэ. «Шинэ утга бүр» ба «Тодорхой хугацаагаар»: утга бүрийг нэг удаа. «Зөвхөн дохиолол»: утгагүй.</string>
     <string name="watch_help_wearos">Энэ апп-д цагны мессеж дамжуулалт ашиглахын тулд Wear OS-ийг идэвхжүүлнэ үү.</string>
     <string name="watch_help_config">Тохиргоо хэсгээс цагаа сонгож, мэдрэгчийн шууд чиглүүлэлтийг тохируулна уу.</string>
     <string name="watch_help_garmin">Garmin Connect IQ нь Kerfstok-оор ажилладаг бөгөөд тусдаа төлөвийн удирдлагатай.</string>
@@ -3091,13 +3092,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
     <string name="watch_forwarding_section">Утасны мэдэгдлээр</string>
-    <string name="watch_forwarding_title">Глюкоз дамжуулах</string>
-    <string name="watch_forwarding_off">Унтраалттай</string>
-    <string name="watch_forwarding_standard_text">Үргэлж стандарт тексттэй</string>
+    <string name="watch_forwarding_title">Мэдэгдлийн горим</string>
+    <string name="watch_forwarding_standard">Стандарт Android</string>
+    <string name="watch_forwarding_alarms_only">Зөвхөн дохиолол</string>
     <string name="watch_forwarding_every_reading">Шинэ утга бүр</string>
-    <plurals name="watch_forwarding_every_minutes">
-        <item quantity="one">%d минут тутам</item>
-        <item quantity="other">%d минут тутам</item>
+    <string name="watch_forwarding_interval">Тодорхой хугацаагаар</string>
+    <string name="watch_forwarding_interval_title">Хугацааны зай</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d минут</item>
+        <item quantity="other">%d минут</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Үзүүлэлтийг Dexcom Follow руу илгээх</string>

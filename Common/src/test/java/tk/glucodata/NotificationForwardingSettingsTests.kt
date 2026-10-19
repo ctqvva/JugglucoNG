@@ -96,6 +96,35 @@ class NotificationForwardingSettingsTests {
         assertEquals("the interval is remembered", 3, NotificationForwardingSettings.periodicIntervalMinutes(app))
     }
 
+    @Test fun theModeMenuKeepsEveryNewReadingApartFromTheIntervals() {
+        val settings = NotificationForwardingSettings
+        assertEquals(listOf(settings.MODE_STANDARD_TEXT, settings.MODE_OFF, settings.MODE_EVERY_READING, settings.MODE_INTERVAL),
+            settings.MODE_CHOICES.toList())
+        assertEquals(listOf(3, 5, 10), settings.INTERVAL_CHOICES.toList())
+        assertEquals(settings.MODE_STANDARD_TEXT, settings.choice(settings.MODE_STANDARD_TEXT))
+        assertEquals(settings.MODE_OFF, settings.choice(settings.MODE_OFF))
+        assertEquals(settings.MODE_EVERY_READING, settings.choice(settings.MODE_EVERY_READING))
+        for (minutes in settings.INTERVAL_CHOICES) assertEquals(settings.MODE_INTERVAL, settings.choice(minutes))
+    }
+
+    @Test fun choosingTheIntervalModeBringsBackTheLastInterval() {
+        val settings = NotificationForwardingSettings
+        assertEquals("nothing chosen yet", 5, settings.modeForChoice(app, settings.MODE_INTERVAL))
+
+        settings.setMode(app, 10)
+        settings.setMode(app, settings.MODE_STANDARD_TEXT)
+        assertEquals(10, settings.modeForChoice(app, settings.MODE_INTERVAL))
+        settings.setMode(app, settings.MODE_OFF)
+        assertEquals(10, settings.modeForChoice(app, settings.MODE_INTERVAL))
+
+        // Every new reading is stored as the 1-minute interval, which the interval menu does not offer.
+        settings.setMode(app, settings.MODE_EVERY_READING)
+        assertEquals(5, settings.modeForChoice(app, settings.MODE_INTERVAL))
+
+        for (choice in intArrayOf(settings.MODE_STANDARD_TEXT, settings.MODE_OFF, settings.MODE_EVERY_READING))
+            assertEquals(choice, settings.modeForChoice(app, choice))
+    }
+
     @Test fun aStoredConflictResolvesToPeriodic() {
         // An old backup or a hand-edited file can hold both.
         prefs.edit().putBoolean(NotificationForwardingSettings.KEY_STANDARD_TEXT, true)
@@ -241,8 +270,9 @@ class NotificationForwardingSettingsTests {
     @Test fun everyLocaleTranslatesTheNewCopyWithTheSamePlaceholders() {
         val resDir = listOf("src/main/res", "Common/src/main/res").map(::File).first { it.isDirectory }
         val keys = listOf(
-            "watch_forwarding_section", "watch_forwarding_title", "watch_forwarding_off",
-            "watch_forwarding_standard_text", "watch_forwarding_every_reading"
+            "watch_forwarding_section", "watch_forwarding_title", "watch_forwarding_standard",
+            "watch_forwarding_alarms_only", "watch_forwarding_every_reading", "watch_forwarding_interval",
+            "watch_forwarding_interval_title", "watch_help_forwarding"
         )
         fun value(file: File, key: String): String? =
             Regex("""<string name="$key"[^>]*>(.*?)</string>""").find(file.readText())?.groupValues?.get(1)
@@ -261,9 +291,9 @@ class NotificationForwardingSettingsTests {
             }
             assertTrue("${file.parentFile.name}: title still English",
                 value(file, "watch_forwarding_title") != value(english, "watch_forwarding_title"))
-            val plural = Regex("""<plurals name="watch_forwarding_every_minutes">(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
+            val plural = Regex("""<plurals name="watch_forwarding_minutes">(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
                 .find(file.readText())?.groupValues?.get(1)
-            assertNotNull("${file.parentFile.name}: missing watch_forwarding_every_minutes", plural)
+            assertNotNull("${file.parentFile.name}: missing watch_forwarding_minutes", plural)
             assertTrue("${file.parentFile.name}: plural without other or count",
                 Regex("""<item quantity="other">[^<]*%d""").containsMatchIn(plural!!))
         }

@@ -3191,6 +3191,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok transport bridge</string>
     <string name="watch_garmin_status_desc">Connection status and pairing</string>
     <string name="watch_garmin_enable_hint">Enable Kerfstok to view status</string>
+    <string name="watch_help_forwarding">Notification mode decides what watch and band apps get from the phone notification. “Standard Android”: the reading with every notification update, so some watches buzz each time. “Every new reading” and “At an interval”: each reading once. “Alarms only”: no readings.</string>
     <string name="watch_help_wearos">Enable Wear OS to use watch message transport in this app.</string>
     <string name="watch_help_config">Use Config to pick a watch node and set direct sensor routing.</string>
     <string name="watch_help_garmin">Garmin Connect IQ works through Kerfstok and has separate status controls.</string>
@@ -3268,12 +3269,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Alert sound volume</string>
     <string name="watch_forwarding_section">Via phone notifications</string>
-    <string name="watch_forwarding_title">Glucose forwarding</string>
-    <string name="watch_forwarding_off">Off</string>
-    <string name="watch_forwarding_standard_text">Always include standard text</string>
+    <string name="watch_forwarding_title">Notification mode</string>
+    <string name="watch_forwarding_standard">Standard Android</string>
+    <string name="watch_forwarding_alarms_only">Alarms only</string>
     <string name="watch_forwarding_every_reading">Every new reading</string>
-    <plurals name="watch_forwarding_every_minutes">
-        <item quantity="one">Every minute</item>
-        <item quantity="other">Every %d minutes</item>
+    <string name="watch_forwarding_interval">At an interval</string>
+    <string name="watch_forwarding_interval_title">Interval</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
     </plurals>
 </resources>

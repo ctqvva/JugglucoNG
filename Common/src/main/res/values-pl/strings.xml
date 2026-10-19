@@ -2950,6 +2950,7 @@
     <string name="watch_kerfstok_bridge">Most transportowy Kerfstok</string>
     <string name="watch_garmin_status_desc">Stan połączenia i parowanie</string>
     <string name="watch_garmin_enable_hint">Włącz Kerfstok, aby zobaczyć stan</string>
+    <string name="watch_help_forwarding">Tryb powiadomień określa, co aplikacje zegarków i opasek otrzymują z powiadomienia telefonu. „Standardowy Android” — odczyt przy każdej aktualizacji powiadomienia, więc niektóre zegarki wibrują za każdym razem. „Każdy nowy odczyt” i „Co określony czas” — każdy odczyt raz. „Tylko alarmy” — bez odczytów.</string>
     <string name="watch_help_wearos">Włącz Wear OS, aby korzystać w tej aplikacji z przesyłania wiadomości do zegarka.</string>
     <string name="watch_help_config">W Konfiguracji wybierz zegarek i ustaw bezpośredni routing czujnika.</string>
     <string name="watch_help_garmin">Garmin Connect IQ działa przez Kerfstok i ma osobne sterowanie stanem.</string>
@@ -3032,15 +3033,17 @@
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
     <string name="watch_forwarding_section">Przez powiadomienia telefonu</string>
-    <string name="watch_forwarding_title">Przekazywanie odczytów</string>
-    <string name="watch_forwarding_off">Wyłączone</string>
-    <string name="watch_forwarding_standard_text">Zawsze ze standardowym tekstem</string>
+    <string name="watch_forwarding_title">Tryb powiadomień</string>
+    <string name="watch_forwarding_standard">Standardowy Android</string>
+    <string name="watch_forwarding_alarms_only">Tylko alarmy</string>
     <string name="watch_forwarding_every_reading">Każdy nowy odczyt</string>
-    <plurals name="watch_forwarding_every_minutes">
-        <item quantity="one">Co minutę</item>
-        <item quantity="few">Co %d minuty</item>
-        <item quantity="many">Co %d minut</item>
-        <item quantity="other">Co %d minuty</item>
+    <string name="watch_forwarding_interval">Co określony czas</string>
+    <string name="watch_forwarding_interval_title">Interwał</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuta</item>
+        <item quantity="few">%d minuty</item>
+        <item quantity="many">%d minut</item>
+        <item quantity="other">%d minuty</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Wysyłaj odczyty do Dexcom Follow</string>

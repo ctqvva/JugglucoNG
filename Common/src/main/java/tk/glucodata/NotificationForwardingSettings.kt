@@ -14,7 +14,9 @@ import android.content.SharedPreferences
  *   new reading, or at a chosen interval ([PeriodicGlucoseUpdates]). Unrelated
  *   refreshes of the notification stay without text.
  *
- * The user picks one [mode]: standard text on every post would defeat the interval.
+ * The user picks one [mode]: standard text on every post would defeat the interval. The
+ * settings screen splits it in two menus: the [MODE_CHOICES] and, for [MODE_INTERVAL],
+ * the [INTERVAL_CHOICES].
  * Alarm notifications are not affected by either setting.
  */
 object NotificationForwardingSettings {
@@ -32,9 +34,16 @@ object NotificationForwardingSettings {
     const val MODE_STANDARD_TEXT = -1
     const val MODE_EVERY_READING = 1
 
-    /** In the order the picker lists them; the intervals are their minutes. */
+    /** Stands for whichever interval is chosen; [mode] reports the minutes instead. */
+    const val MODE_INTERVAL = -2
+
+    /** The mode menu, in order. */
     @JvmField
-    val MODE_OPTIONS = intArrayOf(MODE_OFF, MODE_STANDARD_TEXT, *INTERVAL_OPTIONS)
+    val MODE_CHOICES = intArrayOf(MODE_STANDARD_TEXT, MODE_OFF, MODE_EVERY_READING, MODE_INTERVAL)
+
+    /** The interval menu: every interval except the 1-minute one, which is [MODE_EVERY_READING]. */
+    @JvmField
+    val INTERVAL_CHOICES = INTERVAL_OPTIONS.filter { it > MODE_EVERY_READING }.toIntArray()
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -100,6 +109,24 @@ object NotificationForwardingSettings {
 
     @JvmStatic
     fun mode(context: Context): Int = mode(prefs(context))
+
+    /** The mode menu entry for [mode]. */
+    @JvmStatic
+    fun choice(mode: Int): Int = if (mode in INTERVAL_CHOICES) MODE_INTERVAL else mode
+
+    /**
+     * The mode a menu entry selects. [MODE_INTERVAL] brings back the last interval chosen,
+     * or the default when the stored one is every new reading.
+     */
+    @JvmStatic
+    fun modeForChoice(prefs: SharedPreferences, choice: Int): Int {
+        if (choice != MODE_INTERVAL) return choice
+        val stored = periodicIntervalMinutes(prefs)
+        return if (stored in INTERVAL_CHOICES) stored else DEFAULT_INTERVAL_MINUTES
+    }
+
+    @JvmStatic
+    fun modeForChoice(context: Context, choice: Int): Int = modeForChoice(prefs(context), choice)
 
     @JvmStatic
     fun setMode(context: Context, mode: Int) {

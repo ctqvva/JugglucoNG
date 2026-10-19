@@ -2988,6 +2988,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Транспортний міст Kerfstok</string>
     <string name="watch_garmin_status_desc">Стан з’єднання та сполучення</string>
     <string name="watch_garmin_enable_hint">Увімкніть Kerfstok, щоб бачити стан</string>
+    <string name="watch_help_forwarding">Режим сповіщень визначає, що застосунки годинників і браслетів отримують зі сповіщення телефона. «Стандартний Android» — показ при кожному оновленні сповіщення, тому деякі годинники вібрують щоразу. «Кожен новий показ» і «З інтервалом» — кожен показ один раз. «Лише тривоги» — без показів.</string>
     <string name="watch_help_wearos">Увімкніть Wear OS, щоб користуватися передаванням повідомлень на годинник у цьому застосунку.</string>
     <string name="watch_help_config">У розділі «Налаштування» виберіть годинник і задайте пряму маршрутизацію сенсора.</string>
     <string name="watch_help_garmin">Garmin Connect IQ працює через Kerfstok і має окреме керування станом.</string>
@@ -3070,15 +3071,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
     <string name="watch_forwarding_section">Через сповіщення телефона</string>
-    <string name="watch_forwarding_title">Пересилання показів</string>
-    <string name="watch_forwarding_off">Вимкнено</string>
-    <string name="watch_forwarding_standard_text">Завжди зі стандартним текстом</string>
+    <string name="watch_forwarding_title">Режим сповіщень</string>
+    <string name="watch_forwarding_standard">Стандартний Android</string>
+    <string name="watch_forwarding_alarms_only">Лише тривоги</string>
     <string name="watch_forwarding_every_reading">Кожен новий показ</string>
-    <plurals name="watch_forwarding_every_minutes">
-        <item quantity="one">Кожну %d хвилину</item>
-        <item quantity="few">Кожні %d хвилини</item>
-        <item quantity="many">Кожні %d хвилин</item>
-        <item quantity="other">Кожні %d хвилини</item>
+    <string name="watch_forwarding_interval">З інтервалом</string>
+    <string name="watch_forwarding_interval_title">Інтервал</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d хвилина</item>
+        <item quantity="few">%d хвилини</item>
+        <item quantity="many">%d хвилин</item>
+        <item quantity="other">%d хвилини</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Надсилати показники в Dexcom Follow</string>
