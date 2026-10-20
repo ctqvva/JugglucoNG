@@ -40,7 +40,11 @@ public class GisBridge extends ContentProvider {
             final double k = Applic.unit == 1 ? 18.0182 : 1.0;
             final double cal = p.getPrimaryMgdl();
             final double raw = Float.isNaN(p.getRawValue()) || p.getRawValue() <= 0f ? cal : p.getRawValue() * k;
-            publish(raw, p.getRate(), p.getTimeMillis(), sensorStartMs, p.getSensorGen());
+            long start = sensorStartMs;
+            if (start <= 0) {
+                try { start = Natives.getSensorStartmsec(Natives.getdataptr(p.getSensorId())); } catch (Throwable ignored) { }
+            }
+            publish(raw, p.getRate(), p.getTimeMillis(), start, p.getSensorGen());
             final SharedPreferences.Editor e = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
             if (Math.abs(cal - raw) >= 1.0) e.putFloat("cal", (float) cal); else e.remove("cal");
             e.apply();

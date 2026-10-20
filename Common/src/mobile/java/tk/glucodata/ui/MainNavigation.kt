@@ -95,7 +95,8 @@ sealed class CalibrationSheetState {
         val raw: Float,
         val timestamp: Long,
         val sensorId: String,
-        val viewModeOverride: Int? = null
+        val viewModeOverride: Int? = null,
+        val prefillUser: Float? = null
     ) : CalibrationSheetState()
     data class Edit(val entity: tk.glucodata.data.calibration.CalibrationEntity) : CalibrationSheetState()
 }
@@ -653,6 +654,7 @@ private fun CalibrationSheetHost(
             onDismiss()
             onNavigateToCalibrations()
         },
+        prefillUserValue = (sheetState as? CalibrationSheetState.New)?.prefillUser,
         onSelectedTimestampChanged = { selected ->
             val quarter = CALIBRATION_SHEET_WINDOW_HALF_MS / 2
             if (selected < sheetWindowCenter - quarter || selected > sheetWindowCenter + quarter) {
@@ -962,7 +964,7 @@ private fun NavGraphBuilder.appDestinations(
             onTriggerCalibration = onTriggerCalibration,
         )
     }
-    composable("school") { tk.glucodata.ui.calibration.CalibrationSchoolScreen(navController) }
+    composable("school") { tk.glucodata.ui.calibration.CalibrationSchoolScreen(navController, onTriggerCalibration) }
     composable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
     composable("sensors") {
         SensorScreen(

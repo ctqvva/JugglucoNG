@@ -88,7 +88,9 @@ fun CalibrationBottomSheet(
     sensorId: String,
     onNavigateToHistory: () -> Unit,
     /** Where the sheet is now set to, so the owner of [glucoseHistory] can load around it. */
-    onSelectedTimestampChanged: ((Long) -> Unit)? = null
+    onSelectedTimestampChanged: ((Long) -> Unit)? = null,
+    /** Значение замера, уже распознанное по фото глюкометра (в единицах экрана). */
+    prefillUserValue: Float? = null
 ) {
     val view = LocalView.current
     val context = LocalContext.current
@@ -141,7 +143,7 @@ fun CalibrationBottomSheet(
 
 
     // Values
-    val startValue = editingEntity?.userValue ?: defaultInputValue
+    val startValue = editingEntity?.userValue ?: prefillUserValue ?: defaultInputValue
 
     var userValue by remember(editingEntity) { mutableFloatStateOf(startValue) }
 
