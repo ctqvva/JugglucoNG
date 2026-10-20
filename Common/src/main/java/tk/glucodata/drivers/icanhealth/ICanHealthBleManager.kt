@@ -4493,6 +4493,13 @@ class ICanHealthBleManager(
 
     private fun scheduleNoDataWatchdogIfNeeded() {
         if (hasConfirmedLiveSession()) {
+            if (lastGlucoseReceiptRealtimeMs == 0L) {
+                // No glucose yet: anchor the watchdog at the start of the streaming session so a
+                // sensor that only sends triggers (or nothing) still raises NO_DATA_TIMEOUT.
+                // The timestamp is then only advanced by an actual glucose delivery, not by a
+                // HISTORY_TRIGGER frame.
+                lastGlucoseReceiptRealtimeMs = System.currentTimeMillis()
+            }
             scheduleNoDataWatchdog()
         } else {
             handler.removeCallbacks(noDataWatchdog)
