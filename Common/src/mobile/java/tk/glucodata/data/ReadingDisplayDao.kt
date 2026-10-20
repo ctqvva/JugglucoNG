@@ -130,13 +130,14 @@ interface ReadingDisplayDao {
     suspend fun deleteForSensors(serials: List<String>)
 
     /**
-     * Voids records whose sensor has rewritten the number they were drawn from —
-     * see [tk.glucodata.data.RecordedDisplayVoiding]. A deletion, not a
-     * revision: the minute goes back to having no record, and is recorded again
-     * the next time it is presented.
+     * Releases records whose source changed, subject to the display lock.
+     * With "Keep displayed values" on, [sealHorizon] protects locked minutes
+     * in SQL just as [reviseIfUnsealed] does. Null means keeping values is off.
+     * Released minutes are recorded again the next time they are presented.
      */
-    @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes)")
-    suspend fun deleteAtMinutes(minutes: List<Long>): Int
+    @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes) " +
+        "AND (:sealHorizon IS NULL OR timestamp > :sealHorizon)")
+    suspend fun deleteAtMinutes(minutes: List<Long>, sealHorizon: Long?): Int
 
     @Query("DELETE FROM reading_display")
     suspend fun deleteAll()

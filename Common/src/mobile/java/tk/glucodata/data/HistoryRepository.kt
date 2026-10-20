@@ -892,7 +892,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     // The record may be smoothed or calibrated, so comparing it
                     // with a sensor value cannot establish that history changed.
                     // Compare the actual source rows, under the same transaction
-                    // as the replacement and invalidation.
+                    // as the replacement and invalidation. Even a real source
+                    // change cannot remove a locked presentation while "Keep
+                    // displayed values" is on: the new source belongs in the
+                    // preview. Only still-settling records may be released then.
                     if (invalidateAutoDisplayRecords || invalidateRawDisplayRecords) {
                         val records = displayDao.getBetween(
                             ReadingDisplay.minuteOf(collapsedReadings.first().timestamp),
@@ -902,7 +905,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                             records, sensorSerial, existingProvenance.values.toList(), readingsWithStableSources,
                             invalidateAutoDisplayRecords, invalidateRawDisplayRecords,
                         )
-                        minutes.chunked(500).forEach { displayDao.deleteAtMinutes(it) }
+                        val sealHorizon = if (runCatching {
+                                CalibrationManager.shouldFreezeDisplayedValues()
+                            }.getOrDefault(true)) {
+                            System.currentTimeMillis() - ReadingDisplay.sealGraceMs()
+                        } else null
+                        minutes.chunked(500).forEach { displayDao.deleteAtMinutes(it, sealHorizon) }
                     }
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = sensorSerial,
