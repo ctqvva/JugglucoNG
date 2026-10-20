@@ -29,6 +29,7 @@ jobs:
         shell: bash
         run: |
           echo "::error title=Gradle::$(grep -n -i -E 'What went wrong|error:|FAILED|not found|Could not|No such|Execution failed' -A3 build.log | head -25 | tr '\n' '|' | cut -c1-3500)"
+          echo "::error title=Kotlin::$(grep -E '^e: ' build.log | sed 's|file:///home/runner/work/JugglucoNG/JugglucoNG/||' | head -12 | tr '\n' '|' | cut -c1-3500)"
           echo "::error title=Variants::$(./gradlew --no-daemon -q tasks --all 2>/dev/null | grep -i '^assemble' | head -20 | tr '\n' '|')"
       - uses: actions/upload-artifact@v4
         continue-on-error: true
