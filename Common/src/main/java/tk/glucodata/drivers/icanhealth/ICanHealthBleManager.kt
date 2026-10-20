@@ -201,6 +201,12 @@ class ICanHealthBleManager(
     @Volatile private var lastHandledLiveSequence = -1
     @Volatile private var lastHandledLiveTimestampMs = 0L
     @Volatile private var liveSemanticsEvidence = ICanHealthLiveSemanticsEvidence()
+    /**
+     * A live frame was seen while the verdict was still UNKNOWN, so the next history cycle should
+     * also request subtype 0x01. On the CE capture 0x01 covers every slot (live and 0x02 are
+     * disjoint), which is what gives the classifier a same-sequence reference.
+     */
+    @Volatile private var semanticsReferenceNeeded = false
     @Volatile private var lastLiveGapBackfillAtMs = 0L
     @Volatile private var pendingLiveHistoryGap: ICanHealthSequenceGap? = null
     @Volatile private var historyTzRepairLoadedSensorId: String? = null
@@ -1038,6 +1044,11 @@ class ICanHealthBleManager(
      * are exactly the evidence that proves the sensor is TRIGGER_ONLY.
      */
     private fun observeLiveRawForSemantics(sequenceNumber: Int, liveRaw: Int) {
+        // Set before the pairing call: observeLive returns null when the history side has not
+        // arrived yet, but that is exactly the case that needs a 0x01 reference request.
+        if (liveSemantics == ICanHealthLiveSemantics.UNKNOWN) {
+            semanticsReferenceNeeded = true
+        }
         val comparison = synchronized(liveSemanticsLock) {
             liveSemanticsPairing.observeLive(sequenceNumber, liveRaw)
         } ?: return
@@ -2776,6 +2787,7 @@ class ICanHealthBleManager(
     }
 
     private fun finalizeHistoryBackfillAfterOriginalPhase() {
+        semanticsReferenceNeeded = false
         historyBackfillRequested = false
         historyBackfillPhase = HistoryBackfillPhase.NONE
         pendingHistoryBatch.clear()
@@ -2871,7 +2883,23 @@ class ICanHealthBleManager(
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
                 flushImportedGlucoseHistory()
-                finalizeHistoryBackfillAfterOriginalPhase()
+                val needsReference = semanticsReferenceNeeded &&
+                    liveSemantics == ICanHealthLiveSemantics.UNKNOWN
+                if (needsReference) {
+                    Log.i(
+                        TAG,
+                        "Live semantics UNKNOWN; requesting original-history (0x01) as the " +
+                            "same-sequence reference"
+                    )
+                }
+                if (!needsReference ||
+                    !beginHistoryBackfillPhase(
+                        HistoryBackfillPhase.ORIGINAL,
+                        "live-semantics reference (0x01)"
+                    )
+                ) {
+                    finalizeHistoryBackfillAfterOriginalPhase()
+                }
             }
 
             HistoryBackfillPhase.ORIGINAL -> {
