@@ -1714,6 +1714,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pair">Pair</string>
     <string name="points">Points</string>
     <string name="position_layout">Position and layout</string>
+    <string name="floating_reset_position">Reset position</string>
+    <string name="floating_reset_position_desc">Moves the floating glucose back to the top of the screen.</string>
     <string name="preview">Preview</string>
     <string name="previous_calibrations">Previous calibrations</string>
     <string name="show_less">Show less</string>

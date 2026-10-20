@@ -1332,6 +1332,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pair">配对</string>
     <string name="points">积分</string>
     <string name="position_layout">位置及布局</string>
+    <string name="floating_reset_position">重置位置</string>
+    <string name="floating_reset_position_desc">将悬浮血糖移回屏幕顶部。</string>
     <string name="preview">预览</string>
     <string name="previous_calibrations">之前的校准</string>
     <string name="show_less">显示较少</string>

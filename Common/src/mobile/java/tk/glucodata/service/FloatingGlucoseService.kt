@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.os.IBinder
 import android.view.Gravity
 import android.view.Surface
@@ -36,6 +37,11 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.overlay.FloatingGlucoseOverlay
+import tk.glucodata.ui.overlay.OverlayPosition
+import tk.glucodata.ui.overlay.OverlaySafeArea
+import tk.glucodata.ui.overlay.clampOverlayPixels
+import tk.glucodata.ui.overlay.overlayPixels
+import tk.glucodata.ui.overlay.overlayPosition
 import tk.glucodata.Natives
 
 class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -135,10 +141,13 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     )
     private val cutoutData = kotlinx.coroutines.flow.MutableStateFlow(CutoutData(0.dp, CutoutEdge.NONE))
     private var dynamicIslandEnabled = false
-    private var freeformX = 0
-    private var freeformY = 0
-    
-    // ...
+    // Freeform placement is kept screen-relative and resolved against the current
+    // safe area on every placement; see OverlayPosition.
+    private var freeformPosition = OverlayPosition.DEFAULT
+    // Pixel position from before #685, converted once the overlay has a size.
+    private var legacyPixelPosition: Pair<Int, Int>? = null
+    private var safeArea: OverlaySafeArea? = null
+    private var dragging = false
 
     private fun setupOverlay() {
         if (composeView != null) return
@@ -151,6 +160,14 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
                 }
             }
         }.apply {
+            // A new value width, font size or secondary line resizes the pill; re-place
+            // it so it grows away from the edge it is docked to instead of over it.
+            addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                val resized = right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop
+                if (resized && !dynamicIslandEnabled && !dragging) {
+                    applyOverlayPlacement()
+                }
+            }
             // Compose resolves the window recomposer's lifecycle from the window's
             // rootView, which is this container now — the owners have to live here.
             setViewTreeLifecycleOwner(this@FloatingGlucoseService)
@@ -191,13 +208,16 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             layoutParams.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         
-        // Initial position
-        val (startX, startY) = settingsRepository.getPosition()
-        freeformX = startX
-        freeformY = startY
+        // Initial position; corrected once the overlay has been measured.
+        val savedPosition = settingsRepository.getPosition()
+        if (savedPosition != null) {
+            freeformPosition = savedPosition
+        } else {
+            legacyPixelPosition = settingsRepository.getLegacyPixelPosition()
+        }
+        safeArea = currentSafeArea()
         layoutParams.gravity = Gravity.TOP or Gravity.START
-        layoutParams.x = startX
-        layoutParams.y = startY
+        placeFreeform()
 
         root.addView(
             composeView,
@@ -216,13 +236,28 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     }
     
     private fun updateViewPosition(xDelta: Int, yDelta: Int) {
-        if (overlayRoot == null || windowManager == null) return
-        
-        layoutParams.x += xDelta
-        layoutParams.y += yDelta
-        freeformX = layoutParams.x
-        freeformY = layoutParams.y
-        
+        val root = overlayRoot ?: return
+        if (windowManager == null) return
+        if (!dragging) {
+            // Re-read once per drag: a 180° turn changes the navigation bar side
+            // without a configuration change.
+            dragging = true
+            safeArea = currentSafeArea()
+        }
+
+        val area = safeArea
+        val x = layoutParams.x + xDelta
+        val y = layoutParams.y + yDelta
+        if (area != null) {
+            val (clampedX, clampedY) = clampOverlayPixels(x, y, area, root.width, root.height)
+            layoutParams.x = clampedX
+            layoutParams.y = clampedY
+            freeformPosition = overlayPosition(clampedX, clampedY, area, root.width, root.height, freeformPosition)
+        } else {
+            layoutParams.x = x
+            layoutParams.y = y
+        }
+
         try {
             windowManager?.updateViewLayout(overlayRoot, layoutParams)
         } catch (e: Exception) {
@@ -231,10 +266,9 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     }
 
     private fun persistViewPosition() {
+        dragging = false
         if (dynamicIslandEnabled) return
-        serviceScope.launch {
-            settingsRepository.savePosition(freeformX, freeformY)
-        }
+        settingsRepository.savePosition(freeformPosition)
     }
 
     private fun observeSettings() {
@@ -252,6 +286,17 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             }
         }
         
+        // Picks up "Reset position" from settings. Our own saves echo back unchanged.
+        serviceScope.launch {
+            settingsRepository.position.collectLatest { saved ->
+                if (saved != null && saved != freeformPosition) {
+                    freeformPosition = saved
+                    legacyPixelPosition = null
+                    applyOverlayPlacement()
+                }
+            }
+        }
+
         serviceScope.launch {
             settingsRepository.isDynamicIslandEnabled.collectLatest { isIsland ->
                 dynamicIslandEnabled = isIsland
@@ -327,8 +372,8 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             }
         } else {
             layoutParams.gravity = Gravity.TOP or Gravity.START
-            layoutParams.x = freeformX
-            layoutParams.y = freeformY
+            safeArea = currentSafeArea()
+            placeFreeform()
         }
 
         try {
@@ -338,13 +383,87 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
     }
 
+    /** Resolves [freeformPosition] into layoutParams.x/y for the current safe area. */
+    private fun placeFreeform() {
+        val area = safeArea
+        val root = overlayRoot
+        if (area == null || root == null) {
+            legacyPixelPosition?.let { (x, y) ->
+                layoutParams.x = x
+                layoutParams.y = y
+            }
+            return
+        }
+        val width = root.width
+        val height = root.height
+        val legacy = legacyPixelPosition
+        if (legacy != null) {
+            if (width == 0 || height == 0) {
+                // Not measured yet: keep it near the old spot until the first layout.
+                val (x, y) = clampOverlayPixels(legacy.first, legacy.second, area, 0, 0)
+                layoutParams.x = x
+                layoutParams.y = y
+                return
+            }
+            freeformPosition = overlayPosition(legacy.first, legacy.second, area, width, height, OverlayPosition.DEFAULT)
+            legacyPixelPosition = null
+            settingsRepository.savePosition(freeformPosition)
+        }
+        val (x, y) = overlayPixels(freeformPosition, area, width, height)
+        layoutParams.x = x
+        layoutParams.y = y
+    }
+
+    /**
+     * The display minus status bar, navigation bar and cutout, in the coordinates the
+     * TOP|START overlay window is laid out in. Bars are reserved even while hidden: a
+     * full-screen app must not let the overlay be dropped where they come back over it.
+     */
+    @Suppress("DEPRECATION")
+    private fun currentSafeArea(): OverlaySafeArea? {
+        val wm = windowManager ?: return null
+        val modern = if (android.os.Build.VERSION.SDK_INT >= 30) {
+            runCatching {
+                val metrics = wm.currentWindowMetrics
+                val bounds = metrics.bounds
+                val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                )
+                OverlaySafeArea(
+                    left = bounds.left + insets.left,
+                    top = bounds.top + insets.top,
+                    right = bounds.right - insets.right,
+                    bottom = bounds.bottom - insets.bottom
+                )
+            }.getOrNull()?.takeIf { it.right > it.left && it.bottom > it.top }
+        } else {
+            null
+        }
+        return modern ?: runCatching {
+            val display = wm.defaultDisplay
+            val real = Point().also { display.getRealSize(it) }
+            // getSize() leaves out the navigation bar, wherever it is docked.
+            val usable = Point().also { display.getSize(it) }
+            val navigationWidth = (real.x - usable.x).coerceAtLeast(0)
+            val navigationHeight = (real.y - usable.y).coerceAtLeast(0)
+            val navigationOnLeft = display.rotation == Surface.ROTATION_270
+            val statusBarId = resources.getIdentifier("status_bar_height", "dimen", "android")
+            OverlaySafeArea(
+                left = if (navigationOnLeft) navigationWidth else 0,
+                top = if (statusBarId > 0) resources.getDimensionPixelSize(statusBarId) else 0,
+                right = real.x - if (navigationOnLeft) 0 else navigationWidth,
+                bottom = real.y - navigationHeight
+            )
+        }.getOrNull()?.takeIf { it.right > it.left && it.bottom > it.top }
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         overlayRoot?.post {
             overlayRoot?.requestApplyInsets()
-            if (dynamicIslandEnabled) {
-                applyOverlayPlacement()
-            }
+            // Freeform too: a spot that was fine in portrait can be off-screen or
+            // under the status bar in landscape.
+            applyOverlayPlacement()
         }
     }
 

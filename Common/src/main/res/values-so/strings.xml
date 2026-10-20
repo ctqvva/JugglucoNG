@@ -1612,6 +1612,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="pair">Lammaanee</string>
     <string name="points">Qodobbada</string>
     <string name="position_layout">Booska iyo qaabka</string>
+    <string name="floating_reset_position">Dib u dhig booska</string>
+    <string name="floating_reset_position_desc">Gulukooska sabaynaya dib ugu celi dusha shaashadda.</string>
     <string name="preview">Horudhac</string>
     <string name="previous_calibrations">Qalabkii hore</string>
     <string name="show_less">Muuji wax yar</string>

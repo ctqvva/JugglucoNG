@@ -1579,6 +1579,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="pair">Párosítás</string>
     <string name="points">Pontok</string>
     <string name="position_layout">Pozíció és elrendezés</string>
+    <string name="floating_reset_position">Pozíció visszaállítása</string>
+    <string name="floating_reset_position_desc">A lebegő glükózt visszahelyezi a képernyő tetejére.</string>
     <string name="preview">Előnézet</string>
     <string name="previous_calibrations">Korábbi kalibrációk</string>
     <string name="show_less">Kevesebb</string>

@@ -1322,6 +1322,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="pair">Appairer</string>
     <string name="points">Points</string>
     <string name="position_layout">Position et disposition</string>
+    <string name="floating_reset_position">Réinitialiser la position</string>
+    <string name="floating_reset_position_desc">Replace la glycémie flottante en haut de l’écran.</string>
     <string name="preview">Aperçu</string>
     <string name="previous_calibrations">Étalonnages précédents</string>
     <string name="show_less">Afficher moins</string>

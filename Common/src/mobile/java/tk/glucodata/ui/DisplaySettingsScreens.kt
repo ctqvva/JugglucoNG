@@ -44,6 +44,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -615,6 +618,26 @@ fun FloatingGlucoseSettingsScreen(
             position = CardPosition.SINGLE,
             modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
         )
+
+        if (!isDynamicIsland) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)) {
+                OutlinedButton(
+                    onClick = { repository.resetPosition() },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding
+                ) {
+                    Text(stringResource(R.string.floating_reset_position))
+                }
+                Text(
+                    stringResource(R.string.floating_reset_position_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
 
         if (isDynamicIsland) {
             Spacer(modifier = Modifier.height(8.dp))

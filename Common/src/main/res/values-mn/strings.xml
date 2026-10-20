@@ -1340,6 +1340,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="pair">Хослуулах</string>
     <string name="points">Points</string>
     <string name="position_layout">Position and layout</string>
+    <string name="floating_reset_position">Байршлыг сэргээх</string>
+    <string name="floating_reset_position_desc">Хөвөгч глюкозыг дэлгэцийн дээд хэсэгт буцаана.</string>
     <string name="preview">Preview</string>
     <string name="previous_calibrations">Өмнөх тохируулгууд</string>
     <string name="show_less">Бага харуулах</string>

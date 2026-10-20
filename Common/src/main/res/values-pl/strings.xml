@@ -1351,6 +1351,8 @@
     <string name="pair">Paruj</string>
     <string name="points">Punkty</string>
     <string name="position_layout">Położenie i układ</string>
+    <string name="floating_reset_position">Resetuj położenie</string>
+    <string name="floating_reset_position_desc">Przenosi pływającą glukozę z powrotem na górę ekranu.</string>
     <string name="preview">Podgląd</string>
     <string name="previous_calibrations">Poprzednie kalibracje</string>
     <string name="show_less">Pokaż mniej</string>
