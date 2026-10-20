@@ -270,7 +270,8 @@ V01.02.01.00_B0001) settles the write sequence:
 * There is **no `F7`** in the activation and no separate commit frame. The SDK's `F7` case is
   `writeInitParameter`, a different initialization path. Completion is tracked by the ack index
   (`hasWriteCorrectCode` when the index reaches `isNewLauncher ? 4 : 2`, i.e. 3 chunks on this device
-  and 5 on the new-launcher variant).
+  and 5 on the new-launcher variant; only the 3-chunk path is captured, the 5-chunk count is inferred
+  from the SDK state machine).
 * The first `590` was observed at the next bind, about 64 s after the last `F2` ack; there was no
   intervening `F6` read. That establishes when the new state was first *seen*, not that the device
   needs 64 s to commit — an immediate `0xFFFF` read-back after the last ack is therefore not proof
