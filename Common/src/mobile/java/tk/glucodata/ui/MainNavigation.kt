@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LegendToggle
@@ -781,7 +782,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         route == null -> null
         route.startsWith("settings/") -> "settings"
         route.startsWith("sensors/") -> "sensors"
-        route == "history" -> "dashboard"
+        route == "history" || route == "sensors" -> "dashboard"
         route == "journal" -> "journal"
         route == "calibrations" || route.startsWith("calibrations/") -> "dashboard"
         else -> null
@@ -811,7 +812,6 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val navItems = buildList {
         add(NavItem("dashboard", "Глюкоза", Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle))
         add(NavItem("school", "Калибровка", Icons.Filled.EditNote, Icons.Outlined.EditNote))
-        add(NavItem("sensors", "Датчики", Icons.Filled.Sensors, Icons.Outlined.Sensors))
         add(NavItem("settings", "Настройки", Icons.Filled.Settings, Icons.Outlined.Settings))
     }
 
@@ -929,11 +929,19 @@ private fun NavGraphBuilder.appDestinations(
     onTriggerCalibration: (CalibrationSheetState) -> Unit,
 ) {
     composable("dashboard") {
-        DashboardRoute(
-            dashboardViewModel = dashboardViewModel,
-            navController = navController,
-            onTriggerCalibration = onTriggerCalibration
-        )
+        Box(Modifier.fillMaxSize()) {
+            DashboardRoute(
+                dashboardViewModel = dashboardViewModel,
+                navController = navController,
+                onTriggerCalibration = onTriggerCalibration
+            )
+            // «+» вверху: добавить ещё один датчик (раздел «Датчики» убран из меню, всё начинается с главного экрана)
+            androidx.compose.material3.FilledTonalIconButton(
+                onClick = { navController.navigate("sensors") },
+                modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd)
+                    .statusBarsPadding().padding(top = 6.dp, end = 12.dp)
+            ) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Add, contentDescription = "Добавить датчик") }
+        }
     }
     composable("history") {
         HistoryRoute(
