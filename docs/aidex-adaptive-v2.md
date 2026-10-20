@@ -20,9 +20,13 @@ meets a ribbon, its displayed envelope starts at those asymmetric bounds and add
 forecast spread, fading into the lighter forecast shading over five minutes. This
 changes drawing only; the sensor estimate and predicted glucose values are unchanged.
 
-With internal calibration enabled, enabled manual references from either lane
-are supplied to the estimator in canonical units, using only references at or
-before the sample timestamp. The generic Auto calibration layer is then bypassed
+With internal calibration enabled, the same enabled references eligible for the
+sensor's Auto calibration controls are supplied to the estimator in canonical
+units, using only references at or before the sample timestamp. Manual Raw
+calibrations stay in Raw; journal fingersticks shared with Auto remain eligible.
+The Auto enable switch and each point's enabled state apply inside the algorithm
+too. With no eligible references, toggling internal calibration does not change
+the curve. The generic Auto calibration layer is then bypassed
 to avoid applying the same correction twice. With it disabled, the usual external
 calibration behavior remains available, as with Sibionics. Raw values and their
 separate calibration path remain independent.
@@ -252,6 +256,20 @@ operation cannot replace continuous independent references on a deteriorating
 sensor simply by estimating more latent states. These constraints, normalization
 adaptation speed and lack of sensor-state telemetry are remaining research issues.
 
+## Reference visibility repair, 2026-10-20
+
+AiDex previously combined manual Raw and Auto references for its Auto estimator,
+although the application's manual-calibration controls and lists are lane-specific.
+A Raw reference could therefore move Auto history when internal calibration was
+enabled, even with the Auto calibration switch off. Adding an Auto point then
+averaged it with that hidden Raw point and unexpectedly reshaped the curve.
+Live processing, history replay, backup conflict rebuilds and JSON replay input
+now use the same Auto-eligible references as those controls. Raw-only edits do
+not request an Auto rebuild. Journal fingersticks already eligible for Auto
+remain supported. Real-database regressions cover an enabled Raw reference with
+Auto disabled, an empty Auto lane, point enable/disable, another sensor's points,
+shared journal points, restart and history merge.
+
 ## Calibration response revision, 2026-10-19 (#681)
 
 In the issue's synthetic test, raw and factory settle at 105 mg/dL for one day,
@@ -393,8 +411,8 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full Gradle/JVM suites pass: 4,286 mobile and 3,271 Wear tests, zero
-failures/errors/skips. Phone and Wear Kotlin/Java compilation pass. Six Python replay/report
+The full Gradle/JVM suites pass: 4,290 mobile and 3,271 Wear tests, zero
+failures/errors/skips. Phone and Wear Kotlin/Java compilation pass. Eight Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
 reset/stale input, gaps and exact/corrupt snapshot restoration. Python replay

@@ -290,14 +290,14 @@ class AiDexAlgorithmControllerTest {
         } finally { release.countDown(); executor.shutdownNow() }
     }
 
-    @Test fun `calibration anchors preserve both lanes units and explicit duplicate preference`() {
-        val raw = doubleArrayOf(2.0, 5.0, start.toDouble())
+    @Test fun `auto calibration anchors preserve units and deduplicate timestamps`() {
         val auto = doubleArrayOf(7.0, 6.0, start.toDouble())
-        val refs = AiDexAlgorithmReferences.decode(raw, auto, true)
+        val refs = AiDexAlgorithmReferences.decode(auto, true)
         assertEquals(1, refs.size)
         assertEquals(6f * AiDexAdaptiveV2.MGDL_PER_MMOL, refs.single().glucoseMgDl, 0.001f)
-        assertEquals(120f, AiDexAlgorithmReferences.decode(doubleArrayOf(), doubleArrayOf(90.0, 120.0, start.toDouble()), false).single().glucoseMgDl, 0f)
-        assertEquals(2, AiDexAlgorithmReferences.decode(raw, doubleArrayOf(7.0, 6.0, (start + 60_000).toDouble()), true).size)
-        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0), doubleArrayOf(1.0, Double.NaN, 0.0), true).isEmpty())
+        assertEquals(120f, AiDexAlgorithmReferences.decode(doubleArrayOf(90.0, 120.0, start.toDouble()), false).single().glucoseMgDl, 0f)
+        assertEquals(1, AiDexAlgorithmReferences.decode(auto + auto, true).size)
+        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0), true).isEmpty())
+        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0, Double.NaN, 0.0), true).isEmpty())
     }
 }

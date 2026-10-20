@@ -49,7 +49,7 @@ internal class AiDexAlgorithmRuntime(
     @Volatile var journalUnavailable = false
         private set
     private var calibrationRevision = -1L
-    private data class CalibrationInputs(val references: List<AiDexReference>, val rawFit: Long, val autoFit: Long)
+    private data class CalibrationInputs(val references: List<AiDexReference>, val autoFit: Long)
     private var appliedCalibrationInputs: CalibrationInputs? = null
     @Volatile private var resetWaiting = false
     private var pendingLiveTime = 0L
@@ -250,15 +250,15 @@ internal class AiDexAlgorithmRuntime(
 
     private fun references(selection: AiDexAlgorithmSelection): List<AiDexReference> {
         if (!selection.calibration) return emptyList()
-        // A fingerstick is a reference regardless of the lane it was entered
-        // against. Preserve lane enablement; prefer Auto for a duplicate minute.
-        return AiDexAlgorithmReferences.decode(CalibrationAccess.getActiveCalibrationAnchors(serial, true),
+        // This algorithm owns Auto. Use the same eligible rows as the Auto
+        // calibration UI and fallback fitter: manual Raw points stay in Raw,
+        // while journal fingersticks already shared with Auto remain eligible.
+        return AiDexAlgorithmReferences.decode(
             CalibrationAccess.getActiveCalibrationAnchors(serial, false), Applic.unit == 1)
     }
 
     private fun calibrationInputs() = CalibrationInputs(
         references(AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED),
-        CalibrationAccess.getIntegratedCalibrationFingerprint(serial, true),
         CalibrationAccess.getIntegratedCalibrationFingerprint(serial, false),
     )
 
