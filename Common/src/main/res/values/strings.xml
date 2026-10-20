@@ -910,6 +910,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_graph_only_desc">Current glucose, widgets and alerts stay unsmoothed</string>
     <string name="data_smoothing_exchange_only_title">Sent readings only</string>
     <string name="data_smoothing_exchange_only_desc">Smooth broadcasts and uploads. In-app readings stay unsmoothed</string>
+    <string name="data_smoothing_causal_title">Kalman filter for the current value</string>
+    <string name="data_smoothing_causal_desc">Estimate the newest reading from past readings only (level and trend), so the value shown and sent now is the one history keeps. Chart history and Nightscout keep the averaging window</string>
     <string name="data_smoothing_collapse_title">Fewer readings</string>
     <string name="data_smoothing_collapse_desc">Show and send fewer readings</string>
     <string name="data_smoothing_collapse_desc_match">One reading every %1$d min</string>

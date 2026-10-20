@@ -50,6 +50,7 @@ lint/generated/
 
 # Crash logs
 hs_err_pid*
+replay_pid*
 
 .kotlin/errors
 

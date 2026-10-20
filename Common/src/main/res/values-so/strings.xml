@@ -889,6 +889,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="data_smoothing_graph_only_desc">Gulukoosta hadda, widget-yada iyo digniinaha lama simayo</string>
     <string name="data_smoothing_exchange_only_title">Cabbirrada la diro oo keliya</string>
     <string name="data_smoothing_exchange_only_desc">Sim gudbinta iyo gelinta xogta. Cabbirrada abka ku jira lama simayo</string>
+    <string name="data_smoothing_causal_title">Shaandheeyaha Kalman ee qiimaha hadda</string>
+    <string name="data_smoothing_causal_desc">Wuxuu qiyaasaa akhrinta ugu dambeysay isagoo isticmaalaya oo keliya akhrinta hore (heerka iyo jihada), si qiimaha hadda la muujiyay oo la diray uu la mid noqdo kan taariikhdu kaydiso. Taariikhda garaafka iyo Nightscout waxay sii hayaan daaqadda celceliska</string>
     <string name="data_smoothing_collapse_title">Cabbirro ka yar</string>
     <string name="data_smoothing_collapse_desc">Soo bandhig oo dir cabbirro ka yar</string>
     <string name="data_smoothing_collapse_desc_match">Hal cabbir %1$d daqiiqo kasta</string>

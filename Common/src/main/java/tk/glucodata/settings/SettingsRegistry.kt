@@ -13,6 +13,7 @@ const val KEY_SMOOTHING_MINUTES = "dashboard_chart_smoothing_minutes"
 const val KEY_SMOOTHING_GRAPH_ONLY = "dashboard_data_smoothing_graph_only"
 const val KEY_SMOOTHING_COLLAPSE_CHUNKS = "dashboard_data_smoothing_collapse_chunks"
 const val KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY = "dashboard_data_smoothing_exchange_outputs_only"
+const val KEY_SMOOTHING_CAUSAL_LIVE = "dashboard_data_smoothing_causal_live"
 const val KEY_PREDICTION_ENABLED = "dashboard_predictive_simulation_enabled"
 const val KEY_PREDICTION_TREND_MOMENTUM = "dashboard_prediction_trend_momentum_enabled"
 const val KEY_PREDICTION_CARB_RATIO = "dashboard_prediction_carb_ratio_g_per_u"
@@ -28,6 +29,7 @@ const val DEFAULT_SMOOTHING_MINUTES = 0
 const val DEFAULT_SMOOTHING_GRAPH_ONLY = false
 const val DEFAULT_SMOOTHING_COLLAPSE_CHUNKS = false
 const val DEFAULT_SMOOTHING_EXCHANGE_OUTPUTS_ONLY = false
+const val DEFAULT_SMOOTHING_CAUSAL_LIVE = false
 const val DEFAULT_PREDICTION_ENABLED = true
 const val DEFAULT_PREDICTION_TREND_MOMENTUM = true
 const val DEFAULT_PREDICTION_CARB_RATIO_G_PER_U = 10f
@@ -164,6 +166,10 @@ object SettingsRegistry {
         KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY, SettingType.BOOL, DEFAULT_SMOOTHING_EXCHANGE_OUTPUTS_ONLY,
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
     )
+    val SMOOTHING_CAUSAL_LIVE = SettingDefinition(
+        KEY_SMOOTHING_CAUSAL_LIVE, SettingType.BOOL, DEFAULT_SMOOTHING_CAUSAL_LIVE,
+        SettingScope.MIRRORED, SettingBackup.INCLUDED,
+    )
     val PREDICTION_ENABLED = SettingDefinition(
         KEY_PREDICTION_ENABLED, SettingType.BOOL, DEFAULT_PREDICTION_ENABLED,
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
@@ -202,6 +208,7 @@ object SettingsRegistry {
         SMOOTHING_GRAPH_ONLY,
         SMOOTHING_COLLAPSE_CHUNKS,
         SMOOTHING_EXCHANGE_OUTPUTS_ONLY,
+        SMOOTHING_CAUSAL_LIVE,
         PREDICTION_ENABLED,
         PREDICTION_TREND_MOMENTUM,
         PREDICTION_CARB_RATIO,

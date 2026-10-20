@@ -831,6 +831,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="data_smoothing_graph_only_desc">Az aktuális glükóz, a widgetek és a riasztások simítás nélkül maradnak</string>
     <string name="data_smoothing_exchange_only_title">Csak a küldött értékekre</string>
     <string name="data_smoothing_exchange_only_desc">Az adásokat és feltöltéseket simítja. Az alkalmazásban az értékek simítás nélkül maradnak</string>
+    <string name="data_smoothing_causal_title">Kalman-szűrő az aktuális értékhez</string>
+    <string name="data_smoothing_causal_desc">A legutóbbi mérést csak a korábbi mérésekből becsüli (szint és trend), így a most megjelenített és elküldött érték megegyezik azzal, amit az előzmények megőriznek. A grafikon előzményei és a Nightscout az átlagolási ablakot használják</string>
     <string name="data_smoothing_collapse_title">Kevesebb mérési érték</string>
     <string name="data_smoothing_collapse_desc">Kevesebb érték megjelenítése és küldése</string>
     <string name="data_smoothing_collapse_desc_match">Egy érték %1$d percenként</string>

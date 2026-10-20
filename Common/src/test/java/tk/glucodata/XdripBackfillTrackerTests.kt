@@ -1,7 +1,9 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.XdripBackfillTracker.Candidate
 
@@ -161,6 +163,38 @@ class XdripBackfillTrackerTests {
             listOf((now - 30 * minute)..(now - 28 * minute), (now - 10 * minute)..(now - 9 * minute)),
             coverage.ranges,
         )
+    }
+
+    @Test
+    fun `a reading already sent needs no backfill while a gap does`() {
+        val tracker = XdripBackfillTracker()
+        tracker.recordSent("S", now - 10 * minute, 1, 0L)
+
+        assertFalse(tracker.needsBackfill("S", listOf(now - 10 * minute), now))
+        assertTrue(tracker.needsBackfill("S", listOf(now - 5 * minute), now))
+        assertFalse(tracker.needsBackfill("S", listOf(now - 5 * minute), now - 60 * minute))
+    }
+
+    @Test
+    fun `needsBackfill agrees with pick when the batch changes the cadence`() {
+        fun seeded(): XdripBackfillTracker = XdripBackfillTracker().also { tracker ->
+            tracker.recordSent("S", now - 30 * minute, 1, 0L)
+            // A sparse batch teaches a five-minute cadence.
+            tracker.pick("S", listOf(point(20), point(15)), now)
+            tracker.recordSent("S", now - 5 * minute, 1, 0L)
+            tracker.recordSent("S", now, 1, 0L)
+        }
+        val batch = (4L downTo 1L).map { point(it) }
+
+        val picked = seeded().pick("S", batch, now)
+
+        assertTrue(picked.isNotEmpty())
+        assertEquals(picked.isNotEmpty(), seeded().needsBackfill("S", batch.map { it.timeMs }, now))
+    }
+
+    @Test
+    fun `an unknown sensor needs no backfill`() {
+        assertFalse(XdripBackfillTracker().needsBackfill("S", listOf(now), now))
     }
 
     @Test

@@ -597,6 +597,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="data_smoothing_graph_only_desc">Huidige glucose, widgets en alarmen blijven onafgevlakt</string>
     <string name="data_smoothing_exchange_only_title">Alleen verzonden waarden</string>
     <string name="data_smoothing_exchange_only_desc">Vlak broadcasts en uploads af. Waarden in de app blijven onafgevlakt</string>
+    <string name="data_smoothing_causal_title">Kalmanfilter voor de huidige waarde</string>
+    <string name="data_smoothing_causal_desc">Schat de nieuwste meting alleen uit eerdere metingen (niveau en trend), zodat de nu getoonde en verzonden waarde dezelfde is als die de geschiedenis bewaart. Grafiekgeschiedenis en Nightscout houden het middelingsvenster</string>
     <string name="data_smoothing_collapse_title">Minder meetwaarden</string>
     <string name="data_smoothing_collapse_desc">Minder waarden tonen en verzenden</string>
     <string name="data_smoothing_collapse_desc_match">Eén waarde per %1$d min</string>

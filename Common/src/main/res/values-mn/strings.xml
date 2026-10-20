@@ -2230,6 +2230,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="gs3">Sibionics GS3</string>
     <string name="data_smoothing_exchange_only_title">Зөвхөн илгээх хэмжилт</string>
     <string name="data_smoothing_exchange_only_desc">Дамжуулалт болон байршуулалтыг жигдрүүлнэ. Апп доторх хэмжилтийг жигдрүүлэхгүй</string>
+    <string name="data_smoothing_causal_title">Одоогийн утгын Калманы шүүлтүүр</string>
+    <string name="data_smoothing_causal_desc">Хамгийн сүүлийн уншилтыг зөвхөн өмнөх уншилтуудаар (түвшин ба чиг хандлага) тооцоолдог тул одоо харагдах болон илгээгдэх утга түүхэд хадгалагдах утгатай ижил байна. Графикийн түүх болон Nightscout дундажлалтын цонхыг ашиглана</string>
     <string name="status_invalid_glucose_from_sensor">Сенсороос ирсэн глюкозын утга буруу</string>
     <string name="ottai_settings_desc">Холбогдсон Ottai мэдрэгчийн Ottai дансны хандалт, хадгалсан материал болон тохиргоог удирдана.</string>
     <string name="ottai_account_sensors_title">Ottai дансны мэдрэгчүүд</string>

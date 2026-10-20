@@ -601,6 +601,8 @@
     <string name="data_smoothing_graph_only_desc">Текущая глюкоза, виджеты и оповещения — без сглаживания</string>
     <string name="data_smoothing_exchange_only_title">Только передаваемые показания</string>
     <string name="data_smoothing_exchange_only_desc">Сглаживать трансляции и загрузки. Показания в приложении — без сглаживания</string>
+    <string name="data_smoothing_causal_title">Фильтр Калмана для текущего значения</string>
+    <string name="data_smoothing_causal_desc">Оценивает последнее показание только по прошлым (уровень и тренд), поэтому показанное и отправленное сейчас значение совпадает с тем, что останется в истории. История графика и Nightscout остаются на окне усреднения</string>
     <string name="data_smoothing_collapse_title">Меньше показаний</string>
     <string name="data_smoothing_collapse_desc">Уменьшить число точек на графике и частоту передачи показаний</string>
     <string name="data_smoothing_collapse_desc_match">Одно показание каждые %1$d мин</string>

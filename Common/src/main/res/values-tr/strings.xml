@@ -557,6 +557,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="data_smoothing_graph_only_desc">Güncel glikoz, widget’lar ve alarmlar yumuşatılmaz</string>
     <string name="data_smoothing_exchange_only_title">Yalnızca gönderilen ölçümler</string>
     <string name="data_smoothing_exchange_only_desc">Yayınları ve yüklemeleri yumuşat. Uygulamadaki ölçümler yumuşatılmaz</string>
+    <string name="data_smoothing_causal_title">Geçerli değer için Kalman filtresi</string>
+    <string name="data_smoothing_causal_desc">En yeni ölçümü yalnızca geçmiş ölçümlerden (seviye ve eğilim) tahmin eder; böylece şu anda gösterilen ve gönderilen değer geçmişin sakladığı değerle aynı olur. Grafik geçmişi ve Nightscout ortalama penceresini korur</string>
     <string name="data_smoothing_collapse_title">Daha az ölçüm</string>
     <string name="data_smoothing_collapse_desc">Daha az ölçüm göster ve gönder</string>
     <string name="data_smoothing_collapse_desc_match">Her %1$d dakikada bir ölçüm</string>

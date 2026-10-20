@@ -405,6 +405,8 @@
     <string name="data_smoothing_graph_only_desc">A glicose atual, os widgets e os alertas ficam sem suavização</string>
     <string name="data_smoothing_exchange_only_title">Apenas leituras enviadas</string>
     <string name="data_smoothing_exchange_only_desc">Suavizar transmissões e envios. As leituras no aplicativo ficam sem suavização</string>
+    <string name="data_smoothing_causal_title">Filtro de Kalman para o valor atual</string>
+    <string name="data_smoothing_causal_desc">Estima a leitura mais recente apenas a partir das leituras anteriores (nível e tendência), para que o valor mostrado e enviado agora seja o mesmo que o histórico mantém. O histórico do gráfico e o Nightscout mantêm a janela de média</string>
     <string name="data_smoothing_collapse_title">Menos leituras</string>
     <string name="data_smoothing_collapse_desc">Mostrar e enviar menos leituras</string>
     <string name="data_smoothing_collapse_desc_match">Uma leitura a cada %1$d min</string>

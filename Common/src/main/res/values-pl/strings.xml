@@ -580,6 +580,8 @@
     <string name="data_smoothing_graph_only_desc">Bieżąca glukoza, widżety i alarmy pozostają bez wygładzania</string>
     <string name="data_smoothing_exchange_only_title">Tylko wysyłane odczyty</string>
     <string name="data_smoothing_exchange_only_desc">Wygładzaj transmisje i wysyłane dane. Odczyty w aplikacji pozostają bez wygładzania</string>
+    <string name="data_smoothing_causal_title">Filtr Kalmana dla bieżącej wartości</string>
+    <string name="data_smoothing_causal_desc">Szacuje najnowszy odczyt wyłącznie na podstawie wcześniejszych odczytów (poziom i trend), dzięki czemu wartość pokazywana i wysyłana teraz jest taka sama jak ta zachowana w historii. Historia wykresu i Nightscout pozostają przy oknie uśredniania</string>
     <string name="data_smoothing_collapse_title">Mniej odczytów</string>
     <string name="data_smoothing_collapse_desc">Wyświetlaj i wysyłaj mniej odczytów</string>
     <string name="data_smoothing_collapse_desc_match">Jeden odczyt co %1$d min</string>

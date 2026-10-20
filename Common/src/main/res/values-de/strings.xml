@@ -609,6 +609,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="data_smoothing_graph_only_desc">Aktueller Glukosewert, Widgets und Alarme bleiben ungeglättet</string>
     <string name="data_smoothing_exchange_only_title">Nur gesendete Werte</string>
     <string name="data_smoothing_exchange_only_desc">Glättet Broadcasts und Uploads. Werte in der App bleiben ungeglättet</string>
+    <string name="data_smoothing_causal_title">Kalman-Filter für den aktuellen Wert</string>
+    <string name="data_smoothing_causal_desc">Schätzt den neuesten Messwert nur aus früheren Werten (Niveau und Trend), sodass der jetzt angezeigte und gesendete Wert dem entspricht, den der Verlauf behält. Diagrammverlauf und Nightscout behalten das Mittelungsfenster</string>
     <string name="data_smoothing_collapse_title">Weniger Messwerte</string>
     <string name="data_smoothing_collapse_desc">Weniger Werte anzeigen und senden</string>
     <string name="data_smoothing_collapse_desc_match">Ein Wert alle %1$d Min</string>

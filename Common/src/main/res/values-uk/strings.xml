@@ -517,6 +517,8 @@
     <string name="data_smoothing_graph_only_desc">Поточна глюкоза, віджети й тривоги — без згладжування</string>
     <string name="data_smoothing_exchange_only_title">Лише передані показання</string>
     <string name="data_smoothing_exchange_only_desc">Згладжувати трансляції та завантаження. Показання в застосунку — без згладжування</string>
+    <string name="data_smoothing_causal_title">Фільтр Калмана для поточного значення</string>
+    <string name="data_smoothing_causal_desc">Оцінює останнє показання лише за попередніми (рівень і тренд), тому показане й надіслане зараз значення збігається з тим, що залишиться в історії. Історія графіка та Nightscout залишаються на вікні усереднення</string>
     <string name="data_smoothing_collapse_title">Менше показань</string>
     <string name="data_smoothing_collapse_desc">Зменшити кількість точок на графіку та частоту передачі показань</string>
     <string name="data_smoothing_collapse_desc_match">Одне показання кожні %1$d хв</string>

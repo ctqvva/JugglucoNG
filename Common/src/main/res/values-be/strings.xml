@@ -447,6 +447,8 @@
     <string name="data_smoothing_graph_only_desc">Бягучая глюкоза, віджэты і трывогі — без згладжвання</string>
     <string name="data_smoothing_exchange_only_title">Толькі перадаваныя паказанні</string>
     <string name="data_smoothing_exchange_only_desc">Згладжваць трансляцыі і загрузкі. Паказанні ў праграме — без згладжвання</string>
+    <string name="data_smoothing_causal_title">Фільтр Калмана для бягучага значэння</string>
+    <string name="data_smoothing_causal_desc">Ацэньвае апошняе паказанне толькі па папярэдніх (узровень і трэнд), таму паказанае і адпраўленае зараз значэнне супадае з тым, што застанецца ў гісторыі. Гісторыя графіка і Nightscout застаюцца на акне усярэднення</string>
     <string name="data_smoothing_collapse_title">Менш паказанняў</string>
     <string name="data_smoothing_collapse_desc">Паменшыць колькасць кропак на графіку і частату перадачы паказанняў</string>
     <string name="data_smoothing_collapse_desc_match">Адно паказанне кожныя %1$d хв</string>

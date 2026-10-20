@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -70,6 +71,7 @@ fun DataSmoothingSettingsScreen(
     val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
     val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
     val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
+    val causal by viewModel.dataSmoothingCausal.collectAsStateWithLifecycle()
 
     val isEnabled = smoothingMinutes > 0
     val options = remember { DataSmoothing.enabledMinutesOptions().toList() }
@@ -274,6 +276,16 @@ fun DataSmoothingSettingsScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
+                SettingsSwitchItem(
+                    title = stringResource(R.string.data_smoothing_causal_title),
+                    subtitle = stringResource(R.string.data_smoothing_causal_desc),
+                    checked = causal,
+                    onCheckedChange = { viewModel.setDataSmoothingCausal(it) },
+                    icon = Icons.Default.Timeline,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.SINGLE,
+                    enabled = isEnabled
+                )
             }
         }
     }

@@ -378,6 +378,8 @@
     <string name="data_smoothing_graph_only_desc">Glucosio attuale, widget e avvisi restano senza smussamento</string>
     <string name="data_smoothing_exchange_only_title">Solo valori inviati</string>
     <string name="data_smoothing_exchange_only_desc">Smussa trasmissioni e caricamenti. I valori nell’app restano senza smussamento</string>
+    <string name="data_smoothing_causal_title">Filtro di Kalman per il valore corrente</string>
+    <string name="data_smoothing_causal_desc">Stima l’ultima lettura solo dalle letture passate (livello e tendenza), così il valore mostrato e inviato ora è quello che la cronologia conserva. La cronologia del grafico e Nightscout mantengono la finestra di media</string>
     <string name="data_smoothing_collapse_title">Meno valori</string>
     <string name="data_smoothing_collapse_desc">Mostra e invia meno valori</string>
     <string name="data_smoothing_collapse_desc_match">Un valore ogni %1$d min</string>

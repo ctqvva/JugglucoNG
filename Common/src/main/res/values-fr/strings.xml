@@ -452,6 +452,8 @@
     <string name="data_smoothing_graph_only_desc">Le glucose actuel, les widgets et les alertes restent sans lissage</string>
     <string name="data_smoothing_exchange_only_title">Valeurs envoyées uniquement</string>
     <string name="data_smoothing_exchange_only_desc">Lisser les diffusions et les envois. Les valeurs dans l’application restent sans lissage</string>
+    <string name="data_smoothing_causal_title">Filtre de Kalman pour la valeur actuelle</string>
+    <string name="data_smoothing_causal_desc">Estime la dernière mesure uniquement à partir des mesures passées (niveau et tendance), afin que la valeur affichée et envoyée maintenant soit celle que l’historique conserve. L’historique du graphique et Nightscout conservent la fenêtre de moyennage</string>
     <string name="data_smoothing_collapse_title">Moins de valeurs</string>
     <string name="data_smoothing_collapse_desc">Afficher et envoyer moins de valeurs</string>
     <string name="data_smoothing_collapse_desc_match">Une valeur toutes les %1$d min</string>

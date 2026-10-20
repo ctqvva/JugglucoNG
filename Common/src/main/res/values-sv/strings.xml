@@ -505,6 +505,8 @@
     <string name="data_smoothing_graph_only_desc">Aktuellt glukosvärde, widgetar och larm förblir outjämnade</string>
     <string name="data_smoothing_exchange_only_title">Endast skickade värden</string>
     <string name="data_smoothing_exchange_only_desc">Jämna ut sändningar och uppladdningar. Värden i appen förblir outjämnade</string>
+    <string name="data_smoothing_causal_title">Kalmanfilter för aktuellt värde</string>
+    <string name="data_smoothing_causal_desc">Uppskattar den senaste mätningen endast från tidigare mätningar (nivå och trend), så att värdet som visas och skickas nu är det som historiken behåller. Diagramhistorik och Nightscout behåller medelvärdesfönstret</string>
     <string name="data_smoothing_collapse_title">Färre mätvärden</string>
     <string name="data_smoothing_collapse_desc">Visa och skicka färre värden</string>
     <string name="data_smoothing_collapse_desc_match">Ett värde var %1$d min</string>

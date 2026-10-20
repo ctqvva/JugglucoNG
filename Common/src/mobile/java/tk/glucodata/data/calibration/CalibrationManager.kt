@@ -1415,7 +1415,7 @@ object CalibrationManager {
         userValueMgdl: Float,
         sensorStockMgdl: Float = Float.NaN,
     ): Boolean = kotlinx.coroutines.runBlocking {
-        val snapshot = tk.glucodata.CurrentDisplaySource.resolveCurrentForExchange()
+        val snapshot = tk.glucodata.CurrentDisplaySource.resolveCurrentMeasured()
             ?: return@runBlocking false
         val autoValue = snapshot.autoValue.takeIf { it.isFinite() && it > 0f }
             ?: snapshot.primaryValue.takeIf { it.isFinite() && it > 0f }
