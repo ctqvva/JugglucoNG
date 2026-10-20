@@ -93,7 +93,7 @@ android {
         // be compared against a release tag. The in-app updater needs the bare number.
         buildConfigField 'String', 'BASE_VERSION_NAME', "\"$appVersionName\""
         // GitHub repo the in-app updater reads releases from. Forks change it here.
-        buildConfigField 'String', 'UPDATE_REPO', '"ctqvva/JugglucoNG"'
+        buildConfigField 'String', 'UPDATE_REPO', '"joojik5-spec/JugglucoNG"'
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
         buildConfigField 'int', 'isRelease', '0'
