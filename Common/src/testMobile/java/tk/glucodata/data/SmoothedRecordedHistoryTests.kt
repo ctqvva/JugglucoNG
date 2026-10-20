@@ -18,6 +18,8 @@ import tk.glucodata.DataSmoothing
 import tk.glucodata.SensorIdentity
 import tk.glucodata.chart.HistoryChartModelBuilder
 import tk.glucodata.chart.MainSensorOwnership
+import tk.glucodata.chart.ChartLaneKind
+import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.drivers.ManagedSensorRuntime
 
 /** Synthetic smoothed records: only the middle value equals its sensor source. */
@@ -40,6 +42,7 @@ class SmoothedRecordedHistoryTests {
     @Before fun setUp() = runBlocking {
         previousApp = Applic.app
         Applic.app = ApplicationProvider.getApplicationContext<TestApplication>()
+        keepDisplayedValues(true)
         Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE).edit()
             .putInt("algorithmAppliedMode_$serial", 9).commit()
         SensorIdentity.invalidateCaches()
@@ -66,6 +69,14 @@ class SmoothedRecordedHistoryTests {
         if (::database.isInitialized) database.close()
         Applic.app = previousApp
         SensorIdentity.invalidateCaches()
+    }
+
+    private fun keepDisplayedValues(enabled: Boolean) {
+        Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("calibration_freeze_displayed_values", enabled).commit()
+        // Bind the actual policy without invoking notification/native side
+        // effects of the UI setter in this Room integration test.
+        CalibrationManager.init(Applic.app)
     }
 
     @Test fun chartAndStatsQueriesKeepEveryRecordIncludingSmoothedValues() = runBlocking {
@@ -106,6 +117,7 @@ class SmoothedRecordedHistoryTests {
     }
 
     @Test fun aRealRewriteInvalidatesOnlyTheChangedSourcesInTheSameTransaction() = runBlocking {
+        keepDisplayedValues(false)
         val changed = readings.mapIndexed { index, row -> if (index == 2) row.copy(value = row.value + 12f) else row }
         assertTrue(repository.storeReadingsReplacingSensorBuckets(serial, changed, 60_000L,
             invalidateAutoDisplayRecords = true))
@@ -114,6 +126,7 @@ class SmoothedRecordedHistoryTests {
     }
 
     @Test fun failedReplacementCannotInvalidateRecords() = runBlocking {
+        keepDisplayedValues(false)
         // Fail after the transaction has invalidated a record and deleted the
         // old source row, so this exercises rollback rather than input guards.
         database.openHelper.writableDatabase.execSQL(
@@ -125,5 +138,70 @@ class SmoothedRecordedHistoryTests {
             invalidateAutoDisplayRecords = true))
         assertEquals(records, database.readingDisplayDao().getAllSince(base))
         assertEquals(readings.map { it.value }, database.historyDao().getReadingsSince(base).map { it.value })
+    }
+
+    @Test fun keepingDisplayedValuesSurvivesChangedDriverSourcesAndRepeatedLaneAndCalibrationToggles() = runBlocking {
+        // Mixed provenance must not select which minutes survive. The source
+        // changes in both lanes, as an integrated calibration/algorithm replay
+        // can do; the recorded main line is an independent presentation fact.
+        records = records.mapIndexed { index, row -> row.copy(viewMode = index % 4) }
+        database.readingDisplayDao().deleteAll()
+        database.readingDisplayDao().sealAll(records)
+        val changed = readings.map { it.copy(value = it.value + 40f, rawValue = it.rawValue + 100f) }
+        assertTrue(repository.storeReadingsReplacingSensorBuckets(serial, changed, 60_000L,
+            invalidateAutoDisplayRecords = true, invalidateRawDisplayRecords = true))
+        assertEquals(records, database.readingDisplayDao().getAllSince(base))
+        assertEquals(changed.map { it.value }, database.historyDao().getReadingsSince(base).map { it.value })
+
+        val history = repository.getHistoryForDisplaySensor(serial, base)
+        val points = history.map { point ->
+            tk.glucodata.GlucosePoint(point.timestamp, point.value, point.rawValue).also {
+                it.sensorSerial = serial
+                it.sealedDisplayValue = point.sealedDisplayValue ?: Float.NaN
+                it.sealedDisplayViewMode = point.sealedDisplayViewMode ?: -1
+            }
+        }
+        for (scale in listOf(1f, 1f / 18f)) {
+            val scaled = points.map { source ->
+                tk.glucodata.GlucosePoint(source.timestamp, source.value * scale, source.rawValue * scale).also {
+                    it.sensorSerial = serial
+                    it.sealedDisplayValue = source.sealedDisplayValue * scale
+                    it.sealedDisplayViewMode = source.sealedDisplayViewMode
+                }
+            }
+            for (mode in listOf(1, 0, 3, 2, 1, 0)) {
+                for (enabled in listOf(false, true, false)) {
+                    val smoothed = DataSmoothing.smoothNativePoints(scaled, 3, false)
+                    val model = HistoryChartModelBuilder.build(
+                        listOf(HistoryChartModelBuilder.SeriesInput(serial, true, mode, 0, smoothed)),
+                        MainSensorOwnership.NONE,
+                        HistoryChartModelBuilder.Calibration { value, _, _, _ -> if (enabled) value + 30f * scale else null },
+                        hasCalibration = enabled,
+                    ).primary!!
+                    assertEquals(records.map { it.displayMgdl * scale }, model.runs.flatMap { it.points }.map { it.value })
+                    val preview = model.secondaryLanes.single { it.kind == ChartLaneKind.CALIBRATION_PREVIEW }
+                    val raw = mode == 1 || mode == 3
+                    assertEquals(smoothed.map { (if (raw) it.rawValue else it.value) + if (enabled) 30f * scale else 0f },
+                        preview.runs.flatMap { it.points }.map { it.value })
+                }
+            }
+        }
+    }
+
+    @Test fun aRewriteStillReleasesRecentRecordsInsideTheGraceWindow() = runBlocking {
+        val start = ReadingDisplay.minuteOf(System.currentTimeMillis()) - 20 * 60_000L
+        val recent = readings.mapIndexed { index, row -> row.copy(timestamp = start + index * 60_000L) }
+        val recentRecords = records.mapIndexed { index, row -> row.copy(timestamp = recent[index].timestamp) }
+        database.historyDao().insertAll(recent)
+        database.readingDisplayDao().sealAll(recentRecords)
+        val changed = recent.map { it.copy(value = it.value + 40f) }
+        assertTrue(repository.storeReadingsReplacingSensorBuckets(serial, changed, 60_000L,
+            invalidateAutoDisplayRecords = true))
+        assertTrue(database.readingDisplayDao().getAllSince(start).isEmpty())
+        assertTrue(repository.getHistoryForDisplaySensor(serial, start).all { it.sealedDisplayValue == null })
+        assertEquals(changed.size, repository.recordPresentedMinutes(changed.map {
+            HistoryRepository.PresentedMinute(it.timestamp, it.value, serial, 0)
+        }))
+        assertEquals(changed.map { it.value }, database.readingDisplayDao().getAllSince(start).map { it.displayMgdl })
     }
 }

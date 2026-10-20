@@ -4,7 +4,9 @@ import kotlin.math.abs
 
 /**
  * A driver may replace its derived history after an algorithm/calibration edit.
- * Invalidate its records only where the recorded lane's source actually changed.
+ * Identify records whose recorded lane's source actually changed. The caller
+ * must also respect the display lock: changed source does not make a locked
+ * presentation invalid while keeping displayed values is enabled.
  *
  * The displayed number is not that source: it can include graph smoothing or
  * software calibration. Comparing the record against the new sensor value
