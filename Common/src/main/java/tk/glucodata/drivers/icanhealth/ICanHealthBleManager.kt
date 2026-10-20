@@ -1923,9 +1923,13 @@ class ICanHealthBleManager(
         if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE && !liveSequence) {
             if (historySampleTimeMs == null) {
                 logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
-            } else if (glucoseInRange && !shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
-                // Range-gated so a TRIGGER_ONLY frame (whose value is a nonce and may be
-                // out of range) can never leak into the history store.
+            } else if (glucoseInRange &&
+                livePublishMode == ICanHealthLivePublishMode.PUBLISH_LIVE &&
+                !shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)
+            ) {
+                // A live value may only enter the history store when the publish policy says the
+                // field is glucose. Range alone is not enough: a nonce can be in range (the CE
+                // capture has 857 at seq 120), so a TRIGGER_ONLY frame must never be stored.
                 recordHistoryBackfillSample(
                     sequenceNumber = reading.sequenceNumber,
                     sampleTimeMs = historySampleTimeMs,
@@ -1936,8 +1940,9 @@ class ICanHealthBleManager(
             }
         }
         if (liveSequence) {
-            receivedGlucoseThisConnection = true
-            lastGlucoseReceiptRealtimeMs = nowMs
+            // The watchdog timestamp is set only where glucose is actually delivered: a
+            // HISTORY_TRIGGER frame carries a nonce, and letting it satisfy the watchdog would
+            // mask a failing history lane.
             forceSessionMetadataRefresh = false
             latestCurrentRaw = reading.currentValue
             latestTemperatureC = reading.temperatureC
@@ -1990,6 +1995,8 @@ class ICanHealthBleManager(
                 scheduleNoDataWatchdog()
                 return
             }
+            receivedGlucoseThisConnection = true
+            lastGlucoseReceiptRealtimeMs = nowMs
             rememberDriverCurrentReading(reading.glucoseMgdl, sampleTimeMs)
             storeMeasurement(reading.glucoseMgdl, sampleTimeMs)
             phase = Phase.STREAMING
@@ -2065,6 +2072,11 @@ class ICanHealthBleManager(
             }
 
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                // The 0x01 record carries the same 16-bit measurement as the 0x02 glucose record
+                // at every shared sequence on the CE capture, so it is the classifier's reference
+                // for live slots that never get a 0x02 record. Feed it before the timestamp check:
+                // the comparison does not need an anchored wall-clock time.
+                observeHistoryRawForSemantics(record.sequenceNumber, record.rawMeasurement)
                 val nowMs = System.currentTimeMillis()
                 val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
                 if (sampleTimeMs == null) {
@@ -2163,6 +2175,10 @@ class ICanHealthBleManager(
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
                 for (record in batch.records) {
+                    // 0x01 covers every slot, including the live-only ones that never receive a
+                    // 0x02 record; it is the classifier's same-sequence reference. Compare before
+                    // the timestamp check so unanchored records still contribute evidence.
+                    observeHistoryRawForSemantics(record.sequenceNumber, record.rawMeasurement)
                     val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
                     if (sampleTimeMs == null) {
                         skippedUnanchoredCount++

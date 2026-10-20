@@ -109,6 +109,13 @@ data class ICanHealthSnHistoryRecord(
      * field on the same scale instead of round-tripping through the mmol/L float.
      */
     val mantissa: Int? = null,
+    /**
+     * Unsigned raw 16-bit measurement field of an original-history (`0x01`) record, exactly as it
+     * appears on the wire. The 2026-10-20 CE capture shows it equals the `0x02` glucose mantissa
+     * at every shared sequence; [currentValue] keeps the vendor's `0x88`/`25…` transform for
+     * compatibility, so the classifier needs this separate raw field.
+     */
+    val rawMeasurement: Int? = null,
     val dataState: Int = 0,
     val currentValue: Float? = null,
     val temperatureC: Float? = null,
@@ -420,11 +427,13 @@ object ICanHealthParser {
         while (offset + recordSize <= decrypted.lastIndex) {
             when (subtype) {
                 ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                    val rawMeasurement = parseLeUnsigned(decrypted, offset)
                     val currentValue = decodeCurrentValue(decrypted[offset], decrypted[offset + 1])
                     val temperature = parseLeUnsigned(decrypted, offset + 2) / 10.0f
                     records += ICanHealthSnHistoryRecord(
                         sequenceNumber = sequenceNumber,
                         subtype = subtype,
+                        rawMeasurement = rawMeasurement,
                         currentValue = currentValue,
                         temperatureC = temperature,
                     )
@@ -716,11 +725,13 @@ object ICanHealthParser {
         val sequenceNumber = parseLeUnsigned(decrypted, 4)
         return when (subtype) {
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                val rawMeasurement = parseLeUnsigned(decrypted, 9)
                 val currentValue = decodeCurrentValue(decrypted[9], decrypted[10])
                 val temperature = parseLeUnsigned(decrypted, 11) / 10.0f
                 ICanHealthSnHistoryRecord(
                     sequenceNumber = sequenceNumber,
                     subtype = subtype,
+                    rawMeasurement = rawMeasurement,
                     currentValue = currentValue,
                     temperatureC = temperature,
                 )

@@ -43,10 +43,15 @@ internal data class ICanHealthLiveSemanticsEvidence(
 }
 
 /**
- * The gate rule: three decisive observations of one kind and none of the other.
+ * The gate rule: three decisive observations of one kind, and the verdict is sticky through fewer
+ * than three contrary observations.
  *
- * Deliberately conservative in both directions — any mixed evidence stays UNKNOWN, which keeps
- * the driver on its current behaviour.
+ * The earlier rule required the other count to stay at zero, so a single contrary packet could
+ * take `TRIGGER_ONLY` back to `UNKNOWN` — and `UNKNOWN` publishes the live value by default. That
+ * is exactly the wrong direction on a sensor whose field is a nonce. A contrary observation now
+ * has to reach the same three-observation threshold to move the verdict; when both sides are
+ * decisive the evidence is genuinely mixed (`UNKNOWN`), and the explicit
+ * `SUPPRESS_UNVERIFIED_LIVE_GLUCOSE` gate remains available for cautious builds.
  */
 internal object ICanHealthLiveSemanticsClassifier {
 
@@ -59,11 +64,11 @@ internal object ICanHealthLiveSemanticsClassifier {
         abs(liveRaw - historyRaw) <= RAW_MATCH_TOLERANCE
 
     fun classify(matches: Int, mismatches: Int): ICanHealthLiveSemantics = when {
-        matches >= REQUIRED_DECISIVE_OBSERVATIONS && mismatches == 0 ->
-            ICanHealthLiveSemantics.VERIFIED_GLUCOSE
-
-        mismatches >= REQUIRED_DECISIVE_OBSERVATIONS && matches == 0 ->
+        mismatches >= REQUIRED_DECISIVE_OBSERVATIONS && matches < REQUIRED_DECISIVE_OBSERVATIONS ->
             ICanHealthLiveSemantics.TRIGGER_ONLY
+
+        matches >= REQUIRED_DECISIVE_OBSERVATIONS && mismatches < REQUIRED_DECISIVE_OBSERVATIONS ->
+            ICanHealthLiveSemantics.VERIFIED_GLUCOSE
 
         else -> ICanHealthLiveSemantics.UNKNOWN
     }

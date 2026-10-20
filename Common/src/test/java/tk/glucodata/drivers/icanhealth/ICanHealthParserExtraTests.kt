@@ -260,6 +260,8 @@ class ICanHealthParserExtraTests {
         assertEquals(0x000A, batch.baseSequenceNumber)
         assertEquals(1, batch.records.size)
         assertEquals(0x000A, batch.records[0].sequenceNumber)
+        // The raw 16-bit field is kept separately from the vendor-formatted current value.
+        assertEquals(0x0201, batch.records[0].rawMeasurement)
         assertEquals(6.4f, batch.records[0].temperatureC!!, 0.0001f)
     }
 
@@ -298,6 +300,8 @@ class ICanHealthParserExtraTests {
         val key = ICanHealthCrypto.keyFromASCII(ICanHealthConstants.resolveBundledOriginalHistoryKey(null, null))!!
         val iv = authIv(challenge)
         val plaintext = ByteArray(15)
+        plaintext[9] = 0x60 // raw measurement 0x0360 = 864
+        plaintext[10] = 0x03
         plaintext[11] = 0x40 // temperature 6.4C
         val cipher = ICanHealthCrypto.encryptCbcPkcs7(plaintext, key, iv)!!
         assertEquals(16, cipher.size)
@@ -312,6 +316,7 @@ class ICanHealthParserExtraTests {
             warmupMinutes = 0,
         )!!
         assertEquals(ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL, record.subtype)
+        assertEquals(864, record.rawMeasurement)
         assertEquals(6.4f, record.temperatureC!!, 0.0001f)
     }
 

@@ -25,8 +25,13 @@ class ICanHealthLiveSemanticsTests {
         assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(0, 0))
         assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(2, 0))
         assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(1, 1))
-        assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(3, 1))
-        assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(1, 3))
+        // The verdict is sticky through fewer than three contrary observations: one bad packet
+        // must not take TRIGGER_ONLY back to UNKNOWN (which publishes live by default).
+        assertEquals(ICanHealthLiveSemantics.TRIGGER_ONLY, classify(1, 3))
+        assertEquals(ICanHealthLiveSemantics.TRIGGER_ONLY, classify(2, 3))
+        assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, classify(3, 1))
+        assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, classify(3, 2))
+        // Three decisive contrary observations make the evidence genuinely mixed again.
         assertEquals(ICanHealthLiveSemantics.UNKNOWN, classify(3, 3))
         assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, classify(3, 0))
         assertEquals(ICanHealthLiveSemantics.TRIGGER_ONLY, classify(0, 3))
@@ -47,7 +52,12 @@ class ICanHealthLiveSemanticsTests {
         evidence = evidence.record(isMatch = true)
         assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, evidence.verdict)
 
-        // A contradicting observation closes the gate again rather than being ignored.
+        // A single contradicting observation no longer closes the gate: the verdict is sticky
+        // until three contrary observations make the evidence genuinely mixed.
+        evidence = evidence.record(isMatch = false)
+        assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, evidence.verdict)
+        evidence = evidence.record(isMatch = false)
+        assertEquals(ICanHealthLiveSemantics.VERIFIED_GLUCOSE, evidence.verdict)
         evidence = evidence.record(isMatch = false)
         assertEquals(ICanHealthLiveSemantics.UNKNOWN, evidence.verdict)
     }
