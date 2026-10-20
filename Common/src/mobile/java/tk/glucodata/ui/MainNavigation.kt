@@ -713,7 +713,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     val showJournalNav = journalEnabled && journalNavigationTabEnabled
 
     fun collectionModeForRoute(route: String?): DashboardViewModel.CollectionMode = when (route) {
-        "dashboard", "sensors", "settings" -> DashboardViewModel.CollectionMode.DASHBOARD
+        "dashboard", "sensors", "settings", "school" -> DashboardViewModel.CollectionMode.DASHBOARD
         "stats" -> DashboardViewModel.CollectionMode.INACTIVE
         "history",
         "journal",
@@ -809,13 +809,10 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // Define items for use in both Bar and Rail
     data class NavItem(val route: String, val label: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector)
     val navItems = buildList {
-        add(NavItem("stats", stringResource(R.string.statistics_title), Icons.Filled.BarChart, Icons.Outlined.BarChart))
-        if (showJournalNav) {
-            add(NavItem("journal", stringResource(R.string.journal_title), Icons.Filled.EditNote, Icons.Outlined.EditNote))
-        }
-        add(NavItem("dashboard", stringResource(R.string.dashboard), Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle))
-        add(NavItem("sensors", stringResource(R.string.sensor), Icons.Filled.Sensors, Icons.Outlined.Sensors))
-        add(NavItem("settings", stringResource(R.string.settings), Icons.Filled.Settings, Icons.Outlined.Settings))
+        add(NavItem("dashboard", "Глюкоза", Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle))
+        add(NavItem("school", "Калибровка", Icons.Filled.EditNote, Icons.Outlined.EditNote))
+        add(NavItem("sensors", "Датчики", Icons.Filled.Sensors, Icons.Outlined.Sensors))
+        add(NavItem("settings", "Настройки", Icons.Filled.Settings, Icons.Outlined.Settings))
     }
 
     // One NavHost in one place for both orientations. Rotation is handled by this activity
@@ -954,6 +951,7 @@ private fun NavGraphBuilder.appDestinations(
             onTriggerCalibration = onTriggerCalibration,
         )
     }
+    composable("school") { tk.glucodata.ui.calibration.CalibrationSchoolScreen(navController) }
     composable("stats") { FontScaleCap { tk.glucodata.ui.stats.StatsScreen() } }
     composable("sensors") {
         SensorScreen(
