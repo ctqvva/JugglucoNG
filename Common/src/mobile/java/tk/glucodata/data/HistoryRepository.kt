@@ -721,7 +721,9 @@ class HistoryRepository(context: Context = Applic.app) {
      */
     private fun forwardBackfillToExchanges(readings: List<HistoryReading>) {
         readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
-            val backfillRows = rows.map { XdripBackfill.Row(it.timestamp, it.value, it.rawValue, it.rate) }
+            val backfillRows = rows.map {
+                XdripBackfill.Row(it.timestamp, it.value, it.rawValue, it.rate, it.firstStoredAt)
+            }
             XdripBackfill.onHistoryStored(serial, backfillRows)
             // Resolving a row to the value a live send would carry costs a native snapshot,
             // smoothing and calibration per row, so it is skipped for the many users who never
@@ -764,7 +766,8 @@ class HistoryRepository(context: Context = Applic.app) {
                 filteredReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(newest.sensorSerial, newest.timestamp, writer = "storeReadings")
                 }
-                database.withTransaction {
+                // With their stored provenance: the backfill tells live rows from late ones by it.
+                val storedReadings = database.withTransaction {
                     val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
                     filteredReadings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
                         rows.map(HistoryReading::timestamp).distinct().chunked(DELETED_TIMESTAMP_QUERY_CHUNK)
@@ -785,9 +788,10 @@ class HistoryRepository(context: Context = Applic.app) {
                         )
                     }
                     dao.insertAll(readingsWithStableProvenance)
+                    readingsWithStableProvenance
                 }
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
-                forwardBackfillToExchanges(filteredReadings)
+                forwardBackfillToExchanges(storedReadings)
                 // Only log small batches (likely genuine new data, not re-syncs)
                 if (filteredReadings.size <= 10) {
                     Log.d(TAG, "Stored ${filteredReadings.size} readings")
@@ -833,7 +837,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     collapsedReadings = collapsedReadings,
                     bucketDurationMs = bucketDurationMs,
                 ) ?: return@withContext false
-                database.withTransaction {
+                val storedReadings = database.withTransaction {
                     val existingProvenance = HashMap<Long, HistoryReading>()
                     for (range in plan.bucketRanges) {
                         val startTimeInclusive = range.firstBucketId * bucketDurationMs
@@ -863,13 +867,14 @@ class HistoryRepository(context: Context = Applic.app) {
                         bucketRanges = plan.bucketRanges
                     )
                     dao.insertAll(readingsWithStableSources)
+                    readingsWithStableSources
                 }
                 BatteryTrace.bump(
                     "room.history.replace_bucket_batch",
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
-                forwardBackfillToExchanges(collapsedReadings)
+                forwardBackfillToExchanges(storedReadings)
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)

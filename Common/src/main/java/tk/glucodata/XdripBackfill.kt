@@ -21,14 +21,20 @@ object XdripBackfill {
     private const val MAX_RATE_LOOKBACK_MS = 60L * 60L * 1000L
     private const val PROCESS_DELAY_MS = 5_000L
 
-    data class Row(val timeMs: Long, val value: Float, val rawValue: Float, val rate: Float?)
+    /** [storedAtMs]: when the row first reached Room, or 0 when unknown. */
+    data class Row(
+        val timeMs: Long,
+        val value: Float,
+        val rawValue: Float,
+        val rate: Float?,
+        val storedAtMs: Long = 0L,
+    )
 
     /** One stored reading with the mg/dL a live send would carry for it. */
     data class DisplayedRow(val timeMs: Long, val mgdl: Int)
 
-    private class Pending(var sensorSerial: String) {
+    private class Pending(val sensorSerial: String) {
         val candidates = HashMap<Long, XdripBackfillTracker.Candidate>()
-        var flushScheduled = false
     }
 
     private val tracker = XdripBackfillTracker()
@@ -46,17 +52,13 @@ object XdripBackfill {
         if (tracker.sensor(id) == null) restore(id)
         tracker.recordSent(id, timeMs, sensorGen, sensorStartMs)
         persist(id)
-        // Rows held back for being newer than the previous live send can be decided now.
-        if (synchronized(pending) { pending[id]?.let { it.candidates.isNotEmpty() && claimFlush(it) } == true }) {
-            scheduleFlush(id)
-        }
     }
 
     /**
      * History rows for [sensorSerial] were written. The ones live never carried are sent
-     * [PROCESS_DELAY_MS] later, batched. The history row of a reading is stored just before that
-     * reading goes out live, so a row newer than the last live send is held by the tracker and
-     * offered again after the next live send, which either carried it or skipped it.
+     * [PROCESS_DELAY_MS] later: the history row of a reading is stored just before that reading
+     * goes out live, and sending it straight away doubled it in AAPS. Waiting lets the live send
+     * land first, so the deduplication sees it (xDrip processes backfill after a delay too).
      */
     @JvmStatic
     fun onHistoryStored(sensorSerial: String, rows: List<Row>) {
@@ -72,11 +74,13 @@ object XdripBackfill {
             if (computed.isEmpty()) return
             val schedule = synchronized(pending) {
                 val queued = pending.getOrPut(id) { Pending(sensorSerial) }
-                queued.sensorSerial = sensorSerial
+                val first = queued.candidates.isEmpty()
                 computed.forEach { queued.candidates[it.timeMs] = it }
-                claimFlush(queued)
+                first
             }
-            if (schedule) scheduleFlush(id)
+            if (schedule) {
+                Applic.scheduler.schedule({ flush(id) }, PROCESS_DELAY_MS, TimeUnit.MILLISECONDS)
+            }
         } catch (error: Throwable) {
             Log.stack(LOG_ID, "onHistoryStored", error)
         }
@@ -104,44 +108,15 @@ object XdripBackfill {
         }
     }
 
-    /** Caller holds the [pending] lock. True when the caller is the one to schedule the flush. */
-    private fun claimFlush(queued: Pending): Boolean {
-        if (queued.flushScheduled) return false
-        queued.flushScheduled = true
-        return true
-    }
-
-    private fun scheduleFlush(id: String) {
-        Applic.scheduler.schedule({ flush(id) }, PROCESS_DELAY_MS, TimeUnit.MILLISECONDS)
-    }
-
     private fun flush(id: String) {
         try {
-            val (sensorSerial, batch) = synchronized(pending) {
-                val queued = pending[id] ?: return
-                queued.flushScheduled = false
-                val batch = queued.candidates.values.toList()
-                queued.candidates.clear()
-                queued.sensorSerial to batch
-            }
+            val queued = synchronized(pending) { pending.remove(id) } ?: return
             // The user may have picked another sensor during the delay.
-            if (!Natives.getxbroadcast() || !isMainSensor(sensorSerial)) return
+            if (!Natives.getxbroadcast() || !isMainSensor(queued.sensorSerial)) return
             val app = Applic.app ?: return
             val sensor = tracker.sensor(id) ?: return
             val spacingMs = DataSmoothing.exchangeThrottleIntervalMinutes(app) * 60_000L
-            val result = tracker.pick(id, batch, System.currentTimeMillis(), spacingMs)
-            if (result.held.isNotEmpty()) {
-                // A newer copy of a row may have been queued while this ran; that one wins. A live
-                // send in the meantime found nothing queued, so it falls to this to flush again.
-                val oldestHeldMs = result.held.minOf { it.timeMs }
-                val reschedule = synchronized(pending) {
-                    val queued = pending.getOrPut(id) { Pending(sensorSerial) }
-                    result.held.forEach { queued.candidates.putIfAbsent(it.timeMs, it) }
-                    (tracker.sensor(id)?.liveEdgeMs ?: 0L) >= oldestHeldMs && claimFlush(queued)
-                }
-                if (reschedule) scheduleFlush(id)
-            }
-            val picked = result.send
+            val picked = tracker.pick(id, queued.candidates.values.toList(), System.currentTimeMillis(), spacingMs)
             if (picked.isEmpty()) return
             if (Log.doLog) Log.i(LOG_ID, "backfill ${picked.size} readings sensor=$id")
             for (point in picked) {
@@ -195,7 +170,7 @@ object XdripBackfill {
         return valid.mapIndexed { index, row ->
             val rate = row.rate?.takeIf { it.isFinite() && it != 0f }
                 ?: derivedRate(valid, shown, index)
-            XdripBackfillTracker.Candidate(row.timeMs, shown[index].toDouble(), rate)
+            XdripBackfillTracker.Candidate(row.timeMs, shown[index].toDouble(), rate, row.storedAtMs)
         }
     }
 
