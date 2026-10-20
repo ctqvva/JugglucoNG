@@ -30,4 +30,14 @@ class PresentedMinuteRecorderTests {
         PresentedMinuteRecorder.recordVisible(listOf(minute.copy(displayMgdl = 130f)), write)
         assertEquals(2, attempts)
     }
+
+    @Test fun aMinuteCanBeRecordedAgainAfterADriverRewritesItsDisplayedValue() = runBlocking {
+        val written = mutableListOf<HistoryRepository.PresentedMinute>()
+        val write: suspend (List<HistoryRepository.PresentedMinute>) -> Int? = { written.addAll(it); it.size }
+        assertEquals(1, PresentedMinuteRecorder.recordVisible(listOf(minute), write))
+        val rebuilt = minute.copy(displayMgdl = 130f)
+        assertEquals(1, PresentedMinuteRecorder.recordVisible(listOf(rebuilt), write))
+        assertEquals(0, PresentedMinuteRecorder.recordVisible(listOf(rebuilt), write))
+        assertEquals(listOf(minute, rebuilt), written)
+    }
 }

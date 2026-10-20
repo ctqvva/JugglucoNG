@@ -4,207 +4,97 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The seam the record-keeping never specified: a driver that integrates the
- * user's calibration re-measures its whole history on a fingerstick. The
- * record froze the old numbers, so the calibration moved nothing older than
- * the grace window and looked dead. A record whose sensor has rewritten the
- * number it was drawn from is void; one whose number stands is kept.
- */
+/** Invalidation requires a change of source, not a difference from the displayed value. */
 class RecordedDisplayVoidingTests {
-
     private companion object {
         const val MINUTE = ReadingDisplay.MINUTE_MS
         const val T0 = 1_800_000_000_000L
         const val SERIAL = "SIBI:0683013AQT9"
     }
 
-    private fun record(minute: Int, shown: Float, viewMode: Int = 0, serial: String = SERIAL) = ReadingDisplay(
-        timestamp = ReadingDisplay.minuteOf(T0 + minute * MINUTE),
-        sensorSerial = serial,
-        displayMgdl = shown,
-        viewMode = viewMode,
-        calibrationFingerprint = 1L,
-        recordedAt = T0,
+    private fun record(minute: Int, shown: Float, mode: Int = 0, serial: String = SERIAL) = ReadingDisplay(
+        ReadingDisplay.minuteOf(T0 + minute * MINUTE), serial, shown, mode, 1L, T0,
     )
 
     private fun reading(minute: Int, value: Float, raw: Float = value, serial: String = SERIAL) = HistoryReading(
-        timestamp = T0 + minute * MINUTE + 17_000L,
-        sensorSerial = serial,
-        value = value,
-        rawValue = raw,
-        rate = null,
+        timestamp = T0 + minute * MINUTE + 17_000L, sensorSerial = serial,
+        value = value, rawValue = raw, rate = null,
     )
 
-    @Test
-    fun aRecordWhoseNumberTheDriverRewroteIsVoid() {
-        val records = listOf(record(0, 100f), record(1, 104f), record(2, 108f))
-        // A fingerstick lifted the whole line by 12.
-        val rewritten = listOf(reading(0, 112f), reading(1, 116f), reading(2, 120f))
-        assertEquals(
-            records.map { it.timestamp },
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false),
-        )
+    @Test fun changedSourcesInvalidateTheirOwnRecords() {
+        val records = listOf(record(0, 99f), record(1, 106f), record(2, 119f))
+        val before = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))
+        val after = listOf(reading(0, 112f), reading(1, 116f), reading(2, 120f))
+        assertEquals(records.map { it.timestamp },
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false))
     }
 
-    @Test
-    fun aRecordWhoseNumberStandsIsKeptAndSoIsItsOwnership() {
-        // A rebuild for a reason other than calibration replays the same DSP
-        // over the same samples and lands on the same numbers. Nothing to void:
-        // the record, and who owned the minute, survive.
-        val records = listOf(record(0, 100f), record(1, 104f), record(2, 108f))
-        val rewritten = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108.004f))
-        assertTrue(
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false).isEmpty(),
-        )
+    @Test fun unchangedReplayKeepsSmoothedAndCalibratedRecordsAndOwnership() {
+        val records = listOf(record(0, 99f), record(1, 106f), record(2, 119f))
+        val before = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))
+        val after = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108.004f))
+        assertTrue(RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false).isEmpty())
     }
 
-    @Test
-    fun onlyTheMinutesInsideTheRewriteAreConsidered() {
+    @Test fun onlyTheReplacedMinutesAreConsidered() {
         val records = listOf(record(0, 100f), record(5, 120f), record(9, 140f))
-        val rewritten = listOf(reading(4, 200f), reading(5, 200f), reading(6, 200f))
-        assertEquals(
-            listOf(record(5, 0f).timestamp),
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false),
-        )
+        val before = listOf(reading(0, 100f), reading(5, 120f), reading(9, 140f))
+        val after = listOf(reading(4, 200f), reading(5, 200f), reading(6, 200f))
+        assertEquals(listOf(records[1].timestamp),
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false))
     }
 
-    @Test
-    fun aMinuteTheRewriteNoLongerHasAReadingForIsVoidToo() {
-        // Inside the rewritten range, but the sensor no longer reports that
-        // minute: the record would describe a reading that does not exist.
+    @Test fun aGapBetweenReplacementBucketsDoesNotDeleteItsRecords() {
         val records = listOf(record(0, 100f), record(1, 104f), record(2, 108f))
-        val rewritten = listOf(reading(0, 100f), reading(2, 108f))
-        assertEquals(
-            listOf(record(1, 0f).timestamp),
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false),
-        )
+        val before = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))
+        val after = listOf(reading(0, 100f), reading(2, 108f))
+        assertTrue(RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false).isEmpty())
     }
 
-    @Test
-    fun anotherSensorsRecordsAreNotTouched() {
-        // Two sensors in the same minutes; only the rewriting sensor's records
-        // are in question, and only its own readings are looked at.
+    @Test fun anotherSensorsRecordsAreNotTouched() {
         val records = listOf(record(0, 100f, serial = "other"), record(1, 104f))
-        val rewritten = listOf(reading(0, 150f), reading(1, 150f), reading(0, 300f, serial = "other"))
-        assertEquals(
-            listOf(record(1, 0f).timestamp),
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false),
-        )
+        val before = listOf(reading(0, 100f), reading(1, 104f), reading(0, 300f, serial = "other"))
+        val after = listOf(reading(0, 150f), reading(1, 150f), reading(0, 400f, serial = "other"))
+        assertEquals(listOf(records[1].timestamp),
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false))
     }
 
-    @Test
-    fun aLaneTheDriverDoesNotIntegrateKeepsItsRecord() {
-        // Sibionics integrates the auto lane only. A raw-lane record may hold
-        // the app's own calibration of the raw number, which differs from the
-        // stored raw on purpose; the rewrite says nothing about it.
-        val records = listOf(record(0, 100f, viewMode = 0), record(1, 90f, viewMode = 1))
-        val rewritten = listOf(reading(0, 112f, raw = 95f), reading(1, 116f, raw = 99f))
-        assertEquals(
-            listOf(record(0, 0f).timestamp),
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = true, rawLaneIntegrated = false),
-        )
-        assertEquals(
-            listOf(record(1, 0f).timestamp),
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = false, rawLaneIntegrated = true),
-        )
+    @Test fun eachLaneIsComparedWithItsOwnPreviousSource() {
+        val records = listOf(record(0, 110f, mode = 0), record(1, 99f, mode = 1))
+        val before = listOf(reading(0, 100f, raw = 90f), reading(1, 104f, raw = 94f))
+        val after = listOf(reading(0, 112f, raw = 95f), reading(1, 116f, raw = 99f))
+        assertEquals(listOf(records[0].timestamp),
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false))
+        assertEquals(listOf(records[1].timestamp),
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, false, true))
+        assertEquals(records.map { it.timestamp },
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, true))
     }
 
-    @Test
-    fun aDriverThatIntegratesNothingVoidsNothing() {
-        // Every other driver's wholesale rewrite is a re-sync of the same
-        // numbers under an app-side calibration; the record is the whole point.
+    @Test fun aDriverThatRewritesNeitherLaneVoidsNothing() {
         val records = listOf(record(0, 100f))
-        val rewritten = listOf(reading(0, 80f))
-        assertTrue(
-            RecordedDisplayVoiding.minutesToVoid(records, SERIAL, rewritten, autoLaneIntegrated = false, rawLaneIntegrated = false).isEmpty(),
-        )
+        assertTrue(RecordedDisplayVoiding.changedMinutes(records, SERIAL,
+            listOf(reading(0, 100f)), listOf(reading(0, 80f)), false, false).isEmpty())
     }
 
-    @Test
-    fun aRecordStandsForAReadingOnlyWhileItHoldsTheSensorsNumber() {
-        val record = record(0, 100f)
-        val same = reading(0, 100.004f)
-        val moved = reading(0, 112f)
-        // Integrated lane: equal stands, moved or missing is stale.
-        assertTrue(RecordedDisplayVoiding.recordStandsFor(record, same, autoLaneIntegrated = true, rawLaneIntegrated = false))
-        assertTrue(!RecordedDisplayVoiding.recordStandsFor(record, moved, autoLaneIntegrated = true, rawLaneIntegrated = false))
-        assertTrue(!RecordedDisplayVoiding.recordStandsFor(record, null, autoLaneIntegrated = true, rawLaneIntegrated = false))
-        // A lane the driver does not integrate holds the app's calibration and may differ.
-        assertTrue(RecordedDisplayVoiding.recordStandsFor(record, moved, autoLaneIntegrated = false, rawLaneIntegrated = true))
+    @Test fun noPreviousSourceIsNotEvidenceForDeletingASavedValue() {
+        assertTrue(RecordedDisplayVoiding.changedMinutes(listOf(record(0, 112f)), SERIAL,
+            emptyList(), listOf(reading(0, 100f)), true, false).isEmpty())
     }
 
-    @Test
-    fun theLineSetsAStaleRecordAsideAtReadTimeWithoutTouchingOwnership() {
-        // A store that already holds stale records — every minute after a
-        // 16:07 stick recorded at the pre-stick number while the driver had
-        // rewritten the rows to 1.8× — drew the old number where the record
-        // was this sensor's and the new one where it was the other sensor's,
-        // block by block. The line helper asks the same question the voiding
-        // does, so such a store draws the sensor's number at once; the
-        // record's ownership of the minute is not consulted here and stands.
-        val repo = java.io.File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val line = repo.substringAfter("private fun sealedRecordForLine").substringBefore("\n    }\n")
-        assertTrue(line.contains("recordStillDescribes(reading, record)"))
-        val rule = repo.substringAfter("private fun recordStillDescribes").substringBefore("\n    }\n")
-        assertTrue("one definition, shared with the voiding", rule.contains("RecordedDisplayVoiding.recordStandsFor"))
-        assertTrue("gated on the driver integrating the calibration", rule.contains("integratesLane"))
-        val flow = repo.substringAfter("private fun withSealedDisplay").substringBefore("\n    private fun")
-        assertTrue("the flow path asks too", flow.contains("recordStillDescribes("))
-        val stats = repo.substringAfter("private fun mapReadingForStats").substringBefore("\n    }\n")
-        assertTrue("statistics set aside a stale record of the reading's own sensor", stats.contains("recordStillDescribes(reading, record)"))
+    @Test fun restoringStockVoidsOnlyAutoSourcesThatActuallyChanged() {
+        val records = listOf(record(0, 112f), record(1, 90f), record(2, 95f), record(3, 50f, mode = 1))
+        val before = listOf(reading(0, 100f), reading(1, 90f), reading(2, 95f), reading(3, 99f))
+        val after = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f), reading(3, 109f))
+        assertEquals(listOf(records[1].timestamp, records[2].timestamp),
+            RecordedDisplayVoiding.changedMinutes(records, SERIAL, before, after, true, false))
     }
 
-    @Test
-    fun aStockReplayOfUnchangedNumbersKeepsCalibratedRecords() {
-        // AiDex Stock replays the same factory numbers. The records hold the
-        // app's calibration of them, so they differ from the stored number and
-        // must still stand: nothing the record was drawn from changed.
-        val records = listOf(record(0, 112f), record(1, 116f), record(2, 120f))
-        val rewritten = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f))
-        val before = rewritten.associate { ReadingDisplay.minuteOf(it.timestamp) to it.value }
-        assertTrue(RecordedDisplayVoiding.changedAutoMinutes(records, SERIAL, rewritten, before).isEmpty())
-    }
-
-    @Test
-    fun restoringStockVoidsOnlyTheMinutesItRewrote() {
-        // Minutes 1-2 held Adaptive values and go back to factory; minute 0 was
-        // already factory. A raw-lane record is never an Auto rewrite.
-        val records = listOf(record(0, 112f), record(1, 90f), record(2, 95f), record(3, 50f, viewMode = 1))
-        val rewritten = listOf(reading(0, 100f), reading(1, 104f), reading(2, 108f), reading(3, 109f))
-        val before = mapOf(
-            ReadingDisplay.minuteOf(T0) to 100f,
-            ReadingDisplay.minuteOf(T0 + MINUTE) to 90f,
-            ReadingDisplay.minuteOf(T0 + 2 * MINUTE) to 95f,
-            ReadingDisplay.minuteOf(T0 + 3 * MINUTE) to 99f,
-        )
-        assertEquals(
-            listOf(records[1].timestamp, records[2].timestamp),
-            RecordedDisplayVoiding.changedAutoMinutes(records, SERIAL, rewritten, before),
-        )
-    }
-
-    @Test
-    fun theBeforeReadCoversWholeMinutes() {
-        // The write replaces whole minutes, so a stored row earlier in an edge
-        // minute than the incoming reading must still be read as "before".
-        val repo = java.io.File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val read = repo.substringAfter("suspend fun storedAutoByMinute").substringBefore("\n    }\n")
-        assertTrue(read.contains("ReadingDisplay.minuteOf(readings.minOf { it.timestamp })"))
-        assertTrue(read.contains("ReadingDisplay.minuteOf(readings.maxOf { it.timestamp }) + ReadingDisplay.MINUTE_MS"))
-    }
-
-    @Test
-    fun theRepositoryVoidsOnlyAfterADriversBatchReplacedItsHistory() {
-        // The voiding is wired to the one write a driver uses to replace its
-        // own history, and to nothing else — recording, revising, and the
-        // sensor-removal delete keep their own rules.
-        val repo = java.io.File("src/mobile/java/tk/glucodata/data/HistoryRepository.kt").readText()
-        val batch = repo.substringAfter("fun storeHistoryBatchBlocking").substringBefore("\n    }\n")
-        assertTrue(batch.contains("if (stored) repository.voidRecordsRewrittenByDriver("))
-        val voiding = repo.substringAfter("suspend fun voidRecordsRewrittenByDriver").substringBefore("\n    }\n")
-        assertTrue("gated on the driver integrating the calibration", voiding.contains("integratesUserCalibration"))
-        assertTrue("a deletion, never a revision", voiding.contains("deleteAtMinutes"))
+    @Test fun aTimestampCorrectionWithinTheSameMinuteKeepsTheRecordWhenItsSourceIsUnchanged() {
+        val before = reading(0, 100f).copy(timestamp = T0 + 1_000L)
+        val after = reading(0, 100f)
+        assertTrue(RecordedDisplayVoiding.changedMinutes(listOf(record(0, 105f)), SERIAL,
+            listOf(before), listOf(after), true, false).isEmpty())
     }
 
     // Libre 1/2: its 15-minute history used to share the Auto lane with the
@@ -249,7 +139,7 @@ class RecordedDisplayVoidingTests {
     fun streamRecordsAndHistoryStillOnTheAutoLineKeepTheirRecords() {
         val stream = row(0, 41, 115f)
         val gapFill = row(1, 3, 108f)
-        val records = listOf(record(0, 115f), record(1, 108f), record(2, 99f, viewMode = 1))
+        val records = listOf(record(0, 115f), record(1, 108f), record(2, 99f, mode = 1))
         val voided = RecordedDisplayVoiding.displacedHistoryMinutes(
             records = records,
             sensorSerial = SERIAL,

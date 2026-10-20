@@ -24,11 +24,12 @@ import java.util.Collections
  * dishonest and expensive. [SETTLE_MS] is how long the viewport must hold still
  * before what it shows counts as looked at.
  *
- * **Once.** [presented] remembers what this process has already written, so
- * holding still, or returning to a stretch, costs nothing. The set is per
+ * **Once.** [presented] remembers presentations this process has already written, so
+ * holding still, or returning to a stretch, costs nothing. The guard is per
  * process on purpose: it is a write-amplification guard, not the guarantee. The
  * guarantee is in the database — a minute past its grace window cannot be
- * revised, whatever is submitted.
+ * revised, whatever is submitted. A driver rewrite can invalidate a record;
+ * when its displayed value changes it must be eligible to be recorded again.
  */
 internal object PresentedMinuteRecorder {
 
@@ -40,7 +41,7 @@ internal object PresentedMinuteRecorder {
      */
     const val SETTLE_MS = 700L
 
-    private val presented = Collections.synchronizedSet(HashSet<Long>())
+    private val presented = Collections.synchronizedMap(HashMap<Long, HistoryRepository.PresentedMinute>())
 
     /** Forgets the per-process guard. For tests, and for a store that was cleared. */
     fun reset() = presented.clear()
@@ -63,10 +64,10 @@ internal object PresentedMinuteRecorder {
         // its value can still change; the database decides whether that lands.
         val unseen = visible.map { it.copy(minuteMs = tk.glucodata.data.ReadingDisplay.minuteOf(it.minuteMs)) }
             .distinctBy { it.minuteMs }
-            .filter { it.minuteMs !in presented }
+            .filter { presented[it.minuteMs] != it }
         if (unseen.isEmpty()) return 0
         val recorded = write(unseen) ?: return 0
-        presented.addAll(unseen.map { it.minuteMs })
+        unseen.forEach { presented[it.minuteMs] = it }
         return recorded
     }
 
@@ -76,7 +77,7 @@ internal object PresentedMinuteRecorder {
      */
     fun releaseUnsealed(sealHorizonMs: Long) {
         synchronized(presented) {
-            presented.removeAll { it > sealHorizonMs }
+            presented.keys.removeAll { it > sealHorizonMs }
         }
     }
 }
