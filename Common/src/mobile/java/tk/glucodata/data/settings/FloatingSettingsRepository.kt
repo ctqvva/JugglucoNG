@@ -87,7 +87,7 @@ class FloatingSettingsRepository(context: Context) {
             .apply()
     }
 
-    fun resetPosition() = savePosition(OverlayPosition.DEFAULT)
+    fun resetPosition() = savePosition(OverlayPosition.CENTRE)
 
     /** Null until a position has been saved in the screen-relative form. */
     fun getPosition(): OverlayPosition? {

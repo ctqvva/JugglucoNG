@@ -1345,7 +1345,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="points">Puanlar</string>
     <string name="position_layout">Konum ve düzen</string>
     <string name="floating_reset_position">Konumu sıfırla</string>
-    <string name="floating_reset_position_desc">Kayan glikozu ekranın üst kısmına geri taşır.</string>
+    <string name="floating_reset_position_desc">Kayan glikozu ekranın ortasına geri taşır.</string>
     <string name="preview">Önizleme</string>
     <string name="previous_calibrations">Önceki kalibrasyonlar</string>
     <string name="show_less">Daha az göster</string>

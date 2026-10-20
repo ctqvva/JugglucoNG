@@ -1316,7 +1316,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">Ачкі</string>
     <string name="position_layout">Размяшчэнне і размяшчэнне</string>
     <string name="floating_reset_position">Скінуць становішча</string>
-    <string name="floating_reset_position_desc">Вяртае плывучую глюкозу ўверх экрана.</string>
+    <string name="floating_reset_position_desc">Вяртае плывучую глюкозу ў сярэдзіну экрана.</string>
     <string name="preview">Папярэдні прагляд</string>
     <string name="previous_calibrations">Папярэднія каліброўкі</string>
     <string name="show_less">Паказаць менш</string>

@@ -1430,7 +1430,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="points">Punkte</string>
     <string name="position_layout">Position und Layout</string>
     <string name="floating_reset_position">Position zurücksetzen</string>
-    <string name="floating_reset_position_desc">Setzt den schwebenden Glukosewert wieder oben auf den Bildschirm.</string>
+    <string name="floating_reset_position_desc">Setzt den schwebenden Glukosewert wieder in die Bildschirmmitte.</string>
     <string name="preview">Vorschau</string>
     <string name="previous_calibrations">Frühere Kalibrierungen</string>
     <string name="show_less">Weniger anzeigen</string>

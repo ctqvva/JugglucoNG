@@ -1354,7 +1354,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">точек</string>
     <string name="position_layout">Расположение и планировка</string>
     <string name="floating_reset_position">Сбросить положение</string>
-    <string name="floating_reset_position_desc">Возвращает плавающую глюкозу в верхнюю часть экрана.</string>
+    <string name="floating_reset_position_desc">Возвращает плавающую глюкозу в центр экрана.</string>
     <string name="preview">Предварительный просмотр</string>
     <string name="previous_calibrations">Предыдущие калибровки</string>
     <string name="show_less">Скрыть</string>

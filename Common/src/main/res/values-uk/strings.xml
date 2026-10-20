@@ -1331,7 +1331,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">Очки</string>
     <string name="position_layout">Розташування та компонування</string>
     <string name="floating_reset_position">Скинути положення</string>
-    <string name="floating_reset_position_desc">Повертає плаваючу глюкозу у верхню частину екрана.</string>
+    <string name="floating_reset_position_desc">Повертає плаваючу глюкозу в центр екрана.</string>
     <string name="preview">Попередній перегляд</string>
     <string name="previous_calibrations">Попередні калібрування</string>
     <string name="show_less">Показати менше</string>

@@ -6,10 +6,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Point
-import android.graphics.Rect
-import android.hardware.display.DisplayManager
 import android.os.IBinder
-import android.view.Display
 import android.view.Gravity
 import android.view.Surface
 import android.view.View
@@ -41,7 +38,7 @@ import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.overlay.FloatingGlucoseOverlay
 import tk.glucodata.ui.overlay.OverlayPosition
-import tk.glucodata.ui.overlay.OverlaySafeArea
+import tk.glucodata.ui.overlay.OverlayScreenArea
 import tk.glucodata.ui.overlay.clampOverlayPixels
 import tk.glucodata.ui.overlay.overlayPixels
 import tk.glucodata.ui.overlay.overlayPosition
@@ -90,8 +87,6 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
 
         setupOverlay()
         observeSettings()
-        (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
-            ?.registerDisplayListener(displayListener, null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         
@@ -147,26 +142,12 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     private val cutoutData = kotlinx.coroutines.flow.MutableStateFlow(CutoutData(0.dp, CutoutEdge.NONE))
     private var dynamicIslandEnabled = false
     // Freeform placement is kept screen-relative and resolved against the current
-    // safe area on every placement; see OverlayPosition.
-    private var freeformPosition = OverlayPosition.DEFAULT
+    // screen area on every placement; see OverlayPosition.
+    private var freeformPosition = OverlayPosition.CENTRE
     // Pixel position from before #685, converted once the overlay has a size.
     private var legacyPixelPosition: Pair<Int, Int>? = null
-    private var safeArea: OverlaySafeArea? = null
+    private var screenArea: OverlayScreenArea? = null
     private var dragging = false
-    // Android 9 only: display-coordinate cutout rects, see rememberLegacyCutout.
-    private var legacyCutoutRects: List<Rect> = emptyList()
-
-    // A 180° turn moves the navigation bar (and cutout) to the other side without a
-    // configuration change, and the pill may be sitting right where it lands.
-    private val displayListener = object : DisplayManager.DisplayListener {
-        override fun onDisplayAdded(displayId: Int) {}
-        override fun onDisplayRemoved(displayId: Int) {}
-        override fun onDisplayChanged(displayId: Int) {
-            if (displayId == Display.DEFAULT_DISPLAY) {
-                overlayRoot?.post { refreshPlacementIfSafeAreaChanged() }
-            }
-        }
-    }
 
     private fun setupOverlay() {
         if (composeView != null) return
@@ -176,11 +157,6 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
                 cutoutData.value = resolveCutoutData(v, insets.displayCutout)
                 if (dynamicIslandEnabled) {
                     applyOverlayPlacement()
-                } else {
-                    if (android.os.Build.VERSION.SDK_INT == 28) {
-                        rememberLegacyCutout(v, insets.displayCutout)
-                    }
-                    v.post { refreshPlacementIfSafeAreaChanged() }
                 }
             }
         }.apply {
@@ -237,9 +213,10 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         if (savedPosition != null) {
             freeformPosition = savedPosition
         } else {
-            legacyPixelPosition = settingsRepository.getLegacyPixelPosition()
+            // Before #685 a fresh install started at (100, 100) px; keep that spot.
+            legacyPixelPosition = settingsRepository.getLegacyPixelPosition() ?: (100 to 100)
         }
-        safeArea = currentSafeArea()
+        screenArea = currentScreenArea()
         layoutParams.gravity = Gravity.TOP or Gravity.START
         placeFreeform()
 
@@ -263,13 +240,12 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         val root = overlayRoot ?: return
         if (windowManager == null) return
         if (!dragging) {
-            // Re-read once per drag: a 180° turn changes the navigation bar side
-            // without a configuration change.
+            // Re-read once per drag, in case the screen changed since the last placement.
             dragging = true
-            safeArea = currentSafeArea()
+            screenArea = currentScreenArea()
         }
 
-        val area = safeArea
+        val area = screenArea
         val x = layoutParams.x + xDelta
         val y = layoutParams.y + yDelta
         if (area != null) {
@@ -298,41 +274,6 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         settingsRepository.savePosition(freeformPosition)
     }
 
-    /** Re-places the freeform pill when the bars or cutout moved; a no-op otherwise. */
-    private fun refreshPlacementIfSafeAreaChanged() {
-        if (dynamicIslandEnabled || dragging || overlayRoot == null) return
-        if (currentSafeArea() != safeArea) {
-            applyOverlayPlacement()
-        }
-    }
-
-    /**
-     * Android 9 has no public display-level cutout, but the window's own cutout keeps
-     * every bounding rect, shifted into window coordinates. The window origin is only
-     * current after the traversal that dispatched these insets, hence the post.
-     */
-    @Suppress("NewApi")
-    private fun rememberLegacyCutout(view: View, cutout: android.view.DisplayCutout?) {
-        val rects = cutout?.boundingRects.orEmpty().map { Rect(it) }
-        view.post {
-            val origin = IntArray(2).also { view.getLocationOnScreen(it) }
-            legacyCutoutRects = rects.map { Rect(it).apply { offset(origin[0], origin[1]) } }
-            refreshPlacementIfSafeAreaChanged()
-        }
-    }
-
-    /** Safe insets (left, top, right, bottom) of [rects] on a [width] x [height] display. */
-    private fun cutoutInsets(rects: List<Rect>, width: Int, height: Int): Rect {
-        val insets = Rect()
-        for (rect in rects) {
-            if (rect.isEmpty) continue
-            if (rect.left <= 0) insets.left = maxOf(insets.left, rect.right)
-            if (rect.top <= 0) insets.top = maxOf(insets.top, rect.bottom)
-            if (rect.right >= width) insets.right = maxOf(insets.right, width - rect.left)
-            if (rect.bottom >= height) insets.bottom = maxOf(insets.bottom, height - rect.top)
-        }
-        return insets
-    }
 
     private fun observeSettings() {
         serviceScope.launch {
@@ -435,7 +376,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             }
         } else {
             layoutParams.gravity = Gravity.TOP or Gravity.START
-            safeArea = currentSafeArea()
+            screenArea = currentScreenArea()
             placeFreeform()
         }
 
@@ -446,9 +387,9 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
     }
 
-    /** Resolves [freeformPosition] into layoutParams.x/y for the current safe area. */
+    /** Resolves [freeformPosition] into layoutParams.x/y for the current screen area. */
     private fun placeFreeform() {
-        val area = safeArea
+        val area = screenArea
         val root = overlayRoot
         if (area == null || root == null) {
             legacyPixelPosition?.let { (x, y) ->
@@ -468,7 +409,7 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
                 layoutParams.y = y
                 return
             }
-            freeformPosition = overlayPosition(legacy.first, legacy.second, area, width, height, OverlayPosition.DEFAULT)
+            freeformPosition = overlayPosition(legacy.first, legacy.second, area, width, height, OverlayPosition.CENTRE)
             legacyPixelPosition = null
             settingsRepository.savePosition(freeformPosition)
         }
@@ -478,55 +419,21 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     }
 
     /**
-     * The display minus status bar, navigation bar and cutout, in the coordinates the
-     * TOP|START overlay window is laid out in. Bars are reserved even while hidden: a
-     * full-screen app must not let the overlay be dropped where they come back over it.
+     * The whole display, in the coordinates the TOP|START overlay window is laid out
+     * in. The status bar, navigation bar and cutout are deliberately allowed: the pill
+     * may sit there, it just can't leave the screen.
      */
     @Suppress("DEPRECATION")
-    private fun currentSafeArea(): OverlaySafeArea? {
+    private fun currentScreenArea(): OverlayScreenArea? {
         val wm = windowManager ?: return null
-        val modern = if (android.os.Build.VERSION.SDK_INT >= 30) {
-            runCatching {
-                val metrics = wm.currentWindowMetrics
-                val bounds = metrics.bounds
-                val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
-                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
-                )
-                OverlaySafeArea(
-                    left = bounds.left + insets.left,
-                    top = bounds.top + insets.top,
-                    right = bounds.right - insets.right,
-                    bottom = bounds.bottom - insets.bottom
-                )
-            }.getOrNull()?.takeIf { it.right > it.left && it.bottom > it.top }
-        } else {
-            null
-        }
-        return modern ?: runCatching {
-            val display = wm.defaultDisplay
-            val real = Point().also { display.getRealSize(it) }
-            // In landscape the cutout is on a side the status bar doesn't cover.
-            val cutout = when {
-                android.os.Build.VERSION.SDK_INT >= 29 ->
-                    display.cutout?.let { Rect(it.safeInsetLeft, it.safeInsetTop, it.safeInsetRight, it.safeInsetBottom) }
-                        ?: Rect()
-                android.os.Build.VERSION.SDK_INT == 28 -> cutoutInsets(legacyCutoutRects, real.x, real.y)
-                else -> Rect()
+        return runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                val bounds = wm.currentWindowMetrics.bounds
+                OverlayScreenArea(bounds.left, bounds.top, bounds.right, bounds.bottom)
+            } else {
+                val real = Point().also { wm.defaultDisplay.getRealSize(it) }
+                OverlayScreenArea(0, 0, real.x, real.y)
             }
-            // getSize() leaves out the navigation bar, wherever it is docked, and the
-            // cutout's safe insets; take the cutout back out to get the bar alone.
-            val usable = Point().also { display.getSize(it) }
-            val navigationWidth = (real.x - usable.x - cutout.left - cutout.right).coerceAtLeast(0)
-            val navigationHeight = (real.y - usable.y - cutout.top - cutout.bottom).coerceAtLeast(0)
-            val navigationOnLeft = display.rotation == Surface.ROTATION_270
-            val statusBarId = resources.getIdentifier("status_bar_height", "dimen", "android")
-            val statusBar = if (statusBarId > 0) resources.getDimensionPixelSize(statusBarId) else 0
-            OverlaySafeArea(
-                left = maxOf(if (navigationOnLeft) navigationWidth else 0, cutout.left),
-                top = maxOf(statusBar, cutout.top),
-                right = real.x - maxOf(if (navigationOnLeft) 0 else navigationWidth, cutout.right),
-                bottom = real.y - maxOf(navigationHeight, cutout.bottom)
-            )
         }.getOrNull()?.takeIf { it.right > it.left && it.bottom > it.top }
     }
 
@@ -534,8 +441,8 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         super.onConfigurationChanged(newConfig)
         overlayRoot?.post {
             overlayRoot?.requestApplyInsets()
-            // Freeform too: a spot that was fine in portrait can be off-screen or
-            // under the status bar in landscape.
+            // Freeform too: a spot that was fine in portrait can be off-screen in
+            // landscape.
             applyOverlayPlacement()
         }
     }
@@ -561,8 +468,6 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     }
 
     override fun onDestroy() {
-        (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
-            ?.unregisterDisplayListener(displayListener)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         store.clear()
         serviceScope.cancel()

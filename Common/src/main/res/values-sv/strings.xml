@@ -1317,7 +1317,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">Poäng</string>
     <string name="position_layout">Position och layout</string>
     <string name="floating_reset_position">Återställ position</string>
-    <string name="floating_reset_position_desc">Flyttar tillbaka den flytande glukosen till skärmens överkant.</string>
+    <string name="floating_reset_position_desc">Flyttar tillbaka den flytande glukosen till mitten av skärmen.</string>
     <string name="preview">Förhandsgranska</string>
     <string name="previous_calibrations">Tidigare kalibreringar</string>
     <string name="show_less">Visa mindre</string>

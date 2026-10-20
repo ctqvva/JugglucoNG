@@ -1360,7 +1360,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="points">Punten</string>
     <string name="position_layout">Positie en indeling</string>
     <string name="floating_reset_position">Positie herstellen</string>
-    <string name="floating_reset_position_desc">Zet de zwevende glucose terug bovenaan het scherm.</string>
+    <string name="floating_reset_position_desc">Zet de zwevende glucose terug in het midden van het scherm.</string>
     <string name="preview">Voorbeeld</string>
     <string name="previous_calibrations">Eerdere kalibraties</string>
     <string name="show_less">Minder tonen</string>

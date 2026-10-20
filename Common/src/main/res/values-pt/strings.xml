@@ -1318,7 +1318,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">Pontos</string>
     <string name="position_layout">Posição e layout</string>
     <string name="floating_reset_position">Redefinir posição</string>
-    <string name="floating_reset_position_desc">Leva a glicose flutuante de volta ao topo da tela.</string>
+    <string name="floating_reset_position_desc">Leva a glicose flutuante de volta ao centro da tela.</string>
     <string name="preview">Visualização</string>
     <string name="previous_calibrations">Calibrações anteriores</string>
     <string name="show_less">Mostrar menos</string>

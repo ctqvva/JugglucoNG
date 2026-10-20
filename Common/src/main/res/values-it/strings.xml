@@ -1307,7 +1307,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="points">Punti</string>
     <string name="position_layout">Posizione e disposizione</string>
     <string name="floating_reset_position">Ripristina posizione</string>
-    <string name="floating_reset_position_desc">Riporta la glicemia fluttuante nella parte alta dello schermo.</string>
+    <string name="floating_reset_position_desc">Riporta la glicemia fluttuante al centro dello schermo.</string>
     <string name="preview">Anteprima</string>
     <string name="previous_calibrations">Calibrazioni precedenti</string>
     <string name="show_less">Mostra meno</string>

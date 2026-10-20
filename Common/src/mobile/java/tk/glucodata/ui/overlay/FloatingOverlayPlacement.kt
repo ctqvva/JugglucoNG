@@ -3,31 +3,31 @@ package tk.glucodata.ui.overlay
 import kotlin.math.roundToInt
 
 /**
- * The part of the display the freeform overlay may cover, in display pixels: the
- * display minus the status bar, navigation bar and camera cutout. Those system
- * windows sit above application overlays and take every touch on them, so an
- * overlay parked underneath stays visible but can never be grabbed again (#685).
+ * The display the freeform overlay is kept on, in display pixels. The window is laid
+ * out with FLAG_LAYOUT_NO_LIMITS, so without this a drag or a rotation could leave it
+ * partly or wholly off-screen (#685). The status bar and cutout are part of it on
+ * purpose: the pill may sit there.
  */
-data class OverlaySafeArea(val left: Int, val top: Int, val right: Int, val bottom: Int)
+data class OverlayScreenArea(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
 /**
  * Where the freeform overlay sits, as a share of the room it has left to travel on
- * each axis: 0 is flush with the left/top of the safe area, 1 flush with the
+ * each axis: 0 is flush with the left/top of the screen area, 1 flush with the
  * right/bottom. Kept instead of pixels so the overlay stays in the same spot of the
  * screen when it rotates or the pill changes size, and so no saved value can ever
- * put it out of reach.
+ * put it off-screen.
  */
 data class OverlayPosition(val x: Float, val y: Float) {
     companion object {
-        /** Top centre, just below the status bar. */
-        val DEFAULT = OverlayPosition(0.5f, 0f)
+        /** Where "Reset position" puts it: clear of every system bar on any screen. */
+        val CENTRE = OverlayPosition(0.5f, 0.5f)
     }
 }
 
 /** Window x/y for [position] when the overlay measures [width] x [height]. */
 internal fun overlayPixels(
     position: OverlayPosition,
-    area: OverlaySafeArea,
+    area: OverlayScreenArea,
     width: Int,
     height: Int
 ): Pair<Int, Int> {
@@ -37,14 +37,14 @@ internal fun overlayPixels(
 }
 
 /**
- * Inverse of [overlayPixels], clamping [x]/[y] into the safe area first. On an axis
+ * Inverse of [overlayPixels], clamping [x]/[y] into the screen area first. On an axis
  * with no room to travel (overlay as large as the area) the share is meaningless,
  * so [previous] keeps its value there.
  */
 internal fun overlayPosition(
     x: Int,
     y: Int,
-    area: OverlaySafeArea,
+    area: OverlayScreenArea,
     width: Int,
     height: Int,
     previous: OverlayPosition
@@ -61,7 +61,7 @@ internal fun overlayPosition(
 internal fun clampOverlayPixels(
     x: Int,
     y: Int,
-    area: OverlaySafeArea,
+    area: OverlayScreenArea,
     width: Int,
     height: Int
 ): Pair<Int, Int> =
