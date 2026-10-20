@@ -43,6 +43,25 @@ fun CalibrationSchoolScreen(navController: NavController) {
                 Text(text, fontSize = 15.sp)
             }
         }
+        val sp = ctx.getSharedPreferences("gis_bridge", Context.MODE_PRIVATE)
+        val raw = sp.getFloat("raw", 0f).toDouble(); val cal = if (sp.contains("cal")) sp.getFloat("cal", 0f).toDouble() else null
+        if (raw > 0) {
+            val mmol = tk.glucodata.Applic.unit == 1
+            fun f(v: Double) = if (mmol) String.format(java.util.Locale.US, "%.1f", v / 18.0182) else Math.round(v).toString()
+            Card(shape = MaterialTheme.shapes.extraLarge) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column { Text("Сырое", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(f(raw), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary) }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.End) { Text("Калиброванное", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(f(cal ?: raw), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) }
+                    }
+                    val msg = if (cal == null) "Калибровок нет: в AAPS и Nightscout уходит сырое значение." else {
+                        val d = cal - raw
+                        "Поправка " + (if (d >= 0) "+" else "−") + f(Math.abs(d)).let { if (mmol) it else it } + ". В AAPS и Nightscout уходит калиброванное значение."
+                    }
+                    Text(msg, fontSize = 13.sp, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         Text("Как калибровать", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         listOf(
             "1" to "Вымойте руки и сделайте замер глюкометром.",

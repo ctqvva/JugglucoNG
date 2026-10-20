@@ -32,6 +32,21 @@ public class GisBridge extends ContentProvider {
         } catch (Throwable ignored) { }
     }
 
+    /** С разбором значения: сырое и калиброванное отдельно (калиброванное — то, что уходит в AAPS и Nightscout). */
+    static void publishPayload(ExchangeGlucosePayload p, long sensorStartMs) {
+        try {
+            final Context c = Applic.app;
+            if (c == null) return;
+            final double k = Applic.unit == 1 ? 18.0182 : 1.0;
+            final double cal = p.getPrimaryMgdl();
+            final double raw = Float.isNaN(p.getRawValue()) || p.getRawValue() <= 0f ? cal : p.getRawValue() * k;
+            publish(raw, p.getRate(), p.getTimeMillis(), sensorStartMs, p.getSensorGen());
+            final SharedPreferences.Editor e = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
+            if (Math.abs(cal - raw) >= 1.0) e.putFloat("cal", (float) cal); else e.remove("cal");
+            e.apply();
+        } catch (Throwable ignored) { }
+    }
+
     private static String name(int gen) {
         switch (gen) {
             case 0x10: return "Sibionics 1";
