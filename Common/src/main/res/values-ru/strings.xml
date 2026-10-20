@@ -859,10 +859,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="bloodafter">"Only add glucose readings from after: "</string>
     <string name="bloodvar">Blood glucose:</string>
     <string name="calibrate_a">Визуальный режим</string>
-    <string name="calibrated">Calibrated</string>
-    <string name="calibratepast">Apply to past</string>
+    <string name="calibrated">Откалибровано</string>
+    <string name="calibratepast">Применять к прошлому</string>
     <string name="calibration">Калибровка</string>
-    <string name="calibrations">Calibrations</string>
+    <string name="calibrations">Калибровки</string>
     <string name="caresens_air_scan_instruction">Отсканируйте код датчика на упаковке CareSens Air.</string>
     <string name="caresens_air_setup_title">Настройка CareSens Air</string>
     <string name="chsibionics">Sibionics GS1 CN</string>
@@ -885,7 +885,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="patient_id_label">ID пациента</string>
     <string name="patient_dob_label">Дата рождения</string>
     <string name="patient_clinician_label">Команда лечения</string>
-    <string name="delete_calibration">Delete calibration?</string>
+    <string name="delete_calibration">Удалить калибровку?</string>
     <string name="dexfuture">Predict (Dexcom)</string>
     <string name="enternums">Enter amounts on</string>
     <string name="eusibionics">Sibionics GS1 EU</string>
@@ -914,7 +914,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insights">Рекомендации</string>
     <string name="isconnected">Connected</string>
     <string name="isdisconnected">Disconnected</string>
-    <string name="keep_auto_calibration">Keep auto-calibration data</string>
+    <string name="keep_auto_calibration">Сохранить данные автокалибровки</string>
     <string name="last">"Last: "</string>
     <string name="libresetalllabels">First specify for each label what should be done with it.</string>
     <string name="lispro">Insulin Lispro/Humalog</string>
@@ -1015,7 +1015,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="turn_udp_port_default">По умолчанию: 3478 (UDP)</string>
     <string name="turn_required_for_stun">Сначала настройте TURN, чтобы использовать его для STUN</string>
     <string name="turnservers">TURN-серверы</string>
-    <string name="unified_reset_desc">This will restart the sensor and reset the auto-calibration algorithm.</string>
+    <string name="unified_reset_desc">Датчик перезапустится, а алгоритм автокалибровки сбросится.</string>
     <string name="unit_mg">mg/dL</string>
     <string name="unit_mmol">mmol/L</string>
     <string name="untouchablequestion">Make floating glucose untouchable?</string>

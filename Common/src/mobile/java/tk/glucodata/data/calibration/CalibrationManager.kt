@@ -54,6 +54,9 @@ object CalibrationManager {
     private const val LEGACY_SENSOR_RESOLUTION_WINDOW_MS = 15L * 60L * 1000L
     private const val MAX_MANAGED_CALIBRATION_ANCHORS = 12
 
+    private fun ru(en: String, ruText: String): String =
+        if (java.util.Locale.getDefault().language == "ru") ruText else en
+
     enum class CalibrationAlgorithm(
         val storageValue: String,
         val title: String,
@@ -61,28 +64,28 @@ object CalibrationManager {
     ) {
         SANE_WEIGHTED_OLS(
             storageValue = "sane_weighted_ols",
-            title = "Sane Weighted OLS",
-            description = "Recency-weighted linear fit with slope guardrails"
+            title = ru("Sane Weighted OLS", "Линейная подгонка с весами"),
+            description = ru("Recency-weighted linear fit with slope guardrails", "Линейная подгонка: свежие точки важнее, наклон ограничен разумными рамками")
         ),
         XDRIP_MEDIAN_SLOPE(
             storageValue = "xdrip_median_slope",
-            title = "xDrip Median Slope",
-            description = "Median pair-slope fit (Theil-Sen style), robust to outliers"
+            title = ru("xDrip Median Slope", "Медианный наклон (как в xDrip)"),
+            description = ru("Median pair-slope fit (Theil-Sen style), robust to outliers", "Медианный наклон по парам точек, устойчив к случайным выбросам")
         ),
         TIME_WEIGHTED_ROBUST_REGRESSION(
             storageValue = "time_weighted_robust_regression",
-            title = "Time-Weighted Robust Regression",
-            description = "Huber-style weighted regression with temporal decay"
+            title = ru("Time-Weighted Robust Regression", "Устойчивая регрессия с учётом времени"),
+            description = ru("Huber-style weighted regression with temporal decay", "Взвешенная регрессия: старые точки постепенно теряют вес")
         ),
         ELASTIC_TIME_WEIGHTED_INTERPOLATION(
             storageValue = "elastic_time_weighted_interpolation",
-            title = "Elastic Time-Weighted Point Interpolation",
-            description = "Local anchor interpolation blended with global trend"
+            title = ru("Elastic Time-Weighted Point Interpolation", "Гибкая подстройка по ближним точкам"),
+            description = ru("Local anchor interpolation blended with global trend", "Подстройка по ближайшим точкам вместе с общим трендом")
         ),
         ADAPTIVE_ENSEMBLE(
             storageValue = "adaptive_ensemble",
-            title = "Adaptive Ensemble (Recommended)",
-            description = "Blends robust, elastic and median-slope predictions"
+            title = ru("Adaptive Ensemble (Recommended)", "Адаптивный ансамбль (рекомендуется)"),
+            description = ru("Blends robust, elastic and median-slope predictions", "Смесь трёх методов: устойчивого, гибкого и медианного")
         );
 
         companion object {
