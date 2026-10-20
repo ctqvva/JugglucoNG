@@ -9,10 +9,12 @@ ext {
     // Bump the app version here only. Wear releases use appVersionCode + 1000000
     // so Play accepts both APKs in one release (distinct versionCodes per form
     // factor). Scheme originates on the wearos branch — keep the two in step.
-    appVersionCode = 1025
+    // CI passes -PgisBuild=<номер сборки>: каждый выпуск получает свой растущий номер
+    gisBuild = (project.findProperty('gisBuild') ?: '0') as int
+    appVersionCode = 1025 + gisBuild
     // Base version, without the flavour/build-type suffix chain that gets appended
     // to versionName. Used for the APK filename so it stays readable.
-    appVersionName = '1.2.5-Alpha'
+    appVersionName = gisBuild > 0 ? "1.2.5-gis.${gisBuild}" : '1.2.5-gis.0'
 
     ndkver       = '29.0.14206865'
     CMAKEVERSION = '4.1.2'
@@ -93,7 +95,7 @@ android {
         // be compared against a release tag. The in-app updater needs the bare number.
         buildConfigField 'String', 'BASE_VERSION_NAME', "\"$appVersionName\""
         // GitHub repo the in-app updater reads releases from. Forks change it here.
-        buildConfigField 'String', 'UPDATE_REPO', '"joojik5-spec/JugglucoNG"'
+        buildConfigField 'String', 'UPDATE_REPO', '"joojik5-spec/GIS-Monitor"'
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
         buildConfigField 'int', 'isRelease', '0'

@@ -21,8 +21,18 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
       - name: local.properties
         run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+      - name: Постоянный ключ подписи
+        env:
+          KS: ${{ secrets.GIS_KEYSTORE_B64 }}
+          KPW: ${{ secrets.GIS_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/gis.keystore"
+            echo "SIGN=-Pthekeyfile=$RUNNER_TEMP/gis.keystore -Pthepassword=$KPW -Pthekeyalias=gismonitor -Pthekeypassword=$KPW" >> $GITHUB_ENV
+            echo "RELEASE=1" >> $GITHUB_ENV
+          fi
       - name: Build
-        run: ./gradlew --no-daemon assembleMobileRelease 2>&1 | tee build.log; test ${PIPESTATUS[0]} -eq 0
+        run: ./gradlew --no-daemon -PgisBuild=${{ github.run_number }} $SIGN assembleMobileRelease 2>&1 | tee build.log; test ${PIPESTATUS[0]} -eq 0
         shell: bash
       - name: Why failed
         if: failure()
@@ -43,6 +53,14 @@ jobs:
           cd "$RUNNER_TEMP/apk"; git init -q; git checkout -q -b monitor-apk; git add gis-monitor.apk
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "APK for ${GITHUB_SHA}"
           git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" monitor-apk
+      - name: Релиз для автообновлений
+        if: env.RELEASE == '1' && github.ref == 'refs/heads/gis-monitor-v2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          f=$(find . -path "*/build/outputs/apk/*" -name "JugglucoNG-*.apk" | head -1)
+          tag="v1.2.5-gis.${{ github.run_number }}"
+          gh release create "$tag" "$f" --repo "${{ github.repository }}" --target "$GITHUB_SHA" --title "GIS Monitor ${{ github.run_number }}" --notes "Автоматическая сборка ${GITHUB_SHA::7}"
 
   emu:
     needs: apk
