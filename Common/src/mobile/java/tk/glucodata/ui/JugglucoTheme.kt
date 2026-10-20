@@ -59,13 +59,7 @@ fun JugglucoTheme(
         ThemeMode.DARK -> true
     }
 
-    val colorScheme = when {
-        android.os.Build.VERSION.SDK_INT >= 31 -> {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> FallbackDarkColorScheme
-        else -> FallbackLightColorScheme
-    }
+    val colorScheme = if (darkTheme) GisDarkColorScheme else GisLightColorScheme
 
     val view = LocalView.current
     SideEffect {
@@ -91,7 +85,7 @@ fun JugglucoTheme(
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),
-        typography = tk.glucodata.ui.theme.AppTypography,
+        typography = tk.glucodata.ui.theme.AppTypography.withFamily(androidx.compose.ui.text.font.FontFamily.SansSerif),
     ) {
         // Display size (density) may grow at most 10% past the device's native density, so an
         // extreme Display Size setting cannot break M3 layouts. Font size is not capped here:
@@ -213,3 +207,49 @@ fun FontScaleCap(max: Float = DENSE_FONT_SCALE_CAP, content: @Composable () -> U
     val capped = if (density.fontScale <= max) density else Density(density.density, max)
     CompositionLocalProvider(LocalDensity provides capped, content = content)
 }
+
+
+// Единый стиль с основным приложением GIS: те же цвета (бирюзовый акцент, сине-чёрный фон в тёмной теме) и системный шрифт.
+private val GisLightColorScheme = lightColorScheme(
+    primary = Color(0xFF0A6B66), onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFD4ECEA), onPrimaryContainer = Color(0xFF053B38),
+    secondary = Color(0xFF3B4A5F), onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFE2E8F0), onSecondaryContainer = Color(0xFF0B1220),
+    tertiary = Color(0xFFB45309), onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFFDE9D0), onTertiaryContainer = Color(0xFF4A2204),
+    error = Color(0xFFB91C1C), onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFBDADA), onErrorContainer = Color(0xFF450A0A),
+    background = Color(0xFFE6ECF3), onBackground = Color(0xFF0B1220),
+    surface = Color(0xFFE6ECF3), onSurface = Color(0xFF0B1220),
+    surfaceVariant = Color(0xFFF3F6FA), onSurfaceVariant = Color(0xFF3B4A5F),
+    outline = Color(0xFF7A8699), outlineVariant = Color(0xFFB3BFD0),
+    surfaceTint = Color(0xFF0A6B66),
+    surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF3F6FA),
+    surfaceContainer = Color(0xFFFFFFFF), surfaceContainerHigh = Color(0xFFF3F6FA), surfaceContainerHighest = Color(0xFFE2E8F0),
+)
+
+private val GisDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF5FD0C5), onPrimary = Color(0xFF06201F),
+    primaryContainer = Color(0xFF14302F), onPrimaryContainer = Color(0xFFBFF0EA),
+    secondary = Color(0xFFA6B3C7), onSecondary = Color(0xFF0B1220),
+    secondaryContainer = Color(0xFF1C2639), onSecondaryContainer = Color(0xFFE7EDF8),
+    tertiary = Color(0xFFF6C177), onTertiary = Color(0xFF2B1A03),
+    tertiaryContainer = Color(0xFF3A2A10), onTertiaryContainer = Color(0xFFFBE3BC),
+    error = Color(0xFFF59E98), onError = Color(0xFF3A0A08),
+    errorContainer = Color(0xFF4A1B18), onErrorContainer = Color(0xFFFCD9D6),
+    background = Color(0xFF080D19), onBackground = Color(0xFFE7EDF8),
+    surface = Color(0xFF080D19), onSurface = Color(0xFFE7EDF8),
+    surfaceVariant = Color(0xFF0F1629), onSurfaceVariant = Color(0xFFA6B3C7),
+    outline = Color(0xFF73819B), outlineVariant = Color(0xFF31405F),
+    surfaceTint = Color(0xFF5FD0C5),
+    surfaceContainerLowest = Color(0xFF05080F), surfaceContainerLow = Color(0xFF0F1629),
+    surfaceContainer = Color(0xFF1A2438), surfaceContainerHigh = Color(0xFF1F2B42), surfaceContainerHighest = Color(0xFF26334D),
+)
+
+private fun androidx.compose.material3.Typography.withFamily(f: androidx.compose.ui.text.font.FontFamily) = androidx.compose.material3.Typography(
+    displayLarge = displayLarge.copy(fontFamily = f), displayMedium = displayMedium.copy(fontFamily = f), displaySmall = displaySmall.copy(fontFamily = f),
+    headlineLarge = headlineLarge.copy(fontFamily = f), headlineMedium = headlineMedium.copy(fontFamily = f), headlineSmall = headlineSmall.copy(fontFamily = f),
+    titleLarge = titleLarge.copy(fontFamily = f), titleMedium = titleMedium.copy(fontFamily = f), titleSmall = titleSmall.copy(fontFamily = f),
+    bodyLarge = bodyLarge.copy(fontFamily = f), bodyMedium = bodyMedium.copy(fontFamily = f), bodySmall = bodySmall.copy(fontFamily = f),
+    labelLarge = labelLarge.copy(fontFamily = f), labelMedium = labelMedium.copy(fontFamily = f), labelSmall = labelSmall.copy(fontFamily = f),
+)
