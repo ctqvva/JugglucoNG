@@ -130,6 +130,13 @@ class XdripBackfillTracker(
         val period = period(state)
         val dedupMs = maxOf(period - period / 6, spacingMs)
         val lowerBound = maxOf(nowMs - windowMs, state.startWatermarkMs)
+        // An on-time row went out live, so it also covers a late row of the same moment: Libre 3's
+        // 5-minute history reaches the phone about 19 minutes after the minute reading it sits next to.
+        for (candidate in sorted) {
+            if (candidate.arrivedLive && candidate.timeMs > lowerBound && candidate.timeMs <= nowMs) {
+                state.sent.add(candidate.timeMs)
+            }
+        }
         val picked = ArrayList<Candidate>()
         for (candidate in sorted) {
             if (candidate.timeMs <= lowerBound || candidate.timeMs > nowMs) continue

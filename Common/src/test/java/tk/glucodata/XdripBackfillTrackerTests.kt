@@ -179,6 +179,22 @@ class XdripBackfillTrackerTests {
     }
 
     @Test
+    fun `a late history row next to an on-time reading is not sent again`() {
+        // Libre 3 history every 5 minutes reaches the phone ~19 minutes late, seconds away from a
+        // minute reading another build already sent live: the send record knows nothing of it.
+        val tracker = XdripBackfillTracker()
+        tracker.restore("S", floor(now - 60 * minute))
+        tracker.recordSent("S", now, 1, 0L)
+
+        val minutes = (1L..30L).map { point(it).copy(storedAtMs = now - it * minute + second) }
+        val history = listOf(25L, 20L).map {
+            at(now - it * minute - 20 * second).copy(storedAtMs = now - it * minute + 19 * minute)
+        }
+
+        assertEquals(emptyList<Candidate>(), tracker.pick("S", minutes + history, now))
+    }
+
+    @Test
     fun `coverage keeps sends apart by a gap in separate stretches`() {
         val tracker = XdripBackfillTracker()
         listOf(30L, 29L, 28L, 10L, 9L).forEach { tracker.recordSent("S", now - it * minute, 1, 0L) }
