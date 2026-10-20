@@ -931,11 +931,13 @@ private fun NavGraphBuilder.appDestinations(
 ) {
     composable("dashboard") {
         Box(Modifier.fillMaxSize()) {
-            DashboardRoute(
-                dashboardViewModel = dashboardViewModel,
-                navController = navController,
-                onTriggerCalibration = onTriggerCalibration
-            )
+            Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = 52.dp)) {
+                DashboardRoute(
+                    dashboardViewModel = dashboardViewModel,
+                    navController = navController,
+                    onTriggerCalibration = onTriggerCalibration
+                )
+            }
             // «+» вверху: добавить ещё один датчик (раздел «Датчики» убран из меню, всё начинается с главного экрана)
             androidx.compose.material3.FilledTonalIconButton(
                 onClick = { navController.navigate("sensors") },

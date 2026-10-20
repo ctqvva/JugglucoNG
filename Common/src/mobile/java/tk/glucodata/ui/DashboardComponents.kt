@@ -635,9 +635,9 @@ fun DashboardCombinedHeader(
                 // Two and three values keep it beneath the trend arrow.
                 val deltaByArrow = !singleDeltaFits
                 val statusTitleStyle = when (heroWidthClass) {
-                    AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleMedium
-                    AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.titleLarge
-                    AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.headlineSmall
+                    AdaptiveContentWidthClass.Compact -> MaterialTheme.typography.titleSmall
+                    AdaptiveContentWidthClass.Medium -> MaterialTheme.typography.titleMedium
+                    AdaptiveContentWidthClass.Expanded -> MaterialTheme.typography.titleLarge
                 }.copy(fontFeatureSettings = "tnum")
 
                 if (statusCopy != null) {
@@ -656,8 +656,8 @@ fun DashboardCombinedHeader(
                             text = statusCopy.title,
                             style = statusTitleStyle,
                             color = glucoseContentColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 3,
+                            overflow = TextOverflow.Visible,
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Start
                         )
