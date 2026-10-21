@@ -4124,14 +4124,45 @@ fun InteractiveGlucoseChart(
                 animationSpec = ExpressiveMotion.defaultEffects(),
                 label = "JournalOverviewAlpha"
             )
-            journalOverviewMarks.forEach { model ->
-                val centerX = overlayDataWidthPx * ((model.mark.centerMillis - overlayViewportStart).toFloat() / overlayDuration)
-                val widthPx = model.widthPx
-                if (centerX + widthPx < 0f || centerX - widthPx > overlayDataWidthPx) return@forEach
-                // A mark whose entries are on screen never leaves the chart.
-                val left = (centerX - widthPx / 2f).let { raw ->
-                    if (centerX in 0f..overlayDataWidthPx) raw.coerceIn(0f, (overlayDataWidthPx - widthPx).coerceAtLeast(0f)) else raw
+            val journalOverviewCenters = FloatArray(journalOverviewMarks.size) { index ->
+                overlayDataWidthPx * ((journalOverviewMarks[index].mark.centerMillis - overlayViewportStart).toFloat() / overlayDuration)
+            }
+            // A mark whose entries are on screen is pulled inside the chart, but only as far as
+            // the next mark in its row allows: the layout spaced them at their own positions.
+            val journalOverviewLefts = FloatArray(journalOverviewMarks.size) { index ->
+                journalOverviewCenters[index] - journalOverviewMarks[index].widthPx / 2f
+            }
+            journalOverviewMarks.indices
+                .groupBy { journalOverviewMarks[it].mark.rail to journalOverviewMarks[it].mark.row }
+                .values
+                .forEach { lane ->
+                    val ordered = lane.sortedBy { journalOverviewCenters[it] }
+                    // Left to right, so a mark held back at the right edge sees where the one
+                    // before it actually ended up.
+                    ordered.forEachIndexed { position, index ->
+                        if (journalOverviewCenters[index] !in 0f..overlayDataWidthPx) return@forEachIndexed
+                        val widthPx = journalOverviewMarks[index].widthPx
+                        val raw = journalOverviewLefts[index]
+                        val maxLeft = (overlayDataWidthPx - widthPx).coerceAtLeast(0f)
+                        journalOverviewLefts[index] = when {
+                            raw < 0f -> {
+                                val nextLeft = ordered.getOrNull(position + 1)?.let { journalOverviewLefts[it] - journalOverviewEdgePx }
+                                minOf(0f, (nextLeft ?: Float.POSITIVE_INFINITY) - widthPx).coerceAtLeast(raw)
+                            }
+                            raw > maxLeft -> {
+                                val previousRight = ordered.getOrNull(position - 1)
+                                    ?.let { journalOverviewLefts[it] + journalOverviewMarks[it].widthPx + journalOverviewEdgePx }
+                                maxOf(maxLeft, previousRight ?: Float.NEGATIVE_INFINITY).coerceAtMost(raw)
+                            }
+                            else -> raw
+                        }
+                    }
                 }
+            journalOverviewMarks.forEachIndexed { index, model ->
+                val centerX = journalOverviewCenters[index]
+                val widthPx = model.widthPx
+                if (centerX + widthPx < 0f || centerX - widthPx > overlayDataWidthPx) return@forEachIndexed
+                val left = journalOverviewLefts[index]
                 val top = if (model.mark.rail == JOURNAL_RAIL_TOP) {
                     journalOverviewEdgePx + model.mark.row * journalOverviewRowStepPx
                 } else {
