@@ -358,4 +358,43 @@ class ICanHealthParserExtraTests {
             )
         )
     }
+
+    @Test
+    fun sensorInfoCodeStateReadsLittleEndianValue() {
+        assertEquals(
+            0x024E,
+            ICanHealthParser.parseSensorInfoCodeState(
+                byteArrayOf(0x1C, 0xF6.toByte(), 0x01, 0x4E, 0x02)
+            )
+        )
+    }
+
+    @Test
+    fun sensorInfoCodeStateReportsUnprovisionedSensor() {
+        assertEquals(
+            0xFFFF,
+            ICanHealthParser.parseSensorInfoCodeState(
+                byteArrayOf(0x1C, 0xF6.toByte(), 0x01, 0xFF.toByte(), 0xFF.toByte())
+            )
+        )
+    }
+
+    @Test
+    fun sensorInfoCodeStateReturnsNullWithoutValueBytes() {
+        assertNull(
+            ICanHealthParser.parseSensorInfoCodeState(
+                byteArrayOf(0x1C, 0xF6.toByte(), 0x01)
+            )
+        )
+    }
+
+    @Test
+    fun sensorInfoCodeStateIgnoresOtherResponses() {
+        assertNull(
+            ICanHealthParser.parseSensorInfoCodeState(
+                byteArrayOf(0x1C, 0xF4.toByte(), 0x01, 0x4E, 0x02)
+            )
+        )
+        assertNull(ICanHealthParser.parseSensorInfoCodeState(byteArrayOf(0x1C, 0xF6.toByte())))
+    }
 }

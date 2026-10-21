@@ -2311,11 +2311,21 @@ class ICanHealthBleManager(
 
             ICanHealthParser.isSensorInfoResponse(data) -> {
                 handler.removeCallbacks(sensorInfoFallbackRunnable)
-                Log.i(
-                    TAG,
-                    "Sensor info: ${data.toHexString()} " +
-                        "model=$vendorModelName sw=$vendorSoftwareVersion ${bundledKeyContext()}"
-                )
+                val codeState = ICanHealthParser.parseSensorInfoCodeState(data)
+                val info = "Sensor info: ${data.toHexString()} " +
+                    "model=$vendorModelName sw=$vendorSoftwareVersion ${bundledKeyContext()}"
+                if (codeState == ICanHealthConstants.SENSOR_CODE_STATE_UNPROVISIONED) {
+                    Log.w(
+                        TAG,
+                        "$info — sensor has no correct code (F6=0xFFFF); " +
+                            "history requests have been refused in this state — see issue #676"
+                    )
+                } else {
+                    Log.i(
+                        TAG,
+                        "$info codeState=" + (codeState?.let { "0x%04X".format(it) } ?: "unknown")
+                    )
+                }
                 startPostAuthSetup("sensor-info")
             }
 

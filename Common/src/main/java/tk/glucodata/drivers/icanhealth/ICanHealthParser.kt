@@ -580,6 +580,18 @@ object ICanHealthParser {
                 data[2] == 0x01.toByte()
     }
 
+    /**
+     * Decode the code state from a sensor-info response (`1C F6 01 lo hi`).
+     *
+     * [ICanHealthConstants.SENSOR_CODE_STATE_UNPROVISIONED] is observed on unprovisioned
+     * sensors; history reads have been refused in this state (causation not established,
+     * see issue #676).
+     */
+    fun parseSensorInfoCodeState(data: ByteArray): Int? {
+        if (!isSensorInfoResponse(data) || data.size < 5) return null
+        return (data[3].toInt() and 0xFF) or ((data[4].toInt() and 0xFF) shl 8)
+    }
+
     fun parseRawDeviceSerial(data: ByteArray): String {
         if (data.isEmpty()) return ""
         val printableAscii = data.all { byte ->
