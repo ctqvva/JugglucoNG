@@ -1816,7 +1816,7 @@ public class Notify {
 
     public static void cancelAlertNotification() {
         presentedStandardAlertKind = -1;
-        alarmWindowCheckGeneration++;
+        supersedeAlarmWindowFallback();
         if (onenot != null && onenot.notificationManager != null) {
             onenot.notificationManager.cancel(glucosealarmid);
         }
@@ -2126,8 +2126,17 @@ public class Notify {
      * and OEM pop-up rules block the start without an error, and Alarm mode was left
      * ringing with no Snooze/Stop anywhere. Give the window a moment to come up;
      * if it has not, post the alarm notification it would have cancelled. A newer
-     * alert or an acknowledgement voids the pending check. Main thread only.
+     * alert delivery or an acknowledgement voids the pending check. Main thread only.
      */
+    /**
+     * Every alert delivery and acknowledgement calls this. A newer alert owns the
+     * alarm notification, whatever its mode: an older alert's pending fallback must
+     * not replace it (or its Snooze/Stop) two seconds later.
+     */
+    private static void supersedeAlarmWindowFallback() {
+        alarmWindowCheckGeneration++;
+    }
+
     private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification) {
         final int generation = ++alarmWindowCheckGeneration;
         alarmWindowCheckHandler.postDelayed(() -> {
@@ -2974,6 +2983,7 @@ public class Notify {
             if (onenot != null) {
                 int kind = isHigh ? 1 : 0;
                 presentedStandardAlertKind = -1;
+                supersedeAlarmWindowFallback();
 
                 final String defaultName = isTest
                         ? ("Test Custom " + (isHigh ? "High" : "Low"))
@@ -3287,6 +3297,7 @@ public class Notify {
 
     private void deliverTriggeredAlert(int kind, float glvalue, String message, notGlucose strglucose, String type) {
         presentedStandardAlertKind = kind;
+        supersedeAlarmWindowFallback();
         AlarmLaunchResult alarmLaunchResult = new AlarmLaunchResult(false, false);
         boolean skipBanner = false;
 
@@ -3341,6 +3352,7 @@ public class Notify {
                     && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return false;
             if (!manual && alertType != null) AlertStateTracker.INSTANCE.supersedeManualTest(alertType);
             presentedStandardAlertKind = kind;
+            supersedeAlarmWindowFallback();
         }
         {
             if (doLog) {

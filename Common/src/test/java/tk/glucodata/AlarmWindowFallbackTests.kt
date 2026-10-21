@@ -27,7 +27,8 @@ class AlarmWindowFallbackTests {
 
     private fun schedule(name: String) = compiled.getMethod("schedule", String::class.java).invoke(null, name)
     private fun runDelayed() = compiled.getMethod("runDelayed").invoke(null)
-    private fun call(method: String) = compiled.getMethod(method).invoke(null)
+    private fun call(method: String) =
+        compiled.getDeclaredMethod(method).apply { isAccessible = true }.invoke(null)
 
     @Test fun blockedWindowFallsBackToTheAlarmNotification() {
         schedule("low")
@@ -45,6 +46,15 @@ class AlarmWindowFallbackTests {
     @Test fun acknowledgementBeforeTheCheckPostsNothing() {
         schedule("low")
         call("cancelAlertNotification")
+        runDelayed()
+        assertEquals(emptyList<String>(), posted)
+    }
+
+    @Test fun newerNotificationOnlyAlertIsNotReplacedByAnOlderFallback() {
+        schedule("low")
+        // A custom notification-only alert from the same reading posts its own
+        // notification; the low's blocked window must not overwrite it.
+        call("supersedeAlarmWindowFallback")
         runDelayed()
         assertEquals(emptyList<String>(), posted)
     }
@@ -86,6 +96,7 @@ class AlarmWindowFallbackTests {
                 "private static volatile int alarmWindowCheckGeneration"
             ).joinToString("\n", transform = ::field) + "\n" + listOf(
                 "public static void setAlarmUiVisible(boolean visible)",
+                "private static void supersedeAlarmWindowFallback()",
                 "private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification)",
                 "public static void cancelAlertNotification()"
             ).joinToString("\n", transform = ::block)

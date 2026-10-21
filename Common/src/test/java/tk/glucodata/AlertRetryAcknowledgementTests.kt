@@ -366,6 +366,7 @@ class AlertRetryAcknowledgementTests {
                     public void loss() { lossofsignalalarm(4, 0, "No reading", "LOSS", true, false); }
                     public boolean lossCanBeAcknowledged() { return isPresentedStandardAlert(4) && isCurrentStandardAlert(4); }
                     static void cancelQueuedAlarmActivityLaunch(int kind, String id, String reason) {}
+                    static void supersedeAlarmWindowFallback() {}
                     static String format(Object locale, String format, float value) { return "" + value; }
                     static notGlucose copyGlucoseSnapshot(notGlucose original, float value) { return new notGlucose(); }
                     void deliverTriggeredAlert(int kind, float glucose, String text, notGlucose snapshot, String type) {
