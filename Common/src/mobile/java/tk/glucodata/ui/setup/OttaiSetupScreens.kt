@@ -64,7 +64,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +78,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -518,10 +518,12 @@ internal fun OttaiAccountStep(
     onSignedIn: (login: String) -> Unit,
     onSignOut: () -> Unit,
     onRegister: () -> Unit,
+    // The wizard's scope, not this page's: leaving the page mid-request must not cancel the
+    // coroutine after the cloud call has already stored a session, or onSignedIn never runs.
+    scope: CoroutineScope,
 ) {
     val tag = "OttaiAccountStep"
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }
@@ -845,10 +847,10 @@ internal fun OttaiRegisterStep(
     ui: WizardUiMetrics,
     region: OttaiRegion,
     onRegistered: (login: String) -> Unit,
+    scope: CoroutineScope,
 ) {
     val tag = "OttaiRegisterStep"
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }

@@ -1261,7 +1261,8 @@ fun OttaiSetupWizard(
         lastAutoFetchId = ""
         signedIn = true
         showStatus("")
-        step = OttaiSetupStep.SENSOR
+        // The request outlives its page; only a user still waiting on it is moved back.
+        if (step == OttaiSetupStep.ACCOUNT || step == OttaiSetupStep.REGISTER) step = OttaiSetupStep.SENSOR
     }
 
     Scaffold(
@@ -1303,12 +1304,14 @@ fun OttaiSetupWizard(
                         }
                     },
                     onRegister = { step = OttaiSetupStep.REGISTER },
+                    scope = scope,
                 )
 
                 OttaiSetupStep.REGISTER -> OttaiRegisterStep(
                     ui = ui,
                     region = region,
                     onRegistered = { onSignedIn(it) },
+                    scope = scope,
                 )
 
                 OttaiSetupStep.SAVED_SENSORS -> OttaiSavedSensorsStep(
