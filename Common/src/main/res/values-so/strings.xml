@@ -1903,7 +1903,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_delete_time_period_title">Ma tirtirtaa waqtigan?</string>
     <string name="predictive_delete_time_period_message">Waqtigii hore ayaa dabooli doona waqtigan.</string>
     <string name="predictive_carb_ratio">Saamiga kaarboon</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Dareenka insulinta</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>

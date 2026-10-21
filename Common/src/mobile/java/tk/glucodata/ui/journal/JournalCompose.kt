@@ -1370,7 +1370,7 @@ private fun JournalDoseAssistCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = stringResource(R.string.predictive_carb_ratio_value, profile.carbRatioGramsPerUnit),
+                    text = stringResource(R.string.predictive_carb_ratio_value, tk.glucodata.ui.formatCarbRatio(profile.carbRatioGramsPerUnit)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

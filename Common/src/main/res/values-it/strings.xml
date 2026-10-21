@@ -1624,7 +1624,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Eliminare questa fascia?</string>
     <string name="predictive_delete_time_period_message">La fascia precedente coprirà questo orario.</string>
     <string name="predictive_carb_ratio">Rapporto carboidrati</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Sensibilità insulinica</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
