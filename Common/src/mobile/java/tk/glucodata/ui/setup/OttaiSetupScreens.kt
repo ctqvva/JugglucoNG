@@ -1,8 +1,8 @@
 // JugglucoNG — Ottai setup: the pieces the wizard is built from.
 //
 // OttaiSetupWizard.kt owns the state and every cloud/BLE call; this file only lays out the
-// screens: the status card all Ottai cards share, the NFC wake card, the selected-sensor card,
-// the account and registration pages, and the saved-sensors page with its per-sensor sheet.
+// screens: the card every Ottai status shares, the NFC wake card, the chosen-sensor card, the
+// account and registration pages, and the saved-sensors page.
 
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
@@ -11,11 +11,14 @@ package tk.glucodata.ui.setup
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -33,8 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -42,7 +44,7 @@ import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BasicAlertDialog
@@ -52,7 +54,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +66,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +82,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -91,16 +99,19 @@ import tk.glucodata.drivers.ottai.OttaiSmsCountry
 import tk.glucodata.drivers.ottai.normalizeOttaiPhone
 import tk.glucodata.ui.StatusPalette
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
 /** Status cards sit beside settings rows, so they take the 20dp radius the guide gives them. */
 private val OttaiCardShape = RoundedCornerShape(20.dp)
+
+/** The NFC wake card is the step a China/Syai setup starts with: a hero, so the large radius. */
+private val OttaiHeroShape = RoundedCornerShape(28.dp)
 
 internal fun ottaiRowPosition(index: Int, count: Int): CardPosition = when {
     count <= 1 -> CardPosition.SINGLE
@@ -110,62 +121,102 @@ internal fun ottaiRowPosition(index: Int, count: Int): CardPosition = when {
 }
 
 /**
- * The one card every Ottai status uses: the icon tile is a sibling of the whole text block, so
- * title, body, details and actions all start on the 68dp line the settings rows above them use.
- * [loading] swaps the tile for the expressive loading indicator, at the tile's size, so the
- * text does not move when a wait starts or ends.
+ * The one card every Ottai status uses. Title first, with the glyph trailing in an expressive
+ * cookie, so it never reads as a settings row; while [loading] the loading indicator takes the
+ * glyph's place at the same size, so nothing moves when a wait starts or ends. Details sit under
+ * the text, actions at the bottom.
  */
 @Composable
-internal fun OttaiStatusCard(
-    icon: ImageVector,
-    tint: Color,
+internal fun OttaiCard(
     title: String,
-    body: String?,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
+    body: String? = null,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconContainerColor: Color = iconColor.copy(alpha = IconTileDefaults.ContainerAlpha),
     loading: Boolean = false,
+    hero: Boolean = false,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     details: (@Composable ColumnScope.() -> Unit)? = null,
-    actions: (@Composable RowScope.() -> Unit)? = null,
+    actions: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = OttaiCardShape,
+        shape = if (hero) OttaiHeroShape else OttaiCardShape,
         color = containerColor,
         contentColor = contentColor,
     ) {
-        Row(modifier = Modifier.padding(16.dp)) {
-            if (loading) {
-                Box(modifier = Modifier.size(IconTileDefaults.Size), contentAlignment = Alignment.Center) {
-                    LoadingIndicator(modifier = Modifier.size(IconTileDefaults.Size), color = tint)
-                }
-            } else {
-                IconTile(icon = icon, tint = tint)
-            }
-            Spacer(Modifier.width(IconTileDefaults.Gap))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMediumEmphasized)
-                if (body != null) {
-                    Spacer(Modifier.size(4.dp))
-                    Text(body, style = MaterialTheme.typography.bodyMedium, color = supportingColor)
-                }
-                if (details != null) {
-                    Spacer(Modifier.size(4.dp))
-                    details()
-                }
-                if (actions != null) {
-                    Spacer(Modifier.size(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = actions,
+        // The hero's wider inset keeps its text clear of the 28dp corners.
+        Column(modifier = Modifier.padding(if (hero) 24.dp else 16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = if (hero) {
+                            MaterialTheme.typography.headlineSmallEmphasized
+                        } else {
+                            MaterialTheme.typography.titleLargeEmphasized
+                        },
                     )
+                    if (body != null) {
+                        Spacer(Modifier.size(4.dp))
+                        Text(body, style = MaterialTheme.typography.bodyMedium, color = supportingColor)
+                    }
                 }
+                Spacer(Modifier.width(16.dp))
+                OttaiCardGlyph(
+                    icon = icon,
+                    color = iconColor,
+                    containerColor = iconContainerColor,
+                    loading = loading,
+                    size = if (hero) 64.dp else 48.dp,
+                )
+            }
+            if (details != null) {
+                Spacer(Modifier.size(12.dp))
+                details()
+            }
+            if (actions != null) {
+                Spacer(Modifier.size(16.dp))
+                actions()
             }
         }
     }
+}
+
+@Composable
+private fun OttaiCardGlyph(
+    icon: ImageVector,
+    color: Color,
+    containerColor: Color,
+    loading: Boolean,
+    size: Dp,
+) {
+    if (loading) {
+        LoadingIndicator(modifier = Modifier.size(size), color = color)
+        return
+    }
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(containerColor, MaterialShapes.Cookie9Sided.toShape()),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(size / 2))
+    }
+}
+
+/** A card's trailing actions: end-aligned on the card's padding, 8dp apart. */
+@Composable
+internal fun OttaiCardActions(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
 }
 
 /**
@@ -256,10 +307,9 @@ internal fun OttaiCaption(text: String, modifier: Modifier = Modifier, isError: 
 internal enum class OttaiNfcWakeState { IDLE, LISTENING, UNCONFIRMED, WOKE }
 
 /**
- * The NFC wake step. Ottai China and Syai sensors do not advertise until an NFC field wakes them,
- * so on those accounts this card is the first thing the setup asks for, and it is already
- * listening when it appears. It also answers the two questions a silent phone raises: no NFC
- * at all, and NFC switched off.
+ * The NFC wake step, shown only for Ottai China and Syai: their new sensors stay silent over
+ * Bluetooth until an NFC field wakes them. It is already listening when it appears, and it also
+ * answers the two reasons a phone stays silent: no NFC at all, and NFC switched off.
  */
 @Composable
 internal fun OttaiNfcWakeCard(
@@ -271,157 +321,172 @@ internal fun OttaiNfcWakeCard(
     var nfcEnabled by remember { mutableStateOf(adapter?.isEnabled == true) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { nfcEnabled = adapter?.isEnabled == true }
 
-    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
-    val onPrimaryContainer = MaterialTheme.colorScheme.onPrimaryContainer
     when {
-        adapter == null -> OttaiStatusCard(
-            icon = Icons.Default.Nfc,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        adapter == null -> OttaiCard(
             title = stringResource(R.string.ottai_nfc_missing_title),
             body = stringResource(R.string.ottai_nfc_missing_body),
-        )
-        !nfcEnabled -> OttaiStatusCard(
             icon = Icons.Default.Nfc,
-            tint = StatusPalette.warning(),
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        !nfcEnabled -> OttaiCard(
             title = stringResource(R.string.ottai_nfc_off_title),
             body = stringResource(R.string.ottai_nfc_off_body),
+            icon = Icons.Default.Nfc,
+            iconColor = StatusPalette.warning(),
             actions = {
-                FilledTonalButton(
-                    onClick = {
-                        val opened = runCatching {
-                            context.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
-                        }.isSuccess
-                        if (!opened) runCatching {
-                            context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
-                        }
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text(stringResource(R.string.ottai_nfc_open_settings)) }
+                OttaiCardActions {
+                    Button(
+                        onClick = {
+                            val opened = runCatching {
+                                context.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
+                            }.isSuccess
+                            if (!opened) runCatching {
+                                context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
+                            }
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(stringResource(R.string.ottai_nfc_open_settings)) }
+                }
             },
         )
-        state == OttaiNfcWakeState.WOKE -> OttaiStatusCard(
-            icon = Icons.Default.CheckCircle,
-            tint = StatusPalette.success(),
+        state == OttaiNfcWakeState.WOKE -> OttaiCard(
             title = stringResource(R.string.ottai_nfc_woke_title),
             body = stringResource(R.string.ottai_nfc_woke_body),
+            icon = Icons.Default.Check,
+            iconColor = StatusPalette.success(),
             actions = {
-                TextButton(
-                    onClick = onStart,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                ) { Text(stringResource(R.string.ottai_nfc_again)) }
-            },
-        )
-        state == OttaiNfcWakeState.IDLE -> OttaiStatusCard(
-            icon = Icons.Default.Nfc,
-            tint = onPrimaryContainer,
-            title = stringResource(R.string.ottai_nfc_idle_title),
-            body = stringResource(R.string.ottai_nfc_body),
-            containerColor = primaryContainer,
-            contentColor = onPrimaryContainer,
-            supportingColor = onPrimaryContainer.copy(alpha = 0.8f),
-            actions = {
-                Button(
-                    onClick = onStart,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    Icon(Icons.Default.Nfc, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.ottai_nfc_start))
+                OttaiCardActions {
+                    TextButton(
+                        onClick = onStart,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding,
+                    ) { Text(stringResource(R.string.ottai_nfc_again)) }
                 }
             },
         )
-        else -> OttaiStatusCard(
-            icon = Icons.Default.Nfc,
-            tint = onPrimaryContainer,
-            title = stringResource(R.string.ottai_nfc_listening_title),
-            body = stringResource(R.string.ottai_nfc_body),
-            loading = true,
-            containerColor = primaryContainer,
-            contentColor = onPrimaryContainer,
-            supportingColor = onPrimaryContainer.copy(alpha = 0.8f),
-            details = if (state == OttaiNfcWakeState.UNCONFIRMED) {
-                {
-                    Text(
-                        stringResource(R.string.ottai_nfc_unconfirmed),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            } else null,
-        )
+        else -> {
+            val listening = state != OttaiNfcWakeState.IDLE
+            val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+            OttaiCard(
+                title = stringResource(
+                    if (listening) R.string.ottai_nfc_listening_title else R.string.ottai_nfc_idle_title,
+                ),
+                body = stringResource(R.string.ottai_nfc_body),
+                icon = Icons.Default.Nfc,
+                hero = true,
+                loading = listening,
+                iconColor = if (listening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary,
+                iconContainerColor = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = onContainer,
+                supportingColor = onContainer,
+                details = if (state == OttaiNfcWakeState.UNCONFIRMED) {
+                    {
+                        Text(
+                            stringResource(R.string.ottai_nfc_unconfirmed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else null,
+                actions = if (!listening) {
+                    {
+                        OttaiCardActions {
+                            Button(
+                                onClick = onStart,
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) { Text(stringResource(R.string.ottai_nfc_start)) }
+                        }
+                    }
+                } else null,
+            )
+        }
     }
 }
 
 /**
- * What the selected sensor ID has on this phone, and the one thing to do about it when that is
- * nothing yet. The binding line only appears while signed in, scoped to this exact ID.
+ * The chosen sensor: where its credentials stand, and the setup's one action. Connect lives in
+ * the card because it acts on exactly this sensor; with no credentials and no account it is
+ * replaced by the two ways to get them.
  */
 @Composable
-internal fun OttaiSensorStateCard(
+internal fun OttaiSensorCard(
     state: OttaiMaterialState,
     loading: Boolean,
     signedIn: Boolean,
     deviceVersion: String,
     bindingState: OttaiCloudBindingUiState,
-    enabled: Boolean,
+    busy: Boolean,
+    canConnect: Boolean,
+    connectLabel: String,
+    message: String,
+    messageIsError: Boolean,
+    onConnect: () -> Unit,
     onImport: () -> Unit,
     onSignIn: () -> Unit,
 ) {
-    val success = StatusPalette.success()
     val (icon, tint) = when (state) {
         OttaiMaterialState.MISSING -> Icons.Default.Key to MaterialTheme.colorScheme.onSurfaceVariant
         OttaiMaterialState.PARTIAL -> Icons.Default.Warning to StatusPalette.warning()
-        OttaiMaterialState.READY_TO_ACTIVATE -> Icons.Default.PlayCircle to MaterialTheme.colorScheme.primary
+        OttaiMaterialState.READY_TO_ACTIVATE -> Icons.Default.PlayArrow to MaterialTheme.colorScheme.primary
         OttaiMaterialState.WARMING_UP -> Icons.Default.HourglassTop to MaterialTheme.colorScheme.primary
-        OttaiMaterialState.ACTIVE -> Icons.Default.CheckCircle to success
+        OttaiMaterialState.ACTIVE -> Icons.Default.Check to StatusPalette.success()
         OttaiMaterialState.EXPIRED -> Icons.Default.EventBusy to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val title = when {
-        loading -> stringResource(R.string.ottai_state_fetching)
-        else -> stringResource(ottaiMaterialStateTitle(state))
-    }
+    // Only the states that leave a question open get a sentence; the rest are said by the title
+    // and the button.
     val body = when {
         loading -> null
         state == OttaiMaterialState.MISSING && signedIn -> stringResource(R.string.ottai_state_missing_signed_in)
         state == OttaiMaterialState.MISSING -> stringResource(R.string.ottai_state_missing_signed_out)
         state == OttaiMaterialState.PARTIAL -> stringResource(R.string.ottai_state_partial_body)
-        state == OttaiMaterialState.READY_TO_ACTIVATE -> stringResource(R.string.ottai_state_not_activated_desc)
-        state == OttaiMaterialState.WARMING_UP -> stringResource(R.string.ottai_state_warmup_desc)
-        state == OttaiMaterialState.ACTIVE -> stringResource(R.string.ottai_state_active_body)
-        else -> stringResource(R.string.ottai_state_expired_desc)
+        state == OttaiMaterialState.EXPIRED -> stringResource(R.string.ottai_state_expired_desc)
+        else -> null
     }
-    val showVersion = !loading && deviceVersion.isNotBlank()
-    val showBinding = bindingState != OttaiCloudBindingUiState.HIDDEN
-    OttaiStatusCard(
-        icon = icon,
-        tint = tint,
-        title = title,
+    val bindingText = when (bindingState) {
+        OttaiCloudBindingUiState.CHECKING -> stringResource(R.string.ottai_cloud_binding_checking)
+        OttaiCloudBindingUiState.BOUND -> stringResource(R.string.ottai_cloud_binding_bound)
+        OttaiCloudBindingUiState.NOT_BOUND -> stringResource(R.string.ottai_cloud_binding_not_bound)
+        else -> null
+    }
+    val meta = listOfNotNull(
+        deviceVersion.takeIf { !loading && it.isNotBlank() }
+            ?.let { stringResource(R.string.ottai_device_version_label, it) },
+        bindingText,
+    ).joinToString(" · ")
+    val bindingFailed = bindingState == OttaiCloudBindingUiState.ERROR
+    val getCredentials = !loading && state == OttaiMaterialState.MISSING && !signedIn
+
+    OttaiCard(
+        title = stringResource(if (loading) R.string.ottai_state_fetching else ottaiMaterialStateTitle(state)),
         body = body,
+        icon = icon,
+        iconColor = tint,
         loading = loading,
-        details = if (showVersion || showBinding) {
+        details = if (meta.isNotEmpty() || bindingFailed || message.isNotBlank()) {
             {
-                if (showVersion) {
+                if (meta.isNotEmpty()) {
                     Text(
-                        stringResource(R.string.ottai_device_version_label, deviceVersion),
+                        meta,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (showBinding) {
+                if (bindingFailed) {
                     Text(
-                        stringResource(
-                            when (bindingState) {
-                                OttaiCloudBindingUiState.CHECKING -> R.string.ottai_cloud_binding_checking
-                                OttaiCloudBindingUiState.BOUND -> R.string.ottai_cloud_binding_bound
-                                OttaiCloudBindingUiState.NOT_BOUND -> R.string.ottai_cloud_binding_not_bound
-                                else -> R.string.ottai_cloud_binding_error
-                            },
-                        ),
+                        stringResource(R.string.ottai_cloud_binding_error),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (bindingState == OttaiCloudBindingUiState.ERROR) {
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (message.isNotBlank()) {
+                    if (meta.isNotEmpty() || bindingFailed) Spacer(Modifier.size(8.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (messageIsError) {
                             MaterialTheme.colorScheme.error
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -430,28 +495,40 @@ internal fun OttaiSensorStateCard(
                 }
             }
         } else null,
-        actions = if (!loading && state == OttaiMaterialState.MISSING) {
-            {
-                OutlinedButton(
-                    onClick = onImport,
-                    enabled = enabled,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.ottai_credentials_import))
-                }
-                if (!signedIn) {
-                    FilledTonalButton(
+        actions = {
+            if (getCredentials) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onImport,
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(stringResource(R.string.ottai_import_file)) }
+                    Button(
                         onClick = onSignIn,
-                        enabled = enabled,
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) { Text(stringResource(R.string.ottai_login_button)) }
                 }
+            } else {
+                Button(
+                    onClick = onConnect,
+                    enabled = !busy && !loading && canConnect,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    if (busy) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(connectLabel)
+                    }
+                }
             }
-        } else null,
+        },
     )
 }
 
@@ -471,23 +548,22 @@ internal fun OttaiUnusedBindingCard(
     enabled: Boolean,
     onUnbind: () -> Unit,
 ) {
-    OttaiStatusCard(
-        icon = Icons.Default.LinkOff,
-        tint = MaterialTheme.colorScheme.error,
+    OttaiCard(
         title = stringResource(R.string.ottai_unused_binding_title),
         body = stringResource(R.string.ottai_unused_binding_desc, sensorId),
+        icon = Icons.Default.LinkOff,
+        iconColor = MaterialTheme.colorScheme.error,
         actions = {
-            OttaiUnbindButton(enabled = enabled, onClick = onUnbind)
+            OttaiCardActions { OttaiUnbindButton(enabled = enabled, onClick = onUnbind) }
         },
     )
 }
 
 @Composable
-private fun OttaiUnbindButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun OttaiUnbindButton(enabled: Boolean, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ContentPadding,
@@ -564,17 +640,18 @@ internal fun OttaiAccountStep(
             .padding(top = 8.dp, bottom = 32.dp),
     ) {
         if (signedIn) {
-            OttaiStatusCard(
-                icon = Icons.Default.AccountCircle,
-                tint = MaterialTheme.colorScheme.primary,
+            OttaiCard(
                 title = accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
                 body = stringResource(accountRegion.fullLabelRes),
+                icon = Icons.Default.AccountCircle,
                 actions = {
-                    OutlinedButton(
-                        onClick = onSignOut,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) { Text(stringResource(R.string.ottai_sign_out)) }
+                    OttaiCardActions {
+                        OutlinedButton(
+                            onClick = onSignOut,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text(stringResource(R.string.ottai_sign_out)) }
+                    }
                 },
             )
             OttaiCaption(stringResource(R.string.ottai_account_signed_in_note))
@@ -620,9 +697,6 @@ internal fun OttaiAccountStep(
                 label = {
                     Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint))
                 },
-                supportingText = if (!useSms) {
-                    { Text(stringResource(R.string.ottai_account_note)) }
-                } else null,
                 isError = useSms && phone.isNotBlank() && smsPhone == null,
                 leadingIcon = if (useSms) {
                     {
@@ -994,8 +1068,8 @@ internal data class OttaiSavedSensor(
 
 /**
  * Every sensor this phone can connect without the cloud, signed in or not, and — while signed
- * in — the account's sensors that are not saved here yet. A row opens that sensor's sheet; the
- * page itself only imports.
+ * in — the account's sensors that are not saved here yet. Each sensor carries its own actions
+ * in plain sight: nothing here is behind a menu.
  */
 @Composable
 internal fun OttaiSavedSensorsStep(
@@ -1007,10 +1081,12 @@ internal fun OttaiSavedSensorsStep(
     accountLoading: Boolean,
     accountFailure: OttaiCloudClient.CloudFailure?,
     enabled: Boolean,
-    status: String,
-    statusIsError: Boolean,
-    onOpenSaved: (OttaiSavedSensor) -> Unit,
-    onOpenAccountDevice: (OttaiCloudClient.DeviceSummary) -> Unit,
+    unbindTarget: (sensorId: String) -> OttaiCloudClient.DeviceSummary?,
+    onSelectSaved: (OttaiSavedSensor) -> Unit,
+    onExport: (OttaiSavedSensor) -> Unit,
+    onDelete: (OttaiSavedSensor) -> Unit,
+    onSelectAccountDevice: (OttaiCloudClient.DeviceSummary) -> Unit,
+    onUnbind: (OttaiCloudClient.DeviceSummary) -> Unit,
     onImport: () -> Unit,
     onRefreshAccount: () -> Unit,
     onSignIn: () -> Unit,
@@ -1020,16 +1096,9 @@ internal fun OttaiSavedSensorsStep(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = ui.horizontalPadding)
-            .padding(top = 8.dp, bottom = 32.dp),
+            .padding(bottom = 32.dp),
     ) {
-        Text(
-            stringResource(R.string.ottai_saved_intro),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (status.isNotBlank()) OttaiCaption(status, isError = statusIsError)
-
-        SectionLabel(stringResource(R.string.ottai_saved_section_phone))
+        SectionLabel(stringResource(R.string.ottai_saved_section_phone), topPadding = 8.dp)
         if (saved.isEmpty()) {
             Text(
                 stringResource(R.string.ottai_saved_empty),
@@ -1041,14 +1110,58 @@ internal fun OttaiSavedSensorsStep(
                 saved.forEachIndexed { index, sensor ->
                     val connected = sensor.managed &&
                         sensor.record.address.uppercase() in connectedAddresses
-                    SettingsItem(
+                    val presence = when {
+                        connected -> stringResource(R.string.ottai_ble_scan_connected)
+                        sensor.managed -> stringResource(R.string.ottai_ble_scan_registered)
+                        else -> null
+                    }
+                    val unbind = unbindTarget(sensor.sensorId)
+                    OttaiSensorEntry(
                         title = sensor.sensorId,
-                        subtitle = ottaiSavedSensorSubtitle(sensor, connected),
-                        icon = Icons.Default.Key,
-                        iconTint = if (sensor.managed) MaterialTheme.colorScheme.primary else null,
+                        status = listOfNotNull(presence, stringResource(ottaiMaterialStateTitle(sensor.state)))
+                            .joinToString(" · "),
+                        detail = sensor.materials.deviceVersion.takeIf { it.isNotBlank() }
+                            ?.let { stringResource(R.string.ottai_device_version_label, it) },
                         position = ottaiRowPosition(index, saved.size),
-                        onClick = if (enabled) ({ onOpenSaved(sensor) }) else null,
-                    )
+                    ) {
+                        FilledTonalButton(
+                            onClick = { onSelectSaved(sensor) },
+                            enabled = enabled,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text(stringResource(R.string.ottai_select)) }
+                        OutlinedButton(
+                            onClick = { onExport(sensor) },
+                            enabled = enabled,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) {
+                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.ottai_export))
+                        }
+                        if (unbind != null) {
+                            OttaiUnbindButton(enabled = enabled, onClick = { onUnbind(unbind) })
+                        }
+                        // A managed sensor is removed from its sensor card; its keys must outlive
+                        // that card, so only a saved draft can be deleted here.
+                        if (!sensor.managed) {
+                            val deleteLabel = stringResource(R.string.ottai_delete_saved)
+                            IconButtonTooltip(deleteLabel) {
+                                IconButton(
+                                    onClick = { onDelete(sensor) },
+                                    enabled = enabled,
+                                    shapes = IconButtonDefaults.shapes(),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = deleteLabel,
+                                        tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1112,16 +1225,27 @@ internal fun OttaiSavedSensorsStep(
             else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 unsaved.forEachIndexed { index, device ->
                     val id = OttaiConstants.canonicalSensorId(device.mac)
-                    SettingsItem(
+                    val unbind = unbindTarget(id)
+                    OttaiSensorEntry(
                         title = device.serialNo.ifBlank { id },
-                        subtitle = stringResource(
-                            if (device.isActive) R.string.ottai_sensor_active else R.string.ottai_sensor_past,
-                        ) + " · " + id,
-                        icon = Icons.Default.Cloud,
-                        iconTint = if (device.isActive) MaterialTheme.colorScheme.tertiary else null,
+                        status = listOfNotNull(
+                            stringResource(if (device.isActive) R.string.ottai_sensor_active else R.string.ottai_sensor_past),
+                            id.takeIf { device.serialNo.isNotBlank() },
+                        ).joinToString(" · "),
+                        detail = device.deviceVersion.takeIf { it.isNotBlank() }
+                            ?.let { stringResource(R.string.ottai_device_version_label, it) },
                         position = ottaiRowPosition(index, unsaved.size),
-                        onClick = if (enabled) ({ onOpenAccountDevice(device) }) else null,
-                    )
+                    ) {
+                        FilledTonalButton(
+                            onClick = { onSelectAccountDevice(device) },
+                            enabled = enabled,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text(stringResource(R.string.ottai_select)) }
+                        if (unbind != null) {
+                            OttaiUnbindButton(enabled = enabled, onClick = { onUnbind(unbind) })
+                        }
+                    }
                 }
             }
         }
@@ -1140,122 +1264,32 @@ internal fun OttaiSavedSensorsStep(
     }
 }
 
+/**
+ * One sensor in a saved/account list: the ID first (it is what the user matches against the
+ * sensor's label), where it stands, and its actions underneath, wrapping when a locale's labels
+ * are long.
+ */
 @Composable
-private fun ottaiSavedSensorSubtitle(sensor: OttaiSavedSensor, connected: Boolean): String {
-    val presence = stringResource(
-        when {
-            connected -> R.string.ottai_ble_scan_connected
-            sensor.managed -> R.string.ottai_ble_scan_registered
-            else -> R.string.ottai_sensor_saved
-        },
-    )
-    return presence + " · " + stringResource(ottaiMaterialStateTitle(sensor.state))
-}
-
-/** What can be done with one saved sensor. Destructive actions last, and only where allowed. */
-@Composable
-internal fun OttaiSavedSensorSheet(
-    sensor: OttaiSavedSensor,
-    connected: Boolean,
-    unbindTarget: OttaiCloudClient.DeviceSummary?,
-    onDismiss: () -> Unit,
-    onUse: () -> Unit,
-    onExport: () -> Unit,
-    onUnbind: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    OttaiSheet(
-        title = sensor.sensorId,
-        subtitle = ottaiSavedSensorSubtitle(sensor, connected),
-        detail = sensor.materials.deviceVersion.takeIf { it.isNotBlank() }
-            ?.let { stringResource(R.string.ottai_device_version_label, it) },
-        onDismiss = onDismiss,
-    ) {
-        Button(
-            onClick = onUse,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.ContentPadding,
-        ) { Text(stringResource(R.string.ottai_sheet_use)) }
-        OutlinedButton(
-            onClick = onExport,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.ContentPadding,
-        ) {
-            Icon(Icons.Default.FileUpload, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.ottai_export_file))
-        }
-        if (unbindTarget != null) {
-            OttaiUnbindButton(
-                enabled = true,
-                onClick = onUnbind,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            )
-        }
-        // A managed sensor is removed from its sensor card; its keys must outlive that card.
-        if (!sensor.managed) {
-            TextButton(
-                onClick = onDelete,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.TextButtonContentPadding,
-            ) { Text(stringResource(R.string.ottai_delete_saved)) }
-        }
-    }
-}
-
-@Composable
-internal fun OttaiAccountDeviceSheet(
-    device: OttaiCloudClient.DeviceSummary,
-    unbindTarget: OttaiCloudClient.DeviceSummary?,
-    onDismiss: () -> Unit,
-    onUse: () -> Unit,
-    onUnbind: () -> Unit,
-) {
-    val id = OttaiConstants.canonicalSensorId(device.mac)
-    OttaiSheet(
-        title = device.serialNo.ifBlank { id },
-        subtitle = stringResource(
-            if (device.isActive) R.string.ottai_sensor_active else R.string.ottai_sensor_past,
-        ) + " · " + id,
-        detail = device.deviceVersion.takeIf { it.isNotBlank() }
-            ?.let { stringResource(R.string.ottai_device_version_label, it) },
-        onDismiss = onDismiss,
-    ) {
-        Button(
-            onClick = onUse,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.ContentPadding,
-        ) { Text(stringResource(R.string.ottai_sheet_use)) }
-        if (unbindTarget != null) {
-            OttaiUnbindButton(
-                enabled = true,
-                onClick = onUnbind,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OttaiSheet(
+private fun OttaiSensorEntry(
     title: String,
-    subtitle: String,
+    status: String,
     detail: String?,
-    onDismiss: () -> Unit,
-    actions: @Composable ColumnScope.() -> Unit,
+    position: CardPosition,
+    actions: @Composable FlowRowScope.() -> Unit,
 ) {
-    StableModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLargeEmphasized)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontFeatureSettings = "tnum"),
+            )
             Spacer(Modifier.size(4.dp))
             Text(
-                subtitle,
+                status,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1266,8 +1300,13 @@ private fun OttaiSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.size(24.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+            Spacer(Modifier.size(12.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
         }
     }
 }
