@@ -89,6 +89,42 @@ data class ChartSeriesModel(
 
     fun valueAt(timestamp: Long): Float? = valueByTimestamp[timestamp]
 
+    /**
+     * Where this series' line passes at [timestamp], for pinning a mark onto the drawn
+     * curve: interpolated between the points either side when both are within
+     * [maxGapMillis], else the nearer one within it, else null. Unlike [valueAt] it does
+     * not need a reading in that very minute, so a 5-minute sensor still has a value
+     * between its readings.
+     */
+    fun lineValueNear(timestamp: Long, maxGapMillis: Long): Float? {
+        var best: Float? = null
+        var bestDistance = Long.MAX_VALUE
+        for (run in runs) {
+            val points = run.points
+            if (points.isEmpty()) continue
+            val found = points.binarySearchBy(timestamp) { it.timestamp }
+            if (found >= 0) {
+                val value = points[found].value
+                if (value.isFinite()) return value
+                continue
+            }
+            val insertion = -found - 1
+            val before = points.getOrNull(insertion - 1)?.takeIf { timestamp - it.timestamp <= maxGapMillis && it.value.isFinite() }
+            val after = points.getOrNull(insertion)?.takeIf { it.timestamp - timestamp <= maxGapMillis && it.value.isFinite() }
+            if (before != null && after != null) {
+                val fraction = (timestamp - before.timestamp).toFloat() / (after.timestamp - before.timestamp)
+                return before.value + (after.value - before.value) * fraction
+            }
+            val near = before ?: after ?: continue
+            val distance = kotlin.math.abs(near.timestamp - timestamp)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                best = near.value
+            }
+        }
+        return best
+    }
+
     /** Only the Auto lane owns sensor uncertainty. Never borrow an older interval. */
     fun uncertaintyAt(timestamp: Long, isRawLane: Boolean, sourceLane: Boolean): tk.glucodata.GlucoseUncertainty? {
         if (isRawLane) return null
