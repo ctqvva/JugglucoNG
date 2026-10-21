@@ -1790,7 +1790,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="mq_fetch_calibration_action">Soo celi fadhiga iibiyaha</string>
     <string name="mq_api_url_label">API URL</string>
     <string name="mq_api_url_desc">Cilladaha HTTPS Glutec API U beddel kan kaliya serfarka gaarka ah ama HTTP cad.</string>
-    <string name="mq_account_title">MQ / Glutec Account</string>
+    <string name="mq_account_title">Akoonka MQ / Glutec</string>
     <string name="mq_account_desc">La wadaagay dhammaan dareemayaasha MQ Loo isticmaalo soo celinta iibiyaha, isku xidhka Glutec ee ikhtiyaarka ah, iyo falalka akoontiga SMS</string>
     <string name="mq_account_linked_desc">Maamul koontada MQ/Glutec ee la wadaago, API URL, iyo isku xidhka ikhtiyaarka ah ee ay isticmaalaan dareemayaasha MQ.</string>
     <string name="mq_account_sign_in_action">Soo gal</string>

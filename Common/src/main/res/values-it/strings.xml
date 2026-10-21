@@ -772,7 +772,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max">Massimo</string>
     <string name="max_glucose">Massimo</string>
     <string name="median">Mediano</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Glucometri</string>
     <string name="glucose_meters_desc">Collega glucometri Bluetooth</string>
     <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout.</string>
     <string name="satellite_meter_title">Glucometro Satellite (Сателлит+)</string>

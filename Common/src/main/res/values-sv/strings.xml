@@ -852,7 +852,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max">Max</string>
     <string name="max_glucose">Max</string>
     <string name="median">Median</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Blodsockermätare</string>
     <string name="glucose_meters_desc">Anslut Bluetooth-blodsockermätare</string>
     <string name="glucose_meters_journal_desc">Mätvärden sparas som blodsockerposter i journalen och kan skickas till Nightscout.</string>
     <string name="satellite_meter_title">Satellite-mätare (Сателлит+)</string>

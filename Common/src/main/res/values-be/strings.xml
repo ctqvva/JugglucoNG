@@ -847,7 +847,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max">Макс</string>
     <string name="max_glucose">Макс</string>
     <string name="median">Медыяна</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Глюкометры</string>
     <string name="glucose_meters_desc">Падключэнне Bluetooth-глюкометраў</string>
     <string name="glucose_meters_journal_desc">Вынікі захоўваюцца як запісы глюкозы крыві ў дзённіку і могуць адпраўляцца ў Nightscout.</string>
     <string name="satellite_meter_title">Глюкометр «Сателлит+»</string>

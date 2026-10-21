@@ -887,7 +887,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="max">Maksimum</string>
     <string name="max_glucose">Maksimum</string>
     <string name="median">Medyan</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Glukometreler</string>
     <string name="glucose_meters_desc">Bluetooth glikoz ölçerleri bağlayın</string>
     <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir.</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) ölçüm cihazı</string>
@@ -1563,7 +1563,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mq_fetch_calibration_action">Uretici oturumunu geri yukle</string>
     <string name="mq_api_url_label">API URL</string>
     <string name="mq_api_url_desc">Varsayilan olarak Glutec HTTPS API kullanilir. Bunu yalnizca ozel bir sunucu veya duz HTTP icin degistirin.</string>
-    <string name="mq_account_title">MQ / Glutec hesabi</string>
+    <string name="mq_account_title">MQ / Glutec hesabı</string>
     <string name="mq_account_desc">MQ sensorleri arasinda paylasilir. Uretici oturumunu geri yuklemek, istege bagli Glutec esitlemesi ve SMS hesap islemleri icin kullanilir.</string>
     <string name="mq_account_linked_desc">MQ sensorleri tarafindan kullanilan paylasilan MQ / Glutec hesabini, API URL\'sini ve istege bagli esitlemeyi yonetin.</string>
     <string name="mq_account_sign_in_action">Giris yap</string>

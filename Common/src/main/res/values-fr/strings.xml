@@ -822,7 +822,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max">Max.</string>
     <string name="max_glucose">Max.</string>
     <string name="median">Médiane</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Lecteurs de glycémie</string>
     <string name="glucose_meters_desc">Connecter des lecteurs de glycémie Bluetooth</string>
     <string name="glucose_meters_journal_desc">Les mesures sont enregistrées comme glycémies dans le journal et peuvent être envoyées à Nightscout.</string>
     <string name="satellite_meter_title">Lecteur Satellite (Сателлит+)</string>
