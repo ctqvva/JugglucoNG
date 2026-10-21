@@ -3199,4 +3199,12 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dexcom_share_auth_blocked">Gelitaanka waa la xannibay — hubi akoonka iyo furaha sirta</string>
     <string name="dexcom_share_credentials_required">Marka hore geli akoonka iyo furaha sirta</string>
     <string name="dexcom_share_warning">Interface aan rasmi ahayn: Dexcom wuu beddeli karaa ama xannibi karaa wakhti kasta. Tani maaha hawl qalab caafimaad.</string>
+    <string name="journal_food_from_label">Ka dar summadda cuntada</string>
+    <string name="journal_food_name">Magaca</string>
+    <string name="journal_food_carbs_per_100g">Karboon 100 g kasta</string>
+    <string name="journal_food_weight">Miisaanka</string>
+    <string name="journal_food_servings">Qaybo</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g karboon</string>
+    <string name="journal_meal_total">Wadarta</string>
 </resources>

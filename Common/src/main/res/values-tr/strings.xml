@@ -3042,4 +3042,12 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_share_auth_blocked">Giriş engellendi — hesabı ve şifreyi kontrol edin</string>
     <string name="dexcom_share_credentials_required">Önce hesabı ve şifreyi girin</string>
     <string name="dexcom_share_warning">Resmi olmayan arayüz: Dexcom bunu istediği zaman değiştirebilir veya engelleyebilir. Bu bir tıbbi cihaz özelliği değildir.</string>
+    <string name="journal_food_from_label">Etiketten ekle</string>
+    <string name="journal_food_name">Ad</string>
+    <string name="journal_food_carbs_per_100g">100 g\'da karbonhidrat</string>
+    <string name="journal_food_weight">Ağırlık</string>
+    <string name="journal_food_servings">Porsiyon</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g karbonhidrat</string>
+    <string name="journal_meal_total">Toplam</string>
 </resources>

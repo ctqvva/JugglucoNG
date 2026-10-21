@@ -3089,4 +3089,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="dexcom_share_auth_blocked">Bejelentkezés letiltva — ellenőrizze a fiókot és a jelszót</string>
     <string name="dexcom_share_credentials_required">Először adja meg a fiókot és a jelszót</string>
     <string name="dexcom_share_warning">Nem hivatalos felület: a Dexcom bármikor megváltoztathatja vagy letilthatja. Ez nem orvostechnikai eszköz funkciója.</string>
+    <string name="journal_food_from_label">Hozzáadás címkéről</string>
+    <string name="journal_food_name">Név</string>
+    <string name="journal_food_carbs_per_100g">Szénhidrát 100 g-ban</string>
+    <string name="journal_food_weight">Tömeg</string>
+    <string name="journal_food_servings">Adag</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g szénhidrát</string>
+    <string name="journal_meal_total">Összesen</string>
 </resources>
