@@ -144,7 +144,7 @@ fun NotificationSettingsScreen(
 
     LegacySettingsScaffold(
         navController = navController,
-        title = stringResource(R.string.notification_settings_title)
+        title = stringResource(R.string.settings_notification_title)
     ) {
         SectionLabel(
             stringResource(R.string.typography),
@@ -383,7 +383,7 @@ fun DisplayAndColorSettingsScreen(
 
     LegacySettingsScaffold(
         navController = navController,
-        title = stringResource(R.string.display_colors_title)
+        title = stringResource(R.string.settings_dashboard_charts_title)
     ) {
         GlucoseRangeDisplaySettings(viewModel)
 
@@ -813,7 +813,7 @@ fun AodSettingsScreen(navController: NavController) {
 
     LegacySettingsScaffold(
         navController = navController,
-        title = stringResource(R.string.aod_settings_title)
+        title = stringResource(R.string.settings_lock_screen_title)
     ) {
         MasterSwitchCard(
             title = stringResource(R.string.enable_overlay_service),
