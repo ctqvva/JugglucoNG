@@ -33,19 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 
-@Composable
-fun SliderControl(label: String, value: Float, onValueChange: (Float) -> Unit, range: ClosedFloatingPointRange<Float>, steps: Int = 0) {
-    Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-            steps = steps
-        )
-    }
-}
-
 /**
  * A settings row that opens its own content underneath, inside the same card:
  * header, divider, then the content. Extracted from the glucose range screen,
@@ -540,37 +527,95 @@ fun AlarmItem(
     }
 }
 
+/**
+ * A slider as one row of a settings group, in the same card as the switches around it.
+ * The title carries the value ("Font size: 100%").
+ */
 @Composable
-fun SliderItem(
+fun SettingsSliderItem(
     title: String,
     value: Float,
-    unit: String,
-    range: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit,
-    position: CardPosition = CardPosition.SINGLE
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int = 0,
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
-    var sliderValue by remember(value) { mutableFloatStateOf(value) }
-    val displayValue = if (sliderValue < 30) String.format("%.1f", sliderValue) else sliderValue.toInt().toString()
-
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
+        modifier = modifier.fillMaxWidth(),
+        shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row {
-                Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Text("$displayValue $unit", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(Modifier.height(8.dp))
+        // The slider's touch target already leaves room under the track, so the
+        // bottom padding is half the top's.
+        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Slider(
-                value = sliderValue,
-                onValueChange = { sliderValue = it },
-                onValueChangeFinished = { onValueChange(sliderValue) },
-                valueRange = range
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+                steps = steps,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
+}
+
+/**
+ * A choice between a few short options as one row of a settings group: the title over a
+ * [tk.glucodata.ui.util.ConnectedButtonGroup], coloured like the sensor card's data mode.
+ * With [multiSelect], [selectedOptions] holds the checked ones.
+ */
+@Composable
+fun <T> SettingsChoiceItem(
+    title: String,
+    options: List<T>,
+    labels: List<String>,
+    onOptionSelected: (T) -> Unit,
+    selectedOption: T? = null,
+    selectedOptions: List<T> = emptyList(),
+    multiSelect: Boolean = false,
+    position: CardPosition = CardPosition.SINGLE,
+    animatePosition: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            tk.glucodata.ui.util.ConnectedButtonGroup(
+                options = options,
+                selectedOption = selectedOption,
+                selectedOptions = selectedOptions,
+                multiSelect = multiSelect,
+                onOptionSelected = onOptionSelected,
+                label = {},
+                labelText = { labels[options.indexOf(it)] },
+                modifier = Modifier.fillMaxWidth(),
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unselectedContentColor = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * [CardPosition] of the item at [index] in a group of [count] visible rows.
+ */
+fun groupPosition(index: Int, count: Int): CardPosition = when {
+    count <= 1 -> CardPosition.SINGLE
+    index == 0 -> CardPosition.TOP
+    index == count - 1 -> CardPosition.BOTTOM
+    else -> CardPosition.MIDDLE
 }
 
 @Composable
