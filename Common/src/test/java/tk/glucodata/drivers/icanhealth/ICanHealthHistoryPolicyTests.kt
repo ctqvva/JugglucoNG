@@ -49,6 +49,22 @@ class ICanHealthHistoryPolicyTests {
     }
 
     @Test
+    fun automaticStart_resumesRightAfterTheKnownTailWithoutOverlap() {
+        // Decision (#676 follow-up 5): a fresh connection does not re-read the slot that is already
+        // stored. Holes behind the live edge are repaired only when a live jump was observed
+        // (pendingLiveGap); a blind overlap would cost BLE time on every connection.
+        assertEquals(
+            306,
+            ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 312,
+                latestKnownSequence = 303,
+                pendingLiveGap = null,
+            )
+        )
+    }
+
+    @Test
     fun overlap_allowsOnlyCadenceAlignedRecordsInsidePendingGap() {
         val gap = ICanHealthHistoryPolicy.liveGapBetween(300, 312, 3)
         val skip: (Int) -> Boolean = { sequence ->

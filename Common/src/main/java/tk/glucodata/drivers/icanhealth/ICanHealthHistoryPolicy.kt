@@ -58,6 +58,15 @@ internal object ICanHealthHistoryPolicy {
         )
     }
 
+    /**
+     * First slot to request when a fresh authenticated connection starts the glucose history.
+     *
+     * Deliberate policy (#676 follow-up 5): without an observed live jump the request starts at
+     * `latestKnownSequence + interval`; the already stored tail is not re-read. The official app
+     * re-reads from its own last offset and the sensor can serve holes behind the live edge, but a
+     * blind overlap costs BLE time on every connection while holes are only known to exist when a
+     * live sequence jump was observed — that case is handled by [pendingLiveGap].
+     */
     fun automaticGlucoseHistoryStartSequence(
         readingIntervalMinutes: Int,
         currentSequence: Int,
