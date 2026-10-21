@@ -3461,7 +3461,8 @@ fun InteractiveGlucoseChart(
                             layerKeys.forEachIndexed { layer, key ->
                                 val upper = tops[layer]
                                 val lower = tops.getOrNull(layer - 1)
-                                if (upper.indices.none { upper[it] - (lower?.get(it) ?: 0f) > 0.0001f }) return@forEachIndexed
+                                fun adds(i: Int): Boolean = i in 0 until sampleCount && upper[i] - (lower?.get(i) ?: 0f) > 0.0001f
+                                if (upper.indices.none(::adds)) return@forEachIndexed
                                 val tint = Color(key.second)
                                 val fill = Path().apply {
                                     moveTo(sampleXs[0], rateToY(upper[0]))
@@ -3470,9 +3471,20 @@ fun InteractiveGlucoseChart(
                                     close()
                                 }
                                 drawPath(fill, tint.copy(alpha = tint.alpha * 0.34f))
+                                // Only where this insulin adds activity, plus the sample either
+                                // side so the edge rises from and falls back to the one below;
+                                // elsewhere it would lie on that insulin's edge in this colour.
                                 val edge = Path().apply {
-                                    moveTo(sampleXs[0], rateToY(upper[0]))
-                                    for (i in 1 until sampleCount) lineTo(sampleXs[i], rateToY(upper[i]))
+                                    var drawing = false
+                                    for (i in 0 until sampleCount) {
+                                        if (!(adds(i - 1) || adds(i) || adds(i + 1))) {
+                                            drawing = false
+                                            continue
+                                        }
+                                        val y = rateToY(upper[i])
+                                        if (drawing) lineTo(sampleXs[i], y) else moveTo(sampleXs[i], y)
+                                        drawing = true
+                                    }
                                 }
                                 drawPath(
                                     path = edge,
