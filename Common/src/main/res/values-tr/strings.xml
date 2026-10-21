@@ -395,7 +395,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_chart_title">Bildirimde grafiği göster</string>
     <string name="notification_chart_desc">Durum çubuğunda glikoz grafiğini göster</string>
     <string name="google_scan_desc">QR tarama için Google Play Hizmetlerini kullan</string>
-    <string name="mirror_desc">İnternet/Ev Ağı üzerinden veri paylaş/al</string>
     <string name="nightscout_desc">Ölçüm gönder veya al</string>
     <string name="glucose_alerts_title">Uyarılar ve alarmlar</string>
     <string name="glucose_range_title">Glukoz aralığı</string>
@@ -540,10 +539,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="alert_sound">Uyarı Sesi</string>
     <string name="vibrate_only">Sadece Titreşim</string>
     <string name="sound_vibrate">Ses ve Titreşim</string>
-    <string name="turbo_title">Turbo (Yüksek Öncelik)</string>
-    <string name="turbo_desc">Yüksek bağlantı önceliği ister</string>
-    <string name="autoconnect_title">Android (Otomatik Bağlan)</string>
-    <string name="autoconnect_desc">Pasif arka plan bağlantısı kullanır</string>
     <string name="graph_smoothing_title">Veri yumuşatma</string>
     <string name="graph_smoothing_desc">Grafik verilerini ve, “Yalnızca grafiği yumuşat” etkin değilse, çözümlenmiş glikoz değerlerini yumuşatır</string>
     <string name="graph_smoothing_none">Kapalı</string>
@@ -567,14 +562,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="preview_window_expanded_only">Yalnızca genişletilmiş görünümde (varsayılan)</string>
     <string name="preview_window_always">Her zaman</string>
     <string name="preview_window_never">Asla</string>
-    <string name="debug_logs_desc">trace.log ve logcat\'i görüntüle</string>
-    <string name="data_management">Veri Yönetimi</string>
     <string name="export_data">Geçmişi Dışa Aktar</string>
     <string name="export_data_desc">Okumaları CSV/Metin olarak kaydet</string>
     <string name="export_settings">Ayarları dışa aktar</string>
     <string name="export_settings_desc">Tüm uygulama ayarlarını, kimlik bilgilerini ve cihaz anahtarlarını kaydet</string>
     <string name="export_data_settings">Verileri/ayarları dışa aktar</string>
-    <string name="export_data_settings_desc">Ayarlar, geçmiş, kalibrasyonlar veya tam paket seç</string>
     <string name="export_compression">Sıkıştırma</string>
     <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
@@ -630,17 +622,14 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="import_data">Geçmişi İçe Aktar</string>
     <string name="import_data_desc">Yedekleme veya Libreview dosyasını yükle</string>
     <string name="import_data_settings">Verileri/ayarları içe aktar</string>
-    <string name="import_data_settings_desc">Geçmiş CSV veya JugglucoNG dışa aktarımını geri yükle</string>
     <string name="settings_import_confirm_title">Ayarlar içe aktarılsın mı?</string>
     <string name="settings_import_confirm_message">Bu işlem uygulama ayarlarını, kimlik bilgilerini, cihaz anahtarlarını ve mirror yapılandırmasını değiştirir, ardından uygulamayı yeniden başlatır.</string>
     <string name="settings_import_successful">Ayarlar içe aktarıldı. Yeniden başlatılıyor…</string>
     <string name="danger_zone">Tehlike Bölgesi</string>
     <string name="clear_history">Geçmişi Temizle</string>
-    <string name="clear_history_desc_short">Tüm okumaları kaldır</string>
     <string name="clear_app_data">Uygulama Verilerini Temizle</string>
     <string name="clear_app_data_desc">Geçmişi/önbelleği kaldır, ayarları koru</string>
     <string name="factory_reset">Fabrika Ayarlarına Sıfırla</string>
-    <string name="factory_reset_desc">Her şeyi sil, başa dön</string>
     <string name="sibionics_setup_title">Sibionics Kurulumu</string>
     <string name="dexcom_setup_title">Dexcom Kurulumu</string>
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
@@ -742,12 +731,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Ses/titresim profili</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Accu-Chek SmartGuide sensörünüzdeki veri matrisini tarayın</string>
     <string name="accuchek_setup_title">Accu-Chek Kurulumu</string>
     <string name="add_sensor">Add Sensor</string>
-    <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Bağlı!</string>
     <string name="aidex_connecting_to">%1$s\'a bağlanılıyor…</string>
@@ -837,7 +824,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="floatglucoseshort">@string/floatglucose</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="gvi">GVI</string>
     <string name="gvi_excellent">Mükemmel Stabilite</string>
     <string name="gvi_good">İyi Stabilite</string>
@@ -884,7 +870,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="libreview_active_desc">LibreView yüklemesini etkinleştir</string>
     <string name="libreview_config">LibreView</string>
     <string name="libreview_current">Mevcut Glikozu Göster</string>
-    <string name="libreview_desc">Abbott LibreView ile senkronizasyon</string>
     <string name="libreview_email">E-posta</string>
     <string name="libreview_get_account_id">Hesap Kimliğini Alın</string>
     <string name="libreview_is_viewed">Görüntülendi Olarak İşaretle</string>
@@ -902,7 +887,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="max">Maksimum</string>
     <string name="max_glucose">Maksimum</string>
     <string name="median">Medyan</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Glukometreler</string>
     <string name="glucose_meters_desc">Bluetooth glikoz ölçerleri bağlayın</string>
     <string name="glucose_meters_journal_desc">Ölçümler günlükte kan şekeri kaydı olarak saklanır ve Nightscout\'a gönderilebilir.</string>
     <string name="satellite_meter_title">Satellite (Сателлит+) ölçüm cihazı</string>
@@ -921,13 +906,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="min">Min.</string>
     <string name="min_glucose">Min.</string>
     <string name="newdata">"New data"</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
     <string name="nonewdata">"No new data"</string>
     <string name="nothing"></string>
-    <string name="notifications">Uyarılar ve bildirimler</string>
     <string name="off">Off</string>
     <string name="one">1</string>
     <string name="prehighglucose">" Soon HIGH glucose!"</string>
@@ -1020,12 +1003,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Libre 2 olarak tanıt</string>
     <string name="xdrip_report_as_libre2_desc">AAPS\'in bu sensörle SMB her zaman özelliğine izin vermesini sağlar. Yalnızca ölçümlerine güveniyorsanız açın</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Uyumlu sağlık uygulamaları için glikoz ölçümlerini Health Connect\'e gönder</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1583,7 +1563,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mq_fetch_calibration_action">Uretici oturumunu geri yukle</string>
     <string name="mq_api_url_label">API URL</string>
     <string name="mq_api_url_desc">Varsayilan olarak Glutec HTTPS API kullanilir. Bunu yalnizca ozel bir sunucu veya duz HTTP icin degistirin.</string>
-    <string name="mq_account_title">MQ / Glutec hesabi</string>
+    <string name="mq_account_title">MQ / Glutec hesabı</string>
     <string name="mq_account_desc">MQ sensorleri arasinda paylasilir. Uretici oturumunu geri yuklemek, istege bagli Glutec esitlemesi ve SMS hesap islemleri icin kullanilir.</string>
     <string name="mq_account_linked_desc">MQ sensorleri tarafindan kullanilan paylasilan MQ / Glutec hesabini, API URL\'sini ve istege bagli esitlemeyi yonetin.</string>
     <string name="mq_account_sign_in_action">Giris yap</string>
@@ -1798,10 +1778,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_intensity_moderate">Orta</string>
     <string name="journal_intensity_intense">Yoğun</string>
     <string name="journal_insulin_library">İnsülin kitaplığı</string>
-    <string name="notification_settings_title">Bildirim ayarları</string>
-    <string name="notification_settings_subtitle">Bildirim panelini özelleştir</string>
-    <string name="lock_screen_aod">Kilit ekranı (AOD)</string>
-    <string name="aod_settings_title">AOD ayarları</string>
     <string name="aod_show_on_lockscreen">Kilit ekranında göster</string>
     <string name="aod_show_on_lockscreen_desc">Ekran açık ve kilitliyken de göster</string>
     <string name="customize_always_on_display">Her zaman açık ekranı özelleştir</string>
@@ -1831,7 +1807,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="alignment_right">Sağ</string>
     <string name="cgm_readiness_title">CGM hazırlığı</string>
     <string name="cgm_readiness_dashboard_title">CGM kurulumu dikkat gerektiriyor</string>
-    <string name="cgm_readiness_settings_desc">Bluetooth, alarmlar, pil, bildirimler ve arka plan davranışını denetle</string>
     <string name="cgm_readiness_ready_title">Sistem hazır</string>
     <string name="cgm_readiness_attention_title">Dikkat gerekiyor</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarmlar, bildirimler ve arka plan ayarları hazır görünüyor.</string>
@@ -2026,7 +2001,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="volume_profile_vibrate_only">Sadece titreşim</string>
     <string name="volume_profile_silent">Sessiz</string>
     <string name="restart_app">Uygulamayı yeniden başlat</string>
-    <string name="restart_app_desc">Uygulamayı zorla yeniden başlat</string>
     <string name="haptics">Dokunsal titreşim</string>
     <string name="sound_duration">Ses süresi</string>
     <string name="haptic_profile_soft">Yumuşak</string>
@@ -2034,7 +2008,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="haptic_profile_strong">Güçlü</string>
     <string name="haptic_profile_escalating">Artan</string>
     <string name="outbound_api_title">API hedefleri</string>
-    <string name="outbound_api_desc">Ön ayarlı sohbet botu, webhook ve acil SMS gönderimi</string>
     <string name="outbound_api_settings_title">API hedefleri</string>
     <string name="outbound_api_master_desc">Canlı ölçümleri etkin hedeflere gönder</string>
     <string name="outbound_api_destinations">Hedefler</string>
@@ -2219,7 +2192,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_sign_out">Çıkış yap</string>
     <string name="ottai_verify_code_hint">Doğrulama kodu</string>
     <string name="wrongcode">Yanlış QR kodu</string>
-    <string name="ottai_settings_desc">Bağlı Ottai sensörü için Ottai hesabı erişimini, kayıtlı materyalleri ve kurulumu yönetin.</string>
     <string name="ottai_account_sensors_title">Ottai hesap sensörleri</string>
     <string name="ottai_account_sensors_desc">Bulut ID alanını doldurmak için kayıtlı ya da hesaptaki bir sensörü seçin. Bağlantı yalnızca Bağlan’a bastığınızda başlar.</string>
     <string name="ottai_account_sensors_need_login">Ottai hesabınızdaki sensörleri yüklemek için önce oturum açın.</string>
@@ -2253,8 +2225,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Hızlı Düşmek</string>
     <string name="alert_rising_fast">Hızla Yükseliyor</string>
-    <string name="broadcast_computed_trend_title">Uygulama eğilimini yayınla</string>
-    <string name="broadcast_computed_trend_desc">Sensör eğilimi yerine uygulama eğilimini kullan</string>
     <string name="dashboard_show_delta_desc">Trend okunun altındaki delta aralığında ölçülen değişiklik</string>
     <string name="dashboard_show_delta_title">Gösterge tablosundaki Delta (Δ)</string>
     <string name="delta_alarm_interval_follow">Δ gibi (%1$d dk)</string>
@@ -2355,8 +2325,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_chart_pause_screen_off">Ekran kapalıyken grafiği duraklat</string>
     <string name="notification_chart_pause_screen_off_summary">Ekran açıldığında grafik yeniden çizilir. Kısa süreliğine gizli kalabilir.</string>
     <string name="notification_status_line_section">Durum satırı</string>
-    <string name="display_colors_title">Görünüm</string>
-    <string name="display_colors_desc">Renkler, pano değerleri ve grafikler</string>
     <string name="display_readouts_section">Pano değerleri</string>
     <!-- Debug log screen -->
     <string name="debug_howto_title">Hata nasıl bildirilir</string>
@@ -3020,7 +2988,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
     <string name="dexcom_share_title">Dexcom Share</string>
-    <string name="dexcom_share_desc">Ölçümleri Dexcom Follow\'a gönder</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
     <string name="dexcom_share_active">Dexcom ile paylaş</string>
     <string name="dexcom_share_active_desc">Bu telefondaki canlı ölçümleri Dexcom Follow\'a gönder</string>
@@ -3042,4 +3009,68 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_share_auth_blocked">Giriş engellendi — hesabı ve şifreyi kontrol edin</string>
     <string name="dexcom_share_credentials_required">Önce hesabı ve şifreyi girin</string>
     <string name="dexcom_share_warning">Resmi olmayan arayüz: Dexcom bunu istediği zaman değiştirebilir veya engelleyebilir. Bu bir tıbbi cihaz özelliği değildir.</string>
+    <!-- Settings tab -->
+    <string name="settings_section_glucose">Glikoz</string>
+    <string name="settings_section_display">Görünüm</string>
+    <string name="settings_section_journal_devices">Günlük ve cihazlar</string>
+    <string name="settings_section_sharing">Paylaşım</string>
+    <string name="settings_section_sensors">Sensörler</string>
+    <string name="settings_section_backup">Yedekleme ve geri yükleme</string>
+    <string name="settings_section_app">Uygulama</string>
+    <string name="settings_unit_title">Glikoz birimi</string>
+    <string name="settings_alerts_desc">Düşük, yüksek, hızlı değişim ve sinyal kaybı</string>
+    <string name="settings_alerts_off_desc">Tüm uyarılar kapalı</string>
+    <string name="settings_calibration_title">Kalibrasyon</string>
+    <string name="settings_calibration_desc">Parmak ucu düzeltmeleri · %1$s modu</string>
+    <string name="settings_smoothing_off_desc">Değerler ölçüldüğü gibi gösterilir</string>
+    <string name="settings_prediction_desc">Trend, karbonhidrat ve insüline göre glikoz tahmini</string>
+    <string name="settings_dashboard_charts_title">Panel ve grafikler</string>
+    <string name="settings_dashboard_charts_desc">Hedef aralık, renkler ve göstergeler</string>
+    <string name="settings_notification_title">Glikoz bildirimi</string>
+    <string name="settings_notification_desc">Metin, trend oku, grafik ve durum satırı</string>
+    <string name="settings_floating_desc">Diğer uygulamaların üzerinde güncel değer</string>
+    <string name="settings_floating_permission_desc">Diğer uygulamaların üzerinde gösterme izni gerekli</string>
+    <string name="settings_lock_screen_title">Kilit ekranı</string>
+    <string name="settings_lock_screen_desc">Kilit ekranında ve Always-on ekranda güncel değer</string>
+    <string name="settings_lock_screen_off_desc">Erişilebilirlik ayarlarından açılır</string>
+    <string name="settings_journal_desc">Öğünler, insülin, aktivite ve notlar</string>
+    <string name="settings_glucose_meters_desc">Parmak ucu ölçümleri için Bluetooth ölçüm cihazları</string>
+    <string name="settings_phone_apps_title">Bu telefondaki uygulamalar</string>
+    <string name="settings_phone_apps_none">Hiçbir uygulamaya gönderilmiyor</string>
+    <string name="settings_app_name_patched_libre">Yamalı Libre</string>
+    <string name="settings_nightscout_desc">Değerleri ve tedavileri yükleyin veya bir siteyi takip edin</string>
+    <string name="settings_libreview_desc">Değerleri Abbott LibreView’a yükleyin</string>
+    <string name="settings_dexcom_share_desc">Değerleri Dexcom Follow için yükleyin</string>
+    <string name="settings_mirror_desc">Cihazlarınız arasında değer gönderin veya alın</string>
+    <string name="settings_webserver_desc">Saat kadranları ve diğer uygulamalar için xDrip tarzı değerler</string>
+    <string name="settings_outbound_api_desc">Webhook’lar, sohbet botları ve acil durum SMS’i</string>
+    <string name="settings_cgm_readiness_desc">Değerlerin bağlı olduğu izinleri ve pil ayarlarını kontrol edin</string>
+    <string name="settings_sensor_connection_title">Bağlantı ve devir</string>
+    <string name="settings_sensor_connection_desc">Sensör devri, Bluetooth önceliği ve otomatik bağlanma</string>
+    <string name="settings_mq_account_desc">MQ sensörleri için hesap, sunucu ve senkronizasyon</string>
+    <string name="settings_ottai_desc">Hesap erişimi ve sensör kurulumu</string>
+    <string name="settings_export_title">Dışa aktar</string>
+    <string name="settings_export_desc">Ayarlar, geçmiş, kalibrasyonlar veya tümü</string>
+    <string name="settings_import_title">İçe aktar</string>
+    <string name="settings_import_desc">Bir JugglucoNG dışa aktarımını veya geçmiş CSV’sini geri yükleyin</string>
+    <string name="settings_debug_logs_desc">Hata raporları için günlükleri görüntüleyin ve paylaşın</string>
+    <string name="settings_restart_desc">Uygulamayı kapatıp yeniden açın</string>
+    <string name="settings_clear_history_desc">Tüm glikoz değerlerini silin</string>
+    <string name="settings_clear_app_data_desc">Geçmişi ve önbelleği silin; ayarlar kalır</string>
+    <string name="settings_factory_reset_desc">Her şeyi silin ve baştan başlayın</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+ yayını</string>
+    <string name="settings_xdrip_broadcast_desc">xDrip+ ve AAPS için</string>
+    <string name="settings_patched_libre_title">Yamalı Libre uygulaması yayını</string>
+    <string name="settings_patched_libre_desc">Yamalı Libre uygulamasını okuyan uygulamalar için</string>
+    <string name="settings_glucodata_title">Glucodata yayını</string>
+    <string name="settings_glucodata_desc">GlucoDataHandler için</string>
+    <string name="settings_health_connect_desc">Değerleri sağlık uygulamalarıyla paylaşın</string>
+    <string name="settings_broadcast_options">Yayın seçenekleri</string>
+    <string name="settings_app_trend_title">Uygulamanın trendini gönder</string>
+    <string name="settings_app_trend_desc">Sensörün yerine uygulamanın trend okunu kullan</string>
+    <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Yüksek bağlantı önceliği</string>
+    <string name="settings_turbo_desc">Daha hızlı Bluetooth iletişimi, biraz daha fazla pil kullanımı</string>
+    <string name="settings_autoconnect_title">Otomatik bağlanma</string>
+    <string name="settings_autoconnect_desc">Android sensörü arka planda yeniden bağlar</string>
 </resources>
