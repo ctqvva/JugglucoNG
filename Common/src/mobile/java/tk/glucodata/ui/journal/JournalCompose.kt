@@ -213,6 +213,20 @@ data class JournalDraftFoodItem(
 
     fun withQuantityText(text: String): JournalDraftFoodItem = copy(quantityText = text).rescaled()
 
+    /**
+     * Sets the quantity from a portion weighed against the picker's per-100 g composition: grams
+     * as they are for a per-100 g food, and a preset counted as 100 g a serving, as that
+     * composition shows it.
+     */
+    fun withPortionGrams(grams: Float): JournalDraftFoodItem = withQuantityText(
+        formatFloatForEditor(
+            when (basis) {
+                JournalFoodBasis.PER_100_G -> grams
+                JournalFoodBasis.PER_SERVING -> grams / 100f
+            }
+        )
+    )
+
     fun withBasisCarbsText(text: String): JournalDraftFoodItem =
         copy(basisCarbsText = text, basisCarbsGrams = parseIngredientNumber(text) ?: 0f).rescaled()
 
@@ -715,8 +729,11 @@ fun JournalEntrySheet(
                                 // Picking a food adds it to the meal; each ingredient is then
                                 // weighed, or removed, in the list below.
                                 onFoodSelected = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
-                                onFoodAdded = { food, portionText -> draft = draft.plusFood(food, foodMacrosEnabled, portionText) },
+                                onFoodAdded = { food, portionGrams -> draft = draft.plusFood(food, foodMacrosEnabled, portionGrams) },
                                 onAddFromLabel = { name -> draft = draft.plusLabelFood(foodMacrosEnabled, name) },
+                                // A reopened entry keeps only its food's link, not its ingredients;
+                                // clearing it keeps the amounts as entered.
+                                onSavedFoodCleared = { draft = draft.copy(foodId = null, title = "") },
                                 onFoodImported = onSaveFood
                             )
                         }
@@ -732,7 +749,7 @@ fun JournalEntrySheet(
                                     draft = draft.updateFoodAt(index, foodMacrosEnabled) { it.withBasisCarbsText(text) }
                                 },
                                 onNameChange = { index, text ->
-                                    draft = draft.updateFoodAt(index, foodMacrosEnabled) { it.copy(displayName = text) }
+                                    draft = draft.renameFoodAt(index, text)
                                 },
                                 onRemove = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) }
                             )
@@ -1052,9 +1069,9 @@ private fun buildDraft(
 private fun JournalEntryDraft.plusFood(
     food: JournalFood,
     foodMacrosEnabled: Boolean,
-    portionText: String? = null
+    portionGrams: Float? = null
 ): JournalEntryDraft {
-    val item = food.toDraftFoodItem().let { item -> portionText?.let(item::withQuantityText) ?: item }
+    val item = food.toDraftFoodItem().let { item -> portionGrams?.let(item::withPortionGrams) ?: item }
     return copyWithFoodItems(foodItems + item, foodMacrosEnabled)
 }
 
@@ -1074,11 +1091,24 @@ private fun JournalEntryDraft.updateFoodAt(
     update: (JournalDraftFoodItem) -> JournalDraftFoodItem
 ): JournalEntryDraft {
     if (index !in foodItems.indices) return this
+    // A weight or label edit doesn't change how fast the meal absorbs, so a meal shape picked
+    // below stays picked.
     return copyWithFoodItems(
         foodItems.mapIndexed { itemIndex, item -> if (itemIndex == index) update(item) else item },
         foodMacrosEnabled
-    )
+    ).copy(durationText = durationText)
 }
+
+private fun JournalEntryDraft.renameFoodAt(index: Int, displayName: String): JournalEntryDraft {
+    if (index !in foodItems.indices) return this
+    val items = foodItems.mapIndexed { itemIndex, item ->
+        if (itemIndex == index) item.copy(displayName = displayName) else item
+    }
+    return copy(title = mealTitle(items), foodItems = items)
+}
+
+private fun mealTitle(items: List<JournalDraftFoodItem>): String =
+    items.map { it.displayName.trim() }.filter { it.isNotEmpty() }.joinToString(" + ").take(80)
 
 private fun JournalEntryDraft.removeFoodAt(
     index: Int,
@@ -1109,7 +1139,7 @@ private fun JournalEntryDraft.copyWithFoodItems(
     val duration = items.maxOf { it.absorptionMinutes }
     return copy(
         foodId = items.singleOrNull()?.sourceFoodId,
-        title = items.map { it.displayName.trim() }.filter { it.isNotEmpty() }.joinToString(" + ").take(80),
+        title = mealTitle(items),
         amountText = formatFloatForEditor(carbs),
         proteinText = if (foodMacrosEnabled) formatFloatForEditor(protein) else "",
         fatText = if (foodMacrosEnabled) formatFloatForEditor(fat) else "",
@@ -1642,8 +1672,9 @@ private fun JournalFoodLibrarySelector(
     selectedItems: List<JournalDraftFoodItem>,
     foodMacrosEnabled: Boolean,
     onFoodSelected: (JournalFood) -> Unit,
-    onFoodAdded: (JournalFood, String?) -> Unit,
+    onFoodAdded: (JournalFood, Float?) -> Unit,
     onAddFromLabel: (String) -> Unit,
+    onSavedFoodCleared: () -> Unit,
     onFoodImported: ((JournalFoodInput) -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -1765,12 +1796,29 @@ private fun JournalFoodLibrarySelector(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (selectedItems.isEmpty() && selectedFood != null) {
+                    IconButtonTooltip(stringResource(R.string.remove)) {
+                        IconButton(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSavedFoodCleared()
+                            },
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.remove)
+                            )
+                        }
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         } else {
             Column(
@@ -1947,10 +1995,7 @@ private fun JournalFoodLibrarySelector(
                                         FilledTonalIconButton(
                                             onClick = {
                                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                onFoodAdded(
-                                                    food,
-                                                    if (rowExpanded) formatFloatForEditor(rowPortionGrams) else null
-                                                )
+                                                onFoodAdded(food, rowPortionGrams.takeIf { rowExpanded })
                                                 if (rowExpanded) {
                                                     expandedFoodId = null
                                                 }

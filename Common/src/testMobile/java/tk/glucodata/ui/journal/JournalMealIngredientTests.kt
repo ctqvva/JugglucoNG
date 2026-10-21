@@ -36,6 +36,16 @@ class JournalMealIngredientTests {
     }
 
     @Test
+    fun aWeighedPortionCountsAPresetAs100GramsAServing() {
+        // The picker's portion field is grams against a "per 100 g" composition; its default
+        // 100 g must stay one serving of a preset, not 100 of them.
+        val jar = JournalDraftFoodItem(null, "Pasta sauce, jar", 34f, null, null, 90, 0)
+        assertEquals(34f, jar.withPortionGrams(100f).carbsGrams, 0.001f)
+        assertEquals(17f, jar.withPortionGrams(50f).carbsGrams, 0.001f)
+        assertEquals(32.4f, per100(72f, "100").withPortionGrams(45f).carbsGrams, 0.001f)
+    }
+
+    @Test
     fun aCommaDecimalReadsTheSame() {
         assertEquals(17f, JournalDraftFoodItem(null, "jar", 34f, null, null, 90, 0).withQuantityText("0,5").carbsGrams, 0.001f)
     }
