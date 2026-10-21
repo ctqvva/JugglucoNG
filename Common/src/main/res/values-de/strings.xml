@@ -3160,4 +3160,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="settings_turbo_desc">Schnellerer Bluetooth-Austausch, etwas mehr Akkuverbrauch</string>
     <string name="settings_autoconnect_title">Automatisch verbinden</string>
     <string name="settings_autoconnect_desc">Android verbindet den Sensor im Hintergrund neu</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Einstellungen durchsuchen</string>
+    <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
+    <string name="settings_search_clear">Suche löschen</string>
 </resources>

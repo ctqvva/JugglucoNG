@@ -3229,4 +3229,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="settings_turbo_desc">Isweydaarsi Bluetooth oo degdeg ah, baytari yar oo dheeraad ah</string>
     <string name="settings_autoconnect_title">Isku xir si toos ah</string>
     <string name="settings_autoconnect_desc">Android ayaa dareemaha dib ugu xira gadaasha</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Raadi dejinta</string>
+    <string name="settings_search_no_results">Ma jiro dejin u dhiganta “%1$s”</string>
+    <string name="settings_search_clear">Tirtir raadinta</string>
 </resources>

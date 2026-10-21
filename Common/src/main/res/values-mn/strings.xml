@@ -3146,4 +3146,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="settings_turbo_desc">Илүү хурдан Bluetooth солилцоо, батерей бага зэрэг илүү зарцуулна</string>
     <string name="settings_autoconnect_title">Автомат холболт</string>
     <string name="settings_autoconnect_desc">Android мэдрэгчийг арын горимд дахин холбоно</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Тохиргооноос хайх</string>
+    <string name="settings_search_no_results">“%1$s”-тэй тохирох тохиргоо алга</string>
+    <string name="settings_search_clear">Хайлтыг арилгах</string>
 </resources>

@@ -3060,4 +3060,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_turbo_desc">蓝牙数据交换更快，耗电略多</string>
     <string name="settings_autoconnect_title">自动连接</string>
     <string name="settings_autoconnect_desc">由 Android 在后台重新连接传感器</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_no_results">没有与“%1$s”匹配的设置</string>
+    <string name="settings_search_clear">清除搜索</string>
 </resources>

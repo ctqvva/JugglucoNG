@@ -3119,4 +3119,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="settings_turbo_desc">Gyorsabb Bluetooth adatcsere, némi akkumulátorhasználat árán</string>
     <string name="settings_autoconnect_title">Automatikus csatlakozás</string>
     <string name="settings_autoconnect_desc">Az Android a háttérben csatlakoztatja újra a szenzort</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Keresés a beállításokban</string>
+    <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
+    <string name="settings_search_clear">Keresés törlése</string>
 </resources>

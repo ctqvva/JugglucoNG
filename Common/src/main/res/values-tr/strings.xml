@@ -3073,4 +3073,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="settings_turbo_desc">Daha hızlı Bluetooth iletişimi, biraz daha fazla pil kullanımı</string>
     <string name="settings_autoconnect_title">Otomatik bağlanma</string>
     <string name="settings_autoconnect_desc">Android sensörü arka planda yeniden bağlar</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Ayarlarda ara</string>
+    <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>
+    <string name="settings_search_clear">Aramayı temizle</string>
 </resources>

@@ -3051,4 +3051,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_turbo_desc">Échanges Bluetooth plus rapides, un peu plus de batterie</string>
     <string name="settings_autoconnect_title">Connexion automatique</string>
     <string name="settings_autoconnect_desc">Android reconnecte le capteur en arrière-plan</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Rechercher dans les paramètres</string>
+    <string name="settings_search_no_results">Aucun paramètre ne correspond à « %1$s »</string>
+    <string name="settings_search_clear">Effacer la recherche</string>
 </resources>
