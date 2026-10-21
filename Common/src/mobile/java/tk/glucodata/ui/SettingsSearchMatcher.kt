@@ -55,8 +55,10 @@ internal object SettingsSearchMatcher {
 
     /**
      * Lower case, accents dropped, and every run of non-letters (spaces, punctuation,
-     * "·", "›", "+") collapsed to one space. Written as a loop rather than a regex:
-     * Android's ICU patterns reject constructs the JVM accepts (IcuRegexCompatibilityTests).
+     * "·", "›", "+") collapsed to one space. Turkish dotless "ı" folds to "i" as well:
+     * "BAĞLANTI" lowercases to a dotted "i" whatever the locale, so the two would never meet.
+     * Written as a loop rather than a regex: Android's ICU patterns reject constructs the
+     * JVM accepts (IcuRegexCompatibilityTests).
      */
     internal fun normalize(text: String): String {
         val decomposed = Normalizer.normalize(text, Normalizer.Form.NFD)
@@ -68,7 +70,7 @@ internal object SettingsSearchMatcher {
                 ch.isLetterOrDigit() -> {
                     if (separated && out.isNotEmpty()) out.append(' ')
                     separated = false
-                    out.append(ch.lowercaseChar())
+                    out.append(if (ch == 'ı') 'i' else ch.lowercaseChar())
                 }
                 else -> separated = true
             }

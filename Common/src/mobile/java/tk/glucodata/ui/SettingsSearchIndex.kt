@@ -54,8 +54,11 @@ internal sealed interface SettingsSearchTarget {
 /** Icon-tile role, matching the group colour the row wears on the Settings tab. */
 internal enum class SettingsSearchTone { PRIMARY, SECONDARY, TERTIARY, NEUTRAL, ERROR }
 
-/** Rows that the Settings tab only shows while they apply. Search follows the same rule. */
-internal enum class SettingsSearchCondition { MQ_ACCOUNT, OTTAI }
+/**
+ * Settings that their screen only shows while they apply. Search follows the same rule, so
+ * a result never opens a screen that lacks it.
+ */
+internal enum class SettingsSearchCondition { MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND }
 
 /**
  * One searchable setting. [path] is where it lives, read left to right (group, then the
@@ -234,11 +237,13 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.settings_glucodata_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), terms = listOf("GlucoDataHandler", "GDH")),
         SettingsSearchEntry(R.string.health_connect_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
-            route("settings/phone-apps")),
+            route("settings/phone-apps"), condition = SettingsSearchCondition.HEALTH_CONNECT),
         SettingsSearchEntry(R.string.xdrip_report_as_libre2_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
-            route("settings/phone-apps"), terms = listOf("SMB", "AAPS")),
+            route("settings/phone-apps"), terms = listOf("SMB", "AAPS"),
+            condition = SettingsSearchCondition.LIBRE2_IDENTITY),
         SettingsSearchEntry(R.string.settings_app_trend_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
-            route("settings/phone-apps"), keywords = listOf(R.string.settings_app_trend_desc)),
+            route("settings/phone-apps"), keywords = listOf(R.string.settings_app_trend_desc),
+            condition = SettingsSearchCondition.APP_TREND),
         SettingsSearchEntry(R.string.nightscout_settings_title, SHARING, Icons.Default.CloudUpload, T, route("settings/nightscout"),
             keywords = listOf(R.string.settings_nightscout_desc, R.string.nightscout_send_treatments,
                 R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),

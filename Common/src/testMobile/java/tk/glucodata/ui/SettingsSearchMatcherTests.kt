@@ -15,6 +15,7 @@ class SettingsSearchMatcherTests {
         candidate("High connection priority", "Sensors › Connection and handover", "Turbo"),
         candidate("Étalonnage", "Glucose"),
         candidate("Glucose unit", "Settings", "mg/dL", "mmol/L"),
+        candidate("Bağlantı ve devir", "Sensörler"),
     )
 
     private fun search(query: String) = SettingsSearchMatcher.search(query, settings)
@@ -51,5 +52,12 @@ class SettingsSearchMatcherTests {
         assertEquals(listOf("Étalonnage"), search("etalon"))
         assertEquals(listOf("Glucose unit"), search("MG/DL"))
         assertEquals(listOf("Glucose unit"), search("mmol l"))
+    }
+
+    @Test
+    fun turkishDotlessIMatchesEitherCase() {
+        assertEquals(listOf("Bağlantı ve devir"), search("BAĞLANTI"))
+        assertEquals(listOf("Bağlantı ve devir"), search("baglanti"))
+        assertEquals(listOf("Bağlantı ve devir"), search("bağlantı"))
     }
 }

@@ -147,6 +147,8 @@ fun ExpressiveSettingsScreen(
     val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
     val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
     val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+    val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
+    val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
 
     // Rows that carry a master switch read the same state their own screen reads. The
     // system-granted ones can change while this screen is in the background, so they are
@@ -160,6 +162,7 @@ fun ExpressiveSettingsScreen(
     var webServerActive by remember { mutableStateOf(Natives.getusexdripwebserver()) }
     var nightscoutActive by remember { mutableStateOf(isNightscoutActive(context)) }
     var healthConnectEnabled by remember { mutableStateOf(PhoneAppsSettings.healthConnectEnabled()) }
+    var otherTrendConsumer by remember { mutableStateOf(PhoneAppsSettings.hasOtherTrendConsumer()) }
 
     // Auto-refresh data when screen becomes active (e.g. returning from Alerts screen)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -172,6 +175,7 @@ fun ExpressiveSettingsScreen(
                 webServerActive = Natives.getusexdripwebserver()
                 nightscoutActive = isNightscoutActive(context)
                 healthConnectEnabled = PhoneAppsSettings.healthConnectEnabled()
+                otherTrendConsumer = PhoneAppsSettings.hasOtherTrendConsumer()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -203,11 +207,20 @@ fun ExpressiveSettingsScreen(
     val searching = searchQuery.isNotBlank()
     val focusManager = LocalFocusManager.current
     val searchLocales = LocalConfiguration.current.locales
-    val searchCandidates = remember(context, searchLocales, showMqAccount, showOttaiSettings) {
+    val showLibre2Identity = PhoneAppsSettings.showsLibre2Identity(xdripEnabled, xdripReportAsLibre2)
+    val showAppTrend = PhoneAppsSettings.showsAppTrend(
+        xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
+    )
+    val searchCandidates = remember(
+        context, searchLocales, showMqAccount, showOttaiSettings, showLibre2Identity, showAppTrend
+    ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
                 SettingsSearchCondition.MQ_ACCOUNT -> showMqAccount
                 SettingsSearchCondition.OTTAI -> showOttaiSettings
+                SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
+                SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
+                SettingsSearchCondition.APP_TREND -> showAppTrend
             }
         }
     }
