@@ -3095,4 +3095,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_turbo_desc">Более быстрый обмен по Bluetooth ценой небольшого расхода батареи</string>
     <string name="settings_autoconnect_title">Автоподключение</string>
     <string name="settings_autoconnect_desc">Android сам переподключает сенсор в фоне</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Поиск по настройкам</string>
+    <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>
+    <string name="settings_search_clear">Очистить поиск</string>
 </resources>

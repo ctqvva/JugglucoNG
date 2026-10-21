@@ -34,6 +34,27 @@ internal object PhoneAppsSettings {
     /** Consumers of the exchange payload that live outside the phone-apps screen. */
     fun hasOtherTrendConsumer(): Boolean =
         OutboundApiSettings.isEnabled() || Natives.getgadgetbridge() || Natives.getwatchdrip()
+
+    /**
+     * Only the xDrip-style broadcast carries the source name. Stays visible while enabled,
+     * so turning the broadcast off does not strand the claim out of reach.
+     */
+    fun showsLibre2Identity(xdripEnabled: Boolean, reportAsLibre2: Boolean): Boolean =
+        xdripEnabled || reportAsLibre2
+
+    /**
+     * The computed trend only ever reaches an ExchangeGlucosePayload consumer, so the row is
+     * noise until one of them is on. Stays visible while the setting itself is enabled,
+     * otherwise turning the last consumer off would strand it out of reach.
+     */
+    fun showsAppTrend(
+        xdripEnabled: Boolean,
+        patchedLibreEnabled: Boolean,
+        glucodataEnabled: Boolean,
+        computedTrend: Boolean,
+        otherConsumer: Boolean = hasOtherTrendConsumer(),
+    ): Boolean =
+        computedTrend || xdripEnabled || patchedLibreEnabled || glucodataEnabled || otherConsumer
 }
 
 /** Native and preference state behind the "Connection and handover" screen. */

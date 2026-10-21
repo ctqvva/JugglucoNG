@@ -3087,4 +3087,8 @@
     <string name="settings_turbo_desc">Szybsza wymiana Bluetooth kosztem nieco większego zużycia baterii</string>
     <string name="settings_autoconnect_title">Automatyczne łączenie</string>
     <string name="settings_autoconnect_desc">Android ponownie łączy czujnik w tle</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Szukaj w ustawieniach</string>
+    <string name="settings_search_no_results">Brak ustawień pasujących do „%1$s”</string>
+    <string name="settings_search_clear">Wyczyść wyszukiwanie</string>
 </resources>

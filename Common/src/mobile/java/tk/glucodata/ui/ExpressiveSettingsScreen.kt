@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -43,6 +44,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
@@ -144,6 +147,8 @@ fun ExpressiveSettingsScreen(
     val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
     val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
     val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+    val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
+    val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
 
     // Rows that carry a master switch read the same state their own screen reads. The
     // system-granted ones can change while this screen is in the background, so they are
@@ -157,6 +162,7 @@ fun ExpressiveSettingsScreen(
     var webServerActive by remember { mutableStateOf(Natives.getusexdripwebserver()) }
     var nightscoutActive by remember { mutableStateOf(isNightscoutActive(context)) }
     var healthConnectEnabled by remember { mutableStateOf(PhoneAppsSettings.healthConnectEnabled()) }
+    var otherTrendConsumer by remember { mutableStateOf(PhoneAppsSettings.hasOtherTrendConsumer()) }
 
     // Auto-refresh data when screen becomes active (e.g. returning from Alerts screen)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -169,6 +175,7 @@ fun ExpressiveSettingsScreen(
                 webServerActive = Natives.getusexdripwebserver()
                 nightscoutActive = isNightscoutActive(context)
                 healthConnectEnabled = PhoneAppsSettings.healthConnectEnabled()
+                otherTrendConsumer = PhoneAppsSettings.hasOtherTrendConsumer()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -193,6 +200,37 @@ fun ExpressiveSettingsScreen(
     }
     var pendingSettingsImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingExportPackageImportUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Search. The query survives a trip into a result's screen, so Back lands on the
+    // same results and the next one is a tap away.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searching = searchQuery.isNotBlank()
+    val focusManager = LocalFocusManager.current
+    val searchLocales = LocalConfiguration.current.locales
+    val showLibre2Identity = PhoneAppsSettings.showsLibre2Identity(xdripEnabled, xdripReportAsLibre2)
+    val showAppTrend = PhoneAppsSettings.showsAppTrend(
+        xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
+    )
+    val searchCandidates = remember(
+        context, searchLocales, showMqAccount, showOttaiSettings, showLibre2Identity, showAppTrend
+    ) {
+        SettingsSearchIndex.resolve(context) { condition ->
+            when (condition) {
+                SettingsSearchCondition.MQ_ACCOUNT -> showMqAccount
+                SettingsSearchCondition.OTTAI -> showOttaiSettings
+                SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
+                SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
+                SettingsSearchCondition.APP_TREND -> showAppTrend
+            }
+        }
+    }
+    val searchResults = remember(searchQuery, searchCandidates) {
+        SettingsSearchMatcher.search(searchQuery, searchCandidates)
+    }
+    BackHandler(enabled = searching) {
+        searchQuery = ""
+        focusManager.clearFocus()
+    }
 
     val currentLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
     val currentLangName = currentLocale.displayLanguage.replaceFirstChar { it.uppercase() }
@@ -265,6 +303,25 @@ fun ExpressiveSettingsScreen(
         }
     )
 
+    fun openSearchResult(entry: SettingsSearchEntry) {
+        focusManager.clearFocus()
+        when (val target = entry.target) {
+            is SettingsSearchTarget.Route -> navController.navigate(target.route)
+            is SettingsSearchTarget.Action -> when (target.action) {
+                SettingsSearchAction.THEME -> showThemeDialog = true
+                SettingsSearchAction.LANGUAGE -> showLanguageDialog = true
+                SettingsSearchAction.UNIT -> showUnitDialog = true
+                SettingsSearchAction.KEEP_DISPLAYED_VALUES -> showSealGraceDialog = true
+                SettingsSearchAction.BACKUPS -> showScheduledBackupDialog = true
+                SettingsSearchAction.EXPORT -> showExportDialog = true
+                SettingsSearchAction.IMPORT -> importLauncher.launch(importMimeTypes)
+                SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
+                SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
+                SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -273,6 +330,26 @@ fun ExpressiveSettingsScreen(
     ) {
         item(key = "title") {
             TabScreenHeader(title = stringResource(R.string.settings))
+        }
+
+        item(key = "search") {
+            SettingsSearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
+        // While there is a query the results replace the groups below.
+        if (searching) {
+            item(key = "search_results") {
+                SettingsSearchResults(
+                    query = searchQuery,
+                    results = searchResults,
+                    onOpen = { openSearchResult(it) }
+                )
+            }
+            return@LazyColumn
         }
 
         // === GENERAL === (no label: the first group needs none)
@@ -650,19 +727,7 @@ fun ExpressiveSettingsScreen(
                     icon = Icons.Default.FolderOpen,
                     iconTint = backupColor,
                     position = CardPosition.BOTTOM,
-                    onClick = {
-                        importLauncher.launch(
-                            arrayOf(
-                                "application/json",
-                                "application/gzip",
-                                "application/zstd",
-                                "text/*",
-                                "text/csv",
-                                "text/tab-separated-values",
-                                "*/*"
-                            )
-                        )
-                    }
+                    onClick = { importLauncher.launch(importMimeTypes) }
                 )
             }
         }
@@ -1458,3 +1523,14 @@ private fun hasActiveLibreSensorForLibreView(): Boolean = runCatching {
         kind == SensorSourceResolver.SENSOR_KIND_LIBRE2 || kind == SensorSourceResolver.SENSOR_KIND_LIBRE3
     }
 }.getOrDefault(false)
+
+/** What Import offers in the file picker: JugglucoNG exports and history CSV/TSV files. */
+private val importMimeTypes = arrayOf(
+    "application/json",
+    "application/gzip",
+    "application/zstd",
+    "text/*",
+    "text/csv",
+    "text/tab-separated-values",
+    "*/*"
+)

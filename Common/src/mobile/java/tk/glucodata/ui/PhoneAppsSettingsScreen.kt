@@ -54,15 +54,10 @@ fun PhoneAppsSettingsScreen(
     var healthConnectEnabled by rememberSaveable { mutableStateOf(PhoneAppsSettings.healthConnectEnabled()) }
     val healthConnectSupported = PhoneAppsSettings.healthConnectSupported
 
-    // Only the xDrip-style broadcast carries the source name. Stay visible while
-    // enabled, so turning the broadcast off does not strand the claim out of reach.
-    val showLibre2Identity = xdripEnabled || xdripReportAsLibre2
-    // The computed trend only ever reaches an ExchangeGlucosePayload consumer, so the
-    // row is noise until one of them is on. Stay visible while the setting itself is
-    // enabled, otherwise turning the last consumer off would strand it out of reach.
-    val anyExchangeConsumer = patchedLibreEnabled || xdripEnabled || glucodataBroadcastEnabled ||
-        PhoneAppsSettings.hasOtherTrendConsumer()
-    val showAppTrend = anyExchangeConsumer || broadcastComputedTrend
+    val showLibre2Identity = PhoneAppsSettings.showsLibre2Identity(xdripEnabled, xdripReportAsLibre2)
+    val showAppTrend = PhoneAppsSettings.showsAppTrend(
+        xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend
+    )
 
     val appColor = MaterialTheme.colorScheme.tertiary
 

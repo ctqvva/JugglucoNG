@@ -3045,4 +3045,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_turbo_desc">Snabbare Bluetooth-utbyte, till priset av lite batteri</string>
     <string name="settings_autoconnect_title">Automatisk anslutning</string>
     <string name="settings_autoconnect_desc">Android återansluter sensorn i bakgrunden</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Sök i inställningar</string>
+    <string name="settings_search_no_results">Inga inställningar matchar ”%1$s”</string>
+    <string name="settings_search_clear">Rensa sökning</string>
 </resources>
