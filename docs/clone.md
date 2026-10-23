@@ -104,6 +104,13 @@ A receive-only Clone connection does not send calibrations entered on the
 receiver back to the sender. Create or edit shared calibrations on the sending
 phone when using that connection.
 
+Nightscout following is a separate path. It receives exported glucose values
+and journal entries, rather than this manual profile JSON. A Sibionics sender
+uses its saved Raw/Auto display selection when choosing the glucose value and
+manual correction to export, even when its native mirror still has an older
+display mode. Those corrected values can be followed without copying the
+sender's calibration list onto the Nightscout receiver.
+
 The other Hybrid transport switches also take effect on the next connection
 attempt. Changing a server address, port, username, password, or which
 rendezvous server is selected reconnects Clone immediately so corrected

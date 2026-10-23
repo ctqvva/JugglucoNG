@@ -51,6 +51,14 @@ public final class NightscoutCalibration {
         return isMmolApp() ? (displayValue * MGDL_PER_MMOLL) : displayValue;
     }
 
+    private static int resolveExportViewMode(String sensorId, int nativeMode) {
+        // Managed drivers (including Sibionics) persist their mode separately
+        // from the native mirror, whose Info.viewMode can remain at Auto.
+        final Integer saved = tk.glucodata.drivers.ManagedSensorViewModeStore.INSTANCE
+                .readOrNull(Applic.app, sensorId);
+        return saved != null ? saved : nativeMode;
+    }
+
     @Keep
     public static int resolveExportedValueMgdl(
             String sensorId,
@@ -60,11 +68,13 @@ public final class NightscoutCalibration {
             long timestampMillis
     ) {
         try {
+            final String resolvedSensorId = SensorIdentity.canonicalSensorId(resolveSensorId(sensorId));
+            final int exportViewMode = resolveExportViewMode(resolvedSensorId, viewMode);
             final float autoValue = sanitizeMgdl(autoMgdl);
             final float rawValue = sanitizeMgdl(rawCurrentToMgdl(rawCurrent));
 
             float primaryValue = autoValue;
-            if (isRawPrimary(viewMode) && rawValue > 0f) {
+            if (isRawPrimary(exportViewMode) && rawValue > 0f) {
                 primaryValue = rawValue;
             }
             if (primaryValue <= 0f) {
@@ -75,8 +85,8 @@ public final class NightscoutCalibration {
             }
 
             final float calibrated = getCalibratedValueForViewMode(
-                    sensorId,
-                    viewMode,
+                    resolvedSensorId,
+                    exportViewMode,
                     autoValue,
                     rawValue,
                     timestampMillis

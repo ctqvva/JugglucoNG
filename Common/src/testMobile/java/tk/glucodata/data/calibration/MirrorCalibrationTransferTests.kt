@@ -161,6 +161,23 @@ class MirrorCalibrationTransferTests {
         CalibrationProfileAccess.importMirrorProfileFromJson(aliasProfile.toString(), full)
         assertTrue("an old alias must not resurrect a deleted calibration", CalibrationManager.calibrations.value.isEmpty())
     }
+
+    @Test
+    fun sibionicsProfileKeepsItsNamespaceWithoutAReceiverBleRegistration() = runBlocking {
+        val full = "SIBI:0683013AQT9"
+        val short = "0683013AQT9"
+        CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = full)
+        val profile = requireNotNull(CalibrationProfileAccess.exportProfileForSensorAsJson(full))
+        assertEquals(listOf(full), CalibrationProfileAccess.mirrorProfileSensorIds().toList())
+
+        CalibrationManager.clearAll()
+        Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
+        CalibrationProfileAccess.importMirrorProfileFromJson(profile, full)
+
+        assertEquals(full, CalibrationManager.calibrations.value.single().sensorId)
+        assertTrue(CalibrationManager.hasCalibrationPointsForMode(false, full))
+        assertTrue(CalibrationManager.hasCalibrationPointsForMode(false, short))
+    }
 }
 
 @Implements(value = Natives::class, callThroughByDefault = false)
@@ -168,6 +185,10 @@ class MirrorCalibrationTransferNatives {
     companion object {
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun resolveFullSensorName(id: String): String? =
-            if (id == "3MH01HD0P14" || id == "E007-3MH01HD0P14") "E007-3MH01HD0P14" else null
+            when (id) {
+                "3MH01HD0P14", "E007-3MH01HD0P14" -> "E007-3MH01HD0P14"
+                "0683013AQT9", "SIBI:0683013AQT9" -> "SIBI:0683013AQT9"
+                else -> null
+            }
     }
 }
