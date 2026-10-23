@@ -33,6 +33,12 @@ object CalibrationProfileAccess {
     }
 
     @JvmStatic
+    fun mirrorProfileSensorIds(): Array<String> =
+        runCatching { bridge?.mirrorProfileSensorIds() ?: emptyArray() }
+            .onFailure { Log.stack(TAG, "mirrorProfileSensorIds failed", it) }
+            .getOrDefault(emptyArray())
+
+    @JvmStatic
     fun exportProfileForSensorAsJson(sensorId: String?): String? {
         if (sensorId.isNullOrBlank()) return null
         return runCatching { bridge?.exportProfileForSensorAsJson(sensorId) }

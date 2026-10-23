@@ -93,6 +93,17 @@ local discovery so nearby devices can find the phone without scanning a QR.
 Changing this option does not replace an already working Clone connection. The
 saved choice is used the next time that connection negotiates.
 
+Manual calibration profiles travel from a connection's sender to its receiver,
+including Raw/Auto points, calibration settings, and deletion of the last point.
+They are read from the calibration database even for sensors without native
+sensor files. A newer local manual profile takes precedence over an older
+incoming profile. Journal-derived calibration points are maintained locally
+from the journal and are preserved when a manual profile arrives.
+
+A receive-only Clone connection does not send calibrations entered on the
+receiver back to the sender. Create or edit shared calibrations on the sending
+phone when using that connection.
+
 The other Hybrid transport switches also take effect on the next connection
 attempt. Changing a server address, port, username, password, or which
 rendezvous server is selected reconnects Clone immediately so corrected

@@ -733,7 +733,12 @@ object CalibrationManager {
 
     private fun storedProfileRevision(sensorId: String): Long {
         if (!::prefs.isInitialized || sensorId.isBlank()) return 0L
-        return runCatching { prefs.getLong(profileRevisionKey(sensorId), 0L) }.getOrDefault(0L)
+        // Native paths use short names; Room profiles can use canonical/full
+        // names. Both spellings must see the same last edit, including deletion.
+        return prefs.all.asSequence().filter { (key, value) ->
+            value is Long && key.startsWith(KEY_PROFILE_REVISION_PREFIX) &&
+                sensorMatches(key.removePrefix(KEY_PROFILE_REVISION_PREFIX), sensorId)
+        }.maxOfOrNull { it.value as Long } ?: 0L
     }
 
     private fun setStoredProfileRevision(sensorId: String, revision: Long) {
@@ -745,7 +750,7 @@ object CalibrationManager {
     private fun localProfileRevision(sensorId: String): Long {
         val newestRow = _calibrations.value
             .asSequence()
-            .filter { sensorMatches(it.sensorId, sensorId) }
+            .filter { it.journalEntryId == null && sensorMatches(it.sensorId, sensorId) }
             .maxOfOrNull { it.timestamp } ?: 0L
         return MirrorCalibrationProfilePolicy.localRevision(
             storedRevision = storedProfileRevision(sensorId),
@@ -1124,6 +1129,20 @@ object CalibrationManager {
         val message: String
     )
 
+    /** Room owns manual points even when a driver has no native sensor shell. */
+    fun mirrorProfileSensorIds(): Array<String> {
+        if (!ensureCalibrationStateLoaded()) return emptyArray()
+        val sensorIds = linkedSetOf<String>()
+        _calibrations.value.filter { it.journalEntryId == null }
+            .mapTo(sensorIds) { it.sensorId }
+        // Revisions survive deleting the last point and process restarts. Keep
+        // offering that empty profile so an offline peer can catch up later.
+        prefs.all.keys.filter { it.startsWith(KEY_PROFILE_REVISION_PREFIX) }
+            .mapTo(sensorIds) { it.removePrefix(KEY_PROFILE_REVISION_PREFIX) }
+        return sensorIds.map(::normalizeSensorId).filter { it.isNotBlank() }
+            .distinct().sorted().toTypedArray()
+    }
+
     fun exportProfileForSensorAsJson(sensorId: String): String? {
         val normalizedSensorId = normalizeSensorId(sensorId)
         if (normalizedSensorId.isBlank()) return null
@@ -1173,7 +1192,8 @@ object CalibrationManager {
     suspend fun importProfileFromJson(
         json: String,
         replaceExisting: Boolean,
-        overrideSensorId: String? = null
+        overrideSensorId: String? = null,
+        preserveJournalCalibrations: Boolean = false
     ): CalibrationProfileImportResult {
         val root = JSONObject(json)
         val sourceSensorId = root.optString("sensorId", "").ifBlank { resolveSensorId() }
@@ -1236,7 +1256,17 @@ object CalibrationManager {
             )
         }
 
-        val replaced = if (replaceExisting) dao.deleteForSensor(targetSensorId) else 0
+        val replaced = when {
+            !replaceExisting -> 0
+            preserveJournalCalibrations -> {
+                val ids = dao.getAllSync().filter {
+                    it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
+                }.map { it.id }
+                if (ids.isNotEmpty()) dao.deleteByIds(ids)
+                ids.size
+            }
+            else -> dao.deleteForSensor(targetSensorId)
+        }
 
         val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter { sensorMatches(it.sensorId, targetSensorId) }
         val deduped = mutableListOf<CalibrationEntity>()
@@ -1694,7 +1724,8 @@ object CalibrationManager {
                 importProfileFromJson(
                     json,
                     replaceExisting = true,
-                    overrideSensorId = targetSensorId
+                    overrideSensorId = targetSensorId,
+                    preserveJournalCalibrations = true
                 )
             }
         }

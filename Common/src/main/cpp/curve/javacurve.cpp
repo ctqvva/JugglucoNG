@@ -135,6 +135,7 @@ static jmethodID jhistoryMarkCloneSensor = nullptr,
                  jhistoryMergeFullSyncSensor = nullptr;
 static jclass JNICalibrationProfileAccess = nullptr;
 static jmethodID jexportCalibrationProfile = nullptr,
+                 jmirrorProfileSensorIds = nullptr,
                  jimportMirrorCalibrationProfile = nullptr;
 // New declarations for MainActivity static methods
 jmethodID jopenSettingsPanel = nullptr, jopenSensorListPanel = nullptr,
@@ -479,6 +480,12 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     if (cl) {
       JNICalibrationProfileAccess = (jclass)env->NewGlobalRef(cl);
       env->DeleteLocalRef(cl);
+      if (!(jmirrorProfileSensorIds = env->GetStaticMethodID(
+          JNICalibrationProfileAccess, "mirrorProfileSensorIds",
+          "()[Ljava/lang/String;"))) {
+        LOGAR("GetStaticMethodID mirrorProfileSensorIds failed");
+        env->ExceptionClear();
+      }
       if (!(jexportCalibrationProfile = env->GetStaticMethodID(
                 JNICalibrationProfileAccess, "exportProfileForSensorAsJson",
                 "(Ljava/lang/String;)Ljava/lang/String;"))) {
@@ -1128,6 +1135,32 @@ bool javaReceiveCloneRecoveryCommit(const uint8_t *bytes, size_t size,
     return false;
   }
   return accepted;
+}
+
+std::vector<std::string> javaMirrorCalibrationSensorIds() {
+  std::vector<std::string> ids;
+  if (!JNICalibrationProfileAccess || !jmirrorProfileSensorIds) return ids;
+  JNIEnv *env = getenv();
+  auto array = static_cast<jobjectArray>(env->CallStaticObjectMethod(
+      JNICalibrationProfileAccess, jmirrorProfileSensorIds));
+  if (env->ExceptionCheck()) {
+    env->ExceptionClear();
+    LOGAR("javaMirrorCalibrationSensorIds exception");
+    return ids;
+  }
+  if (!array) return ids;
+  for (jsize i = 0; i < env->GetArrayLength(array); ++i) {
+    auto id = static_cast<jstring>(env->GetObjectArrayElement(array, i));
+    if (!id) continue;
+    const char *chars = env->GetStringUTFChars(id, nullptr);
+    if (chars) {
+      ids.emplace_back(chars);
+      env->ReleaseStringUTFChars(id, chars);
+    }
+    env->DeleteLocalRef(id);
+  }
+  env->DeleteLocalRef(array);
+  return ids;
 }
 
 std::string javaExportCalibrationProfile(const char *serial) {
