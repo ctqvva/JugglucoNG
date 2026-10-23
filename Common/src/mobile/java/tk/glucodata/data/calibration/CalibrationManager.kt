@@ -3,6 +3,7 @@ package tk.glucodata.data.calibration
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -1267,45 +1268,51 @@ object CalibrationManager {
             )
         }
 
-        val replaced = when {
-            !replaceExisting -> 0
-            preserveJournalCalibrations -> {
-                val ids = dao.getAllSync().filter {
-                    it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
-                }.map { it.id }
-                if (ids.isNotEmpty()) dao.deleteByIds(ids)
-                ids.size
-            }
-            else -> dao.deleteForSensor(targetSensorId)
-        }
-
-        val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter { sensorMatches(it.sensorId, targetSensorId) }
-        val deduped = mutableListOf<CalibrationEntity>()
-        var skipped = 0
-        incoming.forEach { row ->
-            val duplicate = existing.any { old ->
-                old.isRawMode == row.isRawMode &&
-                    abs(old.timestamp - row.timestamp) <= 30_000L &&
-                    abs(old.userValue - row.userValue) <= 0.05f &&
-                    abs(old.sensorValue - row.sensorValue) <= 0.05f &&
-                    abs(old.sensorValueRaw - row.sensorValueRaw) <= 0.05f
-            } || deduped.any { added ->
-                added.isRawMode == row.isRawMode &&
-                    abs(added.timestamp - row.timestamp) <= 30_000L &&
-                    abs(added.userValue - row.userValue) <= 0.05f &&
-                    abs(added.sensorValue - row.sensorValue) <= 0.05f &&
-                    abs(added.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+        val (imported, skipped, replaced) = database.withTransaction {
+            val replaced = when {
+                !replaceExisting -> 0
+                preserveJournalCalibrations -> {
+                    val ids = dao.getAllSync().filter {
+                        it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
+                    }.map { it.id }
+                    if (ids.isNotEmpty()) dao.deleteByIds(ids)
+                    ids.size
+                }
+                else -> dao.deleteForSensor(targetSensorId)
             }
 
-            if (duplicate) {
-                skipped++
-            } else {
-                deduped.add(row)
+            val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter {
+                it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
             }
-        }
+            val deduped = mutableListOf<CalibrationEntity>()
+            var skipped = 0
+            incoming.forEach { row ->
+                val duplicate = existing.any { old ->
+                    old.isRawMode == row.isRawMode &&
+                        abs(old.timestamp - row.timestamp) <= 30_000L &&
+                        abs(old.userValue - row.userValue) <= 0.05f &&
+                        abs(old.sensorValue - row.sensorValue) <= 0.05f &&
+                        abs(old.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+                } || deduped.any { added ->
+                    added.isRawMode == row.isRawMode &&
+                        abs(added.timestamp - row.timestamp) <= 30_000L &&
+                        abs(added.userValue - row.userValue) <= 0.05f &&
+                        abs(added.sensorValue - row.sensorValue) <= 0.05f &&
+                        abs(added.sensorValueRaw - row.sensorValueRaw) <= 0.05f
+                }
 
-        if (deduped.isNotEmpty()) {
-            dao.insertAll(deduped)
+                if (duplicate) {
+                    skipped++
+                } else {
+                    deduped.add(row)
+                }
+            }
+
+            if (deduped.isNotEmpty()) {
+                dao.insertAll(deduped)
+            }
+            removeJournalPointsShadowedByManual(setOf(targetSensorId))
+            Triple(deduped.size, skipped, replaced)
         }
 
         setEnabledForMode(isRawMode = true, enabled = rawEnabled, sensorIdOverride = targetSensorId)
@@ -1327,10 +1334,10 @@ object CalibrationManager {
 
         return CalibrationProfileImportResult(
             sensorId = targetSensorId,
-            imported = deduped.size,
+            imported = imported,
             skipped = skipped,
             replaced = replaced,
-            message = "Imported ${deduped.size} calibration(s) for $targetSensorId"
+            message = "Imported $imported calibration(s) for $targetSensorId"
         )
     }
     
@@ -1383,6 +1390,23 @@ object CalibrationManager {
         return true
     }
 
+    /** Caller keeps the manual/journal writes and this cleanup in one Room transaction. */
+    private suspend fun removeJournalPointsShadowedByManual(sensorIds: Set<String>) {
+        if (sensorIds.isEmpty()) return
+        val rows = dao.getAllSync()
+        val deleteIds = linkedSetOf<Int>()
+        sensorIds.forEach { sensorId ->
+            val own = rows.filter { sensorMatches(it.sensorId, sensorId) }
+            val manualTimestamps = own.filter { it.journalEntryId == null }.map { it.timestamp }
+            own.filter { it.journalEntryId != null }.forEach { derived ->
+                if (JournalCalibrationPolicy.manualPointTakesPrecedence(derived.timestamp, manualTimestamps)) {
+                    deleteIds += derived.id
+                }
+            }
+        }
+        if (deleteIds.isNotEmpty()) dao.deleteByIds(deleteIds.toList())
+    }
+
     /**
      * Applies one reconciliation of the journal-derived calibrations in a single
      * pass. Journal syncs touch many rows at once — a meter handing over its
@@ -1392,10 +1416,13 @@ object CalibrationManager {
     suspend fun applyJournalCalibrationPlan(plan: JournalCalibrationPolicy.Plan, reason: String) {
         if (plan.isEmpty) return
         if (!ensureInitialized()) return
-        withContext(Dispatchers.IO) {
+        database.withTransaction {
             if (plan.deleteIds.isNotEmpty()) dao.deleteByIds(plan.deleteIds)
             if (plan.inserts.isNotEmpty()) dao.insertAll(plan.inserts)
             plan.updates.forEach { dao.update(it) }
+            // Planning happens asynchronously. A manual profile may have been
+            // imported since that snapshot, so enforce precedence at commit too.
+            removeJournalPointsShadowedByManual((plan.inserts + plan.updates).map { it.sensorId }.toSet())
         }
         deferGlucoseAlertsUntilNextReading()
         loadCalibrations()
