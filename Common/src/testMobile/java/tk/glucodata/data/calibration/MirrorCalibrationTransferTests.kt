@@ -26,10 +26,24 @@ import tk.glucodata.SensorIdentity
 class MirrorCalibrationTransferTests {
     private val sensor = "AABBCCDDEEFF"
 
+    /** Switch the real singleton/Room store between two simulated installations. */
+    private suspend fun useDeviceProfile(profile: String, sensorId: String) {
+        CalibrationDatabase.getInstance(Applic.app).calibrationDao().deleteAll()
+        Applic.app.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE).edit().clear().commit()
+        CalibrationManager.init(Applic.app)
+        CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+        CalibrationManager.loadCalibrations()
+        CalibrationProfileAccess.importMirrorProfileFromJson(profile, sensorId)
+    }
+
+    private fun exported(sensorId: String): String =
+        requireNotNull(CalibrationProfileAccess.exportProfileForSensorAsJson(sensorId))
+
     @Before
     fun setUp() = runBlocking {
         val context = RuntimeEnvironment.getApplication() as Applic
         Applic.app = context
+        Applic.unit = 0
         SensorIdentity.invalidateCaches()
         CalibrationManager.init(context)
         CalibrationManager.clearAll()
@@ -177,6 +191,103 @@ class MirrorCalibrationTransferTests {
         assertEquals(full, CalibrationManager.calibrations.value.single().sensorId)
         assertTrue(CalibrationManager.hasCalibrationPointsForMode(false, full))
         assertTrue(CalibrationManager.hasCalibrationPointsForMode(false, short))
+    }
+
+    @Test
+    fun receiverEnteredRawAndAutoPointsReachAnEmptyMasterForEverySensorFamily() = runBlocking {
+        for (id in listOf("SIBI:0683013AQT9", "3MH01HD0P14", "X-12345678", "AABBCCDDEEFF")) {
+            val emptyMaster = JSONObject().put("sensorId", id).put("revision", 0L)
+                .put("calibrations", org.json.JSONArray()).toString()
+            useDeviceProfile(emptyMaster, id)
+            CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = id)
+            CalibrationManager.addCalibration(2_000L, 8f, 7f, 9f, sensorId = id, isRawMode = true)
+            val receiver = exported(id)
+
+            // Master pushes its empty profile before asking for the return data.
+            CalibrationProfileAccess.importMirrorProfileFromJson(emptyMaster, id)
+            assertEquals(2, CalibrationManager.calibrations.value.size)
+            val returned = exported(id)
+            assertEquals(JSONObject(receiver).getLong("revision"), JSONObject(returned).getLong("revision"))
+
+            useDeviceProfile(emptyMaster, id)
+            CalibrationProfileAccess.importMirrorProfileFromJson(returned, id)
+            val master = CalibrationManager.calibrations.value
+            assertEquals(7f, master.single { !it.isRawMode }.userValue, 0f)
+            assertEquals(9f, master.single { it.isRawMode }.userValue, 0f)
+            val convergedMaster = exported(id)
+
+            useDeviceProfile(returned, id)
+            CalibrationProfileAccess.importMirrorProfileFromJson(convergedMaster, id)
+            assertEquals(JSONObject(returned).getLong("revision"), JSONObject(exported(id)).getLong("revision"))
+            assertEquals(2, CalibrationManager.calibrations.value.size)
+        }
+    }
+
+    @Test
+    fun receiverDeletionSurvivesReloadAndClearsTheMasterOnReconnect() = runBlocking {
+        CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = sensor)
+        val original = exported(sensor)
+        CalibrationManager.deleteCalibration(CalibrationManager.calibrations.value.single())
+        CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+        CalibrationManager.init(Applic.app)
+        val receiverDeletion = exported(sensor)
+
+        CalibrationProfileAccess.importMirrorProfileFromJson(original, sensor)
+        assertTrue(CalibrationManager.calibrations.value.isEmpty())
+        assertEquals(listOf(sensor), CalibrationProfileAccess.mirrorProfileSensorIds().toList())
+
+        useDeviceProfile(original, sensor)
+        CalibrationProfileAccess.importMirrorProfileFromJson(receiverDeletion, sensor)
+        assertTrue(CalibrationManager.calibrations.value.isEmpty())
+        assertEquals(JSONObject(receiverDeletion).getLong("revision"), JSONObject(exported(sensor)).getLong("revision"))
+    }
+
+    @Test
+    fun masterEditAfterReceiverSnapshotRejectsThatStaleReturn() = runBlocking {
+        CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = sensor)
+        val receiverSnapshot = exported(sensor)
+        CalibrationManager.updateCalibration(CalibrationManager.calibrations.value.single().copy(userValue = 8f))
+        val master = exported(sensor)
+
+        CalibrationProfileAccess.importMirrorProfileFromJson(receiverSnapshot, sensor)
+
+        assertEquals(8f, CalibrationManager.calibrations.value.single().userValue, 0f)
+        assertEquals(JSONObject(master).getLong("revision"), JSONObject(exported(sensor)).getLong("revision"))
+    }
+
+    @Test
+    fun receiverProfileConvertsAllPointLanesFromMmolToMgdlOnTheMaster() = runBlocking {
+        Applic.unit = 1
+        CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = sensor, sensorValueStock = 5.5f)
+        val receiver = exported(sensor)
+        val empty = JSONObject().put("sensorId", sensor).put("revision", 0L).toString()
+        Applic.unit = 0
+        useDeviceProfile(empty, sensor)
+
+        CalibrationProfileAccess.importMirrorProfileFromJson(receiver, sensor)
+
+        val point = CalibrationManager.calibrations.value.single()
+        val factor = tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+        assertEquals(6f * factor, point.sensorValue, 0.001f)
+        assertEquals(5f * factor, point.sensorValueRaw, 0.001f)
+        assertEquals(5.5f * factor, point.sensorValueStock, 0.001f)
+        assertEquals(7f * factor, point.userValue, 0.001f)
+    }
+
+    @Test
+    fun receiverProfileConvertsFromMgdlToMmolAndKeepsLegacyProfilesCompatible() = runBlocking {
+        CalibrationManager.addCalibration(1_000L, 108f, 90f, 126f, sensorId = sensor)
+        val receiver = exported(sensor)
+        Applic.unit = 1
+        useDeviceProfile(JSONObject().put("sensorId", sensor).put("revision", 0L).toString(), sensor)
+        CalibrationProfileAccess.importMirrorProfileFromJson(receiver, sensor)
+        val factor = tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+        assertEquals(126f / factor, CalibrationManager.calibrations.value.single().userValue, 0.001f)
+
+        val legacy = JSONObject(receiver).apply { remove("units") }.toString()
+        useDeviceProfile(JSONObject().put("sensorId", sensor).put("revision", 0L).toString(), sensor)
+        CalibrationProfileAccess.importMirrorProfileFromJson(legacy, sensor)
+        assertEquals(126f, CalibrationManager.calibrations.value.single().userValue, 0f)
     }
 }
 

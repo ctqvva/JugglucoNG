@@ -1739,6 +1739,10 @@ public:
           return 0;
         }
         did |= 1;
+        // The glucose receiver can own a newer manual calibration. Pull its
+        // current winner back on this same connection; no reverse glucose host.
+        if (!connect->pullMirrorCalibrationProfile(pass, id))
+          return 0;
       }
     }
     if (lastsens >= first)

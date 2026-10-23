@@ -93,23 +93,22 @@ local discovery so nearby devices can find the phone without scanning a QR.
 Changing this option does not replace an already working Clone connection. The
 saved choice is used the next time that connection negotiates.
 
-Manual calibration profiles travel from a connection's sender to its receiver,
-including Raw/Auto points, calibration settings, and deletion of the last point.
+Manual calibration profiles synchronize in both directions between a connection's
+master (glucose sender) and receiver, including Raw/Auto points, calibration
+settings, and deletion of the last point.
 They are read from the calibration database even for sensors without native
 sensor files. A newer local manual profile takes precedence over an older
 incoming profile. Journal-derived calibration points are maintained locally
 from the journal and are preserved when a manual profile arrives.
 
-A receive-only Clone connection does not send calibrations entered on the
-receiver back to the sender. Create or edit shared calibrations on the sending
-phone when using that connection.
-
-Nightscout following is a separate path. It receives exported glucose values
-and journal entries, rather than this manual profile JSON. A Sibionics sender
-uses its saved Raw/Auto display selection when choosing the glucose value and
-manual correction to export, even when its native mirror still has an older
-display mode. Those corrected values can be followed without copying the
-sender's calibration list onto the Nightscout receiver.
+The master retrieves receiver-entered calibrations during the next normal
+calibration synchronization, including after reconnection. The glucose pairing
+can remain receive-only on the receiver; no second pairing is needed. Both
+phones must run a version supporting this return exchange. Older peers keep
+the existing master-to-receiver behavior. Edits and deletions are retained
+locally while disconnected and compared by revision when the link returns.
+Profiles carry their glucose units, so the two phones can use different
+mg/dL or mmol/L display preferences.
 
 The other Hybrid transport switches also take effect on the next connection
 attempt. Changing a server address, port, username, password, or which

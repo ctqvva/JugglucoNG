@@ -38,7 +38,12 @@ std::vector<std::string> javaMirrorCalibrationSensorIds() { return roomIds; }
 std::string javaExportCalibrationProfile(const char *id) { return std::string("profile:") + id; }
 struct Connect {
     std::vector<std::string> paths;
+    std::vector<std::string> pulled;
     bool fail = false;
+    int pullMirrorCalibrationProfile(crypt_t *, std::string_view id) {
+        pulled.emplace_back(id);
+        return 1;
+    }
     bool senddata(crypt_t *, int, const senddata_t *, int, const std::string &path) {
         if (fail) return false;
         paths.push_back(path);
@@ -98,6 +103,7 @@ int main() {
     roomIds = {"AA:BB:CC:DD:EE:FF"};
     assert(store.sendCalibrates(nullptr, &con, 0, cursor) & 1);
     assert(con.paths == std::vector<std::string>{"mirror/calibration/AA:BB:CC:DD:EE:FF.json"});
+    assert(con.pulled == std::vector<std::string>{"AA:BB:CC:DD:EE:FF"});
     assert(cursor == 0); // no -1 wrapping when the native index is empty
 
     store.native = {{"OLD"}, {"LATEST"}};

@@ -86,6 +86,7 @@ virtual int setindex(int index) {
     bool sendrender(crypt_t *pass);
     bool    senduint16(crypt_t*pass,uint16_t com,uint16_t arg);
     bool sendStartSendCalibrate(crypt_t *pass,const uint16_t sensorindex);
+    int pullMirrorCalibrationProfile(crypt_t *pass, std::string_view serial);
     bool sendBlueWatch(crypt_t *pass,int8_t stream,int8_t nums);
     bool sendshowglucose(crypt_t *pass,const uint16_t sensorindex);
     bool sendrender(crypt_t *pass,const uint16_t type);

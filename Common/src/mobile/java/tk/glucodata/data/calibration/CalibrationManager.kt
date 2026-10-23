@@ -1157,6 +1157,7 @@ object CalibrationManager {
 
         val root = JSONObject()
         root.put("version", 2)
+        root.put("units", if (Applic.unit == 1) "mmol/L" else "mg/dL")
         root.put("sensorId", normalizedSensorId)
         root.put("createdAt", System.currentTimeMillis())
         root.put("revision", localProfileRevision(normalizedSensorId))
@@ -1179,6 +1180,7 @@ object CalibrationManager {
             obj.put("sensorId", if (row.sensorId.isBlank()) normalizedSensorId else row.sensorId)
             obj.put("sensorValue", row.sensorValue.toDouble())
             obj.put("sensorValueRaw", row.sensorValueRaw.toDouble())
+            obj.put("sensorValueStock", row.sensorValueStock.toDouble())
             obj.put("userValue", row.userValue.toDouble())
             obj.put("isEnabled", row.isEnabled)
             obj.put("isRawMode", row.isRawMode)
@@ -1235,6 +1237,14 @@ object CalibrationManager {
         val rawAlgorithm = CalibrationAlgorithm.fromStorage(root.optString("rawAlgorithm", ""))
         val autoAlgorithm = CalibrationAlgorithm.fromStorage(root.optString("autoAlgorithm", ""))
 
+        // Peers can display different units. Legacy profiles omitted this field
+        // and retain their historical same-unit interpretation.
+        val unitFactor = when (root.optString("units", "")) {
+            "mmol/L" -> if (Applic.unit == 1) 1f else tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+            "mg/dL" -> if (Applic.unit == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else 1f
+            else -> 1f
+        }
+
         val array = root.optJSONArray("calibrations") ?: JSONArray()
         val incoming = mutableListOf<CalibrationEntity>()
         for (i in 0 until array.length()) {
@@ -1247,9 +1257,10 @@ object CalibrationManager {
                     id = 0,
                     timestamp = timestamp,
                     sensorId = targetSensorId,
-                    sensorValue = obj.optDouble("sensorValue", 0.0).toFloat(),
-                    sensorValueRaw = obj.optDouble("sensorValueRaw", 0.0).toFloat(),
-                    userValue = obj.optDouble("userValue", 0.0).toFloat(),
+                    sensorValue = obj.optDouble("sensorValue", 0.0).toFloat() * unitFactor,
+                    sensorValueRaw = obj.optDouble("sensorValueRaw", 0.0).toFloat() * unitFactor,
+                    sensorValueStock = obj.optDouble("sensorValueStock", 0.0).toFloat() * unitFactor,
+                    userValue = obj.optDouble("userValue", 0.0).toFloat() * unitFactor,
                     isEnabled = obj.optBoolean("isEnabled", true),
                     isRawMode = obj.optBoolean("isRawMode", false)
                 )
