@@ -5,30 +5,24 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.json.JSONObject
 import tk.glucodata.drivers.ottai.OttaiCloudClient
+import tk.glucodata.drivers.ottai.OttaiConstants
+import tk.glucodata.ui.components.CardPosition
 
 class OttaiSetupFlowTests {
     @Test
-    fun `expired account session returns account list to sign in`() {
-        assertEquals(
-            OttaiSetupStep.SENSOR,
-            ottaiSetupStepAfterSessionInvalidation(OttaiSetupStep.ACCOUNT_SENSORS),
-        )
+    fun `stored session region follows its backend`() {
+        assertEquals(OttaiRegion.CN, ottaiRegionForApiBase(OttaiConstants.API_BASE))
+        assertEquals(OttaiRegion.GLOBAL, ottaiRegionForApiBase(OttaiConstants.API_BASE_GLOBAL))
+        // A Syai session used to be presented as Global.
+        assertEquals(OttaiRegion.SYAI, ottaiRegionForApiBase(OttaiConstants.API_BASE_SYAI))
     }
 
     @Test
-    fun `late account refresh rejection preserves connection completion steps`() {
-        // The saved-sensor refresh began in the picker, but can return after Connect has
-        // advanced. Decide from the step at rejection time so its completion effect survives.
-        listOf(OttaiSetupStep.CONNECTING, OttaiSetupStep.SUCCESS).forEach { currentStep ->
-            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
-        }
-    }
-
-    @Test
-    fun `session rejection leaves sensor and registration pages in place`() {
-        listOf(OttaiSetupStep.SENSOR, OttaiSetupStep.REGISTER).forEach { currentStep ->
-            assertEquals(currentStep, ottaiSetupStepAfterSessionInvalidation(currentStep))
-        }
+    fun `list rows take grouped card positions`() {
+        assertEquals(CardPosition.SINGLE, ottaiRowPosition(0, 1))
+        assertEquals(CardPosition.TOP, ottaiRowPosition(0, 3))
+        assertEquals(CardPosition.MIDDLE, ottaiRowPosition(1, 3))
+        assertEquals(CardPosition.BOTTOM, ottaiRowPosition(2, 3))
     }
 
     @Test
