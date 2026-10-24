@@ -11,6 +11,11 @@ import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import android.view.HapticFeedbackConstants
 import android.view.WindowManager
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,12 +40,15 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
@@ -112,7 +120,7 @@ fun journalReachActionTypes(): List<JournalEntryType> = listOf(
 fun JournalEntryType.journalActionLabel(): String = when (this) {
     JournalEntryType.INSULIN -> stringResource(R.string.journal_type_insulin)
     JournalEntryType.CARBS -> stringResource(R.string.journal_type_food)
-    JournalEntryType.FINGERSTICK -> stringResource(R.string.journal_type_bg_short)
+    JournalEntryType.FINGERSTICK -> stringResource(R.string.journal_type_blood_glucose)
     JournalEntryType.ACTIVITY -> stringResource(R.string.journal_type_activity)
     JournalEntryType.NOTE -> stringResource(R.string.journal_type_note)
 }
@@ -447,7 +455,7 @@ private fun ChartMenuItem(
  * The journal's "+": material3's FAB menu. The button morphs into a close button and each
  * entry type is a menu item in its own colours. A tap outside or Back closes it, as the
  * popup it replaces did, the navigation bar or rail included. Call it last in a Box, so the
- * outside-tap catcher covers the rest of the screen; [modifier] places the menu, which adds
+ * dismissible scrim covers the rest of the screen; [modifier] places the menu, which adds
  * the spec's 16dp from the edges itself. [horizontalAlignment] lines the items up over the
  * button: End for a corner FAB, CenterHorizontally for a centred one. As in a menu, pressing the
  * button and sliding off it, or holding it, opens the menu under the finger: the item it is
@@ -471,11 +479,22 @@ fun BoxScope.JournalExpandableFab(
     var buttonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     BackHandler(enabled = expanded) { onExpandedChange(false) }
     CatchNavigationTaps(active = expanded) { onExpandedChange(false) }
-    if (expanded) {
+    AnimatedVisibility(
+        visible = expanded,
+        modifier = Modifier.matchParentSize(),
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
         Box(
             modifier = Modifier
-                .matchParentSize()
-                .pointerInput(Unit) { detectTapGestures { onExpandedChange(false) } }
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.65f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClickLabel = stringResource(R.string.close),
+                    onClick = { onExpandedChange(false) }
+                )
         )
     }
     FloatingActionButtonMenu(
@@ -489,6 +508,10 @@ fun BoxScope.JournalExpandableFab(
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     onExpandedChange(it)
                 },
+                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
+                    initialColor = MaterialTheme.colorScheme.primary,
+                    finalColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                ),
                 modifier = Modifier
                     .onGloballyPositioned { buttonCoordinates = it }
                     .pointerInput(Unit) {
@@ -542,7 +565,13 @@ fun BoxScope.JournalExpandableFab(
                 Icon(
                     imageVector = icon,
                     contentDescription = stringResource(if (expanded) R.string.close else R.string.additem),
-                    modifier = Modifier.animateIcon({ checkedProgress })
+                    modifier = Modifier.animateIcon(
+                        checkedProgress = { checkedProgress },
+                        color = ToggleFloatingActionButtonDefaults.iconColor(
+                            initialColor = MaterialTheme.colorScheme.onPrimary,
+                            finalColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
                 )
             }
         }
@@ -571,6 +600,9 @@ private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
     val stateLayerSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     actionTypes.forEachIndexed { index, actionType ->
         val stateLayer by animateFloatAsState(if (actionType == hoveredType) 1f else 0f, stateLayerSpec)
+        val solidContainerColor = journalTypeColor(actionType)
+            .copy(alpha = 0.28f)
+            .compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh)
         FloatingActionButtonMenuItem(
             onClick = {
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -606,7 +638,7 @@ private fun FloatingActionButtonMenuScope.JournalFabMenuItems(
                         cornerRadius = CornerRadius(size.height / 2)
                     )
                 },
-            containerColor = journalTypeSelectedContainerColor(actionType),
+            containerColor = solidContainerColor,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     }

@@ -2164,9 +2164,8 @@ fun DashboardScreen(
                             suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl
                         )
                     },
-                    // Centred: at the end it sat on the newest reading's value.
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    horizontalAlignment = Alignment.End
                 )
             }
         }
