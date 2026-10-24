@@ -21,7 +21,10 @@ REPO = Path(__file__).resolve().parents[2]
 
 def prepare(data, sensors, resets, target, reference_unit):
     readings = data["history"]["readings"]
-    calibrations = data["calibrations"]["calibrations"]
+    calibration_settings = data["calibrations"]
+    calibrations = calibration_settings["calibrations"]
+    auto_enabled = {entry["sensorId"]: entry.get("autoEnabled", True)
+                    for entry in calibration_settings.get("sensorEnablement", [])}
     temperature_values = data["settings"]["sharedPreferences"].get("AiDexTemperaturePrefs", {}).get("values", {})
     metadata = {}
     with target.open("w") as output:
@@ -37,7 +40,12 @@ def prepare(data, sensors, resets, target, reference_unit):
             references = {}
             unmatched = 0
             for c in sorted(calibrations, key=lambda c: c["timestamp"]):
-                if c["sensorId"] != sensor or not c["isEnabled"]:
+                if (c["sensorId"] != sensor or not c["isEnabled"] or
+                        not auto_enabled.get(sensor, calibration_settings.get("autoEnabled", True))):
+                    continue
+                # Match the driver's Auto reference set: manual Raw calibrations
+                # stay in Raw; journal fingersticks are eligible in both lanes.
+                if c.get("isRawMode", False) and c.get("journalEntryId") is None:
                     continue
                 # CalibrationEntity stores display units; history stores mg/dL.
                 # The export does not label calibration units. Require the

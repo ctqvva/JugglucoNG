@@ -20,9 +20,13 @@ meets a ribbon, its displayed envelope starts at those asymmetric bounds and add
 forecast spread, fading into the lighter forecast shading over five minutes. This
 changes drawing only; the sensor estimate and predicted glucose values are unchanged.
 
-With internal calibration enabled, enabled manual references from either lane
-are supplied to the estimator in canonical units, using only references at or
-before the sample timestamp. The generic Auto calibration layer is then bypassed
+With internal calibration enabled, the same enabled references eligible for the
+sensor's Auto calibration controls are supplied to the estimator in canonical
+units, using only references at or before the sample timestamp. Manual Raw
+calibrations stay in Raw; journal fingersticks shared with Auto remain eligible.
+The Auto enable switch and each point's enabled state apply inside the algorithm
+too. With no eligible references, toggling internal calibration does not change
+the curve. The generic Auto calibration layer is then bypassed
 to avoid applying the same correction twice. With it disabled, the usual external
 calibration behavior remains available, as with Sibionics. Raw values and their
 separate calibration path remain independent.
@@ -190,15 +194,29 @@ AiDex adaptations:
   remains a hybrid with a manufacturer-derived curve; it cannot correct
   arbitrary manufacturer bias without independent references.
 - In factory-assisted mode, **references correct the output**, not the
-  estimator's residual sensitivity/bias states. Each reference's error is
-  measured against the curve the normaliser is converging to at that minute
-  (its current median-ratio target plus fitted offset), then averaged with a
-  1.5-day age decay and a prior weight of a quarter reference (a fresh single
-  reference corrects 80% of its error), bounded to ±2.5 mmol/L. Measuring
-  against the normalised signal instead, and holding the result in the
-  estimator's states, applied the curve's own lag a second time once it caught
-  up: on KT3T the calibrated model sat 1.1–1.7 mmol/L below factory for two
-  weeks, and S drifted to 1.24.
+  estimator's residual sensitivity/bias states. Each reference measures error
+  against the **pre-correction filtered median**, so a fingerstick can correct
+  a displayed curve that is still far from its slowly learned factory target.
+  At raw `r_i`, filtered median `M_i` and applied mapping `f_i`, store the anchor
+  `a_i = reference_i - M_i + f_i(r_i)`. Its later error is
+  `a_i - f_t(r_i)`: mapping catch-up subtracts its share of the correction.
+  Evaluate at the reference's original raw, not today's raw, so physiological
+  glucose changes do not masquerade as calibration drift. The filter's residual
+  at the reference stays part of its anchor. Errors retain a 1.5-day age decay,
+  a prior weight of a quarter reference (one fresh, uncapped reference corrects
+  80% of its error), and the ±2.5 mmol/L cap. Later references measure the
+  unshifted median rather than incorporating earlier corrections again.
+  Before bootstrap produces a filtered output, a reference retains its factory
+  observation as its provisional baseline; it cannot bootstrap the mapping.
+  Snapshot version 4 stores these raw-level anchors. Older snapshots reject
+  cleanly; the app reconstructs model state by replaying original samples and
+  references rather than reinterpreting old correction errors as anchors.
+  Earlier target-based correction prevented double application after catch-up,
+  but could barely move the output when factory already agreed with a meter
+  (issue #681). In that issue's synthetic reproduction, the two reference-minute
+  outputs change from 118/132 to 156/165 mg/dL for meter values 167/174; at +570
+  minutes the corrected output is 166 mg/dL. These are regression results, not
+  clinical validation. The normalizer's speed and estimator states are unchanged.
 - **Reference-only** normalization (replay only) waits for a timely reference to
   establish the scale and thereafter does not use factory glucose for
   estimation. Further references update the residual sensitivity/bias states. Without a reference,
@@ -237,6 +255,46 @@ The inherited residual sensitivity bounds (roughly ±25%) and bias bounds
 operation cannot replace continuous independent references on a deteriorating
 sensor simply by estimating more latent states. These constraints, normalization
 adaptation speed and lack of sensor-state telemetry are remaining research issues.
+
+## Reference visibility repair, 2026-10-20
+
+AiDex previously combined manual Raw and Auto references for its Auto estimator,
+although the application's manual-calibration controls and lists are lane-specific.
+A Raw reference could therefore move Auto history when internal calibration was
+enabled, even with the Auto calibration switch off. Adding an Auto point then
+averaged it with that hidden Raw point and unexpectedly reshaped the curve.
+Live processing, history replay, backup conflict rebuilds and JSON replay input
+now use the same Auto-eligible references as those controls. Raw-only edits do
+not request an Auto rebuild. Journal fingersticks already eligible for Auto
+remain supported. Real-database regressions cover an enabled Raw reference with
+Auto disabled, an empty Auto lane, point enable/disable, another sensor's points,
+shared journal points, restart and history merge.
+
+## Calibration response revision, 2026-10-19 (#681)
+
+In the issue's synthetic test, raw and factory settle at 105 mg/dL for one day,
+then factory rises to 160 while raw remains 105. Fingersticks arrive at +120 and
++260 minutes. The output-anchored correction gives:
+
+| Minute after factory change | Meter | Before | After |
+| --- | ---: | ---: | ---: |
+| +120 | 167 | 117.95 | 156.07 |
+| +240 | — | 126.39 | 157.35 |
+| +260 | 174 | 131.54 | 165.07 |
+| +570 | — | 147.14 | 166.37 |
+
+All values in this table are mg/dL. The new regression fails on the previous
+model. Other tests check downward correction, the filtered rather than raw
+baseline, scale/offset drift at fixed reference raw, multiple and duplicate
+references, unchanged cap/decay, bootstrap and exact snapshot continuation.
+
+Replaying the same 48,534 archived samples before and after this change gives
+identical outputs for both the uncalibrated factory-assisted and reference-only
+models. The calibrated model's pre-reference MAE on the 29 saved KT3T reference
+minutes rises from 0.853 to 0.935 mmol/L. The change fixes the weak immediate
+response; it does not establish better future prediction or clinical accuracy.
+No parameter was fitted to these reference scores. The older evaluation tables
+below describe their dated revisions, not the output-anchored model.
 
 ## Revision, 2026-10-15
 
@@ -353,8 +411,8 @@ An independently established reset may be supplied as
 
 ## Verification
 
-The full mobile Gradle/JVM suite passes: 4,061 tests, zero failures/errors/skips.
-Phone Kotlin, Wear Kotlin and Wear Java compilation pass. Six Python replay/report
+The full Gradle/JVM suites pass: 4,290 mobile and 3,271 Wear tests, zero
+failures/errors/skips. Phone and Wear Kotlin/Java compilation pass. Eight Python replay/report
 contract tests also pass. Model tests cover explicit units,
 factory overshoot isolation, raw responsiveness, lows, references, unknown data,
 reset/stale input, gaps and exact/corrupt snapshot restoration. Python replay

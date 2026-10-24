@@ -45,9 +45,9 @@ data class AiDexAdaptiveResult(
  *
  * A slow robust normaliser replaces the factory compensation available to
  * Sibionics. It deliberately cannot identify scale, offset, sensor aging and
- * true glucose from raw alone. In factory-assisted mode a reference corrects
- * the learned factory curve at the output; the estimator's own sensor states
- * never hold it, because the curve they would be relative to keeps moving.
+ * true glucose from raw alone. In factory-assisted mode a reference anchors
+ * the filtered output, with later mapping changes evaluated at that reference's
+ * raw level. The estimator's own sensor states never hold the correction.
  *
  * This is an experimental model. Mixture intervals are model uncertainty, not
  * validated clinical coverage. Selecting/publishing it in an app requires a
@@ -96,12 +96,15 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
         val factoryAssisted = normalization == AiDexNormalization.FACTORY_ASSISTED
         val bootstrapping = !normalizer.hasMapping
         val normalized = normalizer.process(sample, timely.firstOrNull())
-        if (factoryAssisted && (normalized != null || bootstrapping)) {
-            // Measured against the curve the normaliser converges to, so the
-            // correction stays valid while that curve follows the sensor.
-            correction.accept(timely, normalizer.referenceTargetMmol(sample))
+        if (normalized == null) {
+            // There is no displayed model value during bootstrap. Preserve a
+            // timely reference against its factory observation, without letting
+            // that reference initialise the factory-assisted normalizer itself.
+            if (factoryAssisted && bootstrapping) normalizer.bootstrapMapping(sample)?.let { mapping ->
+                correction.accept(timely, mapping.mmol(sample.rawProxyMgDl), sample.rawProxyMgDl, mapping)
+            }
+            return null
         }
-        if (normalized == null) return null
         val core = estimator.process(
             AdaptiveV2Sample(
                 calibratedMmol = normalized.mmol,
@@ -116,10 +119,16 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
         lastTimestampMs = sample.timestampMs
         lastIndex = index
         val source = estimator.latestGlucoseMixture ?: return null
+        val mapping = normalizer.mapping ?: return null
+        if (factoryAssisted) {
+            // Compare with the unshifted mixture the user would actually see,
+            // not with a factory target the mapping may take hours to reach.
+            correction.accept(timely, source.median().toDouble(), sample.rawProxyMgDl, mapping)
+        }
         // Absolute scale uncertainty belongs in every component. Ignoring it
         // would report a precise answer even when only the scale is unknown.
         val scaleVariance = normalized.mmol * normalized.mmol * normalized.logScaleVariance
-        val shift = correction.offsetMmol(sample.timestampMs)
+        val shift = correction.offsetMmol(sample.timestampMs, mapping)
         val shiftVariance = correction.varianceMmol2(sample.timestampMs)
         mixture = GaussianMixture1D(
             source.weights.copyOf(),
@@ -223,7 +232,7 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
     companion object {
         const val MGDL_PER_MMOL = 18.0182f
         private const val MAGIC = 0x4149_5632
-        private const val VERSION = 3
+        private const val VERSION = 4
         private const val MAX_SNAPSHOT_BYTES = 64 * 1024
     }
 }
@@ -231,40 +240,44 @@ class AiDexAdaptiveV2(val normalization: AiDexNormalization = AiDexNormalization
 /**
  * Factory-assisted reference correction, applied at the output.
  *
- * Each reference is compared with the factory curve the normaliser is fitting,
- * not with the normalised signal of that minute: the signal still trails a
- * curve that is moving, and an error measured against it would be applied
- * again after the curve had caught up. Errors are averaged with an age decay
- * and shrink toward no correction as they age.
+ * Each reference measures error against the pre-correction filtered output.
+ * Store an anchor at its raw level: target = reference - output + mapping(raw).
+ * Later error = target - currentMapping(anchorRaw), so mapping catch-up removes
+ * its share of the original error. Using the anchor's raw, not today's raw,
+ * keeps subsequent glucose changes out of that drift calculation. The filter's
+ * residual at the reference is preserved in the anchor, not mistaken for an
+ * affine mapping change. Errors keep their existing age decay, prior and cap.
  */
 internal class AiDexReferenceCorrection {
-    private val errors = ArrayDeque<Pair<Long, Double>>()
+    private data class Anchor(val timeMs: Long, val rawProxyMgDl: Float, val targetMmol: Double)
+    private val anchors = ArrayDeque<Anchor>()
     private var lastReferenceMs = 0L
 
-    fun accept(references: List<AiDexReference>, targetMmol: Double?) {
-        if (targetMmol == null || !targetMmol.isFinite()) return
+    fun accept(references: List<AiDexReference>, outputMmol: Double, rawProxyMgDl: Float,
+        mapping: AiDexSignalNormalizer.Mapping) {
         for (reference in references) {
             if (reference.timestampMs <= lastReferenceMs) continue
-            errors.addLast(reference.timestampMs to (reference.glucoseMgDl / AiDexAdaptiveV2.MGDL_PER_MMOL - targetMmol))
+            val target = reference.glucoseMgDl / AiDexAdaptiveV2.MGDL_PER_MMOL - outputMmol + mapping.mmol(rawProxyMgDl)
+            anchors.addLast(Anchor(reference.timestampMs, rawProxyMgDl, target))
             lastReferenceMs = reference.timestampMs
         }
-        while (errors.size > MAX_REFERENCES) errors.removeFirst()
+        while (anchors.size > MAX_REFERENCES) anchors.removeFirst()
     }
 
-    private fun weights(timeMs: Long): Pair<Double, Double> {
+    private fun weights(timeMs: Long, mapping: AiDexSignalNormalizer.Mapping? = null): Pair<Double, Double> {
         var total = 0.0
         var weighted = 0.0
-        for ((time, error) in errors) {
+        for ((time, raw, target) in anchors) {
             if (time > timeMs + 60_000L) continue
             val weight = exp(-(timeMs - time).coerceAtLeast(0L) / TIME_CONSTANT_MS)
             total += weight
-            weighted += weight * error
+            if (mapping != null) weighted += weight * (target - mapping.mmol(raw))
         }
         return total to weighted
     }
 
-    fun offsetMmol(timeMs: Long): Float {
-        val (total, weighted) = weights(timeMs)
+    fun offsetMmol(timeMs: Long, mapping: AiDexSignalNormalizer.Mapping): Float {
+        val (total, weighted) = weights(timeMs, mapping)
         if (total < 1e-6) return 0f
         return (weighted / (PRIOR_WEIGHT + total)).coerceIn(-MAX_OFFSET_MMOL, MAX_OFFSET_MMOL).toFloat()
     }
@@ -278,21 +291,23 @@ internal class AiDexReferenceCorrection {
 
     fun writeTo(out: DataOutputStream) {
         out.writeLong(lastReferenceMs)
-        out.writeInt(errors.size)
-        errors.forEach { out.writeLong(it.first); out.writeDouble(it.second) }
+        out.writeInt(anchors.size)
+        anchors.forEach { out.writeLong(it.timeMs); out.writeFloat(it.rawProxyMgDl); out.writeDouble(it.targetMmol) }
     }
 
     fun readFrom(input: DataInputStream) {
         lastReferenceMs = input.readLong()
         val count = input.readInt()
         require(lastReferenceMs >= 0L && count in 0..MAX_REFERENCES)
-        errors.clear()
+        anchors.clear()
         repeat(count) {
             val time = input.readLong()
-            val error = input.readDouble()
-            require(time in 1..lastReferenceMs && error.isFinite() && abs(error) < 35.0)
-            require(errors.isEmpty() || time > errors.last().first)
-            errors.addLast(time to error)
+            val raw = input.readFloat()
+            val target = input.readDouble()
+            require(time in 1..lastReferenceMs && raw.isFinite() && raw > 0f && raw <= 6_553.5f &&
+                target.isFinite() && abs(target) < 70.0)
+            require(anchors.isEmpty() || time > anchors.last().timeMs)
+            anchors.addLast(Anchor(time, raw, target))
         }
     }
 
@@ -319,6 +334,9 @@ internal class AiDexReferenceCorrection {
  */
 internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
     data class Signal(val mmol: Float, val logScaleVariance: Float)
+    data class Mapping(val scale: Double, val offsetMgDl: Double) {
+        fun mmol(rawProxyMgDl: Float): Double = (scale * rawProxyMgDl + offsetMgDl) / AiDexAdaptiveV2.MGDL_PER_MMOL
+    }
     private var logScale = Double.NaN
     private var offset = 0.0
     private var offsetTarget = 0.0
@@ -336,16 +354,11 @@ internal class AiDexSignalNormalizer(private val mode: AiDexNormalization) {
     /** mg/dL of glucose per raw-proxy mg/dL at the current mapping. */
     val scale: Double get() = exp(logScale)
     val hasMapping: Boolean get() = logScale.isFinite()
+    val mapping: Mapping? get() = if (hasMapping) Mapping(scale, offset) else null
 
-    /** Where a reference is measured: the curve being converged to, else factory. */
-    fun referenceTargetMmol(sample: AiDexAdaptiveSample): Double? {
-        val target = targetLogScale()
-        if (target != null) {
-            return (exp(target) * sample.rawProxyMgDl + offsetTarget) / AiDexAdaptiveV2.MGDL_PER_MMOL
-        }
-        val factory = sample.factoryMgDl
-        return if (validFactory(factory)) factory / AiDexAdaptiveV2.MGDL_PER_MMOL.toDouble() else null
-    }
+    /** Only used when a reference arrives before any filtered output exists. */
+    fun bootstrapMapping(sample: AiDexAdaptiveSample): Mapping? = sample.factoryMgDl
+        .takeIf(::validFactory)?.let { Mapping(it.toDouble() / sample.rawProxyMgDl, 0.0) }
 
     fun process(sample: AiDexAdaptiveSample, firstReference: AiDexReference?): Signal? {
         if (lastTime > 0L && sample.timestampMs <= lastTime) return null

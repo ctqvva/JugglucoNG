@@ -23,14 +23,12 @@ internal class AiDexHistoryImport private constructor(
 ) {
     private val rebuilt = HashMap<String, Map<Long, AiDexAlgorithmReading>>()
     /** References and fit fingerprints each calibrated rebuild was computed against. */
-    private val calibrationInputs = HashMap<String, Triple<List<AiDexReference>, Long, Long>>()
+    private val calibrationInputs = HashMap<String, Pair<List<AiDexReference>, Long>>()
 
-    private fun currentCalibrationInputs(id: String) = Triple(
+    private fun currentCalibrationInputs(id: String) = Pair(
         AiDexAlgorithmReferences.decode(
-            CalibrationManager.getActiveCalibrationAnchors(id, true),
             CalibrationManager.getActiveCalibrationAnchors(id, false), Applic.unit == 1,
         ),
-        CalibrationManager.getIntegratedCalibrationFingerprint(id, true),
         CalibrationManager.getIntegratedCalibrationFingerprint(id, false),
     )
     val sensorIds: Set<String> get() = selections.keys

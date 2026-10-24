@@ -41,6 +41,33 @@ class ReplayContractTests(unittest.TestCase):
             rows = list(csv.DictReader(target.read_text().splitlines(), delimiter="\t"))
             self.assertEqual("1030000:120", rows[1]["references"])
 
+    def test_manual_raw_references_are_not_hidden_auto_references(self):
+        data = self.fixture()
+        data["calibrations"]["calibrations"][0]["isRawMode"] = True
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "input.tsv"
+            prepare(data, ["X-test"], {}, target, "mmol/L")
+            rows = list(csv.DictReader(target.read_text().splitlines(), delimiter="\t"))
+            self.assertTrue(all(not row["references"] for row in rows))
+            data["calibrations"]["calibrations"][0]["journalEntryId"] = 123
+            prepare(data, ["X-test"], {}, target, "mmol/L")
+            rows = list(csv.DictReader(target.read_text().splitlines(), delimiter="\t"))
+            self.assertTrue(rows[1]["references"])
+
+    def test_auto_enablement_is_respected_without_using_raw_enablement(self):
+        data = self.fixture()
+        data["calibrations"]["sensorEnablement"] = [
+            {"sensorId": "X-test", "autoEnabled": False, "rawEnabled": True}]
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "input.tsv"
+            prepare(data, ["X-test"], {}, target, "mmol/L")
+            rows = list(csv.DictReader(target.read_text().splitlines(), delimiter="\t"))
+            self.assertTrue(all(not row["references"] for row in rows))
+            data["calibrations"]["sensorEnablement"][0].update(autoEnabled=True, rawEnabled=False)
+            prepare(data, ["X-test"], {}, target, "mmol/L")
+            rows = list(csv.DictReader(target.read_text().splitlines(), delimiter="\t"))
+            self.assertTrue(rows[1]["references"])
+
     def test_explicit_reset_identity_is_not_guessed_from_raw_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "input.tsv"
