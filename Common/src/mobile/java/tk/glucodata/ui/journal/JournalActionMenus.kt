@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
@@ -488,7 +489,14 @@ fun BoxScope.JournalExpandableFab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.35f to Color.Transparent,
+                        0.70f to Color.Black.copy(alpha = 0.55f),
+                        1.0f to Color.Black.copy(alpha = 0.78f)
+                    )
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
