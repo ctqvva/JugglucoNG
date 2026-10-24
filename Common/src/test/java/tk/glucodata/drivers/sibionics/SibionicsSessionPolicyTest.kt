@@ -471,6 +471,44 @@ class SibionicsSessionPolicyTest {
     }
 
     @Test
+    fun aPhoneClockJumpDoesNotTurnARepeatedChineseSampleIntoARestart() {
+        // Chinese-protocol times are the phone's receipt time minus the sensor's
+        // backlog, so moving the phone clock an hour forward moves every implied
+        // start with it. Forty minutes into a session the sensor re-serves idx=20.
+        val start = now - 40 * minute
+        val jump = 60 * minute
+        val repeated = SibionicsSessionPolicy.SessionSample(
+            index = 20,
+            eventMs = start + 20 * minute + jump,
+            live = false,
+            sensorLiveIndex = 40,
+        )
+        assertNull(
+            restartedAt(
+                listOf(repeated),
+                knownStartMs = start,
+                knownCursor = 40,
+                lastSeenMs = start + 39 * minute,
+                nowMs = now + jump,
+            ),
+        )
+    }
+
+    @Test
+    fun aChineseSensorWhoseSessionIsShorterThanTheCursorHasRestarted() {
+        // Reset elsewhere 25 minutes after our last sample; the sensor now holds
+        // 30 minutes, fewer than the 26 000 we already received.
+        val newStart = now + 25 * minute
+        val page = (5..29).map {
+            SibionicsSessionPolicy.SessionSample(it, newStart + it * minute, live = false, sensorLiveIndex = 30)
+        }
+        assertEquals(
+            newStart,
+            restartedAt(page, lastSeenMs = now - minute, nowMs = newStart + 30 * minute),
+        )
+    }
+
+    @Test
     fun implausibleSessionStartsAreNotEvidence() {
         // A start in the future, or before 2000 (a clock that never got its sync).
         assertNull(restartedAt(listOf(sample(1, now + 3 * 60 * minute))))
