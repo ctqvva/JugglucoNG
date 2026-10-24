@@ -2938,6 +2938,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="watch_kerfstok_bridge">Kerfstok aktarım köprüsü</string>
     <string name="watch_garmin_status_desc">Bağlantı durumu ve eşleme</string>
     <string name="watch_garmin_enable_hint">Durumu görmek için Kerfstok’u etkinleştirin</string>
+    <string name="watch_help_forwarding">“Glukoz iletimi”, saat ve bileklik uygulamalarının telefon bildiriminden ne alacağını belirler. “Standart Android”: bildirimin her güncellemesinde değer, bu yüzden bazı saatler her seferinde titreşir. “Her yeni değer” ve “Aralıklarla”: her değer bir kez. “Yalnızca alarmlar”: değer yok.</string>
     <string name="watch_help_wearos">Bu uygulamada saat mesaj aktarımını kullanmak için Wear OS’u etkinleştirin.</string>
     <string name="watch_help_config">Bir saat seçmek ve doğrudan sensör yönlendirmesini ayarlamak için Yapılandırma’yı kullanın.</string>
     <string name="watch_help_garmin">Garmin Connect IQ Kerfstok üzerinden çalışır ve ayrı durum denetimlerine sahiptir.</string>
@@ -3019,6 +3020,17 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="medtrum_setup_device_rejected">Bu cihaz bir Medtrum yaması değil. Yamanın yakında olduğundan emin olun ve tekrar deneyin.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
+    <string name="watch_forwarding_section">Telefon bildirimleriyle</string>
+    <string name="watch_forwarding_title">Glukoz iletimi</string>
+    <string name="watch_forwarding_standard">Standart Android</string>
+    <string name="watch_forwarding_alarms_only">Yalnızca alarmlar</string>
+    <string name="watch_forwarding_every_reading">Her yeni değer</string>
+    <string name="watch_forwarding_interval">Aralıklarla</string>
+    <string name="watch_forwarding_interval_title">Aralık</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d dakika</item>
+        <item quantity="other">%d dakika</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Ölçümleri Dexcom Follow\'a gönder</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

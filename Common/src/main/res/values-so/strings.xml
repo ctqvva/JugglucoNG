@@ -3095,6 +3095,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="watch_kerfstok_bridge">Buundada gudbinta Kerfstok</string>
     <string name="watch_garmin_status_desc">Xaaladda xiriirka iyo isku xidhka</string>
     <string name="watch_garmin_enable_hint">Daar Kerfstok si aad u aragto xaaladda</string>
+    <string name="watch_help_forwarding">“U gudbinta gulukooska” waxay go\'aamisaa waxa barnaamijyada saacadaha iyo jijimaha ay ka helaan ogeysiiska taleefanka. “Android caadi ah”: akhriska mar kasta oo ogeysiiska la cusboonaysiiyo, sidaa darteed saacadaha qaar ayaa gariira mar kasta. “Akhris kasta oo cusub” iyo “Muddo kasta”: akhris kasta hal mar. “Digniinaha oo keliya”: akhris ma jiro.</string>
     <string name="watch_help_wearos">Daar Wear OS si aad app-kan ugu isticmaasho gudbinta fariimaha saacadda.</string>
     <string name="watch_help_config">Isticmaal Habaynta si aad u doorato saacad oo aad u dejiso hagidda tooska ah ee dareemaha.</string>
     <string name="watch_help_garmin">Garmin Connect IQ wuxuu ku shaqeeyaa Kerfstok wuxuuna leeyahay xakameyn xaalad oo gaar ah.</string>
@@ -3176,6 +3177,17 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum balastar. Hubi in balastarku uu dhow yahay oo mar kale isku day.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+    <string name="watch_forwarding_section">Iyada oo loo marayo ogeysiisyada taleefanka</string>
+    <string name="watch_forwarding_title">U gudbinta gulukooska</string>
+    <string name="watch_forwarding_standard">Android caadi ah</string>
+    <string name="watch_forwarding_alarms_only">Digniinaha oo keliya</string>
+    <string name="watch_forwarding_every_reading">Akhris kasta oo cusub</string>
+    <string name="watch_forwarding_interval">Muddo kasta</string>
+    <string name="watch_forwarding_interval_title">Muddada</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d daqiiqo</item>
+        <item quantity="other">%d daqiiqo</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">U dir akhrisyada Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

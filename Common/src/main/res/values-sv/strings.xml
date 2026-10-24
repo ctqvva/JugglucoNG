@@ -2910,6 +2910,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok-överföringsbrygga</string>
     <string name="watch_garmin_status_desc">Anslutningsstatus och parkoppling</string>
     <string name="watch_garmin_enable_hint">Aktivera Kerfstok för att se status</string>
+    <string name="watch_help_forwarding">”Vidarebefordra glukos” avgör vad klock- och armbandsappar får från telefonens avisering. ”Standard-Android”: värdet vid varje uppdatering av aviseringen, så vissa klockor vibrerar varje gång. ”Varje nytt värde” och ”Med intervall”: varje värde en gång. ”Endast larm”: inga värden.</string>
     <string name="watch_help_wearos">Aktivera Wear OS för att använda meddelandeöverföring till klockan i den här appen.</string>
     <string name="watch_help_config">Använd Konfiguration för att välja en klocka och ställa in direkt sensordirigering.</string>
     <string name="watch_help_garmin">Garmin Connect IQ går via Kerfstok och har egna statuskontroller.</string>
@@ -2991,6 +2992,17 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Den här enheten är inte ett Medtrum-plåster. Kontrollera att plåstret är inom räckhåll och försök igen.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
+    <string name="watch_forwarding_section">Via telefonaviseringar</string>
+    <string name="watch_forwarding_title">Vidarebefordra glukos</string>
+    <string name="watch_forwarding_standard">Standard-Android</string>
+    <string name="watch_forwarding_alarms_only">Endast larm</string>
+    <string name="watch_forwarding_every_reading">Varje nytt värde</string>
+    <string name="watch_forwarding_interval">Med intervall</string>
+    <string name="watch_forwarding_interval_title">Intervall</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minut</item>
+        <item quantity="other">%d minuter</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Skicka värden till Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

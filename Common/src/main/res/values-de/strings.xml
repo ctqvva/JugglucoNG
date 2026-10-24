@@ -3026,6 +3026,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="watch_kerfstok_bridge">Kerfstok-Übertragungsbrücke</string>
     <string name="watch_garmin_status_desc">Verbindungsstatus und Kopplung</string>
     <string name="watch_garmin_enable_hint">Kerfstok aktivieren, um den Status zu sehen</string>
+    <string name="watch_help_forwarding">„Glukose weiterleiten“ legt fest, was Uhren- und Armband-Apps aus der Telefonbenachrichtigung erhalten. „Standard-Android“: der Wert bei jeder Aktualisierung der Benachrichtigung, daher vibrieren manche Uhren jedes Mal. „Jeder neue Wert“ und „In Intervallen“: jeder Wert einmal. „Nur Alarme“: keine Werte.</string>
     <string name="watch_help_wearos">Aktiviere Wear OS, um die Uhr-Nachrichtenübertragung in dieser App zu nutzen.</string>
     <string name="watch_help_config">Unter Konfiguration eine Uhr auswählen und das direkte Sensor-Routing festlegen.</string>
     <string name="watch_help_garmin">Garmin Connect IQ läuft über Kerfstok und hat eigene Statusfunktionen.</string>
@@ -3107,6 +3108,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Patch. Stellen Sie sicher, dass sich der Patch in Reichweite befindet, und versuchen Sie es erneut.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+    <string name="watch_forwarding_section">Über Telefonbenachrichtigungen</string>
+    <string name="watch_forwarding_title">Glukose weiterleiten</string>
+    <string name="watch_forwarding_standard">Standard-Android</string>
+    <string name="watch_forwarding_alarms_only">Nur Alarme</string>
+    <string name="watch_forwarding_every_reading">Jeder neue Wert</string>
+    <string name="watch_forwarding_interval">In Intervallen</string>
+    <string name="watch_forwarding_interval_title">Intervall</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Werte an Dexcom Follow senden</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

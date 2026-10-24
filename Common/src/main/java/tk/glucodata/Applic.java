@@ -213,18 +213,6 @@ public class Applic extends Application implements androidx.work.Configuration.P
         ;
     }
 
-    public static boolean isWatchNotifyEnabled() {
-        return Notify.alertwatch;
-    }
-
-    public static void setWatchNotifyEnabled(boolean on) {
-        if (app != null) {
-            app.setnotify(on);
-        } else {
-            Notify.alertwatch = on;
-        }
-    }
-
     public void setunit(int unit) {
         if (Applic.unit != unit)
             SuperGattCallback.previousglucosevalue = 0.0f;

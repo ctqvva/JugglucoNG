@@ -2911,6 +2911,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Ponte de transporte Kerfstok</string>
     <string name="watch_garmin_status_desc">Estado da ligação e emparelhamento</string>
     <string name="watch_garmin_enable_hint">Ative o Kerfstok para ver o estado</string>
+    <string name="watch_help_forwarding">“Encaminhamento de glicose” define o que os apps de relógios e pulseiras recebem da notificação do telefone. “Android padrão”: a leitura em cada atualização da notificação, por isso alguns relógios vibram sempre. “Cada nova leitura” e “Em intervalos”: cada leitura uma vez. “Apenas alarmes”: sem leituras.</string>
     <string name="watch_help_wearos">Ative o Wear OS para usar o transporte de mensagens para o relógio nesta app.</string>
     <string name="watch_help_config">Use Configuração para escolher um relógio e definir o encaminhamento direto do sensor.</string>
     <string name="watch_help_garmin">O Garmin Connect IQ funciona através do Kerfstok e tem controlos de estado próprios.</string>
@@ -2992,6 +2993,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Este dispositivo não é um adesivo Medtrum. Verifique se o adesivo está por perto e tente novamente.</string>
 
     <string name="alert_sound_volume">Volume do som de alerta</string>
+    <string name="watch_forwarding_section">Pelas notificações do telefone</string>
+    <string name="watch_forwarding_title">Encaminhamento de glicose</string>
+    <string name="watch_forwarding_standard">Android padrão</string>
+    <string name="watch_forwarding_alarms_only">Apenas alarmes</string>
+    <string name="watch_forwarding_every_reading">Cada nova leitura</string>
+    <string name="watch_forwarding_interval">Em intervalos</string>
+    <string name="watch_forwarding_interval_title">Intervalo</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuto</item>
+        <item quantity="many">%d minutos</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Enviar leituras para o Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

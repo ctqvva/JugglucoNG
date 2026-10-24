@@ -2985,6 +2985,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Транспартны мост Kerfstok</string>
     <string name="watch_garmin_status_desc">Стан злучэння і спалучэнне</string>
     <string name="watch_garmin_enable_hint">Уключыце Kerfstok, каб убачыць стан</string>
+    <string name="watch_help_forwarding">«Перадача паказанняў» вызначае, што праграмы гадзіннікаў і бранзалетаў атрымліваюць з апавяшчэння тэлефона. «Стандартны Android» — паказанне пры кожным абнаўленні апавяшчэння, таму некаторыя гадзіннікі вібруюць кожны раз. «Кожнае новае паказанне» і «З інтэрвалам» — кожнае паказанне адзін раз. «Толькі трывогі» — без паказанняў.</string>
     <string name="watch_help_wearos">Уключыце Wear OS, каб карыстацца перадачай паведамленняў на гадзіннік у гэтай праграме.</string>
     <string name="watch_help_config">Праз «Канфігурацыя» выберыце гадзіннік і наладзьце прамую маршрутызацыю датчыка.</string>
     <string name="watch_help_garmin">Garmin Connect IQ працуе праз Kerfstok і мае асобныя элементы кіравання станам.</string>
@@ -3066,6 +3067,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Гэта прылада не з\'яўляецца патчам Medtrum. Пераканайцеся, што патч побач, і паўтарыце спробу.</string>
 
     <string name="alert_sound_volume">Гучнасць гуку трывогі</string>
+    <string name="watch_forwarding_section">Праз апавяшчэнні тэлефона</string>
+    <string name="watch_forwarding_title">Перадача паказанняў</string>
+    <string name="watch_forwarding_standard">Стандартны Android</string>
+    <string name="watch_forwarding_alarms_only">Толькі трывогі</string>
+    <string name="watch_forwarding_every_reading">Кожнае новае паказанне</string>
+    <string name="watch_forwarding_interval">З інтэрвалам</string>
+    <string name="watch_forwarding_interval_title">Інтэрвал</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d хвіліна</item>
+        <item quantity="few">%d хвіліны</item>
+        <item quantity="many">%d хвілін</item>
+        <item quantity="other">%d хвіліны</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Адпраўляць паказанні ў Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
