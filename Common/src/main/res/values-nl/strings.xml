@@ -535,6 +535,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="failed_to_connect">"Verbinding mislukt met "</string>
     <string name="sensor_not_init">Sensor niet geïnitialiseerd. Gebruik eerst \'Scan Sensor\'.</string>
     <string name="invalid_code_format">Ongeldige code-indeling. Probeer het opnieuw.</string>
+    <string name="ican_full_box_serial_required">Voor activering is het volledige serienummer van 13 tekens op de iCan-verpakking vereist</string>
     <string name="sibionics_code_wrong_type">Dit is een %1$s-code. Ga terug en kies %1$s.</string>
     <string name="sibionics_code_not_for_type">Deze code hoort niet bij %1$s. Ga terug en kies het juiste sensortype.</string>
     <string name="sibionics_serial_wrong_type">Dit serienummer past niet bij %1$s. Ga terug en kies het juiste sensortype.</string>

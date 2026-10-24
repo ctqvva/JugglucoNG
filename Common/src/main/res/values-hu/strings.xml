@@ -915,6 +915,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="failed_to_connect">"Sikertelen csatlakozás ehhez: "</string>
     <string name="sensor_not_init">A szenzor nincs inicializálva. Először használja a \'Szenzor szkennelése\' funkciót.</string>
     <string name="invalid_code_format">Érvénytelen kódformátum. Próbálja újra.</string>
+    <string name="ican_full_box_serial_required">Az aktiváláshoz az iCan dobozán található teljes, 13 karakteres sorozatszám szükséges</string>
     <string name="sibionics_code_wrong_type">Ez %1$s-kód. Lépjen vissza, és válassza ezt: %1$s.</string>
     <string name="sibionics_code_not_for_type">Ez a kód nem ehhez tartozik: %1$s. Lépjen vissza, és válassza a megfelelő szenzortípust.</string>
     <string name="sibionics_serial_wrong_type">Ez a sorozatszám nem ehhez tartozik: %1$s. Lépjen vissza, és válassza a megfelelő szenzortípust.</string>

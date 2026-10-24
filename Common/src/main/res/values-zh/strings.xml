@@ -455,6 +455,7 @@
     <string name="failed_to_connect">无法连接到 </string>
     <string name="sensor_not_init">传感器未初始化。请先使用“扫描传感器”。</string>
     <string name="invalid_code_format">无效的代码格式。请重试。</string>
+    <string name="ican_full_box_serial_required">激活需要 iCan 包装盒上完整的 13 位序列号</string>
     <string name="sibionics_code_wrong_type">这是 %1$s 的代码。请返回并选择 %1$s。</string>
     <string name="sibionics_code_not_for_type">此代码不属于 %1$s。请返回并选择匹配的传感器类型。</string>
     <string name="sibionics_serial_wrong_type">此序列号与 %1$s 不匹配。请返回并选择匹配的传感器类型。</string>

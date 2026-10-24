@@ -403,6 +403,7 @@
     <string name="sensor_lost_restart">Erreur: Capteur perdu. Veuillez recommencer la configuration.</string>
     <string name="failed_to_connect">Échec de connexion à </string>
     <string name="invalid_code_format">Format de code invalide. Veuillez réessayer.</string>
+    <string name="ican_full_box_serial_required">L’activation nécessite le numéro de série complet de 13 caractères figurant sur la boîte iCan</string>
     <string name="sibionics_code_wrong_type">Ce code est un code %1$s. Revenez en arrière et choisissez %1$s.</string>
     <string name="sibionics_code_not_for_type">Ce code n’appartient pas à %1$s. Revenez en arrière et choisissez le type de capteur correspondant.</string>
     <string name="sibionics_serial_wrong_type">Ce numéro de série ne correspond pas à %1$s. Revenez en arrière et choisissez le type de capteur correspondant.</string>

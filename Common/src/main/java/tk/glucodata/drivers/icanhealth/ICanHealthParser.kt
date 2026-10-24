@@ -580,6 +580,25 @@ object ICanHealthParser {
                 data[2] == 0x01.toByte()
     }
 
+    /**
+     * Calibration marker of a sensor-info response (little-endian short), or null when the frame
+     * does not carry one. Fresh, not-yet-provisioned sensors answer `0xFFFF`; after the
+     * correctCode write path runs, the marker changes to a concrete value (the wire order in the
+     * capture `1C F6 01 4E 02` reads 0x024E = 590).
+     */
+    fun parseSensorInfoMarker(data: ByteArray): Int? {
+        if (!isSensorInfoResponse(data) || data.size < 5) return null
+        return ((data[4].toInt() and 0xFF) shl 8) or (data[3].toInt() and 0xFF)
+    }
+
+    /** True when a sensor-info response marks the sensor as missing its vendor calibration. */
+    fun isSensorInfoMissingCalibration(data: ByteArray): Boolean =
+        parseSensorInfoMarker(data) == 0xFFFF
+
+    fun parseCorrectCodeResult(data: ByteArray): Int? =
+        if (data.size >= 3 && data[0] == 0x1c.toByte() && data[1] == 0xf2.toByte())
+            data[2].toInt() and 0xff else null
+
     fun parseRawDeviceSerial(data: ByteArray): String {
         if (data.isEmpty()) return ""
         val printableAscii = data.all { byte ->

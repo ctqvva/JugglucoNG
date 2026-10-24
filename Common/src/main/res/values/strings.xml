@@ -1006,6 +1006,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="failed_to_connect">"Failed to connect to "</string>
     <string name="sensor_not_init">Sensor not initialized. Use \'Scan Sensor\' first.</string>
     <string name="invalid_code_format">Invalid code format. Please try again.</string>
+    <string name="ican_full_box_serial_required">Activation requires the full 13-character serial number from the iCan box</string>
     <string name="sibionics_code_wrong_type">This is a %1$s code. Go back and choose %1$s.</string>
     <string name="sibionics_code_not_for_type">This code does not belong to %1$s. Go back and choose the matching sensor type.</string>
     <string name="sibionics_serial_wrong_type">This serial does not match %1$s. Go back and choose the matching sensor type.</string>

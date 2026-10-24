@@ -523,6 +523,7 @@
     <string name="failed_to_connect">Nie udało się połączyć z </string>
     <string name="sensor_not_init">Sensor nie zainicjowany. Najpierw użyj \'Skanuj Sensor\'.</string>
     <string name="invalid_code_format">Nieprawidłowy format kodu. Spróbuj ponownie.</string>
+    <string name="ican_full_box_serial_required">Do aktywacji wymagany jest pełny, 13-znakowy numer seryjny z opakowania iCan</string>
     <string name="sibionics_code_wrong_type">To jest kod %1$s. Wróć i wybierz %1$s.</string>
     <string name="sibionics_code_not_for_type">Ten kod nie należy do %1$s. Wróć i wybierz odpowiedni typ sensora.</string>
     <string name="sibionics_serial_wrong_type">Ten numer seryjny nie pasuje do %1$s. Wróć i wybierz odpowiedni typ sensora.</string>

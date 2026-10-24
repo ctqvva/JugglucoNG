@@ -390,6 +390,7 @@
     <string name="failed_to_connect">Не атрымалася падлучыцца да </string>
     <string name="sensor_not_init">Сэнсар не ініцыялізаваны. Спачатку выкарыстоўвайце \'Сканаваць Сэнсар\'."</string>
     <string name="invalid_code_format">Няправільны фармат кода. Паспрабуйце зноў.</string>
+    <string name="ican_full_box_serial_required">Для актывацыі патрэбны поўны серыйны нумар з 13 сімвалаў з упакоўкі iCan</string>
     <string name="sibionics_code_wrong_type">Гэта код %1$s. Вярніцеся і выберыце %1$s.</string>
     <string name="sibionics_code_not_for_type">Гэты код не належыць %1$s. Вярніцеся і выберыце адпаведны тып датчыка.</string>
     <string name="sibionics_serial_wrong_type">Гэты серыйны нумар не адпавядае %1$s. Вярніцеся і выберыце адпаведны тып датчыка.</string>

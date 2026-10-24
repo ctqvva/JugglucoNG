@@ -500,6 +500,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="failed_to_connect">Bağlantı kurulamadı: </string>
     <string name="sensor_not_init">Sensör başlatılmadı. Önce \'Sensörü Tara\'yı kullanın.</string>
     <string name="invalid_code_format">Geçersiz kod formatı. Tekrar deneyin.</string>
+    <string name="ican_full_box_serial_required">Etkinleştirme için iCan kutusundaki 13 karakterli tam seri numarası gereklidir</string>
     <string name="sibionics_code_wrong_type">Bu bir %1$s kodu. Geri dönüp %1$s seçin.</string>
     <string name="sibionics_code_not_for_type">Bu kod %1$s ile eşleşmiyor. Geri dönüp uygun sensör türünü seçin.</string>
     <string name="sibionics_serial_wrong_type">Bu seri numarası %1$s ile eşleşmiyor. Geri dönüp uygun sensör türünü seçin.</string>

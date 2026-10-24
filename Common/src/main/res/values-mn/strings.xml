@@ -882,6 +882,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="failed_to_connect">"Холбогдож чадсангүй: "</string>
     <string name="sensor_not_init">Мэдрэгч эхлээгүй байна. Эхлээд Мэдрэгч уншуулах-ыг ашиглана уу.</string>
     <string name="invalid_code_format">Кодын формат буруу байна. Дахин оролдоно уу.</string>
+    <string name="ican_full_box_serial_required">Идэвхжүүлэхийн тулд iCan хайрцаг дээрх 13 тэмдэгттэй бүтэн серийн дугаар шаардлагатай</string>
     <string name="sibionics_code_wrong_type">Энэ бол %1$s код. Буцаж очоод %1$s-г сонгоно уу.</string>
     <string name="sibionics_code_not_for_type">Энэ код %1$s-д хамаарахгүй. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="sibionics_serial_wrong_type">Энэ сериал дугаар %1$s-тай тохирохгүй байна. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>

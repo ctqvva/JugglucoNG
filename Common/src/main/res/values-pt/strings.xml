@@ -348,6 +348,7 @@
     <string name="failed_to_connect">Falha ao conectar a </string>
     <string name="sensor_not_init">Sensor não inicializado. Use \'Escanear Sensor\' primeiro.</string>
     <string name="invalid_code_format">Formato de código inválido. Tente novamente.</string>
+    <string name="ican_full_box_serial_required">A ativação requer o número de série completo de 13 caracteres da embalagem iCan</string>
     <string name="sibionics_code_wrong_type">Este é um código %1$s. Volte e escolha %1$s.</string>
     <string name="sibionics_code_not_for_type">Este código não pertence a %1$s. Volte e escolha o tipo de sensor correspondente.</string>
     <string name="sibionics_serial_wrong_type">Este número de série não corresponde a %1$s. Volte e escolha o tipo de sensor correspondente.</string>

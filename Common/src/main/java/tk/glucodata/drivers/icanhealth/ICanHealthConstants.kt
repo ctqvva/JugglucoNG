@@ -48,6 +48,15 @@ object ICanHealthConstants {
     const val DEFAULT_OLD_AUTH_AES_KEY_ASCII = "92AFQU*u9c695826"
     const val DEFAULT_NEW_AUTH_AES_KEY_ASCII = "px@9k5K*23cV%YDc"
     const val DEFAULT_GLUCOSE_AES_KEY_ASCII = DEFAULT_OLD_GLUCOSE_AES_KEY_ASCII
+
+    /**
+     * correctCode (calibration parameter) chunk key: AES-128-ECB per `[F2 10]` write.
+     * Recovered from the vendor packer VM's own memory (arena diff between two encode
+     * runs, 2026-10-22). Challenge-independent constant, like the bundled keys above;
+     * validated by re-encoding two device sessions and 69 sweep lines byte-for-byte
+     * (docs/superpowers/plans/2026-10-19-ican-calibration-plan.md §7.8).
+     */
+    const val DEFAULT_CORRECT_CODE_AES_KEY_ASCII = "e4c\$E9gSvZv&c*65"
     const val DEFAULT_AUTH_USER_ID = ""
     // Late-life iCan firmware freezes its CGM-status offset at exactly 28 days
     // (see LAUNCHER_ENDED_STATUS_SEQUENCE_CAP_MINUTES below) — observed end-of-life
@@ -851,4 +860,23 @@ object ICanHealthConstants {
 
     /** Preference key prefix for the repair generation already applied to a given iCan sensor */
     const val PREF_HISTORY_TZ_REPAIR_PREFIX = "icanhealth_history_tz_repair_"
+
+    /**
+     * Preference key prefix holding the vendor `parameterCode` (correctCode) JSON fetched from
+     * the vendor iot cloud, keyed by the short box serial. Written and read by
+     * [tk.glucodata.drivers.icanhealth.ICanHealthCloudCode] and consumed by the F7/F2 write path.
+     */
+    const val PREF_CGM_CODE_PREFIX = "icanhealth_cgm_code_"
+
+    /**
+     * Per-install vendor iot-cloud credentials ([tk.glucodata.drivers.icanhealth.ICanCloudCreds]).
+     * These override `<filesDir>/ican-cloud-creds.json` and the bundled vendor SDK pair.
+     */
+    const val PREF_CLOUD_APP_ID = "icanhealth_cloud_app_id"
+
+    /** @see PREF_CLOUD_APP_ID */
+    const val PREF_CLOUD_APP_SECRET = "icanhealth_cloud_app_secret"
+
+    /** @see PREF_CLOUD_APP_ID */
+    const val PREF_CLOUD_BASE_URL = "icanhealth_cloud_base_url"
 }

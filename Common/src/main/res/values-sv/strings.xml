@@ -448,6 +448,7 @@
     <string name="failed_to_connect">Misslyckades att ansluta till </string>
     <string name="sensor_not_init">Sensor inte initierad. Använd \'Skanna Sensor\' först.</string>
     <string name="invalid_code_format">Ogiltigt kodformat. Försök igen.</string>
+    <string name="ican_full_box_serial_required">Aktivering kräver det fullständiga serienumret med 13 tecken från iCan-förpackningen</string>
     <string name="sibionics_code_wrong_type">Detta är en %1$s-kod. Gå tillbaka och välj %1$s.</string>
     <string name="sibionics_code_not_for_type">Den här koden hör inte till %1$s. Gå tillbaka och välj rätt sensortyp.</string>
     <string name="sibionics_serial_wrong_type">Det här serienumret stämmer inte med %1$s. Gå tillbaka och välj rätt sensortyp.</string>

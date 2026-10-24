@@ -546,6 +546,7 @@
     <string name="failed_to_connect">Не удалось подключиться к </string>
     <string name="sensor_not_init">Сенсор не инициализирован. Сначала используйте \'Сканировать Сенсор\'.</string>
     <string name="invalid_code_format">Неверный формат кода. Попробуйте снова.</string>
+    <string name="ican_full_box_serial_required">Для активации нужен полный серийный номер из 13 символов с коробки iCan</string>
     <string name="sibionics_code_wrong_type">Это код %1$s. Вернитесь и выберите %1$s.</string>
     <string name="sibionics_code_not_for_type">Этот код не относится к %1$s. Вернитесь и выберите подходящий тип датчика.</string>
     <string name="sibionics_serial_wrong_type">Этот серийный номер не соответствует %1$s. Вернитесь и выберите подходящий тип датчика.</string>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ican_cloud_unavailable_title">iCan calibration server unreachable</string>
+    <string name="ican_cloud_unavailable_channel">iCan calibration cloud status</string>
+    <string name="ican_calibration_pending">The sensor\'s per-sensor calibration could not be fetched (no network or vendor cloud unreachable). The sensor keeps its current calibration; readings may be inaccurate until a connection succeeds and the sensor is reconnected.</string>
+</resources>

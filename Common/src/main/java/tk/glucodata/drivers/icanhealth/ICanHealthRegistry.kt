@@ -72,6 +72,17 @@ object ICanHealthRegistry {
     }
 
     @JvmStatic
+    fun isDeviceSnRegistered(context: Context?, sn: String?): Boolean {
+        if (context == null) return false
+        val normalized = ICanHealthConstants.normalizeOnboardingDeviceSn(sn)
+        if (normalized.isEmpty()) return false
+        return readRecords(context).any { record ->
+            val stored = prefs(context).getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}${record.sensorId}", null)
+            ICanHealthConstants.normalizeOnboardingDeviceSn(stored) == normalized
+        }
+    }
+
+    @JvmStatic
     fun resolveCanonicalSensorId(context: Context?, sensorId: String?): String? {
         return findRecord(context, sensorId)?.sensorId
     }
@@ -220,7 +231,8 @@ object ICanHealthRegistry {
         if (canonicalId.isBlank()) {
             return
         }
-        prefs(context).edit()
+        val prefs = prefs(context)
+        val editor = prefs.edit()
             .remove("${ICanHealthConstants.PREF_AES_KEY_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_AUTH_USER_ID_PREFIX}$canonicalId")
@@ -228,7 +240,14 @@ object ICanHealthRegistry {
             .remove("${ICanHealthConstants.PREF_AUTH_BYPASS_UNTIL_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_SEQUENCE_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_TIMESTAMP_PREFIX}$canonicalId")
-            .commit()
+        // The vendor code cache is keyed by the short box serial, not the sensor id.
+        val storedDeviceSn = prefs.getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}$canonicalId", null)
+        val normalizedStoredSn = ICanHealthConstants.normalizeOnboardingDeviceSn(storedDeviceSn)
+        if (normalizedStoredSn.isNotEmpty()) {
+            editor.remove("${ICanHealthConstants.PREF_CGM_CODE_PREFIX}$normalizedStoredSn")
+            ICanHealthCloudCode.cancelRetry(normalizedStoredSn)
+        }
+        editor.commit()
     }
 
     @JvmStatic

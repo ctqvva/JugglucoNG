@@ -962,6 +962,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="failed_to_connect">"waa ku guuldareystay in lagu xiro"</string>
     <string name="sensor_not_init">Dareemaha lama bilaabin Isticmaal \'Scan Sensor\' marka hore.</string>
     <string name="invalid_code_format">Qaab kood aan sax ahayn Fadlan isku day mar kale</string>
+    <string name="ican_full_box_serial_required">Hawlgelintu waxay u baahan tahay lambarka taxanaha oo dhammaystiran ee 13 xaraf ah ee ku qoran sanduuqa iCan</string>
     <string name="sibionics_code_wrong_type">Kani waa kood %1$s. Dib u noqo oo dooro %1$s.</string>
     <string name="sibionics_code_not_for_type">Koodkan kuma eka %1$s. Dib u noqo oo dooro nooca dareemaha ku habboon.</string>
     <string name="sibionics_serial_wrong_type">Lambarkan taxanaha lama mid aha %1$s. Dib u noqo oo dooro nooca dareemaha ku habboon.</string>
