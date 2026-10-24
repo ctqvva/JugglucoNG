@@ -2164,8 +2164,9 @@ fun DashboardScreen(
                             suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl
                         )
                     },
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                    horizontalAlignment = Alignment.End
+                    // The centre trough keeps the FAB clear of timestamps and glucose values.
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 )
             }
         }

@@ -509,7 +509,7 @@ fun BoxScope.JournalExpandableFab(
                     onExpandedChange(it)
                 },
                 containerColor = ToggleFloatingActionButtonDefaults.containerColor(
-                    initialColor = MaterialTheme.colorScheme.primary,
+                    initialColor = MaterialTheme.colorScheme.primaryContainer,
                     finalColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 ),
                 modifier = Modifier
@@ -568,7 +568,7 @@ fun BoxScope.JournalExpandableFab(
                     modifier = Modifier.animateIcon(
                         checkedProgress = { checkedProgress },
                         color = ToggleFloatingActionButtonDefaults.iconColor(
-                            initialColor = MaterialTheme.colorScheme.onPrimary,
+                            initialColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             finalColor = MaterialTheme.colorScheme.onSurface
                         )
                     )
