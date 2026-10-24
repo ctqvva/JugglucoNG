@@ -4550,11 +4550,15 @@ class AnytimeBleManager(
                 temperatureC,
                 name,
             )
-            if (stored) {
-                NightscoutUploadWake.afterLiveNativeWrite("anytime", sampleMs)
-            }
             if (dataptr == 0L) {
                 dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
+            }
+            if (stored) {
+                NightscoutUploadWake.afterLiveNativeWrite("anytime", sampleMs)
+                // Managed Anytime readings bypass handleGlucoseResult(), where the
+                // legacy sensor path normally exports to Health Connect. Reuse the
+                // same native cursor immediately after a successful local write.
+                exportToHealthConnect()
             }
         }.onFailure { Log.stack(TAG, "mirrorReadingIntoNative", it) }
     }
@@ -4602,14 +4606,18 @@ class AnytimeBleManager(
             }
             val stored =
                 Natives.addGlucoseStreamBatchWithRawTemp(timestamps, values, raws, temperatures, name)
+            if (dataptr == 0L) {
+                dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
+            }
             if (stored > 0) {
                 NightscoutUploadWake.afterLiveNativeWrite(
                     "anytime-history",
                     valid.maxOf { it.reading.timestampMs },
                 )
-            }
-            if (dataptr == 0L) {
-                dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
+                // One export trigger per accepted history batch. HealthConnection
+                // advances its native cursor, so this does not introduce polling or
+                // per-record Health Connect work.
+                exportToHealthConnect()
             }
         }.onFailure { Log.stack(TAG, "mirrorHistoryBatchIntoNative", it) }
     }
