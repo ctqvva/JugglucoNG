@@ -515,13 +515,7 @@ fun JournalEntrySheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = stringResource(
-                                when (draft.type) {
-                                    JournalEntryType.FINGERSTICK -> R.string.journal_type_bg_short
-                                    JournalEntryType.CARBS -> R.string.journal_type_food
-                                    else -> draft.type.labelRes()
-                                }
-                            ),
+                            text = draft.type.journalActionLabel(),
                             style = MaterialTheme.typography.headlineSmallEmphasized
                         )
                         existingEntry?.source?.presentation()?.let { source ->
