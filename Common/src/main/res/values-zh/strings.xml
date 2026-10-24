@@ -3029,4 +3029,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">登录已被阻止——请检查账户和密码</string>
     <string name="dexcom_share_credentials_required">请先输入账户和密码</string>
     <string name="dexcom_share_warning">非官方接口：Dexcom 可能随时更改或封锁它。这不是医疗器械功能。</string>
+    <string name="journal_food_from_label">从食品标签添加</string>
+    <string name="journal_food_name">名称</string>
+    <string name="journal_food_carbs_per_100g">每 100 克碳水</string>
+    <string name="journal_food_weight">重量</string>
+    <string name="journal_food_servings">份数</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s 克碳水</string>
+    <string name="journal_meal_total">合计</string>
 </resources>

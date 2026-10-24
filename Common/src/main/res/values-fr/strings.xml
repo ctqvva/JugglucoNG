@@ -3020,4 +3020,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Connexion bloquée — vérifiez le compte et le mot de passe</string>
     <string name="dexcom_share_credentials_required">Saisissez d\'abord le compte et le mot de passe</string>
     <string name="dexcom_share_warning">Interface non officielle : Dexcom peut la modifier ou la bloquer à tout moment. Ce n\'est pas une fonction de dispositif médical.</string>
+    <string name="journal_food_from_label">Ajouter depuis l\'étiquette</string>
+    <string name="journal_food_name">Nom</string>
+    <string name="journal_food_carbs_per_100g">Glucides pour 100 g</string>
+    <string name="journal_food_weight">Poids</string>
+    <string name="journal_food_servings">Portions</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g de glucides</string>
+    <string name="journal_meal_total">Total</string>
 </resources>

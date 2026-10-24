@@ -3056,4 +3056,12 @@
     <string name="dexcom_share_auth_blocked">Logowanie zablokowane — sprawdź konto i hasło</string>
     <string name="dexcom_share_credentials_required">Najpierw wpisz konto i hasło</string>
     <string name="dexcom_share_warning">Nieoficjalny interfejs: Dexcom może go w każdej chwili zmienić lub zablokować. To nie jest funkcja wyrobu medycznego.</string>
+    <string name="journal_food_from_label">Dodaj z etykiety</string>
+    <string name="journal_food_name">Nazwa</string>
+    <string name="journal_food_carbs_per_100g">Węglowodany na 100 g</string>
+    <string name="journal_food_weight">Waga</string>
+    <string name="journal_food_servings">Porcje</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g węglowodanów</string>
+    <string name="journal_meal_total">Razem</string>
 </resources>
