@@ -2082,10 +2082,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Ainda sem leituras API</string>
     <string name="api_source_status_sync_failed">Falha ao sincronizar fonte API</string>
     <string name="outbound_api_preset_sheet_title">Escolher predefinição de destino</string>
-    <string name="outbound_api_preset_custom_json_desc">Envia JSON de glicose normalizado por POST para qualquer endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Envia texto pela Telegram Bot API. O URL pode apontar para um relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Envia texto GV compacto por mensagens de comunidade VK.</string>
-    <string name="outbound_api_preset_vk_desc">Envia texto legível de glicose por mensagens de comunidade VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Envia JSON de glicose normalizado por POST para qualquer endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Envia texto pela Telegram Bot API. O URL pode apontar para um relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Envia texto GV compacto por mensagens de comunidade VK</string>
+    <string name="outbound_api_preset_vk_desc">Envia texto legível de glicose por mensagens de comunidade VK</string>
     <string name="outbound_api_change_preset">Alterar</string>
     <string name="outbound_api_telegram_recipient_help">Use um chat ID numérico ou @nome_do_canal. A pessoa deve iniciar o bot primeiro.</string>
     <string name="outbound_api_vk_recipient_help">Use IDs numéricos de usuário ou peer VK. Cada destinatário deve escrever primeiro à comunidade.</string>
@@ -2493,7 +2493,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importe um ficheiro de credenciais para continuar sem a nuvem — a leitura do QR apenas preenche o código do sensor e o NFC apenas o ativa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS de emergência</string>
-    <string name="outbound_api_preset_sms_desc">Envia mensagem quando um alarme fica sem resposta, um valor fica crítico ou a ligação de dados cai.</string>
+    <string name="outbound_api_preset_sms_desc">Envia mensagem quando um alarme fica sem resposta, um valor fica crítico ou a ligação de dados cai</string>
     <string name="sms_section_who">De quem se trata</string>
     <string name="sms_subject_name">Nome</string>
     <string name="sms_subject_name_help">Fica no início de cada mensagem, por exemplo “Mia: alarme BAIXO sem resposta”.</string>

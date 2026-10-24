@@ -2528,10 +2528,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="api_source_status_no_readings">Még nincs API-mérés</string>
     <string name="api_source_status_sync_failed">API-forrás szinkronizálása sikertelen</string>
     <string name="outbound_api_preset_sheet_title">Cél-előbeállítás kiválasztása</string>
-    <string name="outbound_api_preset_custom_json_desc">Normalizált glükóz JSON küldése bármely végpontra POST-tal.</string>
-    <string name="outbound_api_preset_telegram_desc">Szöveg küldése a Telegram Bot API használatával. Az URL közvetítőre is mutathat.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Tömör GV-szöveg küldése VK-közösségi üzeneteken keresztül.</string>
-    <string name="outbound_api_preset_vk_desc">Olvasható glükózszöveg küldése VK-közösségi üzeneteken keresztül.</string>
+    <string name="outbound_api_preset_custom_json_desc">Normalizált glükóz JSON küldése bármely végpontra POST-tal</string>
+    <string name="outbound_api_preset_telegram_desc">Szöveg küldése a Telegram Bot API használatával. Az URL közvetítőre is mutathat</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Tömör GV-szöveg küldése VK-közösségi üzeneteken keresztül</string>
+    <string name="outbound_api_preset_vk_desc">Olvasható glükózszöveg küldése VK-közösségi üzeneteken keresztül</string>
     <string name="outbound_api_change_preset">Módosítás</string>
     <string name="outbound_api_telegram_recipient_help">Számszerű csevegésazonosító vagy @channel felhasználónév használható. Személyes címzettnek előbb el kell indítania a botot.</string>
     <string name="outbound_api_vk_recipient_help">Számszerű VK-felhasználó- vagy partnerazonosítók használhatók. Minden címzettnek előbb üzenetet kell küldenie a közösségnek.</string>
@@ -2584,7 +2584,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sensor_handover_multiple_text">A szenzor lejárt, de több utódszenzor is aktív. Az automatikus váltás kimaradt; kérjük, váltson kézzel.</string>
     <string name="sensor_handover_successor_ready">Az utódszenzor készen áll; az automatikus váltás a lejáratkor történik</string>
     <string name="outbound_api_preset_sms">Vészhelyzeti SMS</string>
-    <string name="outbound_api_preset_sms_desc">SMS küldése, ha egy riasztás nyugtázatlan marad, egy érték kritikussá válik, vagy megszakad az adatkapcsolat.</string>
+    <string name="outbound_api_preset_sms_desc">SMS küldése, ha egy riasztás nyugtázatlan marad, egy érték kritikussá válik, vagy megszakad az adatkapcsolat</string>
     <string name="sms_section_who">Érintett személy</string>
     <string name="sms_subject_name">Név</string>
     <string name="sms_subject_name_help">Minden üzenet elejére kerül, például: „Mia: ALACSONY érték riasztása nyugtázatlan”.</string>

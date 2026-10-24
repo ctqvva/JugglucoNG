@@ -2674,10 +2674,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">No API readings yet</string>
     <string name="api_source_status_sync_failed">API source sync failed</string>
     <string name="outbound_api_preset_sheet_title">Choose destination preset</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages.</string>
-    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages</string>
+    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages</string>
     <string name="outbound_api_change_preset">Change</string>
     <string name="outbound_api_telegram_recipient_help">Use a numeric chat ID or @channel username. A person must start the bot first.</string>
     <string name="outbound_api_vk_recipient_help">Use numeric VK user or peer IDs. Each recipient must message the community first.</string>
@@ -2731,7 +2731,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_successor_ready">Successor sensor is ready; automatic handover takes over at expiry</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Emergency SMS</string>
-    <string name="outbound_api_preset_sms_desc">Text people when an alarm goes unanswered, a value turns critical, or the data connection drops.</string>
+    <string name="outbound_api_preset_sms_desc">Text people when an alarm goes unanswered, a value turns critical, or the data connection drops</string>
     <string name="sms_section_who">Who this is about</string>
     <string name="sms_subject_name">Name</string>
     <string name="sms_subject_name_help">Put at the start of every message, for example “Mia: LOW alarm unanswered”.</string>

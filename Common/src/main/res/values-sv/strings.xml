@@ -2081,10 +2081,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Inga API-värden ännu</string>
     <string name="api_source_status_sync_failed">Synk av API-källa misslyckades</string>
     <string name="outbound_api_preset_sheet_title">Välj destinationspreset</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normaliserad glukos-JSON till valfri endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Skickar text via Telegram Bot API. URL:en kan peka på en relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Skickar kompakt GV-text via VK-communitymeddelanden.</string>
-    <string name="outbound_api_preset_vk_desc">Skickar läsbar glukostext via VK-communitymeddelanden.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normaliserad glukos-JSON till valfri endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Skickar text via Telegram Bot API. URL:en kan peka på en relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Skickar kompakt GV-text via VK-communitymeddelanden</string>
+    <string name="outbound_api_preset_vk_desc">Skickar läsbar glukostext via VK-communitymeddelanden</string>
     <string name="outbound_api_change_preset">Ändra</string>
     <string name="outbound_api_telegram_recipient_help">Använd numeriskt chat-ID eller @kanalnamn. En person måste starta boten först.</string>
     <string name="outbound_api_vk_recipient_help">Använd numeriska VK-användar- eller peer-ID:n. Varje mottagare måste skriva till communityn först.</string>
@@ -2492,7 +2492,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nöd-SMS</string>
-    <string name="outbound_api_preset_sms_desc">Skicka meddelande när ett larm förblir obesvarat, ett värde blir kritiskt eller dataanslutningen försvinner.</string>
+    <string name="outbound_api_preset_sms_desc">Skicka meddelande när ett larm förblir obesvarat, ett värde blir kritiskt eller dataanslutningen försvinner</string>
     <string name="sms_section_who">Vem det gäller</string>
     <string name="sms_subject_name">Namn</string>
     <string name="sms_subject_name_help">Placeras först i varje meddelande, till exempel ”Mia: larm LÅG obesvarat”.</string>

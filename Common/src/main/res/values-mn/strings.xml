@@ -2106,10 +2106,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="api_source_status_no_readings">API уншилт хараахан алга</string>``
     <string name="api_source_status_sync_failed">API эх үүсвэрийн синк амжилтгүй</string>
     <string name="outbound_api_preset_sheet_title">Очих газрын бэлэн тохиргоо сонгох</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages.</string>
-    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages</string>
+    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages</string>
     <string name="outbound_api_change_preset">Өөрчлөх</string>
     <string name="outbound_api_telegram_recipient_help">Use a numeric chat ID or @channel username. A person must start the bot first.</string>
     <string name="outbound_api_vk_recipient_help">Use numeric VK user or peer IDs. Each recipient must message the community first.</string>
@@ -2599,7 +2599,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Яаралтай SMS</string>
-    <string name="outbound_api_preset_sms_desc">Дохиололд хариу өгөөгүй, утга эгзэгтэй болсон эсвэл дата холболт тасарсан үед хүмүүст мессеж илгээнэ.</string>
+    <string name="outbound_api_preset_sms_desc">Дохиололд хариу өгөөгүй, утга эгзэгтэй болсон эсвэл дата холболт тасарсан үед хүмүүст мессеж илгээнэ</string>
     <string name="sms_section_who">Хэний тухай</string>
     <string name="sms_subject_name">Нэр</string>
     <string name="sms_subject_name_help">Мессеж бүрийн эхэнд тавигдана, жишээ нь «Миа: БАГА дохиололд хариу алга».</string>

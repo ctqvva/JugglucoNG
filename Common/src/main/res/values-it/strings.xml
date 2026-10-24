@@ -2071,10 +2071,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Ancora nessuna lettura API</string>
     <string name="api_source_status_sync_failed">Sincronizzazione sorgente API non riuscita</string>
     <string name="outbound_api_preset_sheet_title">Scegli preset destinazione</string>
-    <string name="outbound_api_preset_custom_json_desc">Invia JSON glicemia normalizzato con POST a qualsiasi endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Invia testo con Telegram Bot API. L’URL può puntare a un relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Invia testo GV compatto tramite messaggi community VK.</string>
-    <string name="outbound_api_preset_vk_desc">Invia testo glicemia leggibile tramite messaggi community VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Invia JSON glicemia normalizzato con POST a qualsiasi endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Invia testo con Telegram Bot API. L’URL può puntare a un relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Invia testo GV compatto tramite messaggi community VK</string>
+    <string name="outbound_api_preset_vk_desc">Invia testo glicemia leggibile tramite messaggi community VK</string>
     <string name="outbound_api_change_preset">Cambia</string>
     <string name="outbound_api_telegram_recipient_help">Usa un chat ID numerico o @nome_canale. La persona deve avviare prima il bot.</string>
     <string name="outbound_api_vk_recipient_help">Usa ID utente o peer VK numerici. Ogni destinatario deve prima scrivere alla community.</string>
@@ -2482,7 +2482,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importa un file di credenziali per continuare senza cloud: la scansione QR inserisce solo il codice del sensore e l’NFC si limita a riattivarlo.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS di emergenza</string>
-    <string name="outbound_api_preset_sms_desc">Invia un messaggio quando un allarme resta senza risposta, un valore diventa critico o cade la connessione dati.</string>
+    <string name="outbound_api_preset_sms_desc">Invia un messaggio quando un allarme resta senza risposta, un valore diventa critico o cade la connessione dati</string>
     <string name="sms_section_who">Di chi si tratta</string>
     <string name="sms_subject_name">Nome</string>
     <string name="sms_subject_name_help">Va all\'inizio di ogni messaggio, ad esempio «Mia: allarme BASSO senza risposta».</string>

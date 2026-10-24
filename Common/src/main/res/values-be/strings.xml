@@ -2152,10 +2152,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Паказанняў API пакуль няма</string>
     <string name="api_source_status_sync_failed">Збой сінхранізацыі крыніцы API</string>
     <string name="outbound_api_preset_sheet_title">Выберыце пресет прызначэння</string>
-    <string name="outbound_api_preset_custom_json_desc">POST нармалізаванага JSON глюкозы на любы endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Адпраўка тэксту праз Telegram Bot API. URL можна замяніць на relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Адпраўка кампактнага тэксту GV праз паведамленні суполкі VK.</string>
-    <string name="outbound_api_preset_vk_desc">Адпраўка чытальнага тэксту глюкозы праз паведамленні суполкі VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST нармалізаванага JSON глюкозы на любы endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Адпраўка тэксту праз Telegram Bot API. URL можна замяніць на relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Адпраўка кампактнага тэксту GV праз паведамленні суполкі VK</string>
+    <string name="outbound_api_preset_vk_desc">Адпраўка чытальнага тэксту глюкозы праз паведамленні суполкі VK</string>
     <string name="outbound_api_change_preset">Змяніць</string>
     <string name="outbound_api_telegram_recipient_help">Выкарыстоўвайце лікавы chat ID або @назву_канала. Чалавек мусіць спачатку напісаць боту.</string>
     <string name="outbound_api_vk_recipient_help">Выкарыстоўвайце лікавыя ID карыстальнікаў або peer ID VK. Кожны атрымальнік мусіць спачатку напісаць суполцы.</string>
@@ -2559,7 +2559,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Імпартуйце файл уліковых даных, каб працягнуць без воблака — QR-код толькі запаўняе код датчыка, а NFC толькі абуджае яго.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Экстранныя SMS</string>
-    <string name="outbound_api_preset_sms_desc">Дасылаць паведамленні людзям, калі трывога засталася без адказу, значэнне стала крытычным або знікла перадача даных.</string>
+    <string name="outbound_api_preset_sms_desc">Дасылаць паведамленні людзям, калі трывога засталася без адказу, значэнне стала крытычным або знікла перадача даных</string>
     <string name="sms_section_who">Пра каго гаворка</string>
     <string name="sms_subject_name">Імя</string>
     <string name="sms_subject_name_help">Дадаецца ў пачатак кожнага паведамлення, напрыклад «Мія: трывога НІЗКІ без адказу».</string>

@@ -2116,10 +2116,10 @@
     <string name="api_source_status_no_readings">Brak jeszcze odczytów API</string>
     <string name="api_source_status_sync_failed">Synchronizacja źródła API nie powiodła się</string>
     <string name="outbound_api_preset_sheet_title">Wybierz preset miejsca docelowego</string>
-    <string name="outbound_api_preset_custom_json_desc">Wysyła znormalizowany JSON glukozy metodą POST do dowolnego endpointu.</string>
-    <string name="outbound_api_preset_telegram_desc">Wysyła tekst przez Telegram Bot API. URL może wskazywać relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Wysyła kompaktowy tekst GV przez wiadomości społeczności VK.</string>
-    <string name="outbound_api_preset_vk_desc">Wysyła czytelny tekst glukozy przez wiadomości społeczności VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Wysyła znormalizowany JSON glukozy metodą POST do dowolnego endpointu</string>
+    <string name="outbound_api_preset_telegram_desc">Wysyła tekst przez Telegram Bot API. URL może wskazywać relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Wysyła kompaktowy tekst GV przez wiadomości społeczności VK</string>
+    <string name="outbound_api_preset_vk_desc">Wysyła czytelny tekst glukozy przez wiadomości społeczności VK</string>
     <string name="outbound_api_change_preset">Zmień</string>
     <string name="outbound_api_telegram_recipient_help">Użyj numerycznego chat ID lub @nazwy_kanału. Osoba musi najpierw uruchomić bota.</string>
     <string name="outbound_api_vk_recipient_help">Użyj numerycznych ID użytkowników lub peer ID VK. Każdy odbiorca musi najpierw napisać do społeczności.</string>
@@ -2526,7 +2526,7 @@
     <string name="ottai_cloud_offline_routes">Zaimportuj plik danych logowania, aby kontynuować bez chmury — skan QR tylko uzupełnia kod sensora, a NFC jedynie go wybudza.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS alarmowy</string>
-    <string name="outbound_api_preset_sms_desc">Wyślij wiadomość, gdy alarm pozostaje bez reakcji, wartość staje się krytyczna albo zanika transmisja danych.</string>
+    <string name="outbound_api_preset_sms_desc">Wyślij wiadomość, gdy alarm pozostaje bez reakcji, wartość staje się krytyczna albo zanika transmisja danych</string>
     <string name="sms_section_who">Kogo dotyczy</string>
     <string name="sms_subject_name">Imię</string>
     <string name="sms_subject_name_help">Trafia na początek każdej wiadomości, na przykład „Mia: alarm NISKI bez reakcji”.</string>

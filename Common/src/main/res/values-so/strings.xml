@@ -2388,10 +2388,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="api_source_status_no_readings">Wax akhrinta API wali ma jiro</string>
     <string name="api_source_status_sync_failed">Isku xidhka isha API wuu fashilmay</string>
     <string name="outbound_api_preset_sheet_title">Dooro meel u dejisan</string>
-    <string name="outbound_api_preset_custom_json_desc">Ku dhaji gulukoosta caadiga ah ee JSON meel kasta oo dhamaadka ah.</string>
+    <string name="outbound_api_preset_custom_json_desc">Ku dhaji gulukoosta caadiga ah ee JSON meel kasta oo dhamaadka ah</string>
     <string name="outbound_api_preset_telegram_desc">Ku dir qoraalka Telegram Bot API. URL wuxuu tilmaami karaa gudbinta</string>
     <string name="outbound_api_preset_gluco_watch_vk_desc">U dir qoraal GV kooban fariimaha bulshada VK</string>
-    <string name="outbound_api_preset_vk_desc">U dir qoraal gulukoos la akhriyi karo fariimaha bulshada VK.</string>
+    <string name="outbound_api_preset_vk_desc">U dir qoraal gulukoos la akhriyi karo fariimaha bulshada VK</string>
     <string name="outbound_api_change_preset">Beddel</string>
     <string name="outbound_api_telegram_recipient_help">Isticmaal aqoonsiga wada sheekaysiga nambarka ah ama @channel name user. Qofku waa inuu marka hore bilaabo bot-ka.</string>
     <string name="outbound_api_vk_recipient_help">Isticmaal isticmaale VK-ga ama aqoonsiga asaaga ah. Qof kastaa waa inuu marka hore fariin u diraa bulshada.</string>
@@ -2683,7 +2683,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_cloud_offline_routes">Soo deji faylka aqoonsiyada si aad u sii waddo adigoon daruurta isticmaalin — iskaanka QR wuxuu keliya buuxiyaa koodhka dareemaha, NFC-na keliya ayuu kiciyaa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS degdeg ah</string>
-    <string name="outbound_api_preset_sms_desc">U dir dad markii digniin aan laga jawaabin, qiimuhu halis noqdo, ama xiriirka xogtu go\'o.</string>
+    <string name="outbound_api_preset_sms_desc">U dir dad markii digniin aan laga jawaabin, qiimuhu halis noqdo, ama xiriirka xogtu go\'o</string>
     <string name="sms_section_who">Cidda ay khusayso</string>
     <string name="sms_subject_name">Magaca</string>
     <string name="sms_subject_name_help">Waxaa la dhigayaa bilowga fariin kasta, tusaale “Mia: digniinta HOOSE lagama jawaabin”.</string>

@@ -2087,10 +2087,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Aucune valeur API pour le moment</string>
     <string name="api_source_status_sync_failed">Échec de synchronisation de la source API</string>
     <string name="outbound_api_preset_sheet_title">Choisir un préréglage de destination</string>
-    <string name="outbound_api_preset_custom_json_desc">Envoie le JSON glucose normalisé par POST vers n’importe quel endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Envoie du texte via Telegram Bot API. L’URL peut pointer vers un relais.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Envoie le texte compact GV via les messages de communauté VK.</string>
-    <string name="outbound_api_preset_vk_desc">Envoie un texte glucose lisible via les messages de communauté VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Envoie le JSON glucose normalisé par POST vers n’importe quel endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Envoie du texte via Telegram Bot API. L’URL peut pointer vers un relais</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Envoie le texte compact GV via les messages de communauté VK</string>
+    <string name="outbound_api_preset_vk_desc">Envoie un texte glucose lisible via les messages de communauté VK</string>
     <string name="outbound_api_change_preset">Changer</string>
     <string name="outbound_api_telegram_recipient_help">Utilisez un chat ID numérique ou @nom_de_canal. La personne doit d’abord démarrer le bot.</string>
     <string name="outbound_api_vk_recipient_help">Utilisez des ID utilisateur ou peer VK numériques. Chaque destinataire doit d’abord écrire à la communauté.</string>
@@ -2498,7 +2498,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importez un fichier d’identifiants pour continuer sans le cloud — le scan QR renseigne uniquement le code du capteur et le NFC ne fait que le réveiller.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS d\'urgence</string>
-    <string name="outbound_api_preset_sms_desc">Envoyer un SMS quand une alarme reste sans réponse, qu\'une valeur devient critique ou que la connexion de données tombe.</string>
+    <string name="outbound_api_preset_sms_desc">Envoyer un SMS quand une alarme reste sans réponse, qu\'une valeur devient critique ou que la connexion de données tombe</string>
     <string name="sms_section_who">De qui il s\'agit</string>
     <string name="sms_subject_name">Nom</string>
     <string name="sms_subject_name_help">Placé au début de chaque message, par exemple « Mia : alarme BAS sans réponse ».</string>

@@ -2109,10 +2109,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="api_source_status_no_readings">Henüz API ölçümü yok</string>
     <string name="api_source_status_sync_failed">API kaynağı senkronizasyonu başarısız</string>
     <string name="outbound_api_preset_sheet_title">Hedef ön ayarını seç</string>
-    <string name="outbound_api_preset_custom_json_desc">Normalleştirilmiş glikoz JSON’unu herhangi bir endpoint’e POST eder.</string>
-    <string name="outbound_api_preset_telegram_desc">Telegram Bot API ile metin gönderir. URL bir relay’e yönlenebilir.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">VK topluluk mesajlarıyla kompakt GV metni gönderir.</string>
-    <string name="outbound_api_preset_vk_desc">VK topluluk mesajlarıyla okunabilir glikoz metni gönderir.</string>
+    <string name="outbound_api_preset_custom_json_desc">Normalleştirilmiş glikoz JSON’unu herhangi bir endpoint’e POST eder</string>
+    <string name="outbound_api_preset_telegram_desc">Telegram Bot API ile metin gönderir. URL bir relay’e yönlenebilir</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">VK topluluk mesajlarıyla kompakt GV metni gönderir</string>
+    <string name="outbound_api_preset_vk_desc">VK topluluk mesajlarıyla okunabilir glikoz metni gönderir</string>
     <string name="outbound_api_change_preset">Değiştir</string>
     <string name="outbound_api_telegram_recipient_help">Sayısal chat ID veya @kanal_adı kullanın. Kişi önce botu başlatmalıdır.</string>
     <string name="outbound_api_vk_recipient_help">Sayısal VK kullanıcı veya peer ID kullanın. Her alıcı önce topluluğa mesaj yazmalıdır.</string>
@@ -2520,7 +2520,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_cloud_offline_routes">Bulut olmadan devam etmek için bir kimlik bilgileri dosyası içe aktarın — QR taraması yalnızca sensör kodunu doldurur, NFC ise yalnızca sensörü uyandırır.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Acil SMS</string>
-    <string name="outbound_api_preset_sms_desc">Bir alarm yanıtsız kaldığında, bir değer kritikleştiğinde veya veri bağlantısı kesildiğinde kişilere mesaj gönder.</string>
+    <string name="outbound_api_preset_sms_desc">Bir alarm yanıtsız kaldığında, bir değer kritikleştiğinde veya veri bağlantısı kesildiğinde kişilere mesaj gönder</string>
     <string name="sms_section_who">Kimin hakkında</string>
     <string name="sms_subject_name">Ad</string>
     <string name="sms_subject_name_help">Her mesajın başına eklenir, örneğin “Mia: DÜŞÜK alarmı yanıtsız”.</string>

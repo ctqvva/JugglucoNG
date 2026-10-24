@@ -2125,10 +2125,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Показаний API пока нет</string>
     <string name="api_source_status_sync_failed">Сбой синхронизации источника API</string>
     <string name="outbound_api_preset_sheet_title">Выберите пресет назначения</string>
-    <string name="outbound_api_preset_custom_json_desc">POST нормализованного JSON глюкозы на любой endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Отправка текста через Telegram Bot API. URL можно заменить на relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Отправка компактного текста GV через сообщения сообщества VK.</string>
-    <string name="outbound_api_preset_vk_desc">Отправка читаемого текста глюкозы через сообщения сообщества VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST нормализованного JSON глюкозы на любой endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Отправка текста через Telegram Bot API. URL можно заменить на relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Отправка компактного текста GV через сообщения сообщества VK</string>
+    <string name="outbound_api_preset_vk_desc">Отправка читаемого текста глюкозы через сообщения сообщества VK</string>
     <string name="outbound_api_change_preset">Изменить</string>
     <string name="outbound_api_telegram_recipient_help">Используйте числовой chat ID или @имя_канала. Пользователь должен сначала написать боту.</string>
     <string name="outbound_api_vk_recipient_help">Используйте числовые ID пользователей или peer ID VK. Каждый получатель должен сначала написать сообществу.</string>
@@ -2535,7 +2535,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_iob_source_remote">Значения с передающего устройства (Nightscout)</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Экстренные SMS</string>
-    <string name="outbound_api_preset_sms_desc">Отправлять сообщения людям, когда тревога осталась без ответа, значение стало критическим или пропала передача данных.</string>
+    <string name="outbound_api_preset_sms_desc">Отправлять сообщения людям, когда тревога осталась без ответа, значение стало критическим или пропала передача данных</string>
     <string name="sms_section_who">О ком речь</string>
     <string name="sms_subject_name">Имя</string>
     <string name="sms_subject_name_help">Добавляется в начало каждого сообщения, например «Мия: тревога НИЗКИЙ без ответа».</string>

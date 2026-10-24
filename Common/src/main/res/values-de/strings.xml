@@ -2276,10 +2276,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="api_source_status_no_readings">Noch keine API-Werte</string>
     <string name="api_source_status_sync_failed">API-Quellensynchronisierung fehlgeschlagen</string>
     <string name="outbound_api_preset_sheet_title">Zielvorlage wählen</string>
-    <string name="outbound_api_preset_custom_json_desc">Sendet normalisiertes Glukose-JSON per POST an einen beliebigen Endpunkt.</string>
-    <string name="outbound_api_preset_telegram_desc">Sendet Text über die Telegram Bot API. Die URL kann auf ein Relais zeigen.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Sendet kompakten GV-Text über VK-Community-Nachrichten.</string>
-    <string name="outbound_api_preset_vk_desc">Sendet lesbaren Glukosetext über VK-Community-Nachrichten.</string>
+    <string name="outbound_api_preset_custom_json_desc">Sendet normalisiertes Glukose-JSON per POST an einen beliebigen Endpunkt</string>
+    <string name="outbound_api_preset_telegram_desc">Sendet Text über die Telegram Bot API. Die URL kann auf ein Relais zeigen</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Sendet kompakten GV-Text über VK-Community-Nachrichten</string>
+    <string name="outbound_api_preset_vk_desc">Sendet lesbaren Glukosetext über VK-Community-Nachrichten</string>
     <string name="outbound_api_change_preset">Ändern</string>
     <string name="outbound_api_telegram_recipient_help">Numerische Chat-ID oder @Kanalname verwenden. Eine Person muss den Bot zuerst starten.</string>
     <string name="outbound_api_vk_recipient_help">Numerische VK-Benutzer- oder Peer-IDs verwenden. Jeder Empfänger muss der Community zuerst schreiben.</string>
@@ -2605,7 +2605,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_cloud_offline_routes">Importieren Sie eine Zugangsdaten-Datei, um ohne Cloud fortzufahren — ein QR-Scan trägt nur den Sensorcode ein und NFC weckt den Sensor lediglich auf.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Notfall-SMS</string>
-    <string name="outbound_api_preset_sms_desc">Personen benachrichtigen, wenn ein Alarm unbeantwortet bleibt, ein Wert kritisch wird oder die Datenverbindung ausfällt.</string>
+    <string name="outbound_api_preset_sms_desc">Personen benachrichtigen, wenn ein Alarm unbeantwortet bleibt, ein Wert kritisch wird oder die Datenverbindung ausfällt</string>
     <string name="sms_section_who">Um wen es geht</string>
     <string name="sms_subject_name">Name</string>
     <string name="sms_subject_name_help">Steht am Anfang jeder Nachricht, zum Beispiel „Mia: Alarm TIEF unbeantwortet“.</string>

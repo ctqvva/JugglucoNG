@@ -2124,10 +2124,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="api_source_status_no_readings">Nog geen API-metingen</string>
     <string name="api_source_status_sync_failed">Synchronisatie van API-bron mislukt</string>
     <string name="outbound_api_preset_sheet_title">Kies bestemmingspreset</string>
-    <string name="outbound_api_preset_custom_json_desc">POST genormaliseerde glucose-JSON naar een willekeurig endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Stuurt tekst via Telegram Bot API. De URL kan naar een relay wijzen.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Stuurt compacte GV-tekst via VK-communityberichten.</string>
-    <string name="outbound_api_preset_vk_desc">Stuurt leesbare glucosetekst via VK-communityberichten.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST genormaliseerde glucose-JSON naar een willekeurig endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Stuurt tekst via Telegram Bot API. De URL kan naar een relay wijzen</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Stuurt compacte GV-tekst via VK-communityberichten</string>
+    <string name="outbound_api_preset_vk_desc">Stuurt leesbare glucosetekst via VK-communityberichten</string>
     <string name="outbound_api_change_preset">Wijzigen</string>
     <string name="outbound_api_telegram_recipient_help">Gebruik een numerieke chat-ID of @kanaalnaam. Een persoon moet eerst de bot starten.</string>
     <string name="outbound_api_vk_recipient_help">Gebruik numerieke VK-gebruiker- of peer-ID’s. Elke ontvanger moet eerst de community berichten.</string>
@@ -2535,7 +2535,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_cloud_offline_routes">Importeer een bestand met aanmeldgegevens om zonder cloud verder te gaan — een QR-scan vult alleen de sensorcode in en NFC maakt de sensor alleen wakker.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nood-sms</string>
-    <string name="outbound_api_preset_sms_desc">Stuur mensen een bericht als een alarm onbeantwoord blijft, een waarde kritiek wordt of de dataverbinding wegvalt.</string>
+    <string name="outbound_api_preset_sms_desc">Stuur mensen een bericht als een alarm onbeantwoord blijft, een waarde kritiek wordt of de dataverbinding wegvalt</string>
     <string name="sms_section_who">Over wie dit gaat</string>
     <string name="sms_subject_name">Naam</string>
     <string name="sms_subject_name_help">Komt aan het begin van elk bericht, bijvoorbeeld “Mia: alarm LAAG onbeantwoord”.</string>
