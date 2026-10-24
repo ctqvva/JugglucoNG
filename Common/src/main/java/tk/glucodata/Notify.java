@@ -1016,6 +1016,9 @@ public class Notify {
     private static long initialDeliveryEpoch = 0;
     private static volatile int presentedStandardAlertKind = -1;
     private static volatile boolean alarmUiVisible = false;
+    private static final long ALARM_WINDOW_CONFIRM_MS = 2000L;
+    private static final Handler alarmWindowCheckHandler = new Handler(Looper.getMainLooper());
+    private static volatile int alarmWindowCheckGeneration = 0;
     private static ScheduledFuture<?> delayedAlertEffectSchedule = null;
     private static long delayedAlertEffectGeneration = 0L;
     private static int delayedAlertEffectPriority = Integer.MIN_VALUE;
@@ -1813,6 +1816,7 @@ public class Notify {
 
     public static void cancelAlertNotification() {
         presentedStandardAlertKind = -1;
+        supersedeAlarmWindowFallback();
         if (onenot != null && onenot.notificationManager != null) {
             onenot.notificationManager.cancel(glucosealarmid);
         }
@@ -2115,6 +2119,36 @@ public class Notify {
 
     public static void setAlarmUiVisible(boolean visible) {
         alarmUiVisible = visible;
+    }
+
+    /**
+     * A started AlarmActivity is not a shown one. From the background, Android 10+
+     * and OEM pop-up rules block the start without an error, and Alarm mode was left
+     * ringing with no Snooze/Stop anywhere. Give the window a moment to come up;
+     * if it has not, post the alarm notification it would have cancelled. A newer
+     * alert delivery or an acknowledgement voids the pending check. Main thread only.
+     */
+    /**
+     * Every alert delivery and acknowledgement calls this. A newer alert owns the
+     * alarm notification, whatever its mode: an older alert's pending fallback must
+     * not replace it (or its Snooze/Stop) two seconds later.
+     */
+    private static void supersedeAlarmWindowFallback() {
+        alarmWindowCheckGeneration++;
+    }
+
+    private static void postAlarmNotificationUnlessWindowShows(Runnable postNotification) {
+        final int generation = ++alarmWindowCheckGeneration;
+        alarmWindowCheckHandler.postDelayed(() -> {
+            if (generation != alarmWindowCheckGeneration || alarmUiVisible) {
+                return;
+            }
+            if (doLog) {
+                Log.i(LOG_ID, "Alert Debug: alarm window not shown after " + ALARM_WINDOW_CONFIRM_MS
+                        + "ms, posting alarm notification");
+            }
+            postNotification.run();
+        }, ALARM_WINDOW_CONFIRM_MS);
     }
 
     private static int alertEffectPriority(int kind) {
@@ -2949,6 +2983,7 @@ public class Notify {
             if (onenot != null) {
                 int kind = isHigh ? 1 : 0;
                 presentedStandardAlertKind = -1;
+                supersedeAlarmWindowFallback();
 
                 final String defaultName = isTest
                         ? ("Test Custom " + (isHigh ? "High" : "Low"))
@@ -2989,6 +3024,9 @@ public class Notify {
                 if (!skipBanner) {
                     onenot.makeseparatenotification(glucoseValue, message, glucoseStr, typeStr, kind, mode,
                             customAlertId);
+                } else {
+                    postAlarmNotificationUnlessWindowShows(() -> onenot.makeseparatenotification(glucoseValue,
+                            message, glucoseStr, typeStr, kind, mode, customAlertId));
                 }
 
                 // 3. Sound/Flash/Vibrate - Use standard playringhier (handles repeats, stop,
@@ -3259,6 +3297,7 @@ public class Notify {
 
     private void deliverTriggeredAlert(int kind, float glvalue, String message, notGlucose strglucose, String type) {
         presentedStandardAlertKind = kind;
+        supersedeAlarmWindowFallback();
         AlarmLaunchResult alarmLaunchResult = new AlarmLaunchResult(false, false);
         boolean skipBanner = false;
 
@@ -3291,6 +3330,10 @@ public class Notify {
                     alarmLaunchResult.startedOrQueued());
             if (doLog)
                 Log.i(LOG_ID, "Alert Debug: skipBanner=" + skipBanner);
+            if (skipBanner) {
+                postAlarmNotificationUnlessWindowShows(
+                        () -> makeseparatenotification(glvalue, message, strglucose, type, kind));
+            }
         }
 
         arrowsoundalarm(kind, glvalue, message, strglucose, type, true, skipBanner);
@@ -3309,6 +3352,7 @@ public class Notify {
                     && (WearAlertSync.isSuppressed(kind) || SnoozeManager.INSTANCE.isSnoozed(alertType))) return false;
             if (!manual && alertType != null) AlertStateTracker.INSTANCE.supersedeManualTest(alertType);
             presentedStandardAlertKind = kind;
+            supersedeAlarmWindowFallback();
         }
         {
             if (doLog) {
