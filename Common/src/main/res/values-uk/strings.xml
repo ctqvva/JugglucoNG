@@ -2782,6 +2782,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Вимк. — налаштовується на телефоні</string>
     <string name="glucosechartcomplicationlabel">Графік глюкози</string>
     <string name="wear_chart_complication">Графік глюкози</string>
+    <string name="wear_glucose_tile_label">Глюкоза</string>
     <string name="wear_exchange_title">Обмін даними</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Трансляція xDrip</string>

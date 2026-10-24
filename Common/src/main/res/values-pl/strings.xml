@@ -2744,6 +2744,7 @@
     <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>
     <string name="glucosechartcomplicationlabel">Wykres glukozy</string>
     <string name="wear_chart_complication">Wykres glukozy</string>
+    <string name="wear_glucose_tile_label">Glukoza</string>
     <string name="wear_exchange_title">Wymiana danych</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Transmisja xDrip</string>

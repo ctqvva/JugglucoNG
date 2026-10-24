@@ -2696,6 +2696,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Disattiva — impostata sul telefono</string>
     <string name="glucosechartcomplicationlabel">Grafico glicemia</string>
     <string name="wear_chart_complication">Grafico glicemia</string>
+    <string name="wear_glucose_tile_label">Glicemia</string>
     <string name="wear_exchange_title">Scambio dati</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Trasmissione xDrip</string>

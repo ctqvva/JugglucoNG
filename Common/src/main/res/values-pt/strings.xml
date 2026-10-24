@@ -2707,6 +2707,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Desligada — definida no telemóvel</string>
     <string name="glucosechartcomplicationlabel">Gráfico de glicose</string>
     <string name="wear_chart_complication">Gráfico de glicose</string>
+    <string name="wear_glucose_tile_label">Glicose</string>
     <string name="wear_exchange_title">Intercâmbio</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Difusão xDrip</string>

@@ -2722,6 +2722,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">关闭 — 在手机上设置</string>
     <string name="glucosechartcomplicationlabel">血糖图表</string>
     <string name="wear_chart_complication">血糖图表</string>
+    <string name="wear_glucose_tile_label">血糖</string>
     <string name="wear_exchange_title">数据交换</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip 广播</string>

@@ -2749,6 +2749,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="wear_prediction_off">Uit — ingesteld op telefoon</string>
     <string name="glucosechartcomplicationlabel">Glucosegrafiek</string>
     <string name="wear_chart_complication">Glucosegrafiek</string>
+    <string name="wear_glucose_tile_label">Glucose</string>
     <string name="wear_exchange_title">Uitwisseling</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip-uitzending</string>

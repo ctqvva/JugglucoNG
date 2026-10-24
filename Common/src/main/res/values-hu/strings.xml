@@ -2796,6 +2796,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="wear_prediction_off">Ki — a telefonon állítható</string>
     <string name="glucosechartcomplicationlabel">Glükózgrafikon</string>
     <string name="wear_chart_complication">Glükózgrafikon</string>
+    <string name="wear_glucose_tile_label">Glükóz</string>
     <string name="wear_exchange_title">Adatcsere</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip-adatsugárzás</string>

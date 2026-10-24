@@ -2813,6 +2813,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_prediction_off">Унтраасан — утсанд тохируулна</string>
     <string name="glucosechartcomplicationlabel">Глюкозын график</string>
     <string name="wear_chart_complication">Глюкозын график</string>
+    <string name="wear_glucose_tile_label">Глюкоз</string>
     <string name="wear_exchange_title">Өгөгдөл солилцоо</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip дамжуулалт</string>

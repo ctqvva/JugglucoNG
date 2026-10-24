@@ -450,6 +450,10 @@ dependencies {
     wearImplementation 'androidx.wear.watchface:watchface-complications-data-source-ktx:1.2.1'
     wearImplementation 'androidx.core:core-splashscreen:1.2.0'
     wearImplementation 'androidx.wear.protolayout:protolayout-external-protobuf:1.4.2'
+    // Glucose tile (tk.glucodata.tile)
+    wearImplementation 'androidx.wear.tiles:tiles:1.6.2'
+    wearImplementation 'androidx.wear.protolayout:protolayout:1.4.2'
+    wearImplementation 'androidx.concurrent:concurrent-futures:1.2.0'
     // Wear Compose Material 3 (Expressive) UI
     wearImplementation 'androidx.wear.compose:compose-material3:1.6.2'
     wearImplementation 'androidx.wear.compose:compose-foundation:1.6.2'
