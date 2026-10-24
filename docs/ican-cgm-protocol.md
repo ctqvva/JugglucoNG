@@ -94,7 +94,7 @@ Nothing else is written in steady state: no code-state read, no calibration, no 
 TX 0x0021: F1 03 <subtype> 01 <offset u16 LE>
 ```
 
-* `subtype 02` = glucose records, `subtype 01` = "original" records (glucose + current + temperature).
+* `subtype 02` = glucose records, `subtype 01` = "original" records (origin glucose + temperature).
 * `offset` is the **sequence number**, which equals minutes since the session started; the sensor
   produces one record every 3 minutes, so sequence numbers advance in steps of 3.
 * `F1 01 <n>` is the vendor's "report all records" variant.
@@ -121,9 +121,17 @@ Records are fixed-size: 2 bytes for `subtype 02`, 4 bytes for `subtype 01`.
 
 * glucose record: `low | ((high & 0xF) << 8)` in hundredths of mmol/L; the high nibble is not part of
   the value. Some firmware needs the "direct" 16-bit form instead (`usesDirectSnHistoryGlucoseEncoding`).
-* original record: current (u16) + temperature (u16, tenths of °C). The current field is **not** a
-  plain glucose unit: the vendor XORs each byte with `0x88` and reads the result as a 5-digit
-  supplier-formatted number (`decodeCurrentValue`; kept for internal use only).
+* original record: `<raw u16 LE> <temperature u16 LE/10>`. On the 2026-10-20 CE capture the raw
+  field is the same 16-bit measurement the `0x02` record carries; it is **not** the vendor-formatted
+  "current" value. `decodeCurrentValue` applies the vendor's `0x88` XOR / `25…` formatting and is
+  kept for internal compatibility only — do not use it as glucose. The driver exposes the raw field
+  separately as `ICanHealthSnHistoryRecord.rawMeasurement`.
+* **`0x01` vs `0x02`:** in the 2026-10-20 CE capture, at all 16 sequences where both subtypes exist,
+  the `0x01` raw field equals the `0x02` glucose mantissa exactly (16/16; the `0x02` high nibble is
+  0). They are two projections of one stored measurement — the vendor's `originGlu` (`0x01`) and
+  `glu` (`0x02`) — and coincide on a fresh, uncalibrated sensor. They can diverge if a calibration
+  changes the displayed value, if the `0x02` high nibble carries a status/flag or the value exceeds
+  the 12-bit field, or on firmware where `0x01` holds raw current rather than origin glucose.
 * Values produced during warm-up are XOR-obfuscated; `ICanHealthParser.decodeHistoryGlucoseBytes`
   mirrors the vendor's table. The official app's own stream shows the same low/odd values at the
   start of a session, with the plain decode.
@@ -169,15 +177,21 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
 * On `iCGM-t6` the value field is the glucose, in the same encoding as a history record: it matches
   the history record with the same sequence number exactly (verified against a batch decrypted from
   the same session).
-* On the captured (global) `iCGM-t3` it is **not** glucose: no relation to the history record at the
-  same sequence, no affine or monotone mapping, no CRC-16 (8 standard variants tested), not the
-  temperature and not the current field. It behaves like a nonce, and the packet reads as a "one new
-  record is available" trigger — which is how the vendor app treats it (it requests history seconds
-  after receiving one). One CN `iCGM-t3` field report looked different (plausible values), so the
-  field's semantics may be variant-specific — issue #676 tracks the open decision and the
-  live-vs-history comparison that resolves it. The driver now compares live and history raw values
-  at the same sequence number, classifies each sensor (`VERIFIED_GLUCOSE` / `TRIGGER_ONLY` /
-  `UNKNOWN`) and stops publishing live values for `TRIGGER_ONLY` sensors (PR #683).
+* On the captured `iCGM-t3` it is **not** glucose. The 2026-10-20 CE vendor capture has 24 live
+  frames and decodes to `61895@3`, `63324@6`, `44192@12`, `56015@18`, …, `64177@90`, `857@120` —
+  0/24 against the subtype-`0x01` history field at the same sequence, no affine/monotone relation,
+  no CRC-16 (8 standard variants tested), not temperature and not the current field. It behaves like
+  a nonce and reads as a "one new record is available" trigger, which is how the vendor app treats it
+  (it requests history seconds later). The earlier report of a positive CE `iCGM-t3` match was a
+  decoder misread: the `st=2 … 7.60@15` lines were SN glucose-history batches, not live frames; the
+  live frames are the `st=2 UNDECODED` ones (plaintext starts `0D 80`).
+* Coverage matters for the classifier: in that capture the live lane and the `0x02` glucose lane are
+  **disjoint** (24 live-only, 16 history-only, 0 overlap), so a same-sequence comparison against
+  `0x02` alone yields no pairs in a normal session. Subtype `0x01` covers all 40 slots (including all
+  24 live slots), so the driver uses the `0x01` raw field as the reference; on this t3 that is 24
+  pairs and 0 matches (`TRIGGER_ONLY`). The field's semantics remain variant-specific (t6 = glucose),
+  and the per-sensor classifier (`VERIFIED_GLUCOSE` / `TRIGGER_ONLY` / `UNKNOWN`) stops publishing
+  live values for `TRIGGER_ONLY` sensors (PR #683).
 * The driver used to decrypt this frame with AES/ECB — that happened to preserve the glucose field
   (the IV only touches bytes 1/6/10/15) but corrupted the parsed `statusByte` and `currentValue`, and
   made the logged "flags" byte `0x80 ⊕ challenge[0]`. Fixed to CBC/PKCS7 in PR #683, with captured
@@ -189,8 +203,8 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   a sensor serial and written into the sensor during the vendor app's activation/binding. Whether
   the **sensor** itself requires it for history is not established — see the confound below. The
   state is readable: `TX 0x0024 F6` → `RX 1C F6 01 <lo> <hi>`; `0xFFFF` means "no code written".
-  Observed written values: 500, 510, 530, 600 — and 570 on a provisioned `iCGM-t3`
-  (`1C F6 01 3A 02`); treat any value other than `0xFFFF` as provisioned.
+  Observed written values: 500, 510, 530, 600 — and 570 / 590 on provisioned `iCGM-t3` sensors
+  (`1C F6 01 3A 02`, `1C F6 01 4E 02`); treat any value other than `0xFFFF` as provisioned.
 * The vendor app never asks for history before that code has been written — the gate is in the SDK
   (`hasWriteCorrectCode`, `onPrepareReadHistoryData`, `onWriteCorrectCodeCompleted`) — and the write
   happens during activation/binding, never during normal sync: the iOS capture contains no `F6` read
@@ -237,6 +251,34 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
   Auth-family requests sign with `lowercaseHex(MD5(joined fields + "&salt=" + nonce + millis))` and
   carry an `appSignature` that is the uppercase-hex SHA1 of the APK signing certificate. None of this
   gates the write path: the hardware test writes a table directly and reads `F6` back.
+
+### 6.1 Captured vendor activation (2026-10-20, CE `iCGM-t3`)
+
+The first HCI capture of a vendor-app activation (CE 01.17.00.19, fresh `iCGM-t3`, SW 3.2.8 / HW
+V01.02.01.00_B0001) settles the write sequence:
+
+| t (relative) | Frame | Result |
+|---|---|---|
+| +0.7 s | `F6` read | `1C F6 01 FF FF` (no code) |
+| +28 s | `1A` start | `1C 1A 01` |
+| +31–32 s | `F2 10 <16 B>` ×3 | `1C F2 01` ×3 |
+| next bind (64 s after the last ack) | `F6` read | `1C F6 01 4E 02` = 590 |
+
+* The payload is **three 16-byte chunks**, 18 bytes per write including opcode and length; each write
+  is acknowledged individually. All three fit the default 23-byte ATT MTU, so a large negotiated MTU
+  is not required.
+* There is **no `F7`** in the activation and no separate commit frame. The SDK's `F7` case is
+  `writeInitParameter`, a different initialization path. Completion is tracked by the ack index
+  (`hasWriteCorrectCode` when the index reaches `isNewLauncher ? 4 : 2`, i.e. 3 chunks on this device
+  and 5 on the new-launcher variant; only the 3-chunk path is captured, the 5-chunk count is inferred
+  from the SDK state machine).
+* The first `590` was observed at the next bind, about 64 s after the last `F2` ack; there was no
+  intervening `F6` read. That establishes when the new state was first *seen*, not that the device
+  needs 64 s to commit — an immediate `0xFFFF` read-back after the last ack is therefore not proof
+  of failure, and the write result should be kept separate from eventual code-state confirmation.
+* The 48-byte wire payload is not the 25×4-byte table; the bundled keys do not decrypt it (CBC with
+  the four bundled keys, zero/auth IVs, per-chunk attempts: no padding, no float structure). The
+  server input and the native transform remain open (§11).
 
 ## 7. Session clock
 
@@ -291,7 +333,11 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 
 * `0x1A` — start/session command (the byte our onboarding writes, `CMD_START_SENSOR`; earlier notes
   called it `F5`),
-* `F2` — write the calibration table in chunks, `F7` — commit it,
+* `F2` — write the calibration table in 16-byte chunks; each chunk is acknowledged (`1C F2 01`) and
+  the ack index is the completion state (3 chunks on the captured device, 5 on the new-launcher
+  variant). There is no separate commit frame (§6.1),
+* `F7` — `writeInitParameter`, a separate initialization-parameter path; **not** the calibration
+  commit, and absent from the captured activation (§6.1),
 * `F6` — read the code state (see §6),
 * terminate flows reachable from the vendor app's sensor management, not from syncing.
 
@@ -314,8 +360,10 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 
 ## 11. Open questions
 
-1. The `iCGM-t3` live value field (nonce? MAC? something else) — and whether it is safe to ignore the
-   live lane entirely on that family.
+1. The `iCGM-t3` live value field (nonce? raw current? MAC? something else) — the CE capture settles
+   that it is not glucose, but not what it is, nor how the vendor app fills the 24 live-only slots
+   (subtype `0x01` is the likely source). Whether the live lane can be ignored entirely on that
+   family depends on that answer.
 2. Exact meaning of the non-`0xFFFF` code-state values, and of RACP `0x0A` — which is confounded
    between "no correct code" and "range not served" (§6); two one-line experiments settle it.
 3. The 4 bytes after the time offset in `0x2AA9` (the byte our driver calls `launcherState`; `0x01`
@@ -324,3 +372,5 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 5. Whether the sensor serves arbitrarily old history ranges. This is now one half of the §6
    experiment — and the driver's "timezone repair" re-read (offset 3 on a long-running session) is
    already an accidental instance of it, which has failed every time.
+6. Whether `0x01` (origin) and `0x02` (displayed) diverge after a fingerstick calibration, and
+   whether the live field follows the calibrated value. Needs a capture from a calibrated sensor.
