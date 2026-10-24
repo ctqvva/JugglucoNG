@@ -1767,7 +1767,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_delete_time_period_title">Diesen Zeitraum löschen?</string>
     <string name="predictive_delete_time_period_message">Der vorherige Zeitraum deckt diese Zeit künftig ab.</string>
     <string name="predictive_carb_ratio">Kohlenhydratfaktor</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/E</string>
+    <string name="predictive_carb_ratio_value">%1$s g/E</string>
     <string name="predictive_insulin_sensitivity">Insulinsensitivität</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/E</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/E</string>

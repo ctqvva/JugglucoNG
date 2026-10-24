@@ -1677,7 +1677,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_delete_time_period_title">Deze periode verwijderen?</string>
     <string name="predictive_delete_time_period_message">De vorige periode zal deze tijd beslaan.</string>
     <string name="predictive_carb_ratio">Koolhydraatratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulinegevoeligheid</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>

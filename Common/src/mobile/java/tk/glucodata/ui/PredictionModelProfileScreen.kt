@@ -335,7 +335,7 @@ private fun PredictionModelBlockCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
             PredictiveSimulationParameterRow(
                 title = stringResource(R.string.predictive_carb_ratio),
-                valueLabel = stringResource(R.string.predictive_carb_ratio_value, block.carbRatioGramsPerUnit),
+                valueLabel = stringResource(R.string.predictive_carb_ratio_value, formatCarbRatio(block.carbRatioGramsPerUnit)),
                 value = block.carbRatioGramsPerUnit,
                 valueRange = PredictionModelProfile.CARB_RATIO_MIN..PredictionModelProfile.CARB_RATIO_MAX,
                 enabled = true,
@@ -424,6 +424,13 @@ private fun ProfileTimePickerDialog(
         }
     )
 }
+
+/** A carb ratio as written on a prescription: "10", or "6.5" for a half step. */
+internal fun formatCarbRatio(gramsPerUnit: Float): String =
+    java.text.NumberFormat.getNumberInstance().apply {
+        maximumFractionDigits = 1
+        isGroupingUsed = false
+    }.format(gramsPerUnit)
 
 private fun formatMinuteOfDay(minuteOfDay: Int): String {
     val minute = minuteOfDay.coerceIn(0, PredictionModelProfile.LAST_MINUTE_OF_DAY)

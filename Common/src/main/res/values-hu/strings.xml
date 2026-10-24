@@ -2003,7 +2003,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="predictive_delete_time_period_title">Törölhető ez az időszak?</string>
     <string name="predictive_delete_time_period_message">Ezt az időt az előző időszak fogja lefedni.</string>
     <string name="predictive_carb_ratio">Szénhidrátarány</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Inzulinérzékenység</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>

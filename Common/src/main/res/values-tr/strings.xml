@@ -1662,7 +1662,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_delete_time_period_title">Bu zaman aralığı silinsin mi?</string>
     <string name="predictive_delete_time_period_message">Önceki aralık bu zamanı kapsayacak.</string>
     <string name="predictive_carb_ratio">Karbonhidrat oranı</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">İnsülin duyarlılığı</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>

@@ -1635,7 +1635,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Excluir este período?</string>
     <string name="predictive_delete_time_period_message">O período anterior passará a cobrir este horário.</string>
     <string name="predictive_carb_ratio">Razão de carboidratos</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Sensibilidade à insulina</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
