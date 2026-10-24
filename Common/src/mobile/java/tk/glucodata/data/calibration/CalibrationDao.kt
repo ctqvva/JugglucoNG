@@ -5,6 +5,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CalibrationDao {
+    @Query("UPDATE calibrations SET valueUnit = :unit WHERE valueUnit = -1")
+    suspend fun labelLegacyUnits(unit: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(calibration: CalibrationEntity)
 

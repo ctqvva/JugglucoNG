@@ -32,6 +32,10 @@ object JournalCalibrationPolicy {
      */
     const val DUPLICATE_WINDOW_MS = 60L * 1000L
 
+    /** Shared by journal reconciliation and manual-profile import. */
+    fun manualPointTakesPrecedence(timestamp: Long, manualTimestamps: Iterable<Long>): Boolean =
+        manualTimestamps.any { abs(it - timestamp) <= DUPLICATE_WINDOW_MS }
+
     /** Values outside a plausible meter range are treated as mistyped, not as truth. */
     const val MIN_MGDL = 20f
     const val MAX_MGDL = 600f
@@ -91,7 +95,7 @@ object JournalCalibrationPolicy {
         val desired = LinkedHashMap<Long, CalibrationEntity>()
 
         eligibleEntries(entries, nowMillis).forEach { entry ->
-            if (manualTimestamps.any { abs(it - entry.timestamp) <= DUPLICATE_WINDOW_MS }) return@forEach
+            if (manualPointTakesPrecedence(entry.timestamp, manualTimestamps)) return@forEach
             val lanes = nearestLanes(orderedHistory, entry.timestamp) ?: return@forEach
             val autoValue = lanes.autoValue.takeIf { it.isFinite() && it > 0f }
                 ?: lanes.rawValue.takeIf { it.isFinite() && it > 0f }
@@ -105,6 +109,7 @@ object JournalCalibrationPolicy {
                 userValue = displayValue(entry.glucoseMgDl, isMmol),
                 isRawMode = false,
                 journalEntryId = entry.entryId,
+                valueUnit = if (isMmol) 1 else 0,
             )
         }
 
