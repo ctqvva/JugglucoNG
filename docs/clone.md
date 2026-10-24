@@ -111,8 +111,9 @@ Profiles carry their glucose units, so the two phones can use different
 mg/dL or mmol/L display preferences.
 
 Calibration points retain their saved units across display-preference changes and
-profile/backup transfers. Legacy rows without unit information keep the existing
-interpretation at their first load; past unit changes cannot be reconstructed.
+profile/backup transfers. Startup restores the saved unit before starting native
+connections, so legacy rows without unit information keep that interpretation at
+their first load. Past unrecorded unit changes cannot be reconstructed.
 Return-profile discovery covers the full known sensor roster independently of the
 forward calibration cursor. Competing receiver imports are serialized through the
 revision check, replacement, and accepted-revision publication.

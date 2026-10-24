@@ -44,6 +44,8 @@ class MirrorCalibrationTransferTests {
         val context = RuntimeEnvironment.getApplication() as Applic
         Applic.app = context
         Applic.unit = 0
+        MirrorCalibrationTransferNatives.savedUnit = 0
+        MirrorCalibrationTransferNatives.onStartThreads = null
         SensorIdentity.invalidateCaches()
         CalibrationManager.init(context)
         CalibrationManager.clearAll()
@@ -305,6 +307,44 @@ class MirrorCalibrationTransferTests {
     }
 
     @Test
+    fun nativeStartupRestoresSavedUnitsBeforeCloneCanLoadLegacyPoints() = runBlocking {
+        val dao = CalibrationDatabase.getInstance(Applic.app).calibrationDao()
+        // Exercise both background load paths before Notify is constructed.
+        for (loadExplicitly in listOf(false, true)) {
+            for (savedUnit in listOf(0, 1)) {
+                dao.deleteAll()
+                val scale = if (savedUnit == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else 1f
+                dao.insert(CalibrationEntity(timestamp = 1_000L, sensorId = sensor,
+                    sensorValue = 100f * scale, sensorValueRaw = 90f * scale,
+                    sensorValueStock = 95f * scale, userValue = 120f * scale, valueUnit = -1))
+                CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+                Applic.unit = 0 // Process-start default, before Notify restores the preference.
+                MirrorCalibrationTransferNatives.savedUnit = savedUnit
+                MirrorCalibrationTransferNatives.onStartThreads = {
+                    if (loadExplicitly) runBlocking { CalibrationManager.loadCalibrations() }
+                    val profile = JSONObject(exported(sensor))
+                    assertEquals(if (savedUnit == 1) "mmol/L" else "mg/dL", profile.getString("units"))
+                    val row = profile.getJSONArray("calibrations").getJSONObject(0)
+                    assertEquals(100.0 * scale, row.getDouble("sensorValue"), 0.001)
+                    assertEquals(90.0 * scale, row.getDouble("sensorValueRaw"), 0.001)
+                    assertEquals(95.0 * scale, row.getDouble("sensorValueStock"), 0.001)
+                    assertEquals(120.0 * scale, row.getDouble("userValue"), 0.001)
+                }
+                try {
+                    assertTrue(tk.glucodata.nums.numio.setlibrary(Applic.app))
+                    assertEquals(savedUnit, dao.getAllSync().single().valueUnit)
+                    // Once Notify applies the same preference, no further conversion occurs.
+                    Applic.unit = savedUnit
+                    CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+                    assertEquals(120f * scale, CalibrationManager.calibrations.value.single().userValue, 0.001f)
+                } finally {
+                    MirrorCalibrationTransferNatives.onStartThreads = null
+                }
+            }
+        }
+    }
+
+    @Test
     fun concurrentReturnsCannotPublishAnOlderRevisionAfterANewerReturn() {
         val context = Applic.app
         val original = context.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE)
@@ -398,7 +438,11 @@ class MirrorCalibrationTransferTests {
 @Implements(value = Natives::class, callThroughByDefault = false)
 class MirrorCalibrationTransferNatives {
     companion object {
+        var savedUnit = 0
+        var onStartThreads: (() -> Unit)? = null
         @JvmStatic @Implementation fun __staticInitializer__() {}
+        @JvmStatic @Implementation fun getunit(): Int = savedUnit
+        @JvmStatic @Implementation fun startthreads() { onStartThreads?.invoke() }
         @JvmStatic @Implementation fun resolveFullSensorName(id: String): String? =
             when (id) {
                 "3MH01HD0P14", "E007-3MH01HD0P14" -> "E007-3MH01HD0P14"
