@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.room.withTransaction
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -185,7 +186,11 @@ object CalibrationManager {
     
     // Reactive list of calibrations
     private val _calibrations = MutableStateFlow<List<CalibrationEntity>>(emptyList())
-    val calibrations: StateFlow<List<CalibrationEntity>> = _calibrations
+    val calibrations: StateFlow<List<CalibrationEntity>>
+        get() {
+            ensureCalibrationStateLoaded()
+            return _calibrations
+        }
     
     // Calibration enablement is per sensor and mode. An absent sensor ID is enabled by
     // default, matching the historical global default without leaking one sensor's toggle
@@ -255,8 +260,10 @@ object CalibrationManager {
     private var calibrationRevision = 0L
     private val _revision = MutableStateFlow(0L)
     val revision: StateFlow<Long> = _revision
-    @Volatile
-    private var suppressMirrorSyncCount = 0
+    // Includes aliases and different connections: no receiver may compare against
+    // a revision whose replacement is still being published by another receiver.
+    private val mirrorProfileLock = Any()
+    private val suppressMirrorSync = ThreadLocal.withInitial { false }
     private val calibrationCache = object : LinkedHashMap<CalibrationCacheKey, Float>(512, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<CalibrationCacheKey, Float>?): Boolean {
             return size > 4096
@@ -321,6 +328,7 @@ object CalibrationManager {
 
     private fun ensureCalibrationStateLoaded(): Boolean {
         if (calibrationStateLoaded && ::dao.isInitialized && ::prefs.isInitialized) {
+            refreshDisplayUnits()
             return true
         }
         if (!ensureInitialized()) {
@@ -333,7 +341,8 @@ object CalibrationManager {
             val list = runCatching {
                 runBlocking(Dispatchers.IO) {
                     migrateCalibrationSensorIdsIfPossible()
-                    dao.getAllSync()
+                    dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
+                    dao.getAllSync().map { it.inUnit(Applic.unit) }
                 }
             }.onFailure {
                 Log.w(TAG, "Failed to load calibrations for background access", it)
@@ -345,6 +354,17 @@ object CalibrationManager {
             invalidateComputationCache("ensureCalibrationStateLoaded")
         }
         return true
+    }
+
+    private fun refreshDisplayUnits() {
+        val changed = synchronized(boundaryLock) {
+            val converted = _calibrations.value.map { it.inUnit(Applic.unit) }
+            if (converted == _calibrations.value) false else {
+                _calibrations.value = converted
+                true
+            }
+        }
+        if (changed) invalidateComputationCache("displayUnits")
     }
 
     private fun invalidateComputationCache(reason: String) {
@@ -719,16 +739,7 @@ object CalibrationManager {
         return points
     }
 
-    private inline fun <T> withoutMirrorSync(block: () -> T): T {
-        suppressMirrorSyncCount++
-        return try {
-            block()
-        } finally {
-            suppressMirrorSyncCount--
-        }
-    }
-
-    private fun shouldMirrorSync(): Boolean = suppressMirrorSyncCount <= 0
+    private fun shouldMirrorSync(): Boolean = suppressMirrorSync.get() != true
 
     private fun profileRevisionKey(sensorId: String) = KEY_PROFILE_REVISION_PREFIX + sensorId
 
@@ -1144,7 +1155,7 @@ object CalibrationManager {
             .distinct().sorted().toTypedArray()
     }
 
-    fun exportProfileForSensorAsJson(sensorId: String): String? {
+    fun exportProfileForSensorAsJson(sensorId: String): String? = synchronized(mirrorProfileLock) {
         val normalizedSensorId = normalizeSensorId(sensorId)
         if (normalizedSensorId.isBlank()) return null
         ensureCalibrationStateLoaded()
@@ -1156,9 +1167,10 @@ object CalibrationManager {
             .filter { it.journalEntryId == null && sensorMatches(it.sensorId, normalizedSensorId) }
             .sortedByDescending { it.timestamp }
 
+        val exportUnit = if (Applic.unit == 1) 1 else 0
         val root = JSONObject()
         root.put("version", 2)
-        root.put("units", if (Applic.unit == 1) "mmol/L" else "mg/dL")
+        root.put("units", if (exportUnit == 1) "mmol/L" else "mg/dL")
         root.put("sensorId", normalizedSensorId)
         root.put("createdAt", System.currentTimeMillis())
         root.put("revision", localProfileRevision(normalizedSensorId))
@@ -1175,7 +1187,8 @@ object CalibrationManager {
         root.put("autoAlgorithm", _algorithmForAuto.value.storageValue)
 
         val payload = JSONArray()
-        rows.forEach { row ->
+        rows.forEach { stored ->
+            val row = stored.inUnit(exportUnit)
             val obj = JSONObject()
             obj.put("timestamp", row.timestamp)
             obj.put("sensorId", if (row.sensorId.isBlank()) normalizedSensorId else row.sensorId)
@@ -1240,9 +1253,10 @@ object CalibrationManager {
 
         // Peers can display different units. Legacy profiles omitted this field
         // and retain their historical same-unit interpretation.
+        val importUnit = if (Applic.unit == 1) 1 else 0
         val unitFactor = when (root.optString("units", "")) {
-            "mmol/L" -> if (Applic.unit == 1) 1f else tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
-            "mg/dL" -> if (Applic.unit == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else 1f
+            "mmol/L" -> if (importUnit == 1) 1f else tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+            "mg/dL" -> if (importUnit == 1) 1f / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL else 1f
             else -> 1f
         }
 
@@ -1263,7 +1277,8 @@ object CalibrationManager {
                     sensorValueStock = obj.optDouble("sensorValueStock", 0.0).toFloat() * unitFactor,
                     userValue = obj.optDouble("userValue", 0.0).toFloat() * unitFactor,
                     isEnabled = obj.optBoolean("isEnabled", true),
-                    isRawMode = obj.optBoolean("isRawMode", false)
+                    isRawMode = obj.optBoolean("isRawMode", false),
+                    valueUnit = importUnit
                 )
             )
         }
@@ -1283,7 +1298,7 @@ object CalibrationManager {
 
             val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter {
                 it.journalEntryId == null && sensorMatches(it.sensorId, targetSensorId)
-            }
+            }.map { it.inUnit(importUnit) }
             val deduped = mutableListOf<CalibrationEntity>()
             var skipped = 0
             incoming.forEach { row ->
@@ -1345,7 +1360,8 @@ object CalibrationManager {
         if (::dao.isInitialized) {
             val list = withContext(Dispatchers.IO) {
                 migrateCalibrationSensorIdsIfPossible()
-                dao.getAllSync()
+                dao.labelLegacyUnits(if (Applic.unit == 1) 1 else 0)
+                dao.getAllSync().map { it.inUnit(Applic.unit) }
             }
             val changed = synchronized(boundaryLock) {
                 val relabeled = relabelBeforeBoundaries(list)
@@ -1715,7 +1731,7 @@ object CalibrationManager {
     fun importMirrorProfileFromJsonBlocking(
         json: String,
         overrideSensorId: String? = null
-    ): CalibrationProfileImportResult {
+    ): CalibrationProfileImportResult = synchronized(mirrorProfileLock) {
         ensureCalibrationStateLoaded()
         val root = runCatching { JSONObject(json) }.getOrNull()
             ?: return CalibrationProfileImportResult(
@@ -1757,15 +1773,13 @@ object CalibrationManager {
             )
         }
 
-        val result = withoutMirrorSync {
-            runBlocking {
-                importProfileFromJson(
-                    json,
-                    replaceExisting = true,
-                    overrideSensorId = targetSensorId,
-                    preserveJournalCalibrations = true
-                )
-            }
+        val result = runBlocking(suppressMirrorSync.asContextElement(true)) {
+            importProfileFromJson(
+                json,
+                replaceExisting = true,
+                overrideSensorId = targetSensorId,
+                preserveJournalCalibrations = true
+            )
         }
         setStoredProfileRevision(targetSensorId, incomingRevision)
         return result

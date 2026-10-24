@@ -109,6 +109,7 @@ object JournalCalibrationPolicy {
                 userValue = displayValue(entry.glucoseMgDl, isMmol),
                 isRawMode = false,
                 journalEntryId = entry.entryId,
+                valueUnit = if (isMmol) 1 else 0,
             )
         }
 

@@ -256,6 +256,110 @@ class MirrorCalibrationTransferTests {
     }
 
     @Test
+    fun displaySwitchBeforeExportPreservesTheStoredUnitsAcrossReloadAndNewPoints() = runBlocking {
+        val factor = tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL
+        for (initialUnit in listOf(0, 1)) {
+            CalibrationManager.clearAll()
+            Applic.unit = initialUnit
+            val scale = if (initialUnit == 1) 1f / factor else 1f
+            CalibrationManager.addCalibration(1_000L, 100f * scale, 90f * scale,
+                120f * scale, sensorId = sensor, sensorValueStock = 95f * scale)
+            Applic.unit = 1 - initialUnit
+            // No screen reload or unit-change callback precedes the background export.
+            val switched = exported(sensor)
+            CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+            CalibrationManager.loadCalibrations()
+            val reloaded = exported(sensor)
+            assertEquals(JSONObject(switched).getJSONArray("calibrations").toString(),
+                JSONObject(reloaded).getJSONArray("calibrations").toString())
+            val currentScale = if (Applic.unit == 1) 1f / factor else 1f
+            CalibrationManager.addCalibration(100_000L, 110f * currentScale, 100f * currentScale,
+                130f * currentScale, sensorId = sensor)
+            val mixed = exported(sensor)
+            Applic.unit = 0
+            useDeviceProfile(JSONObject().put("sensorId", sensor).put("revision", 0L).toString(), sensor)
+            CalibrationProfileAccess.importMirrorProfileFromJson(mixed, sensor)
+            val old = CalibrationManager.calibrations.value.single { it.timestamp == 1_000L }
+            assertEquals(100f, old.sensorValue, 0.001f)
+            assertEquals(90f, old.sensorValueRaw, 0.001f)
+            assertEquals(95f, old.sensorValueStock, 0.001f)
+            assertEquals(120f, old.userValue, 0.001f)
+            assertEquals(130f, CalibrationManager.calibrations.value.single { it.timestamp == 100_000L }.userValue, 0.001f)
+        }
+    }
+
+    @Test
+    fun legacyRowsAreLabelledBeforeChangingTheDisplayPreference() = runBlocking {
+        val dao = CalibrationDatabase.getInstance(Applic.app).calibrationDao()
+        dao.insert(CalibrationEntity(timestamp = 1_000L, sensorId = sensor,
+            sensorValue = 100f, sensorValueRaw = 90f, userValue = 120f, valueUnit = -1))
+        CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+        Applic.app.setunit(1)
+        assertEquals(0, dao.getAllSync().single().valueUnit)
+        val row = JSONObject(exported(sensor)).getJSONArray("calibrations").getJSONObject(0)
+        assertEquals(120.0 / tk.glucodata.ui.util.GlucoseFormatter.MGDL_PER_MMOL,
+            row.getDouble("userValue"), 0.001)
+        CalibrationManager.resetLoadedStateForTests(keepBoundaries = false)
+        Applic.unit = 0
+        assertEquals(120f, CalibrationManager.calibrations.value.single().userValue, 0.001f)
+    }
+
+    @Test
+    fun concurrentReturnsCannotPublishAnOlderRevisionAfterANewerReturn() {
+        val context = Applic.app
+        val original = context.getSharedPreferences("calibration_prefs", Context.MODE_PRIVATE)
+        val revisionField = CalibrationManager::class.java.getDeclaredField("prefs").apply { isAccessible = true }
+        val olderSaving = java.util.concurrent.CountDownLatch(1)
+        val releaseOlder = java.util.concurrent.CountDownLatch(1)
+        val olderRevision = System.currentTimeMillis() + 100_000L
+        val newerRevision = olderRevision + 1
+        val wrapped = object : android.content.SharedPreferences by original {
+            override fun edit(): android.content.SharedPreferences.Editor {
+                val editor = original.edit()
+                return object : android.content.SharedPreferences.Editor by editor {
+                    override fun putLong(key: String, value: Long): android.content.SharedPreferences.Editor {
+                        if (key.startsWith("calibration_profile_revision_") && value == olderRevision) {
+                            olderSaving.countDown()
+                            check(releaseOlder.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                        }
+                        editor.putLong(key, value)
+                        return this
+                    }
+                }
+            }
+        }
+        fun profile(revision: Long, value: Int): String = JSONObject().put("sensorId", sensor)
+            .put("revision", revision).put("units", "mg/dL")
+            .put("calibrations", org.json.JSONArray().put(JSONObject().put("timestamp", 1_000L)
+                .put("sensorValue", 100).put("sensorValueRaw", 90).put("userValue", value))).toString()
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+        revisionField.set(CalibrationManager, wrapped)
+        try {
+            val older = pool.submit { CalibrationManager.importMirrorProfileFromJsonBlocking(profile(olderRevision, 120)) }
+            assertTrue(olderSaving.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            val newerStarted = java.util.concurrent.CountDownLatch(1)
+            val newer = pool.submit {
+                newerStarted.countDown()
+                CalibrationManager.importMirrorProfileFromJsonBlocking(profile(newerRevision, 130))
+            }
+            assertTrue(newerStarted.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            // Without the cross-connection lock this return finishes before the older
+            // revision is published. With it the newer return waits, then wins.
+            try { newer.get(1, java.util.concurrent.TimeUnit.SECONDS) }
+            catch (_: java.util.concurrent.TimeoutException) { }
+            releaseOlder.countDown()
+            older.get(10, java.util.concurrent.TimeUnit.SECONDS)
+            newer.get(10, java.util.concurrent.TimeUnit.SECONDS)
+            assertEquals(newerRevision, JSONObject(exported(sensor)).getLong("revision"))
+            assertEquals(130f, CalibrationManager.calibrations.value.single().userValue, 0f)
+        } finally {
+            releaseOlder.countDown()
+            pool.shutdownNow()
+            revisionField.set(CalibrationManager, original)
+        }
+    }
+
+    @Test
     fun receiverProfileConvertsAllPointLanesFromMmolToMgdlOnTheMaster() = runBlocking {
         Applic.unit = 1
         CalibrationManager.addCalibration(1_000L, 6f, 5f, 7f, sensorId = sensor, sensorValueStock = 5.5f)

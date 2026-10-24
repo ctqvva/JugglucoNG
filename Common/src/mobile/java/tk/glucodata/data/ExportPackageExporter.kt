@@ -1141,6 +1141,8 @@ object ExportPackageExporter {
             .put("sensorId", sensorId)
             .put("sensorValue", sensorValue.toDouble())
             .put("sensorValueRaw", sensorValueRaw.toDouble())
+            .put("sensorValueStock", sensorValueStock.toDouble())
+            .put("valueUnit", valueUnit)
             .put("userValue", userValue.toDouble())
             .put("isEnabled", isEnabled)
             .put("isRawMode", isRawMode)
@@ -1323,6 +1325,8 @@ object ExportPackageExporter {
                         sensorValue = item.optDouble("sensorValue", 0.0).toFloat(),
                         sensorValueRaw = item.optDouble("sensorValueRaw", 0.0).toFloat(),
                         userValue = item.optDouble("userValue", 0.0).toFloat(),
+                        sensorValueStock = item.optDouble("sensorValueStock", 0.0).toFloat(),
+                        valueUnit = item.optInt("valueUnit", if (tk.glucodata.Applic.unit == 1) 1 else 0),
                         isEnabled = item.optBoolean("isEnabled", true),
                         isRawMode = item.optBoolean("isRawMode", false),
                         journalEntryId = item.optNullableLong("journalEntryId")

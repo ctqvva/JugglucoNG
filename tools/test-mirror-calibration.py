@@ -35,7 +35,10 @@ using crypt_t = int;
 std::mutex caliMutex;
 std::vector<std::string> roomIds;
 std::vector<std::string> javaMirrorCalibrationSensorIds() { return roomIds; }
-std::string javaExportCalibrationProfile(const char *id) { return std::string("profile:") + id; }
+std::string unexportableId;
+std::string javaExportCalibrationProfile(const char *id) {
+    return id == unexportableId ? std::string{} : std::string("profile:") + id;
+}
 struct Connect {
     std::vector<std::string> paths;
     std::vector<std::string> pulled;
@@ -111,13 +114,13 @@ int main() {
     cursor = 1;
     roomIds = {"DELETED", "LATEST"};
     assert(store.sendCalibrates(nullptr, &con, 0, cursor) & 1);
-    assert(con.paths == (std::vector<std::string>{"mirror/calibration/DELETED.json", "mirror/calibration/LATEST.json"}));
+    assert(con.paths == (std::vector<std::string>{"mirror/calibration/DELETED.json", "mirror/calibration/LATEST.json", "mirror/calibration/OLD.json"}));
     assert(cursor == 1);
 
     con.paths.clear();
     roomIds = {"FULL-LATEST"};
     assert(store.sendCalibrates(nullptr, &con, 0, cursor) & 1);
-    assert(con.paths == std::vector<std::string>{"mirror/calibration/FULL-LATEST.json"});
+    assert(con.paths == (std::vector<std::string>{"mirror/calibration/FULL-LATEST.json", "mirror/calibration/OLD.json"}));
 
     con.paths.clear();
     roomIds.clear();
@@ -136,6 +139,21 @@ int main() {
     assert(con.paths.size() == 2);
 
     con.paths.clear();
+    con.pulled.clear();
+    roomIds.clear();
+    cursor = 1;
+    assert(store.sendCalibrates(nullptr, &con, 0, cursor) & 1);
+    assert(con.pulled == (std::vector<std::string>{"OLD", "LATEST"}));
+
+    con.paths.clear();
+    con.pulled.clear();
+    unexportableId = "OLD";
+    assert(store.sendCalibrates(nullptr, &con, 0, cursor) & 1);
+    assert(con.paths == std::vector<std::string>{"mirror/calibration/LATEST.json"});
+    assert(con.pulled == (std::vector<std::string>{"OLD", "LATEST"}));
+
+    con.paths.clear();
+    store.native.clear();
     roomIds = {"../escape", "nested/id", "..", "bad\\id"};
     cursor = 9;
     assert(store.sendCalibrates(nullptr, &con, 0, cursor) == 2);

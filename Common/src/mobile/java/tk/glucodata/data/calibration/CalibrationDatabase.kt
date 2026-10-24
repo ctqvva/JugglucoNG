@@ -8,10 +8,10 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * The current schema version (plan task H5). The migration tests migrate from the
+ * The current schema version. The migration tests migrate from the
  * released versions to this one, so raising it without a migration path fails CI.
  */
-internal const val CALIBRATION_DATABASE_VERSION = 5
+internal const val CALIBRATION_DATABASE_VERSION = 6
 
 @Database(entities = [CalibrationEntity::class], version = CALIBRATION_DATABASE_VERSION, exportSchema = true)
 abstract class CalibrationDatabase : RoomDatabase() {
@@ -54,6 +54,12 @@ abstract class CalibrationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE calibrations ADD COLUMN valueUnit INTEGER NOT NULL DEFAULT -1")
+            }
+        }
+
         /**
          * The real migration chain, in order. The migration tests (plan task H4)
          * run these exact objects; the builder below uses the same list.
@@ -62,7 +68,8 @@ abstract class CalibrationDatabase : RoomDatabase() {
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
-            MIGRATION_4_5
+            MIGRATION_4_5,
+            MIGRATION_5_6
         )
 
         fun getInstance(context: Context): CalibrationDatabase {

@@ -33,6 +33,12 @@ object CalibrationProfileAccess {
     }
 
     @JvmStatic
+    fun onDisplayUnitChanged() {
+        runCatching { bridge?.onDisplayUnitChanged() }
+            .onFailure { Log.stack(TAG, "onDisplayUnitChanged failed", it) }
+    }
+
+    @JvmStatic
     fun mirrorProfileSensorIds(): Array<String> =
         runCatching { bridge?.mirrorProfileSensorIds() ?: emptyArray() }
             .onFailure { Log.stack(TAG, "mirrorProfileSensorIds failed", it) }

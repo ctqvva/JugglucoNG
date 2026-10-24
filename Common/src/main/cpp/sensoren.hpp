@@ -1711,13 +1711,17 @@ public:
         if (!res)
           return 0;
         did |= res;
-        const char *serial = getsensor(sindex)->shortsensorname_chars();
-        if (serial && serial[0] &&
-            std::none_of(profileIds.begin(), profileIds.end(), [&](const auto &id) {
-              return id == serial || sensorindex(id) == sindex || sensorindexshort(id) == sindex;
-            }))
-          profileIds.emplace_back(serial);
       }
+    }
+    // Return discovery covers the whole shared sensor roster, even when the
+    // forward native calibration cursor has advanced past an uncalibrated sensor.
+    for (int sindex = 0; sindex <= lastsens; ++sindex) {
+      const char *serial = getsensor(sindex)->shortsensorname_chars();
+      if (serial && serial[0] &&
+          std::none_of(profileIds.begin(), profileIds.end(), [&](const auto &id) {
+            return id == serial || sensorindex(id) == sindex || sensorindexshort(id) == sindex;
+          }))
+        profileIds.emplace_back(serial);
     }
     // A managed driver's profile must not depend on a native shell or cursor.
     // Keep the existing per-sensor path/JSON so older receivers can import it.
@@ -1739,11 +1743,10 @@ public:
           return 0;
         }
         did |= 1;
-        // The glucose receiver can own a newer manual calibration. Pull its
-        // current winner back on this same connection; no reverse glucose host.
-        if (!connect->pullMirrorCalibrationProfile(pass, id))
-          return 0;
       }
+      // Pull even when this device cannot export a profile for the sensor.
+      if (!connect->pullMirrorCalibrationProfile(pass, id))
+        return 0;
     }
     if (lastsens >= first)
       startSendCalibrate = lastsens;

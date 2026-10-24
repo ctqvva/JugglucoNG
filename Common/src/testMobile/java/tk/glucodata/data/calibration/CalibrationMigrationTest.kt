@@ -14,8 +14,8 @@ import org.robolectric.annotation.ConscryptMode
 
 /**
  * Calibration migrations on the H3 runner (plan task H4). The released starting
- * point is v3 (1.1.2-Alpha, recovered in H2); v5 is current. v3 -> v5 adds
- * `journalEntryId` and `sensorValueStock`, so an existing calibration row must
+ * point is v3 (1.1.2-Alpha, recovered in H2). Later versions add
+ * `journalEntryId`, `sensorValueStock`, and unit provenance, so an existing row must
  * come through with sensible values for the new columns.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -51,7 +51,7 @@ class CalibrationMigrationTest {
         val migrated = helper.runMigrationsAndValidate(DB_NAME, CALIBRATION_DATABASE_VERSION, true, *CalibrationDatabase.ALL_MIGRATIONS)
 
         migrated.query(
-            "SELECT sensorId, sensorValue, sensorValueRaw, userValue, sensorValueStock, journalEntryId " +
+            "SELECT sensorId, sensorValue, sensorValueRaw, userValue, sensorValueStock, journalEntryId, valueUnit " +
                 "FROM calibrations"
         ).use { cursor ->
             assertTrue("the calibration survived", cursor.moveToFirst())
@@ -61,6 +61,7 @@ class CalibrationMigrationTest {
             assertEquals(6.0, cursor.getDouble(3), 0.001)
             assertEquals("sensorValueStock is a column added at v5 with a zero default", 0.0, cursor.getDouble(4), 0.001)
             assertTrue("journalEntryId starts null (entered by hand)", cursor.isNull(5))
+            assertEquals("legacy unit provenance remains unknown until first load", -1, cursor.getInt(6))
             assertEquals(1, cursor.count)
         }
         migrated.close()
