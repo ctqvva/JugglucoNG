@@ -4,7 +4,7 @@
 // Known `0x2AA7` payload families:
 // - 19-byte live/current frames:
 //   Header (3 bytes cleartext): [seq_lo, seq_hi, 0x02]
-//   Payload (16 bytes AES-128-ECB encrypted with a firmware-selected hardcoded key)
+//   Payload (16 bytes AES-128-CBC/PKCS7 with the challenge-derived IV, like the history lanes)
 // - raw 16-byte authenticated history frames (AES-CBC/PKCS7)
 // - vendor `SN*R` history batches (AES-CBC/PKCS7 envelope)
 
@@ -19,12 +19,22 @@ data class ICanHealthGlucoseReading(
     val sequenceNumber: Int,     // From cleartext header (u16 LE)
     val glucoseMmolL: Float,     // mmol/L (raw sensor value)
     val glucoseMgdl: Float,      // mg/dL (converted)
-    val statusByte: Int,         // Session-varying status
+    /** Live frames carry the launcher state (0x80 = RUNNING) after the content-length byte. */
+    val statusByte: Int,
     /** High nibble of the glucose field. Purpose unknown; constant per sensor. */
     val dataState: Int,
     /** Unsigned 12-bit glucose value exactly as it came off the wire. */
     val mantissa: Int = 0,
+    /**
+     * Legacy vendor decode of the byte pair the history family uses for current. In the live
+     * CBC frame that pair is part of the zero-filled tail, so this is a constant, not a
+     * measurement — kept so a future consumer can pick it up without re-plumbing the parse.
+     */
     val currentValue: Float,
+    /**
+     * Always 0 in the live CBC frame: the temperature bytes are zero fill there. The history
+     * family does carry a real temperature at the same offset.
+     */
     val temperatureC: Float,
 )
 
@@ -95,6 +105,19 @@ data class ICanHealthSnHistoryRecord(
     val subtype: Int,
     val glucoseMmolL: Float? = null,
     val glucoseMgdl: Float? = null,
+    /**
+     * Unsigned raw value field exactly as decoded (hundredths of mmol/L, or the direct 16-bit
+     * variant). Exposed so the live-semantics classifier can compare it with the live frame's
+     * field on the same scale instead of round-tripping through the mmol/L float.
+     */
+    val mantissa: Int? = null,
+    /**
+     * Unsigned raw 16-bit measurement field of an original-history (`0x01`) record, exactly as it
+     * appears on the wire. The 2026-10-20 CE capture shows it equals the `0x02` glucose mantissa
+     * at every shared sequence; [currentValue] keeps the vendor's `0x88`/`25…` transform for
+     * compatibility, so the classifier needs this separate raw field.
+     */
+    val rawMeasurement: Int? = null,
     val dataState: Int = 0,
     val currentValue: Float? = null,
     val temperatureC: Float? = null,
@@ -142,8 +165,23 @@ object ICanHealthParser {
     /**
      * Parse a 19-byte glucose notification.
      *
+     * The 16-byte payload is AES-128-CBC/PKCS7 with the same challenge-derived IV as the history
+     * lanes (`buildAuthIv(challenge)`), captured from the official iOS client (PacketLogger
+     * 2026-09-26/27, notes §10.8). The old ECB read disagreed only at the IV byte positions, so
+     * the value/sequence bytes happened to be correct while the "status" byte and the current
+     * field were decryption artifacts.
+     *
+     * The PKCS7-unpadded frame is 13 bytes:
+     *   [0]    content length (0x0D)
+     *   [1]    launcher state (0x80 = RUNNING)
+     *   [2..3] value u16 LE (hundredths of mmol/L, or the direct variant selected by SN)
+     *   [4..5] sequence u16 LE, mirroring the cleartext header
+     *   [6]    constant 0x01 ("one new record available")
+     *   [7..12] six zero bytes (no current/temperature in this frame)
+     *
      * @param data Raw 19-byte BLE notification from CGM Measurement characteristic
      * @param aesKey 16-byte AES key for decryption
+     * @param authChallenge 4-byte challenge from the F3 response; the CBC IV is derived from it
      * @return Parsed reading, or null on failure
      */
     fun parseGlucoseNotification(
@@ -170,18 +208,28 @@ object ICanHealthParser {
             // Continue anyway — some firmware versions may differ
         }
 
-        // Decrypt the 16-byte payload
+        // Decrypt the 16-byte payload. Unlike the old ECB read, CBC needs the challenge: the IV
+        // is built from it, so without all four bytes the frame cannot be decoded at all.
+        val iv = authChallenge?.let { buildAuthIv(it) }
+        if (iv == null) {
+            logError("parseGlucose: rejecting live frame without a 4-byte auth challenge for the CBC IV")
+            return null
+        }
         val encrypted = data.copyOfRange(3, 19)
-        val decrypted = ICanHealthCrypto.decryptBlock(encrypted, aesKey) ?: run {
-            logError("parseGlucose: AES decryption failed")
+        val decrypted = ICanHealthCrypto.decryptCbcPkcs7(encrypted, aesKey, iv) ?: run {
+            logError("parseGlucose: AES-CBC decryption failed")
             return null
         }
 
-        // Validate fixed marker before accepting any decrypted glucose. With the
-        // wrong firmware key AES output can still decode to an in-range number.
-        val sizeFlags = decrypted[ICanHealthConstants.OFFSET_SIZE_FLAGS].toInt() and 0xFF
-        if (sizeFlags != 0x0D) {
-            logWarn("parseGlucose: rejecting packet with sizeFlags=0x${"%02X".format(sizeFlags)}, expected 0x0D")
+        // Byte 0 is the content length and PKCS7 has already stripped the three pad bytes, so a
+        // well-formed frame is exactly that long. Anything else is a decryption accident (wrong
+        // key or challenge) or a frame family this parser does not know.
+        val sizeFlags = decrypted.getOrElse(ICanHealthConstants.OFFSET_SIZE_FLAGS) { 0 }.toInt() and 0xFF
+        if (sizeFlags != 0x0D || decrypted.size != sizeFlags) {
+            logWarn(
+                "parseGlucose: rejecting packet with sizeFlags=0x${"%02X".format(sizeFlags)} " +
+                    "and content length ${decrypted.size}, expected 0x0D"
+            )
             return null
         }
 
@@ -205,6 +253,9 @@ object ICanHealthParser {
         val dataState = field.nibble
         val glucoseMmolL = field.glucoseMmolL
         val glucoseMgdl = field.glucoseMgdl
+        // The verified live frame has no current or temperature fields: bytes 9..12 are zero fill
+        // in the 13-byte content. Both decodes are kept for a future consumer (the history family
+        // does carry real values at these offsets) but neither is a measurement here.
         val currentValue = decodeCurrentValue(
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE],
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE + 1]
@@ -406,11 +457,13 @@ object ICanHealthParser {
         while (offset + recordSize <= decrypted.lastIndex) {
             when (subtype) {
                 ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                    val rawMeasurement = parseLeUnsigned(decrypted, offset)
                     val currentValue = decodeCurrentValue(decrypted[offset], decrypted[offset + 1])
                     val temperature = parseLeUnsigned(decrypted, offset + 2) / 10.0f
                     records += ICanHealthSnHistoryRecord(
                         sequenceNumber = sequenceNumber,
                         subtype = subtype,
+                        rawMeasurement = rawMeasurement,
                         currentValue = currentValue,
                         temperatureC = temperature,
                     )
@@ -429,6 +482,7 @@ object ICanHealthParser {
                         subtype = subtype,
                         glucoseMmolL = glucoseMmolL,
                         glucoseMgdl = glucoseMgdl,
+                        mantissa = field.mantissa,
                         dataState = dataState,
                     )
                 }
@@ -701,11 +755,13 @@ object ICanHealthParser {
         val sequenceNumber = parseLeUnsigned(decrypted, 4)
         return when (subtype) {
             ICanHealthConstants.SN_HISTORY_SUBTYPE_ORIGINAL -> {
+                val rawMeasurement = parseLeUnsigned(decrypted, 9)
                 val currentValue = decodeCurrentValue(decrypted[9], decrypted[10])
                 val temperature = parseLeUnsigned(decrypted, 11) / 10.0f
                 ICanHealthSnHistoryRecord(
                     sequenceNumber = sequenceNumber,
                     subtype = subtype,
+                    rawMeasurement = rawMeasurement,
                     currentValue = currentValue,
                     temperatureC = temperature,
                 )
@@ -737,6 +793,7 @@ object ICanHealthParser {
                     subtype = subtype,
                     glucoseMmolL = glucoseMmolL,
                     glucoseMgdl = glucoseMgdl,
+                    mantissa = field.mantissa,
                     dataState = dataState,
                     currentValue = currentValue,
                     temperatureC = temperature,
@@ -801,9 +858,9 @@ object ICanHealthParser {
      * Dump everything needed to understand one measurement from a single trace.
      *
      * The decrypted block is otherwise invisible, which has repeatedly made captures unable to
-     * answer questions about the encoding. Bytes 6..8 come along because the driver parses
-     * nothing from them, and the whole block because the fields it does parse have turned out
-     * not to mean what their names say.
+     * answer questions about the encoding. The whole content comes along because the fields the
+     * driver does parse have turned out not to mean what their names once said — the live frame
+     * carries a launcher state, not a status, and its current/temperature pair is zero fill.
      */
     private fun logGlucoseFieldDiagnostics(
         decrypted: ByteArray,
@@ -817,8 +874,9 @@ object ICanHealthParser {
                 "glucose field seq=$headerSeq nibble=${field.nibble} mantissa=${field.mantissa}" +
                     " -> ${"%.1f".format(field.glucoseMmolL)} mmol/L" +
                     " (${"%.1f".format(field.glucoseMgdl)} mg/dL)" +
-                    " | flags=0x${"%02X".format(decrypted[1])}" +
-                    " status=${decrypted.copyOfRange(6, minOf(9, decrypted.size)).toHex()}" +
+                    " | contentLen=0x${"%02X".format(decrypted.getOrElse(0) { 0 })}" +
+                    " launcher=0x${"%02X".format(decrypted.getOrElse(1) { 0 })}" +
+                    " tail=${decrypted.copyOfRange(6, minOf(9, decrypted.size)).toHex()}" +
                     " field11_12=${"%.1f".format(temperatureC)}" +
                     " block=${decrypted.toHex()}"
             )
