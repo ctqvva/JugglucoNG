@@ -2164,7 +2164,7 @@ fun DashboardScreen(
                             suggestedChartAnchorGlucoseMgDl = suggestedGlucoseMgDl
                         )
                     },
-                    // Centred: at the end it sat on the newest reading's value.
+                    // The centre trough keeps the FAB clear of timestamps and glucose values.
                     modifier = Modifier.align(Alignment.BottomCenter),
                     horizontalAlignment = Alignment.CenterHorizontally
                 )

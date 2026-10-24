@@ -1821,6 +1821,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Інсулін</string>
     <string name="journal_type_food">Ежа</string>
     <string name="journal_type_bg_short">ГК</string>
+    <string name="journal_type_glucose">Глюкоза</string>
     <string name="journal_type_fingerstick">Вымярэнне з пальца</string>
     <string name="journal_type_activity">Актыўнасць</string>
     <string name="journal_type_note">Нататка</string>

@@ -1794,6 +1794,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Инсулин</string>
     <string name="journal_type_food">Еда</string>
     <string name="journal_type_bg_short">ГК</string>
+    <string name="journal_type_glucose">Глюкоза</string>
     <string name="journal_type_fingerstick">Пальцевый замер</string>
     <string name="journal_type_activity">Активность</string>
     <string name="journal_type_note">Заметка</string>

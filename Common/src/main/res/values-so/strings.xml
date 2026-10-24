@@ -2041,6 +2041,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Cunto</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Gulukoos</string>
     <string name="journal_type_fingerstick">Farta gacanta</string>
     <string name="journal_type_activity">Hawsha</string>
     <string name="journal_type_note">Ogow</string>

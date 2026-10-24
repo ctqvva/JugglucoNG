@@ -2177,6 +2177,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_type_insulin">Inzulin</string>
     <string name="journal_type_food">Étel</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Glükóz</string>
     <string name="journal_type_fingerstick">Ujjbegyes mérés</string>
     <string name="journal_type_activity">Aktivitás</string>
     <string name="journal_type_note">Megjegyzés</string>

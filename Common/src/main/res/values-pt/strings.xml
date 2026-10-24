@@ -1752,6 +1752,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Insulina</string>
     <string name="journal_type_food">Alimento</string>
     <string name="journal_type_bg_short">Glic</string>
+    <string name="journal_type_glucose">Glicose</string>
     <string name="journal_type_fingerstick">Ponta de dedo</string>
     <string name="journal_type_activity">Atividade</string>
     <string name="journal_type_note">Nota</string>

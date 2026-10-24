@@ -1767,6 +1767,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">胰岛素</string>
     <string name="journal_type_food">食物</string>
     <string name="journal_type_bg_short">血糖</string>
+    <string name="journal_type_glucose">葡萄糖</string>
     <string name="journal_type_fingerstick">指尖血糖</string>
     <string name="journal_type_activity">活动</string>
     <string name="journal_type_note">备注</string>

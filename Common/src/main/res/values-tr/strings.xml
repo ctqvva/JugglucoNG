@@ -1779,6 +1779,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_type_insulin">İnsülin</string>
     <string name="journal_type_food">Yiyecek</string>
     <string name="journal_type_bg_short">KŞ</string>
+    <string name="journal_type_glucose">Glikoz</string>
     <string name="journal_type_fingerstick">Parmak ölçümü</string>
     <string name="journal_type_activity">Aktivite</string>
     <string name="journal_type_note">Not</string>

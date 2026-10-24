@@ -1794,6 +1794,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_type_insulin">Insuline</string>
     <string name="journal_type_food">Voeding</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Glucose</string>
     <string name="journal_type_fingerstick">Vingerprik</string>
     <string name="journal_type_activity">Activiteit</string>
     <string name="journal_type_note">Notitie</string>

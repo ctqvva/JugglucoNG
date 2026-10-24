@@ -1938,6 +1938,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Essen</string>
     <string name="journal_type_bg_short">BZ</string>
+    <string name="journal_type_glucose">Glukose</string>
     <string name="journal_type_fingerstick">Blutzuckermessung</string>
     <string name="journal_type_activity">Aktivität</string>
     <string name="journal_type_note">Notiz</string>

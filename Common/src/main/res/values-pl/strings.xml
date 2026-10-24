@@ -1786,6 +1786,7 @@
     <string name="journal_type_insulin">Insulina</string>
     <string name="journal_type_food">Jedzenie</string>
     <string name="journal_type_bg_short">Glik</string>
+    <string name="journal_type_glucose">Glukoza</string>
     <string name="journal_type_fingerstick">Pomiar z palca</string>
     <string name="journal_type_activity">Aktywność</string>
     <string name="journal_type_note">Notatka</string>
