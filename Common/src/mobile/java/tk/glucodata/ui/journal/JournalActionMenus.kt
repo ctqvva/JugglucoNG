@@ -120,7 +120,7 @@ fun journalReachActionTypes(): List<JournalEntryType> = listOf(
 fun JournalEntryType.journalActionLabel(): String = when (this) {
     JournalEntryType.INSULIN -> stringResource(R.string.journal_type_insulin)
     JournalEntryType.CARBS -> stringResource(R.string.journal_type_food)
-    JournalEntryType.FINGERSTICK -> stringResource(R.string.journal_type_blood_glucose)
+    JournalEntryType.FINGERSTICK -> stringResource(R.string.journal_type_glucose)
     JournalEntryType.ACTIVITY -> stringResource(R.string.journal_type_activity)
     JournalEntryType.NOTE -> stringResource(R.string.journal_type_note)
 }
