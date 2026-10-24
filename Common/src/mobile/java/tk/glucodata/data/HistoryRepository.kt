@@ -1012,13 +1012,29 @@ class HistoryRepository(context: Context = Applic.app) {
                     .filter { it.timestamp <= latest }
                 if (importedInWindow.isEmpty()) return@withContext
 
-                val nativeBuckets = HashSet<Long>()
-                dao.getTimestampsForSensors(nativeSerials, oldest, latest)
-                    .forEach { nativeBuckets.add(it / SENSOR_MINUTE_BUCKET_MS) }
+                val nativeTimestamps = dao.getTimestampsForSensors(nativeSerials, oldest, latest)
+                    .sorted()
+                    .distinct()
+                val nativeBuckets = HashSet<Long>(nativeTimestamps.size)
+                nativeTimestamps.forEach { nativeBuckets.add(it / SENSOR_MINUTE_BUCKET_MS) }
+
+                val candidates = importedInWindow
+                    .filter { (it.timestamp / SENSOR_MINUTE_BUCKET_MS) !in nativeBuckets }
+                val cadenceMs = ImportedGapFill.inferCadenceMs(nativeTimestamps)
+                val fillerTimestamps = if (cadenceMs != null) {
+                    ImportedGapFill.selectFillerTimestamps(
+                        nativeTimestampsAscending = nativeTimestamps,
+                        candidateTimestampsAscending = candidates.map { it.timestamp }.sorted(),
+                        cadenceMs = cadenceMs,
+                    )
+                } else {
+                    // Too few native rows to infer a cadence; keep the old per-minute rule.
+                    candidates.mapTo(HashSet()) { it.timestamp }
+                }
 
                 val roomSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
-                val gapFillers = importedInWindow
-                    .filter { (it.timestamp / SENSOR_MINUTE_BUCKET_MS) !in nativeBuckets }
+                val gapFillers = candidates
+                    .filter { it.timestamp in fillerTimestamps }
                     .map { it.copy(id = 0L, sensorSerial = roomSerial) }
                 val retagReadings = filterDeletedReadings(gapFillers)
 
