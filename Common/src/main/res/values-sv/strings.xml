@@ -2703,6 +2703,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="status_watch_reading">Klockan läser av den här sensorn</string>
     <string name="return_sensor_to_phone">Flytta tillbaka sensorn till telefonen</string>
+    <string name="clone_take_over_sensor">Ta över sensorn</string>
+    <string name="clone_return_sensor_to_sender">Lämna tillbaka sensorn till avsändaren</string>
     <string name="wear_prediction_title">Prognos</string>
     <string name="wear_prediction_on">På — ställs in på telefonen</string>
     <string name="wear_prediction_off">Av — ställs in på telefonen</string>

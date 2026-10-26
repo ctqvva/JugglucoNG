@@ -2704,6 +2704,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="status_watch_reading">O relógio está a ler este sensor</string>
     <string name="return_sensor_to_phone">Devolver o sensor ao telemóvel</string>
+    <string name="clone_take_over_sensor">Assumir o sensor</string>
+    <string name="clone_return_sensor_to_sender">Devolver o sensor ao emissor</string>
     <string name="wear_prediction_title">Previsão</string>
     <string name="wear_prediction_on">Ligada — definida no telemóvel</string>
     <string name="wear_prediction_off">Desligada — definida no telemóvel</string>

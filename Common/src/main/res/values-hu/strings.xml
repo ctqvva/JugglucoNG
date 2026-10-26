@@ -2793,6 +2793,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     </plurals>
     <string name="status_watch_reading">Az óra olvassa ezt a szenzort</string>
     <string name="return_sensor_to_phone">Szenzor visszaadása a telefonnak</string>
+    <string name="clone_take_over_sensor">Szenzor átvétele</string>
+    <string name="clone_return_sensor_to_sender">Szenzor visszaadása a küldőnek</string>
     <string name="wear_prediction_title">Előrejelzés</string>
     <string name="wear_prediction_on">Be — a telefonon állítható</string>
     <string name="wear_prediction_off">Ki — a telefonon állítható</string>

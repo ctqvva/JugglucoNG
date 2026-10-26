@@ -2709,6 +2709,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="status_watch_reading">La montre lit ce capteur</string>
     <string name="return_sensor_to_phone">Reprendre le capteur sur le téléphone</string>
+    <string name="clone_take_over_sensor">Prendre le relais du capteur</string>
+    <string name="clone_return_sensor_to_sender">Rendre le capteur à l\'émetteur</string>
     <string name="wear_prediction_title">Prévision</string>
     <string name="wear_prediction_on">Activé — réglé sur le téléphone</string>
     <string name="wear_prediction_off">Désactivé — réglé sur le téléphone</string>

@@ -2741,6 +2741,8 @@
     </plurals>
     <string name="status_watch_reading">Zegarek odczytuje ten czujnik</string>
     <string name="return_sensor_to_phone">Przenieś sensor z powrotem na telefon</string>
+    <string name="clone_take_over_sensor">Przejmij sensor</string>
+    <string name="clone_return_sensor_to_sender">Oddaj sensor nadawcy</string>
     <string name="wear_prediction_title">Prognoza</string>
     <string name="wear_prediction_on">Włączona — ustawiana w telefonie</string>
     <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>

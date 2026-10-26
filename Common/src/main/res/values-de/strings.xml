@@ -2816,6 +2816,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     </plurals>
     <string name="status_watch_reading">Die Uhr liest diesen Sensor</string>
     <string name="return_sensor_to_phone">Sensor an Smartphone zurückgeben</string>
+    <string name="clone_take_over_sensor">Sensor übernehmen</string>
+    <string name="clone_return_sensor_to_sender">Sensor an Sender zurückgeben</string>
     <string name="wear_prediction_title">Prognose</string>
     <string name="wear_prediction_on">Ein — am Telefon einstellen</string>
     <string name="wear_prediction_off">Aus — am Telefon einstellen</string>

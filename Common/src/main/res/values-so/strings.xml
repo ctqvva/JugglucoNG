@@ -2894,6 +2894,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     </plurals>
     <string name="status_watch_reading">Saacaddu waxay akhrinaysaa dareemahan</string>
     <string name="return_sensor_to_phone">Dareemaha ku celi telefoonka</string>
+    <string name="clone_take_over_sensor">La wareeg dareemaha</string>
+    <string name="clone_return_sensor_to_sender">Dareemaha u celi diraha</string>
     <string name="wear_prediction_title">Saadaal</string>
     <string name="wear_prediction_on">Shid — taleefanka laga dejiyo</string>
     <string name="wear_prediction_off">Damin — taleefanka laga dejiyo</string>
