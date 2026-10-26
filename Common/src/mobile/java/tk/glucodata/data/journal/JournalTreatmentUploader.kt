@@ -747,11 +747,8 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         try {
             val code = connection.responseCode
             // The cached JWT outlived the key that signed it (Nightscout restarted, #716).
-            if (code == HttpURLConnection.HTTP_UNAUTHORIZED &&
-                retryRejectedToken &&
-                v3Auth.isNotEmpty() &&
+            if (code == HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && v3Auth.isNotEmpty()) {
                 NightPost.dropRejectedV3AuthorizationHeader(v3Auth)
-            ) {
                 connection.disconnect()
                 return fetchTreatmentsJson(baseUrl, secret, useV3, retryRejectedToken = false)
             }

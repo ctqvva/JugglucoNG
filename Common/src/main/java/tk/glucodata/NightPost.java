@@ -263,7 +263,8 @@ private static int deleteUrlCode(String urlstring,String secret,boolean retryRej
         urlConnection.setRequestMethod("DELETE");
 
         final int code=urlConnection.getResponseCode();
-        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && dropRejectedToken(auth)) {
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
             urlConnection.disconnect();
             return deleteUrlCode(urlstring,secret,false);
             }
@@ -428,22 +429,23 @@ private static synchronized String getCachedToken(long now) {
  * hours by default, so a server restart looked like a connection only an app restart could
  * bring back (#716).
  *
- * @return true when {@code rejected} was still the cached token; false when a newer one has
- *         already replaced it, so callers retry only when the retry will carry a new token.
+ * <p>Only clears the cache while {@code rejected} is still what it holds: requests carrying
+ * the same old token run concurrently (device status has its own thread), and the first 401
+ * may already have fetched a good replacement. Callers retry once either way, so the later
+ * ones pick that replacement up instead of failing the pass.
  */
-private static synchronized boolean dropRejectedToken(String rejected) {
+private static synchronized void dropRejectedToken(String rejected) {
     if(rejected==null || rejected.isEmpty() || !rejected.equals(token))
-        return false;
+        return;
     Log.i(LOG_ID,"Nightscout refused the cached token; exchanging a new one");
     token="";
     expire=0L;
-    return true;
     }
 
 /** For v3 requests made outside this class: the header from {@link #getV3AuthorizationHeader} got a 401. */
 @Keep
-static public boolean dropRejectedV3AuthorizationHeader(String rejected) {
-    return dropRejectedToken(rejected);
+static public void dropRejectedV3AuthorizationHeader(String rejected) {
+    dropRejectedToken(rejected);
     }
 
 private static long ancillaryTokenAttemptTime=0L;
@@ -799,7 +801,8 @@ private static int uploadWithTimeouts(
         }
         final int code=urlConnection.getResponseCode();
         // A 401 stored nothing, so sending the same document again with a fresh token is safe.
-        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && dropRejectedToken(auth)) {
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
             urlConnection.disconnect();
             return uploadWithTimeouts(
                     httpurl,

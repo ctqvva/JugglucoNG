@@ -729,11 +729,10 @@ class NightscoutFollowerManager(
         // A 401 on a cached bearer means the server no longer accepts that JWT -- it signs
         // them with a key a restart or redeploy can replace. Without this the follower kept
         // sending the dead token until its own expiry, hours away, so a server restart looked
-        // like a lost connection that only an app restart fixed (#716).
-        if (response.code == HttpURLConnection.HTTP_UNAUTHORIZED &&
-            response.bearer != null &&
+        // like a lost connection that only an app restart fixed (#716). Retried even when
+        // another request already replaced the token: the retry then carries that one.
+        if (response.code == HttpURLConnection.HTTP_UNAUTHORIZED && response.bearer != null) {
             NightscoutFollowerV3.dropToken(response.bearer)
-        ) {
             return httpGetOnce(endpoint)
         }
         return response
