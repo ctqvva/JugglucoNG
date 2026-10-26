@@ -450,9 +450,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="chart_short_title">Grafik</string>
     <string name="target_range_title">Zielbereich</string>
     <string name="chart_limits_title">Grafikbereich</string>
-    <string name="dashboard_range_hours">%1$d S</string>
+    <string name="dashboard_range_hours">%1$d h</string>
     <string name="dashboard_range_days">%1$d T</string>
-    <string name="sensor_age_hours_compact">%1$d S</string>
+    <string name="sensor_age_hours_compact">%1$d h</string>
     <string name="sensor_age_days_compact">%1$d T</string>
     <string name="sensor_reading_age_seconds">%1$ds</string>
     <string name="sensor_reading_age_minutes">%1$dm</string>
@@ -919,7 +919,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
-    <string name="hours_short">%1$d S</string>
+    <string name="hours_short">%1$d h</string>
     <string name="factory_reset_alert">ALLES wird entfernt. Kann nicht rückgängig gemacht werden!</string>
     <string name="factory_reset_confirm">Werkseinstellungen?</string>
     <string name="fiasp">Fiasp</string>
@@ -2506,8 +2506,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="episodes_show_all">Alle %1$d Episoden</string>
     <string name="episodes_hide">Episoden ausblenden</string>
     <string name="stats_duration_minutes">%1$d Min.</string>
-    <string name="stats_duration_hours">%1$d Std.</string>
-    <string name="stats_duration_hours_minutes">%1$d Std. %2$d Min.</string>
+    <string name="stats_duration_hours">%1$d h</string>
+    <string name="stats_duration_hours_minutes">%1$d h %2$d Min.</string>
     <string name="stats_tab_days">Tage</string>
     <string name="stats_tab_hours">Stunden</string>
     <string name="stats_tab_weekdays">Wochentage</string>
@@ -2578,7 +2578,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_arrange_width">Halbe oder volle Breite</string>
     <string name="stats_window_3d">3 T</string>
     <string name="stats_window_today">Heute</string>
-    <string name="stats_window_24h">24 S</string>
+    <string name="stats_window_24h">24 h</string>
     <string name="stats_metric_dawn">Morgendämmerungsanstieg</string>
     <string name="stats_metric_dawn_description">Das Dawn-Phänomen, gemessen: der typische Anstieg vom nächtlichen Tief zum darauffolgenden Morgenhoch. Angegeben als Median über die Tage, damit eine schlechte Nacht ihn nicht bestimmt.</string>
     <string name="stats_metric_mage">MAGE</string>
