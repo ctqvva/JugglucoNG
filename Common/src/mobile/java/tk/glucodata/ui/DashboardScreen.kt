@@ -1347,8 +1347,8 @@ fun DashboardScreen(
             val peerSeriesById = remember(multiSensorDisplay) {
                 multiSensorDisplay.series.associateBy { it.sensorId }
             }
-            val recentReadingJournalEntries = remember(recentReadings, scopedJournalEntries) {
-                groupJournalEntriesByReading(recentReadings, scopedJournalEntries)
+            val recentReadingJournalEntries = remember(recentReadings, consumerHistory, scopedJournalEntries) {
+                groupJournalEntriesByReading(recentReadings, scopedJournalEntries, history = consumerHistory)
             }
             val hasVisibleReadingContent = dashboardDataState.isFresh || recentReadings.isNotEmpty()
 
