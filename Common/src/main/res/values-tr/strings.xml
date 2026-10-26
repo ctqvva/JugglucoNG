@@ -662,6 +662,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_slot_change_desc">Sensör, kayıtlı koduyla yeni yuvada yeniden eşleşir. Ardından eski yuvayı başka bir cihaz kullanabilir.</string>
     <string name="dexcom_slot_change_action">Yuvayı değiştir</string>
     <string name="dexcom_pairing_code_label">4 haneli eşleştirme kodu</string>
+    <string name="dexcom_pairing_code">Eşleştirme kodu</string>
     <string name="dexcom_pairing_code_instruction">Sensör aplikatöründe yazan 4 haneli eşleştirme kodunu girin.</string>
     <string name="libre_setup_title">Libre Kurulumu</string>
     <string name="scan_libre_sensor">Libre Sensörü Tara</string>

@@ -702,6 +702,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dexcom_slot_change_desc">De sensor wordt met de opgeslagen code opnieuw gekoppeld op het nieuwe slot. Een ander apparaat kan daarna het oude slot gebruiken.</string>
     <string name="dexcom_slot_change_action">Slot wijzigen</string>
     <string name="dexcom_pairing_code_label">4-cijferige koppelcode</string>
+    <string name="dexcom_pairing_code">Koppelcode</string>
     <string name="dexcom_pairing_code_instruction">Voer de 4-cijferige koppelcode in die op de sensorapplicator staat.</string>
     <string name="libre_setup_title">Libre Installatie</string>
     <string name="scan_libre_sensor">Scan Libre Sensor</string>

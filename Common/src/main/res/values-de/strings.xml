@@ -714,6 +714,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_slot_change_desc">Der Sensor wird mit seinem gespeicherten Code im neuen Slot neu gekoppelt. Ein anderes Gerät kann danach den alten Slot nutzen.</string>
     <string name="dexcom_slot_change_action">Slot wechseln</string>
     <string name="dexcom_pairing_code_label">4-stelliger Kopplungscode</string>
+    <string name="dexcom_pairing_code">Kopplungscode</string>
     <string name="dexcom_pairing_code_instruction">Geben Sie den 4-stelligen Kopplungscode ein, der auf dem Sensorapplikator steht.</string>
     <string name="libre_setup_title">Libre Einrichtung</string>
     <string name="scan_libre_sensor">Libre Sensor scannen</string>

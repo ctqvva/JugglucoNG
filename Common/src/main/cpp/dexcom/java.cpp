@@ -521,6 +521,28 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(isAuthenticated)(JNIEnv *envin,
   return res;
 }
 
+// The 4-digit sensor code (scanned or typed) is the tail of the sensor
+// directory name. The sensor card shows it, so pairing again does not need
+// the sensor packaging.
+extern "C" JNIEXPORT jstring JNICALL fromjava(dexPairingCode)(JNIEnv *envin,
+                                                              jclass cl,
+                                                              jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens || !sens->isDexcom())
+    return nullptr;
+  const auto pin = sens->getDexPin();
+  char code[5]{};
+  for (int i = 0; i < 4; ++i) {
+    if (pin[i] < '0' || pin[i] > '9')
+      return nullptr;
+    code[i] = pin[i];
+  }
+  return envin->NewStringUTF(code);
+}
+
 extern bool encrypt8AES(const uint8_t *keybytes, const uint8_t *data,
                         unsigned char *uit);
 extern "C" JNIEXPORT jboolean JNICALL

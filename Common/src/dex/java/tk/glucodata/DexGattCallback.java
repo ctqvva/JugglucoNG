@@ -920,6 +920,11 @@ public int getAuthSlot() {
     return authSlot;
     }
 
+/** The sensor's 4-digit pairing code, or null when it is not stored. */
+public String getPairingCode() {
+    return dataptr == 0L ? null : Natives.dexPairingCode(dataptr);
+    }
+
 /**
  * Moves this sensor to another slot. The key and bond belong to the old slot, so both are
  * dropped and the next connection pairs again from the stored sensor code, as a new sensor

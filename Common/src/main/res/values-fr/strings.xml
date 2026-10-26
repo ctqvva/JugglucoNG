@@ -557,6 +557,7 @@
     <string name="dexcom_slot_change_desc">Le capteur sera de nouveau appairé sur le nouvel emplacement avec son code enregistré. Un autre appareil pourra ensuite utiliser l\'ancien.</string>
     <string name="dexcom_slot_change_action">Changer d\'emplacement</string>
     <string name="dexcom_pairing_code_label">Code d’association à 4 chiffres</string>
+    <string name="dexcom_pairing_code">Code d’association</string>
     <string name="dexcom_pairing_code_instruction">Saisissez le code d’association à 4 chiffres imprimé sur l’applicateur du capteur.</string>
     <string name="libre_setup_title">Configuration Libre</string>
     <string name="scan_libre_sensor">Scanner Capteur Libre</string>

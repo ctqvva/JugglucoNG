@@ -685,6 +685,7 @@
     <string name="dexcom_slot_change_desc">Sensor zostanie ponownie sparowany w nowym gnieździe przy użyciu zapisanego kodu. Inne urządzenie będzie mogło potem użyć starego gniazda.</string>
     <string name="dexcom_slot_change_action">Zmień gniazdo</string>
     <string name="dexcom_pairing_code_label">4-cyfrowy kod parowania</string>
+    <string name="dexcom_pairing_code">Kod parowania</string>
     <string name="dexcom_pairing_code_instruction">Wpisz 4-cyfrowy kod parowania wydrukowany na aplikatorze sensora.</string>
     <string name="libre_setup_title">Konfiguracja Libre</string>
     <string name="scan_libre_sensor">Skanuj Sensor Libre</string>

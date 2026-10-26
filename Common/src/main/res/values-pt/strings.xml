@@ -510,6 +510,7 @@
     <string name="dexcom_slot_change_desc">O sensor será pareado de novo no novo slot com o código salvo. Outro dispositivo poderá então usar o slot antigo.</string>
     <string name="dexcom_slot_change_action">Trocar slot</string>
     <string name="dexcom_pairing_code_label">Código de emparelhamento de 4 dígitos</string>
+    <string name="dexcom_pairing_code">Código de emparelhamento</string>
     <string name="dexcom_pairing_code_instruction">Introduza o código de emparelhamento de 4 dígitos impresso no aplicador do sensor.</string>
     <string name="libre_setup_title">Configuração Libre</string>
     <string name="scan_libre_sensor">Escanear Sensor Libre</string>

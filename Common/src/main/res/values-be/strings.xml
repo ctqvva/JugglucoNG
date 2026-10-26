@@ -552,6 +552,7 @@
     <string name="dexcom_slot_change_desc">Сэнсар зноў злучыцца ў новым слоце па захаваным кодзе. Пасля гэтага стары слот зможа выкарыстаць іншая прылада.</string>
     <string name="dexcom_slot_change_action">Змяніць слот</string>
     <string name="dexcom_pairing_code_label">4-значны код спалучэння</string>
+    <string name="dexcom_pairing_code">Код спалучэння</string>
     <string name="dexcom_pairing_code_instruction">Увядзіце 4-значны код спалучэння, надрукаваны на аплікатары сэнсара.</string>
     <string name="libre_setup_title">Налада Libre</string>
     <string name="scan_libre_sensor">Сканаваць Сэнсар Libre</string>

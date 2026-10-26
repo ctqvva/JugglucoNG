@@ -483,6 +483,7 @@
     <string name="dexcom_slot_change_desc">Il sensore verrà abbinato di nuovo sul nuovo slot con il codice salvato. Un altro dispositivo potrà poi usare quello vecchio.</string>
     <string name="dexcom_slot_change_action">Cambia slot</string>
     <string name="dexcom_pairing_code_label">Codice di associazione a 4 cifre</string>
+    <string name="dexcom_pairing_code">Codice di associazione</string>
     <string name="dexcom_pairing_code_instruction">Inserisci il codice di associazione a 4 cifre stampato sull’applicatore del sensore.</string>
     <string name="libre_setup_title">Configurazione Libre</string>
     <string name="scan_libre_sensor">Scansiona Sensore Libre</string>

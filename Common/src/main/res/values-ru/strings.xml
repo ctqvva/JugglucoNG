@@ -706,6 +706,7 @@
     <string name="dexcom_slot_change_desc">Сенсор заново выполнит сопряжение в новом слоте по сохранённому коду. После этого старый слот сможет занять другое устройство.</string>
     <string name="dexcom_slot_change_action">Сменить слот</string>
     <string name="dexcom_pairing_code_label">4-значный код сопряжения</string>
+    <string name="dexcom_pairing_code">Код сопряжения</string>
     <string name="dexcom_pairing_code_instruction">Введите 4-значный код сопряжения, напечатанный на аппликаторе сенсора.</string>
     <string name="libre_setup_title">Настройка Libre</string>
     <string name="scan_libre_sensor">Сканировать сенсор Libre</string>

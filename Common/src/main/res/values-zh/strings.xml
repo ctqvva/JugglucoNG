@@ -617,6 +617,7 @@
     <string name="dexcom_slot_change_desc">传感器将使用已保存的代码在新槽位上重新配对。之后其他设备可以使用旧槽位。</string>
     <string name="dexcom_slot_change_action">更换槽位</string>
     <string name="dexcom_pairing_code_label">4 位配对码</string>
+    <string name="dexcom_pairing_code">配对码</string>
     <string name="dexcom_pairing_code_instruction">输入传感器助针器上印刷的 4 位配对码。</string>
     <string name="libre_setup_title">Libre 设置</string>
     <string name="scan_libre_sensor">扫描 Libre 传感器</string>

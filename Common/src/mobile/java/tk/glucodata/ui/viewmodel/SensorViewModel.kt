@@ -110,6 +110,7 @@ data class SensorInfo(
     val sensorIndex: Int = -1,
     val isCloneSource: Boolean = false,
     val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
+    val dexcomPairingCode: String = "",  // Dexcom G7: the 4-digit sensor code, blank = not stored
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -693,6 +694,7 @@ class SensorViewModel : ViewModel() {
                             handoffUiState = handoffUiState,
                             sensorIndex = sensorIndex,
                             dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
+                            dexcomPairingCode = (gatt as? tk.glucodata.DexGattCallback)?.pairingCode.orEmpty(),
                         )
                     }
                 } catch (e: Exception) {

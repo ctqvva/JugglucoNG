@@ -660,6 +660,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="last_ble_error">Legutóbbi BLE-hiba</string>
     <string name="sensor_connection_log">Kapcsolati napló</string>
     <string name="sensor_address">Cím</string>
+    <string name="dexcom_pairing_code">Párosítási kód</string>
     <string name="sensor_started">Indítás</string>
     <string name="sensor_ends_officially">Hivatalos lejárat</string>
     <string name="sensor_expected_end">Várható lejárat</string>

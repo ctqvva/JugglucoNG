@@ -783,6 +783,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_slot_change_action">Change slot</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_pairing_code_label">4-digit pairing code</string>
+    <string name="dexcom_pairing_code">Pairing code</string>
     <string name="dexcom_pairing_code_instruction">Enter the 4-digit pairing code printed on the sensor applicator.</string>
 
     <!-- Accu-Chek Setup Wizard -->

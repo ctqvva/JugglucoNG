@@ -610,6 +610,7 @@
     <string name="dexcom_slot_change_desc">Sensorn parkopplas igen på den nya platsen med sin sparade kod. En annan enhet kan sedan använda den gamla platsen.</string>
     <string name="dexcom_slot_change_action">Byt plats</string>
     <string name="dexcom_pairing_code_label">4-siffrig parkopplingskod</string>
+    <string name="dexcom_pairing_code">Parkopplingskod</string>
     <string name="dexcom_pairing_code_instruction">Ange den 4-siffriga parkopplingskoden som står på sensorapplikatorn.</string>
     <string name="libre_setup_title">Libre Installation</string>
     <string name="scan_libre_sensor">Skanna Libre Sensor</string>
