@@ -78,6 +78,20 @@ class InsulinActivityStackTests {
     }
 
     @Test
+    fun aSteadyStateDoseSplitIntoTwoInjectionsCountsBoth() {
+        // 40 U and 20 U logged at the same minute act as 60 U, not as whichever came first.
+        val first = InsulinActivityStack.Dose(0L, 40f, degludec, 0, steadyState = true)
+        val second = InsulinActivityStack.Dose(0L, 20f, degludec, 0, steadyState = true)
+        val whole = InsulinActivityStack.Dose(0L, 60f, degludec, 0, steadyState = true)
+        val at = longArrayOf(6 * HOUR)
+        assertEquals(
+            InsulinActivityStack.rate(whole, 6 * HOUR),
+            InsulinActivityStack.stack(listOf(first, second), 1, at)[0][0],
+            0.0001f
+        )
+    }
+
+    @Test
     fun aOnceWeeklyCurveIsScaledOverTheWeek() {
         val week = listOf(IobCurvePoint(0, 1f), IobCurvePoint(10080, 1f))
         val dose = InsulinActivityStack.Dose(0L, 168f, week, 0, steadyState = true)

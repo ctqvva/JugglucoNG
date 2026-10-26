@@ -77,22 +77,26 @@ internal object InsulinActivityStack {
      */
     fun stack(doses: List<Dose>, layers: Int, times: LongArray): Array<FloatArray> {
         val tops = Array(layers) { FloatArray(times.size) }
-        val latestSteadyState = arrayOfNulls<Dose>(layers)
+        val latestSteadyState = LongArray(layers)
         for (i in times.indices) {
             val at = times[i]
-            latestSteadyState.fill(null)
+            latestSteadyState.fill(Long.MIN_VALUE)
             for (dose in doses) {
                 if (dose.layer !in 0 until layers) continue
                 if (dose.steadyState) {
-                    if (dose.timestamp <= at && (latestSteadyState[dose.layer]?.timestamp ?: Long.MIN_VALUE) < dose.timestamp) {
-                        latestSteadyState[dose.layer] = dose
+                    if (dose.timestamp <= at) {
+                        latestSteadyState[dose.layer] = maxOf(latestSteadyState[dose.layer], dose.timestamp)
                     }
                 } else {
                     tops[dose.layer][i] += rate(dose, at)
                 }
             }
-            for (layer in 0 until layers) {
-                latestSteadyState[layer]?.let { tops[layer][i] += rate(it, at) }
+            // Every steady-state dose given at that latest time counts: a dose split into two
+            // injections is logged as two entries at the same minute.
+            for (dose in doses) {
+                if (dose.steadyState && dose.layer in 0 until layers && dose.timestamp == latestSteadyState[dose.layer]) {
+                    tops[dose.layer][i] += rate(dose, at)
+                }
             }
             for (layer in 1 until layers) tops[layer][i] += tops[layer - 1][i]
         }
