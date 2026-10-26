@@ -53,6 +53,67 @@ class CloneTakeOverPolicyTests {
     }
 
     @Test
+    fun aMirroredLibreCanBeTakenOverFromItsNativeRecordAlone() {
+        assertTrue(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = false,
+                stampedFamilyCode = 0,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_LIBRE2,
+                fullNativeName = "3MH00ABCDEF",
+            )
+        )
+        assertTrue(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = false,
+                stampedFamilyCode = 0,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_LIBRE3,
+                fullNativeName = "0D0012345",
+            )
+        )
+    }
+
+    /**
+     * Clone carries only the native shell of a Kotlin-driven sensor; its driver
+     * record stays on the sender. Taking one over without that record would dial
+     * the shell as a Libre, and for Sibionics the orphan sweep would finish it.
+     */
+    @Test
+    fun aKotlinDrivenSensorNeedsItsDriverRecordOnThisPhone() {
+        assertFalse(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = false,
+                stampedFamilyCode = 0,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_SIBIONICS,
+                fullNativeName = "SIBI:LT2412345",
+            )
+        )
+        assertFalse(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = false,
+                stampedFamilyCode = 3,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_LIBRE2,
+                fullNativeName = "ICAN123",
+            )
+        )
+        assertFalse(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = false,
+                stampedFamilyCode = 0,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_UNKNOWN,
+                fullNativeName = null,
+            )
+        )
+        assertTrue(
+            CloneTakeOverPolicy.canTakeOver(
+                hasLocalManagedRecord = true,
+                stampedFamilyCode = 6,
+                nativeKind = SensorSourceResolver.SENSOR_KIND_SIBIONICS,
+                fullNativeName = "SIBI:LT2412345",
+            )
+        )
+    }
+
+    @Test
     fun aSensorNeverFlaggedStillTakesOverWithAnUnknownRoute() {
         val after = CloneTakeOverPolicy.takeOver(
             CloneTakeOverPolicy.Entries(clone = emptyMap(), takenOver = emptyMap()),

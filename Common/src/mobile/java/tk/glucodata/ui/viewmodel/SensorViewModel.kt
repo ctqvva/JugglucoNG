@@ -111,6 +111,8 @@ data class SensorInfo(
     val isCloneSource: Boolean = false,
     /** A mirrored sensor this phone took over and reads itself; it can be handed back. */
     val isCloneTakenOver: Boolean = false,
+    /** A Clone record this phone has a driver for, so taking it over can actually read it. */
+    val canTakeOverClone: Boolean = false,
     val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
 ) {
     /** Get the assigned color for this sensor */
@@ -178,6 +180,10 @@ class SensorViewModel : ViewModel() {
             serial = resolved,
             isCloneSource = clone,
             isCloneTakenOver = takenOver,
+            canTakeOverClone = clone && (
+                tk.glucodata.CloneSensorRegistry.canTakeOver(resolved) ||
+                    tk.glucodata.CloneSensorRegistry.canTakeOver(sensor.serial)
+                ),
         )
     }
 

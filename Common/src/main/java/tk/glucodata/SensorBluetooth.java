@@ -1218,10 +1218,24 @@ public class SensorBluetooth {
         return gatt == null ? 0L : gatt.constatchange[1];
     }
 
+    /**
+     * Runs {@code block} under the roster lock that {@link #blockLocalCloneConnection}
+     * pauses callbacks under, so a Clone flag change cannot land between a sync's
+     * decision to pause and the pause itself.
+     */
+    public static <T> T withCallbackRoster(java.util.function.Supplier<T> block) {
+        synchronized (gattcallbacks) {
+            return block.get();
+        }
+    }
+
     /** Keep mirrored sensor records visible without claiming their physical transmitter. */
     public static void blockLocalCloneConnection(String sensorId) {
         if (sensorId == null || sensorId.isEmpty()) return;
         synchronized (gattcallbacks) {
+            // Asked at pause time, not by the caller: a sync that checked the flag
+            // before the user took the sensor over must not pause it afterwards.
+            if (!CloneSensorRegistry.isCloneSensor(sensorId)) return;
             for (SuperGattCallback callback : gattcallbacks) {
                 if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
                     callback.setPause(true);

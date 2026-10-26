@@ -140,6 +140,45 @@ internal object CloneTakeOverPolicy {
 
     fun isTakenOver(takenOver: Map<String, CloneTransport>, matches: (String) -> Boolean): Boolean =
         takenOver.keys.any(matches)
+
+    /** Native kinds this phone reads from the mirrored record alone. */
+    private val nativeReadableKinds = setOf(
+        SensorSourceResolver.SENSOR_KIND_LIBRE2,
+        SensorSourceResolver.SENSOR_KIND_LIBRE3,
+        SensorSourceResolver.SENSOR_KIND_SIBIONICS,
+        SensorSourceResolver.SENSOR_KIND_ACCUCHEK,
+        SensorSourceResolver.SENSOR_KIND_DEXCOM,
+        SensorSourceResolver.SENSOR_KIND_CARESENS_AIR,
+    )
+
+    /**
+     * Whether this phone can read the sensor itself once it stops deferring.
+     *
+     * A Kotlin-driven sensor needs its driver record (keys, cursor, algorithm
+     * state), and that lives on the sender; Clone carries only the native
+     * shell. Without a record here the shell would be dialled as whatever its
+     * native kind defaults to, and the Sibionics orphan sweep finishes a SIBI:
+     * shell the moment its Clone flag is gone.
+     *
+     * @param hasLocalManagedRecord a managed adapter holds a record for it here
+     * @param stampedFamilyCode the managed family stamped in the native record, 0 if none
+     * @param nativeKind the native record's sensor kind
+     * @param fullNativeName the native record's full name
+     */
+    fun canTakeOver(
+        hasLocalManagedRecord: Boolean,
+        stampedFamilyCode: Int,
+        nativeKind: Int,
+        fullNativeName: String?,
+    ): Boolean {
+        if (hasLocalManagedRecord) return true
+        if (stampedFamilyCode != 0) return false
+        if (fullNativeName?.trim()?.startsWith(
+                tk.glucodata.drivers.sibionics.SibionicsConstants.MANAGED_PREFIX,
+                ignoreCase = true,
+            ) == true) return false
+        return nativeKind in nativeReadableKinds
+    }
 }
 
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
@@ -323,6 +362,23 @@ object CloneSensorRegistry {
         }
     }
 
+    /** See [CloneTakeOverPolicy.canTakeOver]. Reads prefs and the native record only. */
+    @JvmStatic
+    fun canTakeOver(sensorId: String?): Boolean {
+        val id = sensorId?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+        val hasLocalRecord = runCatching {
+            tk.glucodata.drivers.ManagedSensorIdentityRegistry.resolvePersistedFamily(id) != null
+        }.getOrDefault(false)
+        val snapshot = runCatching { Natives.getSensorUiSnapshot(id) }.getOrNull()
+        val fullName = runCatching { Natives.resolveFullSensorName(id) }.getOrNull()
+        return CloneTakeOverPolicy.canTakeOver(
+            hasLocalManagedRecord = hasLocalRecord,
+            stampedFamilyCode = snapshot?.getOrNull(5)?.toInt() ?: 0,
+            nativeKind = snapshot?.getOrNull(0)?.toInt() ?: SensorSourceResolver.SENSOR_KIND_UNKNOWN,
+            fullNativeName = fullName,
+        )
+    }
+
     /**
      * The receiver stops deferring to the sender for [sensorId] and may dial it
      * itself, as a follower could before Clone existed. The sensor record,
@@ -331,13 +387,22 @@ object CloneSensorRegistry {
      */
     @JvmStatic
     fun takeOver(sensorId: String?): Boolean {
+        if (!canTakeOver(sensorId)) return false
         val keys = candidateKeys(sensorId) + listOfNotNull(registryKey(sensorId))
         if (keys.isEmpty()) return false
-        synchronized(lock) {
-            val preferences = prefs() ?: return false
-            val updated = CloneTakeOverPolicy.takeOver(currentEntriesLocked(preferences), keys, matcherFor(keys))
-            storeEntriesLocked(preferences, updated)
+        // A mirror sync decides to pause a Clone callback and pauses it under the
+        // roster lock (SensorBluetooth.blockLocalCloneConnection). Clearing the
+        // flag under the same lock means a sync either pauses before this and the
+        // caller's reconnect undoes it, or sees the flag gone and leaves it alone.
+        val stored = SensorBluetooth.withCallbackRoster {
+            synchronized(lock) {
+                val preferences = prefs() ?: return@synchronized false
+                val updated = CloneTakeOverPolicy.takeOver(currentEntriesLocked(preferences), keys, matcherFor(keys))
+                storeEntriesLocked(preferences, updated)
+                true
+            }
         }
+        if (!stored) return false
         keys.forEach(lastMirrorSeen::remove)
         Log.i("CloneSensorRegistry", "takeOver $sensorId")
         return true
