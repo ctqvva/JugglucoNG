@@ -181,6 +181,7 @@ import tk.glucodata.R
 import tk.glucodata.DataSmoothing
 import tk.glucodata.data.journal.JournalActiveInsulinSummary
 import tk.glucodata.data.journal.JournalChartMarker
+import tk.glucodata.data.journal.JournalCurveEvidence
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.prediction.GlucosePredictionPoint
 import tk.glucodata.data.prediction.GlucosePredictionSeries
@@ -3443,16 +3444,16 @@ fun InteractiveGlucoseChart(
                                 timestamp = marker.timestamp,
                                 units = marker.amount ?: 0f,
                                 points = marker.curvePoints,
-                                layer = layerOf.getValue(marker.title to marker.accentColor)
+                                layer = layerOf.getValue(marker.title to marker.accentColor),
+                                steadyState = marker.curveEvidence == JournalCurveEvidence.SOURCE_STEADY_STATE
                             )
                         }
                         val bandHeight = insulinBandHeightFor(chartHeight)
                         if (doses.isNotEmpty()) {
-                            val sampleStepPx = 3.dp.toPx()
-                            val sampleCount = (dataWidth / sampleStepPx).toInt() + 2
-                            val sampleXs = FloatArray(sampleCount) { (it * sampleStepPx).coerceAtMost(dataWidth) }
-                            val sampleTimes = LongArray(sampleCount) { index ->
-                                viewportStart + ((sampleXs[index] / dataWidth) * animDur).toLong()
+                            val sampleTimes = InsulinActivityStack.sampleTimes(doses, viewportStart, viewportStart + currentDur)
+                            val sampleCount = sampleTimes.size
+                            val sampleXs = FloatArray(sampleCount) { index ->
+                                ((sampleTimes[index] - viewportStart).toFloat() / animDur * dataWidth).coerceIn(0f, dataWidth)
                             }
                             val tops = InsulinActivityStack.stack(doses, layerKeys.size, sampleTimes)
                             val scale = InsulinActivityStack.scaleFor(tops.last().maxOrNull() ?: 0f)

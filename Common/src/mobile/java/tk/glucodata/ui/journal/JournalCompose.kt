@@ -265,6 +265,11 @@ fun buildJournalChartMarkers(
             } else {
                 emptyList()
             },
+            curveEvidence = if (entry.type == JournalEntryType.INSULIN) {
+                entry.insulinCurveEvidence ?: preset?.curveEvidence
+            } else {
+                null
+            },
             activeStartMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
                 preset.activeStartAt(entry.timestamp)
             } else {
