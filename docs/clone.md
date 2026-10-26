@@ -81,6 +81,13 @@ glucose entries.
 Deleting a connection is different: it removes that saved pairing. A new QR
 scan is then required to recreate it.
 
+While a sensor arrives over Clone, the receiver leaves its Bluetooth alone. To
+read it from the receiver instead — for example while the sender is switched
+off or out of range — tap **Take over sensor** on the receiver's sensor card.
+The receiver then connects to the sensor itself; a sensor that serves one phone
+at a time is reached once the sender lets go of it. **Return sensor to sender**
+on the same card undoes this.
+
 **Keep Clone live in background** is optional and intended mainly for a
 receiver that must get readings and alerts with minimum delay. It holds a
 partial Android wake lock while an enabled receiver connection exists. This
