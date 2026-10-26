@@ -124,9 +124,9 @@ Records are fixed-size: 2 bytes for `subtype 02`, 4 bytes for `subtype 01`.
 * original record: current (u16) + temperature (u16, tenths of °C). The current field is **not** a
   plain glucose unit: the vendor XORs each byte with `0x88` and reads the result as a 5-digit
   supplier-formatted number (`decodeCurrentValue`; kept for internal use only).
-* Values produced during warm-up are XOR-obfuscated; `ICanHealthParser.decodeHistoryGlucoseBytes`
-  mirrors the vendor's table. The official app's own stream shows the same low/odd values at the
-  start of a session, with the plain decode.
+* SN batch records are not obfuscated during warm-up: the official app's own stream shows the same
+  low values at the start of a session, with the plain decode. The warm-up XOR (§5) applies to the
+  live frame and to the single 16-byte encrypted history record.
 
 ### 4.3 Offsets and backfill
 
@@ -169,15 +169,16 @@ Decrypted with AES-128-CBC/PKCS7, session IV, glucose key:
 * On `iCGM-t6` the value field is the glucose, in the same encoding as a history record: it matches
   the history record with the same sequence number exactly (verified against a batch decrypted from
   the same session).
-* On the captured (global) `iCGM-t3` it is **not** glucose: no relation to the history record at the
-  same sequence, no affine or monotone mapping, no CRC-16 (8 standard variants tested), not the
-  temperature and not the current field. It behaves like a nonce, and the packet reads as a "one new
-  record is available" trigger — which is how the vendor app treats it (it requests history seconds
-  after receiving one). One CN `iCGM-t3` field report looked different (plausible values), so the
-  field's semantics may be variant-specific — issue #676 tracks the open decision and the
-  live-vs-history comparison that resolves it. The driver now compares live and history raw values
-  at the same sequence number, classifies each sensor (`VERIFIED_GLUCOSE` / `TRIGGER_ONLY` /
-  `UNKNOWN`) and stops publishing live values for `TRIGGER_ONLY` sensors (PR #683).
+* During warm-up (sequence below the profile's `warmupMinutes`, 120) the value field is XOR-obfuscated
+  with two consecutive bytes of `LEGACY_HISTORY_GLUCOSE_XOR_TABLE_{OLD,NEW}`, starting at offset
+  `challenge[0] % 62` — the **first** byte of this connection's `06 F3 01` challenge.
+  `ICanHealthParser.decodeHistoryGlucoseBytes` undoes it.
+* The live frames captured from the official app on the (global) `iCGM-t3` all fall inside warm-up
+  (seq 18…117), which is why they first looked like a nonce with no relation to history. Undoing the
+  XOR keyed on `challenge[0]` turns them into the history record at the same sequence exactly:
+  seq 18 under `30 13 AA 84` → 5.97 mmol/L, seq 117 under `F8 93 7B 8C` → 3.85 mmol/L. The driver
+  keyed the offset on `challenge[3]` from May 2026 until #731, which made every warm-up live reading
+  wrong — in range and plausible at low glucose, out of range and discarded at higher glucose.
 * The driver used to decrypt this frame with AES/ECB — that happened to preserve the glucose field
   (the IV only touches bytes 1/6/10/15) but corrupted the parsed `statusByte` and `currentValue`, and
   made the logged "flags" byte `0x80 ⊕ challenge[0]`. Fixed to CBC/PKCS7 in PR #683, with captured
@@ -314,8 +315,8 @@ Not implemented here, and none of them appear in steady-state traffic from eithe
 
 ## 11. Open questions
 
-1. The `iCGM-t3` live value field (nonce? MAC? something else) — and whether it is safe to ignore the
-   live lane entirely on that family.
+1. Whether the `iCGM-t3` live value field matches history after warm-up as it does during warm-up
+   (§5); every captured `iCGM-t3` live frame so far falls inside warm-up.
 2. Exact meaning of the non-`0xFFFF` code-state values, and of RACP `0x0A` — which is confounded
    between "no correct code" and "range not served" (§6); two one-line experiments settle it.
 3. The 4 bytes after the time offset in `0x2AA9` (the byte our driver calls `launcherState`; `0x01`

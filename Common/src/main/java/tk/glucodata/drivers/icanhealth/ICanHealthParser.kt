@@ -792,7 +792,12 @@ object ICanHealthParser {
         } else {
             ICanHealthConstants.LEGACY_HISTORY_GLUCOSE_XOR_TABLE_OLD
         }
-        val offset = (challenge[3].toInt() and 0xFF) % (table.size - 2)
+        // The table offset comes from the FIRST challenge byte. The official iOS client's capture
+        // (iCGM-t3, 2026-09-26/27) decodes to the sensor's own history record at the same sequence
+        // only this way: seq 18 under `30 13 AA 84` -> 5.97, seq 117 under `F8 93 7B 8C` -> 3.85.
+        // Keying it on challenge[3] instead turned every warm-up reading into a wrong value: #731's
+        // seq 99 read 40.6 instead of the 8.2 its history held.
+        val offset = (challenge[0].toInt() and 0xFF) % (table.size - 2)
         return byteArrayOf(
             ((low.toInt() and 0xFF) xor (table[offset].toInt() and 0xFF)).toByte(),
             ((high.toInt() and 0xFF) xor (table[offset + 1].toInt() and 0xFF)).toByte(),
