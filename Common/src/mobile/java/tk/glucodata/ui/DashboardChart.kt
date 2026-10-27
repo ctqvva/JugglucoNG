@@ -3450,49 +3450,104 @@ fun InteractiveGlucoseChart(
                         }
                         val bandHeight = insulinBandHeightFor(chartHeight)
                         if (doses.isNotEmpty()) {
-                            val sampleTimes = InsulinActivityStack.sampleTimes(doses, viewportStart, viewportStart + currentDur)
+                            val sampleTimes = InsulinActivityStack.sampleTimes(
+                                doses,
+                                viewportStart,
+                                viewportStart + currentDur,
+                                stepMillis = (2.dp.toPx() / dataWidth * animDur).toLong()
+                            )
                             val sampleCount = sampleTimes.size
                             val sampleXs = FloatArray(sampleCount) { index ->
                                 ((sampleTimes[index] - viewportStart).toFloat() / animDur * dataWidth).coerceIn(0f, dataWidth)
                             }
-                            val tops = InsulinActivityStack.stack(doses, layerKeys.size, sampleTimes)
-                            val scale = InsulinActivityStack.scaleFor(tops.last().maxOrNull() ?: 0f)
+                            val band = InsulinActivityStack.stack(doses, layerKeys.size, sampleTimes)
+                            val scale = InsulinActivityStack.scaleFor(band.tops.last().maxOrNull() ?: 0f)
                             fun rateToY(rate: Float): Float = chartHeight - (rate / scale).coerceIn(0f, 1f) * bandHeight
-                            val strokeWidth = 1.5.dp.toPx()
-                            layerKeys.forEachIndexed { layer, key ->
-                                val upper = tops[layer]
-                                val lower = tops.getOrNull(layer - 1)
-                                fun adds(i: Int): Boolean = i in 0 until sampleCount && upper[i] - (lower?.get(i) ?: 0f) > 0.0001f
-                                if (upper.indices.none(::adds)) return@forEachIndexed
-                                val tint = Color(key.second)
-                                val fill = Path().apply {
-                                    moveTo(sampleXs[0], rateToY(upper[0]))
-                                    for (i in 1 until sampleCount) lineTo(sampleXs[i], rateToY(upper[i]))
-                                    for (i in sampleCount - 1 downTo 0) lineTo(sampleXs[i], rateToY(lower?.get(i) ?: 0f))
-                                    close()
-                                }
-                                drawPath(fill, tint.copy(alpha = tint.alpha * 0.34f))
-                                // Only where this insulin adds activity, plus the sample either
-                                // side so the edge rises from and falls back to the one below;
-                                // elsewhere it would lie on that insulin's edge in this colour.
-                                val edge = Path().apply {
-                                    var drawing = false
-                                    for (i in 0 until sampleCount) {
-                                        if (!(adds(i - 1) || adds(i) || adds(i + 1))) {
-                                            drawing = false
-                                            continue
-                                        }
-                                        val y = rateToY(upper[i])
-                                        if (drawing) lineTo(sampleXs[i], y) else moveTo(sampleXs[i], y)
-                                        drawing = true
+                            val fadePx = 24.dp.toPx()
+
+                            // As the per-dose curves were: a light fill and a soft edge that fade
+                            // in and out where an insulin starts and stops acting, but not at the
+                            // chart's edges, where it carries on out of view.
+                            fun fadingBrush(tint: Color, alpha: Float, first: Int, last: Int): Brush {
+                                val startX = sampleXs[first]
+                                val endX = sampleXs[last].coerceAtLeast(startX + 1f)
+                                val fade = (fadePx / (endX - startX)).coerceAtMost(0.3f)
+                                val solid = tint.copy(alpha = tint.alpha * alpha)
+                                val clear = tint.copy(alpha = 0f)
+                                val stops = buildList {
+                                    if (first > 0) {
+                                        add(0f to clear)
+                                        add(fade to solid)
+                                    } else {
+                                        add(0f to solid)
+                                    }
+                                    if (last < sampleCount - 1) {
+                                        add(1f - fade to solid)
+                                        add(1f to clear)
+                                    } else {
+                                        add(1f to solid)
                                     }
                                 }
-                                drawPath(
-                                    path = edge,
-                                    color = tint.copy(alpha = tint.alpha * 0.9f),
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                )
+                                return Brush.horizontalGradient(*stops.toTypedArray(), startX = startX, endX = endX)
                             }
+
+                            // The runs of samples where [adds] holds, each widened by a sample
+                            // so it rises from and falls back to the layer below.
+                            fun runs(adds: (Int) -> Boolean): List<IntRange> = buildList {
+                                var first = -1
+                                for (i in 0..sampleCount) {
+                                    val on = i < sampleCount && adds(i)
+                                    if (on && first < 0) first = i
+                                    if (!on && first >= 0) {
+                                        add((first - 1).coerceAtLeast(0)..i.coerceAtMost(sampleCount - 1))
+                                        first = -1
+                                    }
+                                }
+                            }
+
+                            fun Path.band(range: IntRange, top: (Int) -> Float, bottom: (Int) -> Float) {
+                                moveTo(sampleXs[range.first], rateToY(top(range.first)))
+                                for (i in range.first + 1..range.last) lineTo(sampleXs[i], rateToY(top(i)))
+                                for (i in range.last downTo range.first) lineTo(sampleXs[i], rateToY(bottom(i)))
+                                close()
+                            }
+
+                            val edges = ArrayList<Pair<Path, Brush>>()
+                            layerKeys.forEachIndexed { layer, key ->
+                                val upper = band.tops[layer]
+                                val lower = band.tops.getOrNull(layer - 1)
+                                val approximate = band.approximate[layer]
+                                fun below(i: Int): Float = lower?.get(i) ?: 0f
+                                fun measured(i: Int): Float = upper[i] - approximate[i]
+                                val tint = Color(key.second)
+                                runs { upper[it] - below(it) > 0.0001f }.forEach { range ->
+                                    drawPath(
+                                        Path().apply { band(range, ::measured, ::below) },
+                                        fadingBrush(tint, 0.18f, range.first, range.last)
+                                    )
+                                    // Past the last measured point a curve only fades out by
+                                    // estimate, so that part is drawn fainter.
+                                    if (range.any { approximate[it] > 0.0001f }) {
+                                        drawPath(
+                                            Path().apply { band(range, { upper[it] }, ::measured) },
+                                            fadingBrush(tint, 0.08f, range.first, range.last)
+                                        )
+                                    }
+                                }
+                                // The edge only where this insulin's measured activity shows,
+                                // so it never lies on another insulin's edge in this colour.
+                                runs { measured(it) - below(it) > 0.0001f }.forEach { range ->
+                                    val edge = Path().apply {
+                                        moveTo(sampleXs[range.first], rateToY(measured(range.first)))
+                                        for (i in range.first + 1..range.last) lineTo(sampleXs[i], rateToY(measured(i)))
+                                    }
+                                    edges += edge to fadingBrush(tint, 0.6f, range.first, range.last)
+                                }
+                            }
+                            // Edges over every fill, so each insulin's top stays crisp under the
+                            // one stacked on it.
+                            val edgeStroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                            edges.forEach { (edge, brush) -> drawPath(edge, brush, style = edgeStroke) }
                         }
                         // A dose without a curve still shows where it was given.
                         visibleInsulinMarkers.forEach { marker ->
@@ -5487,9 +5542,9 @@ private fun JournalMarkerChip(
     }
 }
 
-/** The insulin band's full height: a sixth of the chart, kept between 32 and 64 dp. */
+/** The insulin band's full height: a fifth of the chart, kept between 40 and 88 dp. */
 private fun androidx.compose.ui.unit.Density.insulinBandHeightFor(chartHeightPx: Float): Float =
-    (chartHeightPx * 0.16f).coerceIn(32.dp.toPx(), 64.dp.toPx())
+    (chartHeightPx * 0.2f).coerceIn(40.dp.toPx(), 88.dp.toPx())
 
 private fun Modifier.journalMarkerInput(
     activePointerIds: MutableSet<PointerId>,
