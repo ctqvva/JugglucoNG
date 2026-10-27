@@ -443,7 +443,7 @@ fun DebugSettingsScreen(navController: NavController) {
             ) {
                 Button(
                     onClick = { shareLog() },
-                    modifier = Modifier,
+                    modifier = Modifier.weight(1f),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {

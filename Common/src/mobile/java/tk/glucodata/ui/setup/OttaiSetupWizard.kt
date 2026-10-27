@@ -8,6 +8,7 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.MenuDefaults
@@ -37,7 +38,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.FlowRow
 import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -2025,15 +2025,12 @@ private fun OttaiSensorMaterialCard(
 //
             if (ready) {
                 Text(stringResource(R.string.ottai_import_export_title), style = MaterialTheme.typography.titleSmall)
-                FlowRow(
+                AdaptiveButtonRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = onExport,
                         enabled = enabled && canExport,
-                        modifier = Modifier,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -2044,7 +2041,6 @@ private fun OttaiSensorMaterialCard(
                     OutlinedButton(
                         onClick = onImport,
                         enabled = enabled,
-                        modifier = Modifier,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {

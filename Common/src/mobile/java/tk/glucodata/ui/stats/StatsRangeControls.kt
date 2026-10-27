@@ -2,7 +2,7 @@
 
 package tk.glucodata.ui.stats
 
-import androidx.compose.foundation.layout.FlowRow
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -398,16 +398,14 @@ fun StatsDateRangeSheet(
                 showModeToggle = false
             )
 
-            FlowRow(
+            AdaptiveButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                spacing = 12.dp,
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier,
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
@@ -419,7 +417,6 @@ fun StatsDateRangeSheet(
                         val end = (endUtc ?: startUtc).let(::pickerUtcDateMillisToLocalEnd)
                         onApply(start, end)
                     },
-                    modifier = Modifier,
                     enabled = startUtc != null,
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding

@@ -245,8 +245,10 @@ read at 18dp.
 - A label beside an action uses `AdaptiveTrailingRow` when the action could crowd out
   the text. It keeps a reading width that grows with font size and moves the action below
   when needed. Its slots must support intrinsic measurement; keep lazy lists and
-  `BoxWithConstraints` outside them. Groups of text buttons use `FlowRow` so each action
-  can move to a new line. Setup headers and recovery controls belong in the same scroll
+  `BoxWithConstraints` outside them. Sibling action buttons that used to share a line
+  equally (`weight(1f)`) use `AdaptiveButtonRow`: equal widths while every label fits,
+  one full-width line each when one would wrap. Don't use a `FlowRow` of weighted buttons
+  for this, because it breaks lines on the shortest word, so the buttons never wrap. Setup headers and recovery controls belong in the same scroll
   container as their content, so large text cannot consume the results viewport.
 - Journal menus share the chart's 1.3× font cap because their positions follow the chart
   geometry. Chart menu width stays inside the window; long labels ellipsize on one line.

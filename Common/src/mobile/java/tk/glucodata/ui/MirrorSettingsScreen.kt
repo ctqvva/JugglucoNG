@@ -1414,6 +1414,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -1425,7 +1426,6 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             }
                         },
                         enabled = testState != ConnTestState.TESTING,
-                        modifier = Modifier,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {
@@ -1441,14 +1441,20 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             stringResource(R.string.connecting) else stringResource(R.string.test))
                     }
                     when (testState) {
-                        ConnTestState.SUCCESS -> {
+                        ConnTestState.SUCCESS -> Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             Icon(Icons.Filled.CheckCircle, contentDescription = null,
                                 tint = StatusPalette.success(), modifier = Modifier.size(24.dp))
                             Text(stringResource(R.string.status_connected),
                                 color = StatusPalette.success(),
                                 style = MaterialTheme.typography.bodyMedium)
                         }
-                        ConnTestState.FAILURE -> {
+                        ConnTestState.FAILURE -> Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             Icon(Icons.Filled.Error, contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
                             Text(stringResource(R.string.status_connection_failed),

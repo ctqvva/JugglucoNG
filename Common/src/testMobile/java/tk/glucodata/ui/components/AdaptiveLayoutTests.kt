@@ -8,10 +8,13 @@ import android.os.LocaleList
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -370,5 +373,59 @@ class AdaptiveLayoutTests {
             compose.onNodeWithText("Настройки датчика").performClick()
             compose.runOnIdle { assertTrue(checked) }
         }
+    }
+
+    @Test
+    fun buttonRowKeepsEqualWidthsUntilALabelWouldWrap() {
+        var fontScale by mutableFloatStateOf(1f)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
+                MaterialTheme(typography = AppTypography) {
+                    AdaptiveButtonRow(modifier = Modifier.width(320.dp)) {
+                        OutlinedButton(onClick = {}, shapes = ButtonDefaults.shapes()) {
+                            Text("Экспорт ключа")
+                        }
+                        Button(onClick = {}, shapes = ButtonDefaults.shapes()) {
+                            Text("Импорт ключа")
+                        }
+                    }
+                }
+            }
+        }
+        fun bounds(text: String) =
+            compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
+
+        // Normal text: one line, equal shares, as the Row of weight(1f) buttons it replaced.
+        var first = bounds("Экспорт ключа")
+        var second = bounds("Импорт ключа")
+        assertEquals(first.top, second.top, 0.5f)
+        assertEquals(first.width, second.width, 1f)
+        assertTrue(first.width > 150f)
+
+        // Enlarged text: each button takes its own full-width line with an unbroken label.
+        compose.runOnIdle { fontScale = 2f }
+        first = bounds("Экспорт ключа")
+        second = bounds("Импорт ключа")
+        assertTrue(second.top >= first.bottom)
+        assertEquals(first.width, second.width, 1f)
+        assertTrue(second.width > 300f)
+        compose.onNodeWithText("Импорт ключа", useUnmergedTree = true).assertTextFits()
+    }
+
+    @Test
+    fun shortTrailingRowStaysCentredInATallerMinimumHeight() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(360.dp).testTag("row")) {
+                        SettingsItem(title = "Тема", trailingContent = { Text("Авто") })
+                    }
+                }
+            }
+        }
+        val row = compose.onNodeWithTag("row").fetchSemanticsNode().boundsInRoot
+        val title = compose.onNodeWithText("Тема", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        // An icon-less, one-line row is shorter than the 72dp minimum; it must not sit at the top.
+        assertEquals(row.center.y, title.center.y, 1.5f)
     }
 }

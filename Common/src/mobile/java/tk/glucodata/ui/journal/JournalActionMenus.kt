@@ -150,13 +150,13 @@ fun JournalEntryType.journalActionIcon(): ImageVector = when (this) {
  * rather than dropping it.
  */
 @Composable
-// Position-based journal menus follow the chart and navigation font cap.
 fun JournalFloatingActionMenu(
     selectedTimestamp: Long?,
     anchor: ChartActionAnchor,
     onDismissRequest: () -> Unit,
     onTypeSelected: (type: JournalEntryType, timestamp: Long) -> Unit
 ) = FontScaleCap {
+    // Position-based journal menus follow the chart and navigation font cap.
     val view = LocalView.current
     // The FAB menu's order, top to bottom.
     val actionTypes = remember { journalReachActionTypes() }

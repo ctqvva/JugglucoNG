@@ -10,7 +10,7 @@
 
 package tk.glucodata.ui.setup
 
-import androidx.compose.foundation.layout.FlowRow
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
@@ -561,10 +561,8 @@ private fun AnytimeCt5CredentialsCard(
                 )
             }
             if (exportRecord != null) {
-                FlowRow(
+                AdaptiveButtonRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = {

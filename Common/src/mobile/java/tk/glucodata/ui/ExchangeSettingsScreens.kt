@@ -2,7 +2,7 @@
 
 package tk.glucodata.ui
 
-import androidx.compose.foundation.layout.FlowRow
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -1509,7 +1509,7 @@ fun WebServerSettingsScreen(navController: NavController) {
                             Surface(
                                 modifier = Modifier
                                     .width(40.dp)
-                                    .heightIn(min = 40.dp),
+                                    .height(40.dp),
                                 shape = cardShape(CardPosition.SINGLE),
                                 color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
                             ) {
@@ -1600,27 +1600,22 @@ fun WebServerSettingsScreen(navController: NavController) {
                             }
                         }
 
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                        AdaptiveButtonRow {
                             OutlinedButton(
                                 onClick = { openUrl(currentUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier,
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_current)) }
                             OutlinedButton(
                                 onClick = { openUrl(entriesUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier,
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_entries)) }
                             OutlinedButton(
                                 onClick = { openUrl(reportUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier,
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_report)) }

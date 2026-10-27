@@ -1,6 +1,6 @@
 package tk.glucodata.ui.setup
 
-import androidx.compose.foundation.layout.FlowRow
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -183,10 +183,8 @@ internal fun AiDexKeyManagementScreen(
                 )
 
                 if (keySaved) {
-                    FlowRow(
+                    AdaptiveButtonRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Button(
                             onClick = {

@@ -45,12 +45,15 @@ fun AdaptiveTrailingRow(
         val action = trailing.measure(childConstraints.copy(maxWidth = trailingWidth))
         val textWidth = if (stacked) width else (width - gap - action.width).coerceAtLeast(0)
         val text = primary.measure(childConstraints.copy(maxWidth = textWidth))
-        val height =
+        val contentHeight =
             if (stacked) text.height + gap + action.height else maxOf(text.height, action.height)
-        layout(width, constraints.constrainHeight(height)) {
+        // Centre in the laid-out height: a caller's heightIn(min) can exceed the content.
+        val height = constraints.constrainHeight(contentHeight)
+        layout(width, height) {
             if (stacked) {
-                text.placeRelative(0, 0)
-                action.placeRelative(width - action.width, text.height + gap)
+                val top = (height - contentHeight) / 2
+                text.placeRelative(0, top)
+                action.placeRelative(width - action.width, top + text.height + gap)
             } else {
                 text.placeRelative(0, (height - text.height) / 2)
                 action.placeRelative(width - action.width, (height - action.height) / 2)
