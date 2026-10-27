@@ -2890,7 +2890,7 @@ class SibionicsBleManager(
             isVendorConnected = mBluetoothGatt != null && phase == Phase.STREAMING,
             sensorRemainingHours = remainingHours(),
             sensorAgeHours = ageHours(),
-            batteryPercent = lastBatteryPercent,
+            batteryPercent = if (variant == SibionicsConstants.Variant.SIBIONICS2) lastBatteryPercent else -1,
             vendorModel = variant.displayLabel,
 //            vendorFirmware = SibionicsConstants.initialProtocolMode(variant, protocolMode).name,
         )
