@@ -219,10 +219,13 @@ fun ExpressiveSettingsScreen(
         xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
     )
     val searchCandidates = remember(
-        context, searchLocales, showMqAccount, showOttaiSettings, showLibre2Identity, showAppTrend
+        context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
+        showLibre2Identity, showAppTrend
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
+                SettingsSearchCondition.LIBREVIEW -> showLibreView
+                SettingsSearchCondition.DEXCOM_SHARE -> showDexcomShare
                 SettingsSearchCondition.MQ_ACCOUNT -> showMqAccount
                 SettingsSearchCondition.OTTAI -> showOttaiSettings
                 SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
@@ -359,42 +362,9 @@ fun ExpressiveSettingsScreen(
             return@LazyColumn
         }
 
-        // === GENERAL === (no label: the first group needs none)
-        item(key = "general_group") {
-            val generalColor = MaterialTheme.colorScheme.primary
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = stringResource(R.string.theme_title),
-                    subtitle = themeLabel,
-                    icon = if(themeMode == ThemeMode.LIGHT) Icons.Default.LightMode else Icons.Default.DarkMode,
-                    iconTint = generalColor,
-                    position = CardPosition.TOP,
-                    onClick = { showThemeDialog = true }
-                )
-                SettingsItem(
-                    title = stringResource(R.string.languagename),
-                    subtitle = currentLangName,
-                    icon = Icons.Default.Language,
-                    iconTint = generalColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { showLanguageDialog = true }
-                )
-                SettingsItem(
-                    title = stringResource(R.string.settings_unit_title),
-                    subtitle = unit,
-                    icon = Icons.Default.Straighten,
-                    iconTint = generalColor,
-                    position = CardPosition.BOTTOM,
-                    onClick = { showUnitDialog = true }
-                )
-            }
-        }
-
-        // === GLUCOSE === what a reading is, and what happens when it crosses a line
-        item(key = "glucose_label") { SectionLabel(stringResource(R.string.settings_section_glucose)) }
-
-        item(key = "glucose_group") {
-            val glucoseColor = MaterialTheme.colorScheme.primary
+        // === EVERYDAY === (no label: the features people come here for most)
+        item(key = "everyday_group") {
+            val everydayColor = MaterialTheme.colorScheme.primary
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.glucose_alerts_title),
@@ -409,19 +379,41 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.TOP,
                 )
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.settings_calibration_title),
-                    subtitle = stringResource(
-                        R.string.settings_calibration_desc,
-                        stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
-                    ),
-                    checked = calibrationEnabled,
-                    onCheckedChange = {
-                        CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
-                    },
-                    onClick = { navController.navigate("settings/calibrations") },
-                    icon = Icons.Default.WaterDrop,
-                    iconTint = glucoseColor,
+                    title = stringResource(R.string.journal_title),
+                    subtitle = stringResource(R.string.settings_journal_desc),
+                    checked = journalEnabled,
+                    onCheckedChange = { viewModel.setJournalEnabled(it) },
+                    onClick = { navController.navigate("settings/journal") },
+                    icon = Icons.Default.EditNote,
+                    iconTint = everydayColor,
                     position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.predictive_simulation_title),
+                    subtitle = stringResource(R.string.settings_prediction_desc),
+                    checked = predictiveSimulationEnabled,
+                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
+                    onClick = { navController.navigate("settings/predictive-simulation") },
+                    icon = Icons.AutoMirrored.Filled.ShowChart,
+                    iconTint = everydayColor,
+                    position = CardPosition.BOTTOM
+                )
+            }
+        }
+
+        // === DISPLAY === how readings look: in the app first, then outside it
+        item(key = "display_label") { SectionLabel(stringResource(R.string.settings_section_display)) }
+
+        item(key = "display_group") {
+            val displayColor = MaterialTheme.colorScheme.secondary
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.settings_dashboard_charts_title),
+                    subtitle = stringResource(R.string.settings_dashboard_charts_desc),
+                    icon = Icons.Default.Palette,
+                    iconTint = displayColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/display-colors") }
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.graph_smoothing_title),
@@ -430,7 +422,7 @@ fun ExpressiveSettingsScreen(
                     onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
                     onClick = { navController.navigate("settings/data-smoothing") },
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    iconTint = glucoseColor,
+                    iconTint = displayColor,
                     position = CardPosition.MIDDLE
                 )
                 // A reading's displayed value is a record, not a derivation —
@@ -452,35 +444,8 @@ fun ExpressiveSettingsScreen(
                     onCheckedChange = { CalibrationManager.setFreezeDisplayedValues(it) },
                     onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
-                    iconTint = glucoseColor,
-                    position = CardPosition.MIDDLE
-                )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.predictive_simulation_title),
-                    subtitle = stringResource(R.string.settings_prediction_desc),
-                    checked = predictiveSimulationEnabled,
-                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
-                    onClick = { navController.navigate("settings/predictive-simulation") },
-                    icon = Icons.AutoMirrored.Filled.ShowChart,
-                    iconTint = glucoseColor,
-                    position = CardPosition.BOTTOM
-                )
-            }
-        }
-
-        // === DISPLAY === every place the reading is shown: the app, then outside it
-        item(key = "display_label") { SectionLabel(stringResource(R.string.settings_section_display)) }
-
-        item(key = "display_group") {
-            val displayColor = MaterialTheme.colorScheme.secondary
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = stringResource(R.string.settings_dashboard_charts_title),
-                    subtitle = stringResource(R.string.settings_dashboard_charts_desc),
-                    icon = Icons.Default.Palette,
                     iconTint = displayColor,
-                    position = CardPosition.TOP,
-                    onClick = { navController.navigate("settings/display-colors") }
+                    position = CardPosition.MIDDLE
                 )
                 SettingsItem(
                     title = stringResource(R.string.settings_notification_title),
@@ -534,34 +499,24 @@ fun ExpressiveSettingsScreen(
                     onClick = { navController.navigate("settings/aod-display") },
                     icon = Icons.Default.ScreenLockPortrait,
                     iconTint = displayColor,
-                    position = CardPosition.MIDDLE
-                )
-                SettingsItem(
-                    title = stringResource(R.string.watches),
-                    subtitle = stringResource(R.string.settings_watch_desc),
-                    icon = Icons.Default.Watch,
-                    iconTint = displayColor,
-                    position = CardPosition.BOTTOM,
-                    onClick = { navController.navigate("settings/watch") }
+                    position = CardPosition.BOTTOM
                 )
             }
         }
 
-        // === JOURNAL AND DEVICES === what you log, and the devices that log it for you
-        item(key = "journal_label") { SectionLabel(stringResource(R.string.settings_section_journal_devices)) }
+        // === DEVICES === hardware beside the sensor: the watch, pens and meters
+        item(key = "devices_label") { SectionLabel(stringResource(R.string.settings_section_devices)) }
 
-        item(key = "journal_group") {
-            val journalColor = MaterialTheme.colorScheme.primary
+        item(key = "devices_group") {
+            val devicesColor = MaterialTheme.colorScheme.primary
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.journal_title),
-                    subtitle = stringResource(R.string.settings_journal_desc),
-                    checked = journalEnabled,
-                    onCheckedChange = { viewModel.setJournalEnabled(it) },
-                    onClick = { navController.navigate("settings/journal") },
-                    icon = Icons.Default.EditNote,
-                    iconTint = journalColor,
-                    position = CardPosition.TOP
+                SettingsItem(
+                    title = stringResource(R.string.watches),
+                    subtitle = stringResource(R.string.settings_watch_desc),
+                    icon = Icons.Default.Watch,
+                    iconTint = devicesColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/watch") }
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.insulin_pens_title),
@@ -570,14 +525,14 @@ fun ExpressiveSettingsScreen(
                     onCheckedChange = { tk.glucodata.InsulinPenManager.setEnabled(it) },
                     onClick = { navController.navigate("settings/insulin-pens") },
                     icon = Icons.Default.Vaccines,
-                    iconTint = journalColor,
+                    iconTint = devicesColor,
                     position = CardPosition.MIDDLE
                 )
                 SettingsItem(
                     title = stringResource(R.string.meterlist),
                     subtitle = stringResource(R.string.settings_glucose_meters_desc),
                     icon = Icons.Default.Bloodtype,
-                    iconTint = journalColor,
+                    iconTint = devicesColor,
                     position = CardPosition.BOTTOM,
                     onClick = { navController.navigate("settings/glucose-meters") }
                 )
@@ -621,14 +576,16 @@ fun ExpressiveSettingsScreen(
                         onClick = { navController.navigate("settings/libreview") }
                     )
                 }
-                SettingsItem(
-                    title = stringResource(R.string.dexcom_share_title),
-                    subtitle = stringResource(R.string.settings_dexcom_share_desc),
-                    icon = Icons.Default.Cloud,
-                    iconTint = sharingColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/dexcom-share") }
-                )
+                if (showDexcomShare) {
+                    SettingsItem(
+                        title = stringResource(R.string.dexcom_share_title),
+                        subtitle = stringResource(R.string.settings_dexcom_share_desc),
+                        icon = Icons.Default.Cloud,
+                        iconTint = sharingColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
                 SettingsItem(
                     title = stringResource(R.string.mirror),
                     subtitle = stringResource(R.string.settings_mirror_desc),
@@ -661,19 +618,26 @@ fun ExpressiveSettingsScreen(
             }
         }
 
-        // === SENSORS === keeping the sensor connected; vendor accounts when one is in use
+        // === SENSORS === what the sensor's values pass through, and how it stays connected
         item(key = "sensors_label") { SectionLabel(stringResource(R.string.settings_section_sensors)) }
 
         item(key = "sensors_group") {
             val sensorColor = MaterialTheme.colorScheme.onSurfaceVariant
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = stringResource(R.string.cgm_readiness_title),
-                    subtitle = stringResource(R.string.settings_cgm_readiness_desc),
-                    icon = Icons.Default.Security,
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.settings_calibration_title),
+                    subtitle = stringResource(
+                        R.string.settings_calibration_desc,
+                        stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
+                    ),
+                    checked = calibrationEnabled,
+                    onCheckedChange = {
+                        CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
+                    },
+                    onClick = { navController.navigate("settings/calibrations") },
+                    icon = Icons.Default.WaterDrop,
                     iconTint = sensorColor,
-                    position = CardPosition.TOP,
-                    onClick = { navController.navigate("settings/cgm-readiness") }
+                    position = CardPosition.TOP
                 )
                 SettingsItem(
                     title = stringResource(R.string.settings_sensor_connection_title),
@@ -703,6 +667,44 @@ fun ExpressiveSettingsScreen(
                         onClick = { navController.navigate("settings/ottai") }
                     )
                 }
+            }
+        }
+
+        // === GENERAL === set once: look, language, unit, and how the app stays current
+        item(key = "general_label") { SectionLabel(stringResource(R.string.settings_section_general)) }
+
+        item(key = "general_group") {
+            val generalColor = MaterialTheme.colorScheme.primary
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.theme_title),
+                    subtitle = themeLabel,
+                    icon = if(themeMode == ThemeMode.LIGHT) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    iconTint = generalColor,
+                    position = CardPosition.TOP,
+                    onClick = { showThemeDialog = true }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.languagename),
+                    subtitle = currentLangName,
+                    icon = Icons.Default.Language,
+                    iconTint = generalColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showLanguageDialog = true }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.settings_unit_title),
+                    subtitle = unit,
+                    icon = Icons.Default.Straighten,
+                    iconTint = generalColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showUnitDialog = true }
+                )
+                AppUpdatesSettingsItem(
+                    iconTint = generalColor,
+                    position = CardPosition.BOTTOM,
+                    onOpen = { navController.navigate("settings/app-updates") }
+                )
             }
         }
 
@@ -739,24 +741,35 @@ fun ExpressiveSettingsScreen(
             }
         }
 
-        // === APP ===
-        item(key = "app_label") { SectionLabel(stringResource(R.string.settings_section_app)) }
+        // === TROUBLESHOOTING === when readings or alarms stop arriving
+        item(key = "troubleshooting_label") { SectionLabel(stringResource(R.string.settings_section_troubleshooting)) }
 
-        item(key = "app_group") {
-            val appColor = MaterialTheme.colorScheme.onSurfaceVariant
+        item(key = "troubleshooting_group") {
+            val troubleshootingColor = MaterialTheme.colorScheme.onSurfaceVariant
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                AppUpdatesSettingsItem(
-                    iconTint = MaterialTheme.colorScheme.secondary,
+                SettingsItem(
+                    title = stringResource(R.string.cgm_readiness_title),
+                    subtitle = stringResource(R.string.settings_cgm_readiness_desc),
+                    icon = Icons.Default.Security,
+                    iconTint = troubleshootingColor,
                     position = CardPosition.TOP,
-                    onOpen = { navController.navigate("settings/app-updates") }
+                    onClick = { navController.navigate("settings/cgm-readiness") }
                 )
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),
                     subtitle = stringResource(R.string.settings_debug_logs_desc),
                     icon = Icons.Default.BugReport,
-                    iconTint = appColor,
-                    position = CardPosition.BOTTOM,
+                    iconTint = troubleshootingColor,
+                    position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/debug") }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.restart_app),
+                    subtitle = stringResource(R.string.settings_restart_desc),
+                    icon = Icons.Filled.Refresh,
+                    iconTint = troubleshootingColor,
+                    position = CardPosition.BOTTOM,
+                    onClick = { context.findActivity()?.fullRestart() }
                 )
             }
         }
@@ -766,20 +779,11 @@ fun ExpressiveSettingsScreen(
 
         item(key = "danger_group") {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                // Restart App (Low Severity)
-                DangerItem(
-                    title = stringResource(R.string.restart_app),
-                    subtitle = stringResource(R.string.settings_restart_desc),
-                    icon = Icons.Filled.Refresh,
-                    position = CardPosition.TOP,
-                    severity = DangerSeverity.LOW,
-                    onClick = { context.findActivity()?.fullRestart() }
-                )
                 DangerItem(
                     title = stringResource(R.string.clear_history),
                     subtitle = stringResource(R.string.settings_clear_history_desc),
                     icon = Icons.Filled.History,
-                    position = CardPosition.MIDDLE,
+                    position = CardPosition.TOP,
                     severity = DangerSeverity.LOW,
                     onClick = { showClearHistoryDialog = true }
                 )

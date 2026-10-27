@@ -58,7 +58,9 @@ internal enum class SettingsSearchTone { PRIMARY, SECONDARY, TERTIARY, NEUTRAL, 
  * Settings that their screen only shows while they apply. Search follows the same rule, so
  * a result never opens a screen that lacks it.
  */
-internal enum class SettingsSearchCondition { MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND }
+internal enum class SettingsSearchCondition {
+    LIBREVIEW, DEXCOM_SHARE, MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND
+}
 
 /**
  * One searchable setting. [path] is where it lives, read left to right (group, then the
@@ -105,18 +107,19 @@ internal object SettingsSearchIndex {
     private fun route(route: String) = SettingsSearchTarget.Route(route)
     private fun action(action: SettingsSearchAction) = SettingsSearchTarget.Action(action)
 
-    // Paths, by group. The General group has no label on screen, so its rows say "Settings".
-    private val GENERAL = listOf(R.string.settings)
-    private val GLUCOSE = listOf(R.string.settings_section_glucose)
-    private val ALERTS = GLUCOSE + R.string.glucose_alerts_title
+    // Paths, by group. The first group has no label on screen, so its rows say "Settings".
+    private val EVERYDAY = listOf(R.string.settings)
+    private val ALERTS = EVERYDAY + R.string.glucose_alerts_title
+    private val JOURNAL = EVERYDAY + R.string.journal_title
     private val DISPLAY = listOf(R.string.settings_section_display)
-    private val JOURNAL = listOf(R.string.settings_section_journal_devices)
+    private val DEVICES = listOf(R.string.settings_section_devices)
     private val SHARING = listOf(R.string.settings_section_sharing)
     private val PHONE_APPS = SHARING + R.string.settings_phone_apps_title
     private val SENSORS = listOf(R.string.settings_section_sensors)
     private val CONNECTION = SENSORS + R.string.settings_sensor_connection_title
+    private val GENERAL = listOf(R.string.settings_section_general)
     private val BACKUP = listOf(R.string.settings_section_backup)
-    private val APP = listOf(R.string.settings_section_app)
+    private val TROUBLESHOOTING = listOf(R.string.settings_section_troubleshooting)
     private val DANGER = listOf(R.string.danger_zone)
 
     private val P = SettingsSearchTone.PRIMARY
@@ -131,15 +134,8 @@ internal object SettingsSearchIndex {
      * deeper setting opens the screen that holds it.
      */
     val entries: List<SettingsSearchEntry> = listOf(
-        // General
-        SettingsSearchEntry(R.string.theme_title, GENERAL, Icons.Default.DarkMode, P, action(SettingsSearchAction.THEME),
-            keywords = listOf(R.string.theme_light, R.string.theme_dark)),
-        SettingsSearchEntry(R.string.languagename, GENERAL, Icons.Default.Language, P, action(SettingsSearchAction.LANGUAGE)),
-        SettingsSearchEntry(R.string.settings_unit_title, GENERAL, Icons.Default.Straighten, P, action(SettingsSearchAction.UNIT),
-            terms = listOf("mg/dL", "mmol/L")),
-
-        // Glucose
-        SettingsSearchEntry(R.string.glucose_alerts_title, GLUCOSE, Icons.Default.AddAlert, E, route("settings/alerts"),
+        // Everyday (first group, no label)
+        SettingsSearchEntry(R.string.glucose_alerts_title, EVERYDAY, Icons.Default.AddAlert, E, route("settings/alerts"),
             keywords = listOf(R.string.settings_alerts_desc)),
         SettingsSearchEntry(R.string.low_alerts_title, ALERTS, Icons.Default.AddAlert, E, route("settings/alerts"),
             keywords = listOf(R.string.alert_very_low, R.string.alert_forecast_low)),
@@ -154,15 +150,16 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.speakglucose, R.string.voice_schedule_title, R.string.voice_chime_title,
                 R.string.override_silent_mode),
             terms = listOf("TTS")),
-        SettingsSearchEntry(R.string.settings_calibration_title, GLUCOSE, Icons.Default.WaterDrop, P, route("settings/calibrations"),
-            keywords = listOf(R.string.calibration_from_journal_title),
-            terms = listOf("fingerstick")),
-        SettingsSearchEntry(R.string.graph_smoothing_title, GLUCOSE, Icons.AutoMirrored.Filled.TrendingUp, P, route("settings/data-smoothing"),
-            keywords = listOf(R.string.data_smoothing_window_title, R.string.data_smoothing_collapse_title,
-                R.string.data_smoothing_scope_title)),
-        SettingsSearchEntry(R.string.freeze_displayed_values, GLUCOSE, Icons.Default.Lock, P,
-            action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
-        SettingsSearchEntry(R.string.predictive_simulation_title, GLUCOSE, Icons.AutoMirrored.Filled.ShowChart, P,
+        SettingsSearchEntry(R.string.journal_title, EVERYDAY, Icons.Default.EditNote, P, route("settings/journal"),
+            keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
+                R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title)),
+        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL, Icons.Default.EditNote, P,
+            route("settings/journal/calculations")),
+        SettingsSearchEntry(R.string.journal_food_library, JOURNAL, Icons.Default.EditNote, P,
+            route("settings/journal/foods")),
+        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL, Icons.Default.EditNote, P,
+            route("settings/journal/insulin")),
+        SettingsSearchEntry(R.string.predictive_simulation_title, EVERYDAY, Icons.AutoMirrored.Filled.ShowChart, P,
             route("settings/predictive-simulation"),
             keywords = listOf(R.string.settings_prediction_desc, R.string.predictive_trend_momentum,
                 R.string.predictive_forecast_horizon, R.string.predictive_notification_chart,
@@ -185,6 +182,11 @@ internal object SettingsSearchIndex {
             Icons.Default.Palette, S, route("settings/display-colors")),
         SettingsSearchEntry(R.string.preview_window_title, DISPLAY + R.string.settings_dashboard_charts_title,
             Icons.Default.Palette, S, route("settings/display-colors")),
+        SettingsSearchEntry(R.string.graph_smoothing_title, DISPLAY, Icons.AutoMirrored.Filled.TrendingUp, S, route("settings/data-smoothing"),
+            keywords = listOf(R.string.data_smoothing_window_title, R.string.data_smoothing_collapse_title,
+                R.string.data_smoothing_scope_title)),
+        SettingsSearchEntry(R.string.freeze_displayed_values, DISPLAY, Icons.Default.Lock, S,
+            action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
         SettingsSearchEntry(R.string.settings_notification_title, DISPLAY, Icons.Default.Notifications, S, route("settings/notification-display"),
             keywords = listOf(R.string.settings_notification_desc, R.string.typography)),
         SettingsSearchEntry(R.string.show_trend_arrow, DISPLAY + R.string.settings_notification_title,
@@ -205,26 +207,17 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.settings_lock_screen_title, DISPLAY, Icons.Default.ScreenLockPortrait, S, route("settings/aod-display"),
             keywords = listOf(R.string.settings_lock_screen_desc, R.string.aod_show_on_lockscreen),
             terms = listOf("AOD")),
-        SettingsSearchEntry(R.string.watches, DISPLAY, Icons.Default.Watch, S, route("settings/watch"),
-            terms = listOf("Wear OS", "WearOS", "Garmin", "Kerfstok", "Watchdrip", "Gadgetbridge")),
-        SettingsSearchEntry(R.string.wearos_config_title, DISPLAY + R.string.watches, Icons.Default.Watch, S,
-            route("settings/watch/wearos-config"), terms = listOf("Wear OS")),
-        SettingsSearchEntry(R.string.garmin_status_title, DISPLAY + R.string.watches, Icons.Default.Watch, S,
-            route("settings/watch/garmin-status"), terms = listOf("Kerfstok", "Connect IQ")),
 
-        // Journal and devices
-        SettingsSearchEntry(R.string.journal_title, JOURNAL, Icons.Default.EditNote, P, route("settings/journal"),
-            keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
-                R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title)),
-        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL + R.string.journal_title, Icons.Default.EditNote, P,
-            route("settings/journal/calculations")),
-        SettingsSearchEntry(R.string.journal_food_library, JOURNAL + R.string.journal_title, Icons.Default.EditNote, P,
-            route("settings/journal/foods")),
-        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL + R.string.journal_title, Icons.Default.EditNote, P,
-            route("settings/journal/insulin")),
-        SettingsSearchEntry(R.string.insulin_pens_title, JOURNAL, Icons.Default.Vaccines, P, route("settings/insulin-pens"),
+        // Devices
+        SettingsSearchEntry(R.string.watches, DEVICES, Icons.Default.Watch, P, route("settings/watch"),
+            terms = listOf("Wear OS", "WearOS", "Garmin", "Kerfstok", "Watchdrip", "Gadgetbridge")),
+        SettingsSearchEntry(R.string.wearos_config_title, DEVICES + R.string.watches, Icons.Default.Watch, P,
+            route("settings/watch/wearos-config"), terms = listOf("Wear OS")),
+        SettingsSearchEntry(R.string.garmin_status_title, DEVICES + R.string.watches, Icons.Default.Watch, P,
+            route("settings/watch/garmin-status"), terms = listOf("Kerfstok", "Connect IQ")),
+        SettingsSearchEntry(R.string.insulin_pens_title, DEVICES, Icons.Default.Vaccines, P, route("settings/insulin-pens"),
             keywords = listOf(R.string.insulin_pens_desc), terms = listOf("NovoPen", "NFC")),
-        SettingsSearchEntry(R.string.meterlist, JOURNAL, Icons.Default.Bloodtype, P, route("settings/glucose-meters"),
+        SettingsSearchEntry(R.string.meterlist, DEVICES, Icons.Default.Bloodtype, P, route("settings/glucose-meters"),
             keywords = listOf(R.string.settings_glucose_meters_desc)),
 
         // Sharing
@@ -248,9 +241,10 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.settings_nightscout_desc, R.string.nightscout_send_treatments,
                 R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
-            keywords = listOf(R.string.settings_libreview_desc), terms = listOf("Abbott")),
+            keywords = listOf(R.string.settings_libreview_desc), terms = listOf("Abbott"),
+            condition = SettingsSearchCondition.LIBREVIEW),
         SettingsSearchEntry(R.string.dexcom_share_title, SHARING, Icons.Default.Cloud, T, route("settings/dexcom-share"),
-            keywords = listOf(R.string.settings_dexcom_share_desc)),
+            keywords = listOf(R.string.settings_dexcom_share_desc), condition = SettingsSearchCondition.DEXCOM_SHARE),
         SettingsSearchEntry(R.string.mirror, SHARING, Icons.Default.Devices, T, route("settings/mirror"),
             keywords = listOf(R.string.settings_mirror_desc, R.string.mirror_send_data, R.string.mirror_receive_data),
             terms = listOf("clone", "follower", "QR")),
@@ -260,8 +254,9 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.settings_outbound_api_desc), terms = listOf("Telegram", "Slack", "webhook", "SMS")),
 
         // Sensors
-        SettingsSearchEntry(R.string.cgm_readiness_title, SENSORS, Icons.Default.Security, N, route("settings/cgm-readiness"),
-            keywords = listOf(R.string.settings_cgm_readiness_desc)),
+        SettingsSearchEntry(R.string.settings_calibration_title, SENSORS, Icons.Default.WaterDrop, N, route("settings/calibrations"),
+            keywords = listOf(R.string.calibration_from_journal_title),
+            terms = listOf("fingerstick")),
         SettingsSearchEntry(R.string.settings_sensor_connection_title, SENSORS, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection"), keywords = listOf(R.string.settings_sensor_connection_desc)),
         SettingsSearchEntry(R.string.sensor_handover_title, CONNECTION, Icons.Default.Bluetooth, N,
@@ -276,6 +271,14 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.ottai_setup_title, SENSORS, Icons.Default.Sensors, N, route("settings/ottai"),
             keywords = listOf(R.string.settings_ottai_desc), condition = SettingsSearchCondition.OTTAI),
 
+        // General
+        SettingsSearchEntry(R.string.theme_title, GENERAL, Icons.Default.DarkMode, P, action(SettingsSearchAction.THEME),
+            keywords = listOf(R.string.theme_light, R.string.theme_dark)),
+        SettingsSearchEntry(R.string.languagename, GENERAL, Icons.Default.Language, P, action(SettingsSearchAction.LANGUAGE)),
+        SettingsSearchEntry(R.string.settings_unit_title, GENERAL, Icons.Default.Straighten, P, action(SettingsSearchAction.UNIT),
+            terms = listOf("mg/dL", "mmol/L")),
+        SettingsSearchEntry(R.string.app_updates_title, GENERAL, Icons.Default.SystemUpdate, P, route("settings/app-updates")),
+
         // Backup and restore
         SettingsSearchEntry(R.string.scheduled_backup_title, BACKUP, Icons.Default.Backup, S, action(SettingsSearchAction.BACKUPS)),
         SettingsSearchEntry(R.string.settings_export_title, BACKUP, Icons.Default.Upload, S, action(SettingsSearchAction.EXPORT),
@@ -283,9 +286,10 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.settings_import_title, BACKUP, Icons.Default.FolderOpen, S, action(SettingsSearchAction.IMPORT),
             keywords = listOf(R.string.settings_import_desc), terms = listOf("CSV", "restore")),
 
-        // App
-        SettingsSearchEntry(R.string.app_updates_title, APP, Icons.Default.SystemUpdate, S, route("settings/app-updates")),
-        SettingsSearchEntry(R.string.debug_logs, APP, Icons.Default.BugReport, N, route("settings/debug"),
+        // Troubleshooting
+        SettingsSearchEntry(R.string.cgm_readiness_title, TROUBLESHOOTING, Icons.Default.Security, N, route("settings/cgm-readiness"),
+            keywords = listOf(R.string.settings_cgm_readiness_desc), terms = listOf("CGM readiness")),
+        SettingsSearchEntry(R.string.debug_logs, TROUBLESHOOTING, Icons.Default.BugReport, N, route("settings/debug"),
             keywords = listOf(R.string.settings_debug_logs_desc), terms = listOf("logcat", "trace")),
 
         // Danger zone: each of these asks for confirmation before it does anything.
