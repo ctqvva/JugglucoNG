@@ -204,25 +204,35 @@ class GlucoseSmoothingTests {
     }
 
     @Test
-    fun collapseCarriesASparseLaneTheBucketsLastReadingLacks() {
+    fun collapseKeepsASparseLaneTheBucketsLastReadingLacksAtItsOwnTime() {
         // Libre: Stream every minute, its own History every 15. A 5-minute
-        // bucket whose History sits on its first minute must not lose it.
+        // bucket whose History sits on its first minute must not lose it, nor
+        // move it to the bucket's last minute.
         val points = (0 until 10).map { m -> P(m * minute, 100f + m, if (m == 5) 130f else 0f) }
         val collapsed = smooth(points, minutes = 5, collapse = true, now = 60L * minute)
-        assertEquals(listOf(4 * minute, 9 * minute), collapsed.map { it.timestamp })
-        assertEquals(0f, collapsed[0].rawValue, 1e-6f)
+        assertEquals(listOf(4 * minute, 5 * minute, 9 * minute), collapsed.map { it.timestamp })
         assertEquals(130f, collapsed[1].rawValue, 1e-3f)
-        // The bucket's own Stream value is not touched.
-        assertTrue(collapsed[1].value > 100f)
+        assertEquals(0f, collapsed[2].rawValue, 1e-6f)
     }
 
     @Test
-    fun collapseCarriesTheStreamWhenTheBucketEndsOnAHistoryOnlyRow() {
+    fun collapseKeepsHistorySpacingAcrossBuckets() {
+        // History at 12:14:55 and 12:30:05 stays 15 minutes apart, under the
+        // 17-minute gap limit, however late in its bucket the last poll falls.
+        val first = 14 * minute + 55_000L
+        val second = 30 * minute + 5_000L
+        val points = (10..36).map { m -> P(m * minute + 5_000L, 100f, 0f) } +
+            listOf(P(first, 100f, 120f), P(second, 100f, 125f))
+        val collapsed = smooth(points.sortedBy { it.timestamp }, minutes = 5, collapse = true, now = 60L * minute)
+        assertEquals(listOf(first, second), collapsed.filter { it.rawValue > 0f }.map { it.timestamp })
+    }
+
+    @Test
+    fun collapseKeepsTheStreamWhenTheBucketEndsOnAHistoryOnlyRow() {
         val points = listOf(P(0, 120f, 0f), P(minute, 121f, 0f), P(2 * minute, 0f, 130f))
         val collapsed = smooth(points, minutes = 5, collapse = true, now = 60L * minute)
-        assertEquals(1, collapsed.size)
-        assertEquals(2 * minute, collapsed[0].timestamp)
+        assertEquals(listOf(minute, 2 * minute), collapsed.map { it.timestamp })
         assertTrue(collapsed[0].value > 100f)
-        assertEquals(130f, collapsed[0].rawValue, 1e-3f)
+        assertEquals(130f, collapsed[1].rawValue, 1e-3f)
     }
 }

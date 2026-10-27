@@ -64,7 +64,7 @@ object GlucoseSmoothing {
                 }
             }
             if (collapseIntoChunks) {
-                result.addAll(collapse(smoothed, collapsedInterval, timestamp, value, rawValue, withValues, nowMillis))
+                result.addAll(collapse(smoothed, collapsedInterval, timestamp, value, rawValue, nowMillis))
             } else {
                 result.addAll(smoothed)
             }
@@ -234,13 +234,12 @@ object GlucoseSmoothing {
      * Keeps the last reading of each completed interval. The bucket [nowMillis]
      * falls in is still filling, so it is left alone rather than represented by
      * a reading that will be superseded a minute later.
-     */
-    /**
-     * One point per bucket: the bucket's last, carrying the bucket's newest
-     * valid value for any lane that last point lacks. A lane need not be
-     * present on every reading -- Libre's History lane is one value per 15
-     * minutes -- and keeping only the last point's own lanes dropped it
-     * whenever it was not the bucket's final reading.
+     *
+     * A lane need not be present on every reading -- Libre's History lane is one
+     * value per 15 minutes -- so when the last reading lacks a lane, the bucket's
+     * newest reading that has it is kept too, at its own time. Moving the value
+     * onto the last reading instead would shift it by up to a bucket and could
+     * stretch two neighbouring History values past the chart's gap limit.
      */
     private fun <T> collapse(
         points: List<T>,
@@ -248,7 +247,6 @@ object GlucoseSmoothing {
         timestamp: (T) -> Long,
         value: (T) -> Float,
         rawValue: (T) -> Float,
-        withValues: (T, Float, Float) -> T,
         nowMillis: Long,
     ): List<T> {
         if (points.isEmpty() || intervalMinutes <= 0) return points
@@ -257,24 +255,15 @@ object GlucoseSmoothing {
         val collapsed = ArrayList<T>()
         var activeBucket = Long.MIN_VALUE
         var pending: T? = null
-        var bucketAuto = Float.NaN
-        var bucketRaw = Float.NaN
+        var bucketAuto: T? = null
+        var bucketRaw: T? = null
 
         fun flush() {
             val last = pending ?: return
-            val carryAuto = !isValid(value(last)) && !bucketAuto.isNaN()
-            val carryRaw = !isValid(rawValue(last)) && !bucketRaw.isNaN()
-            collapsed.add(
-                if (carryAuto || carryRaw) {
-                    withValues(
-                        last,
-                        if (carryAuto) bucketAuto else value(last),
-                        if (carryRaw) bucketRaw else rawValue(last),
-                    )
-                } else {
-                    last
-                }
-            )
+            val autoHolder = bucketAuto?.takeIf { !isValid(value(last)) }
+            val rawHolder = bucketRaw?.takeIf { !isValid(rawValue(last)) }
+            listOfNotNull(autoHolder, rawHolder).distinct().sortedBy(timestamp).forEach(collapsed::add)
+            collapsed.add(last)
         }
 
         points.forEach { point ->
@@ -282,11 +271,11 @@ object GlucoseSmoothing {
             if (bucket != activeBucket) {
                 if (activeBucket < openBucket) flush()
                 activeBucket = bucket
-                bucketAuto = Float.NaN
-                bucketRaw = Float.NaN
+                bucketAuto = null
+                bucketRaw = null
             }
-            value(point).takeIf(::isValid)?.let { bucketAuto = it }
-            rawValue(point).takeIf(::isValid)?.let { bucketRaw = it }
+            if (isValid(value(point))) bucketAuto = point
+            if (isValid(rawValue(point))) bucketRaw = point
             pending = point
         }
         if (activeBucket < openBucket) flush()

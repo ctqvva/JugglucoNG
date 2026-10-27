@@ -320,7 +320,7 @@ class DataSmoothingTests {
     }
 
     @Test
-    fun collapsePointsForDisplayCarriesASparseLaneTheLastReadingLacks() {
+    fun collapsePointsForDisplayKeepsASparseLaneTheLastReadingLacksAtItsOwnTime() {
         // Libre's History lane is one value per 15 minutes.
         val points = (0..5).map { minute ->
             GlucosePoint(minute * 60_000L, (100 + minute).toFloat(), if (minute == 3) 130f else 0f)
@@ -332,9 +332,10 @@ class DataSmoothingTests {
             nowMillis = 60L * 60_000L
         )
 
-        assertEquals(listOf(2L * 60_000L, 5L * 60_000L), collapsed.map { it.timestamp })
+        assertEquals(listOf(2L * 60_000L, 3L * 60_000L, 5L * 60_000L), collapsed.map { it.timestamp })
         assertEquals(0f, collapsed[0].rawValue, 1e-6f)
-        assertEquals(105f, collapsed[1].value, 1e-6f)
         assertEquals(130f, collapsed[1].rawValue, 1e-6f)
+        assertEquals(105f, collapsed[2].value, 1e-6f)
+        assertEquals(0f, collapsed[2].rawValue, 1e-6f)
     }
 }

@@ -351,30 +351,19 @@ object DataSmoothing {
         val collapsed = ArrayList<GlucosePoint>()
         var activeBucket = Long.MIN_VALUE
         var pending: GlucosePoint? = null
-        var bucketAuto = Float.NaN
-        var bucketRaw = Float.NaN
+        var bucketAuto: GlucosePoint? = null
+        var bucketRaw: GlucosePoint? = null
 
-        // The bucket's last point, carrying the bucket's newest valid value for
-        // a lane it lacks: Libre's History lane is one value per 15 minutes.
+        // The bucket's last point, and for a lane it lacks the bucket's newest
+        // point that has it, at its own time: Libre's History lane is one value
+        // per 15 minutes, and moving it onto the last point could stretch two
+        // neighbouring values past the chart's gap limit.
         fun flush() {
             val last = pending ?: return
-            val carryAuto = !isValidLane(last.value) && !bucketAuto.isNaN()
-            val carryRaw = !isValidLane(last.rawValue) && !bucketRaw.isNaN()
-            if (!carryAuto && !carryRaw) {
-                collapsed.add(last)
-                return
-            }
-            val point = GlucosePoint(
-                last.timestamp,
-                if (carryAuto) bucketAuto else last.value,
-                if (carryRaw) bucketRaw else last.rawValue,
-            )
-            point.color = last.color
-            point.sensorSerial = last.sensorSerial
-            point.sealedDisplayValue = last.sealedDisplayValue
-            point.sealedDisplayViewMode = last.sealedDisplayViewMode
-            point.uncertainty = last.uncertainty?.shifted(point.value - last.value)
-            collapsed.add(point)
+            val autoHolder = bucketAuto?.takeIf { !isValidLane(last.value) }
+            val rawHolder = bucketRaw?.takeIf { !isValidLane(last.rawValue) }
+            listOfNotNull(autoHolder, rawHolder).distinct().sortedBy { it.timestamp }.forEach(collapsed::add)
+            collapsed.add(last)
         }
 
         for (point in points) {
@@ -382,11 +371,11 @@ object DataSmoothing {
             if (bucket != activeBucket) {
                 if (activeBucket < openBucket) flush()
                 activeBucket = bucket
-                bucketAuto = Float.NaN
-                bucketRaw = Float.NaN
+                bucketAuto = null
+                bucketRaw = null
             }
-            if (isValidLane(point.value)) bucketAuto = point.value
-            if (isValidLane(point.rawValue)) bucketRaw = point.rawValue
+            if (isValidLane(point.value)) bucketAuto = point
+            if (isValidLane(point.rawValue)) bucketRaw = point
             pending = point
         }
 

@@ -2089,6 +2089,15 @@ class HistoryRepository(context: Context = Applic.app) {
                 val rawValue = valueRawRaw / 10f
 
                 if (value > 0 || rawValue > 0) {
+                    // Never split a minute across chunks: the second would replace
+                    // the first's row of it, and with it a Libre's History value.
+                    if (HistoryBucketReplacement.mayCloseChunk(
+                            readings, timeSec * 1000L, NATIVE_BACKFILL_INSERT_CHUNK, SENSOR_MINUTE_BUCKET_MS,
+                        )
+                    ) {
+                        storedCount += insertBackfillChunk(serial, readings)
+                        readings.clear()
+                    }
                     readings.add(HistoryReading(
                         timestamp = timeSec * 1000L,
                         sensorSerial = roomSerial,
@@ -2097,10 +2106,6 @@ class HistoryRepository(context: Context = Applic.app) {
                         rate = 0f, // Rate not available from history
                         source = readingSource,
                     ))
-                    if (readings.size >= NATIVE_BACKFILL_INSERT_CHUNK) {
-                        storedCount += insertBackfillChunk(serial, readings)
-                        readings.clear()
-                    }
                 }
             }
 
