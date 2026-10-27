@@ -8,6 +8,9 @@ import android.os.LocaleList
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -323,12 +326,40 @@ class AdaptiveLayoutTests {
                                     { checked = it },
                                     CardPosition.SINGLE,
                                 ) {}
+                            4 ->
+                                SettingsNavSwitchItem(
+                                    title = "Настройки датчика",
+                                    subtitle = "Проверка подключения",
+                                    checked = checked,
+                                    onCheckedChange = { checked = it },
+                                    onClick = { checked = true },
+                                    icon = Icons.Default.Settings,
+                                )
+                            5 ->
+                                SettingsItem(
+                                    title = "Настройки датчика",
+                                    onClick = { checked = true },
+                                    icon = Icons.Default.Settings,
+                                    trailingContent = {
+                                        IconButtonTooltip("Настройки") {
+                                            IconButton(
+                                                onClick = { checked = true },
+                                                shapes = IconButtonDefaults.shapes(),
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Settings,
+                                                    contentDescription = "Настройки",
+                                                )
+                                            }
+                                        }
+                                    },
+                                )
                         }
                     }
                 }
             }
         }
-        for (value in 0..3) {
+        for (value in 0..5) {
             compose.runOnIdle {
                 kind = value
                 checked = false
