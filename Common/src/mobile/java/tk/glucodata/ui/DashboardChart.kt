@@ -4314,16 +4314,21 @@ fun InteractiveGlucoseChart(
                 } else {
                     ACTIVE_INSULIN_MAX_WIDTH_FRACTION
                 }
+                // Mirrors the date chip across the chart: 16 dp from the card's corner, and
+                // full-bleed on the top of the plot and the cards' start line.
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(start = 12.dp, top = 12.dp)
+                        .padding(
+                            start = androidx.compose.ui.unit.lerp(16.dp, backdropContentInset, backdropAlpha),
+                            top = androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha)
+                        )
                         .widthIn(max = activeInsulinMaxWidth)
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
                         .clickable(enabled = summary != null || activeCarbsGrams != null) { isActiveInsulinExpanded = !isActiveInsulinExpanded },
                     shape = activeInsulinShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {
