@@ -45,6 +45,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import tk.glucodata.R
+import tk.glucodata.ui.setup.PinnedOrScrollingList
 import tk.glucodata.ui.setup.ScanFilterHeader
 import tk.glucodata.ui.theme.AppTypography
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -434,6 +435,81 @@ class AdaptiveLayoutTests {
         // Intrinsic sizing sees the 48dp touch target, which once drew every group 48dp tall.
         assertEquals(36f, compose.onNodeWithTag("group").fetchSemanticsNode().boundsInRoot.height, 0.5f)
         assertEquals(36f, compose.onNodeWithText("High").fetchSemanticsNode().boundsInRoot.height, 0.5f)
+    }
+
+    @Test
+    fun connectedGroupGrowsForALabelTallerThanItsHeightButUnderTheTouchTarget() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 2.2f)) {
+                MaterialTheme(typography = AppTypography) {
+                    // Wide enough for labelLarge: its 20sp line is past 36dp at this size, still under 48dp.
+                    Box(Modifier.width(400.dp)) {
+                        ConnectedButtonGroup(
+                            modifier = Modifier.testTag("group"),
+                            options = listOf("High", "Low"),
+                            selectedOption = "High",
+                            onOptionSelected = {},
+                            label = { Text(it) },
+                            labelText = { it },
+                            itemHeight = 36.dp,
+                        )
+                    }
+                }
+            }
+        }
+        val label = compose.onNodeWithText("High", useUnmergedTree = true)
+        val lineHeight = label.textLayout().multiParagraph.height
+        assertTrue("label line $lineHeight", lineHeight > 36f && lineHeight < 48f)
+        val group = compose.onNodeWithTag("group").fetchSemanticsNode().boundsInRoot
+        assertTrue("group ${group.height} clips a $lineHeight label", group.height >= lineHeight)
+        // Grows to the label, not to the invisible 48dp touch target.
+        assertTrue("group ${group.height}", group.height < 48f)
+    }
+
+    @Test
+    fun scanListKeepsItsHeaderAndFooterPinnedWhenItHasRoom() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    PinnedOrScrollingList(
+                        modifier = Modifier.width(320.dp).height(400.dp),
+                        header = { Box(Modifier.fillMaxWidth().height(120.dp).testTag("header")) },
+                        footer = { Box(Modifier.fillMaxWidth().height(60.dp).testTag("footer")) },
+                    ) {
+                        items(20) { Text("Sensor $it", Modifier.height(72.dp)) }
+                    }
+                }
+            }
+        }
+        assertEquals(400f, compose.onNodeWithTag("footer").fetchSemanticsNode().boundsInRoot.bottom, 0.5f)
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Sensor 19"))
+        // The list scrolled under a header and footer that stayed put.
+        assertEquals(0f, compose.onNodeWithTag("header").fetchSemanticsNode().boundsInRoot.top, 0.5f)
+        assertEquals(400f, compose.onNodeWithTag("footer").fetchSemanticsNode().boundsInRoot.bottom, 0.5f)
+    }
+
+    @Test
+    fun scanListScrollsAsOneWhenHeaderAndFooterLeaveItNoRoom() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    PinnedOrScrollingList(
+                        modifier = Modifier.width(320.dp).height(200.dp),
+                        header = { Box(Modifier.fillMaxWidth().height(150.dp).testTag("header")) },
+                        footer = { Box(Modifier.fillMaxWidth().height(60.dp).testTag("footer")) },
+                    ) {
+                        items(3) { Text("Sensor $it", Modifier.height(72.dp)) }
+                    }
+                }
+            }
+        }
+        // Pinned, the header and footer would leave the list no height at all.
+        compose.onNodeWithText("Sensor 0").assertIsDisplayed()
+        val list = compose.onNode(hasScrollToNodeAction())
+        list.performScrollToNode(hasText("Sensor 2"))
+        compose.onNodeWithText("Sensor 2").assertIsDisplayed()
+        list.performScrollToNode(hasTestTag("footer"))
+        compose.onNodeWithTag("footer").assertIsDisplayed()
     }
 
     @Test
