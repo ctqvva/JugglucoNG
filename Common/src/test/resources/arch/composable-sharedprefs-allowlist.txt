@@ -9,7 +9,6 @@ src/mobile/java/tk/glucodata/ui/DashboardChart.kt
 src/mobile/java/tk/glucodata/ui/DashboardScreen.kt
 src/mobile/java/tk/glucodata/ui/DebugSettingsScreen.kt
 src/mobile/java/tk/glucodata/ui/DisplaySettingsScreens.kt
-src/mobile/java/tk/glucodata/ui/ExpressiveSettingsScreen.kt
 src/mobile/java/tk/glucodata/ui/InsulinPenSettingsScreen.kt
 src/mobile/java/tk/glucodata/ui/SensorScreen.kt
 src/mobile/java/tk/glucodata/ui/alerts/AlertSettingsScreen.kt

@@ -1006,6 +1006,8 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
     composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
     composable("settings/watch") { WatchSettingsScreen(navController) }
+    composable("settings/phone-apps") { PhoneAppsSettingsScreen(navController, dashboardViewModel) }
+    composable("settings/sensor-connection") { SensorConnectionSettingsScreen(navController) }
     // Keep legacy route for backward compatibility.
     composable("settings/weartransport") { WatchSettingsScreen(navController) }
     composable("settings/watch/wearos-config") { WearOsConfigScreen(navController) }

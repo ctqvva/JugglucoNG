@@ -426,7 +426,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_chart_title">Toon grafiek in melding</string>
     <string name="notification_chart_desc">Glucosegrafiek weergeven in statusbalk</string>
     <string name="google_scan_desc">Gebruik Google Play Services voor QR-scan</string>
-    <string name="mirror_desc">Delen/Ontvangen via internet/thuisnetwerk</string>
     <string name="nightscout_desc">Meetwaarden verzenden of ontvangen</string>
     <string name="glucose_alerts_title">Meldingen en alarmen</string>
     <string name="glucose_range_title">Glucosebereik</string>
@@ -581,10 +580,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="alert_sound">Melding geluid</string>
     <string name="vibrate_only">Trillen</string>
     <string name="sound_vibrate">Geluid &amp; Trillen</string>
-    <string name="turbo_title">Turbo (Hoge prioriteit)</string>
-    <string name="turbo_desc">Vraagt hoge verbindingsprioriteit</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Gebruikt passieve achtergrondverbinding</string>
     <string name="graph_smoothing_title">Gegevensafvlakking</string>
     <string name="graph_smoothing_desc">Vlakt grafiekgegevens af en, tenzij Alleen grafiek afvlakken is ingeschakeld, berekende glucosewaarden</string>
     <string name="graph_smoothing_none">Uitgeschakeld</string>
@@ -610,14 +605,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="preview_window_expanded_only">Alleen in uitgebreide weergave (standaard)</string>
     <string name="preview_window_always">Altijd</string>
     <string name="preview_window_never">Nooit</string>
-    <string name="debug_logs_desc">Bekijk trace.log en logcat</string>
-    <string name="data_management">Gegevensbeheer</string>
     <string name="export_data">Geschiedenis exporteren</string>
     <string name="export_data_desc">Sla glucosemetingen op als CSV of tekstbestand</string>
     <string name="export_settings">Instellingen exporteren</string>
     <string name="export_settings_desc">Sla alle appinstellingen, inloggegevens en apparaatsleutels op</string>
     <string name="export_data_settings">Gegevens/instellingen exporteren</string>
-    <string name="export_data_settings_desc">Kies instellingen, geschiedenis, kalibraties of een volledig pakket</string>
     <string name="export_compression">Compressie</string>
     <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
@@ -673,17 +665,14 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="import_data">Geschiedenis importeren</string>
     <string name="import_data_desc">Herstel glucosemetingen uit CSV-bestand</string>
     <string name="import_data_settings">Gegevens/instellingen importeren</string>
-    <string name="import_data_settings_desc">Herstel geschiedenis-CSV of JugglucoNG-export</string>
     <string name="settings_import_confirm_title">Instellingen importeren?</string>
     <string name="settings_import_confirm_message">Dit vervangt appinstellingen, inloggegevens, apparaatsleutels en spiegelconfiguratie en start de app opnieuw.</string>
     <string name="settings_import_successful">Instellingen geïmporteerd. Opnieuw starten…</string>
     <string name="danger_zone">Gevarenzone</string>
     <string name="clear_history">Geschiedenis wissen</string>
-    <string name="clear_history_desc_short">Verwijder alle glucosemetingen</string>
     <string name="clear_app_data">App-gegevens wissen</string>
     <string name="clear_app_data_desc">Verwijder geschiedenis en cache, behoud instellingen</string>
     <string name="factory_reset">Fabrieksinstellingen herstellen</string>
-    <string name="factory_reset_desc">Verwijder alles, terug naar eerste staat</string>
     <string name="sibionics_setup_title">Sibionics Installatie</string>
     <string name="dexcom_setup_title">Dexcom Installatie</string>
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
@@ -787,12 +776,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="volume_vibration_profile">Volume-/trilprofiel</string>
     <string name="ICE">ICE</string>
     <string name="USE_ALARM">Alarm is alarm</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scan de datamatrix op uw Accu-Chek SmartGuide-sensor</string>
     <string name="accuchek_setup_title">Accu-Chek-installatie</string>
     <string name="add_sensor">Add Sensor</string>
-    <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Verbonden!</string>
     <string name="aidex_connecting_to">Verbinding maken met %1$s…</string>
@@ -874,7 +861,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="floatglucoseshort">@string/floatglucose</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
     <string name="gvi">GVI</string>
@@ -923,7 +909,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libreview_active_desc">Schakel LibreView-upload in</string>
     <string name="libreview_config">LibreView</string>
     <string name="libreview_current">Toon huidige glucose</string>
-    <string name="libreview_desc">Synchroniseren met Abbott LibreView</string>
     <string name="libreview_email">E-mail</string>
     <string name="libreview_get_account_id">Account-ID ophalen</string>
     <string name="libreview_is_viewed">Markeer als bekeken</string>
@@ -946,12 +931,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="min">Min</string>
     <string name="min_glucose">Min</string>
     <string name="mmolL">mmol/L</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
     <string name="nothing"></string>
-    <string name="notifications">Waarschuwingen en meldingen</string>
     <string name="off">Off</string>
     <string name="one">1</string>
     <string name="overlaypermissionmessage">adb shell pm grant tk.glucodata android.permission.SYSTEM_ALERT_WINDOW</string>
@@ -1039,12 +1022,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="very_low">Zeer laag</string>
     <string name="wifi">Wifi</string>
     <string name="wipe_data">Wipe sensor data</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Identificeren als Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Laat AAPS SMB altijd toestaan met deze sensor. Alleen inschakelen als u de metingen vertrouwt</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Glucosemetingen naar Health Connect sturen voor compatibele gezondheidsapps</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1855,7 +1835,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="alignment_right">Rechts</string>
     <string name="cgm_readiness_title">CGM-gereedheid</string>
     <string name="cgm_readiness_dashboard_title">CGM-installatie heeft aandacht nodig</string>
-    <string name="cgm_readiness_settings_desc">Controleer Bluetooth, alarmen, batterij, meldingen en achtergrondgedrag</string>
     <string name="cgm_readiness_ready_title">Systeem gereed</string>
     <string name="cgm_readiness_attention_title">Aandacht nodig</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarmen, meldingen en achtergrondinstellingen lijken gereed.</string>
@@ -2050,7 +2029,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="volume_profile_vibrate_only">Alleen trillen</string>
     <string name="volume_profile_silent">Stil</string>
     <string name="restart_app">App herstarten</string>
-    <string name="restart_app_desc">De toepassing geforceerd herstarten</string>
     <string name="haptics">Haptiek</string>
     <string name="sound_duration">Geluidsduur</string>
     <string name="haptic_profile_soft">Zacht</string>
@@ -2058,7 +2036,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="haptic_profile_strong">Sterk</string>
     <string name="haptic_profile_escalating">Oplopend</string>
     <string name="outbound_api_title">API-bestemmingen</string>
-    <string name="outbound_api_desc">Preset-gebaseerde chatbot-, webhook- en nood-sms-bezorging</string>
     <string name="outbound_api_settings_title">API-bestemmingen</string>
     <string name="outbound_api_master_desc">Live metingen naar ingeschakelde bestemmingen sturen</string>
     <string name="outbound_api_destinations">Bestemmingen</string>
@@ -2243,7 +2220,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_sign_out">Afmelden</string>
     <string name="ottai_verify_code_hint">Verificatiecode</string>
     <string name="wrongcode">Verkeerde QR-code</string>
-    <string name="ottai_settings_desc">Beheer Ottai-accounttoegang, opgeslagen materialen en installatie voor de verbonden Ottai-sensor.</string>
     <string name="ottai_account_sensors_title">Ottai-accountsensoren</string>
     <string name="ottai_account_sensors_desc">Kies een opgeslagen sensor of accountsensor om de cloud-ID in te vullen. Verbinden start pas wanneer je op Verbinden tikt.</string>
     <string name="ottai_account_sensors_need_login">Meld je eerst aan om sensoren uit je Ottai-account te laden.</string>
@@ -2277,8 +2253,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Snel vallen</string>
     <string name="alert_rising_fast">Snel stijgen</string>
-    <string name="broadcast_computed_trend_title">Apptrend uitzenden</string>
-    <string name="broadcast_computed_trend_desc">Gebruik de apptrend in plaats van de sensortrend</string>
     <string name="dashboard_show_delta_desc">Gemeten verandering over het delta-interval, onder de trendpijl</string>
     <string name="dashboard_show_delta_title">Delta (Δ) op het dashboard</string>
     <string name="delta_alarm_interval_follow">Zoals Δ (%1$d min)</string>
@@ -2379,8 +2353,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="notification_chart_pause_screen_off">Grafiek pauzeren als het scherm uit is</string>
     <string name="notification_chart_pause_screen_off_summary">Wordt opnieuw getekend zodra het scherm aangaat. De grafiek kan kort verborgen zijn.</string>
     <string name="notification_status_line_section">Statusregel</string>
-    <string name="display_colors_title">Weergave</string>
-    <string name="display_colors_desc">Kleuren, dashboardwaarden en grafieken</string>
     <string name="display_readouts_section">Dashboardwaarden</string>
     <!-- Debug log screen -->
     <string name="debug_howto_title">Een bug melden</string>
@@ -3057,7 +3029,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
         <item quantity="other">%d minuten</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
-    <string name="dexcom_share_desc">Metingen naar Dexcom Follow sturen</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
     <string name="dexcom_share_active">Delen met Dexcom</string>
     <string name="dexcom_share_active_desc">Actuele metingen van deze telefoon naar Dexcom Follow sturen</string>
@@ -3082,4 +3053,72 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="stream_history_mode">Stream+Geschiedenis</string>
     <string name="history_stream_mode">Geschiedenis+Stream</string>
     <string name="libre_history_mode_caption">De geschiedenis is de eigen waarde van de sensor, elke 15 minuten opgeslagen en ongeveer 16 minuten achter op de stream. Tot de geschiedenis van een minuut binnen is, neemt de stream haar plaats in.</string>
+    <!-- Settings tab -->
+    <string name="settings_section_glucose">Glucose</string>
+    <string name="settings_section_display">Weergave</string>
+    <string name="settings_section_journal_devices">Dagboek en apparaten</string>
+    <string name="settings_section_sharing">Delen</string>
+    <string name="settings_section_sensors">Sensoren</string>
+    <string name="settings_section_backup">Back-up en herstel</string>
+    <string name="settings_section_app">App</string>
+    <string name="settings_unit_title">Glucose-eenheid</string>
+    <string name="settings_alerts_desc">Laag, hoog, snelle veranderingen en signaalverlies</string>
+    <string name="settings_alerts_off_desc">Alle meldingen staan uit</string>
+    <string name="settings_calibration_title">Kalibratie</string>
+    <string name="settings_calibration_desc">Correcties met vingerprik · modus %1$s</string>
+    <string name="settings_smoothing_off_desc">Waarden worden getoond zoals gemeten</string>
+    <string name="settings_prediction_desc">Glucosevoorspelling op basis van trend, koolhydraten en insuline</string>
+    <string name="settings_dashboard_charts_title">Dashboard en grafieken</string>
+    <string name="settings_dashboard_charts_desc">Doelbereik, kleuren en weergaven</string>
+    <string name="settings_notification_title">Glucosemelding</string>
+    <string name="settings_notification_desc">Tekst, trendpijl, grafiek en statusregel</string>
+    <string name="settings_floating_desc">Huidige waarde boven andere apps</string>
+    <string name="settings_floating_permission_desc">Toestemming nodig om boven andere apps te tonen</string>
+    <string name="settings_lock_screen_title">Vergrendelscherm</string>
+    <string name="settings_lock_screen_desc">Huidige waarde op het vergrendelscherm en always-on-display</string>
+    <string name="settings_lock_screen_off_desc">Wordt aangezet in de toegankelijkheidsinstellingen</string>
+    <string name="settings_journal_desc">Maaltijden, insuline, activiteit en notities</string>
+    <string name="settings_glucose_meters_desc">Bluetooth-meters voor vingerprikwaarden</string>
+    <string name="settings_phone_apps_title">Apps op deze telefoon</string>
+    <string name="settings_phone_apps_none">Verstuurt naar geen enkele app</string>
+    <string name="settings_app_name_patched_libre">Gepatchte Libre</string>
+    <string name="settings_nightscout_desc">Waarden en behandelingen uploaden, of een site volgen</string>
+    <string name="settings_libreview_desc">Waarden uploaden naar Abbott LibreView</string>
+    <string name="settings_dexcom_share_desc">Waarden uploaden voor Dexcom Follow</string>
+    <string name="settings_mirror_desc">Waarden versturen of ontvangen tussen je apparaten</string>
+    <string name="settings_webserver_desc">Waarden in xDrip-stijl voor wijzerplaten en andere apps</string>
+    <string name="settings_outbound_api_desc">Webhooks, chatbots en nood-sms</string>
+    <string name="settings_cgm_readiness_desc">Controleer de rechten en batterij-instellingen waar de waarden van afhangen</string>
+    <string name="settings_sensor_connection_title">Verbinding en overdracht</string>
+    <string name="settings_sensor_connection_desc">Sensoroverdracht, Bluetooth-prioriteit en automatisch verbinden</string>
+    <string name="settings_mq_account_desc">Account, server en synchronisatie voor MQ-sensoren</string>
+    <string name="settings_ottai_desc">Accounttoegang en sensorinstelling</string>
+    <string name="settings_export_title">Exporteren</string>
+    <string name="settings_export_desc">Instellingen, geschiedenis, kalibraties of alles</string>
+    <string name="settings_import_title">Importeren</string>
+    <string name="settings_import_desc">Een JugglucoNG-export of geschiedenis-CSV herstellen</string>
+    <string name="settings_debug_logs_desc">Logs bekijken en delen voor foutmeldingen</string>
+    <string name="settings_restart_desc">De app sluiten en opnieuw openen</string>
+    <string name="settings_clear_history_desc">Alle glucosewaarden verwijderen</string>
+    <string name="settings_clear_app_data_desc">Geschiedenis en cache verwijderen; instellingen blijven</string>
+    <string name="settings_factory_reset_desc">Alles verwijderen en opnieuw beginnen</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+-broadcast</string>
+    <string name="settings_xdrip_broadcast_desc">Voor xDrip+ en AAPS</string>
+    <string name="settings_patched_libre_title">Broadcast van gepatchte Libre-app</string>
+    <string name="settings_patched_libre_desc">Voor apps die de gepatchte Libre-app lezen</string>
+    <string name="settings_glucodata_title">Glucodata-broadcast</string>
+    <string name="settings_glucodata_desc">Voor GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Waarden delen met gezondheidsapps</string>
+    <string name="settings_broadcast_options">Broadcastopties</string>
+    <string name="settings_app_trend_title">Trend van de app versturen</string>
+    <string name="settings_app_trend_desc">De trendpijl van de app gebruiken in plaats van die van de sensor</string>
+    <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Hoge verbindingsprioriteit</string>
+    <string name="settings_turbo_desc">Snellere Bluetooth-uitwisseling, iets meer batterijverbruik</string>
+    <string name="settings_autoconnect_title">Automatisch verbinden</string>
+    <string name="settings_autoconnect_desc">Android verbindt de sensor op de achtergrond opnieuw</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Instellingen zoeken</string>
+    <string name="settings_search_no_results">Geen instellingen gevonden voor ‘%1$s’</string>
+    <string name="settings_search_clear">Zoekopdracht wissen</string>
 </resources>
