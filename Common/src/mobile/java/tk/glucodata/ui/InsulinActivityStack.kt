@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import java.util.TimeZone
 import tk.glucodata.data.journal.IobCurvePoint
 
 /**
@@ -39,6 +40,11 @@ internal object InsulinActivityStack {
     /** A steady-state curve longer than this was measured on once-weekly doses, not daily ones. */
     private const val WEEKLY_CURVE_MINUTES = 3 * DAY_MINUTES
 
+    private const val DAY_MILLIS = DAY_MINUTES * 60_000L
+
+    /** The share of days whose peak the scale takes in, without headroom. */
+    private const val TYPICAL_DAY_SHARE = 0.75f
+
     /** Headroom over the highest total, so the band's top isn't drawn against the scale. */
     private const val SCALE_HEADROOM = 1.1f
 
@@ -72,9 +78,7 @@ internal object InsulinActivityStack {
          * `trailing[layer][i]`: where a curve's data stopped while it was still acting, the rate it
          * stopped at, easing to nothing over the dose's [Dose.trailMillis]. Not a total.
          */
-        val trailing: Array<FloatArray>,
-        /** `doses[d][i]`: what dose `d` adds to its layer, if asked for; empty otherwise. */
-        val doses: Array<FloatArray> = emptyArray()
+        val trailing: Array<FloatArray>
     )
 
     /** A curve made ready to draw: smooth, with its area and where its points fall. */
@@ -98,7 +102,7 @@ internal object InsulinActivityStack {
                 val source = Smooth.of(points)
                 return when {
                     steadyState && source.endMinute > WEEKLY_CURVE_MINUTES ->
-                        Shape(source, holdsLatest = true, areaHours = source.integral(0f, source.endMinute) / 60f)
+                        Shape(source, holdsLatest = true, areaHours = source.area() / 60f)
                     steadyState -> {
                         // One dose's own action: what the regimen does, less what it still does a
                         // day later. It is taken at the steady-state curve's own points and the
@@ -112,9 +116,9 @@ internal object InsulinActivityStack {
                             val activity = if (minute == 0f) 0f else (source.at(minute) - source.at(minute + DAY_MINUTES)).coerceAtLeast(0f)
                             IobCurvePoint(minute.toInt(), activity)
                         })
-                        Shape(single, holdsLatest = false, areaHours = single.integral(0f, single.endMinute) / 60f)
+                        Shape(single, holdsLatest = false, areaHours = single.area() / 60f)
                     }
-                    else -> Shape(source, holdsLatest = false, areaHours = source.integral(0f, source.endMinute) / 60f)
+                    else -> Shape(source, holdsLatest = false, areaHours = source.area() / 60f)
                 }
             }
         }
@@ -148,14 +152,17 @@ internal object InsulinActivityStack {
             return hermite(values[low], slopes[low] * span, values[high], slopes[high] * span, t).coerceAtLeast(0f)
         }
 
-        /** Simpson's rule at about two-minute steps. */
-        fun integral(from: Float, to: Float): Float {
-            if (to <= from) return 0f
-            val steps = (((to - from) / 2f).toInt().coerceAtLeast(1) + 1) and 1.inv()
-            val h = (to - from) / steps
-            var sum = at(from) + at(to)
-            for (index in 1 until steps) sum += at(from + index * h) * if (index % 2 == 1) 4f else 2f
-            return sum * h / 3f
+        /**
+         * The area under the whole curve, taken exactly for each cubic piece, so the work grows
+         * with the number of points and not with how long the curve runs.
+         */
+        fun area(): Float {
+            var sum = 0f
+            for (k in 0 until minutes.lastIndex) {
+                val span = minutes[k + 1] - minutes[k]
+                sum += span * (values[k] + values[k + 1]) / 2f + span * span * (slopes[k] - slopes[k + 1]) / 12f
+            }
+            return sum
         }
 
         companion object {
@@ -229,37 +236,88 @@ internal object InsulinActivityStack {
     }
 
     /**
-     * The stack at each of [times]: layer 0 rests on zero and each layer's band lies between the
-     * one below and its own top. With [perDose], also what each dose adds, in [Band.doses].
+     * The doses sorted by time, so that at any moment only those that can still be acting or
+     * trailing are looked at, not the whole journal.
      */
-    fun stack(doses: List<Dose>, layers: Int, times: LongArray, perDose: Boolean = false): Band {
+    private class Sweep(doses: List<Dose>) {
+        private val sorted = doses.filter { it.layer >= 0 }.sortedBy { it.timestamp }
+        private val stamps = LongArray(sorted.size) { sorted[it].timestamp }
+        private val reach = sorted.maxOfOrNull { it.endMillis + it.trailMillis - it.timestamp } ?: 0L
+        private val latestHeld = LongArray((sorted.maxOfOrNull { it.layer } ?: -1) + 1)
+
+        /**
+         * Every dose that counts at [at]. A once-weekly dose counts only while it is the latest
+         * in its layer, and every dose given at that latest time counts: a dose split into two
+         * injections is logged as two entries at the same minute.
+         */
+        fun forEachAt(at: Long, each: (Dose) -> Unit) {
+            val until = firstAfter(at)
+            val from = firstAfter(at - reach - 1)
+            latestHeld.fill(Long.MIN_VALUE)
+            for (j in from until until) {
+                val dose = sorted[j]
+                if (dose.shape.holdsLatest) latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
+            }
+            for (j in from until until) {
+                val dose = sorted[j]
+                if (dose.shape.holdsLatest && dose.timestamp != latestHeld[dose.layer]) continue
+                each(dose)
+            }
+        }
+
+        /** The index of the first dose given after [at]. */
+        private fun firstAfter(at: Long): Int {
+            var low = 0
+            var high = stamps.size
+            while (low < high) {
+                val middle = (low + high) ushr 1
+                if (stamps[middle] <= at) low = middle + 1 else high = middle
+            }
+            return low
+        }
+    }
+
+    /**
+     * The stack at each of [times]: layer 0 rests on zero and each layer's band lies between the
+     * one below and its own top.
+     */
+    fun stack(doses: List<Dose>, layers: Int, times: LongArray): Band {
         val tops = Array(layers) { FloatArray(times.size) }
         val trailing = Array(layers) { FloatArray(times.size) }
-        val each = if (perDose) Array(doses.size) { FloatArray(times.size) } else emptyArray()
-        val latestHeld = LongArray(layers)
+        val sweep = Sweep(doses.filter { it.layer < layers })
         for (i in times.indices) {
             val at = times[i]
-            latestHeld.fill(Long.MIN_VALUE)
-            for (dose in doses) {
-                if (dose.layer in 0 until layers && dose.shape.holdsLatest && dose.timestamp <= at) {
-                    latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
-                }
-            }
-            doses.forEachIndexed { d, dose ->
-                if (dose.layer !in 0 until layers) return@forEachIndexed
-                // A once-weekly dose counts only while it is the latest, and every dose given at
-                // that latest time counts: a dose split into two injections is logged as two
-                // entries at the same minute. A later one takes over its trail too, as its own
-                // curve already holds what the earlier doses still do.
-                if (dose.shape.holdsLatest && dose.timestamp != latestHeld[dose.layer]) return@forEachIndexed
-                val rate = rate(dose, at)
-                tops[dose.layer][i] += rate
-                if (perDose) each[d][i] = rate
+            // A later once-weekly dose takes over the earlier one's trail too, as its own curve
+            // already holds what the earlier doses still do.
+            sweep.forEachAt(at) { dose ->
+                tops[dose.layer][i] += rate(dose, at)
                 trailing[dose.layer][i] += trailingRate(dose, at)
             }
             for (layer in 1 until layers) tops[layer][i] += tops[layer - 1][i]
         }
-        return Band(tops, trailing, each)
+        return Band(tops, trailing)
+    }
+
+    /**
+     * The band's outline at each of [times]: its top, or a trail standing above it where that
+     * is higher.
+     */
+    fun outline(doses: List<Dose>, layers: Int, times: LongArray): FloatArray {
+        val band = stack(doses, layers, times)
+        return FloatArray(times.size) { i ->
+            var top = band.tops.lastOrNull()?.get(i) ?: 0f
+            for (layer in 0 until layers) top = maxOf(top, band.tops[layer][i] + band.trailing[layer][i])
+            top
+        }
+    }
+
+    /** Until when [dose] counts among [doses]: a once-weekly dose gives way to the next in its layer. */
+    fun countsUntil(dose: Dose, doses: List<Dose>): Long {
+        if (!dose.shape.holdsLatest) return dose.endMillis
+        val next = doses.filter { it.layer == dose.layer && it.shape.holdsLatest && it.timestamp > dose.timestamp }
+            .minOfOrNull { it.timestamp }
+            ?: return dose.endMillis
+        return minOf(dose.endMillis, next - 1)
     }
 
     private fun trailingRate(dose: Dose, atMillis: Long): Float {
@@ -272,20 +330,20 @@ internal object InsulinActivityStack {
     }
 
     /**
-     * The highest the stack reaches over all of [doses], so the band can keep one scale however
-     * the chart is panned or zoomed. Sampled at every curve point and every [stepMillis] while
-     * any dose acts.
+     * The peak of a typical day in [doses]: each day's highest total, and of those the one a
+     * quarter of days go above. One exceptional day doesn't set the height for all the others,
+     * and nothing about it depends on what part of the journal is on screen.
      */
-    fun highestTotal(doses: List<Dose>, stepMillis: Long = 10 * 60_000L): Float {
-        val sorted = doses
-            .filter { it.layer >= 0 && it.units.isFinite() && it.units > 0f && it.areaHours > 0.0001f }
-            .sortedBy { it.timestamp }
-        if (sorted.isEmpty()) return 0f
-        val step = stepMillis.coerceAtLeast(60_000L)
-        val longest = sorted.maxOf { it.endMillis - it.timestamp }
+    fun typicalDailyPeak(doses: List<Dose>, zone: TimeZone = TimeZone.getDefault()): Float {
+        val counted = doses.filter { it.layer >= 0 && it.units.isFinite() && it.units > 0f && it.areaHours > 0.0001f }
+        if (counted.isEmpty()) return 0f
         val times = ArrayList<Long>()
-        for (dose in sorted) {
-            var at = Math.floorDiv(dose.timestamp, step) * step + step
+        for (dose in counted) {
+            // About ten-minute steps, but never more than a few hundred for one curve, however
+            // long it was entered as running.
+            val span = dose.endMillis - dose.timestamp
+            val step = maxOf(10 * 60_000L, span / 400)
+            var at = dose.timestamp + step
             while (at < dose.endMillis) {
                 times += at
                 at += step
@@ -293,31 +351,21 @@ internal object InsulinActivityStack {
             for (minute in dose.shape.knotMinutes) times += dose.timestamp + (minute * 60_000f).toLong()
         }
         times.sort()
-        val layers = sorted.maxOf { it.layer } + 1
-        val latestHeld = LongArray(layers)
-        var highest = 0f
-        var first = 0
-        var until = 0
+        val sweep = Sweep(counted)
+        val peaks = HashMap<Long, Float>()
         var previous = Long.MIN_VALUE
         for (at in times) {
             if (at == previous) continue
             previous = at
-            while (until < sorted.size && sorted[until].timestamp <= at) until++
-            while (first < until && sorted[first].timestamp < at - longest) first++
-            latestHeld.fill(Long.MIN_VALUE)
-            for (j in first until until) {
-                val dose = sorted[j]
-                if (dose.shape.holdsLatest) latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
-            }
             var total = 0f
-            for (j in first until until) {
-                val dose = sorted[j]
-                if (dose.shape.holdsLatest && dose.timestamp != latestHeld[dose.layer]) continue
-                total += rate(dose, at)
-            }
-            highest = maxOf(highest, total)
+            sweep.forEachAt(at) { dose -> total += rate(dose, at) }
+            if (total <= 0f) continue
+            val day = Math.floorDiv(at + zone.getOffset(at), DAY_MILLIS)
+            peaks[day] = maxOf(peaks[day] ?: 0f, total)
         }
-        return highest
+        val sorted = peaks.values.sorted()
+        if (sorted.isEmpty()) return 0f
+        return sorted[(kotlin.math.ceil(sorted.size * TYPICAL_DAY_SHARE).toInt() - 1).coerceIn(0, sorted.lastIndex)]
     }
 
     /**
@@ -351,8 +399,8 @@ internal object InsulinActivityStack {
     }
 
     /**
-     * The rate the band's full height stands for: the highest total with a little headroom,
-     * rounded up to a whole or half unit an hour.
+     * The rate the band's full height stands for: [highest] with a little headroom, rounded up
+     * to a whole or half unit an hour.
      */
     fun scaleFor(highest: Float): Float {
         if (!highest.isFinite() || highest <= 0f) return 1f

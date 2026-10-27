@@ -13,6 +13,8 @@ class InsulinActivityStackTests {
         const val DAY = 24 * HOUR
     }
 
+    private val utc = java.util.TimeZone.getTimeZone("UTC")
+
     private fun curve(vararg points: Pair<Int, Float>) = points.map { IobCurvePoint(it.first, it.second) }
 
     /** A triangle peaking at 1 after an hour and over at two. */
@@ -170,11 +172,33 @@ class InsulinActivityStackTests {
             InsulinActivityStack.Dose(2 * HOUR + 20 * MINUTE, 2f, triangle, 1)
         )
         val times = (0L..6 * HOUR step 5 * MINUTE).toList().toLongArray()
-        val band = InsulinActivityStack.stack(doses, 2, times, perDose = true)
-        times.indices.forEach { i ->
-            assertEquals(band.tops[1][i], band.doses.sumOf { it[i].toDouble() }.toFloat(), 0.0001f)
+        val tops = InsulinActivityStack.stack(doses, 2, times).tops
+        times.forEachIndexed { i, at ->
+            val own = doses.sumOf { dose ->
+                if (at <= InsulinActivityStack.countsUntil(dose, doses)) InsulinActivityStack.rate(dose, at).toDouble() else 0.0
+            }
+            assertEquals(tops[1][i], own.toFloat(), 0.0001f)
         }
-        assertEquals(0, InsulinActivityStack.stack(doses, 2, times).doses.size)
+    }
+
+    @Test
+    fun aOnceWeeklyDoseCountsUntilTheNext() {
+        val week = curve(0 to 1f, 10080 to 1f)
+        val first = InsulinActivityStack.Dose(0L, 168f, week, 0, steadyState = true)
+        val next = InsulinActivityStack.Dose(6 * DAY, 168f, week, 0, steadyState = true)
+        assertEquals(6 * DAY - 1, InsulinActivityStack.countsUntil(first, listOf(first, next)))
+        assertEquals(next.endMillis, InsulinActivityStack.countsUntil(next, listOf(first, next)))
+    }
+
+    @Test
+    fun aCurveEnteredAsRunningForYearsIsCheapToPrepare() {
+        // The curve editor takes any minute; the area is worked out per point, not per minute.
+        val forever = curve(0 to 0f, 60 to 1f, Int.MAX_VALUE to 0f)
+        val started = System.nanoTime()
+        val dose = InsulinActivityStack.Dose(0L, 4f, forever, 0)
+        assertTrue(dose.areaHours > 0f)
+        assertTrue(InsulinActivityStack.typicalDailyPeak(listOf(dose), utc) > 0f)
+        assertTrue((System.nanoTime() - started) < 2_000_000_000L)
     }
 
     @Test
@@ -206,24 +230,34 @@ class InsulinActivityStackTests {
     }
 
     @Test
-    fun theHighestTotalIsFoundAcrossAllDoses() {
-        // A week of daily Lantus with two boluses on one day, overlapping it and each other.
-        val doses = (0 until 7).map { InsulinActivityStack.Dose(it * DAY + 22 * HOUR, 10f, glargineU100, 0) } +
-            InsulinActivityStack.Dose(3 * DAY + 8 * HOUR, 6f, triangle, 1) +
-            InsulinActivityStack.Dose(3 * DAY + 8 * HOUR + 30 * MINUTE, 4f, triangle, 1)
-        val times = (0L..9 * DAY step MINUTE).toList().toLongArray()
-        val bruteForce = InsulinActivityStack.stack(doses, 2, times).tops[1].max()
-        assertEquals(bruteForce, InsulinActivityStack.highestTotal(doses), bruteForce * 0.02f)
-        // Order doesn't matter, and no dose is no height.
-        assertEquals(InsulinActivityStack.highestTotal(doses), InsulinActivityStack.highestTotal(doses.reversed()), 0f)
-        assertEquals(0f, InsulinActivityStack.highestTotal(emptyList()), 0f)
+    fun aTypicalDayIsFoundAcrossAllDosesAndAnOutlierDoesntSetIt() {
+        // A day of Lantus with two boluses overlapping it and each other: its peak, found among
+        // the other doses' curve points and steps, is what a brute-force scan finds.
+        val day = listOf(
+            InsulinActivityStack.Dose(2 * HOUR, 10f, glargineU100, 0),
+            InsulinActivityStack.Dose(8 * HOUR, 6f, triangle, 1),
+            InsulinActivityStack.Dose(8 * HOUR + 30 * MINUTE, 4f, triangle, 1)
+        )
+        val times = (0L until DAY step MINUTE).toList().toLongArray()
+        val bruteForce = InsulinActivityStack.stack(day, 2, times).tops[1].max()
+        assertEquals(bruteForce, InsulinActivityStack.typicalDailyPeak(day, utc), bruteForce * 0.02f)
+        assertEquals(0f, InsulinActivityStack.typicalDailyPeak(emptyList(), utc), 0f)
+        // Three days of 2 U and one of 20: the typical day is a 2 U one.
+        val days = (0 until 4).map { InsulinActivityStack.Dose(it * DAY + 8 * HOUR, if (it == 3) 20f else 2f, triangle, 0) }
+        val typical = InsulinActivityStack.rate(days[0], days[0].timestamp + HOUR)
+        assertEquals(typical, InsulinActivityStack.typicalDailyPeak(days, utc), typical * 0.01f)
+        assertEquals(
+            InsulinActivityStack.typicalDailyPeak(days, utc),
+            InsulinActivityStack.typicalDailyPeak(days.reversed(), utc),
+            0f
+        )
     }
 
     @Test
-    fun theHighestTotalCountsOnlyTheLatestOnceWeeklyDose() {
+    fun aTypicalDayCountsOnlyTheLatestOnceWeeklyDose() {
         val week = curve(0 to 1f, 10080 to 1f)
         val doses = (0 until 3).map { InsulinActivityStack.Dose(it * 7 * DAY, 168f, week, 0, steadyState = true) }
-        assertEquals(1f, InsulinActivityStack.highestTotal(doses), 0.0001f)
+        assertEquals(1f, InsulinActivityStack.typicalDailyPeak(doses, utc), 0.0001f)
     }
 
     /**

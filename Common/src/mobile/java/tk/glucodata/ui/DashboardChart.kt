@@ -1367,13 +1367,14 @@ fun InteractiveGlucoseChart(
 
     var isUserInteracting by remember { mutableStateOf(false) }
     val insulinStyle = InsulinChartStyleState.style
-    // Each insulin keeps its layer and the band one scale across the whole journal, so nothing
-    // moves up or down as the chart is panned or zoomed; only a new or edited dose changes it.
+    // Each insulin keeps its layer, and the band one scale, whatever part of the journal is on
+    // screen, so nothing moves up or down as the chart is panned or zoomed: the band's height
+    // is a typical day's peak, and a day that peaks higher stands taller than the band.
     val insulinLayers = remember(journalMarkers) { insulinLayersOf(journalMarkers) }
     val insulinDoses = remember(journalMarkers, insulinLayers) { insulinDosesOf(journalMarkers, insulinLayers) }
     val insulinBandScale by produceState(0f, insulinDoses) {
         value = withContext(Dispatchers.Default) {
-            InsulinActivityStack.scaleFor(InsulinActivityStack.highestTotal(insulinDoses))
+            InsulinActivityStack.scaleFor(InsulinActivityStack.typicalDailyPeak(insulinDoses))
         }
     }
     var lastInteractionTimestamp by rememberSaveable { mutableLongStateOf(0L) }
@@ -3456,15 +3457,11 @@ fun InteractiveGlucoseChart(
                             ((sampleTimes[index] - viewportStart).toFloat() / animDur * dataWidth).coerceIn(0f, dataWidth)
                         }
                         val fadePx = 24.dp.toPx()
-                        val band = InsulinActivityStack.stack(
-                            doses,
-                            layerTints.size,
-                            sampleTimes,
-                            perDose = insulinStyle == InsulinChartStyle.STACKED_WITH_DOSES
-                        )
+                        val band = InsulinActivityStack.stack(doses, layerTints.size, sampleTimes)
                         val scale = insulinBandScale.takeIf { it > 0f }
                             ?: InsulinActivityStack.scaleFor(band.tops.last().maxOrNull() ?: 0f)
-                        fun rateToY(rate: Float): Float = chartHeight - (rate / scale).coerceIn(0f, 1f) * bandHeight
+                        fun rateToY(rate: Float): Float = insulinRateToY(rate, scale, chartHeight, bandHeight)
+                        fun timeToX(time: Long): Float = (time - viewportStart).toFloat() / animDur * dataWidth
 
                         // As the per-dose curves were: a light fill and a soft edge that fade
                         // in and out where an insulin starts and stops acting, but not at the
@@ -3531,13 +3528,24 @@ fun InteractiveGlucoseChart(
                             val upper = band.tops[layer]
                             val trailing = band.trailing[layer]
                             runs { trailing[it] > 0.0001f }.forEach { range ->
+                                // The fade spans the trails themselves, on screen or not, so a
+                                // trail keeps its strength as it pans and doesn't seem to end at
+                                // the chart's edge.
+                                val from = sampleTimes[range.first]
+                                val to = sampleTimes[range.last]
+                                val trails = doses.filter { dose ->
+                                    dose.layer == layer && dose.trailMillis > 0L &&
+                                        dose.endMillis <= to && dose.endMillis + dose.trailMillis >= from
+                                }
+                                val startX = timeToX(trails.minOfOrNull { it.endMillis } ?: from)
+                                val endX = timeToX(trails.maxOfOrNull { it.endMillis + it.trailMillis } ?: to)
                                 drawPath(
                                     Path().apply { band(range, { upper[it] + trailing[it] }, { upper[it] }) },
                                     Brush.horizontalGradient(
                                         0f to tint.copy(alpha = tint.alpha * 0.18f),
                                         1f to tint.copy(alpha = 0f),
-                                        startX = sampleXs[range.first],
-                                        endX = sampleXs[range.last].coerceAtLeast(sampleXs[range.first] + 1f)
+                                        startX = startX,
+                                        endX = endX.coerceAtLeast(startX + 1f)
                                     )
                                 )
                             }
@@ -3568,18 +3576,31 @@ fun InteractiveGlucoseChart(
                         edges.forEach { (edge, brush) -> drawPath(edge, brush, style = edgeStroke) }
                         // Each dose on its own, as a light line from zero, over the band it
                         // adds to.
-                        if (band.doses.isNotEmpty()) {
+                        if (insulinStyle == InsulinChartStyle.STACKED_WITH_DOSES) {
                             val doseStroke = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            doses.forEachIndexed { index, dose ->
-                                val own = band.doses[index]
-                                val tint = layerTints[dose.layer]
-                                runs { own[it] > 0.0001f }.forEach { range ->
-                                    drawPath(
-                                        Path().apply { line(range) { own[it] } },
-                                        fadingBrush(tint, 0.45f, range.first, range.last),
-                                        style = doseStroke
-                                    )
+                            fun firstSampleFrom(time: Long): Int {
+                                var low = 0
+                                var high = sampleCount
+                                while (low < high) {
+                                    val middle = (low + high) ushr 1
+                                    if (sampleTimes[middle] < time) low = middle + 1 else high = middle
                                 }
+                                return low
+                            }
+                            doses.forEach { dose ->
+                                val until = InsulinActivityStack.countsUntil(dose, doses)
+                                // From the sample before it starts to the one after it stops, so
+                                // the line rises from zero and falls back to it.
+                                val first = (firstSampleFrom(dose.timestamp) - 1).coerceAtLeast(0)
+                                val last = firstSampleFrom(until + 1).coerceAtMost(sampleCount - 1)
+                                if (last <= first) return@forEach
+                                fun own(i: Int): Float =
+                                    if (sampleTimes[i] in dose.timestamp..until) InsulinActivityStack.rate(dose, sampleTimes[i]) else 0f
+                                drawPath(
+                                    Path().apply { line(first..last, ::own) },
+                                    fadingBrush(layerTints[dose.layer], 0.45f, first, last),
+                                    style = doseStroke
+                                )
                             }
                         }
                     }
@@ -3904,7 +3925,6 @@ fun InteractiveGlucoseChart(
             val journalChipMaxTopPx = (chartHeightPx - with(LocalDensity.current) { 34.dp.toPx() }).coerceAtLeast(journalChipMinTopPx)
             val connectorStrokePx = with(LocalDensity.current) { 0.85.dp.toPx() }
             val connectorUnderlapPx = with(LocalDensity.current) { 8.dp.toPx() }
-            val connectorCornerPx = with(LocalDensity.current) { 6.dp.toPx() }
             val insulinConnectorY = chartHeightPx - with(LocalDensity.current) { 1.dp.toPx() }
 
             // Chip geometry, measured rather than assumed: the label pill, and the touch-sized
@@ -4240,6 +4260,23 @@ fun InteractiveGlucoseChart(
                     .fillMaxSize()
                     .zIndex(1.35f)
             ) {
+                // The insulin band's outline at each insulin chip's dose, so its line can stop
+                // there and drop straight down through the band to where the dose starts.
+                val bandTopAt = HashMap<Long, Float>()
+                if (insulinStyle != InsulinChartStyle.SEPARATE && insulinBandScale > 0f) {
+                    val doseTimes = chipMarkers.filterIndexed { index, marker ->
+                        chipComposed[index] && marker.type == JournalEntryType.INSULIN
+                    }.map { it.timestamp }.distinct().sorted()
+                    if (doseTimes.isNotEmpty()) {
+                        val nearby = insulinDoses.filter { dose ->
+                            dose.timestamp <= doseTimes.last() && dose.endMillis + dose.trailMillis >= doseTimes.first()
+                        }
+                        val outline = InsulinActivityStack.outline(nearby, insulinLayers.size, doseTimes.toLongArray())
+                        doseTimes.forEachIndexed { i, time ->
+                            bandTopAt[time] = insulinRateToY(outline[i], insulinBandScale, chartHeightPx, insulinBandHeightPx)
+                        }
+                    }
+                }
                 chipMarkers.forEachIndexed { index, marker ->
                     if (!chipComposed[index]) return@forEachIndexed
                     val anchorX = chipAnchorXs[index]
@@ -4264,20 +4301,23 @@ fun InteractiveGlucoseChart(
                     val connectorColor = Color(marker.accentColor).copy(alpha = 0.22f)
                     val chipY = (position.y + journalChipPillHeightPx / 2f).coerceIn(0f, chartHeightPx)
                     val anchorY = sourceY.coerceIn(0f, chartHeightPx)
-                    if (marker.type == JournalEntryType.INSULIN && chipY < anchorY) {
-                        // Across from the chip, then straight down at the dose's own time, so
-                        // the line marks where in the insulin below it the dose starts.
-                        val corner = minOf(connectorCornerPx, abs(edgeX - anchorX), anchorY - chipY)
-                        val toChip = if (edgeX >= anchorX) 1f else -1f
-                        drawPath(
-                            Path().apply {
-                                moveTo(edgeX, chipY)
-                                lineTo(anchorX + toChip * corner, chipY)
-                                quadraticTo(anchorX, chipY, anchorX, chipY + corner)
-                                lineTo(anchorX, anchorY)
-                            },
-                            connectorColor,
-                            style = Stroke(width = connectorStrokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    val bandTop = bandTopAt[marker.timestamp]?.takeIf { marker.type == JournalEntryType.INSULIN }
+                    if (bandTop != null && bandTop < anchorY - connectorStrokePx && chipY < bandTop) {
+                        // To the band's top at the dose's time, then straight down through the
+                        // band, so the line marks where in the insulin the dose starts.
+                        drawLine(
+                            color = connectorColor,
+                            start = Offset(anchorX, bandTop),
+                            end = Offset(edgeX, chipY),
+                            strokeWidth = connectorStrokePx,
+                            cap = StrokeCap.Round
+                        )
+                        drawLine(
+                            color = Color(marker.accentColor).copy(alpha = 0.45f),
+                            start = Offset(anchorX, bandTop),
+                            end = Offset(anchorX, anchorY),
+                            strokeWidth = connectorStrokePx,
+                            cap = StrokeCap.Round
                         )
                     } else {
                         drawLine(
@@ -5748,6 +5788,13 @@ private fun JournalMarkerChip(
         }
     }
 }
+
+/** How much taller than the band a day that peaks above the typical one may stand. */
+private const val INSULIN_BAND_OVERFLOW = 1.6f
+
+/** Where [rate] units an hour sits on the chart, the band's height standing for [scale]. */
+private fun insulinRateToY(rate: Float, scale: Float, chartHeight: Float, bandHeight: Float): Float =
+    chartHeight - (rate / scale).coerceIn(0f, INSULIN_BAND_OVERFLOW) * bandHeight
 
 /** Each insulin's layer in the band, by name and colour: the longest-acting at the bottom. */
 private fun insulinLayersOf(markers: List<JournalChartMarker>): Map<Pair<String, Int>, Int> =
