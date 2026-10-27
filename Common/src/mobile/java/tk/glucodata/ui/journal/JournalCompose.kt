@@ -265,6 +265,11 @@ fun buildJournalChartMarkers(
             } else {
                 emptyList()
             },
+            curveEvidence = if (entry.type == JournalEntryType.INSULIN) {
+                entry.insulinCurveEvidence ?: preset?.curveEvidence
+            } else {
+                null
+            },
             activeStartMillis = if (entry.type == JournalEntryType.INSULIN && preset != null) {
                 preset.activeStartAt(entry.timestamp)
             } else {
@@ -1364,7 +1369,7 @@ private fun JournalDoseAssistCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = stringResource(R.string.predictive_carb_ratio_value, profile.carbRatioGramsPerUnit),
+                    text = stringResource(R.string.predictive_carb_ratio_value, tk.glucodata.ui.formatCarbRatio(profile.carbRatioGramsPerUnit)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

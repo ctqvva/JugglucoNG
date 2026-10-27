@@ -2064,7 +2064,7 @@ class DashboardViewModel(
         insulinSensitivityMgDlPerUnit: Float? = null,
         carbAbsorptionGramsPerHour: Float? = null
     ) {
-        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(1f)
+        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(PredictionModelProfile.CARB_RATIO_STEP)
         val normalizedSensitivity = insulinSensitivityMgDlPerUnit?.roundToStep(1f)
         val normalizedAbsorption = carbAbsorptionGramsPerHour?.roundToStep(1f)
         persistPredictionModelProfile(

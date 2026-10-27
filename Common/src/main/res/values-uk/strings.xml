@@ -1713,7 +1713,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Видалити цей період?</string>
     <string name="predictive_delete_time_period_message">Цей час перейде до попереднього періоду.</string>
     <string name="predictive_carb_ratio">Вуглеводний коефіцієнт</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Чутливість до інсуліну</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1850,6 +1850,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Помірна</string>
     <string name="journal_intensity_intense">Інтенсивна</string>
     <string name="journal_insulin_library">Бібліотека інсуліну</string>
+    <string name="journal_insulin_chart_title">Інсулін на графіку</string>
+    <string name="journal_insulin_chart_stacked">Складений</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Складений, з кожною дозою</string>
+    <string name="journal_insulin_chart_separate">Кожна доза окремо</string>
     <string name="journal_curve_reset">Скинути криву</string>
     <string name="journal_active_insulin_subtitle">Враховується в активному інсуліні та прогнозах</string>
     <string name="journal_use_for_calculation">Використовувати для розрахунків</string>
@@ -2995,6 +2999,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Транспортний міст Kerfstok</string>
     <string name="watch_garmin_status_desc">Стан з’єднання та сполучення</string>
     <string name="watch_garmin_enable_hint">Увімкніть Kerfstok, щоб бачити стан</string>
+    <string name="watch_help_forwarding">«Передавання показів» визначає, що застосунки годинників і браслетів отримують зі сповіщення телефона. «Стандартний Android» — показ при кожному оновленні сповіщення, тому деякі годинники вібрують щоразу. «Кожен новий показ» і «З інтервалом» — кожен показ один раз. «Лише тривоги» — без показів.</string>
     <string name="watch_help_wearos">Увімкніть Wear OS, щоб користуватися передаванням повідомлень на годинник у цьому застосунку.</string>
     <string name="watch_help_config">У розділі «Налаштування» виберіть годинник і задайте пряму маршрутизацію сенсора.</string>
     <string name="watch_help_garmin">Garmin Connect IQ працює через Kerfstok і має окреме керування станом.</string>
@@ -3076,6 +3081,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Цей пристрій не є трансмітером Medtrum. Переконайтеся, що трансмітер поруч, і спробуйте ще раз.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
+    <string name="watch_forwarding_section">Через сповіщення телефона</string>
+    <string name="watch_forwarding_title">Передавання показів</string>
+    <string name="watch_forwarding_standard">Стандартний Android</string>
+    <string name="watch_forwarding_alarms_only">Лише тривоги</string>
+    <string name="watch_forwarding_every_reading">Кожен новий показ</string>
+    <string name="watch_forwarding_interval">З інтервалом</string>
+    <string name="watch_forwarding_interval_title">Інтервал</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d хвилина</item>
+        <item quantity="few">%d хвилини</item>
+        <item quantity="many">%d хвилин</item>
+        <item quantity="other">%d хвилини</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Надсилати показники в Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

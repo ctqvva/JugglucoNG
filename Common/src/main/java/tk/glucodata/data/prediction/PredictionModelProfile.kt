@@ -136,6 +136,8 @@ data class PredictionModelProfile private constructor(
         const val MAX_BLOCKS = 8
         const val CARB_RATIO_MIN = 3f
         const val CARB_RATIO_MAX = 30f
+        /** Ratios are commonly written to the half gram, as in 1:6.5. */
+        const val CARB_RATIO_STEP = 0.5f
         const val INSULIN_SENSITIVITY_MIN = 10f
         const val INSULIN_SENSITIVITY_MAX = 180f
         const val CARB_ABSORPTION_MIN = 10f

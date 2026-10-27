@@ -2161,7 +2161,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Delete this time period?</string>
     <string name="predictive_delete_time_period_message">The previous period will cover this time.</string>
     <string name="predictive_carb_ratio">Carb ratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulin sensitivity</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -2356,6 +2356,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Insulin on the chart</string>
+    <string name="journal_insulin_chart_stacked">Stacked</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Stacked, with each dose</string>
+    <string name="journal_insulin_chart_separate">Each dose separately</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>
@@ -3199,6 +3203,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok transport bridge</string>
     <string name="watch_garmin_status_desc">Connection status and pairing</string>
     <string name="watch_garmin_enable_hint">Enable Kerfstok to view status</string>
+    <string name="watch_help_forwarding">“Glucose forwarding” decides what watch and band apps get from the phone notification. “Standard Android”: the reading with every notification update, so some watches buzz each time. “Every new reading” and “At an interval”: each reading once. “Alarms only”: no readings.</string>
     <string name="watch_help_wearos">Enable Wear OS to use watch message transport in this app.</string>
     <string name="watch_help_config">Use Config to pick a watch node and set direct sensor routing.</string>
     <string name="watch_help_garmin">Garmin Connect IQ works through Kerfstok and has separate status controls.</string>
@@ -3278,4 +3283,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stream_history_mode">Stream+History</string>
     <string name="history_stream_mode">History+Stream</string>
     <string name="libre_history_mode_caption">History is the sensor\'s own value, stored every 15 minutes and about 16 minutes behind the stream. Until a minute\'s history arrives, the stream stands in for it.</string>
+    <string name="watch_forwarding_section">Via phone notifications</string>
+    <string name="watch_forwarding_title">Glucose forwarding</string>
+    <string name="watch_forwarding_standard">Standard Android</string>
+    <string name="watch_forwarding_alarms_only">Alarms only</string>
+    <string name="watch_forwarding_every_reading">Every new reading</string>
+    <string name="watch_forwarding_interval">At an interval</string>
+    <string name="watch_forwarding_interval_title">Interval</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
 </resources>

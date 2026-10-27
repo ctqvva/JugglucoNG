@@ -1673,7 +1673,7 @@
     <string name="predictive_delete_time_period_title">Usunąć ten przedział?</string>
     <string name="predictive_delete_time_period_message">Poprzedni przedział obejmie ten czas.</string>
     <string name="predictive_carb_ratio">Współczynnik węglowodanów</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Wrażliwość na insulinę</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1810,6 +1810,10 @@
     <string name="journal_intensity_moderate">Umiarkowana</string>
     <string name="journal_intensity_intense">Intensywna</string>
     <string name="journal_insulin_library">Biblioteka insulin</string>
+    <string name="journal_insulin_chart_title">Insulina na wykresie</string>
+    <string name="journal_insulin_chart_stacked">Skumulowana</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Skumulowana, z każdą dawką</string>
+    <string name="journal_insulin_chart_separate">Każda dawka osobno</string>
     <string name="notification_settings_title">Ustawienia powiadomień</string>
     <string name="notification_settings_subtitle">Dostosuj panel powiadomień</string>
     <string name="lock_screen_aod">Ekran blokady (AOD)</string>
@@ -2957,6 +2961,7 @@
     <string name="watch_kerfstok_bridge">Most transportowy Kerfstok</string>
     <string name="watch_garmin_status_desc">Stan połączenia i parowanie</string>
     <string name="watch_garmin_enable_hint">Włącz Kerfstok, aby zobaczyć stan</string>
+    <string name="watch_help_forwarding">„Przekazywanie odczytów” określa, co aplikacje zegarków i opasek otrzymują z powiadomienia telefonu. „Standardowy Android” — odczyt przy każdej aktualizacji powiadomienia, więc niektóre zegarki wibrują za każdym razem. „Każdy nowy odczyt” i „Co określony czas” — każdy odczyt raz. „Tylko alarmy” — bez odczytów.</string>
     <string name="watch_help_wearos">Włącz Wear OS, aby korzystać w tej aplikacji z przesyłania wiadomości do zegarka.</string>
     <string name="watch_help_config">W Konfiguracji wybierz zegarek i ustaw bezpośredni routing czujnika.</string>
     <string name="watch_help_garmin">Garmin Connect IQ działa przez Kerfstok i ma osobne sterowanie stanem.</string>
@@ -3038,6 +3043,19 @@
     <string name="medtrum_setup_device_rejected">To urządzenie nie jest nadajnikiem Medtrum. Upewnij się, że nadajnik jest w pobliżu, i spróbuj ponownie.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
+    <string name="watch_forwarding_section">Przez powiadomienia telefonu</string>
+    <string name="watch_forwarding_title">Przekazywanie odczytów</string>
+    <string name="watch_forwarding_standard">Standardowy Android</string>
+    <string name="watch_forwarding_alarms_only">Tylko alarmy</string>
+    <string name="watch_forwarding_every_reading">Każdy nowy odczyt</string>
+    <string name="watch_forwarding_interval">Co określony czas</string>
+    <string name="watch_forwarding_interval_title">Interwał</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuta</item>
+        <item quantity="few">%d minuty</item>
+        <item quantity="many">%d minut</item>
+        <item quantity="other">%d minuty</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Wysyłaj odczyty do Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

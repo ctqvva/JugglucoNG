@@ -1771,7 +1771,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_delete_time_period_title">Diesen Zeitraum löschen?</string>
     <string name="predictive_delete_time_period_message">Der vorherige Zeitraum deckt diese Zeit künftig ab.</string>
     <string name="predictive_carb_ratio">Kohlenhydratfaktor</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/E</string>
+    <string name="predictive_carb_ratio_value">%1$s g/E</string>
     <string name="predictive_insulin_sensitivity">Insulinsensitivität</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/E</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/E</string>
@@ -1962,6 +1962,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_intensity_moderate">Moderat</string>
     <string name="journal_intensity_intense">Intensiv</string>
     <string name="journal_insulin_library">Insulinbibliothek</string>
+    <string name="journal_insulin_chart_title">Insulin im Diagramm</string>
+    <string name="journal_insulin_chart_stacked">Gestapelt</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Gestapelt, mit jeder Dosis</string>
+    <string name="journal_insulin_chart_separate">Jede Dosis einzeln</string>
     <string name="journal_archived_presets">Deaktivierte Insulintypen</string>
     <string name="journal_curve_title">Bearbeitbare Wirkungskurve</string>
     <string name="journal_curve_preview">Kurvenvorschau</string>
@@ -3031,6 +3035,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="watch_kerfstok_bridge">Kerfstok-Übertragungsbrücke</string>
     <string name="watch_garmin_status_desc">Verbindungsstatus und Kopplung</string>
     <string name="watch_garmin_enable_hint">Kerfstok aktivieren, um den Status zu sehen</string>
+    <string name="watch_help_forwarding">„Glukose weiterleiten“ legt fest, was Uhren- und Armband-Apps aus der Telefonbenachrichtigung erhalten. „Standard-Android“: der Wert bei jeder Aktualisierung der Benachrichtigung, daher vibrieren manche Uhren jedes Mal. „Jeder neue Wert“ und „In Intervallen“: jeder Wert einmal. „Nur Alarme“: keine Werte.</string>
     <string name="watch_help_wearos">Aktiviere Wear OS, um die Uhr-Nachrichtenübertragung in dieser App zu nutzen.</string>
     <string name="watch_help_config">Unter Konfiguration eine Uhr auswählen und das direkte Sensor-Routing festlegen.</string>
     <string name="watch_help_garmin">Garmin Connect IQ läuft über Kerfstok und hat eigene Statusfunktionen.</string>
@@ -3112,6 +3117,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Transmitter. Stellen Sie sicher, dass sich der Transmitter in Reichweite befindet, und versuchen Sie es erneut.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+    <string name="watch_forwarding_section">Über Telefonbenachrichtigungen</string>
+    <string name="watch_forwarding_title">Glukose weiterleiten</string>
+    <string name="watch_forwarding_standard">Standard-Android</string>
+    <string name="watch_forwarding_alarms_only">Nur Alarme</string>
+    <string name="watch_forwarding_every_reading">Jeder neue Wert</string>
+    <string name="watch_forwarding_interval">In Intervallen</string>
+    <string name="watch_forwarding_interval_title">Intervall</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Werte an Dexcom Follow senden</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

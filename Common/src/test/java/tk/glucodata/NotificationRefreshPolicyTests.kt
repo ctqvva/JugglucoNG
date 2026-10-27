@@ -82,4 +82,18 @@ class NotificationRefreshPolicyTests {
         assertFalse(NotificationRefreshPolicy.shouldSchedulePublicationRetry(0L, 0L))
         assertTrue(NotificationRefreshPolicy.shouldSchedulePublicationRetry(7L, 8L))
     }
+
+    @Test fun unchangedPublicationNeedsKnownEqualContentFromTheSameOwner() {
+        val owner = Any()
+        assertTrue(NotificationRefreshPolicy.isUnchangedPublication(5L, 5L, owner, owner))
+        assertFalse(NotificationRefreshPolicy.isUnchangedPublication(0L, 0L, owner, owner))
+        assertFalse(NotificationRefreshPolicy.isUnchangedPublication(5L, 6L, owner, owner))
+        assertFalse(NotificationRefreshPolicy.isUnchangedPublication(5L, 5L, owner, Any()))
+        assertTrue(NotificationRefreshPolicy.isUnchangedPublication(5L, 5L, null, null))
+    }
+
+    @Test fun interactiveFollowUpDefersToAQueuedDataRefresh() {
+        assertTrue(NotificationRefreshPolicy.shouldRunInteractiveFollowUp(0L))
+        assertFalse(NotificationRefreshPolicy.shouldRunInteractiveFollowUp(11_000L))
+    }
 }

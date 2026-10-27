@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -268,7 +269,14 @@ fun DashboardCombinedHeader(
     val isExpiring = sensorProgress > 0.90f
     // FIX: User reported "Silly" contrast in Dark Mode with surfaceVariant (too bright/green).
     // Switched to primaryContainer to match the Glucose Card (Left) for a cohesive dark look.
-    val sensorContainerColor = if (isExpiring) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) // Darker variant
+    // The darker variant is the 40% tone over the screen background, flattened: see-through,
+    // it let the chart's grid show through the card once the chart runs behind the header.
+    val sensorContainerColor = if (isExpiring) {
+        MaterialTheme.colorScheme.tertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            .compositeOver(MaterialTheme.colorScheme.background)
+    }
     val sensorContentColor = if (isExpiring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
 
     // Advanced Trend

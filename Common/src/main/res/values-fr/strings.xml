@@ -1644,7 +1644,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Supprimer cette période ?</string>
     <string name="predictive_delete_time_period_message">La période précédente couvrira cette plage horaire.</string>
     <string name="predictive_carb_ratio">Ratio glucides</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Sensibilité à l\'insuline</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1781,6 +1781,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Modérée</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Bibliothèque d\'insuline</string>
+    <string name="journal_insulin_chart_title">Insuline sur le graphique</string>
+    <string name="journal_insulin_chart_stacked">Empilée</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Empilée, avec chaque dose</string>
+    <string name="journal_insulin_chart_separate">Chaque dose séparément</string>
     <string name="notification_settings_title">Paramètres des notifications</string>
     <string name="notification_settings_subtitle">Personnaliser le panneau de notifications</string>
     <string name="lock_screen_aod">Écran de verrouillage (AOD)</string>
@@ -2921,6 +2925,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Passerelle de transport Kerfstok</string>
     <string name="watch_garmin_status_desc">État de la connexion et appairage</string>
     <string name="watch_garmin_enable_hint">Activez Kerfstok pour voir l’état</string>
+    <string name="watch_help_forwarding">« Transfert de la glycémie » détermine ce que les applications de montres et de bracelets reçoivent de la notification du téléphone. « Android standard » : la valeur à chaque mise à jour de la notification, donc certaines montres vibrent à chaque fois. « Chaque nouvelle valeur » et « À intervalle » : chaque valeur une seule fois. « Alarmes uniquement » : aucune valeur.</string>
     <string name="watch_help_wearos">Activez Wear OS pour utiliser le transport de messages vers la montre dans cette app.</string>
     <string name="watch_help_config">Utilisez Configuration pour choisir une montre et définir le routage direct du capteur.</string>
     <string name="watch_help_garmin">Garmin Connect IQ passe par Kerfstok et dispose de ses propres commandes d’état.</string>
@@ -3002,6 +3007,18 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Cet appareil n\'est pas un transmetteur Medtrum. Vérifiez que le transmetteur est à portée, puis réessayez.</string>
 
     <string name="alert_sound_volume">Volume du son d’alerte</string>
+    <string name="watch_forwarding_section">Via les notifications du téléphone</string>
+    <string name="watch_forwarding_title">Transfert de la glycémie</string>
+    <string name="watch_forwarding_standard">Android standard</string>
+    <string name="watch_forwarding_alarms_only">Alarmes uniquement</string>
+    <string name="watch_forwarding_every_reading">Chaque nouvelle valeur</string>
+    <string name="watch_forwarding_interval">À intervalle</string>
+    <string name="watch_forwarding_interval_title">Intervalle</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="many">%d minutes</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Envoyer les mesures vers Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

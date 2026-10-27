@@ -504,7 +504,7 @@ class NotificationStartupRestoreTests {
         val service = newService(h)
         foregroundno(h, service)
         val visual = newNotification(h)
-        invokePrivate(h, "publishVisualNotification", visualGeneration(), service, visual, null)
+        invokePrivate(h, "publishVisualNotification", visualGeneration(), service, visual, null, 0L)
         assertTrue(drainOne(h))
         assertSame("restore cannot overwrite the newer visual", visual, getNested(service, "last"))
         assertEquals("visual update never rebroadcasts a reading", 0, get(h, "broadcastSends"))
@@ -519,7 +519,7 @@ class NotificationStartupRestoreTests {
         val oldGeneration = visualGeneration()
         assertTrue(drainOne(h))
         val restored = getNested(service, "last")
-        invokePrivate(h, "publishVisualNotification", oldGeneration, service, newNotification(h), null)
+        invokePrivate(h, "publishVisualNotification", oldGeneration, service, newNotification(h), null, 0L)
         assertSame(restored, getNested(service, "last"))
     }
 
@@ -534,7 +534,7 @@ class NotificationStartupRestoreTests {
         assertEquals(generation, visualGeneration())
         invokePrivate(h, "cancelOngoingNotificationRefreshes", replacement)
         assertTrue(visualGeneration() > generation)
-        invokePrivate(h, "publishVisualNotification", generation, replacement, newNotification(h), null)
+        invokePrivate(h, "publishVisualNotification", generation, replacement, newNotification(h), null, 0L)
         assertNull(getNested(replacement, "last"))
         assertEquals(0, call(h, "queuedCount"))
     }
@@ -595,6 +595,87 @@ class NotificationStartupRestoreTests {
         assertEquals(1, call(h, "queuedCount"))
         assertNotNull(get(h, "lastDisplayedGlucoseSnapshot"))
         assertEquals("recovery is visual-only", 0, get(h, "broadcastSends"))
+    }
+
+    @Test fun deferredRefreshWithIdenticalContentIsNotRepostedButStillArmsFreshness() {
+        val h = harness()
+        val time = System.currentTimeMillis() - 1000L
+        set(h, "cannedSnapshot", snapshotAt(time, 123f))
+        set(h, "renderFingerprint", 42L)
+        val reading = nestNew("notGlucose", Long::class.javaPrimitiveType to time)
+        invokePrivate(h, "postForegroundGlucoseNotification", -1, 123f, "123", reading, true)
+        val manager = get(h, "notificationManager")!!
+        assertEquals(listOf("notify:81431"), getNested(manager, "calls"))
+        drainAll(h)
+        // The data-changed / interactive follow-up renders the same content: no repost,
+        // so listener apps do not see the reading a second time.
+        refresh(h)
+        assertEquals(listOf("notify:81431"), getNested(manager, "calls"))
+        assertNotNull(get(h, "lastDisplayedGlucoseSnapshot"))
+        assertEquals("freshness deadline still armed", 1, call(h, "queuedCount"))
+
+        // Anything that changes the content posts.
+        set(h, "renderFingerprint", 43L)
+        refresh(h)
+        assertEquals(listOf("notify:81431", "notify:81431"), getNested(manager, "calls"))
+    }
+
+    @Test fun unknownOrForgottenContentIsAlwaysReposted() {
+        val h = harness()
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L, 123f))
+        val manager = get(h, "notificationManager")!!
+        // Fingerprint 0 means unknown: never skipped.
+        refresh(h)
+        refresh(h)
+        assertEquals(2, (getNested(manager, "calls") as List<*>).size)
+
+        set(h, "renderFingerprint", 7L)
+        refresh(h)
+        refresh(h)
+        assertEquals(3, (getNested(manager, "calls") as List<*>).size)
+        // A cancel or foreign post on the ID forgets what was shown.
+        invokePrivate(h, "forgetPublishedContentLocked")
+        refresh(h)
+        assertEquals(4, (getNested(manager, "calls") as List<*>).size)
+    }
+
+    @Test fun staleStatusRepostsWhenItsBodyChangesButNotOtherwise() {
+        val h = harness()
+        val snapshot = snapshotAt(System.currentTimeMillis() - 400_000L, 123f)
+        nestField(snapshot, "fullFormatted").set(snapshot, "123")
+        set(h, "cannedSnapshot", snapshot)
+        val manager = get(h, "notificationManager")!!
+        refresh(h)
+        refresh(h)
+        assertEquals("identical stale status is not reposted", 1, (getNested(manager, "calls") as List<*>).size)
+        // Auto -> Auto+Raw: same reading time and primary value, new body.
+        nestField(snapshot, "fullFormatted").set(snapshot, "123 · 118")
+        refresh(h)
+        assertEquals(2, (getNested(manager, "calls") as List<*>).size)
+    }
+
+    @Test fun newServiceEpochRepostsEvenIdenticalContent() {
+        val h = harness()
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L, 123f))
+        set(h, "renderFingerprint", 9L)
+        refresh(h)
+        val service = newService(h)
+        call(h, "setCurrentService", service)
+        refresh(h)
+        assertEquals(listOf("fg:81431"), serviceCalls(service))
+    }
+
+    /** One deferred refresh, run on its own: earlier queued deadlines are dropped first. */
+    private fun refresh(h: Any) {
+        drainAll(h)
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        assertTrue(drainOne(h))
+    }
+
+    private fun drainAll(h: Any) {
+        val handler = get(h, "glucoseRefreshHandler")!!
+        val queue = handler.javaClass.getDeclaredField("queue").also { it.isAccessible = true }.get(handler) as MutableList<*>
+        queue.clear()
     }
 
     @Test fun noInputDeadlineReplacesCurrentPresentationWithStaleReading() {
@@ -749,6 +830,7 @@ class NotificationStartupRestoreTests {
                     public boolean startupContentCalled = false;
                     public CurrentDisplaySource.Snapshot lastDisplayedGlucoseSnapshot = null;
                     public int deadlineFires = 0;
+                    public long renderFingerprint = 0L;
                     public static NotifyStartupHarness onenot;
                     public static boolean showalways = true, alertwatch = false;
                     public boolean hasvalue;
@@ -919,6 +1001,9 @@ class NotificationStartupRestoreTests {
                             public boolean isMmol() { return false; }
                             public String getSensorId() { return "sensor-1"; }
                             public int getViewMode() { return 0; }
+                            public String fullFormatted = null;
+                            public String getFullFormatted() { return fullFormatted; }
+                            public String getPrimaryStr() { return String.valueOf(value); }
                         }
                     }
                     static class GlucosePoint {
@@ -1030,8 +1115,13 @@ class NotificationStartupRestoreTests {
                         n.title = message;
                         return n;
                     }
+                    static class PeriodicGlucoseUpdates {
+                        static void commitAnnouncement(long readingMillis) {}
+                        static void releaseAnnouncement(long readingMillis) {}
+                    }
                     static class GlucoseNotificationContent {
-                        Notification notification; CurrentDisplaySource.Snapshot snapshot;
+                        Notification notification; CurrentDisplaySource.Snapshot snapshot; long fingerprint;
+                        long announcedReadingMillis;
                         GlucoseNotificationContent(Notification n, CurrentDisplaySource.Snapshot s) { notification = n; snapshot = s; }
                     }
                     GlucoseNotificationContent renderGlucoseNotification(int kind, float value, String message,
@@ -1039,7 +1129,9 @@ class NotificationStartupRestoreTests {
                             CurrentDisplaySource.Snapshot snapshot, boolean alreadyResolved) {
                         Notification n = makearrownotification(kind, value, message, glucose, type, once, snapshot, alreadyResolved);
                         CurrentDisplaySource.Snapshot displayed = snapshot != null ? snapshot : new CurrentDisplaySource.Snapshot(glucose.time, value);
-                        return new GlucoseNotificationContent(n, displayed);
+                        GlucoseNotificationContent content = new GlucoseNotificationContent(n, displayed);
+                        content.fingerprint = renderFingerprint;
+                        return content;
                     }
                     Notification makeStaleReadingNotification(CurrentDisplaySource.Snapshot snapshot) {
                         Notification n = new Notification();

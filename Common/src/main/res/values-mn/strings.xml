@@ -1643,7 +1643,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_delete_time_period_title">Энэ үеийг устгах уу?</string>
     <string name="predictive_delete_time_period_message">Өмнөх үе энэ цагийг хамарна.</string>
     <string name="predictive_carb_ratio">Carb ratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulin sensitivity</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1781,6 +1781,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Графикт инсулин</string>
+    <string name="journal_insulin_chart_stacked">Давхарласан</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Давхарласан, тун бүрээр</string>
+    <string name="journal_insulin_chart_separate">Тун бүр тусдаа</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>
@@ -3016,6 +3020,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
     <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
     <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>
+    <string name="watch_help_forwarding">«Глюкоз дамжуулах» нь цаг болон бугуйвчийн аппууд утасны мэдэгдлээс юу авахыг тодорхойлно. «Стандарт Android»: мэдэгдэл шинэчлэгдэх бүрт утга, тиймээс зарим цаг тухай бүрт чичирнэ. «Шинэ утга бүр» ба «Тодорхой хугацаагаар»: утга бүрийг нэг удаа. «Зөвхөн дохиолол»: утгагүй.</string>
     <string name="watch_help_wearos">Энэ апп-д цагны мессеж дамжуулалт ашиглахын тулд Wear OS-ийг идэвхжүүлнэ үү.</string>
     <string name="watch_help_config">Тохиргоо хэсгээс цагаа сонгож, мэдрэгчийн шууд чиглүүлэлтийг тохируулна уу.</string>
     <string name="watch_help_garmin">Garmin Connect IQ нь Kerfstok-оор ажилладаг бөгөөд тусдаа төлөвийн удирдлагатай.</string>
@@ -3097,6 +3102,17 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="medtrum_setup_device_rejected">Энэ төхөөрөмж Medtrum дамжуулагч биш. Дамжуулагч ойрхон байгаа эсэхийг шалгаад дахин оролдоно уу.</string>
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
+    <string name="watch_forwarding_section">Утасны мэдэгдлээр</string>
+    <string name="watch_forwarding_title">Глюкоз дамжуулах</string>
+    <string name="watch_forwarding_standard">Стандарт Android</string>
+    <string name="watch_forwarding_alarms_only">Зөвхөн дохиолол</string>
+    <string name="watch_forwarding_every_reading">Шинэ утга бүр</string>
+    <string name="watch_forwarding_interval">Тодорхой хугацаагаар</string>
+    <string name="watch_forwarding_interval_title">Хугацааны зай</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d минут</item>
+        <item quantity="other">%d минут</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Үзүүлэлтийг Dexcom Follow руу илгээх</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

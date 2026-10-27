@@ -218,6 +218,8 @@ data class JournalChartMarker(
     val chartYFraction: Float? = null,
     val durationMinutes: Int? = null,
     val curvePoints: List<JournalCurvePoint> = emptyList(),
+    /** What [curvePoints] were measured as; a steady-state curve isn't one injection's action. */
+    val curveEvidence: JournalCurveEvidence? = null,
     val activeStartMillis: Long? = null,
     val activeEndMillis: Long? = null
 )

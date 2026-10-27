@@ -1114,28 +1114,35 @@ fun DashboardScreen(
                     dashboardItemSpacing +
                     readingsTopSpacing
             }
-            val fullscreenChartItemHeight = remember(viewportHeight, chartViewportReserve) {
+            // Everything below the reserved header, which the row budgets are counted from.
+            val chartViewportHeight = remember(viewportHeight, chartViewportReserve) {
                 (viewportHeight - chartViewportReserve).coerceAtLeast(0.dp)
+            }
+            // Fully expanded still leaves the list's spacing under the range picker, the
+            // same gap it has above the pinned stats, rather than running into the bottom.
+            val fullscreenChartItemHeight = remember(chartViewportHeight, dashboardItemSpacing) {
+                (chartViewportHeight - dashboardItemSpacing).coerceAtLeast(0.dp)
             }
             val boundedFullscreenChartItemHeight = fullscreenChartItemHeight.coerceAtLeast(0.dp)
             val middleChartItemHeight = remember(
+                chartViewportHeight,
                 boundedFullscreenChartItemHeight,
                 measuredReadingBaselineHeight,
                 middleVisibleReadingRows
             ) {
-                (boundedFullscreenChartItemHeight - (measuredReadingBaselineHeight * middleVisibleReadingRows))
+                (chartViewportHeight - (measuredReadingBaselineHeight * middleVisibleReadingRows))
                     .coerceIn(0.dp, boundedFullscreenChartItemHeight)
             }
             val boundedMiddleChartItemHeight = middleChartItemHeight
                 .coerceAtLeast(0.dp)
                 .coerceAtMost(boundedFullscreenChartItemHeight)
             val collapsedChartItemHeight = remember(
-                boundedFullscreenChartItemHeight,
+                chartViewportHeight,
                 boundedMiddleChartItemHeight,
                 measuredReadingBaselineHeight,
                 defaultVisibleReadingRows
             ) {
-                (boundedFullscreenChartItemHeight - (measuredReadingBaselineHeight * defaultVisibleReadingRows))
+                (chartViewportHeight - (measuredReadingBaselineHeight * defaultVisibleReadingRows))
                     .coerceIn(0.dp, boundedMiddleChartItemHeight)
             }
             val boundedCollapsedChartItemHeight = collapsedChartItemHeight
@@ -1876,6 +1883,10 @@ fun DashboardScreen(
                                 )
                     Box(
                         modifier = Modifier
+                            // Under every other item: expanded, the chart's grid carries on
+                            // behind the hero above and the readings below, and those cards
+                            // have to land on top of it, not under it.
+                            .zIndex(-1f)
                             .padding(horizontal = animatedChartHorizontalPadding.coerceAtLeast(0.dp))
                     ) {
                         Box(
@@ -1922,6 +1933,10 @@ fun DashboardScreen(
                                         expandedUnderlayBottom = 0.dp,
                                         onToggleExpanded = null,
                                         chartBoostProgress = chartBoostProgress,
+                                        // A whole viewport each way reaches the list's edges
+                                        // from anywhere the chart can sit; the list clips it.
+                                        backdropBleed = viewportHeight,
+                                        backdropContentInset = contentHorizontalPadding,
                                         onPointClick = { point ->
                                             clearJournalAction()
                                             triggerCalibrationIfEnabled(
@@ -1978,19 +1993,16 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Shares the chart's item on purpose: the range chips are the last
-                    // thing inside it, so a separate item would put a full
-                    // `dashboardItemSpacing` between the chips and this strip.
+                    // Shares the chart's item so the gap above it can be set here. It is the
+                    // list's own spacing: the strip sits as far from the range picker as
+                    // the readings sit from the strip, collapsed or expanded.
                     if (showPinnedStats) {
                         FontScaleCap {
                             tk.glucodata.ui.stats.PinnedStatsStrip(
                                 modifier = Modifier.padding(
                                     start = contentHorizontalPadding,
                                     end = contentHorizontalPadding,
-                                    // Between the two extremes: a separate lazy item put a
-                                    // full 12 dp here and read as a hole, 2 dp had the strip
-                                    // welded to the chart card once the chart collapses.
-                                    top = 8.dp
+                                    top = dashboardItemSpacing
                                 ),
                                 windowState = pinnedStatsWindow
                             )

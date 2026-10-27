@@ -2007,7 +2007,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="predictive_delete_time_period_title">Törölhető ez az időszak?</string>
     <string name="predictive_delete_time_period_message">Ezt az időt az előző időszak fogja lefedni.</string>
     <string name="predictive_carb_ratio">Szénhidrátarány</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Inzulinérzékenység</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -2201,6 +2201,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_intensity_moderate">Mérsékelt</string>
     <string name="journal_intensity_intense">Intenzív</string>
     <string name="journal_insulin_library">Inzulintár</string>
+    <string name="journal_insulin_chart_title">Inzulin a grafikonon</string>
+    <string name="journal_insulin_chart_stacked">Halmozott</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Halmozott, minden adaggal</string>
+    <string name="journal_insulin_chart_separate">Minden adag külön</string>
     <string name="journal_archived_presets">Letiltott inzulintípusok</string>
     <string name="journal_curve_title">Szerkeszthető hatásgörbe</string>
     <string name="journal_curve_preview">Görbe előnézete</string>
@@ -2990,6 +2994,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="watch_kerfstok_bridge">Kerfstok átviteli híd</string>
     <string name="watch_garmin_status_desc">Kapcsolat állapota és párosítás</string>
     <string name="watch_garmin_enable_hint">Az állapot megtekintéséhez engedélyezze a Kerfstokot</string>
+    <string name="watch_help_forwarding">A „Glükózérték továbbítása” határozza meg, mit kapnak az óra- és karkötőalkalmazások a telefon értesítéséből. „Szabványos Android”: az érték az értesítés minden frissítésekor, ezért egyes órák minden alkalommal rezegnek. „Minden új érték” és „Időközönként”: minden érték egyszer. „Csak riasztások”: nincs érték.</string>
     <string name="watch_help_wearos">Engedélyezze a Wear OS-t, hogy az alkalmazás használhassa az óra üzenetátvitelét.</string>
     <string name="watch_help_config">A Konfiguráció menüben válasszon órát, és állítsa be a közvetlen szenzor-útválasztást.</string>
     <string name="watch_help_garmin">A Garmin Connect IQ a Kerfstokon keresztül működik, és külön állapotvezérlőkkel rendelkezik.</string>
@@ -3071,6 +3076,17 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="medtrum_setup_device_rejected">Ez az eszköz nem Medtrum jeladó. Ellenőrizze, hogy a jeladó a közelben van-e, majd próbálja újra.</string>
 
     <string name="alert_sound_volume">Riasztási hang hangereje</string>
+    <string name="watch_forwarding_section">Telefonos értesítéseken keresztül</string>
+    <string name="watch_forwarding_title">Glükózérték továbbítása</string>
+    <string name="watch_forwarding_standard">Szabványos Android</string>
+    <string name="watch_forwarding_alarms_only">Csak riasztások</string>
+    <string name="watch_forwarding_every_reading">Minden új érték</string>
+    <string name="watch_forwarding_interval">Időközönként</string>
+    <string name="watch_forwarding_interval_title">Időköz</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d perc</item>
+        <item quantity="other">%d perc</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Értékek küldése a Dexcom Followba</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

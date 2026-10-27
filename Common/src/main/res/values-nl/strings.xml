@@ -1681,7 +1681,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="predictive_delete_time_period_title">Deze periode verwijderen?</string>
     <string name="predictive_delete_time_period_message">De vorige periode zal deze tijd beslaan.</string>
     <string name="predictive_carb_ratio">Koolhydraatratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulinegevoeligheid</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1818,6 +1818,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_intensity_moderate">Gemiddeld</string>
     <string name="journal_intensity_intense">Intens</string>
     <string name="journal_insulin_library">Insulinebibliotheek</string>
+    <string name="journal_insulin_chart_title">Insuline in de grafiek</string>
+    <string name="journal_insulin_chart_stacked">Gestapeld</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Gestapeld, met elke dosis</string>
+    <string name="journal_insulin_chart_separate">Elke dosis apart</string>
     <string name="notification_settings_title">Meldingsinstellingen</string>
     <string name="notification_settings_subtitle">Notificatiepaneel aanpassen</string>
     <string name="lock_screen_aod">Vergrendelscherm (AOD)</string>
@@ -2958,6 +2962,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="watch_kerfstok_bridge">Kerfstok-transportbrug</string>
     <string name="watch_garmin_status_desc">Verbindingsstatus en koppelen</string>
     <string name="watch_garmin_enable_hint">Schakel Kerfstok in om de status te zien</string>
+    <string name="watch_help_forwarding">“Glucose doorsturen” bepaalt wat horloge- en bandapps uit de telefoonmelding krijgen. “Standaard Android”: de waarde bij elke update van de melding, dus sommige horloges trillen elke keer. “Elke nieuwe waarde” en “Met interval”: elke waarde één keer. “Alleen alarmen”: geen waarden.</string>
     <string name="watch_help_wearos">Schakel Wear OS in om berichtentransport naar het horloge in deze app te gebruiken.</string>
     <string name="watch_help_config">Gebruik Configuratie om een horloge te kiezen en directe sensorroutering in te stellen.</string>
     <string name="watch_help_garmin">Garmin Connect IQ werkt via Kerfstok en heeft eigen statusbediening.</string>
@@ -3039,6 +3044,17 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="medtrum_setup_device_rejected">Dit apparaat is geen Medtrum-transmitter. Zorg dat de transmitter binnen bereik is en probeer het opnieuw.</string>
 
     <string name="alert_sound_volume">Volume van het alarmgeluid</string>
+    <string name="watch_forwarding_section">Via telefoonmeldingen</string>
+    <string name="watch_forwarding_title">Glucose doorsturen</string>
+    <string name="watch_forwarding_standard">Standaard Android</string>
+    <string name="watch_forwarding_alarms_only">Alleen alarmen</string>
+    <string name="watch_forwarding_every_reading">Elke nieuwe waarde</string>
+    <string name="watch_forwarding_interval">Met interval</string>
+    <string name="watch_forwarding_interval_title">Interval</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuut</item>
+        <item quantity="other">%d minuten</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Metingen naar Dexcom Follow sturen</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
