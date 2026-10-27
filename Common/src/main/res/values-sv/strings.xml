@@ -1775,6 +1775,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Måttlig</string>
     <string name="journal_intensity_intense">Intensiv</string>
     <string name="journal_insulin_library">Insulinbibliotek</string>
+    <string name="journal_insulin_chart_title">Insulin i diagrammet</string>
+    <string name="journal_insulin_chart_stacked">Staplat</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Staplat, med varje dos</string>
+    <string name="journal_insulin_chart_separate">Varje dos för sig</string>
     <string name="notification_settings_title">Aviseringsinställningar</string>
     <string name="notification_settings_subtitle">Anpassa aviseringspanelen</string>
     <string name="lock_screen_aod">Låsskärm (AOD)</string>

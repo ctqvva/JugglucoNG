@@ -2065,6 +2065,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_intensity_moderate">Dhexdhexaad</string>
     <string name="journal_intensity_intense">Xoogan</string>
     <string name="journal_insulin_library">Maktabadda insulinta</string>
+    <string name="journal_insulin_chart_title">Insulinta jaantuska</string>
+    <string name="journal_insulin_chart_stacked">Isku dul saaran</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Isku dul saaran, qiyaas kasta</string>
+    <string name="journal_insulin_chart_separate">Qiyaas kasta gooni</string>
     <string name="journal_archived_presets">Noocyada insulin ee naafada ah</string>
     <string name="journal_curve_title">Qalooca dhaqdhaqaaqa wax laga beddeli karo</string>
     <string name="journal_curve_preview">Hordhac qalooca</string>

@@ -1818,6 +1818,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Умеренная</string>
     <string name="journal_intensity_intense">Интенсивная</string>
     <string name="journal_insulin_library">Библиотека инсулина</string>
+    <string name="journal_insulin_chart_title">Инсулин на графике</string>
+    <string name="journal_insulin_chart_stacked">Суммарно</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Суммарно, с каждой дозой</string>
+    <string name="journal_insulin_chart_separate">Каждая доза отдельно</string>
     <string name="journal_curve_reset">Сбросить кривую</string>
     <string name="journal_active_insulin_subtitle">Учитывается в активном инсулине и прогнозах</string>
     <string name="journal_use_for_calculation">Использовать для расчётов</string>

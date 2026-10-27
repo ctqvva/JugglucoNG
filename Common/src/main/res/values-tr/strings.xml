@@ -1803,6 +1803,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_intensity_moderate">Orta</string>
     <string name="journal_intensity_intense">Yoğun</string>
     <string name="journal_insulin_library">İnsülin kitaplığı</string>
+    <string name="journal_insulin_chart_title">Grafikte insülin</string>
+    <string name="journal_insulin_chart_stacked">Yığılmış</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Yığılmış, her dozla</string>
+    <string name="journal_insulin_chart_separate">Her doz ayrı</string>
     <string name="notification_settings_title">Bildirim ayarları</string>
     <string name="notification_settings_subtitle">Bildirim panelini özelleştir</string>
     <string name="lock_screen_aod">Kilit ekranı (AOD)</string>

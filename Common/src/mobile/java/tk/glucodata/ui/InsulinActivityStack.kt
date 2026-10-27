@@ -16,10 +16,11 @@ import tk.glucodata.data.journal.IobCurvePoint
  *
  * Nothing is extrapolated. A curve ends where its source stopped observing, even while still
  * acting: Lantus's clamp ended at 24 h at 72 %, and its label gives no end of action beyond
- * that ("24 hours was the end of the observation period"), so neither does this. Where a
- * curve stops above zero, [Band.trailing] carries the activity it stopped at, fading out over
- * a drawing distance only, so the chart can show that the data ends there rather than that
- * the insulin does. It is never part of the totals or the scale.
+ * that ("24 hours was the end of the observation period"), so neither do the totals. Where a
+ * curve stops above zero, [Band.trailing] carries on from the activity it stopped at and
+ * eases to nothing over a fifth of the time its source observed, at most [TRAIL_MAX_MINUTES]:
+ * about five hours for Lantus. That length is a drawing choice, not a measured end of action,
+ * so the chart draws it fainter than the data and it is never part of the totals or the scale.
  *
  * A steady-state curve (Tresiba, Toujeo) was measured after days of daily doses, so it holds
  * the earlier doses' tails: Tresiba's is at 70 % at the moment of injection. Under the usual
@@ -41,6 +42,12 @@ internal object InsulinActivityStack {
     /** Headroom over the highest total, so the band's top isn't drawn against the scale. */
     private const val SCALE_HEADROOM = 1.1f
 
+    /** The share of its observed span a curve that stops above zero trails off over. */
+    private const val TRAIL_SHARE = 0.2f
+
+    /** The longest a trail runs, so a once-weekly curve's isn't a day and a half. */
+    private const val TRAIL_MAX_MINUTES = 12 * 60f
+
     /** One dose: when, how much, its curve, the [layer] (insulin) it stacks in, and whether its curve is steady-state. */
     internal class Dose(
         val timestamp: Long,
@@ -52,6 +59,9 @@ internal object InsulinActivityStack {
         internal val shape: Shape = shapeFor(points, steadyState)
         internal val areaHours: Float get() = shape.areaHours
         internal val endMillis: Long = timestamp + (shape.endMinute * 60_000f).toLong()
+        /** How long past [endMillis] its trail runs, if its curve stopped above zero. */
+        internal val trailMillis: Long =
+            if (shape.endActivity > 0.0001f) ((shape.endMinute * TRAIL_SHARE).coerceAtMost(TRAIL_MAX_MINUTES) * 60_000f).toLong() else 0L
     }
 
     /** The insulin band at each sample time. */
@@ -60,9 +70,11 @@ internal object InsulinActivityStack {
         val tops: Array<FloatArray>,
         /**
          * `trailing[layer][i]`: where a curve's data stopped while it was still acting, the rate it
-         * stopped at, fading to nothing over the drawing distance passed to [stack]. Not a total.
+         * stopped at, easing to nothing over the dose's [Dose.trailMillis]. Not a total.
          */
-        val trailing: Array<FloatArray>
+        val trailing: Array<FloatArray>,
+        /** `doses[d][i]`: what dose `d` adds to its layer, if asked for; empty otherwise. */
+        val doses: Array<FloatArray> = emptyArray()
     )
 
     /** A curve made ready to draw: smooth, with its area and where its points fall. */
@@ -218,43 +230,94 @@ internal object InsulinActivityStack {
 
     /**
      * The stack at each of [times]: layer 0 rests on zero and each layer's band lies between the
-     * one below and its own top. [trailingMillis] is how far, at the chart's zoom, a curve that
-     * stops above zero trails off in [Band.trailing].
+     * one below and its own top. With [perDose], also what each dose adds, in [Band.doses].
      */
-    fun stack(doses: List<Dose>, layers: Int, times: LongArray, trailingMillis: Long = 0L): Band {
+    fun stack(doses: List<Dose>, layers: Int, times: LongArray, perDose: Boolean = false): Band {
         val tops = Array(layers) { FloatArray(times.size) }
         val trailing = Array(layers) { FloatArray(times.size) }
+        val each = if (perDose) Array(doses.size) { FloatArray(times.size) } else emptyArray()
         val latestHeld = LongArray(layers)
         for (i in times.indices) {
             val at = times[i]
             latestHeld.fill(Long.MIN_VALUE)
             for (dose in doses) {
-                if (dose.layer !in 0 until layers) continue
-                if (dose.shape.holdsLatest) {
-                    if (dose.timestamp <= at) latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
-                } else {
-                    tops[dose.layer][i] += rate(dose, at)
+                if (dose.layer in 0 until layers && dose.shape.holdsLatest && dose.timestamp <= at) {
+                    latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
                 }
-                trailing[dose.layer][i] += trailingRate(dose, at, trailingMillis)
             }
-            // Every once-weekly dose given at that latest time counts: a dose split into two
-            // injections is logged as two entries at the same minute.
-            for (dose in doses) {
-                if (dose.shape.holdsLatest && dose.layer in 0 until layers && dose.timestamp == latestHeld[dose.layer]) {
-                    tops[dose.layer][i] += rate(dose, at)
-                }
+            doses.forEachIndexed { d, dose ->
+                if (dose.layer !in 0 until layers) return@forEachIndexed
+                // A once-weekly dose counts only while it is the latest, and every dose given at
+                // that latest time counts: a dose split into two injections is logged as two
+                // entries at the same minute. A later one takes over its trail too, as its own
+                // curve already holds what the earlier doses still do.
+                if (dose.shape.holdsLatest && dose.timestamp != latestHeld[dose.layer]) return@forEachIndexed
+                val rate = rate(dose, at)
+                tops[dose.layer][i] += rate
+                if (perDose) each[d][i] = rate
+                trailing[dose.layer][i] += trailingRate(dose, at)
             }
             for (layer in 1 until layers) tops[layer][i] += tops[layer - 1][i]
         }
-        return Band(tops, trailing)
+        return Band(tops, trailing, each)
     }
 
-    private fun trailingRate(dose: Dose, atMillis: Long, trailingMillis: Long): Float {
-        if (trailingMillis <= 0L || atMillis <= dose.endMillis || atMillis >= dose.endMillis + trailingMillis) return 0f
-        if (dose.shape.endActivity <= 0.0001f || dose.areaHours <= 0.0001f || !dose.units.isFinite() || dose.units <= 0f) return 0f
-        val t = (atMillis - dose.endMillis).toFloat() / trailingMillis
+    private fun trailingRate(dose: Dose, atMillis: Long): Float {
+        val span = dose.trailMillis
+        if (span <= 0L || atMillis <= dose.endMillis || atMillis >= dose.endMillis + span) return 0f
+        if (dose.areaHours <= 0.0001f || !dose.units.isFinite() || dose.units <= 0f) return 0f
+        val t = (atMillis - dose.endMillis).toFloat() / span
         val fade = 1f - t * t * (3f - 2f * t)
         return dose.units * dose.shape.endActivity / dose.areaHours * fade
+    }
+
+    /**
+     * The highest the stack reaches over all of [doses], so the band can keep one scale however
+     * the chart is panned or zoomed. Sampled at every curve point and every [stepMillis] while
+     * any dose acts.
+     */
+    fun highestTotal(doses: List<Dose>, stepMillis: Long = 10 * 60_000L): Float {
+        val sorted = doses
+            .filter { it.layer >= 0 && it.units.isFinite() && it.units > 0f && it.areaHours > 0.0001f }
+            .sortedBy { it.timestamp }
+        if (sorted.isEmpty()) return 0f
+        val step = stepMillis.coerceAtLeast(60_000L)
+        val longest = sorted.maxOf { it.endMillis - it.timestamp }
+        val times = ArrayList<Long>()
+        for (dose in sorted) {
+            var at = Math.floorDiv(dose.timestamp, step) * step + step
+            while (at < dose.endMillis) {
+                times += at
+                at += step
+            }
+            for (minute in dose.shape.knotMinutes) times += dose.timestamp + (minute * 60_000f).toLong()
+        }
+        times.sort()
+        val layers = sorted.maxOf { it.layer } + 1
+        val latestHeld = LongArray(layers)
+        var highest = 0f
+        var first = 0
+        var until = 0
+        var previous = Long.MIN_VALUE
+        for (at in times) {
+            if (at == previous) continue
+            previous = at
+            while (until < sorted.size && sorted[until].timestamp <= at) until++
+            while (first < until && sorted[first].timestamp < at - longest) first++
+            latestHeld.fill(Long.MIN_VALUE)
+            for (j in first until until) {
+                val dose = sorted[j]
+                if (dose.shape.holdsLatest) latestHeld[dose.layer] = maxOf(latestHeld[dose.layer], dose.timestamp)
+            }
+            var total = 0f
+            for (j in first until until) {
+                val dose = sorted[j]
+                if (dose.shape.holdsLatest && dose.timestamp != latestHeld[dose.layer]) continue
+                total += rate(dose, at)
+            }
+            highest = maxOf(highest, total)
+        }
+        return highest
     }
 
     /**
@@ -296,26 +359,5 @@ internal object InsulinActivityStack {
         val wanted = highest * SCALE_HEADROOM
         val step = if (wanted < 2f) 0.5f else 1f
         return (kotlin.math.ceil(wanted / step) * step).coerceAtLeast(0.5f)
-    }
-
-    /**
-     * Keeps the band's scale still while the chart moves. It grows at once when a taller total
-     * comes into view, so nothing is clipped, but doesn't shrink while the user is panning: the
-     * same basal dose keeps the same height as a big bolus scrolls off. When they let go, or
-     * the zoom changes, it fits what is on screen again.
-     */
-    internal class ScaleHold {
-        private var held = 0f
-        private var heldZoom = Long.MIN_VALUE
-
-        fun scale(highest: Float, zoomMillis: Long, navigating: Boolean): Float {
-            val fitted = scaleFor(highest)
-            held = when {
-                zoomMillis != heldZoom || held <= 0f || !navigating -> fitted
-                else -> maxOf(held, fitted)
-            }
-            heldZoom = zoomMillis
-            return held
-        }
     }
 }

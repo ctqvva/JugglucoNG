@@ -2201,6 +2201,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_intensity_moderate">Mérsékelt</string>
     <string name="journal_intensity_intense">Intenzív</string>
     <string name="journal_insulin_library">Inzulintár</string>
+    <string name="journal_insulin_chart_title">Inzulin a grafikonon</string>
+    <string name="journal_insulin_chart_stacked">Halmozott</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Halmozott, minden adaggal</string>
+    <string name="journal_insulin_chart_separate">Minden adag külön</string>
     <string name="journal_archived_presets">Letiltott inzulintípusok</string>
     <string name="journal_curve_title">Szerkeszthető hatásgörbe</string>
     <string name="journal_curve_preview">Görbe előnézete</string>

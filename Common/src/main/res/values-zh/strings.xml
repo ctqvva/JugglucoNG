@@ -1791,6 +1791,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">中等</string>
     <string name="journal_intensity_intense">高强度</string>
     <string name="journal_insulin_library">胰岛素库</string>
+    <string name="journal_insulin_chart_title">图表上的胰岛素</string>
+    <string name="journal_insulin_chart_stacked">堆叠</string>
+    <string name="journal_insulin_chart_stacked_with_doses">堆叠，并显示每次剂量</string>
+    <string name="journal_insulin_chart_separate">每次剂量分开显示</string>
     <string name="notification_settings_title">通知设置</string>
     <string name="notification_settings_subtitle">自定义通知栏</string>
     <string name="lock_screen_aod">锁屏（AOD）</string>

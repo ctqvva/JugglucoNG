@@ -1818,6 +1818,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_intensity_moderate">Gemiddeld</string>
     <string name="journal_intensity_intense">Intens</string>
     <string name="journal_insulin_library">Insulinebibliotheek</string>
+    <string name="journal_insulin_chart_title">Insuline in de grafiek</string>
+    <string name="journal_insulin_chart_stacked">Gestapeld</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Gestapeld, met elke dosis</string>
+    <string name="journal_insulin_chart_separate">Elke dosis apart</string>
     <string name="notification_settings_title">Meldingsinstellingen</string>
     <string name="notification_settings_subtitle">Notificatiepaneel aanpassen</string>
     <string name="lock_screen_aod">Vergrendelscherm (AOD)</string>

@@ -1850,6 +1850,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Помірна</string>
     <string name="journal_intensity_intense">Інтенсивна</string>
     <string name="journal_insulin_library">Бібліотека інсуліну</string>
+    <string name="journal_insulin_chart_title">Інсулін на графіку</string>
+    <string name="journal_insulin_chart_stacked">Складений</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Складений, з кожною дозою</string>
+    <string name="journal_insulin_chart_separate">Кожна доза окремо</string>
     <string name="journal_curve_reset">Скинути криву</string>
     <string name="journal_active_insulin_subtitle">Враховується в активному інсуліні та прогнозах</string>
     <string name="journal_use_for_calculation">Використовувати для розрахунків</string>

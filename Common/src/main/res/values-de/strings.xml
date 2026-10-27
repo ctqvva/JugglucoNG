@@ -1962,6 +1962,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_intensity_moderate">Moderat</string>
     <string name="journal_intensity_intense">Intensiv</string>
     <string name="journal_insulin_library">Insulinbibliothek</string>
+    <string name="journal_insulin_chart_title">Insulin im Diagramm</string>
+    <string name="journal_insulin_chart_stacked">Gestapelt</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Gestapelt, mit jeder Dosis</string>
+    <string name="journal_insulin_chart_separate">Jede Dosis einzeln</string>
     <string name="journal_archived_presets">Deaktivierte Insulintypen</string>
     <string name="journal_curve_title">Bearbeitbare Wirkungskurve</string>
     <string name="journal_curve_preview">Kurvenvorschau</string>

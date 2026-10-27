@@ -1845,6 +1845,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Умераная</string>
     <string name="journal_intensity_intense">Інтэнсіўная</string>
     <string name="journal_insulin_library">Бібліятэка інсуліну</string>
+    <string name="journal_insulin_chart_title">Інсулін на графіку</string>
+    <string name="journal_insulin_chart_stacked">Складзены</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Складзены, з кожнай дозай</string>
+    <string name="journal_insulin_chart_separate">Кожная доза асобна</string>
     <string name="journal_curve_reset">Скінуць крывую</string>
     <string name="journal_active_insulin_subtitle">Улічваецца ў актыўным інсуліне і прагнозах</string>
     <string name="journal_use_for_calculation">Выкарыстоўваць для разлікаў</string>

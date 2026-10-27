@@ -1765,6 +1765,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Moderata</string>
     <string name="journal_intensity_intense">Intensa</string>
     <string name="journal_insulin_library">Libreria insuline</string>
+    <string name="journal_insulin_chart_title">Insulina sul grafico</string>
+    <string name="journal_insulin_chart_stacked">Impilata</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Impilata, con ogni dose</string>
+    <string name="journal_insulin_chart_separate">Ogni dose separata</string>
     <string name="notification_settings_title">Impostazioni notifiche</string>
     <string name="notification_settings_subtitle">Personalizza l\'area notifiche</string>
     <string name="lock_screen_aod">Schermata di blocco (AOD)</string>

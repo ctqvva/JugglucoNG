@@ -1810,6 +1810,10 @@
     <string name="journal_intensity_moderate">Umiarkowana</string>
     <string name="journal_intensity_intense">Intensywna</string>
     <string name="journal_insulin_library">Biblioteka insulin</string>
+    <string name="journal_insulin_chart_title">Insulina na wykresie</string>
+    <string name="journal_insulin_chart_stacked">Skumulowana</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Skumulowana, z każdą dawką</string>
+    <string name="journal_insulin_chart_separate">Każda dawka osobno</string>
     <string name="notification_settings_title">Ustawienia powiadomień</string>
     <string name="notification_settings_subtitle">Dostosuj panel powiadomień</string>
     <string name="lock_screen_aod">Ekran blokady (AOD)</string>

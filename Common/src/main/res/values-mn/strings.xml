@@ -1781,6 +1781,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Графикт инсулин</string>
+    <string name="journal_insulin_chart_stacked">Давхарласан</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Давхарласан, тун бүрээр</string>
+    <string name="journal_insulin_chart_separate">Тун бүр тусдаа</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>

@@ -2356,6 +2356,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Insulin on the chart</string>
+    <string name="journal_insulin_chart_stacked">Stacked</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Stacked, with each dose</string>
+    <string name="journal_insulin_chart_separate">Each dose separately</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>
