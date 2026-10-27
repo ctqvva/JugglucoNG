@@ -58,29 +58,41 @@ class InsulinActivityStackTests {
     }
 
     @Test
-    fun aCurveThatStopsAboveZeroFadesOutInsteadOfDroppingOff() {
+    fun aCurveIsNeverExtendedPastItsObservation() {
+        // Lantus's clamp ended at 24 h while still acting; nothing is invented past it.
         val dose = InsulinActivityStack.Dose(0L, 10f, glargineU100, 0)
-        val before = InsulinActivityStack.rate(dose, DAY - MINUTE)
-        val after = InsulinActivityStack.rate(dose, DAY + MINUTE)
-        assertEquals(before, after, before * 0.02f)
-        // The fade-out is reported apart, as an estimate.
-        assertEquals(0f, InsulinActivityStack.approximateRate(dose, DAY - MINUTE), 0f)
-        assertEquals(after, InsulinActivityStack.approximateRate(dose, DAY + MINUTE), 0f)
-        // It is over after a quarter of the curve again.
-        assertEquals(0f, InsulinActivityStack.rate(dose, DAY + 6 * HOUR + MINUTE), 0f)
+        assertTrue(InsulinActivityStack.rate(dose, DAY) > 0f)
+        assertEquals(0f, InsulinActivityStack.rate(dose, DAY + MINUTE), 0f)
     }
 
     @Test
-    fun dailyGlargineHasNoNotchAtEachInjection() {
-        // The screenshot regression: each day's dose dropped the last one's 72 % to zero.
+    fun whereTheDataStopsATrailFadesOverTheDrawingDistanceOnly() {
+        val dose = InsulinActivityStack.Dose(0L, 10f, glargineU100, 0)
+        val stopped = InsulinActivityStack.rate(dose, DAY)
+        val times = longArrayOf(DAY + MINUTE, DAY + HOUR, DAY + 2 * HOUR)
+        val band = InsulinActivityStack.stack(listOf(dose), 1, times, trailingMillis = 2 * HOUR)
+        // Not a total: the band itself ends with the data.
+        assertEquals(0f, band.tops[0][0], 0f)
+        assertEquals(stopped, band.trailing[0][0], stopped * 0.01f)
+        assertEquals(stopped / 2f, band.trailing[0][1], stopped * 0.01f)
+        assertEquals(0f, band.trailing[0][2], 0f)
+        // A curve that ends at zero leaves no trail.
+        val bolus = InsulinActivityStack.Dose(0L, 4f, triangle, 0)
+        assertEquals(0f, InsulinActivityStack.stack(listOf(bolus), 1, longArrayOf(2 * HOUR + MINUTE), HOUR).trailing[0][0], 0f)
+    }
+
+    @Test
+    fun dailyGlargineIsDrawnWithoutANotchAtEachInjection() {
+        // The screenshot regression: each day's dose cut the last one's 72 % off at a hard edge.
+        // The data still stops there, but the drawn band trails off instead of notching.
         val doses = (0 until 4).map { InsulinActivityStack.Dose(it * DAY, 10f, glargineU100, 0) }
-        assertSmooth(doses, 2 * DAY + 12 * HOUR, 3 * DAY + 12 * HOUR)
+        assertSmoothlyDrawn(doses, 2 * DAY + 12 * HOUR, 3 * DAY + 12 * HOUR)
     }
 
     @Test
     fun dailyTresibaIsSmoothAndAveragesItsDose() {
         val doses = (0 until 8).map { InsulinActivityStack.Dose(it * DAY, 24f, degludec, 0, steadyState = true) }
-        assertSmooth(doses, 5 * DAY + 12 * HOUR, 6 * DAY + 12 * HOUR)
+        assertSmoothlyDrawn(doses, 5 * DAY + 12 * HOUR, 6 * DAY + 12 * HOUR)
         // At steady state the regimen acts at its dose a day: 24 U is 1 U/h on average.
         val day = (6 * DAY until 7 * DAY step MINUTE).map { rateAt(doses, it).toDouble() }
         assertEquals(1.0, day.average(), 0.02)
@@ -157,16 +169,39 @@ class InsulinActivityStackTests {
     }
 
     @Test
-    fun scaleRoundsUpToHalfOrWholeUnits() {
+    fun scaleHasHeadroomAndRoundsUpToHalfOrWholeUnits() {
         assertEquals(0.5f, InsulinActivityStack.scaleFor(0.2f), 0f)
         assertEquals(1.5f, InsulinActivityStack.scaleFor(1.3f), 0f)
         assertEquals(4f, InsulinActivityStack.scaleFor(3.2f), 0f)
+        // 1.9 U/h would touch a 2 U/h scale; with headroom it gets 3.
+        assertEquals(3f, InsulinActivityStack.scaleFor(1.9f), 0f)
         assertEquals(1f, InsulinActivityStack.scaleFor(0f), 0f)
     }
 
-    /** No step between neighbouring minutes bigger than 2 % of the band's height over [from, to]. */
-    private fun assertSmooth(doses: List<InsulinActivityStack.Dose>, from: Long, to: Long) {
-        val rates = (from..to step MINUTE).map { rateAt(doses, it) }
+    @Test
+    fun theScaleHoldsWhilePanningAndRefitsAfter() {
+        val hold = InsulinActivityStack.ScaleHold()
+        val zoom = DAY
+        assertEquals(4f, hold.scale(3.2f, zoom, navigating = true), 0f)
+        // The bolus scrolls off: the basal under it keeps its height.
+        assertEquals(4f, hold.scale(0.4f, zoom, navigating = true), 0f)
+        // A taller total grows it at once.
+        assertEquals(6f, hold.scale(5f, zoom, navigating = true), 0f)
+        // Letting go fits what is on screen.
+        assertEquals(0.5f, hold.scale(0.4f, zoom, navigating = false), 0f)
+        // So does a new zoom, even mid-gesture.
+        hold.scale(5f, zoom, navigating = true)
+        assertEquals(0.5f, hold.scale(0.4f, 3 * DAY, navigating = true), 0f)
+    }
+
+    /**
+     * No step between neighbouring minutes bigger than 2 % of the band's height over [from, to],
+     * in the band as drawn: the totals with the trail where data stops.
+     */
+    private fun assertSmoothlyDrawn(doses: List<InsulinActivityStack.Dose>, from: Long, to: Long) {
+        val times = (from..to step MINUTE).toList().toLongArray()
+        val band = InsulinActivityStack.stack(doses, 1, times, trailingMillis = 2 * HOUR)
+        val rates = times.indices.map { band.tops[0][it] + band.trailing[0][it] }
         val height = rates.max()
         rates.zipWithNext().forEachIndexed { index, (a, b) ->
             assertTrue("step of ${b - a} at minute $index", kotlin.math.abs(b - a) <= height * 0.02f)

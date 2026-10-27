@@ -1362,6 +1362,7 @@ fun InteractiveGlucoseChart(
     var isResumed by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
 
     var isUserInteracting by remember { mutableStateOf(false) }
+    val insulinBandScale = remember { InsulinActivityStack.ScaleHold() }
     var lastInteractionTimestamp by rememberSaveable { mutableLongStateOf(0L) }
     var suppressDoubleTapUntil by rememberSaveable { mutableLongStateOf(0L) }
 
@@ -3460,10 +3461,19 @@ fun InteractiveGlucoseChart(
                             val sampleXs = FloatArray(sampleCount) { index ->
                                 ((sampleTimes[index] - viewportStart).toFloat() / animDur * dataWidth).coerceIn(0f, dataWidth)
                             }
-                            val band = InsulinActivityStack.stack(doses, layerKeys.size, sampleTimes)
-                            val scale = InsulinActivityStack.scaleFor(band.tops.last().maxOrNull() ?: 0f)
-                            fun rateToY(rate: Float): Float = chartHeight - (rate / scale).coerceIn(0f, 1f) * bandHeight
                             val fadePx = 24.dp.toPx()
+                            val band = InsulinActivityStack.stack(
+                                doses,
+                                layerKeys.size,
+                                sampleTimes,
+                                trailingMillis = (fadePx / dataWidth * animDur).toLong()
+                            )
+                            val scale = insulinBandScale.scale(
+                                highest = band.tops.last().maxOrNull() ?: 0f,
+                                zoomMillis = visibleDuration,
+                                navigating = isUserInteracting
+                            )
+                            fun rateToY(rate: Float): Float = chartHeight - (rate / scale).coerceIn(0f, 1f) * bandHeight
 
                             // As the per-dose curves were: a light fill and a soft edge that fade
                             // in and out where an insulin starts and stops acting, but not at the
@@ -3512,34 +3522,42 @@ fun InteractiveGlucoseChart(
                                 close()
                             }
 
+                            // Where a curve's source stopped observing while it still acted, a
+                            // faint trail of what it stopped at, behind the fills: the data ends
+                            // there, the insulin needn't. Not part of any total or the scale.
+                            layerKeys.forEachIndexed { layer, key ->
+                                val upper = band.tops[layer]
+                                val trailing = band.trailing[layer]
+                                val tint = Color(key.second)
+                                runs { trailing[it] > 0.0001f }.forEach { range ->
+                                    drawPath(
+                                        Path().apply { band(range, { upper[it] + trailing[it] }, { upper[it] }) },
+                                        Brush.horizontalGradient(
+                                            0f to tint.copy(alpha = tint.alpha * 0.18f),
+                                            1f to tint.copy(alpha = 0f),
+                                            startX = sampleXs[range.first],
+                                            endX = sampleXs[range.last].coerceAtLeast(sampleXs[range.first] + 1f)
+                                        )
+                                    )
+                                }
+                            }
                             val edges = ArrayList<Pair<Path, Brush>>()
                             layerKeys.forEachIndexed { layer, key ->
                                 val upper = band.tops[layer]
                                 val lower = band.tops.getOrNull(layer - 1)
-                                val approximate = band.approximate[layer]
                                 fun below(i: Int): Float = lower?.get(i) ?: 0f
-                                fun measured(i: Int): Float = upper[i] - approximate[i]
+                                fun adds(i: Int): Boolean = upper[i] - below(i) > 0.0001f
                                 val tint = Color(key.second)
-                                runs { upper[it] - below(it) > 0.0001f }.forEach { range ->
+                                runs(::adds).forEach { range ->
                                     drawPath(
-                                        Path().apply { band(range, ::measured, ::below) },
+                                        Path().apply { band(range, { upper[it] }, ::below) },
                                         fadingBrush(tint, 0.18f, range.first, range.last)
                                     )
-                                    // Past the last measured point a curve only fades out by
-                                    // estimate, so that part is drawn fainter.
-                                    if (range.any { approximate[it] > 0.0001f }) {
-                                        drawPath(
-                                            Path().apply { band(range, { upper[it] }, ::measured) },
-                                            fadingBrush(tint, 0.08f, range.first, range.last)
-                                        )
-                                    }
-                                }
-                                // The edge only where this insulin's measured activity shows,
-                                // so it never lies on another insulin's edge in this colour.
-                                runs { measured(it) - below(it) > 0.0001f }.forEach { range ->
+                                    // The edge only where this insulin adds activity, so it never
+                                    // lies on another insulin's edge in this colour.
                                     val edge = Path().apply {
-                                        moveTo(sampleXs[range.first], rateToY(measured(range.first)))
-                                        for (i in range.first + 1..range.last) lineTo(sampleXs[i], rateToY(measured(i)))
+                                        moveTo(sampleXs[range.first], rateToY(upper[range.first]))
+                                        for (i in range.first + 1..range.last) lineTo(sampleXs[i], rateToY(upper[i]))
                                     }
                                     edges += edge to fadingBrush(tint, 0.6f, range.first, range.last)
                                 }
