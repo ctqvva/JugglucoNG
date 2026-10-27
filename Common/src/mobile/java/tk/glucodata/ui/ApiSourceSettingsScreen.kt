@@ -425,35 +425,32 @@ private fun SourceIcon(enabled: Boolean) {
 }
 
 @Composable
-private fun SourcePresetRow(preset: String, onChangePreset: () -> Unit) {
+private fun SourcePresetRow(
+    preset: String,
+    onChangePreset: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(CardPosition.SINGLE, radius = 10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         AdaptiveTrailingRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(
-                        onClick = onChangePreset,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding,
-                    ) {
-                        Text(stringResource(R.string.outbound_api_change_preset))
-                    }
+                TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                    Text(stringResource(R.string.outbound_api_change_preset))
                 }
-            },
+            }
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column {
                 Text(
                     text = stringResource(R.string.api_source_preset),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = stringResource(apiSourcePresetTitle(preset)),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }

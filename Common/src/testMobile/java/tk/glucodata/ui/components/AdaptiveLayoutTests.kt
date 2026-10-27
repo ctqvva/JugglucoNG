@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -376,40 +377,119 @@ class AdaptiveLayoutTests {
     }
 
     @Test
-    fun buttonRowKeepsEqualWidthsUntilALabelWouldWrap() {
+    fun buttonRowMatchesAWeightedRowUntilAWordWouldBreak() {
         var fontScale by mutableFloatStateOf(1f)
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
                 MaterialTheme(typography = AppTypography) {
-                    AdaptiveButtonRow(modifier = Modifier.width(320.dp)) {
+                    AdaptiveButtonRow(modifier = Modifier.width(240.dp)) {
                         OutlinedButton(onClick = {}, shapes = ButtonDefaults.shapes()) {
-                            Text("Экспорт ключа")
+                            Text("Export sensor key")
                         }
                         Button(onClick = {}, shapes = ButtonDefaults.shapes()) {
-                            Text("Импорт ключа")
+                            Text("Import sensor key")
                         }
                     }
                 }
             }
         }
-        fun bounds(text: String) =
-            compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
+        fun bounds(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
 
-        // Normal text: one line, equal shares, as the Row of weight(1f) buttons it replaced.
-        var first = bounds("Экспорт ключа")
-        var second = bounds("Импорт ключа")
+        // Normal text: equal shares on one line, labels wrapping inside, exactly as the Row of
+        // weight(1f) buttons it replaced.
+        var first = bounds("Export sensor key")
+        var second = bounds("Import sensor key")
         assertEquals(first.top, second.top, 0.5f)
         assertEquals(first.width, second.width, 1f)
-        assertTrue(first.width > 150f)
+        assertTrue(first.right <= second.left)
 
-        // Enlarged text: each button takes its own full-width line with an unbroken label.
+        // Enlarged text: a word no longer fits a share, so each button takes a full-width line.
         compose.runOnIdle { fontScale = 2f }
-        first = bounds("Экспорт ключа")
-        second = bounds("Импорт ключа")
+        first = bounds("Export sensor key")
+        second = bounds("Import sensor key")
         assertTrue(second.top >= first.bottom)
-        assertEquals(first.width, second.width, 1f)
-        assertTrue(second.width > 300f)
-        compose.onNodeWithText("Импорт ключа", useUnmergedTree = true).assertTextFits()
+        assertTrue(second.width > 230f)
+        compose.onNodeWithText("Import sensor key", useUnmergedTree = true).assertTextFits()
+    }
+
+    @Test
+    fun trailingRowKeepsTheRowLayoutAtNormalTextSize() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(312.dp)) {
+                        // A long title beside a wide control, as the number steppers are: the
+                        // title wraps beside the control, it is not pushed above it.
+                        SettingsItem(
+                            title = "Maximum readings per upload",
+                            subtitle = "Sent together in one request",
+                            icon = Icons.Default.Settings,
+                            trailingContent = { Box(Modifier.width(120.dp).height(48.dp).testTag("control")) },
+                        )
+                    }
+                }
+            }
+        }
+        val title =
+            compose.onNodeWithText("Maximum readings per upload", useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot
+        val control = compose.onNodeWithTag("control", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("control moved below the title", control.left >= title.right)
+        assertTrue(control.top < title.bottom)
+    }
+
+    @Test
+    fun connectedGroupKeepsItsHeightAtNormalTextSize() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    // Taller parent: the buttons must not stretch to fill it either.
+                    Box(Modifier.width(288.dp).height(200.dp)) {
+                        ConnectedButtonGroup(
+                            modifier = Modifier.testTag("group"),
+                            options = listOf("High", "Low"),
+                            selectedOption = "High",
+                            onOptionSelected = {},
+                            label = { Text(it) },
+                            labelText = { it },
+                            itemHeight = 36.dp,
+                        )
+                    }
+                }
+            }
+        }
+        // ToggleButton's own minimum is 40dp; the group asked for 36dp and must stay there.
+        assertEquals(36f, compose.onNodeWithTag("group").fetchSemanticsNode().boundsInRoot.height, 0.5f)
+        assertEquals(36f, compose.onNodeWithText("High").fetchSemanticsNode().boundsInRoot.height, 0.5f)
+    }
+
+    @Test
+    fun minimumHeightButtonsKeepTheirHeightAtNormalTextSize() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    Column(Modifier.width(320.dp)) {
+                        // The calibration "Now" chip and the compact wizard buttons: heightIn(min)
+                        // replaced height(), and must not pick up the 40dp minimum or the 48dp
+                        // touch target in its place.
+                        FilledTonalButton(
+                            onClick = {},
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            modifier = Modifier.heightIn(min = 32.dp).testTag("now"),
+                            shapes = ButtonDefaults.shapes(),
+                        ) { Text("Now") }
+                        Button(
+                            onClick = {},
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("wizard"),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text("Continue") }
+                    }
+                }
+            }
+        }
+        assertEquals(32f, compose.onNodeWithTag("now").fetchSemanticsNode().boundsInRoot.height, 0.5f)
+        assertEquals(46f, compose.onNodeWithTag("wizard").fetchSemanticsNode().boundsInRoot.height, 0.5f)
     }
 
     @Test

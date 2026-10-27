@@ -1426,6 +1426,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             }
                         },
                         enabled = testState != ConnTestState.TESTING,
+                        modifier = Modifier.weight(1f),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding
                     ) {

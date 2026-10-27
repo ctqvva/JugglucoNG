@@ -63,34 +63,32 @@ fun ExpandableSettingsCard(
     content: @Composable () -> Unit,
 ) {
     val tint = iconTint ?: MaterialTheme.colorScheme.primary
-    val chevronRotation by
-        animateFloatAsState(
-            targetValue = if (expanded) 180f else 0f,
-            label = "expandableSettingsChevron",
-        )
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "expandableSettingsChevron"
+    )
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column {
             AdaptiveTrailingRow(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clickable { onExpandedChange(!expanded) }
-                        .heightIn(min = 72.dp)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange(!expanded) }
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                spacing = 0.dp,
                 trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.graphicsLayer { rotationZ = chevronRotation },
-                        )
-                    }
-                },
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.graphicsLayer { rotationZ = chevronRotation }
+                    )
+                }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
@@ -103,7 +101,7 @@ fun ExpandableSettingsCard(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -112,7 +110,7 @@ fun ExpandableSettingsCard(
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                exit = shrinkVertically() + fadeOut()
             ) {
                 Column {
                     HorizontalDivider(
@@ -120,7 +118,7 @@ fun ExpandableSettingsCard(
                     )
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         content()
                     }
@@ -151,24 +149,18 @@ fun DisclosingSwitchCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column {
             AdaptiveTrailingRow(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clickable(enabled = enabled) { onCheckedChange(!checked) }
-                        .heightIn(min = 72.dp)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = enabled) { onCheckedChange(!checked) }
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StyledSwitch(
-                            checked = checked,
-                            onCheckedChange = onCheckedChange,
-                            enabled = enabled,
-                        )
-                    }
-                },
+                    StyledSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+                }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
@@ -181,7 +173,7 @@ fun DisclosingSwitchCard(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -190,7 +182,7 @@ fun DisclosingSwitchCard(
             AnimatedVisibility(
                 visible = checked,
                 enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                exit = shrinkVertically() + fadeOut()
             ) {
                 Column {
                     HorizontalDivider(
@@ -198,7 +190,7 @@ fun DisclosingSwitchCard(
                     )
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         content()
                     }
@@ -282,15 +274,17 @@ fun SettingsItem(
         enabled = onClick != null,
         modifier = modifier.fillMaxWidth(),
         shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh, // restored color
+        color = MaterialTheme.colorScheme.surfaceContainerHigh // restored color
     ) {
         AdaptiveTrailingRow(
-            modifier = Modifier.heightIn(min = 72.dp).padding(16.dp),
+            modifier = Modifier
+                .heightIn(min = 72.dp) // M3 Two-line item standard
+                .padding(horizontal = 16.dp, vertical = 16.dp), // Coherent spacing
             trailingContent = {
                 if (trailingContent != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) { trailingContent() }
                 }
-            },
+            }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {
@@ -300,23 +294,18 @@ fun SettingsItem(
                     IconTile(
                         icon = icon,
                         tint = tint,
-                        containerColor =
-                            if (iconTint != null) tint.copy(alpha = IconTileDefaults.ContainerAlpha)
-                            else Color.Transparent,
+                        containerColor = if (iconTint != null) tint.copy(alpha = IconTileDefaults.ContainerAlpha) else Color.Transparent,
                     )
                     Spacer(Modifier.width(IconTileDefaults.Gap))
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleMedium,
-                    ) // Heavier weight (500) for legibility
+                    Text(title, style = MaterialTheme.typography.titleMedium) // Heavier weight (500) for legibility
                     if (subtitle != null) {
                         Text(
                             subtitle,
                             style = subtitleStyle ?: MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -424,65 +413,62 @@ fun MasterSwitchCard(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
 ) {
-    val containerColor by
-        animateColorAsState(
-            targetValue =
-                if (checked) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.74f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerLow
-                },
-            label = "masterSwitchCardContainer",
-        )
+    val containerColor by animateColorAsState(
+        targetValue = if (checked) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.74f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        label = "masterSwitchCardContainer"
+    )
 
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         shape = RoundedCornerShape(16.dp),
-        border =
-            BorderStroke(
-                1.dp,
-                if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
-                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(
+            1.dp,
+            if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         AdaptiveTrailingRow(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .heightIn(min = 84.dp)
-                    .clickable(enabled = enabled) { onCheckedChange(!checked) }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 84.dp)
+                .clickable(enabled = enabled) { onCheckedChange(!checked) }
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            spacing = 0.dp,
             trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StyledSwitch(
-                        checked = checked,
-                        enabled = enabled,
-                        onCheckedChange = onCheckedChange,
-                    )
-                }
-            },
+                StyledSwitch(
+                    checked = checked,
+                    enabled = enabled,
+                    onCheckedChange = onCheckedChange
+                )
+            }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconTile(
                     icon = icon,
                     tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
-                    containerColor =
-                        if (checked) {
-                            iconTint.copy(alpha = IconTileDefaults.ContainerAlpha)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        },
+                    containerColor = if (checked) {
+                        iconTint.copy(alpha = IconTileDefaults.ContainerAlpha)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
                 )
 
                 Spacer(modifier = Modifier.width(IconTileDefaults.Gap))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = title, style = MaterialTheme.typography.titleMediumEmphasized)
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMediumEmphasized,)
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -501,36 +487,31 @@ fun AlarmItem(
     onToggle: (Boolean) -> Unit,
     onValueChange: (Float) -> Unit,
     onSoundChange: (Int) -> Unit,
-    position: CardPosition = CardPosition.SINGLE,
+    position: CardPosition = CardPosition.SINGLE
 ) {
     var sliderValue by remember(value) { mutableFloatStateOf(value) }
-    val displayValue =
-        if (sliderValue < 30) String.format("%.1f", sliderValue) else sliderValue.toInt().toString()
+    val displayValue = if (sliderValue < 30) String.format("%.1f", sliderValue) else sliderValue.toInt().toString()
 
     Surface(
         onClick = { onToggle(!enabled) },
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             AdaptiveTrailingRow(
+                spacing = 16.dp,
                 trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StyledSwitch(checked = enabled, onCheckedChange = null)
-                    }
+                    StyledSwitch(
+                        checked = enabled,
+                        onCheckedChange = null
+                    )
                 }
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(title, style = MaterialTheme.typography.bodyLarge)
-                        if (enabled) {
-                            Text(
-                                "$displayValue $unit",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                Column {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    if (enabled) {
+                        Text("$displayValue $unit", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -543,34 +524,30 @@ fun AlarmItem(
                         value = sliderValue,
                         onValueChange = { sliderValue = it },
                         onValueChangeFinished = { onValueChange(sliderValue) },
-                        valueRange = range,
+                        valueRange = range
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        stringResource(R.string.alert_mode),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text(stringResource(R.string.alert_mode), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         FilterChip(
                             selected = soundMode == 0,
                             onClick = { onSoundChange(0) },
                             label = { Text(stringResource(R.string.vibrate_only)) },
-                            leadingIcon = { if (soundMode == 0) Icon(Icons.Filled.Check, null) },
+                            leadingIcon = { if(soundMode == 0) Icon(Icons.Filled.Check, null) },
                             shapes = FilterChipDefaults.shapes(),
-                            colors = FilterChipDefaults.filterChipColors(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                         FilterChip(
                             selected = soundMode == 1,
                             onClick = { onSoundChange(1) },
                             label = { Text(stringResource(R.string.sound_vibrate)) },
-                            leadingIcon = { if (soundMode == 1) Icon(Icons.Filled.Check, null) },
+                            leadingIcon = { if(soundMode == 1) Icon(Icons.Filled.Check, null) },
                             shapes = FilterChipDefaults.shapes(),
-                            colors = FilterChipDefaults.filterChipColors(),
+                            colors = FilterChipDefaults.filterChipColors()
                         )
                     }
                 }

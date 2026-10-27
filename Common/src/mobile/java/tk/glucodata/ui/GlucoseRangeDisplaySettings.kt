@@ -303,28 +303,28 @@ private fun GlucoseRangeSliderRow(
     isMmol: Boolean,
     colorBand: Band? = null,
     onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
+    onValueChangeFinished: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             AdaptiveTrailingRow(
+                spacing = 0.dp,
                 trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = formatRangeValue(value, isMmol),
-                            style =
-                                MaterialTheme.typography.titleLargeEmphasized.copy(
-                                    fontFeatureSettings = "tnum"
-                                ),
+                    Text(
+                        text = formatRangeValue(value, isMmol),
+                        style = MaterialTheme.typography.titleLargeEmphasized.copy(
+                            fontFeatureSettings = "tnum"
                         )
-                    }
+                    )
                 }
             ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Slider(
@@ -332,7 +332,7 @@ private fun GlucoseRangeSliderRow(
                 onValueChange = onValueChange,
                 onValueChangeFinished = onValueChangeFinished,
                 valueRange = bounds,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
             )
         }
         colorBand?.let { band ->

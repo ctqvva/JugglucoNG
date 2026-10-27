@@ -171,7 +171,7 @@ fun AiDexScanStep(
     ui: WizardUiMetrics,
     onNavigateToReadiness: () -> Unit,
     onManageKeys: () -> Unit,
-    onDeviceSelected: (String, String) -> Unit,
+    onDeviceSelected: (String, String) -> Unit
 ) {
     data class ScanCandidate(
         val address: String,
@@ -192,23 +192,21 @@ fun AiDexScanStep(
     var requestedPermissionOnce by remember { mutableStateOf(false) }
     var showAllDevices by remember { mutableStateOf(false) }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestMultiplePermissions()
-        ) {
-            scanPermissionGranted = hasBleScanPermissions(context)
-            bluetoothEnabled = scanner.isBluetoothEnabled()
-            scanError = null
-            scanRetryKey += 1
-        }
-    val enableBluetoothLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) {
-            bluetoothEnabled = scanner.isBluetoothEnabled()
-            scanError = null
-            scanRetryKey += 1
-        }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        scanPermissionGranted = hasBleScanPermissions(context)
+        bluetoothEnabled = scanner.isBluetoothEnabled()
+        scanError = null
+        scanRetryKey += 1
+    }
+    val enableBluetoothLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        bluetoothEnabled = scanner.isBluetoothEnabled()
+        scanError = null
+        scanRetryKey += 1
+    }
 
     val requestScanPermission = {
         val required = requiredBleScanPermissions()
@@ -237,60 +235,48 @@ fun AiDexScanStep(
         scanner.startScan(
             onResult = { result ->
                 val device = result.device
-                val address =
-                    try {
-                        device.address
+                val address = try {
+                    device.address
+                } catch (_: SecurityException) {
+                    null
+                } ?: return@startScan
+                val record = result.scanRecord
+                val candidate = detectAiDexCandidate(
+                    address = address,
+                    deviceName = try {
+                        device.name
                     } catch (_: SecurityException) {
                         null
-                    } ?: return@startScan
-                val record = result.scanRecord
-                val candidate =
-                    detectAiDexCandidate(
-                        address = address,
-                        deviceName =
-                            try {
-                                device.name
-                            } catch (_: SecurityException) {
-                                null
-                            },
-                        scanRecordName = record?.deviceName,
-                        scanRecordBytes = record?.bytes,
-                        advertisedServiceUuids = record?.serviceUuids?.map { it.uuid },
-                    )
+                    },
+                    scanRecordName = record?.deviceName,
+                    scanRecordBytes = record?.bytes,
+                    advertisedServiceUuids = record?.serviceUuids?.map { it.uuid }
+                )
 
                 if (!showAllDevices && !candidate.isLikelyAiDex) return@startScan
-                val next =
-                    ScanCandidate(
-                        address = address,
-                        rawName = candidate.displayName,
-                        selectionName = candidate.selectionName,
-                        serial = candidate.serial,
-                        isLikelyAiDex = candidate.isLikelyAiDex,
-                        detectedViaFf30 = candidate.detectedViaFf30,
-                    )
+                val next = ScanCandidate(
+                    address = address,
+                    rawName = candidate.displayName,
+                    selectionName = candidate.selectionName,
+                    serial = candidate.serial,
+                    isLikelyAiDex = candidate.isLikelyAiDex,
+                    detectedViaFf30 = candidate.detectedViaFf30,
+                )
                 val existing = devices.firstOrNull { it.address == address }
-                devices =
-                    if (existing == null) {
-                        devices + next
-                    } else {
-                        val preferNextIdentity = next.serial != null && existing.serial == null
-                        devices.map { current ->
-                            if (current.address != address) current
-                            else
-                                current.copy(
-                                    rawName =
-                                        if (preferNextIdentity) next.rawName else current.rawName,
-                                    selectionName =
-                                        if (preferNextIdentity) next.selectionName
-                                        else current.selectionName,
-                                    serial =
-                                        if (preferNextIdentity) next.serial else current.serial,
-                                    isLikelyAiDex = current.isLikelyAiDex || next.isLikelyAiDex,
-                                    detectedViaFf30 =
-                                        current.detectedViaFf30 || next.detectedViaFf30,
-                                )
-                        }
+                devices = if (existing == null) {
+                    devices + next
+                } else {
+                    val preferNextIdentity = next.serial != null && existing.serial == null
+                    devices.map { current ->
+                        if (current.address != address) current else current.copy(
+                            rawName = if (preferNextIdentity) next.rawName else current.rawName,
+                            selectionName = if (preferNextIdentity) next.selectionName else current.selectionName,
+                            serial = if (preferNextIdentity) next.serial else current.serial,
+                            isLikelyAiDex = current.isLikelyAiDex || next.isLikelyAiDex,
+                            detectedViaFf30 = current.detectedViaFf30 || next.detectedViaFf30,
+                        )
                     }
+                }
             },
             onError = { error ->
                 scanError = error
@@ -299,136 +285,124 @@ fun AiDexScanStep(
                     BleDeviceScanner.ScanStartError.BluetoothDisabled -> bluetoothEnabled = false
                     else -> Unit
                 }
-            },
+            }
         )
         onDispose { scanner.stopScan() }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                PaddingValues(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
-            verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
-        ) {
-            item {
-                tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
-            }
-            item {
-                ScanFilterHeader(
-                    title = stringResource(R.string.aidex_searching_sensors),
-                    showAllDevices = showAllDevices,
-                    onToggleFilter = { showAllDevices = !showAllDevices },
-                )
-            }
-            if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            val messageRes =
-                                when {
-                                    !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 ->
-                                        R.string.turn_on_nearby_devices_permission
-                                    !scanPermissionGranted -> R.string.turn_on_location_permission
-                                    !bluetoothEnabled ||
-                                        scanError is
-                                            BleDeviceScanner.ScanStartError.BluetoothDisabled ->
-                                        R.string.bluetooth_is_turned_off
-                                    else -> R.string.nobluetooth
+        tk.glucodata.ui.CgmReadinessSetupBanner(
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
+            onOpenReadiness = onNavigateToReadiness
+        )
+        Spacer(Modifier.height(ui.spacerMedium))
+        ScanFilterHeader(
+            title = stringResource(R.string.aidex_searching_sensors),
+            showAllDevices = showAllDevices,
+            onToggleFilter = { showAllDevices = !showAllDevices },
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+        )
+        if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
+            Spacer(Modifier.height(ui.spacerMedium))
+            Card(
+                modifier = Modifier
+                    .padding(horizontal = ui.horizontalPadding)
+                    .fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val messageRes = when {
+                        !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
+                        !scanPermissionGranted -> R.string.turn_on_location_permission
+                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
+                        else -> R.string.nobluetooth
+                    }
+                    Text(
+                        text = stringResource(messageRes),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(ui.spacerMedium))
+                    val buttonRes = when {
+                        !scanPermissionGranted -> R.string.permission
+                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
+                        else -> R.string.search_bluetooth
+                    }
+                    Button(
+                        onClick = {
+                            when {
+                                !scanPermissionGranted -> requestScanPermission()
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
+                                    enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                                 }
-                            Text(
-                                text = stringResource(messageRes),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(Modifier.height(ui.spacerMedium))
-                            val buttonRes =
-                                when {
-                                    !scanPermissionGranted -> R.string.permission
-                                    !bluetoothEnabled ||
-                                        scanError is
-                                            BleDeviceScanner.ScanStartError.BluetoothDisabled ->
-                                        R.string.enable_bluetooth
-                                    else -> R.string.search_bluetooth
+                                else -> {
+                                    scanError = null
+                                    scanPermissionGranted = hasBleScanPermissions(context)
+                                    bluetoothEnabled = scanner.isBluetoothEnabled()
+                                    scanRetryKey += 1
                                 }
-                            Button(
-                                onClick = {
-                                    when {
-                                        !scanPermissionGranted -> requestScanPermission()
-                                        !bluetoothEnabled ||
-                                            scanError is
-                                                BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
-                                            enableBluetoothLauncher.launch(
-                                                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                                            )
-                                        }
-                                        else -> {
-                                            scanError = null
-                                            scanPermissionGranted = hasBleScanPermissions(context)
-                                            bluetoothEnabled = scanner.isBluetoothEnabled()
-                                            scanRetryKey += 1
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.heightIn(min = ui.buttonHeight),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding,
-                            ) {
-                                Text(stringResource(buttonRes))
                             }
-                        }
+                        },
+                        modifier = Modifier.heightIn(min = ui.buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
+                    ) {
+                        Text(stringResource(buttonRes))
                     }
                 }
             }
-            items(devices.filter { showAllDevices || it.isLikelyAiDex }) { device ->
+        }
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(devices) { device ->
                 val name = device.rawName.ifBlank { stringResource(R.string.unknown) }
                 val serial = device.serial
+
+                // If we're in "sensors only" mode, skip non-matching devices.
+                if (!showAllDevices && !device.isLikelyAiDex) return@items
 
                 val canSelect = device.isLikelyAiDex || showAllDevices
 
                 ListItem(
-                    headlineContent = { Text(if (serial != null) "$name ($serial)" else name) },
+                    headlineContent = {
+                        Text(
+                            if (serial != null) "$name ($serial)" else name
+                        )
+                    },
                     supportingContent = {
                         Text(
                             when {
                                 serial != null -> device.address
-                                device.detectedViaFf30 ->
-                                    stringResource(R.string.aidex_detected_via_ff30, device.address)
-                                device.isLikelyAiDex ->
-                                    stringResource(
-                                        R.string.aidex_selectable_unrecognized,
-                                        device.address,
-                                    )
-                                else ->
-                                    stringResource(R.string.aidex_not_recognized, device.address)
+                                device.detectedViaFf30 -> stringResource(R.string.aidex_detected_via_ff30, device.address)
+                                device.isLikelyAiDex -> stringResource(R.string.aidex_selectable_unrecognized, device.address)
+                                else -> stringResource(R.string.aidex_not_recognized, device.address)
                             }
                         )
                     },
                     leadingContent = { Icon(Icons.Default.Bluetooth, null) },
-                    modifier =
-                        Modifier.clickable(enabled = canSelect) {
-                            onDeviceSelected(device.selectionName, device.address)
-                        },
+                    modifier = Modifier.clickable(enabled = canSelect) {
+                        onDeviceSelected(
+                            device.selectionName,
+                            device.address,
+                        )
+                    }
                 )
                 HorizontalDivider()
             }
-            item {
-                SettingsItem(
-                    title = stringResource(R.string.aidex_key_management_title),
-                    subtitle = stringResource(R.string.aidex_key_management_entry_desc),
-                    icon = Icons.Default.Key,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    position = CardPosition.SINGLE,
-                    onClick = onManageKeys,
-                )
-            }
         }
+        SettingsItem(
+            title = stringResource(R.string.aidex_key_management_title),
+            subtitle = stringResource(R.string.aidex_key_management_entry_desc),
+            icon = Icons.Default.Key,
+            iconTint = MaterialTheme.colorScheme.primary,
+            position = CardPosition.SINGLE,
+            onClick = onManageKeys,
+            modifier = Modifier
+                .padding(
+                    start = ui.horizontalPadding,
+                    end = ui.horizontalPadding,
+                    bottom = ui.spacerMedium,
+                ),
+        )
     }
 }
 

@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -75,11 +77,23 @@ fun <T> ConnectedButtonGroup(
     selectedContentColorFor: ((T) -> Color)? = null,
     iconTint: ((T, Boolean) -> Color)? = null,
 ) {
+    // A button's intrinsic height never reports less than its own minimum or its touch target,
+    // so only a need above both says the label itself is taller.
+    val touchTarget = LocalMinimumInteractiveComponentSize.current.takeIf { it.isSpecified } ?: 0.dp
+    val intrinsicFloor = maxOf(ToggleButtonDefaults.MinHeight, touchTarget)
     Row(
         modifier = modifier
             .selectableGroup()
-            .heightIn(min = itemHeight)
-            .height(IntrinsicSize.Min),
+            .layout { measurable, constraints ->
+                // itemHeight as a fixed height, as before, unless a label needs more (large fonts).
+                val floor = itemHeight.roundToPx()
+                val needed = measurable.minIntrinsicHeight(constraints.maxWidth)
+                val height = constraints.constrainHeight(
+                    if (needed > intrinsicFloor.roundToPx()) maxOf(floor, needed) else floor
+                )
+                val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
         horizontalArrangement = Arrangement.spacedBy(spacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -158,6 +172,7 @@ fun <T> ConnectedButtonGroup(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .fillMaxHeight()
                         .onSizeChanged { availableWidthPx = it.width }
                         .padding(horizontal = 2.dp),
                     horizontalArrangement = Arrangement.Center,

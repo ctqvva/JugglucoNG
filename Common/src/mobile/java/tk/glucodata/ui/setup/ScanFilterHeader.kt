@@ -8,13 +8,22 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import tk.glucodata.R
 import tk.glucodata.ui.components.AdaptiveTrailingRow
 
+/** "Searching for sensors…" with the sensors-only / all-devices filter beside it. */
 @Composable
-internal fun ScanFilterHeader(title: String, showAllDevices: Boolean, onToggleFilter: () -> Unit) {
+internal fun ScanFilterHeader(
+    title: String,
+    showAllDevices: Boolean,
+    modifier: Modifier = Modifier,
+    onToggleFilter: () -> Unit,
+) {
     AdaptiveTrailingRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
+        // The text button's own padding is the gap.
+        spacing = 0.dp,
         trailingContent = {
             TextButton(
                 onClick = onToggleFilter,

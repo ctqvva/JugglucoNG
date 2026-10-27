@@ -2285,27 +2285,25 @@ private fun OttaiBleScanPanel(
         if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth(),
+            spacing = 0.dp,
             trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(
-                        onClick = {
-                            scanStats = emptyMap()
-                            scanError = null
-                            scanPermissionGranted = hasBleScanPermissions(context)
-                            bluetoothEnabled = scanner.isBluetoothEnabled()
-                            scanRetryKey += 1
-                        },
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        Text(stringResource(R.string.search_bluetooth))
-                    }
+                OutlinedButton(
+                    onClick = {
+                        scanStats = emptyMap()
+                        scanError = null
+                        scanPermissionGranted = hasBleScanPermissions(context)
+                        bluetoothEnabled = scanner.isBluetoothEnabled()
+                        scanRetryKey += 1
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    Text(stringResource(R.string.search_bluetooth))
                 }
             },
         ) {
             Text(
                 stringResource(R.string.ottai_ble_scan_title),
-                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
