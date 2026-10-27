@@ -540,6 +540,42 @@ object OttaiCloudClient {
     fun validateByMac(ctx: Context, mac: String): DeviceResp? =
         validateForSetup(ctx, mac)?.device?.takeIf { it.keyA.isNotBlank() }
 
+    internal data class SensorIdLookup(val sensorId: String?, val failure: CloudFailure? = null)
+
+    /** Read-only box-serial lookup. A serial must never be used as a cloud MAC or BLE address. */
+    internal fun resolveSetupSensorId(ctx: Context, input: String): SensorIdLookup {
+        val apiBase = base(ctx)
+        return resolveSetupSensorId(input, apiBase) { path, body ->
+            requestWithResult("POST", apiBase + path, body.toString(),
+                headers(ctx, now(), apiBase) + ("Content-Type" to "application/json;charset=UTF-8"))
+        }
+    }
+
+    internal fun resolveSetupSensorId(
+        input: String,
+        apiBase: String,
+        lookup: (String, JSONObject) -> CloudRequestResult,
+    ): SensorIdLookup {
+        val code = OttaiConstants.extractSetupCode(input)
+        if (OttaiConstants.looksLikeMac(code)) return SensorIdLookup(OttaiConstants.canonicalSensorId(code))
+        if (!OttaiConstants.isBoxSerial(code)) return SensorIdLookup(null, CloudFailure("sensor_code_invalid"))
+        // CN 1.63 builder 0x8fa9dc: POST {mac, colorBoxTailSn}; response data.mac.
+        // The global 1.33 client names the corresponding route getDeviceMacOrSnInfo2.
+        val paths = if (apiBase == OttaiConstants.API_BASE) listOf(OttaiConstants.EP_MAC_OR_SN_INFO)
+            else listOf(OttaiConstants.EP_MAC_OR_SN_INFO_V2, OttaiConstants.EP_MAC_OR_SN_INFO)
+        for ((index, path) in paths.withIndex()) {
+            val result = lookup(path, JSONObject().put("mac", JSONObject.NULL).put("colorBoxTailSn", code))
+            if (result.failure != null) {
+                if (result.failure.httpStatus == 404 && index < paths.lastIndex) continue
+                return SensorIdLookup(null, result.failure)
+            }
+            val mac = result.body?.optJSONObject("data")?.optString("mac")
+            if (OttaiConstants.looksLikeMac(mac)) return SensorIdLookup(OttaiConstants.canonicalSensorId(mac))
+            return SensorIdLookup(null, CloudFailure("sensor_lookup_invalid_response"))
+        }
+        return SensorIdLookup(null, CloudFailure("sensor_lookup_failed"))
+    }
+
     /**
      * Read-only validation. Existing sensors retain the proven V2 GET flow. Current CN firmware
      * answers V2 with AppDevice_Upgrade_Version, and Syai no longer routes V2 at all; both require

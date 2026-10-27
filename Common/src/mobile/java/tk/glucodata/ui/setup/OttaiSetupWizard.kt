@@ -618,6 +618,35 @@ fun OttaiSetupWizard(
 
     LaunchedEffect(cloudId, signedIn, savedRefresh, materialRefresh) {
         val canonical = OttaiConstants.canonicalSensorId(cloudId)
+        if (OttaiConstants.isBoxSerial(canonical)) {
+            currentMaterials = null
+            if (signedIn && lastAutoFetchId != canonical) {
+                materialLoading = true
+                status = ""
+                val resolved = withContext(Dispatchers.IO) {
+                    OttaiCloudClient.resolveSetupSensorId(context, canonical)
+                }
+                // This effect is cancelled when selection or sign-in changes. Never apply a
+                // completed lookup to another selection, or persist materials under the serial.
+                if (OttaiConstants.canonicalSensorId(cloudId) == canonical && signedIn) {
+                    materialLoading = false
+                    if (resolved.sensorId != null) {
+                        cloudId = resolved.sensorId
+                        bleAddress = ""
+                        selectedAccountDevice = null
+                        selectedDeviceVersion = ""
+                        lastAutoFetchId = ""
+                    } else {
+                        lastAutoFetchId = canonical
+                        status = ottaiMaterialFailureMessage(context, resolved.failure)
+                        if (resolved.failure?.isTokenInvalid == true) invalidateSession()
+                    }
+                }
+            } else {
+                materialLoading = false
+            }
+            return@LaunchedEffect
+        }
         if (!OttaiConstants.looksLikeMac(canonical)) {
             currentMaterials = null
             materialLoading = false
@@ -996,8 +1025,9 @@ fun OttaiSetupWizard(
                         ?.let { OttaiRegistry.loadAcceptedMaxActive(context, it) } ?: 0L
                     val materialState = ottaiMaterialState(currentMaterials, recoveredStartMs, activatedLifetimeMs)
                     val hasSensorCode = OttaiConstants.looksLikeMac(cloudId)
+                    val needsSerialLookup = OttaiConstants.isBoxSerial(cloudId)
                     val hasMaterials = currentMaterials?.authKeys != null
-                    val canConnect = hasSensorCode && (signedIn || hasMaterials)
+                    val canConnect = (hasSensorCode && (signedIn || hasMaterials)) || (needsSerialLookup && signedIn)
                     val cloudUnbindTarget = ottaiActiveCloudUnbindTarget(cloudId, devices)
                     val cloudBindingState = ottaiCloudBindingUiState(
                         signedIn = signedIn,
@@ -1538,7 +1568,7 @@ fun OttaiSetupWizard(
                         OttaiSensorMaterialCard(
                             cloudId = cloudId,
                             onCloudIdChange = {
-                                val next = OttaiConstants.extractMacFromQr(it) ?: it.trim()
+                                val next = OttaiConstants.extractSetupCode(it) ?: it.trim()
                                 if (next != cloudId) {
                                     cloudId = next
                                     selectedDeviceVersion = ""
@@ -1561,9 +1591,15 @@ fun OttaiSetupWizard(
                         InlineQrScannerCard(
                             modifier = Modifier.fillMaxWidth().height(180.dp),
                             onScanResult = { raw ->
-                                OttaiConstants.extractMacFromQr(raw)?.let { id ->
+                                val scanned = OttaiConstants.extractSetupCode(raw)
+                                scanned?.let { id ->
                                     cloudId = id
                                     selectedDeviceVersion = ""
+                                    if (OttaiConstants.isBoxSerial(id)) {
+                                        lastAutoFetchId = ""
+                                        materialRefresh += 1
+                                        return@let
+                                    }
                                     val hasLocal = OttaiRegistry.loadMaterials(context, id).authKeys != null
                                     if (ottaiSetupSelectionFetchesCredentials(hasLocal, signedIn)) {
                                         lastAutoFetchId = id
@@ -1574,17 +1610,22 @@ fun OttaiSetupWizard(
                                         materialRefresh += 1
                                     }
                                 }
-                                true
+                                scanned != null
                             },
                         )
                         Button(
-                            onClick = { startConnect(cloudId, bleAddress, true) },
+                            onClick = {
+                                if (needsSerialLookup) {
+                                    lastAutoFetchId = ""
+                                    materialRefresh += 1
+                                } else startConnect(cloudId, bleAddress, true)
+                            },
                             enabled = !busy && !materialLoading && canConnect,
                             modifier = Modifier.fillMaxWidth(),
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
                         ) {
-                            Text(stringResource(connectTitleRes))
+                            Text(stringResource(if (needsSerialLookup) R.string.search else connectTitleRes))
                         }
                         HorizontalDivider()
                         if (busy) LoadingIndicator()

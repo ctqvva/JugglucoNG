@@ -2139,7 +2139,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Conectado</string>
     <string name="ottai_session_invalid">A sessão na nuvem já não é válida – inicie sessão novamente</string>
     <string name="ottai_account_id">Conta: %1$s</string>
-    <string name="ottai_sensor_mac_hint">ID do dispositivo na nuvem (12 hex ou QR)</string>
+    <string name="ottai_sensor_mac_hint">ID do dispositivo, número de série ou QR</string>
     <string name="ottai_connect_saved">Conectar</string>
     <string name="ottai_login_fail">Falha ao entrar - verifique telefone/código</string>
     <string name="ottai_connect_saved_fail">Nenhum material da conta ou salvo para este ID na nuvem</string>

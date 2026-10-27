@@ -2158,7 +2158,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_already_signed_in">Нэвтэрсэн</string>
     <string name="ottai_session_invalid">Таны клауд сесс хүчингүй болсон – дахин нэвтэрнэ үү</string>
     <string name="ottai_account_id">Бүртгэл: %1$s</string>
-    <string name="ottai_sensor_mac_hint">Cloud төхөөрөмжийн ID (12 hex эсвэл QR)</string>
+    <string name="ottai_sensor_mac_hint">Төхөөрөмжийн ID, серийн дугаар эсвэл QR</string>
     <string name="ottai_connect_saved">Холбох</string>
     <string name="ottai_login_fail">Нэвтрэх амжилтгүй - утас/кодоо шалгана уу</string>
     <string name="ottai_connect_saved_fail">Энэ cloud ID-д аккаунт эсвэл хадгалсан материал алга</string>

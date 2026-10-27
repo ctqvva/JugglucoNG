@@ -2173,7 +2173,7 @@
     <string name="ottai_already_signed_in">Zalogowano</string>
     <string name="ottai_session_invalid">Sesja w chmurze wygasła – zaloguj się ponownie</string>
     <string name="ottai_account_id">Konto: %1$s</string>
-    <string name="ottai_sensor_mac_hint">ID urządzenia w chmurze (12 znaków hex lub QR)</string>
+    <string name="ottai_sensor_mac_hint">ID urządzenia, numer seryjny lub QR</string>
     <string name="ottai_connect_saved">Połącz</string>
     <string name="ottai_login_fail">Logowanie nieudane - sprawdź telefon/kod</string>
     <string name="ottai_connect_saved_fail">Brak materiałów z konta lub zapisanych dla tego ID w chmurze</string>

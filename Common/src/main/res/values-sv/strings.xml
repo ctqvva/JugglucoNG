@@ -2138,7 +2138,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Inloggad</string>
     <string name="ottai_session_invalid">Din molnsession är inte längre giltig – logga in igen</string>
     <string name="ottai_account_id">Konto: %1$s</string>
-    <string name="ottai_sensor_mac_hint">Moln-enhets-ID (12 hex eller QR)</string>
+    <string name="ottai_sensor_mac_hint">Enhets-ID, serienummer eller QR</string>
     <string name="ottai_connect_saved">Anslut</string>
     <string name="ottai_login_fail">Inloggning misslyckades - kontrollera telefon/kod</string>
     <string name="ottai_connect_saved_fail">Inga konto- eller sparade material för detta moln-ID</string>

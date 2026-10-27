@@ -2154,7 +2154,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">已登录</string>
     <string name="ottai_session_invalid">云端会话已失效，请重新登录</string>
     <string name="ottai_account_id">账户：%1$s</string>
-    <string name="ottai_sensor_mac_hint">云端设备 ID（12 位十六进制或二维码）</string>
+    <string name="ottai_sensor_mac_hint">设备 ID、序列号或二维码</string>
     <string name="ottai_connect_saved">连接</string>
     <string name="ottai_login_fail">登录失败 - 请检查手机号/验证码</string>
     <string name="ottai_connect_saved_fail">账号中或本地没有此云端 ID 的材料</string>

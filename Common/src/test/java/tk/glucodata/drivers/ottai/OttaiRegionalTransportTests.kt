@@ -173,6 +173,23 @@ class OttaiRegionalTransportTests {
         assertEquals("001122334455", server.clearBodies.single().getString("mac"))
     }
 
+    @Test fun typedBoxSerialReachesTheEncryptedLookupBeforeAnySensorOperation() {
+        for (base in listOf(OttaiConstants.API_BASE_SYAI, OttaiConstants.API_BASE_GLOBAL)) {
+            val server = Server(base)
+            server.business = JSONObject("""{"code":"OK","data":{"mac":"B4893117F817"}}""")
+            val resolved = OttaiCloudClient.resolveSetupSensorId("X01269290MMR", base) { path, body ->
+                server.request("POST", path.removePrefix(OttaiConstants.PREFIX), body.toString())
+            }
+            assertEquals("B4893117F817", resolved.sensorId)
+            assertEquals(2, server.calls.size)
+            assertTrue(server.calls.last().url.endsWith("/device/getDeviceMacOrSnInfo2"))
+            assertEquals("POST", server.calls.last().method)
+            assertFalse(server.calls.last().body!!.contains("X01269290MMR"))
+            assertEquals("X01269290MMR", server.clearBodies.single().getString("colorBoxTailSn"))
+            assertTrue(server.clearBodies.single().isNull("mac"))
+        }
+    }
+
     @Test fun decryptedBusinessFailuresStillDriveV3ValidationAndAccountRecovery() {
         for (code in listOf(OttaiCloudClient.BIZ_UPGRADE_VERSION, OttaiCloudClient.BIZ_ALREADY_BINDING,
             OttaiCloudClient.BIZ_TOKEN_INVALID)) {

@@ -2337,7 +2337,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_already_signed_in">Angemeldet</string>
     <string name="ottai_session_invalid">Ihre Cloud-Sitzung ist nicht mehr gültig – bitte erneut anmelden</string>
     <string name="ottai_account_id">Konto: %1$s</string>
-    <string name="ottai_sensor_mac_hint">Cloud-Geräte-ID (12 Hex-Zeichen oder QR)</string>
+    <string name="ottai_sensor_mac_hint">Geräte-ID, Seriennummer oder QR</string>
     <string name="ottai_connect_saved">Verbinden</string>
     <string name="ottai_login_fail">Anmeldung fehlgeschlagen - Telefon/Code prüfen</string>
     <string name="ottai_connect_saved_fail">Keine Konto- oder gespeicherten Materialien für diese Cloud-ID</string>

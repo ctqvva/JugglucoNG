@@ -64,6 +64,8 @@ object OttaiConstants {
     const val EP_GET_USER = "$PREFIX/user/getUser"
     const val EP_VALIDATE_BY_MAC = "$PREFIX/device/validateDeviceByMacV2"
     const val EP_VALIDATE_BY_MAC_V3 = "$PREFIX/device/validateDeviceByMacV3"
+    const val EP_MAC_OR_SN_INFO = "$PREFIX/device/getDeviceMacOrSnInfo"
+    const val EP_MAC_OR_SN_INFO_V2 = "$PREFIX/device/getDeviceMacOrSnInfo2"
     const val EP_BIND = "$PREFIX/deviceBind/composite/bind"
     const val EP_BIND_V3 = "$PREFIX/deviceBind/composite/bindV3"
     // Server side of the CN V3 Active_Auth handshake: the app reads authDev/authFlag off the sensor
@@ -90,6 +92,24 @@ object OttaiConstants {
 
     private val MAC_COLON = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)
     private val MAC_PLAIN = Regex("^[0-9A-F]{12}$", RegexOption.IGNORE_CASE)
+    private val BOX_SERIAL = Regex("^[A-Z0-9]{12}$")
+
+    /** Setup accepts a box serial as lookup input; only the resolved MAC is a sensor identity. */
+    fun isBoxSerial(value: String?): Boolean {
+        val code = value?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        return BOX_SERIAL.matches(code) && !looksLikeMac(code)
+    }
+
+    fun extractSetupCode(value: String?): String? {
+        val raw = value?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        if (looksLikeMac(raw)) return canonicalSensorId(raw)
+        if (isBoxSerial(raw)) return raw
+        // The variable-length GS1 serial (AI 21) ends at FNC1, the next parenthesized
+        // application identifier, or the end of the symbol. Read it before GTIN hex heuristics.
+        Regex("(?:\\(21\\)|\\u001D21|^21)([A-Z0-9]{12})(?=$|\\u001D|\\()")
+            .find(raw)?.groupValues?.get(1)?.let { return it }
+        return extractMacFromQr(raw)
+    }
 
     @JvmStatic
     fun isProvisionalSensorId(name: String?): Boolean =

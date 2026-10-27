@@ -83,3 +83,32 @@ skips; Java 21 mobile compilation and Wear Kotlin compilation also passed.
 No real account login,
 registration, sensor operation or account mutation was performed. Successful
 sign-in with the user's account still requires a phone test.
+
+## Typed box serials
+
+The setup text field previously guarded all automatic requests with `looksLikeMac`.
+`B4893117F817` passes that 12-hex check, whereas the typed serial `X01269290MMR`
+does not. The effect returned immediately, leaving no request or failure message.
+
+Setup now accepts a 12-character alphanumeric box serial as lookup input. While
+signed in, typing it starts the vendor's read-only serial-to-MAC request. Only the
+resolved, validated hexadecimal MAC enters the existing material/bootstrap flow;
+the serial is never treated as a BLE address or persisted sensor identity. A failed
+lookup exposes its backend error and can be retried with Search. Cancelling the
+effect or changing selection prevents a late lookup from replacing the new input.
+The field label includes serial numbers in all 16 supported locales.
+
+The CN 1.63 APK's request builder at `0x8fa9dc` constructs
+`/device/getDeviceMacOrSnInfo` with `{mac, colorBoxTailSn}`. Its caller at
+`0x12a37a4` uses the POST wrapper at `0x121807c` and reads `data.mac` from the
+successful response. When resolving a serial, the optional `mac` is null. The
+global 1.33 APK names the corresponding route `/device/getDeviceMacOrSnInfo2`;
+regional lookup tries that route, falling back to the current route only on HTTP
+404. Authentication, business errors and malformed results do not trigger a
+different lookup or provide a usable sensor ID.
+
+Both regional gateways require an account token for these routes: anonymous
+checks returned `AuthFailed_TokenNull`. The actual mapping for the supplied serial
+has therefore not been verified against a signed-in account. The test mapping to
+`B4893117F817` is synthetic. Tests cover direct typed input, existing hex IDs,
+encrypted POST dispatch, response validation, route retirement and backend errors.

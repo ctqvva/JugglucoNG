@@ -2144,7 +2144,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Connecté</string>
     <string name="ottai_session_invalid">Votre session cloud n’est plus valide – reconnectez-vous</string>
     <string name="ottai_account_id">Compte : %1$s</string>
-    <string name="ottai_sensor_mac_hint">ID cloud du dispositif (12 hex ou QR)</string>
+    <string name="ottai_sensor_mac_hint">ID, numéro de série ou QR</string>
     <string name="ottai_connect_saved">Connecter</string>
     <string name="ottai_login_fail">Connexion échouée - vérifiez le téléphone/code</string>
     <string name="ottai_connect_saved_fail">Aucune donnée de compte ou enregistrée pour cet ID cloud</string>

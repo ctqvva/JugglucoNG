@@ -2206,7 +2206,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_already_signed_in">Уваход выкананы</string>
     <string name="ottai_session_invalid">Ваша воблачная сесія больш не дзейнічае – увайдзіце зноў</string>
     <string name="ottai_account_id">Уліковы запіс: %1$s</string>
-    <string name="ottai_sensor_mac_hint">Воблачны ID прылады (12 hex або QR)</string>
+    <string name="ottai_sensor_mac_hint">ID прылады, серыйны нумар або QR</string>
     <string name="ottai_connect_saved">Падключыць</string>
     <string name="ottai_login_fail">Уваход не ўдаўся - праверце тэлефон/код</string>
     <string name="ottai_connect_saved_fail">Няма матэрыялаў у акаўнце або захаваных матэрыялаў для гэтага воблачнага ID</string>
