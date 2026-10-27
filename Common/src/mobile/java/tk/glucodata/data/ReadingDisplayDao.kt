@@ -132,7 +132,8 @@ interface ReadingDisplayDao {
     /**
      * Releases records whose source changed, subject to the display lock.
      * With "Keep displayed values" on, [sealHorizon] protects locked minutes
-     * in SQL just as [reviseIfUnsealed] does. Null means keeping values is off.
+     * in SQL just as [reviseIfUnsealed] does. Null permits deletion regardless
+     * of age (keeping is off, or an explicit source-removal migration).
      * Released minutes are recorded again the next time they are presented.
      */
     @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes) " +

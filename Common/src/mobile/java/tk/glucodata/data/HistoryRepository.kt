@@ -971,7 +971,9 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         )
         if (minutes.isEmpty()) return
         var deleted = 0
-        minutes.chunked(500).forEach { chunk -> deleted += displayDao.deleteAtMinutes(chunk) }
+        // This is the Libre lane migration's removal of an invalid source,
+        // rather than a recalibration/replay of a retained sensor lane.
+        minutes.chunked(500).forEach { chunk -> deleted += displayDao.deleteAtMinutes(chunk, sealHorizon = null) }
         tk.glucodata.Log.i(TAG, "voided $deleted recorded minutes for $roomSerial: history left the Stream lane")
     }
 
@@ -990,7 +992,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     .map { it.timestamp }
                 database.withTransaction {
                     rows.forEach { dao.deleteReadingsAtTimestamp(listOf(roomSerial), it.timestamp) }
-                    recorded.chunked(500).forEach { displayDao.deleteAtMinutes(it) }
+                    recorded.chunked(500).forEach { displayDao.deleteAtMinutes(it, sealHorizon = null) }
                 }
                 tk.glucodata.Log.i(TAG, "removed ${rows.size} history rows left off the Stream lane for $roomSerial")
                 rows.size
