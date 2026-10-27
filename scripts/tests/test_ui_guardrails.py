@@ -29,6 +29,24 @@ class TextControlHeightTests(unittest.TestCase):
             "Button(modifier = Modifier.requiredHeight(buttonHeight)) {}"
         )))
 
+    def test_qualified_material3_control_heights_are_rejected(self):
+        for prefix in ("material3.", "androidx.compose.material3."):
+            for control in (
+                "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton",
+                "TextButton", "ToggleButton", "TextField", "OutlinedTextField",
+            ):
+                with self.subTest(prefix=prefix, control=control):
+                    self.assertEqual(1, len(self.hits(
+                        f"{prefix}{control}(modifier = Modifier.height(48.dp)) {{}}"
+                    )))
+
+    def test_other_qualified_receivers_are_not_material3_controls(self):
+        for prefix in ("custom.", "androidx.wear.compose.material3x.", "othermaterial3x."):
+            with self.subTest(prefix=prefix):
+                self.assertEqual([], self.hits(
+                    f"{prefix}Button(modifier = Modifier.height(48.dp)) {{}}"
+                ))
+
     def test_minimum_and_intrinsic_heights_can_grow(self):
         self.assertEqual([], self.hits(
             "Button(modifier = Modifier.heightIn(min = 48.dp).height(IntrinsicSize.Min)) {}"

@@ -399,8 +399,7 @@ private fun MQScanStep(
                     onToggleFilter = { showAllDevices = !showAllDevices },
                 )
             }
-            items(devices) { device ->
-                if (!showAllDevices && !device.isLikelyMq) return@items
+            items(devices.filter { showAllDevices || it.isLikelyMq }) { device ->
                 val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
                 val supporting = when {
                     device.advertisesNus -> stringResource(R.string.mq_detected_label, device.address)

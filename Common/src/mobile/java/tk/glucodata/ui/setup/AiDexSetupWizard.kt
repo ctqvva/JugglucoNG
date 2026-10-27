@@ -386,12 +386,9 @@ fun AiDexScanStep(
                     }
                 }
             }
-            items(devices) { device ->
+            items(devices.filter { showAllDevices || it.isLikelyAiDex }) { device ->
                 val name = device.rawName.ifBlank { stringResource(R.string.unknown) }
                 val serial = device.serial
-
-                // If we're in "sensors only" mode, skip non-matching devices.
-                if (!showAllDevices && !device.isLikelyAiDex) return@items
 
                 val canSelect = device.isLikelyAiDex || showAllDevices
 

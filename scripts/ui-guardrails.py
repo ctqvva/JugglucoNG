@@ -98,7 +98,7 @@ def fixed_text_control_height(text, path):
     """
     hits = []
     calls = re.finditer(
-        r"(?<![\w.])(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton|"
+        r"(?:(?<![\w.])|(?<=material3\.))(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton|"
         r"ToggleButton|TextField|OutlinedTextField)\s*\(", text
     )
     for call in calls:

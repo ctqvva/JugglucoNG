@@ -380,8 +380,7 @@ private fun AnytimeScanStep(
                     onToggleFilter = { showAllDevices = !showAllDevices },
                 )
             }
-            items(devices) { device ->
-                if (!showAllDevices && !device.isLikelyAnytime) return@items
+            items(devices.filter { showAllDevices || it.isLikelyAnytime }) { device ->
                 val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
                 val supporting = when {
                     device.familyEntry.family != AnytimeConstants.Family.UNKNOWN ->
