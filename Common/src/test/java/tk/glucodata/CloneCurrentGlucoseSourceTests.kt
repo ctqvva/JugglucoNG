@@ -116,6 +116,53 @@ class CloneCurrentGlucoseSourceTests {
     }
 
     @Test
+    fun takenOverSensorKeepsTheFresherMirroredReadingUntilBluetoothReads() {
+        val mirrored = snapshot()
+        val retained = snapshot(time = latestTime - 120_000L, value = 3.4f, source = "callback")
+
+        val current = CurrentGlucoseSource.resolveForOwnership(
+            isCloneSensor = false,
+            targetSensorId = sensorId,
+            readNative = { mirrored },
+            readLocal = { retained },
+            isTakenOver = true
+        )
+
+        assertSame(mirrored, current)
+    }
+
+    @Test
+    fun takenOverSensorMovesToItsOwnReadingOnceItIsNewer() {
+        val mirrored = snapshot(time = latestTime - 60_000L)
+        val own = snapshot(value = 3.1f, source = "callback")
+
+        val current = CurrentGlucoseSource.resolveForOwnership(
+            isCloneSensor = false,
+            targetSensorId = sensorId,
+            readNative = { mirrored },
+            readLocal = { own },
+            isTakenOver = true
+        )
+
+        assertSame(own, current)
+    }
+
+    @Test
+    fun takenOverSensorIgnoresAnotherSensorsLocalReading() {
+        val mirrored = snapshot(time = latestTime - 60_000L)
+
+        val current = CurrentGlucoseSource.resolveForOwnership(
+            isCloneSensor = false,
+            targetSensorId = sensorId,
+            readNative = { mirrored },
+            readLocal = { snapshot(sensor = "another-sensor", value = 8.0f) },
+            isTakenOver = true
+        )
+
+        assertSame(mirrored, current)
+    }
+
+    @Test
     fun localSensorKeepsExistingSourceResolution() {
         val managed = snapshot(source = "managed").copy(rawNumericValue = 4.0f)
         val current = CurrentGlucoseSource.resolveForOwnership(

@@ -66,11 +66,13 @@ object CurrentGlucoseSource {
     fun getFresh(maxAgeMillis: Long, preferredSensorId: String?): Snapshot? {
         val now = System.currentTimeMillis()
         val targetSensor = preferredSensorId ?: SensorIdentity.resolveMainSensor()
+        val isCloneSensor = CloneSensorRegistry.isCloneSensor(targetSensor)
         return resolveForOwnership(
-            isCloneSensor = CloneSensorRegistry.isCloneSensor(targetSensor),
+            isCloneSensor = isCloneSensor,
             targetSensorId = targetSensor,
             readNative = { getFromNative(now, maxAgeMillis, targetSensor) },
-            readLocal = { getFromLocalOrNative(now, maxAgeMillis, targetSensor, preferredSensorId) }
+            readLocal = { getFromLocalOrNative(now, maxAgeMillis, targetSensor, preferredSensorId) },
+            isTakenOver = !isCloneSensor && CloneSensorRegistry.isTakenOver(targetSensor)
         )
     }
 
@@ -78,12 +80,23 @@ object CurrentGlucoseSource {
         isCloneSensor: Boolean,
         targetSensorId: String?,
         readNative: () -> Snapshot?,
-        readLocal: () -> Snapshot?
+        readLocal: () -> Snapshot?,
+        isTakenOver: Boolean = false
     ): Snapshot? {
         // Clone updates native history, not the paused local driver's current cache.
         // Bypass both local source priority and raw-lane enrichment from that driver.
         if (isCloneSensor) {
             return readNative()?.takeIf { SensorIdentity.matches(it.sensorId, targetSensorId) }
+        }
+        if (isTakenOver) {
+            // Taking a mirrored sensor over clears its Clone flag before this phone
+            // has read anything, and the mirror keeps importing into the sensor's
+            // own native history. Whichever is newer is current: the local driver's
+            // last value can predate the handover, and the untargeted local lookup
+            // can belong to another sensor.
+            val mirrored = readNative()?.takeIf { SensorIdentity.matches(it.sensorId, targetSensorId) }
+            val local = readLocal()?.takeIf { SensorIdentity.matches(it.sensorId, targetSensorId) }
+            return listOfNotNull(local, mirrored).maxByOrNull { it.timeMillis }
         }
         return readLocal()
     }

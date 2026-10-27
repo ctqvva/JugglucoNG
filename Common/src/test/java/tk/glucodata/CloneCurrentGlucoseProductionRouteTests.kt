@@ -3,6 +3,7 @@ package tk.glucodata
 import android.content.Context
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -158,6 +159,51 @@ class CloneCurrentGlucoseProductionRouteTests {
     }
 
     @Test
+    fun takingOverKeepsTheFresherMirroredReadingInsteadOfTheRetainedCallback() {
+        registerClone(selected)
+        CloneCurrentNativeInputs.snapshotKind = SensorSourceResolver.SENSOR_KIND_LIBRE2
+        assertTrue(CloneSensorRegistry.takeOver(selected))
+        CloneCurrentNativeInputs.readings[selected] = nativeReading()
+        CloneCurrentNativeInputs.global = nativeReading()
+
+        val current = requireNotNull(CurrentGlucoseSource.getFresh(60_000L, selected))
+
+        assertEquals("native", current.source)
+        assertEquals(2.7f, current.numericValue, 0.001f)
+    }
+
+    @Test
+    fun takenOverSelectedSensorResolvesWhenGlobalReadingBelongsToPeer() {
+        registerClone(selected)
+        registerClone(peer)
+        CloneCurrentNativeInputs.snapshotKind = SensorSourceResolver.SENSOR_KIND_LIBRE2
+        assertTrue(CloneSensorRegistry.takeOver(selected))
+        retainCallback(peer, now - 1_000L)
+        CloneCurrentNativeInputs.readings[selected] = nativeReading()
+        CloneCurrentNativeInputs.readings[peer] = nativeReading(peer, now - 1_000L, "8.0")
+        CloneCurrentNativeInputs.global = CloneCurrentNativeInputs.readings[peer]
+
+        val current = requireNotNull(CurrentGlucoseSource.getFresh(60_000L, selected))
+
+        assertEquals(selected, current.sensorId)
+        assertEquals(2.7f, current.numericValue, 0.001f)
+    }
+
+    @Test
+    fun aMirroredAiDexWithItsRecordOnThisPhoneCanBeTakenOver() {
+        val aidex = "X-TESTABC1234"
+        registerClone(aidex)
+        assertFalse(CloneSensorRegistry.canTakeOver(aidex))
+
+        Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE).edit()
+            .putStringSet("aidex_sensors", setOf("$aidex|AA:BB:CC:DD:EE:FF"))
+            .commit()
+
+        assertTrue(CloneSensorRegistry.canTakeOver(aidex))
+        assertTrue(CloneSensorRegistry.canTakeOver("TESTABC1234"))
+    }
+
+    @Test
     fun cloneMgdlValueIsNotConvertedAgain() {
         registerClone(selected)
         CloneCurrentNativeInputs.readings[selected] = nativeReading(value = "49")
@@ -188,8 +234,10 @@ class CloneCurrentNativeInputs {
         val readings = linkedMapOf<String, strGlucose>()
         val namedReads = mutableListOf<String>()
         var globalReads = 0
+        var snapshotKind = SensorSourceResolver.SENSOR_KIND_UNKNOWN
 
         fun reset() {
+            snapshotKind = SensorSourceResolver.SENSOR_KIND_UNKNOWN
             selected = null
             global = null
             readings.clear()
@@ -220,5 +268,8 @@ class CloneCurrentNativeInputs {
 
         @JvmStatic @Implementation
         fun resolveFullSensorName(sensor: String?): String? = null
+
+        @JvmStatic @Implementation
+        fun getSensorUiSnapshot(sensor: String?): LongArray = longArrayOf(snapshotKind.toLong(), 0, 0, 0, 0, 0)
     }
 }

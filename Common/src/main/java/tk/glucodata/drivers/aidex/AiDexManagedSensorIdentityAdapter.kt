@@ -98,6 +98,12 @@ object AiDexManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
         return canonical.takeIf { isManagedSensorId(it) }
     }
 
+    override fun hasPersistedManagedRecord(sensorId: String?): Boolean {
+        val normalized = normalized(sensorId) ?: return false
+        val context = Applic.app ?: return false
+        return persistedSensorIds(context).any { matchesCallbackId(it, normalized) }
+    }
+
     override fun persistedSensorIds(context: Context): List<String> {
         return readPersistedEntries(context)
             .mapNotNull { entry ->
