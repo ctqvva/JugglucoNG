@@ -1,6 +1,7 @@
 package tk.glucodata.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -528,47 +529,70 @@ fun AlarmItem(
 }
 
 /**
- * A slider as one row of a settings group, in the same card as the switches around it.
- * The title carries the value ("Font size: 100%").
+ * The controls of one settings section that are not list rows (choices, sliders), together
+ * in one card of the section's group: each a label over its control, at the rows' 16dp
+ * inset. Switches stay rows around it.
  */
 @Composable
-fun SettingsSliderItem(
-    title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    range: ClosedFloatingPointRange<Float>,
-    steps: Int = 0,
+fun SettingsControlsCard(
     position: CardPosition = CardPosition.SINGLE,
     animatePosition: Boolean = false,
     modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        // The slider's touch target already leaves room under the track, so the
-        // bottom padding is half the top's.
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = range,
-                steps = steps,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        // A slider's touch target leaves ~14dp under its track and a choice keeps 12dp
+        // under its buttons, so the bottom padding and the gaps are 8dp, not 16.
+        Column(
+            modifier = Modifier
+                .animateContentSize()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
     }
 }
 
 /**
- * A choice between a few short options as one row of a settings group: the title over a
- * [tk.glucodata.ui.util.ConnectedButtonGroup], coloured like the sensor card's data mode.
- * With [multiSelect], [selectedOptions] holds the checked ones.
+ * A slider in a [SettingsControlsCard]. The title carries the value ("Font size: 100%"),
+ * so the track draws no tick per step: at 10-50 steps they are a row of dots.
  */
 @Composable
-fun <T> SettingsChoiceItem(
+fun SettingsSlider(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int = 0,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = range,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * A choice between a few short options in a [SettingsControlsCard]: the title over a
+ * [tk.glucodata.ui.util.ConnectedButtonGroup]. With [multiSelect], [selectedOptions] holds
+ * the checked ones, which carry a check mark.
+ */
+@Composable
+fun <T> SettingsChoice(
     title: String,
     options: List<T>,
     labels: List<String>,
@@ -576,46 +600,29 @@ fun <T> SettingsChoiceItem(
     selectedOption: T? = null,
     selectedOptions: List<T> = emptyList(),
     multiSelect: Boolean = false,
-    position: CardPosition = CardPosition.SINGLE,
-    animatePosition: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    // The bottom padding matches the room a slider leaves under its track.
+    Column(
+        modifier = modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            tk.glucodata.ui.util.ConnectedButtonGroup(
-                options = options,
-                selectedOption = selectedOption,
-                selectedOptions = selectedOptions,
-                multiSelect = multiSelect,
-                onOptionSelected = onOptionSelected,
-                label = {},
-                labelText = { labels[options.indexOf(it)] },
-                modifier = Modifier.fillMaxWidth(),
-                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                selectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unselectedContentColor = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        tk.glucodata.ui.util.ConnectedButtonGroup(
+            options = options,
+            selectedOption = selectedOption,
+            selectedOptions = selectedOptions,
+            multiSelect = multiSelect,
+            onOptionSelected = onOptionSelected,
+            label = {},
+            labelText = { labels[options.indexOf(it)] },
+            modifier = Modifier.fillMaxWidth(),
+            selectedContainerColor = MaterialTheme.colorScheme.secondary,
+            selectedContentColor = MaterialTheme.colorScheme.onSecondary,
+            unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            unselectedContentColor = MaterialTheme.colorScheme.onSurface
+        )
     }
-}
-
-/**
- * [CardPosition] of the item at [index] in a group of [count] visible rows.
- */
-fun groupPosition(index: Int, count: Int): CardPosition = when {
-    count <= 1 -> CardPosition.SINGLE
-    index == 0 -> CardPosition.TOP
-    index == count - 1 -> CardPosition.BOTTOM
-    else -> CardPosition.MIDDLE
 }
 
 @Composable

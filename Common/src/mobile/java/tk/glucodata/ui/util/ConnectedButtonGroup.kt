@@ -1,6 +1,13 @@
 package tk.glucodata.ui.util
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -46,7 +53,9 @@ import androidx.compose.ui.text.rememberTextMeasurer
  * (ToggleButton swaps them instantly), per-option colours, and labels that step down from
  * labelLarge to labelSmall until every option fits.
  *
- * Each item is a checkable node, so TalkBack reads which option is selected.
+ * Each item is a checkable node, so TalkBack reads which option is selected. In a
+ * [multiSelect] group a text option shows a check mark while selected, so the group reads
+ * as "any of these" rather than "one of these".
  *
  * @param itemHeight Default 40.dp, the M3 small button height
  * @param spacing Default 2.dp, [ButtonGroupDefaults.ConnectedSpaceBetween]
@@ -124,12 +133,13 @@ fun <T> ConnectedButtonGroup(
             ) {
                 var availableWidthPx by remember(option) { mutableIntStateOf(0) }
                 val customIcon = icon?.invoke(option)
+                val showsCheck = multiSelect && customIcon == null && !iconOnly
                 val density = LocalDensity.current
                 val textMeasurer = rememberTextMeasurer()
                 val availableWidth = with(density) { availableWidthPx.toDp() }
                 val labelTextStyle: TextStyle = if (labelText != null && availableWidthPx > 0) {
                     val horizontalPadding = 4.dp
-                    val iconAllowance = if (customIcon != null) 26.dp else 0.dp
+                    val iconAllowance = if (customIcon != null || showsCheck) 26.dp else 0.dp
                     val textWidthPx = with(density) { (availableWidth - horizontalPadding - iconAllowance).coerceAtLeast(24.dp).toPx() }
                     listOf(
                         MaterialTheme.typography.labelLarge,
@@ -161,6 +171,23 @@ fun <T> ConnectedButtonGroup(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (showsCheck) {
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = contentColor
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+                    }
                     if (customIcon != null) {
                         Icon(
                             imageVector = customIcon,

@@ -68,9 +68,9 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.SettingsChoiceItem
-import tk.glucodata.ui.components.SettingsSliderItem
-import tk.glucodata.ui.components.groupPosition
+import tk.glucodata.ui.components.SettingsChoice
+import tk.glucodata.ui.components.SettingsControlsCard
+import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
 private val screenHorizontalPadding = 16.dp
@@ -144,11 +144,8 @@ fun NotificationSettingsScreen(
             topPadding = 0.dp,
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
-        ) {
-            SettingsChoiceItem(
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
                 title = stringResource(R.string.font_source),
                 options = listOf(0, 1),
                 labels = listOf(
@@ -156,11 +153,10 @@ fun NotificationSettingsScreen(
                     stringResource(R.string.font_system_google_sans)
                 ),
                 selectedOption = fontType,
-                onOptionSelected = { fontType = it; save() },
-                position = CardPosition.TOP
+                onOptionSelected = { fontType = it; save() }
             )
             if (showFontWeight) {
-                SettingsChoiceItem(
+                SettingsChoice(
                     title = stringResource(R.string.font_weight_label),
                     options = listOf(300, 400, 500),
                     labels = listOf(
@@ -169,23 +165,20 @@ fun NotificationSettingsScreen(
                         stringResource(R.string.medium)
                     ),
                     selectedOption = fontWeight,
-                    onOptionSelected = { fontWeight = it; save() },
-                    position = CardPosition.MIDDLE
+                    onOptionSelected = { fontWeight = it; save() }
                 )
             }
-            SettingsSliderItem(
+            SettingsSlider(
                 title = stringResource(R.string.font_size_percent, (fontSize * 100).toInt()),
                 value = fontSize,
                 onValueChange = { fontSize = it; save() },
-                range = 0.6f..1.5f,
-                position = CardPosition.MIDDLE
+                range = 0.6f..1.5f
             )
-            SettingsSliderItem(
+            SettingsSlider(
                 title = stringResource(R.string.status_bar_icon_size_percent, (statusIconScale * 100).toInt()),
                 value = statusIconScale,
                 onValueChange = { statusIconScale = it; save() },
-                range = 0f..1.25f,
-                position = CardPosition.BOTTOM
+                range = 0f..1.25f
             )
         }
 
@@ -216,13 +209,14 @@ fun NotificationSettingsScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                SettingsSliderItem(
-                    title = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
-                    value = arrowSize,
-                    onValueChange = { arrowSize = it; save() },
-                    range = 0.5f..1.5f,
-                    position = CardPosition.BOTTOM
-                )
+                SettingsControlsCard(position = CardPosition.BOTTOM) {
+                    SettingsSlider(
+                        title = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
+                        value = arrowSize,
+                        onValueChange = { arrowSize = it; save() },
+                        range = 0.5f..1.5f
+                    )
+                }
             }
         }
 
@@ -518,31 +512,30 @@ fun FloatingGlucoseSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
-            SettingsChoiceItem(
-                title = stringResource(R.string.background),
-                options = listOf(false, true),
-                labels = listOf(stringResource(R.string.filled), stringResource(R.string.transparent)),
-                selectedOption = isTransparent,
-                onOptionSelected = { repository.setTransparent(it) },
-                position = CardPosition.TOP
-            )
-            if (!isTransparent) {
-                SettingsSliderItem(
-                    title = stringResource(R.string.corner_radius_dp, cornerRadius.toInt()),
-                    value = cornerRadius,
-                    onValueChange = { repository.setCornerRadius(it) },
-                    range = 0f..48f,
-                    steps = 24,
-                    position = CardPosition.MIDDLE
+            SettingsControlsCard(position = CardPosition.TOP) {
+                SettingsChoice(
+                    title = stringResource(R.string.background),
+                    options = listOf(false, true),
+                    labels = listOf(stringResource(R.string.filled), stringResource(R.string.transparent)),
+                    selectedOption = isTransparent,
+                    onOptionSelected = { repository.setTransparent(it) }
                 )
-                SettingsSliderItem(
-                    title = stringResource(R.string.background_opacity_percent, (opacity * 100).toInt()),
-                    value = opacity,
-                    onValueChange = { repository.setBackgroundOpacity(it) },
-                    range = 0.1f..1.0f,
-                    steps = 18,
-                    position = CardPosition.MIDDLE
-                )
+                if (!isTransparent) {
+                    SettingsSlider(
+                        title = stringResource(R.string.corner_radius_dp, cornerRadius.toInt()),
+                        value = cornerRadius,
+                        onValueChange = { repository.setCornerRadius(it) },
+                        range = 0f..48f,
+                        steps = 24
+                    )
+                    SettingsSlider(
+                        title = stringResource(R.string.background_opacity_percent, (opacity * 100).toInt()),
+                        value = opacity,
+                        onValueChange = { repository.setBackgroundOpacity(it) },
+                        range = 0.1f..1.0f,
+                        steps = 18
+                    )
+                }
             }
             SettingsSwitchItem(
                 title = stringResource(R.string.use_subtle_outline),
@@ -570,23 +563,23 @@ fun FloatingGlucoseSettingsScreen(
                 animatePosition = true
             )
             if (isDynamicIsland) {
-                SettingsSliderItem(
-                    title = "${stringResource(R.string.offset)}: ${stringResource(R.string.dp_value, verticalOffset.toInt())}",
-                    value = verticalOffset,
-                    onValueChange = { repository.setIslandVerticalOffset(it) },
-                    range = 0f..50f,
-                    steps = 50,
-                    position = CardPosition.MIDDLE
-                )
-                val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
-                SettingsSliderItem(
-                    title = stringResource(R.string.gap_width_value, gapDisplay),
-                    value = manualGap,
-                    onValueChange = { repository.setIslandGap(it) },
-                    range = 0f..200f,
-                    steps = 40,
-                    position = CardPosition.BOTTOM
-                )
+                SettingsControlsCard(position = CardPosition.BOTTOM) {
+                    SettingsSlider(
+                        title = "${stringResource(R.string.offset)}: ${stringResource(R.string.dp_value, verticalOffset.toInt())}",
+                        value = verticalOffset,
+                        onValueChange = { repository.setIslandVerticalOffset(it) },
+                        range = 0f..50f,
+                        steps = 50
+                    )
+                    val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
+                    SettingsSlider(
+                        title = stringResource(R.string.gap_width_value, gapDisplay),
+                        value = manualGap,
+                        onValueChange = { repository.setIslandGap(it) },
+                        range = 0f..200f,
+                        steps = 40
+                    )
+                }
             }
         }
 
@@ -636,27 +629,22 @@ fun FloatingGlucoseSettingsScreen(
             stringResource(R.string.typography),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
-        ) {
-            SettingsChoiceItem(
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
                 title = stringResource(R.string.font_source),
                 options = listOf("APP", "SYSTEM"),
                 labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_sans)),
                 selectedOption = fontSource,
-                onOptionSelected = { repository.setFontSource(it) },
-                position = CardPosition.TOP
+                onOptionSelected = { repository.setFontSource(it) }
             )
-            SettingsSliderItem(
+            SettingsSlider(
                 title = stringResource(R.string.size_sp, fontSize.toInt()),
                 value = fontSize,
                 onValueChange = { repository.setFontSize(it) },
                 range = 12f..48f,
-                steps = 35,
-                position = CardPosition.MIDDLE
+                steps = 35
             )
-            SettingsChoiceItem(
+            SettingsChoice(
                 title = stringResource(R.string.font_weight_label),
                 options = listOf("LIGHT", "REGULAR", "MEDIUM"),
                 labels = listOf(
@@ -665,8 +653,7 @@ fun FloatingGlucoseSettingsScreen(
                     stringResource(R.string.medium)
                 ),
                 selectedOption = fontWeight,
-                onOptionSelected = { repository.setFontWeight(it) },
-                position = CardPosition.BOTTOM
+                onOptionSelected = { repository.setFontWeight(it) }
             )
         }
     }
@@ -761,19 +748,15 @@ fun AodSettingsScreen(navController: NavController) {
             stringResource(R.string.typography),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
-        ) {
-            SettingsChoiceItem(
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
                 title = stringResource(R.string.font_source),
                 options = listOf("APP", "SYSTEM"),
                 labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_google_sans)),
                 selectedOption = fontSource,
-                onOptionSelected = { fontSource = it; save() },
-                position = CardPosition.TOP
+                onOptionSelected = { fontSource = it; save() }
             )
-            SettingsChoiceItem(
+            SettingsChoice(
                 title = stringResource(R.string.font_weight_label),
                 options = listOf(300, 400, 500),
                 labels = listOf(
@@ -782,8 +765,7 @@ fun AodSettingsScreen(navController: NavController) {
                     stringResource(R.string.medium)
                 ),
                 selectedOption = fontWeight,
-                onOptionSelected = { fontWeight = it; save() },
-                position = CardPosition.BOTTOM
+                onOptionSelected = { fontWeight = it; save() }
             )
         }
 
@@ -791,11 +773,8 @@ fun AodSettingsScreen(navController: NavController) {
             stringResource(R.string.position_layout),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
-        ) {
-            SettingsChoiceItem(
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
                 title = stringResource(R.string.active_positions_randomized),
                 options = aodPositionOptions.map { it.first },
                 labels = aodPositionOptions.map { stringResource(it.second) },
@@ -811,24 +790,19 @@ fun AodSettingsScreen(navController: NavController) {
                     }
                     positions = newSet
                     save()
-                },
-                position = CardPosition.TOP
+                }
             )
-            SettingsChoiceItem(
+            SettingsChoice(
                 title = stringResource(R.string.text_alignment),
                 options = aodAlignmentOptions.map { it.first },
                 labels = aodAlignmentOptions.map { stringResource(it.second) },
                 selectedOption = alignment,
-                onOptionSelected = { alignment = it; save() },
-                position = CardPosition.BOTTOM
+                onOptionSelected = { alignment = it; save() }
             )
         }
 
         // Switches first, then the sliders; the chart and arrow sliders only
         // while their element is shown.
-        val appearanceCount = 5 + (if (showChart) 1 else 0) + (if (showArrow) 1 else 0)
-        var appearanceIndex = 0
-        fun nextPosition() = groupPosition(appearanceIndex++, appearanceCount)
         SectionLabel(
             stringResource(R.string.appearance),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding)
@@ -841,54 +815,50 @@ fun AodSettingsScreen(navController: NavController) {
                 title = stringResource(R.string.show_chart),
                 checked = showChart,
                 onCheckedChange = { showChart = it; save() },
-                position = nextPosition()
+                position = CardPosition.TOP
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_trend_arrow),
                 checked = showArrow,
                 onCheckedChange = { showArrow = it; save() },
-                position = nextPosition()
+                position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.display_secondary_values),
                 subtitle = stringResource(R.string.display_secondary_values_desc),
                 checked = showSecondary,
                 onCheckedChange = { showSecondary = it; save() },
-                position = nextPosition()
+                position = CardPosition.MIDDLE
             )
-            SettingsSliderItem(
-                title = stringResource(R.string.opacity_percent, (opacity * 100).toInt()),
-                value = opacity,
-                onValueChange = { opacity = it; save() },
-                range = 0.1f..1.0f,
-                position = nextPosition()
-            )
-            SettingsSliderItem(
-                title = stringResource(R.string.text_size_percent, (textScale * 100).toInt()),
-                value = textScale,
-                onValueChange = { textScale = it; save() },
-                range = 0.5f..6.0f,
-                position = nextPosition(),
-                animatePosition = true
-            )
-            if (showChart) {
-                SettingsSliderItem(
-                    title = stringResource(R.string.chart_size_percent, (chartScale * 100).toInt()),
-                    value = chartScale,
-                    onValueChange = { chartScale = it; save() },
-                    range = 0.5f..2.0f,
-                    position = nextPosition(),
-                    animatePosition = true
+            SettingsControlsCard(position = CardPosition.BOTTOM) {
+                SettingsSlider(
+                    title = stringResource(R.string.opacity_percent, (opacity * 100).toInt()),
+                    value = opacity,
+                    onValueChange = { opacity = it; save() },
+                    range = 0.1f..1.0f
                 )
-            }
-            if (showArrow) {
-                SettingsSliderItem(
-                    title = stringResource(R.string.arrow_size_percent, (arrowScale * 100).toInt()),
-                    value = arrowScale,
-                    onValueChange = { arrowScale = it; save() },
-                    range = 0.5f..2.0f,
-                    position = nextPosition()
+                SettingsSlider(
+                    title = stringResource(R.string.text_size_percent, (textScale * 100).toInt()),
+                    value = textScale,
+                    onValueChange = { textScale = it; save() },
+                    range = 0.5f..6.0f
                 )
+                if (showChart) {
+                    SettingsSlider(
+                        title = stringResource(R.string.chart_size_percent, (chartScale * 100).toInt()),
+                        value = chartScale,
+                        onValueChange = { chartScale = it; save() },
+                        range = 0.5f..2.0f
+                    )
+                }
+                if (showArrow) {
+                    SettingsSlider(
+                        title = stringResource(R.string.arrow_size_percent, (arrowScale * 100).toInt()),
+                        value = arrowScale,
+                        onValueChange = { arrowScale = it; save() },
+                        range = 0.5f..2.0f
+                    )
+                }
             }
         }
     }
