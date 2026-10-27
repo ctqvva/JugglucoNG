@@ -417,6 +417,18 @@ object HistorySync {
             val rawValue = valueRawRaw / 10f
 
             if (value > 0 || rawValue > 0) {
+                // A minute split across two chunks would keep only the second
+                // chunk's row -- losing the History a Libre's other reading of
+                // that minute carries.
+                if (HistoryBucketReplacement.mayCloseChunk(
+                        readings, timeMs, NATIVE_SYNC_INSERT_CHUNK, RECENT_SYNC_BUCKET_MS,
+                    )
+                ) {
+                    val outcome = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
+                    readings.clear()
+                    storedAny = storedAny || outcome == HistoryRepository.BucketReplaceOutcome.STORED
+                    failedAny = failedAny || outcome == HistoryRepository.BucketReplaceOutcome.FAILED
+                }
                 if (historyTimestamps.isNotEmpty()) exportedMinutes.add(ReadingDisplay.minuteOf(timeMs))
                 readings.add(
                     HistoryReading(
@@ -429,12 +441,6 @@ object HistorySync {
                     )
                 )
                 parsedCount++
-                if (readings.size >= NATIVE_SYNC_INSERT_CHUNK) {
-                    val outcome = storeNativeChunk(roomSerial, readings, historyTimestamps, deletedRowsByMinute)
-                    readings.clear()
-                    storedAny = storedAny || outcome == HistoryRepository.BucketReplaceOutcome.STORED
-                    failedAny = failedAny || outcome == HistoryRepository.BucketReplaceOutcome.FAILED
-                }
             }
         }
 
@@ -490,35 +496,22 @@ object HistorySync {
 
     /**
      * Writes one chunk; for a Libre 1/2 ([historyTimestamps] non-empty) also
-     * voids records the chunk took off the Stream lane -- history rows that
-     * older exports mixed into it.
+     * voids, in the same transaction, records the chunk took off the Stream
+     * lane -- history rows that older exports mixed into it.
      */
     private suspend fun storeNativeChunk(
         roomSerial: String,
         readings: List<HistoryReading>,
         historyTimestamps: Set<Long>,
         deletedRowsByMinute: Map<Long, HistoryReading>?,
-    ): HistoryRepository.BucketReplaceOutcome {
-        val previous = when {
-            historyTimestamps.isEmpty() -> emptyMap()
-            deletedRowsByMinute != null -> deletedRowsByMinute
-            else -> historyRepository.storedReadingsByMinute(roomSerial, readings)
-        }
-        val outcome = historyRepository.replaceSensorBuckets(
+    ): HistoryRepository.BucketReplaceOutcome =
+        historyRepository.replaceSensorBuckets(
             sensorSerial = roomSerial,
             readings = readings,
             bucketDurationMs = RECENT_SYNC_BUCKET_MS,
+            historyTimestamps = historyTimestamps,
+            deletedRowsByMinute = deletedRowsByMinute,
         )
-        if (outcome == HistoryRepository.BucketReplaceOutcome.STORED && previous.isNotEmpty()) {
-            historyRepository.voidRecordsOfDisplacedSensorHistory(
-                roomSerial = roomSerial,
-                rewritten = HistoryBucketReplacement.collapseReadings(readings, RECENT_SYNC_BUCKET_MS),
-                previousByMinute = previous,
-                historyTimestamps = historyTimestamps,
-            )
-        }
-        return outcome
-    }
 
     /** Libre 1/2 only: the epoch-ms times of the sensor's stored history; empty for every other sensor. */
     private fun loadNativeHistoryTimestamps(serial: String, startSec: Long): Set<Long> {

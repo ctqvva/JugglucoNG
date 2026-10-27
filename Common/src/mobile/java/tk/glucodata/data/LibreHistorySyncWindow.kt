@@ -27,10 +27,12 @@ internal object LibreHistorySyncWindow {
         backfilled: Boolean,
     ): Long {
         if (historyTimestamps.isEmpty()) return requestedStartSec
+        // Rows written before History had a lane gain it, once per sensor. From
+        // the session's start: older exports also wrote NFC trend minutes, which
+        // can predate the earliest history, as Raw-only rows (see [rowsLeftBehind]).
+        if (known == null && !backfilled) return 0L
         val earliestNewMs = when {
             known != null -> historyTimestamps.filterNot(known::contains).minOrNull()
-            // Rows written before History had a lane gain it, once per sensor.
-            !backfilled -> historyTimestamps.minOrNull()
             // A new process. Native storage only grows while the app runs, but
             // the last process may have died between storing history and
             // syncing it. Whatever arrived then is no older than the sensor's

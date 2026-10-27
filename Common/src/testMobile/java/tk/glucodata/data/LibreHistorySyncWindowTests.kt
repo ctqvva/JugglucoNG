@@ -42,10 +42,8 @@ class LibreHistorySyncWindowTests {
     @Test
     fun theFirstSyncAfterTheUpgradeBackfillsTheWholeSessionOnce() {
         val history = setOf(ms(NOW_SEC - 10 * 86_400), ms(NOW_SEC - 16 * 60))
-        assertEquals(
-            NOW_SEC - 10 * 86_400 - LibreHistorySyncWindow.PAIRING_SLACK_SEC,
-            LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = false),
-        )
+        // From zero, not the earliest history: older NFC trend rows can predate it.
+        assertEquals(0L, LibreHistorySyncWindow.startSec(LIVE_START, history, known = null, backfilled = false))
     }
 
     @Test
