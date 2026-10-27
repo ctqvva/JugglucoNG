@@ -49,7 +49,8 @@ fun AdaptiveTrailingRow(
                     primary.minIntrinsicWidth(Constraints.Infinity),
                 ),
             )
-        val stacked = readingWidth.toLong() + gap + trailingWidth > width
+        // An empty slot (SettingsItem always passes one) has nothing to move below the text.
+        val stacked = trailingIntrinsic > 0 && readingWidth.toLong() + gap + trailingWidth > width
         val childConstraints =
             constraints.copy(minWidth = 0, minHeight = 0, maxHeight = Constraints.Infinity)
         val action = trailing.measure(childConstraints.copy(maxWidth = trailingWidth))

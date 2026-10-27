@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -430,11 +432,26 @@ internal fun PinnedOrScrollingList(
     // what it needs); the same content at the same width has the same height.
     var headerHeight by remember { mutableIntStateOf(0) }
     var footerHeight by remember { mutableIntStateOf(0) }
+    val handOver = remember { ListHandOver() }
     BoxWithConstraints(modifier) {
         val minListHeight = with(LocalDensity.current) {
             (MinPinnedListHeight * fontScale.coerceAtLeast(1f)).roundToPx()
         }
         val pinned = constraints.maxHeight - headerHeight - footerHeight >= minListHeight
+        // The list being replaced hands over its place, so a switch (a banner appearing, rotation,
+        // font size) doesn't jump back to the top. The scrolling list has the header as item 0.
+        val listState = rememberSaveable(pinned, saver = LazyListState.Saver) {
+            val from = handOver.state
+            val index = from?.firstVisibleItemIndex ?: 0
+            val offset = from?.firstVisibleItemScrollOffset ?: 0
+            when {
+                from == null -> LazyListState()
+                pinned -> if (index == 0) LazyListState() else LazyListState(index - 1, offset)
+                index == 0 && offset == 0 -> LazyListState()
+                else -> LazyListState(index + 1, offset)
+            }
+        }
+        SideEffect { handOver.state = listState }
         val measuredHeader: @Composable () -> Unit = {
             Column(
                 Modifier
@@ -455,11 +472,11 @@ internal fun PinnedOrScrollingList(
         if (pinned) {
             Column(Modifier.fillMaxSize()) {
                 measuredHeader()
-                LazyColumn(modifier = Modifier.weight(1f), content = listContent)
+                LazyColumn(modifier = Modifier.weight(1f), state = listState, content = listContent)
                 measuredFooter()
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
                 item { measuredHeader() }
                 listContent()
                 item { measuredFooter() }
@@ -470,6 +487,10 @@ internal fun PinnedOrScrollingList(
 
 // One two-line list row.
 private val MinPinnedListHeight = 72.dp
+
+private class ListHandOver {
+    var state: LazyListState? = null
+}
 
 private data class AiDexScanDetection(
     val displayName: String,

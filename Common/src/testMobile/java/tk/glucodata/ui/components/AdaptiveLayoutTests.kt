@@ -467,6 +467,28 @@ class AdaptiveLayoutTests {
     }
 
     @Test
+    fun settingsRowWithoutATrailingControlAddsNoGapUnderALongTitle() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
+                MaterialTheme(typography = AppTypography) {
+                    // Narrower than the reading width at 2× text, so a trailing control would stack.
+                    Box(Modifier.width(288.dp)) {
+                        SettingsItem(
+                            title = "Benachrichtigungseinstellungen",
+                            modifier = Modifier.testTag("row"),
+                        )
+                    }
+                }
+            }
+        }
+        val row = compose.onNodeWithTag("row").fetchSemanticsNode().boundsInRoot
+        val title = compose.onNodeWithText("Benachrichtigungseinstellungen", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        // 16dp padding under the title, and no stack gap for a control that isn't there.
+        assertEquals(16f, row.bottom - title.bottom, 0.5f)
+    }
+
+    @Test
     fun scanListKeepsItsHeaderAndFooterPinnedWhenItHasRoom() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
@@ -510,6 +532,30 @@ class AdaptiveLayoutTests {
         compose.onNodeWithText("Sensor 2").assertIsDisplayed()
         list.performScrollToNode(hasTestTag("footer"))
         compose.onNodeWithTag("footer").assertIsDisplayed()
+    }
+
+    @Test
+    fun scanListKeepsItsPlaceWhenItSwitchesBetweenPinnedAndScrolling() {
+        var height by mutableStateOf(400)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    PinnedOrScrollingList(
+                        modifier = Modifier.width(320.dp).height(height.dp),
+                        header = { Box(Modifier.fillMaxWidth().height(120.dp)) },
+                        footer = { Box(Modifier.fillMaxWidth().height(60.dp)) },
+                    ) {
+                        items(30) { Text("Sensor $it", Modifier.height(72.dp)) }
+                    }
+                }
+            }
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Sensor 15"))
+        compose.runOnIdle { height = 200 }
+        compose.onNodeWithText("Sensor 15").assertIsDisplayed()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Sensor 22"))
+        compose.runOnIdle { height = 400 }
+        compose.onNodeWithText("Sensor 22").assertIsDisplayed()
     }
 
     @Test
