@@ -46,6 +46,15 @@ class JournalMealIngredientTests {
     }
 
     @Test
+    fun aWeighedPortionKeepsItsExactServingCount() {
+        // 45.5 g is 0.455 servings; it shows as 0.46 but counts as 0.455.
+        val preset = JournalDraftFoodItem(null, "preset", 70f, null, null, 90, 0).withPortionGrams(45.5f)
+        assertEquals(31.85f, preset.carbsGrams, 0.001f)
+        // Typing a quantity in replaces it.
+        assertEquals(35f, preset.withQuantityText("0.5").carbsGrams, 0.001f)
+    }
+
+    @Test
     fun aCommaDecimalReadsTheSame() {
         assertEquals(17f, JournalDraftFoodItem(null, "jar", 34f, null, null, 90, 0).withQuantityText("0,5").carbsGrams, 0.001f)
     }

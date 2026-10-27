@@ -206,26 +206,27 @@ data class JournalDraftFoodItem(
     val basisFatGrams: Float? = fatGrams,
     val quantityText: String = "1",
     val fromLabel: Boolean = false,
-    val basisCarbsText: String = ""
+    val basisCarbsText: String = "",
+    /** The quantity as converted, when [quantityText] shows it rounded; dropped once it is edited. */
+    private val exactQuantity: Float? = null
 ) {
     /** Grams eaten for a per-100 g food, servings for a per-serving one; nothing while unreadable. */
-    val quantity: Float get() = parseIngredientNumber(quantityText) ?: 0f
+    val quantity: Float get() = exactQuantity ?: parseIngredientNumber(quantityText) ?: 0f
 
-    fun withQuantityText(text: String): JournalDraftFoodItem = copy(quantityText = text).rescaled()
+    fun withQuantityText(text: String): JournalDraftFoodItem = copy(quantityText = text, exactQuantity = null).rescaled()
 
     /**
      * Sets the quantity from a portion weighed against the picker's per-100 g composition: grams
      * as they are for a per-100 g food, and a preset counted as 100 g a serving, as that
      * composition shows it.
      */
-    fun withPortionGrams(grams: Float): JournalDraftFoodItem = withQuantityText(
-        formatFloatForEditor(
-            when (basis) {
-                JournalFoodBasis.PER_100_G -> grams
-                JournalFoodBasis.PER_SERVING -> grams / 100f
-            }
-        )
-    )
+    fun withPortionGrams(grams: Float): JournalDraftFoodItem {
+        val converted = when (basis) {
+            JournalFoodBasis.PER_100_G -> grams
+            JournalFoodBasis.PER_SERVING -> grams / 100f
+        }
+        return copy(quantityText = formatFloatForEditor(converted), exactQuantity = converted).rescaled()
+    }
 
     fun withBasisCarbsText(text: String): JournalDraftFoodItem =
         copy(basisCarbsText = text, basisCarbsGrams = parseIngredientNumber(text) ?: 0f).rescaled()
@@ -735,6 +736,11 @@ fun JournalEntrySheet(
                                 onSavedFoodCleared = { draft = draft.copy(foodId = null, title = "") },
                                 onFoodImported = onSaveFood
                             )
+                        }
+                    } else {
+                        // Typing a food in from its label needs no library.
+                        item(key = "carbs_from_label") {
+                            JournalAddFromLabelButton(onClick = { draft = draft.plusLabelFood(foodMacrosEnabled, "") })
                         }
                     }
                     if (draft.foodItems.isNotEmpty()) {
@@ -1911,22 +1917,11 @@ private fun JournalFoodLibrarySelector(
 
                 // Not in the library or the database: type it in from the packet. What was
                 // searched for becomes its name.
-                OutlinedButton(
-                    onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onAddFromLabel(query.trim())
-                        query = ""
-                        expanded = false
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapes()
-                ) {
-                    Icon(imageVector = Icons.Default.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.journal_food_from_label))
-                }
+                JournalAddFromLabelButton(onClick = {
+                    onAddFromLabel(query.trim())
+                    query = ""
+                    expanded = false
+                })
 
                 AnimatedVisibility(
                     visible = expanded,
@@ -2016,6 +2011,25 @@ private fun JournalFoodLibrarySelector(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun JournalAddFromLabelButton(onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    OutlinedButton(
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp),
+        shapes = ButtonDefaults.shapes()
+    ) {
+        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = stringResource(R.string.journal_food_from_label))
     }
 }
 
