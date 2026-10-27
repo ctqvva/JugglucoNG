@@ -1876,6 +1876,10 @@ fun DashboardScreen(
                                 )
                     Box(
                         modifier = Modifier
+                            // Under every other item: expanded, the chart's grid carries on
+                            // behind the hero above and the readings below, and those cards
+                            // have to land on top of it, not under it.
+                            .zIndex(-1f)
                             .padding(horizontal = animatedChartHorizontalPadding.coerceAtLeast(0.dp))
                     ) {
                         Box(
@@ -1922,6 +1926,9 @@ fun DashboardScreen(
                                         expandedUnderlayBottom = 0.dp,
                                         onToggleExpanded = null,
                                         chartBoostProgress = chartBoostProgress,
+                                        // A whole viewport each way reaches the list's edges
+                                        // from anywhere the chart can sit; the list clips it.
+                                        backdropBleed = viewportHeight,
                                         onPointClick = { point ->
                                             clearJournalAction()
                                             triggerCalibrationIfEnabled(

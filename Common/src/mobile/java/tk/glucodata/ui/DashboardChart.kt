@@ -92,6 +92,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -115,12 +116,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -134,12 +139,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -791,7 +799,13 @@ fun DashboardChartSection(
     resetToLatestOnResume: Boolean = true,
     onViewportSnapshotChanged: ((ChartViewportSnapshot) -> Unit)? = null,
     dataBounds: ChartDataBounds? = null,
-    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null,
+    /**
+     * How far the expanded chart's grid carries on above and below its own bounds, behind
+     * whatever the host draws over it. The plot window does not move: no reading is ever
+     * placed where a card could cover it. Zero keeps the chart inside its box.
+     */
+    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val chartContent: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(bottom = 0.dp)) {
@@ -844,7 +858,8 @@ fun DashboardChartSection(
                         onJournalMarkerClick = onJournalMarkerClick,
                         chartBoostProgress = chartBoostProgress,
                         resetToLatestOnResume = resetToLatestOnResume,
-                        onViewportSnapshotChanged = onViewportSnapshotChanged
+                        onViewportSnapshotChanged = onViewportSnapshotChanged,
+                        backdropBleed = backdropBleed
                     )
                 } else {
                     Box(Modifier.fillMaxSize())
@@ -862,10 +877,21 @@ fun DashboardChartSection(
         collapseVisualProgress
     )
     val cornerRadius = (16.dp * collapseVisualProgress).coerceAtLeast(0.dp)
+    val density = LocalDensity.current
+    // The card is painted at its own bounds; only the clip reaches past them, by the
+    // backdrop's share of the bleed, so the grid that carries on behind the hero and the
+    // readings is let through while expanded and drawn back into the card as it forms.
+    val clipShape = with(density) {
+        ChartBleedClipShape(
+            cornerRadiusPx = cornerRadius.toPx(),
+            bleedPx = backdropBleed.toPx() * chartBackdropProgress(safeExpandedProgress)
+        )
+    }
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(cornerRadius),
-        color = containerColor,
+        modifier = modifier.background(containerColor, RoundedCornerShape(cornerRadius)),
+        shape = clipShape,
+        color = Color.Transparent,
+        contentColor = contentColorFor(containerColor),
         // Deliberately no tonalElevation. Material's Surface only applies it when the
         // colour is exactly colorScheme.surface, so with a lerped colour it switches on
         // and off at whichever endpoint happens to match in the current scheme — a tint
@@ -875,6 +901,31 @@ fun DashboardChartSection(
         shadowElevation = 0.dp
     ) {
         chartContent()
+    }
+}
+
+/**
+ * How much of the backdrop bleed shows at [expandedProgress]. Squared so the grid outside
+ * the card is all but gone by the time the card has visibly formed, instead of hanging off
+ * its edges for the whole collapse.
+ */
+internal fun chartBackdropProgress(expandedProgress: Float): Float {
+    val progress = expandedProgress.coerceIn(0f, 1f)
+    return progress * progress
+}
+
+/** The chart card's clip: its rounded bounds, stretched vertically by [bleedPx]. */
+private data class ChartBleedClipShape(
+    private val cornerRadiusPx: Float,
+    private val bleedPx: Float
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val bounds = Rect(0f, -bleedPx, size.width, size.height + bleedPx)
+        return if (cornerRadiusPx <= 0f) {
+            Outline.Rectangle(bounds)
+        } else {
+            Outline.Rounded(RoundRect(bounds, CornerRadius(cornerRadiusPx)))
+        }
     }
 }
 
@@ -931,7 +982,9 @@ fun InteractiveGlucoseChart(
      */
     dataBounds: ChartDataBounds? = null,
     /** Reports the viewport as it moves, so the owner of [fullData] can load around it. */
-    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null
+    onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null,
+    /** See [DashboardChartSection]'s parameter of the same name. */
+    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     // --- THEME & PAINTS ---
     val isDark = tk.glucodata.ui.isAppInDarkTheme()
@@ -972,6 +1025,14 @@ fun InteractiveGlucoseChart(
     val labelsLiftPx = with(LocalDensity.current) { (4.dp * safeExpandedProgress).toPx() }
     val chartPlotBottomGapPx = with(LocalDensity.current) { (4.dp * safeExpandedProgress).toPx() }
     val bottomAxisHeightPx = with(LocalDensity.current) { 32.dp.toPx() }
+    // The grid that carries on past the chart's top and bottom edges when expanded. It is
+    // drawn at full extent and faded, while the host's clip pulls the extent itself in.
+    val backdropBleedPx = with(LocalDensity.current) { backdropBleed.toPx() }
+    val backdropAlpha = if (backdropBleedPx > 0f) chartBackdropProgress(safeExpandedProgress) else 0f
+    // How far the range picker reaches below the plot, written by the layout below and
+    // read only while drawing, so a picker that changes height costs a redraw, not a
+    // recomposition.
+    val pickerOverhangPx = remember { mutableFloatStateOf(0f) }
     val axisLabelBackgroundColor = androidx.compose.ui.graphics.lerp(
         MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
         MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
@@ -1913,11 +1974,16 @@ fun InteractiveGlucoseChart(
 
     // Where the gesture surface sits on screen, to hand the held finger to the journal menu.
     var gestureSurfaceOnScreen by remember { mutableStateOf(Offset.Zero) }
-    Column(modifier = Modifier.fillMaxSize()) {
+    // How far the range picker reaches up into the plot when expanded, to sit close to the
+    // axis labels. Laid out rather than offset: an offset only moved the picker's paint,
+    // and left the space it was measured into as a hole underneath it.
+    val pickerLift = chartUnderlayBottomDp + (8.dp * safeExpandedProgress)
+    Layout(
+        modifier = Modifier.fillMaxSize(),
+        content = {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .onGloballyPositioned { gestureSurfaceOnScreen = it.positionOnScreen() }
                 .pointerInput(previewWindowReservedIntPx) {
                     // Manual Gesture Handler for:
@@ -2717,9 +2783,43 @@ fun InteractiveGlucoseChart(
                     if (hasMinIndicator) add(valToY(minVal))
                 }
 
+                // --- 0. BACKDROP ---
+                // Past the top and bottom edges the grid carries on, unlabelled, behind the
+                // cards the dashboard lays over the chart. Nothing is added between the plot
+                // and the bottom of the range picker: the axis labels and the picker own it.
+                val drawBackdrop = backdropAlpha > 0f
+                val backdropTop = -backdropBleedPx
+                val backdropBottomStart = size.height + pickerOverhangPx.floatValue
+                val backdropBottom = backdropBottomStart + backdropBleedPx
+                val backdropGridColor = gridColor.copy(alpha = gridColor.alpha * backdropAlpha)
+                val backdropDateLineColor = gridColor.copy(alpha = 0.8f * backdropAlpha)
+
                 // --- 1. DRAW Y-AXIS GRID ---
                 val yStep = if (cYRange < 25) 2f else 50f
                 var yVal = (kotlin.math.ceil(cYMin / yStep) * yStep).toInt() // integer steps
+                if (drawBackdrop && cYRange >= 0.001f) {
+                    val stepPx = yStep * chartHeight / cYRange
+                    // Unclamped on purpose: valToY pins far values, and these are all far.
+                    val anchorY = chartHeight - ((yVal - cYMin) / cYRange) * chartHeight
+                    // A grid denser than this is a scale being dragged, not one to extend.
+                    // The loops end on comparisons, which a NaN would never satisfy.
+                    if (stepPx >= 8f * density && anchorY.isFinite() && backdropBottom.isFinite()) {
+                        var step = kotlin.math.ceil((backdropTop - anchorY) / stepPx)
+                        while (true) {
+                            val y = anchorY + step * stepPx
+                            if (y >= 0f) break
+                            drawLine(backdropGridColor, Offset(0f, y), Offset(width, y), 1f)
+                            step += 1f
+                        }
+                        step = kotlin.math.floor((backdropBottomStart - anchorY) / stepPx) + 1f
+                        while (true) {
+                            val y = anchorY + step * stepPx
+                            if (y > backdropBottom) break
+                            drawLine(backdropGridColor, Offset(0f, y), Offset(width, y), 1f)
+                            step += 1f
+                        }
+                    }
+                }
                 
                 while (yVal < cYMax) {
                     val y = valToY(yVal.toFloat())
@@ -2789,6 +2889,10 @@ fun InteractiveGlucoseChart(
                             if (isMidnight) {
                                 // Date Line
                                 drawLine(gridColor.copy(alpha=0.8f), Offset(x, 0f), Offset(x, chartHeight), 3f)
+                                if (drawBackdrop) {
+                                    drawLine(backdropDateLineColor, Offset(x, backdropTop), Offset(x, 0f), 3f)
+                                    drawLine(backdropDateLineColor, Offset(x, backdropBottomStart), Offset(x, backdropBottom), 3f)
+                                }
                                 val dateLabel = labelCache.getOrPut(tGrid) {
                                     reusableDate.time = tGrid
                                     formatDate.format(reusableDate)
@@ -2804,6 +2908,10 @@ fun InteractiveGlucoseChart(
                             } else {
                                 // Time Line
                                 drawLine(gridColor, Offset(x, 0f), Offset(x, chartHeight), 1f)
+                                if (drawBackdrop) {
+                                    drawLine(backdropGridColor, Offset(x, backdropTop), Offset(x, 0f), 1f)
+                                    drawLine(backdropGridColor, Offset(x, backdropBottomStart), Offset(x, backdropBottom), 1f)
+                                }
                                 val timeLabel = labelCache.getOrPut(tGrid) {
                                     val hh = if (h < 10) "0$h" else h.toString()
                                     val mm = if (m < 10) "0$m" else m.toString()
@@ -4962,16 +5070,11 @@ fun InteractiveGlucoseChart(
             }
         }
 
-        val pickerVerticalOffset = -(chartUnderlayBottomDp + (8.dp * safeExpandedProgress))
-
         // Two-phase dynamic shrink: measure the ideal pill width against the available
         // screen width. Phase 1 reduces inter-item spacing. Phase 2 scales everything.
         // Picker container with optional drag handle for chart expansion gesture
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset(y = pickerVerticalOffset)
-                .zIndex(1f),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -5218,6 +5321,18 @@ fun InteractiveGlucoseChart(
                 }
             }
             }
+        }
+        }
+    ) { measurables, constraints ->
+        val picker = measurables[1].measure(constraints.copy(minHeight = 0))
+        val liftPx = pickerLift.roundToPx()
+        val height = if (constraints.hasBoundedHeight) constraints.maxHeight else picker.height
+        val plotHeight = (height - picker.height + liftPx).coerceAtLeast(0)
+        val plot = measurables[0].measure(constraints.copy(minHeight = plotHeight, maxHeight = plotHeight))
+        pickerOverhangPx.floatValue = (picker.height - liftPx).toFloat()
+        layout(constraints.maxWidth, height) {
+            plot.place(0, 0)
+            picker.place(0, plotHeight - liftPx, zIndex = 1f)
         }
     }
 
