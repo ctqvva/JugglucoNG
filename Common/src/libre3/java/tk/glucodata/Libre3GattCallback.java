@@ -86,6 +86,10 @@ void free() {
     super.free();
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"free");};};
     cancelalarm();
+    synchronized (Libre3GattCallback.class) {
+        if (securityKeyOwner == this)
+            securityKeyOwner = null;
+        }
     var tmp=cryptptr;
     cryptptr=0L;
     endcrypt(tmp);
@@ -138,6 +142,19 @@ private final void checkBluetoothGatt(BluetoothGatt bluetoothGatt) {
         return 120_000L;
     }
 
+    // A direct connect gives Android ~30 s to reach the sensor and then reports
+    // status 147 (133 before Android 15). Retrying the same way can repeat that
+    // forever: with a second Libre 3 streaming at high priority the dropped one
+    // timed out every 30 s and never came back (#728). Upstream users cleared the
+    // same loop with the "Android" (autoConnect) option, so after one attempt that
+    // never reached the sensor, let the stack hold the address instead.
+    private volatile boolean directConnectUnreachable = false;
+
+    @Override
+    protected boolean useAutoConnect() {
+        return super.useAutoConnect() || directConnectUnreachable;
+    }
+
 //    private boolean wasConnected = false;
 private boolean connected=false;
     @SuppressLint("MissingPermission")
@@ -173,7 +190,14 @@ private boolean connected=false;
 
             } 
             } else if (newState == STATE_DISCONNECTED) {
+                final boolean reachedSensor = connected;
                 connected=false;
+                if (!reachedSensor && !directConnectUnreachable
+                        && (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) {
+                    directConnectUnreachable = true;
+                    Log.i(LOG_ID, SerialNumber + ": direct connect timed out (status=" + status
+                            + "); reconnecting with autoConnect");
+                }
                 cancelretrytimer();
                 Log.e(LOG_ID, SerialNumber + ": "+ "onConnectionStateChange ERROR: disconnected with status : " + status);
                // libre3BLESensor.access$600(libre3BLESensor.this, status);
@@ -304,7 +328,11 @@ private void mknonceback() {
     arraycopy(r2,0,uit,16,16);
     byte[] pin=Natives.getpin(sensorptr);
     arraycopy(pin,0,uit,32,4);
-    var encrypted= Natives.processbar(7,nonce1,uit);
+    byte[] encrypted;
+    synchronized (Libre3GattCallback.class) {
+        ensureOwnKAuth();
+        encrypted= Natives.processbar(7,nonce1,uit);
+        }
     {if(doLog){showbytes(SerialNumber+" processbar(7,nonce1,uit)",encrypted);};}
     wrtData=encrypted;
     wrtOffset=0;
@@ -319,7 +347,13 @@ private void challenge67() {
     byte[] nonce=new byte[7];
     arraycopy(rdtData,0,first,0,60);
     arraycopy(rdtData,60,nonce,0,7);
-    byte[] decr=Natives.processbar(8,nonce,first);
+    byte[] decr;
+    byte[] AuthKey;
+    synchronized (Libre3GattCallback.class) {
+        ensureOwnKAuth();
+        decr=Natives.processbar(8,nonce,first);
+        AuthKey=Natives.processbar(9,null,null);
+        }
     var backr2=copyOfRange(decr,0,16);
     if(!java.util.Arrays.equals(r2,backr2)) {
         {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"r2!=backr2");};};
@@ -335,7 +369,6 @@ private void challenge67() {
     var kEnc=copyOfRange(decr,32,48);
     var ivEnc=copyOfRange(decr,48,56);
 //    byte[] AuthKey=ECDHCrypto.exportAuthorizationKey();
-    byte[] AuthKey=Natives.processbar(9,null,null);
     //securityContext=new BCrypt(kEnc,ivEnc);
     cryptptr=initcrypt(cryptptr,kEnc,ivEnc);
     Natives.setLibre3kAuth(sensorptr,AuthKey);
@@ -391,7 +424,9 @@ private boolean sendSecurityCommand(byte b) {
 private int commandphase=1;
 private void setCertificate140() {
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"setCertificate140");};};
-    cryptolib.setPatchCertificate(rdtData);
+    synchronized (Libre3GattCallback.class) {
+        cryptolib.setPatchCertificate(rdtData);
+        }
     if(sendSecurityCommand( (byte)0x0D)) {
         commandphase=4;
         }
@@ -399,7 +434,9 @@ private void setCertificate140() {
 private boolean    generateKAuth(byte[] input) {
     {if(doLog){showbytes(LOG_ID+ " "+SerialNumber +" generateKAuth",input);};}
     //Saves something?
-    return Natives.processint(6,input,null)!=0;
+    synchronized (Libre3GattCallback.class) {
+        return Natives.processint(6,input,null)!=0;
+        }
     }
 private boolean setCertificate65() {
     {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"setCertificate65");};};
@@ -524,6 +561,30 @@ private    void fast_data(byte[] encryp) {
 private final ECDHCrypto cryptolib=new ECDHCrypto();
 //int    securityState=0;
 private boolean    isPreAuthorized=false;
+
+// The security library keeps one key context for the whole process: initECDH()
+// loads a sensor's kAuth and every later processbar() step uses whichever key was
+// loaded last. init() loads it only while !isPreAuthorized, so once a second
+// Libre 3 loaded its key, a reconnect of the first answered the challenge with the
+// other sensor's key, failed the r1/r2 check and dropped -- on every retry (#728).
+// All calls into the library hold this class's lock.
+private static Libre3GattCallback securityKeyOwner = null;
+
+private boolean initSecurity(byte[] kAuth) {
+    synchronized (Libre3GattCallback.class) {
+        securityKeyOwner = this;
+        return cryptolib.initECDH(kAuth, 1);
+        }
+    }
+
+/** Caller holds the class lock. Only the stored-key handshake can be restored this way:
+ * a fresh ECDH pairing's ephemeral state cannot be reloaded once another sensor replaced it. */
+private void ensureOwnKAuth() {
+    if (!isPreAuthorized || securityKeyOwner == this)
+        return;
+    info("security library holds another sensor's key; reloading kAuth");
+    initSecurity(Natives.getLibre3kAuth(sensorptr));
+    }
 private void onConnectGatt() {
     isPreAuthorized=false;
     }
@@ -536,7 +597,7 @@ private void handleMSLibre3SecurityNotificationsEnabledEvent() {
     else {
 
             var exportedKAuth = Natives.getLibre3kAuth(sensorptr);
-        if(cryptolib.initECDH(exportedKAuth ,1)) {
+        if(initSecurity(exportedKAuth)) {
             if(exportedKAuth==null) {
                 {if(doLog) {Log.i(LOG_ID, SerialNumber + ": "+"exportedKAuth==null");};};
                 sendSecurityCommand(1);
@@ -562,7 +623,7 @@ private void init() {
     var exportedKAuth = Natives.getLibre3kAuth(sensorptr);
     if(!isPreAuthorized) {
         if(exportedKAuth!=null) {
-            if(cryptolib.initECDH(exportedKAuth ,1)) {
+            if(initSecurity(exportedKAuth)) {
                 isPreAuthorized=true;
                 commandphase = 5;
                 }
@@ -839,7 +900,10 @@ private int getcomphase() {
     }
 private  byte[]           generateEphemeralKeys() {
 
-    var evikeys=Natives.processbar(5,null,null);
+    byte[] evikeys;
+    synchronized (Libre3GattCallback.class) {
+        evikeys=Natives.processbar(5,null,null);
+        }
     var uit=new byte[evikeys.length+1];
     arraycopy(evikeys,0,uit,1,evikeys.length);
     uit[0]=(byte)0x4;

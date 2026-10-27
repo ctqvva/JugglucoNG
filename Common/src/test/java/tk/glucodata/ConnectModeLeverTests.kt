@@ -70,11 +70,14 @@ class ConnectModeLeverTests {
         // for what that override is still held to. Libre 2's fresh direct connections follow the
         // same-sensor classic Juggluco recovery trace reported in issue #519. Dexcom's
         // timeout/background-connect comparison is reported in issue #594 and its linked commit.
+        // Libre 3's endless status=147 direct-connect loop with two sensors is issue #728;
+        // upstream j-kaltes/Juggluco#491/#493 report the same loop ending under autoConnect.
         val measured = setOf(
             "AnytimeBleManager.kt",
             "AnytimeConnectRetryPolicy.kt",
             "AnytimeConnectRetryPolicyTests.kt",
             "Libre2GattCallback.java",
+            "Libre3GattCallback.java",
             "DexGattCallback.java",
         )
         val overriders = sources("Common/src")
@@ -113,6 +116,29 @@ class ConnectModeLeverTests {
                 "direct connect decide it; AnytimeConnectModeState is that one place",
             2,
             Regex("directConnectUnreachable = (true|false)").findAll(policy).count(),
+        )
+    }
+
+    @Test
+    fun libre3FallsBackOnlyAfterAnAttemptThatNeverConnected() {
+        // #728: a link that came up and dropped says nothing about whether a direct connect
+        // can reach the sensor; only a timed-out attempt that never connected does.
+        val text = File(
+            repoRoot(),
+            "Common/src/libre3/java/tk/glucodata/Libre3GattCallback.java",
+        ).readText().replace(Regex("\\s+"), " ")
+        assertTrue(
+            "the Libre 3 override must start from the application-wide setting",
+            text.contains("return super.useAutoConnect() || directConnectUnreachable;"),
+        )
+        assertEquals(1, Regex("directConnectUnreachable = true").findAll(text).count())
+        assertTrue(
+            "the fallback must be gated on a never-connected attempt timing out",
+            text.contains(
+                "if (!reachedSensor && !directConnectUnreachable " +
+                    "&& (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) " +
+                    "{ directConnectUnreachable = true;"
+            ),
         )
     }
 
