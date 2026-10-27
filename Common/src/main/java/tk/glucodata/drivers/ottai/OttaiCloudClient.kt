@@ -387,18 +387,18 @@ object OttaiCloudClient {
         val profile = profileOverride ?: activeProfile(ctx, apiBase)
         val deviceId = requestDeviceId(ctx, profile)
         val sig = signForProfile(profile, deviceId, ts)
-        val resp = httpGet(
+        val result = httpGetWithResult(
             apiBase + OttaiConstants.EP_API_TOKEN,
             mapOf("signature" to sig),
             headers(ctx, ts, apiBase, authorizationOverride, profile),
         )
-        return resp?.optStringDeep("data")
+        return if (result.failure == null) result.body?.optStringDeep("data") else null
     }
 
     /** POST /user/smsCode — needs apiToken; sig over (phone, apiToken). Returns requestId. */
     fun requestSmsCode(ctx: Context, phone: String, phoneCode: String = "86"): String? {
         val profile = OttaiRegistry.SessionProfile.CN_PHONE
-        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
+        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
         val ts = now()
         val deviceId = requestDeviceId(ctx, profile)
         val ph = normalizePhone(phone)
@@ -445,11 +445,7 @@ object OttaiCloudClient {
             headers(ctx, ts, OttaiConstants.API_BASE, "", profile),
         ) ?: return null
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
-        val result = LoginResult(
-            userId = data.optString("userId").orEmptyIfNull(),
-            accessToken = data.optString("accessToken").orEmptyIfNull(),
-            glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
-        )
+        val result = mobileLoginResult(data)
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, OttaiConstants.API_BASE)  // this account lives on the CN backend
             OttaiRegistry.saveSessionProfile(ctx, profile)
@@ -488,7 +484,7 @@ object OttaiCloudClient {
         // or web-only JWT): with no override, send no Authorization header at all.
         val authorization = authorizationOverride ?: ""
         val apiToken = getApiToken(ctx, base, authorization)
-            ?: run { lastFailure = CloudFailure("apiToken failed"); return null }
+            ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); return null }
         val ts = now()
         val deviceId = requestDeviceId(ctx, OttaiRegistry.SessionProfile.WATCH)
         val body = JSONObject().apply {
@@ -505,11 +501,7 @@ object OttaiCloudClient {
             headers(ctx, ts, base, authorization),
         ) ?: return null
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
-        val result = LoginResult(
-            userId = data.optString("userId").orEmptyIfNull(),
-            accessToken = data.optString("accessToken").orEmptyIfNull(),
-            glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
-        )
+        val result = mobileLoginResult(data)
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, base)  // subsequent validate/list/bind use this backend
             OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
@@ -1058,12 +1050,13 @@ object OttaiCloudClient {
         // short pause covers a transient throttle so a single user tap doesn't fail spuriously.
         repeat(2) { attempt ->
             val ts = now()
-            val resp = httpGet(
+            val result = httpGetWithResult(
                 "$webBase/user/apiToken",
                 mapOf("signature" to webSign(webAppFor(webBase), ts.toString())),
                 webHeaders(webBase, ts),
             )
-            val tok = resp?.optStringDeep("data")
+            if (result.failure != null) return null
+            val tok = result.body?.optStringDeep("data")
             if (!tok.isNullOrBlank()) return tok
             if (attempt == 0) runCatching { Thread.sleep(900) }
         }
@@ -1078,10 +1071,11 @@ object OttaiCloudClient {
      */
     private fun webPostRetry(webBase: String, path: String, buildBody: (apiToken: String, ts: Long) -> JSONObject): JSONObject? {
         repeat(5) { attempt ->
-            val apiToken = getWebApiToken(webBase) ?: run { lastFailure = CloudFailure("apiToken failed"); return null }
+            val apiToken = getWebApiToken(webBase) ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); return null }
             val ts = now()
-            val resp = httpPostJson("$webBase$path", buildBody(apiToken, ts).toString(), webHeaders(webBase, ts)) ?: return null
-            if (!resp.optString("code").equals("User_SignatureInvalid", ignoreCase = true)) return resp
+            val result = requestWithResult("POST", "$webBase$path", buildBody(apiToken, ts).toString(),
+                webHeaders(webBase, ts) + ("Content-Type" to "application/json;charset=UTF-8"))
+            if (!result.failure?.code.equals("User_SignatureInvalid", ignoreCase = true)) return result.body
             if (attempt < 4) runCatching { Thread.sleep(500) }
         }
         return null
@@ -1142,25 +1136,34 @@ object OttaiCloudClient {
      * profile lookup and a token-rejected accountLogin are retried; a wrong password is not.
      */
     private fun upgradeWebSession(ctx: Context, resp: JSONObject, password: String, webBase: String): LoginResult? {
+        val mobileBase = webBaseToMobile(webBase)
+        return upgradeWebSession(resp,
+            readProfile = { token ->
+                if (isSyai(webBase)) mobileGetUser(ctx, mobileBase, token) else webGetUser(webBase, token)
+            },
+            login = { name, token -> passwordLogin(ctx, name, password, mobileBase, authorizationOverride = token) },
+        )
+    }
+
+    internal fun upgradeWebSession(
+        resp: JSONObject,
+        readProfile: (String) -> JSONObject?,
+        login: (String, String) -> LoginResult?,
+    ): LoginResult? {
         val webToken = (resp.optJSONObject("data") ?: resp.optJSONObject("result"))
-            ?.optString("accessToken").orEmptyIfNull()
+            ?.let(::webAccessToken).orEmpty()
         if (webToken.isBlank()) {
             // request() already captured the backend's business error, if any.
             if (lastError.isBlank()) lastFailure = CloudFailure("web login returned no session")
             return null
         }
-        val mobileBase = webBaseToMobile(webBase)
         // Syai's web profile omits both userName and glucoseSecretKey. Its mobile profile accepts
         // the web JWT and exposes the server-assigned userName; Ottai's web profile does too.
         var userName: String? = null
-        repeat(WEB_UPGRADE_ATTEMPTS) { attempt ->
-            val profile = if (isSyai(webBase)) {
-                mobileGetUser(ctx, mobileBase, webToken)
-            } else {
-                webGetUser(webBase, webToken)
-            }
+        for (attempt in 0 until WEB_UPGRADE_ATTEMPTS) {
+            val profile = readProfile(webToken)
             userName = profile?.optString("userName").orEmptyIfNull().takeIf { it.isNotBlank() }
-            if (userName != null) return@repeat
+            if (userName != null) break
             if (profile != null) {
                 lastFailure = CloudFailure("account profile has no username")
                 return null
@@ -1175,15 +1178,25 @@ object OttaiCloudClient {
         // mobile side rejects that token rather than the password, once with no Authorization at
         // all (the shape the Ottai global upgrade originally shipped with). A rejected token is
         // not a failed-login attempt, so this cannot count towards a lockout.
-        passwordLogin(ctx, name, password, mobileBase, authorizationOverride = webToken)
+        login(name, webToken)
             ?.takeIf { it.ok }?.let { return it }
         if (lastFailure?.isTokenInvalid == true) {
-            passwordLogin(ctx, name, password, mobileBase, authorizationOverride = "")
+            login(name, "")
                 ?.takeIf { it.ok }?.let { return it }
         }
         if (lastError.isBlank()) lastFailure = CloudFailure("mobile login upgrade failed")
         return null
     }
+
+    /** Syai's secure login returns data.jwtToken; older Ottai responses use data.accessToken. */
+    internal fun webAccessToken(data: JSONObject): String =
+        (data.optJSONObject("jwtToken") ?: data).optString("accessToken").orEmptyIfNull()
+
+    internal fun mobileLoginResult(data: JSONObject) = LoginResult(
+        userId = data.optString("userId").orEmptyIfNull(),
+        accessToken = webAccessToken(data),
+        glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
+    )
 
     private const val WEB_UPGRADE_ATTEMPTS = 3
     private const val WEB_UPGRADE_RETRY_MS = 500L
@@ -1325,25 +1338,19 @@ object OttaiCloudClient {
         timeoutMs: Int = TIMEOUT_MS,
         openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
     ): CloudRequestResult {
-        var conn: HttpURLConnection? = null
+        var legacyConnection: HttpURLConnection? = null
         return try {
-            conn = openConnection(url).apply {
-                requestMethod = method
-                connectTimeout = TIMEOUT_MS
-                readTimeout = timeoutMs
-                headers.forEach { (k, v) -> setRequestProperty(k, v) }
-                if (body != null) {
-                    doOutput = true
-                    val bytes = body.toByteArray(Charsets.UTF_8)
-                    setRequestProperty("Content-Length", bytes.size.toString())
-                    outputStream.use { it.write(bytes) }
+            val route = OttaiRegionalTransport.route(url)
+            val reply = if (route != null) {
+                val transport = OttaiRegionalTransport(route, headers) { verb, target, payload, common ->
+                    rawRequest(verb, target, payload, common, timeoutMs, openConnection)
                 }
-            }
-            val code = conn.responseCode
-            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            val text = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
+                try { transport.request(method, body) } finally { transport.close() }
+            } else rawRequest(method, url, body, headers, timeoutMs,
+                { target -> openConnection(target).also { legacyConnection = it } }, disconnect = false)
+            val code = reply.status
+            val json = reply.json
             val path = url.substringBefore('?').substringAfterLast("/server")
-            val json = if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull()
             // Capture non-secret business error (code/message) for the UI/logs.
             val bizCode = json?.opt("code")?.toString().orEmpty()
             val bizMsg = (json?.opt("message") ?: json?.opt("msg") ?: json?.opt("detailMessage"))
@@ -1362,15 +1369,50 @@ object OttaiCloudClient {
                 // account glucoseSecretKey.
                 Log.i(TAG, "$path -> http=$code")
             }
-            CloudRequestResult(json, failure)
+            CloudRequestResult(if (route != null && failure != null) null else json, failure)
+        } catch (error: OttaiOtaCloudException) {
+            val failure = CloudFailure(error.diagnostic, error.businessCode, error.httpStatus)
+            lastFailure = failure
+            Log.w(TAG, "secure request failed: ${error.diagnostic}")
+            CloudRequestResult(null, failure)
         } catch (t: Throwable) {
             val failure = CloudFailure("network: ${t.message}")
             lastFailure = failure
             Log.w(TAG, "request failed ${url.substringBefore('?')}: ${t.message}")
             CloudRequestResult(null, failure)
         } finally {
-            conn?.disconnect()
+            // Publish this request's result before cleanup can complete another request.
+            legacyConnection?.disconnect()
         }
+    }
+
+    private fun rawRequest(
+        method: String,
+        url: String,
+        body: String?,
+        headers: Map<String, String>,
+        timeoutMs: Int,
+        openConnection: (String) -> HttpURLConnection,
+        disconnect: Boolean = true,
+    ): OttaiNetSecurity.Reply {
+        val conn = openConnection(url)
+        return try {
+            conn.requestMethod = method
+            conn.instanceFollowRedirects = false
+            conn.connectTimeout = TIMEOUT_MS
+            conn.readTimeout = timeoutMs
+            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+            if (body != null) {
+                conn.doOutput = true
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                conn.setRequestProperty("Content-Length", bytes.size.toString())
+                conn.outputStream.use { it.write(bytes) }
+            }
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val text = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
+            OttaiNetSecurity.Reply(code, if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull())
+        } finally { if (disconnect) conn.disconnect() }
     }
 
     private fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")
