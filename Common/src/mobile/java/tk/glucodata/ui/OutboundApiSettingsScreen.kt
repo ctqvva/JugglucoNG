@@ -976,7 +976,6 @@ internal fun NumberStepper(
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        spacing = 16.dp,
         trailingContent = {
             Surface(
                 shape = cardShape(CardPosition.SINGLE, radius = 24.dp),

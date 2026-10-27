@@ -311,7 +311,6 @@ private fun GlucoseRangeSliderRow(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             AdaptiveTrailingRow(
-                spacing = 0.dp,
                 trailingContent = {
                     Text(
                         text = formatRangeValue(value, isMmol),

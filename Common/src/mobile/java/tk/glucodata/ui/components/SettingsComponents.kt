@@ -80,7 +80,6 @@ fun ExpandableSettingsCard(
                     .clickable { onExpandedChange(!expanded) }
                     .heightIn(min = 72.dp)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
-                spacing = 0.dp,
                 trailingContent = {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
@@ -439,7 +438,6 @@ fun MasterSwitchCard(
                 .heightIn(min = 84.dp)
                 .clickable(enabled = enabled) { onCheckedChange(!checked) }
                 .padding(horizontal = 16.dp, vertical = 16.dp),
-            spacing = 0.dp,
             trailingContent = {
                 StyledSwitch(
                     checked = checked,
@@ -500,7 +498,6 @@ fun AlarmItem(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             AdaptiveTrailingRow(
-                spacing = 16.dp,
                 trailingContent = {
                     StyledSwitch(
                         checked = enabled,

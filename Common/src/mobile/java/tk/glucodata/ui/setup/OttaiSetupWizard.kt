@@ -2285,7 +2285,6 @@ private fun OttaiBleScanPanel(
         if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth(),
-            spacing = 0.dp,
             trailingContent = {
                 OutlinedButton(
                     onClick = {

@@ -10,14 +10,14 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 
 /**
- * A Row of weighted [content] and an unweighted trailing action, laid out exactly like that Row
- * while it works. Once the action leaves the text less room than its longest word (large fonts on
- * narrow screens, where a Row breaks words into single letters), the action moves below the text.
+ * Keeps a useful reading width for [content]. A Row's weighted text only receives what its
+ * unweighted action leaves behind, which can be a single glyph at large font sizes. Move the action
+ * below the text when the two cannot share a line comfortably: when the text would get less than a
+ * reading width that grows with the font (or less than its longest word, if that is wider).
  *
- * [spacing] is the gap the Row had between the two; pass the call site's original value so the
- * default layout does not shift. Slots must support intrinsic measurement (text, icons and ordinary
- * controls, not lazy lists or BoxWithConstraints). Placement is relative so the trailing edge
- * follows RTL.
+ * [spacing] is the gap between text and action on one line. Slots must support intrinsic
+ * measurement (text, icons and ordinary controls, not lazy lists or BoxWithConstraints). Placement
+ * is relative so the trailing edge follows RTL.
  */
 @Composable
 fun AdaptiveTrailingRow(
@@ -41,7 +41,15 @@ fun AdaptiveTrailingRow(
             if (constraints.hasBoundedWidth) constraints.maxWidth
             else primary.maxIntrinsicWidth(Constraints.Infinity) + gap + trailingIntrinsic
         val trailingWidth = trailingIntrinsic.coerceAtMost(width)
-        val stacked = primary.minIntrinsicWidth(Constraints.Infinity).toLong() + gap + trailingWidth > width
+        val readingWidth =
+            minOf(
+                primary.maxIntrinsicWidth(Constraints.Infinity),
+                maxOf(
+                    (160.dp.toPx() * fontScale).toInt(),
+                    primary.minIntrinsicWidth(Constraints.Infinity),
+                ),
+            )
+        val stacked = readingWidth.toLong() + gap + trailingWidth > width
         val childConstraints =
             constraints.copy(minWidth = 0, minHeight = 0, maxHeight = Constraints.Infinity)
         val action = trailing.measure(childConstraints.copy(maxWidth = trailingWidth))

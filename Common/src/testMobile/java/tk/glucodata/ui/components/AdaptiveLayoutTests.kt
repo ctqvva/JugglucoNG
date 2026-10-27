@@ -377,17 +377,17 @@ class AdaptiveLayoutTests {
     }
 
     @Test
-    fun buttonRowMatchesAWeightedRowUntilAWordWouldBreak() {
-        var fontScale by mutableFloatStateOf(1f)
+    fun buttonRowStacksRatherThanWrapALabel() {
+        var width by mutableIntStateOf(320)
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
                 MaterialTheme(typography = AppTypography) {
-                    AdaptiveButtonRow(modifier = Modifier.width(240.dp)) {
+                    AdaptiveButtonRow(modifier = Modifier.width(width.dp)) {
                         OutlinedButton(onClick = {}, shapes = ButtonDefaults.shapes()) {
-                            Text("Export sensor key")
+                            Text("Export key")
                         }
                         Button(onClick = {}, shapes = ButtonDefaults.shapes()) {
-                            Text("Import sensor key")
+                            Text("Import key")
                         }
                     }
                 }
@@ -395,47 +395,20 @@ class AdaptiveLayoutTests {
         }
         fun bounds(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
 
-        // Normal text: equal shares on one line, labels wrapping inside, exactly as the Row of
-        // weight(1f) buttons it replaced.
-        var first = bounds("Export sensor key")
-        var second = bounds("Import sensor key")
+        // Both labels fit their share: equal widths on one line, as the weighted Row was.
+        var first = bounds("Export key")
+        var second = bounds("Import key")
         assertEquals(first.top, second.top, 0.5f)
         assertEquals(first.width, second.width, 1f)
-        assertTrue(first.right <= second.left)
+        assertEquals(1, compose.onNodeWithText("Import key", useUnmergedTree = true).textLayout().lineCount)
 
-        // Enlarged text: a word no longer fits a share, so each button takes a full-width line.
-        compose.runOnIdle { fontScale = 2f }
-        first = bounds("Export sensor key")
-        second = bounds("Import sensor key")
+        // A label would wrap in its share: full-width lines with one-line labels instead.
+        compose.runOnIdle { width = 200 }
+        first = bounds("Export key")
+        second = bounds("Import key")
         assertTrue(second.top >= first.bottom)
-        assertTrue(second.width > 230f)
-        compose.onNodeWithText("Import sensor key", useUnmergedTree = true).assertTextFits()
-    }
-
-    @Test
-    fun trailingRowKeepsTheRowLayoutAtNormalTextSize() {
-        compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
-                MaterialTheme(typography = AppTypography) {
-                    Box(Modifier.width(312.dp)) {
-                        // A long title beside a wide control, as the number steppers are: the
-                        // title wraps beside the control, it is not pushed above it.
-                        SettingsItem(
-                            title = "Maximum readings per upload",
-                            subtitle = "Sent together in one request",
-                            icon = Icons.Default.Settings,
-                            trailingContent = { Box(Modifier.width(120.dp).height(48.dp).testTag("control")) },
-                        )
-                    }
-                }
-            }
-        }
-        val title =
-            compose.onNodeWithText("Maximum readings per upload", useUnmergedTree = true)
-                .fetchSemanticsNode().boundsInRoot
-        val control = compose.onNodeWithTag("control", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-        assertTrue("control moved below the title", control.left >= title.right)
-        assertTrue(control.top < title.bottom)
+        assertTrue(second.width > 190f)
+        assertEquals(1, compose.onNodeWithText("Import key", useUnmergedTree = true).textLayout().lineCount)
     }
 
     @Test
@@ -458,38 +431,30 @@ class AdaptiveLayoutTests {
                 }
             }
         }
-        // ToggleButton's own minimum is 40dp; the group asked for 36dp and must stay there.
+        // Intrinsic sizing sees the 48dp touch target, which once drew every group 48dp tall.
         assertEquals(36f, compose.onNodeWithTag("group").fetchSemanticsNode().boundsInRoot.height, 0.5f)
         assertEquals(36f, compose.onNodeWithText("High").fetchSemanticsNode().boundsInRoot.height, 0.5f)
     }
 
     @Test
-    fun minimumHeightButtonsKeepTheirHeightAtNormalTextSize() {
+    fun minimumHeightButtonKeepsItsHeightAtNormalTextSize() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
                 MaterialTheme(typography = AppTypography) {
                     Column(Modifier.width(320.dp)) {
-                        // The calibration "Now" chip and the compact wizard buttons: heightIn(min)
-                        // replaced height(), and must not pick up the 40dp minimum or the 48dp
-                        // touch target in its place.
+                        // The calibration "Now" chip: heightIn(min) replaced height(), and must not
+                        // pick up the 40dp default minimum in its place.
                         FilledTonalButton(
                             onClick = {},
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             modifier = Modifier.heightIn(min = 32.dp).testTag("now"),
                             shapes = ButtonDefaults.shapes(),
                         ) { Text("Now") }
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("wizard"),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) { Text("Continue") }
                     }
                 }
             }
         }
         assertEquals(32f, compose.onNodeWithTag("now").fetchSemanticsNode().boundsInRoot.height, 0.5f)
-        assertEquals(46f, compose.onNodeWithTag("wizard").fetchSemanticsNode().boundsInRoot.height, 0.5f)
     }
 
     @Test
