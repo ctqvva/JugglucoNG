@@ -2731,6 +2731,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">关闭 — 在手机上设置</string>
     <string name="glucosechartcomplicationlabel">血糖图表</string>
     <string name="wear_chart_complication">血糖图表</string>
+    <string name="wear_glucose_tile_label">血糖</string>
     <string name="wear_exchange_title">数据交换</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip 广播</string>
@@ -3057,4 +3058,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s 克碳水</string>
     <string name="journal_meal_total">合计</string>
+    <string name="stream_history_mode">蓝牙+历史</string>
+    <string name="history_stream_mode">历史+蓝牙</string>
+    <string name="libre_history_mode_caption">历史是传感器自身的数值，每 15 分钟保存一次，比蓝牙数据晚约 16 分钟。某一分钟的历史到达之前，以蓝牙数据代替。</string>
 </resources>

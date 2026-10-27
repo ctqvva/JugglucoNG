@@ -2791,6 +2791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Вимк. — налаштовується на телефоні</string>
     <string name="glucosechartcomplicationlabel">Графік глюкози</string>
     <string name="wear_chart_complication">Графік глюкози</string>
+    <string name="wear_glucose_tile_label">Глюкоза</string>
     <string name="wear_exchange_title">Обмін даними</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Трансляція xDrip</string>
@@ -3125,4 +3126,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s г вуглеводів</string>
     <string name="journal_meal_total">Разом</string>
+    <string name="stream_history_mode">Потік+Історія</string>
+    <string name="history_stream_mode">Історія+Потік</string>
+    <string name="libre_history_mode_caption">Історія — власне значення сенсора, зберігається кожні 15 хвилин і відстає від потоку приблизно на 16 хвилин. Доки історія за хвилину не надійшла, замість неї використовується потік.</string>
 </resources>

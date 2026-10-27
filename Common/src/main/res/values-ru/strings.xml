@@ -2785,6 +2785,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Выкл. — настраивается на телефоне</string>
     <string name="glucosechartcomplicationlabel">График глюкозы</string>
     <string name="wear_chart_complication">График глюкозы</string>
+    <string name="wear_glucose_tile_label">Глюкоза</string>
     <string name="wear_exchange_title">Обмен данными</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Трансляция xDrip</string>
@@ -3083,6 +3084,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s г углеводов</string>
     <string name="journal_meal_total">Итого</string>
+    <string name="stream_history_mode">Поток+История</string>
+    <string name="history_stream_mode">История+Поток</string>
+    <string name="libre_history_mode_caption">История — собственное значение датчика, сохраняется каждые 15 минут и отстаёт от потока примерно на 16 минут. Пока история за минуту не пришла, вместо неё используется поток.</string>
     <string name="watch_forwarding_section">Через уведомления телефона</string>
     <string name="watch_forwarding_title">Передача показаний</string>
     <string name="watch_forwarding_standard">Стандартный Android</string>

@@ -1,6 +1,13 @@
 package tk.glucodata.ui.util
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
@@ -21,10 +29,13 @@ import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -46,7 +57,9 @@ import androidx.compose.ui.text.rememberTextMeasurer
  * (ToggleButton swaps them instantly), per-option colours, and labels that step down from
  * labelLarge to labelSmall until every option fits.
  *
- * Each item is a checkable node, so TalkBack reads which option is selected.
+ * Each item is a checkable node, so TalkBack reads which option is selected. In a
+ * [multiSelect] group a text option shows a check mark while selected, so the group reads
+ * as "any of these" rather than "one of these".
  *
  * @param itemHeight Default 40.dp, the M3 small button height
  * @param spacing Default 2.dp, [ButtonGroupDefaults.ConnectedSpaceBetween]
@@ -73,10 +86,21 @@ fun <T> ConnectedButtonGroup(
     selectedContentColorFor: ((T) -> Color)? = null,
     iconTint: ((T, Boolean) -> Color)? = null,
 ) {
+    // Each label's own height, measured unclipped. The buttons' intrinsic height can't tell this:
+    // it never reports less than the 40dp minimum or the 48dp touch target, which hides a label
+    // that outgrows a 36dp group while staying under 48dp.
+    val labelHeights = remember(options.size) { mutableStateMapOf<Int, Int>() }
     Row(
         modifier = modifier
             .selectableGroup()
-            .height(itemHeight),
+            .layout { measurable, constraints ->
+                // itemHeight as a fixed height, as before, unless a label needs more (large fonts).
+                val height = constraints.constrainHeight(
+                    maxOf(itemHeight.roundToPx(), labelHeights.values.maxOrNull() ?: 0)
+                )
+                val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
         horizontalArrangement = Arrangement.spacedBy(spacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -105,7 +129,7 @@ fun <T> ConnectedButtonGroup(
                 onCheckedChange = { onOptionSelected(option) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(itemHeight),
+                    .fillMaxHeight(),
                 shapes = when {
                     options.size == 1 -> ToggleButtonDefaults.shapesFor(itemHeight)
                     index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
@@ -124,12 +148,13 @@ fun <T> ConnectedButtonGroup(
             ) {
                 var availableWidthPx by remember(option) { mutableIntStateOf(0) }
                 val customIcon = icon?.invoke(option)
+                val showsCheck = multiSelect && customIcon == null && !iconOnly
                 val density = LocalDensity.current
                 val textMeasurer = rememberTextMeasurer()
                 val availableWidth = with(density) { availableWidthPx.toDp() }
                 val labelTextStyle: TextStyle = if (labelText != null && availableWidthPx > 0) {
                     val horizontalPadding = 4.dp
-                    val iconAllowance = if (customIcon != null) 26.dp else 0.dp
+                    val iconAllowance = if (customIcon != null || showsCheck) 26.dp else 0.dp
                     val textWidthPx = with(density) { (availableWidth - horizontalPadding - iconAllowance).coerceAtLeast(24.dp).toPx() }
                     listOf(
                         MaterialTheme.typography.labelLarge,
@@ -155,12 +180,33 @@ fun <T> ConnectedButtonGroup(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight()
-                        .onSizeChanged { availableWidthPx = it.width }
+                        // Centred, and free to overflow so its size is the label's real height.
+                        .wrapContentHeight(unbounded = true)
+                        .onSizeChanged {
+                            availableWidthPx = it.width
+                            labelHeights[index] = it.height
+                        }
                         .padding(horizontal = 2.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (showsCheck) {
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = contentColor
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+                    }
                     if (customIcon != null) {
                         Icon(
                             imageVector = customIcon,

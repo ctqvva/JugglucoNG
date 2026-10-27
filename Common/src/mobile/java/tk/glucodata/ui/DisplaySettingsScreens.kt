@@ -1,8 +1,7 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package tk.glucodata.ui
 
-import androidx.compose.material3.FilterChipDefaults
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
@@ -15,12 +14,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -33,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
@@ -42,28 +36,23 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -79,9 +68,12 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsChoice
+import tk.glucodata.ui.components.SettingsControlsCard
+import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
-private val legacySettingsHorizontalPadding = 16.dp
+private val screenHorizontalPadding = 16.dp
 private val aodPositionOptions = listOf(
     "TOP" to R.string.position_top,
     "CENTER" to R.string.position_center,
@@ -142,88 +134,61 @@ fun NotificationSettingsScreen(
         viewModel.refreshNotificationSurfaces()
     }
 
-    LegacySettingsScaffold(
+    SettingsScreenScaffold(
         navController = navController,
         title = stringResource(R.string.notification_settings_title)
     ) {
+        val showFontWeight = android.os.Build.VERSION.SDK_INT >= 31
         SectionLabel(
             stringResource(R.string.typography),
             topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = fontType == 0,
-                onClick = { fontType = 0; save() },
-                label = { Text(stringResource(R.string.font_app_plex)) },
-                shapes = FilterChipDefaults.shapes(),
-                colors = FilterChipDefaults.filterChipColors()
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
+                title = stringResource(R.string.font_source),
+                options = listOf(0, 1),
+                labels = listOf(
+                    stringResource(R.string.font_app_plex),
+                    stringResource(R.string.font_system_google_sans)
+                ),
+                selectedOption = fontType,
+                onOptionSelected = { fontType = it; save() }
             )
-            FilterChip(
-                selected = fontType == 1,
-                onClick = { fontType = 1; save() },
-                label = { Text(stringResource(R.string.font_system_google_sans)) },
-                shapes = FilterChipDefaults.shapes(),
-                colors = FilterChipDefaults.filterChipColors()
-            )
-        }
-
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.font_weight_label),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 4.dp)
-            )
-            FlowRow(
-                modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(
-                    300 to stringResource(R.string.theme_light),
-                    400 to stringResource(R.string.regular),
-                    500 to stringResource(R.string.medium)
-                ).forEach { (weight, label) ->
-                    FilterChip(
-                        selected = fontWeight == weight,
-                        onClick = { fontWeight = weight; save() },
-                        label = { Text(label) },
-                        shapes = FilterChipDefaults.shapes(),
-                        colors = FilterChipDefaults.filterChipColors()
-                    )
-                }
+            if (showFontWeight) {
+                SettingsChoice(
+                    title = stringResource(R.string.font_weight_label),
+                    options = listOf(300, 400, 500),
+                    labels = listOf(
+                        stringResource(R.string.theme_light),
+                        stringResource(R.string.regular),
+                        stringResource(R.string.medium)
+                    ),
+                    selectedOption = fontWeight,
+                    onOptionSelected = { fontWeight = it; save() }
+                )
             }
+            SettingsSlider(
+                title = stringResource(R.string.font_size_percent, (fontSize * 100).toInt()),
+                value = fontSize,
+                onValueChange = { fontSize = it; save() },
+                range = 0.6f..1.5f
+            )
+            SettingsSlider(
+                title = stringResource(R.string.status_bar_icon_size_percent, (statusIconScale * 100).toInt()),
+                value = statusIconScale,
+                onValueChange = { statusIconScale = it; save() },
+                range = 0f..1.25f
+            )
         }
-
-        Spacer(Modifier.height(4.dp))
-        LegacySliderControl(
-            label = stringResource(R.string.font_size_percent, (fontSize * 100).toInt()),
-            value = fontSize,
-            onValueChange = { fontSize = it; save() },
-            range = 0.6f..1.5f
-        )
-        Spacer(Modifier.height(4.dp))
-        LegacySliderControl(
-            label = stringResource(R.string.status_bar_icon_size_percent, (statusIconScale * 100).toInt()),
-            value = statusIconScale,
-            onValueChange = { statusIconScale = it; save() },
-            range = 0f..1.25f
-        )
 
         SectionLabel(
             stringResource(R.string.appearance),
-            topPadding = 16.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.show_trend_arrow),
@@ -236,31 +201,33 @@ fun NotificationSettingsScreen(
                 subtitle = stringResource(R.string.notification_large_arrow_desc),
                 checked = largeArrow,
                 onCheckedChange = { largeArrow = it; save() },
-                position = CardPosition.BOTTOM
+                position = if (showArrow) CardPosition.MIDDLE else CardPosition.BOTTOM,
+                animatePosition = true
             )
-        }
-        AnimatedVisibility(
-            visible = showArrow,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            LegacySliderControl(
-                label = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
-                value = arrowSize,
-                onValueChange = { arrowSize = it; save() },
-                range = 0.5f..1.5f
-            )
+            AnimatedVisibility(
+                visible = showArrow,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                SettingsControlsCard(position = CardPosition.BOTTOM) {
+                    SettingsSlider(
+                        title = stringResource(R.string.arrow_size_percent, (arrowSize * 100).toInt()),
+                        value = arrowSize,
+                        onValueChange = { arrowSize = it; save() },
+                        range = 0.5f..1.5f
+                    )
+                }
+            }
         }
 
         val showAnyChart = notificationChartEnabled || collapsedChart
         SectionLabel(
             stringResource(R.string.notification_charts_section),
-            topPadding = 16.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.show_chart_expanded),
@@ -303,12 +270,11 @@ fun NotificationSettingsScreen(
         val showRiskOptions = showIob || showCob
         SectionLabel(
             stringResource(R.string.notification_status_line_section),
-            topPadding = 16.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_show_delta_title),
@@ -381,7 +347,7 @@ fun DisplayAndColorSettingsScreen(
         else -> stringResource(R.string.preview_window_expanded_only)
     }
 
-    LegacySettingsScaffold(
+    SettingsScreenScaffold(
         navController = navController,
         title = stringResource(R.string.display_colors_title)
     ) {
@@ -389,11 +355,11 @@ fun DisplayAndColorSettingsScreen(
 
         SectionLabel(
             stringResource(R.string.glucose_palette_edit_title),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.glucose_range_colors_title),
@@ -427,11 +393,11 @@ fun DisplayAndColorSettingsScreen(
 
         SectionLabel(
             stringResource(R.string.display_readouts_section),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsItem(
                 title = stringResource(R.string.preview_window_title),
@@ -505,7 +471,7 @@ fun FloatingGlucoseSettingsScreen(
         hasPermission = Settings.canDrawOverlays(context)
     }
 
-    LegacySettingsScaffold(navController = navController, title = stringResource(R.string.floatglucose)) {
+    SettingsScreenScaffold(navController = navController, title = stringResource(R.string.floatglucose)) {
         MasterSwitchCard(
             title = stringResource(R.string.enable_overlay),
             subtitle = if (hasPermission) {
@@ -527,101 +493,98 @@ fun FloatingGlucoseSettingsScreen(
                 }
             },
             icon = Icons.Default.Layers,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
 
         if (isEnabled && !hasPermission) {
             Spacer(Modifier.height(16.dp))
             WarningPanel(
                 text = stringResource(R.string.floating_permission_required),
-                modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+                modifier = Modifier.padding(horizontal = screenHorizontalPadding)
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
         SectionLabel(
             stringResource(R.string.appearance),
-            topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            stringResource(R.string.background),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
-                FilterChip(
-                    selected = !isTransparent,
-                    onClick = { repository.setTransparent(false) },
-                    label = { Text(stringResource(R.string.filled)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
+            SettingsControlsCard(position = CardPosition.TOP) {
+                SettingsChoice(
+                    title = stringResource(R.string.background),
+                    options = listOf(false, true),
+                    labels = listOf(stringResource(R.string.filled), stringResource(R.string.transparent)),
+                    selectedOption = isTransparent,
+                    onOptionSelected = { repository.setTransparent(it) }
                 )
-                FilterChip(
-                    selected = isTransparent,
-                    onClick = { repository.setTransparent(true) },
-                    label = { Text(stringResource(R.string.transparent)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
+                if (!isTransparent) {
+                    SettingsSlider(
+                        title = stringResource(R.string.corner_radius_dp, cornerRadius.toInt()),
+                        value = cornerRadius,
+                        onValueChange = { repository.setCornerRadius(it) },
+                        range = 0f..48f,
+                        steps = 24
+                    )
+                    SettingsSlider(
+                        title = stringResource(R.string.background_opacity_percent, (opacity * 100).toInt()),
+                        value = opacity,
+                        onValueChange = { repository.setBackgroundOpacity(it) },
+                        range = 0.1f..1.0f,
+                        steps = 18
+                    )
+                }
+            }
+            SettingsSwitchItem(
+                title = stringResource(R.string.use_subtle_outline),
+                subtitle = stringResource(R.string.use_subtle_outline_desc),
+                checked = useSubtleOutline,
+                onCheckedChange = { repository.setUseSubtleOutline(it) },
+                position = CardPosition.BOTTOM
+            )
         }
 
-        if (!isTransparent) {
-            Spacer(modifier = Modifier.height(8.dp))
-            LegacySliderControl(
-                label = stringResource(R.string.corner_radius_dp, cornerRadius.toInt()),
-                value = cornerRadius,
-                onValueChange = { repository.setCornerRadius(it) },
-                range = 0f..48f,
-                steps = 24
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LegacySliderControl(
-                label = stringResource(R.string.background_opacity_percent, (opacity * 100).toInt()),
-                value = opacity,
-                onValueChange = { repository.setBackgroundOpacity(it) },
-                range = 0.1f..1.0f,
-                steps = 18
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        SettingsSwitchItem(
-            title = stringResource(R.string.use_subtle_outline),
-            subtitle = stringResource(R.string.use_subtle_outline_desc),
-            checked = useSubtleOutline,
-            onCheckedChange = { repository.setUseSubtleOutline(it) },
-            position = CardPosition.SINGLE,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
         SectionLabel(
             stringResource(R.string.position_layout),
-            topPadding = 16.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingsSwitchItem(
-            title = stringResource(R.string.dynamic_island_mode),
-            subtitle = stringResource(R.string.dynamic_island_desc),
-            checked = isDynamicIsland,
-            onCheckedChange = { repository.setDynamicIslandEnabled(it) },
-            position = CardPosition.SINGLE,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
+        ) {
+            SettingsSwitchItem(
+                title = stringResource(R.string.dynamic_island_mode),
+                subtitle = stringResource(R.string.dynamic_island_desc),
+                checked = isDynamicIsland,
+                onCheckedChange = { repository.setDynamicIslandEnabled(it) },
+                position = if (isDynamicIsland) CardPosition.TOP else CardPosition.SINGLE,
+                animatePosition = true
+            )
+            if (isDynamicIsland) {
+                SettingsControlsCard(position = CardPosition.BOTTOM) {
+                    SettingsSlider(
+                        title = "${stringResource(R.string.offset)}: ${stringResource(R.string.dp_value, verticalOffset.toInt())}",
+                        value = verticalOffset,
+                        onValueChange = { repository.setIslandVerticalOffset(it) },
+                        range = 0f..50f,
+                        steps = 50
+                    )
+                    val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
+                    SettingsSlider(
+                        title = stringResource(R.string.gap_width_value, gapDisplay),
+                        value = manualGap,
+                        onValueChange = { repository.setIslandGap(it) },
+                        range = 0f..200f,
+                        steps = 40
+                    )
+                }
+            }
+        }
 
         if (!isDynamicIsland) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Column(modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)) {
+            Column(modifier = Modifier.padding(start = screenHorizontalPadding, end = screenHorizontalPadding, top = 16.dp)) {
                 OutlinedButton(
                     onClick = { repository.resetPosition() },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -639,39 +602,13 @@ fun FloatingGlucoseSettingsScreen(
             }
         }
 
-        if (isDynamicIsland) {
-            Spacer(modifier = Modifier.height(8.dp))
-            val offsetLabel = "${stringResource(R.string.offset)}: ${stringResource(R.string.dp_value, verticalOffset.toInt())}"
-            LegacySliderControl(
-                label = offsetLabel,
-                value = verticalOffset,
-                onValueChange = { repository.setIslandVerticalOffset(it) },
-                range = 0f..50f,
-                steps = 50
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-            val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
-            LegacySliderControl(
-                label = stringResource(R.string.gap_width_value, gapDisplay),
-                value = manualGap,
-                onValueChange = { repository.setIslandGap(it) },
-                range = 0f..200f,
-                steps = 40
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
         SectionLabel(
             stringResource(R.string.metrics),
-            topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.display_secondary_values),
@@ -688,76 +625,36 @@ fun FloatingGlucoseSettingsScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
         SectionLabel(
             stringResource(R.string.typography),
-            topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            stringResource(R.string.font_source),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-                FilterChip(
-                    selected = fontSource == "APP",
-                    onClick = { repository.setFontSource("APP") },
-                    label = { Text(stringResource(R.string.font_app_plex)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-                FilterChip(
-                    selected = fontSource == "SYSTEM",
-                    onClick = { repository.setFontSource("SYSTEM") },
-                    label = { Text(stringResource(R.string.font_system_sans)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        LegacySliderControl(
-            label = stringResource(R.string.size_sp, fontSize.toInt()),
-            value = fontSize,
-            onValueChange = { repository.setFontSize(it) },
-            range = 12f..48f,
-            steps = 35
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            stringResource(R.string.font_weight_label),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf("LIGHT", "REGULAR", "MEDIUM").forEach { weight ->
-                val labelRes = when (weight) {
-                    "LIGHT" -> R.string.theme_light
-                    "REGULAR" -> R.string.regular
-                    else -> R.string.medium
-                }
-                FilterChip(
-                    selected = fontWeight == weight,
-                    onClick = { repository.setFontWeight(weight) },
-                    label = { Text(stringResource(labelRes)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-            }
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
+                title = stringResource(R.string.font_source),
+                options = listOf("APP", "SYSTEM"),
+                labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_sans)),
+                selectedOption = fontSource,
+                onOptionSelected = { repository.setFontSource(it) }
+            )
+            SettingsSlider(
+                title = stringResource(R.string.size_sp, fontSize.toInt()),
+                value = fontSize,
+                onValueChange = { repository.setFontSize(it) },
+                range = 12f..48f,
+                steps = 35
+            )
+            SettingsChoice(
+                title = stringResource(R.string.font_weight_label),
+                options = listOf("LIGHT", "REGULAR", "MEDIUM"),
+                labels = listOf(
+                    stringResource(R.string.theme_light),
+                    stringResource(R.string.regular),
+                    stringResource(R.string.medium)
+                ),
+                selectedOption = fontWeight,
+                onOptionSelected = { repository.setFontWeight(it) }
+            )
         }
     }
 }
@@ -811,7 +708,7 @@ fun AodSettingsScreen(navController: NavController) {
         serviceEnabled = isAodAccessibilityEnabled(context)
     }
 
-    LegacySettingsScaffold(
+    SettingsScreenScaffold(
         navController = navController,
         title = stringResource(R.string.aod_settings_title)
     ) {
@@ -827,7 +724,7 @@ fun AodSettingsScreen(navController: NavController) {
                 context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             },
             icon = Icons.Default.SettingsAccessibility,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
 
         Spacer(Modifier.height(8.dp))
@@ -844,151 +741,86 @@ fun AodSettingsScreen(navController: NavController) {
             },
             icon = Icons.Default.Lock,
             position = CardPosition.SINGLE,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
 
-        Spacer(Modifier.height(24.dp))
-        Text(
-            stringResource(R.string.visuals),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 8.dp)
+        SectionLabel(
+            stringResource(R.string.typography),
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-
-        Text(
-            stringResource(R.string.font_source),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 4.dp)
-        )
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = fontSource == "APP",
-                onClick = { fontSource = "APP"; save() },
-                label = { Text(stringResource(R.string.font_app_plex)) },
-                shapes = FilterChipDefaults.shapes(),
-                colors = FilterChipDefaults.filterChipColors()
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
+                title = stringResource(R.string.font_source),
+                options = listOf("APP", "SYSTEM"),
+                labels = listOf(stringResource(R.string.font_app_plex), stringResource(R.string.font_system_google_sans)),
+                selectedOption = fontSource,
+                onOptionSelected = { fontSource = it; save() }
             )
-            FilterChip(
-                selected = fontSource == "SYSTEM",
-                onClick = { fontSource = "SYSTEM"; save() },
-                label = { Text(stringResource(R.string.font_system_google_sans)) },
-                shapes = FilterChipDefaults.shapes(),
-                colors = FilterChipDefaults.filterChipColors()
+            SettingsChoice(
+                title = stringResource(R.string.font_weight_label),
+                options = listOf(300, 400, 500),
+                labels = listOf(
+                    stringResource(R.string.theme_light),
+                    stringResource(R.string.regular),
+                    stringResource(R.string.medium)
+                ),
+                selectedOption = fontWeight,
+                onOptionSelected = { fontWeight = it; save() }
             )
         }
 
-        Text(
-            stringResource(R.string.font_weight_label),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 4.dp)
-        )
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf(
-                300 to stringResource(R.string.theme_light),
-                400 to stringResource(R.string.regular),
-                500 to stringResource(R.string.medium)
-            ).forEach { (weight, label) ->
-                FilterChip(
-                    selected = fontWeight == weight,
-                    onClick = { fontWeight = weight; save() },
-                    label = { Text(label) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
         SectionLabel(
             stringResource(R.string.position_layout),
-            topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Text(
-            stringResource(R.string.active_positions_randomized),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 4.dp)
-        )
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            aodPositionOptions.forEach { (pos, labelRes) ->
-                FilterChip(
-                    selected = positions.contains(pos),
-                    onClick = {
-                        val newSet = positions.toMutableSet()
-                        if (newSet.contains(pos)) {
-                            if (newSet.size > 1) newSet.remove(pos)
-                        } else {
-                            newSet.add(pos)
-                        }
-                        positions = newSet
-                        save()
-                    },
-                    label = { Text(stringResource(labelRes)) },
-                    leadingIcon = if (positions.contains(pos)) {
-                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                    } else null,
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-            }
+        SettingsControlsCard(modifier = Modifier.padding(horizontal = screenHorizontalPadding)) {
+            SettingsChoice(
+                title = stringResource(R.string.active_positions_randomized),
+                options = aodPositionOptions.map { it.first },
+                labels = aodPositionOptions.map { stringResource(it.second) },
+                selectedOptions = aodPositionOptions.map { it.first }.filter { it in positions },
+                multiSelect = true,
+                onOptionSelected = { pos ->
+                    // At least one position stays on.
+                    val newSet = positions.toMutableSet()
+                    if (newSet.contains(pos)) {
+                        if (newSet.size > 1) newSet.remove(pos)
+                    } else {
+                        newSet.add(pos)
+                    }
+                    positions = newSet
+                    save()
+                }
+            )
+            SettingsChoice(
+                title = stringResource(R.string.text_alignment),
+                options = aodAlignmentOptions.map { it.first },
+                labels = aodAlignmentOptions.map { stringResource(it.second) },
+                selectedOption = alignment,
+                onOptionSelected = { alignment = it; save() }
+            )
         }
 
-        Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.text_alignment),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 4.dp)
-        )
-        FlowRow(
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            aodAlignmentOptions.forEach { (align, labelRes) ->
-                FilterChip(
-                    selected = alignment == align,
-                    onClick = { alignment = align; save() },
-                    label = { Text(stringResource(labelRes)) },
-                    shapes = FilterChipDefaults.shapes(),
-                    colors = FilterChipDefaults.filterChipColors()
-                )
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
+        // Switches first, then the sliders; the chart and arrow sliders only
+        // while their element is shown.
         SectionLabel(
             stringResource(R.string.appearance),
-            topPadding = 0.dp,
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         )
-        Spacer(Modifier.height(8.dp))
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = legacySettingsHorizontalPadding)
+            modifier = Modifier.padding(horizontal = screenHorizontalPadding)
         ) {
             SettingsSwitchItem(
                 title = stringResource(R.string.show_chart),
                 checked = showChart,
                 onCheckedChange = { showChart = it; save() },
-                icon = null,
                 position = CardPosition.TOP
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_trend_arrow),
                 checked = showArrow,
                 onCheckedChange = { showArrow = it; save() },
-                icon = null,
                 position = CardPosition.MIDDLE
             )
             SettingsSwitchItem(
@@ -996,44 +828,44 @@ fun AodSettingsScreen(navController: NavController) {
                 subtitle = stringResource(R.string.display_secondary_values_desc),
                 checked = showSecondary,
                 onCheckedChange = { showSecondary = it; save() },
-                icon = null,
-                position = CardPosition.BOTTOM
+                position = CardPosition.MIDDLE
             )
-        }
-
-        LegacySliderControl(
-            label = stringResource(R.string.opacity_percent, (opacity * 100).toInt()),
-            value = opacity,
-            onValueChange = { opacity = it; save() },
-            range = 0.1f..1.0f
-        )
-        LegacySliderControl(
-            label = stringResource(R.string.text_size_percent, (textScale * 100).toInt()),
-            value = textScale,
-            onValueChange = { textScale = it; save() },
-            range = 0.5f..6.0f
-        )
-        if (showChart) {
-            LegacySliderControl(
-                label = stringResource(R.string.chart_size_percent, (chartScale * 100).toInt()),
-                value = chartScale,
-                onValueChange = { chartScale = it; save() },
-                range = 0.5f..2.0f
-            )
-        }
-        if (showArrow) {
-            LegacySliderControl(
-                label = stringResource(R.string.arrow_size_percent, (arrowScale * 100).toInt()),
-                value = arrowScale,
-                onValueChange = { arrowScale = it; save() },
-                range = 0.5f..2.0f
-            )
+            SettingsControlsCard(position = CardPosition.BOTTOM) {
+                SettingsSlider(
+                    title = stringResource(R.string.opacity_percent, (opacity * 100).toInt()),
+                    value = opacity,
+                    onValueChange = { opacity = it; save() },
+                    range = 0.1f..1.0f
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.text_size_percent, (textScale * 100).toInt()),
+                    value = textScale,
+                    onValueChange = { textScale = it; save() },
+                    range = 0.5f..6.0f
+                )
+                if (showChart) {
+                    SettingsSlider(
+                        title = stringResource(R.string.chart_size_percent, (chartScale * 100).toInt()),
+                        value = chartScale,
+                        onValueChange = { chartScale = it; save() },
+                        range = 0.5f..2.0f
+                    )
+                }
+                if (showArrow) {
+                    SettingsSlider(
+                        title = stringResource(R.string.arrow_size_percent, (arrowScale * 100).toInt()),
+                        value = arrowScale,
+                        onValueChange = { arrowScale = it; save() },
+                        range = 0.5f..2.0f
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun LegacySettingsScaffold(
+private fun SettingsScreenScaffold(
     navController: NavController,
     title: String,
     content: @Composable ColumnScope.() -> Unit
@@ -1055,25 +887,6 @@ private fun LegacySettingsScaffold(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.Top,
             content = content
-        )
-    }
-}
-
-@Composable
-private fun LegacySliderControl(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    range: ClosedFloatingPointRange<Float>,
-    steps: Int = 0
-) {
-    Column(Modifier.padding(horizontal = legacySettingsHorizontalPadding, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-            steps = steps
         )
     }
 }

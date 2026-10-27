@@ -10,6 +10,7 @@
 
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
@@ -373,25 +374,13 @@ private fun AnytimeScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.anytime_searching_sensors),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    TextButton(onClick = { showAllDevices = !showAllDevices }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                        Text(
-                            if (showAllDevices) stringResource(R.string.show_sensors_only)
-                            else stringResource(R.string.see_all_devices)
-                        )
-                    }
-                }
+                ScanFilterHeader(
+                    title = stringResource(R.string.anytime_searching_sensors),
+                    showAllDevices = showAllDevices,
+                    onToggleFilter = { showAllDevices = !showAllDevices },
+                )
             }
-            items(devices) { device ->
-                if (!showAllDevices && !device.isLikelyAnytime) return@items
+            items(devices.filter { showAllDevices || it.isLikelyAnytime }) { device ->
                 val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
                 val supporting = when {
                     device.familyEntry.family != AnytimeConstants.Family.UNKNOWN ->
@@ -572,15 +561,14 @@ private fun AnytimeCt5CredentialsCard(
                 )
             }
             if (exportRecord != null) {
-                Row(
+                AdaptiveButtonRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = {
                             exportLauncher.launch("anytime_ct5_${exportRecord?.sensorId.orEmpty()}.json")
                         },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -592,7 +580,7 @@ private fun AnytimeCt5CredentialsCard(
                         onClick = {
                             importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                         },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {

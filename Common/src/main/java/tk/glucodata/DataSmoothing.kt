@@ -335,6 +335,7 @@ object DataSmoothing {
             filtered
         }
     }
+    private fun isValidLane(value: Float): Boolean = value.isFinite() && value >= 0.1f
 
     internal fun collapsePointsForDisplay(
         points: List<GlucosePoint>,
@@ -350,21 +351,35 @@ object DataSmoothing {
         val collapsed = ArrayList<GlucosePoint>()
         var activeBucket = Long.MIN_VALUE
         var pending: GlucosePoint? = null
+        var bucketAuto: GlucosePoint? = null
+        var bucketRaw: GlucosePoint? = null
+
+        // The bucket's last point, and for a lane it lacks the bucket's newest
+        // point that has it, at its own time: Libre's History lane is one value
+        // per 15 minutes, and moving it onto the last point could stretch two
+        // neighbouring values past the chart's gap limit.
+        fun flush() {
+            val last = pending ?: return
+            val autoHolder = bucketAuto?.takeIf { !isValidLane(last.value) }
+            val rawHolder = bucketRaw?.takeIf { !isValidLane(last.rawValue) }
+            listOfNotNull(autoHolder, rawHolder).distinct().sortedBy { it.timestamp }.forEach(collapsed::add)
+            collapsed.add(last)
+        }
 
         for (point in points) {
             val bucket = point.timestamp / bucketDurationMs
             if (bucket != activeBucket) {
-                if (activeBucket < openBucket) {
-                    pending?.let(collapsed::add)
-                }
+                if (activeBucket < openBucket) flush()
                 activeBucket = bucket
+                bucketAuto = null
+                bucketRaw = null
             }
+            if (isValidLane(point.value)) bucketAuto = point
+            if (isValidLane(point.rawValue)) bucketRaw = point
             pending = point
         }
 
-        if (activeBucket < openBucket) {
-            pending?.let(collapsed::add)
-        }
+        if (activeBucket < openBucket) flush()
         return when {
             collapsed.isNotEmpty() -> collapsed
             points.isNotEmpty() -> listOf(points.last())

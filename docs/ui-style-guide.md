@@ -242,6 +242,16 @@ read at 18dp.
 - Anything holding text gets a minimum height, not a height: `heightIn(min = 56.dp)` on a
   button or a text field, never `height(56.dp)`. A fixed height cuts the text off at large
   font sizes.
+- A label beside an action uses `AdaptiveTrailingRow` when the action could crowd out
+  the text. It keeps a reading width that grows with font size (and is never narrower than
+  the longest word) and moves the action below when needed. Its slots must support
+  intrinsic measurement; keep lazy lists and `BoxWithConstraints` outside them. Sibling
+  action buttons that share a line equally use `AdaptiveButtonRow`: equal widths while
+  every label fits on one line, one full-width line each when one would wrap. Don't use a
+  `FlowRow` of weighted buttons for this; it breaks lines on the shortest word, so the
+  labels wrap inside the buttons instead.
+- Journal menus share the chart's 1.3× font cap because their positions follow the chart
+  geometry. Chart menu width stays inside the window; long labels ellipsize on one line.
 
 ---
 

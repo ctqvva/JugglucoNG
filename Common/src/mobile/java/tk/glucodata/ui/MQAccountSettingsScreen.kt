@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -226,9 +227,9 @@ fun MQAccountSettingsContent(
                     text = stringResource(R.string.mq_account_section_session),
                     topPadding = 8.dp,
                 )
-                Row(
+                AdaptiveButtonRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    spacing = 12.dp,
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -251,7 +252,6 @@ fun MQAccountSettingsContent(
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f),
                         enabled = hasAuthToken && !isBusy,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
@@ -278,7 +278,6 @@ fun MQAccountSettingsContent(
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f),
                         enabled = (hasAuthToken || hasCredentials) && !isBusy,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
@@ -348,9 +347,8 @@ fun MQAccountSettingsContent(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Row(
+                    AdaptiveButtonRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -367,7 +365,6 @@ fun MQAccountSettingsContent(
                                     }
                                 }
                             },
-                            modifier = Modifier.weight(1f),
                             enabled = phone.isNotBlank() && !isBusy,
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
@@ -388,7 +385,6 @@ fun MQAccountSettingsContent(
                                     }
                                 }
                             },
-                            modifier = Modifier.weight(1f),
                             enabled = phone.isNotBlank() && !isBusy,
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
@@ -441,9 +437,8 @@ fun MQAccountSettingsContent(
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) { Text(signInWithCodeLabel) }
 
-                    Row(
+                    AdaptiveButtonRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -465,7 +460,6 @@ fun MQAccountSettingsContent(
                                     }
                                 }
                             },
-                            modifier = Modifier.weight(1f),
                             enabled = phone.isNotBlank() && hasVerificationCode && password.isNotBlank() && !isBusy,
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
@@ -487,7 +481,6 @@ fun MQAccountSettingsContent(
                                     }
                                 }
                             },
-                            modifier = Modifier.weight(1f),
                             enabled = phone.isNotBlank() && hasVerificationCode && password.isNotBlank() && !isBusy,
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,

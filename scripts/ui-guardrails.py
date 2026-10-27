@@ -90,6 +90,52 @@ def button_without_shapes(text, path):
     return hits
 
 
+def fixed_text_control_height(text, path):
+    """Text controls grow with fonts; inspect only their own modifier argument.
+
+    Nested callback content can legitimately contain fixed-height icons and charts.
+    Ignore strings and track nesting so those modifiers are not attributed to the button.
+    """
+    hits = []
+    calls = re.finditer(
+        r"(?:(?<![\w.])|(?<=material3\.))(?:Button|FilledTonalButton|OutlinedButton|ElevatedButton|TextButton|"
+        r"ToggleButton|TextField|OutlinedTextField)\s*\(", text
+    )
+    for call in calls:
+        start = call.end()
+        depth = 0
+        quoted = False
+        escaped = False
+        argument = start
+        for i in range(start, len(text)):
+            char = text[i]
+            if quoted:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    quoted = False
+                continue
+            if char == '"':
+                quoted = True
+                continue
+            if depth == 0 and char in ",)":
+                value = text[argument:i]
+                if re.match(r"\s*modifier\s*=", value):
+                    if re.search(r"\.(?:height|requiredHeight)\((?!\s*IntrinsicSize\.)", value):
+                        hits.append(call.start())
+                    break
+                argument = i + 1
+                if char == ")":
+                    break
+            elif char in "({[":
+                depth += 1
+            elif char in ")}]":
+                depth -= 1
+    return hits
+
+
 def palette_spans(text):
     spans = []
     for m in PALETTE_CALLS.finditer(text):
@@ -137,6 +183,7 @@ RULES = {
     # Emphasis is a style (titleMediumEmphasized...), not a call-site weight.
     # Buttons morph on press: shapes = ...Defaults.shapes(), with shape/pressedShape for a custom silhouette.
     "button_without_shapes": button_without_shapes,
+    "fixed_text_control_height": fixed_text_control_height,
     "font_weight_override": pattern(r"fontWeight\s*=\s*FontWeight\.(?:Medium|SemiBold|Bold)\b", exclude=("theme/Type.kt",)),
 }
 

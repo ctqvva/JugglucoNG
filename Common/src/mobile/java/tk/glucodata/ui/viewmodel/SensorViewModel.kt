@@ -101,6 +101,8 @@ data class SensorInfo(
     val isMedtrum: Boolean = false,  // Medtrum EasySense: manual calibration via the patch's 0x40 command
     val vendor: SensorVendor = SensorVendor.UNKNOWN,
     val sensorType: SensorTypeName = SensorTypeName.UNKNOWN,
+    /** Libre 1/2: the two lanes are the Stream and the sensor's own History. */
+    val hasLibreHistoryLane: Boolean = false,
     // Edit 59: Reset compensation state
     val resetCompensationActive: Boolean = false,  // AiDex: whether initialization bias compensation is active
     val resetCompensationStatus: String = "",  // AiDex: human-readable compensation status (e.g. "Phase 1: ×1.176 (23h left)")
@@ -681,6 +683,11 @@ class SensorViewModel : ViewModel() {
                             isAidex = false,
                             vendor = sensorVendor,
                             sensorType = sensorType,
+                            // Asked of the native record, which a Clone receiver or an
+                            // NFC-only Libre has even where the type above is unknown.
+                            hasLibreHistoryLane = runCatching {
+                                Natives.hasSensorHistoryLane(gatt.dataptr)
+                            }.getOrDefault(false),
                             startMs = startMs,
                             officialEndMs = officialEndMs,
                             expectedEndMs = expectedEndMs,

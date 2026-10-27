@@ -434,11 +434,12 @@ fun DebugSettingsScreen(navController: NavController) {
                 modifier = Modifier.weight(1f)
             )
 
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
                     onClick = { shareLog() },

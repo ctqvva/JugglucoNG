@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -433,12 +434,15 @@ private fun SourcePresetRow(
         shape = cardShape(CardPosition.SINGLE, radius = 10.dp),
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            trailingContent = {
+                TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                    Text(stringResource(R.string.outbound_api_change_preset))
+                }
+            }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = stringResource(R.string.api_source_preset),
                     style = MaterialTheme.typography.labelMedium,
@@ -448,9 +452,6 @@ private fun SourcePresetRow(
                     text = stringResource(apiSourcePresetTitle(preset)),
                     style = MaterialTheme.typography.bodyLarge
                 )
-            }
-            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
     }

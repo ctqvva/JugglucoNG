@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -309,18 +310,20 @@ private fun GlucoseRangeSliderRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            AdaptiveTrailingRow(
+                trailingContent = {
+                    Text(
+                        text = formatRangeValue(value, isMmol),
+                        style = MaterialTheme.typography.titleLargeEmphasized.copy(
+                            fontFeatureSettings = "tnum"
+                        )
+                    )
+                }
+            ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = formatRangeValue(value, isMmol),
-                    style = MaterialTheme.typography.titleLargeEmphasized.copy(
-                        fontFeatureSettings = "tnum"
-                    )
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Slider(

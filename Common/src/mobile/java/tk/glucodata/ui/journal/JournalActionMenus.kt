@@ -1,6 +1,9 @@
 package tk.glucodata.ui.journal
 
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import tk.glucodata.ui.FontScaleCap
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -152,7 +155,8 @@ fun JournalFloatingActionMenu(
     anchor: ChartActionAnchor,
     onDismissRequest: () -> Unit,
     onTypeSelected: (type: JournalEntryType, timestamp: Long) -> Unit
-) {
+) = FontScaleCap {
+    // Position-based journal menus follow the chart and navigation font cap.
     val view = LocalView.current
     // The FAB menu's order, top to bottom.
     val actionTypes = remember { journalReachActionTypes() }
@@ -222,7 +226,7 @@ fun JournalFloatingActionMenu(
             press?.let { interactions[hovered].tryEmit(PressInteraction.Release(it)) }
         }
     }
-    val timestamp = shownTimestamp ?: return
+    val timestamp = shownTimestamp ?: return@FontScaleCap
     Popup(
         popupPositionProvider = WholeWindow,
         onDismissRequest = onDismissRequest,
@@ -346,6 +350,7 @@ private fun ChartMenuColumn(
     ) { measurables, constraints ->
         // One width for all, so the column is one block and the icons and labels line up.
         val itemWidth = measurables.maxOf { it.maxIntrinsicWidth(Constraints.Infinity) }
+            .coerceAtMost((constraints.maxWidth - ChartMenuEdge.roundToPx() * 2).coerceAtLeast(0))
         val placeables = measurables.map { it.measure(Constraints.fixedWidth(itemWidth)) }
         val dotGap = ChartMenuDotGap.roundToPx()
         val edge = ChartMenuEdge.roundToPx()
@@ -429,7 +434,7 @@ private fun ChartMenuItem(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(FabMenuItemHeight),
+        modifier = modifier.heightIn(min = FabMenuItemHeight),
         interactionSource = interactionSource,
         shapes = ButtonDefaults.shapes(shape = shape),
         colors = ButtonDefaults.buttonColors(
@@ -447,7 +452,10 @@ private fun ChartMenuItem(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text(actionType.journalActionLabel(), style = MaterialTheme.typography.labelLarge)
+            Text(
+                actionType.journalActionLabel(), style = MaterialTheme.typography.labelLarge,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -469,7 +477,7 @@ fun BoxScope.JournalExpandableFab(
     onTypeSelected: (JournalEntryType) -> Unit,
     modifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.End
-) {
+) = FontScaleCap {
     val view = LocalView.current
     val actionTypes = remember { journalReachActionTypes() }
     val itemCoordinates = remember { arrayOfNulls<LayoutCoordinates>(actionTypes.size) }

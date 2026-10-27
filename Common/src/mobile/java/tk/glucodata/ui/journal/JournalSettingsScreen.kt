@@ -459,7 +459,7 @@ private fun JournalActionButton(
     FilledTonalButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(if (prominent) 48.dp else 36.dp),
+        modifier = modifier.heightIn(min = if (prominent) 48.dp else 36.dp),
         colors = if (prominent) {
             ButtonDefaults.filledTonalButtonColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -2002,7 +2002,7 @@ private fun JournalInsulinPresetSheet(
                                 },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                 modifier = Modifier
-                                    .height(32.dp)
+                                    .heightIn(min = 32.dp)
                                     .widthIn(max = 132.dp),
                                 shapes = ButtonDefaults.shapes()
                             ) {

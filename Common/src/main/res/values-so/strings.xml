@@ -2906,6 +2906,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="wear_prediction_off">Damin — taleefanka laga dejiyo</string>
     <string name="glucosechartcomplicationlabel">Garaafka gulukooska</string>
     <string name="wear_chart_complication">Garaafka gulukooska</string>
+    <string name="wear_glucose_tile_label">Gulukoos</string>
     <string name="wear_exchange_title">Isweydaarsiga</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Baahinta xDrip</string>
@@ -3228,4 +3229,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g karboon</string>
     <string name="journal_meal_total">Wadarta</string>
+    <string name="stream_history_mode">Gudbin+Taariikh</string>
+    <string name="history_stream_mode">Taariikh+Gudbin</string>
+    <string name="libre_history_mode_caption">Taariikhdu waa qiimaha dareemaha laftiisa, oo la kaydiyo 15-kii daqiiqo kasta, kana dambeeya gudbinta qiyaastii 16 daqiiqo. Ilaa taariikhda daqiiqad timaado, gudbintu ayaa meesheeda gasha.</string>
 </resources>

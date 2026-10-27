@@ -2705,6 +2705,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Disattiva — impostata sul telefono</string>
     <string name="glucosechartcomplicationlabel">Grafico glicemia</string>
     <string name="wear_chart_complication">Grafico glicemia</string>
+    <string name="wear_glucose_tile_label">Glicemia</string>
     <string name="wear_exchange_title">Scambio dati</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Trasmissione xDrip</string>
@@ -3034,4 +3035,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g di carboidrati</string>
     <string name="journal_meal_total">Totale</string>
+    <string name="stream_history_mode">Flusso+Cronologia</string>
+    <string name="history_stream_mode">Cronologia+Flusso</string>
+    <string name="libre_history_mode_caption">La cronologia è il valore proprio del sensore, salvato ogni 15 minuti e circa 16 minuti dietro il flusso. Finché la cronologia di un minuto non arriva, la sostituisce il flusso.</string>
 </resources>

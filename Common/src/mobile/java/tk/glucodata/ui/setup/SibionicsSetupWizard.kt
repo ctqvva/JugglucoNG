@@ -711,7 +711,7 @@ fun ScanSensorStep(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(buttonHeight),
+                        .heightIn(min = buttonHeight),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
@@ -777,7 +777,7 @@ fun ScanSensorStep(
                         onClick = { onBleDeviceEntry(selectedBleDevice) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(buttonHeight),
+                            .heightIn(min = buttonHeight),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -802,7 +802,7 @@ fun ScanSensorStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
@@ -815,7 +815,7 @@ fun ScanSensorStep(
 
             TextButton(
                 onClick = { showManualEntry = true },
-                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
 
@@ -950,7 +950,7 @@ fun SelectTypeStep(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(buttonHeight),
+                .heightIn(min = buttonHeight),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) {
@@ -965,7 +965,7 @@ fun SelectTypeStep(
         // Secondary cancel action
         TextButton(
             onClick = onBack,
-            modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.TextButtonContentPadding,
 
@@ -1059,7 +1059,7 @@ fun ScanTransmitterStep(
 
             OutlinedButton(
                 onClick = { isScanning = !isScanning },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
@@ -1156,7 +1156,7 @@ fun ScanTransmitterStep(
     
             Button(
                 onClick = onScanClick,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
@@ -1174,7 +1174,7 @@ fun ScanTransmitterStep(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) 
                 },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
@@ -1187,7 +1187,7 @@ fun ScanTransmitterStep(
             
             TextButton(
                 onClick = { showManualEntry = true },
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {

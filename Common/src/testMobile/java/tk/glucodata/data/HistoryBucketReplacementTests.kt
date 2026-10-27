@@ -72,4 +72,17 @@ class HistoryBucketReplacementTests {
 
         assertNull(plan)
     }
+
+    @Test
+    fun mayCloseChunk_neverSplitsAMinuteAcrossChunks() {
+        val chunk = listOf(
+            HistoryReading(timestamp = 60_000L, sensorSerial = "sensor", value = 100f, rawValue = 0f, rate = null),
+            HistoryReading(timestamp = 120_010L, sensorSerial = "sensor", value = 101f, rawValue = 98f, rate = null),
+        )
+
+        // A second reading of the chunk's last minute stays with it, even past the size.
+        assertEquals(false, HistoryBucketReplacement.mayCloseChunk(chunk, 179_990L, chunkSize = 2, bucketDurationMs = 60_000L))
+        assertEquals(true, HistoryBucketReplacement.mayCloseChunk(chunk, 180_000L, chunkSize = 2, bucketDurationMs = 60_000L))
+        assertEquals(false, HistoryBucketReplacement.mayCloseChunk(chunk, 180_000L, chunkSize = 3, bucketDurationMs = 60_000L))
+    }
 }

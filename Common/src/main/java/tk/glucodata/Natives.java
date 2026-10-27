@@ -730,6 +730,17 @@ public class Natives {
          */
         public static native long[] getGlucoseHistoryForSensor(String sensorName, long starttime);
 
+        /**
+         * Libre 1/2 only: the sensor's own 15-minute history (FRAM, or the history
+         * values a BLE packet carries) as stored, [time_sec, mgdl*10, ...]; null for
+         * any other sensor. getGlucoseHistoryForSensor already exports it as the Raw
+         * lane; this tells a re-sync which stored rows were history rows.
+         */
+        public static native long[] getSensorHistoryLane(String sensorName, long starttime);
+
+        /** Whether getGlucoseHistoryForSensor exports this sensor as Stream (Auto) and History (Raw). */
+        public static native boolean hasSensorHistoryLane(long dataptr);
+
         public static native byte[] getmynetinfo(String name, boolean create, int watchhassensor, boolean galaxy,
                         int setnums);
 

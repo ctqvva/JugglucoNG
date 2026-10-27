@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -1706,25 +1707,22 @@ fun WebServerSettingsScreen(navController: NavController) {
                             }
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AdaptiveButtonRow {
                             OutlinedButton(
                                 onClick = { openUrl(currentUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f),
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_current)) }
                             OutlinedButton(
                                 onClick = { openUrl(entriesUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f),
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_entries)) }
                             OutlinedButton(
                                 onClick = { openUrl(reportUrl) },
                                 enabled = childEnabled,
-                                modifier = Modifier.weight(1f),
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) { Text(stringResource(R.string.webserver_endpoint_report)) }

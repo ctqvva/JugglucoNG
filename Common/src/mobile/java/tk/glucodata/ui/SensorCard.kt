@@ -82,7 +82,6 @@ import tk.glucodata.BLE_ERROR_CARD_WINDOW_MS
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.SensorHandoffUiState
-import tk.glucodata.SensorTypeName
 import tk.glucodata.SensorVendor
 import tk.glucodata.SensorVisuals
 import tk.glucodata.SensorBadge
@@ -2388,14 +2387,22 @@ fun SensorCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Edit 79 rev: Sensor Data Mode — ConnectedButtonGroup
-            if (sensor.isSibionics || sensor.supportsDisplayModes) {
+            // Libre 1/2 export their two lanes as Stream (Auto) and the sensor's own
+            // 15-minute History (Raw), so the same four modes switch between them.
+            val isLibreStreamHistory = sensor.hasLibreHistoryLane
+            if (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory) {
                 Text(
                     stringResource(R.string.data_mode),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                val modeLabels = listOf(
+                val modeLabels = if (isLibreStreamHistory) listOf(
+                    stringResource(R.string.streamname),
+                    stringResource(R.string.historyname),
+                    stringResource(R.string.stream_history_mode),
+                    stringResource(R.string.history_stream_mode)
+                ) else listOf(
                     stringResource(R.string.auto),
                     stringResource(R.string.raw),
                     stringResource(R.string.auto_raw),
@@ -2422,6 +2429,14 @@ fun SensorCard(
                     unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                     unselectedContentColor = MaterialTheme.colorScheme.onSurface
                 )
+                if (isLibreStreamHistory) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.libre_history_mode_caption),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Both managed algorithms replace the Auto lane; pure Raw hides this entry.

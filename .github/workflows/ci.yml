@@ -59,6 +59,8 @@ jobs:
           persist-credentials: false
       - name: Check UI guardrail counts against the baseline
         run: python3 scripts/ui-guardrails.py
+      - name: Test UI guardrail detection
+        run: python3 -m unittest discover -s scripts/tests -v
 
   unit-tests:
     name: JVM unit tests

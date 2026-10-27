@@ -67,8 +67,16 @@ internal object ComplicationRenderer {
      */
     const val ICON_TINT = 0xFFFFFFFF.toInt()
 
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val bounds = Rect()
+    /**
+     * Scratch state, one set per thread. Complication services, the watch face and the tile
+     * all draw through this object from different threads, and a draw resets and reconfigures
+     * the paint between measuring and drawing, so a shared one let one caller change another's
+     * text size mid-draw.
+     */
+    private val threadPaint = ThreadLocal.withInitial { Paint(Paint.ANTI_ALIAS_FLAG) }
+    private val threadBounds = ThreadLocal.withInitial { Rect() }
+    private val paint: Paint get() = threadPaint.get()!!
+    private val bounds: Rect get() = threadBounds.get()!!
 
     private fun neutral(): Int = 0xFFE3E2DE.toInt()
 

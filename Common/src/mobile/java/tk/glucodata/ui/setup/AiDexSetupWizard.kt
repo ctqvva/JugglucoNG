@@ -14,6 +14,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
@@ -21,9 +23,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -292,86 +297,87 @@ fun AiDexScanStep(
 
     Column(modifier = Modifier.fillMaxSize()) {
         LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        tk.glucodata.ui.CgmReadinessSetupBanner(
-            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
-            onOpenReadiness = onNavigateToReadiness
-        )
-        Spacer(Modifier.height(ui.spacerMedium))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ui.horizontalPadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringResource(R.string.aidex_searching_sensors),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium
-            )
-            TextButton(
-                onClick = { showAllDevices = !showAllDevices },
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.TextButtonContentPadding
-            ) {
-                Text(
-                    if (showAllDevices) {
-                        stringResource(R.string.show_sensors_only)
-                    } else {
-                        stringResource(R.string.see_all_devices)
-                    }
+        PinnedOrScrollingList(
+            modifier = Modifier.weight(1f),
+            header = {
+                tk.glucodata.ui.CgmReadinessSetupBanner(
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
+                    onOpenReadiness = onNavigateToReadiness
                 )
-            }
-        }
-        if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
-            Spacer(Modifier.height(ui.spacerMedium))
-            Card(
-                modifier = Modifier
-                    .padding(horizontal = ui.horizontalPadding)
-                    .fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    val messageRes = when {
-                        !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
-                        !scanPermissionGranted -> R.string.turn_on_location_permission
-                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
-                        else -> R.string.nobluetooth
-                    }
-                    Text(
-                        text = stringResource(messageRes),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Spacer(Modifier.height(ui.spacerMedium))
+                ScanFilterHeader(
+                    title = stringResource(R.string.aidex_searching_sensors),
+                    showAllDevices = showAllDevices,
+                    onToggleFilter = { showAllDevices = !showAllDevices },
+                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                )
+                if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
                     Spacer(Modifier.height(ui.spacerMedium))
-                    val buttonRes = when {
-                        !scanPermissionGranted -> R.string.permission
-                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
-                        else -> R.string.search_bluetooth
-                    }
-                    Button(
-                        onClick = {
-                            when {
-                                !scanPermissionGranted -> requestScanPermission()
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
-                                    enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                                }
-                                else -> {
-                                    scanError = null
-                                    scanPermissionGranted = hasBleScanPermissions(context)
-                                    bluetoothEnabled = scanner.isBluetoothEnabled()
-                                    scanRetryKey += 1
-                                }
-                            }
-                        },
-                        modifier = Modifier.height(ui.buttonHeight),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = ui.horizontalPadding)
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                     ) {
-                        Text(stringResource(buttonRes))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val messageRes = when {
+                                !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
+                                !scanPermissionGranted -> R.string.turn_on_location_permission
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
+                                else -> R.string.nobluetooth
+                            }
+                            Text(
+                                text = stringResource(messageRes),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.height(ui.spacerMedium))
+                            val buttonRes = when {
+                                !scanPermissionGranted -> R.string.permission
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
+                                else -> R.string.search_bluetooth
+                            }
+                            Button(
+                                onClick = {
+                                    when {
+                                        !scanPermissionGranted -> requestScanPermission()
+                                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
+                                            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                                        }
+                                        else -> {
+                                            scanError = null
+                                            scanPermissionGranted = hasBleScanPermissions(context)
+                                            bluetoothEnabled = scanner.isBluetoothEnabled()
+                                            scanRetryKey += 1
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.heightIn(min = ui.buttonHeight),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding
+                            ) {
+                                Text(stringResource(buttonRes))
+                            }
+                        }
                     }
                 }
-            }
-        }
-        LazyColumn(modifier = Modifier.weight(1f)) {
+            },
+            footer = {
+                SettingsItem(
+                    title = stringResource(R.string.aidex_key_management_title),
+                    subtitle = stringResource(R.string.aidex_key_management_entry_desc),
+                    icon = Icons.Default.Key,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.SINGLE,
+                    onClick = onManageKeys,
+                    modifier = Modifier
+                        .padding(
+                            start = ui.horizontalPadding,
+                            end = ui.horizontalPadding,
+                            bottom = ui.spacerMedium,
+                        ),
+                )
+            },
+        ) {
             items(devices) { device ->
                 val name = device.rawName.ifBlank { stringResource(R.string.unknown) }
                 val serial = device.serial
@@ -408,21 +414,82 @@ fun AiDexScanStep(
                 HorizontalDivider()
             }
         }
-        SettingsItem(
-            title = stringResource(R.string.aidex_key_management_title),
-            subtitle = stringResource(R.string.aidex_key_management_entry_desc),
-            icon = Icons.Default.Key,
-            iconTint = MaterialTheme.colorScheme.primary,
-            position = CardPosition.SINGLE,
-            onClick = onManageKeys,
-            modifier = Modifier
-                .padding(
-                    start = ui.horizontalPadding,
-                    end = ui.horizontalPadding,
-                    bottom = ui.spacerMedium,
-                ),
-        )
     }
+}
+
+/**
+ * A header and footer pinned around a scrolling list, while the list keeps room for at least one
+ * row. When they would squeeze it shut (short window, large text), all three scroll as one list.
+ */
+@Composable
+internal fun PinnedOrScrollingList(
+    modifier: Modifier = Modifier,
+    header: @Composable ColumnScope.() -> Unit,
+    footer: @Composable () -> Unit,
+    listContent: LazyListScope.() -> Unit,
+) {
+    // Natural heights, measured in either layout (unbounded, so a squeezed footer still reports
+    // what it needs); the same content at the same width has the same height.
+    var headerHeight by remember { mutableIntStateOf(0) }
+    var footerHeight by remember { mutableIntStateOf(0) }
+    val handOver = remember { ListHandOver() }
+    BoxWithConstraints(modifier) {
+        val minListHeight = with(LocalDensity.current) {
+            (MinPinnedListHeight * fontScale.coerceAtLeast(1f)).roundToPx()
+        }
+        val pinned = constraints.maxHeight - headerHeight - footerHeight >= minListHeight
+        // The list being replaced hands over its place, so a switch (a banner appearing, rotation,
+        // font size) doesn't jump back to the top. The scrolling list has the header as item 0.
+        val listState = rememberSaveable(pinned, saver = LazyListState.Saver) {
+            val from = handOver.state
+            val index = from?.firstVisibleItemIndex ?: 0
+            val offset = from?.firstVisibleItemScrollOffset ?: 0
+            when {
+                from == null -> LazyListState()
+                pinned -> if (index == 0) LazyListState() else LazyListState(index - 1, offset)
+                index == 0 && offset == 0 -> LazyListState()
+                else -> LazyListState(index + 1, offset)
+            }
+        }
+        SideEffect { handOver.state = listState }
+        val measuredHeader: @Composable () -> Unit = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(Alignment.Top, unbounded = true)
+                    .onSizeChanged { headerHeight = it.height },
+                content = header,
+            )
+        }
+        val measuredFooter: @Composable () -> Unit = {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(Alignment.Top, unbounded = true)
+                    .onSizeChanged { footerHeight = it.height }
+            ) { footer() }
+        }
+        if (pinned) {
+            Column(Modifier.fillMaxSize()) {
+                measuredHeader()
+                LazyColumn(modifier = Modifier.weight(1f), state = listState, content = listContent)
+                measuredFooter()
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
+                item { measuredHeader() }
+                listContent()
+                item { measuredFooter() }
+            }
+        }
+    }
+}
+
+// One two-line list row.
+private val MinPinnedListHeight = 72.dp
+
+private class ListHandOver {
+    var state: LazyListState? = null
 }
 
 private data class AiDexScanDetection(

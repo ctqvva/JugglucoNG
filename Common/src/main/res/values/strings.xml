@@ -2986,6 +2986,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Off — set on phone</string>
     <string name="glucosechartcomplicationlabel">Glucose chart</string>
     <string name="wear_chart_complication">Glucose chart</string>
+    <string name="wear_glucose_tile_label">Glucose</string>
     <string name="wear_exchange_title">Exchange</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip broadcast</string>
@@ -3288,6 +3289,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g carbs</string>
     <string name="journal_meal_total">Total</string>
+    <string name="stream_history_mode">Stream+History</string>
+    <string name="history_stream_mode">History+Stream</string>
+    <string name="libre_history_mode_caption">History is the sensor\'s own value, stored every 15 minutes and about 16 minutes behind the stream. Until a minute\'s history arrives, the stream stands in for it.</string>
     <string name="watch_forwarding_section">Via phone notifications</string>
     <string name="watch_forwarding_title">Glucose forwarding</string>
     <string name="watch_forwarding_standard">Standard Android</string>

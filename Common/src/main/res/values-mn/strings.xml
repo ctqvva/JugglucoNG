@@ -2822,6 +2822,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wear_prediction_off">Унтраасан — утсанд тохируулна</string>
     <string name="glucosechartcomplicationlabel">Глюкозын график</string>
     <string name="wear_chart_complication">Глюкозын график</string>
+    <string name="wear_glucose_tile_label">Глюкоз</string>
     <string name="wear_exchange_title">Өгөгдөл солилцоо</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip дамжуулалт</string>
@@ -3144,4 +3145,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s г нүүрс ус</string>
     <string name="journal_meal_total">Нийт</string>
+    <string name="stream_history_mode">Дамжуулалт+Түүх</string>
+    <string name="history_stream_mode">Түүх+Дамжуулалт</string>
+    <string name="libre_history_mode_caption">Түүх нь мэдрэгчийн өөрийн утга бөгөөд 15 минут тутам хадгалагдаж, дамжуулалтаас ойролцоогоор 16 минутаар хоцордог. Тухайн минутын түүх ирэх хүртэл дамжуулалт түүнийг орлоно.</string>
 </resources>

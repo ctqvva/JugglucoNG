@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -677,12 +678,15 @@ private fun PresetSummaryRow(
         shape = cardShape(CardPosition.SINGLE, radius = 10.dp),
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            trailingContent = {
+                TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                    Text(stringResource(R.string.outbound_api_change_preset))
+                }
+            }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = stringResource(R.string.outbound_api_provider),
                     style = MaterialTheme.typography.labelMedium,
@@ -692,9 +696,6 @@ private fun PresetSummaryRow(
                     text = stringResource(presetTitle(preset)),
                     style = MaterialTheme.typography.bodyLarge
                 )
-            }
-            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
     }
@@ -970,64 +971,62 @@ internal fun NumberStepper(
     range: IntRange,
     onChange: (Int) -> Unit
 ) {
-    Row(
+    AdaptiveTrailingRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        Surface(
-            shape = cardShape(CardPosition.SINGLE, radius = 24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
-        ) {
-            Row(
-                modifier = Modifier.height(48.dp),
-                verticalAlignment = Alignment.CenterVertically
+        trailingContent = {
+            Surface(
+                shape = cardShape(CardPosition.SINGLE, radius = 24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
-                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
-                    IconButton(
-                        onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
-                        enabled = value > range.first,
-                        modifier = Modifier.size(48.dp),
-                        shapes = IconButtonDefaults.shapes()
-                    ) {
-                        Icon(
-                            Icons.Filled.Remove,
-                            contentDescription = stringResource(R.string.outbound_api_decrease_value)
-                        )
+                Row(
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                        IconButton(
+                            onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
+                            enabled = value > range.first,
+                            modifier = Modifier.size(48.dp),
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                Icons.Filled.Remove,
+                                contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                            )
+                        }
                     }
-                }
-                Text(
-                    text = value.toString(),
-                    modifier = Modifier.widthIn(min = 34.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
-                    IconButton(
-                        onClick = { onChange((value + 1).coerceAtMost(range.last)) },
-                        enabled = value < range.last,
-                        modifier = Modifier.size(48.dp),
-                        shapes = IconButtonDefaults.shapes()
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.outbound_api_increase_value)
-                        )
+                    Text(
+                        text = value.toString(),
+                        modifier = Modifier.widthIn(min = 34.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                        IconButton(
+                            onClick = { onChange((value + 1).coerceAtMost(range.last)) },
+                            enabled = value < range.last,
+                            modifier = Modifier.size(48.dp),
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.outbound_api_increase_value)
+                            )
+                        }
                     }
                 }
             }
         }
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

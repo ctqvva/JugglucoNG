@@ -23,12 +23,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.TrendingDown
 import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
@@ -178,50 +181,62 @@ private fun PixelAlarmContent(
                 )
             )
     ) {
+        // Snooze and Stop are measured first and keep their size; the title and value share what
+        // is left, and scroll when large text or a short (landscape) window leaves too little.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
         ) {
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn(animationSpec = tween(240)) +
-                    slideInVertically(animationSpec = tween(320), initialOffsetY = { -it / 5 })
-            ) {
-                AlarmHeader(
-                    alarmLabel = alarmLabel,
-                    supportingText = supportingText,
-                    compact = compact,
-                    fontFamily = typographyChoice.fontFamily,
-                    modifier = Modifier.padding(top = if (compact) 28.dp else 40.dp)
-                )
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        // The spacers' weights share the height that fits on screen.
+                        .heightIn(min = maxHeight)
+                        .statusBarsPadding()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(animationSpec = tween(240)) +
+                            slideInVertically(animationSpec = tween(320), initialOffsetY = { -it / 5 })
+                    ) {
+                        AlarmHeader(
+                            alarmLabel = alarmLabel,
+                            supportingText = supportingText,
+                            compact = compact,
+                            fontFamily = typographyChoice.fontFamily,
+                            modifier = Modifier.padding(top = if (compact) 28.dp else 40.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(if (compact) 0.58f else 0.68f))
+
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(animationSpec = tween(320, delayMillis = 60)) +
+                            slideInVertically(animationSpec = tween(420, delayMillis = 60), initialOffsetY = { -trend.verticalSign * it / 4 })
+                    ) {
+                        HeroBlock(
+                            primaryGlucose = primaryGlucose,
+                            trend = trend,
+                            trendResult = trendResult,
+                            compact = compact,
+                            typographyChoice = typographyChoice,
+                            motionActive = motionActive,
+                            arrowScale = arrowScale,
+                            modifier = Modifier.offset { IntOffset(0, heroOffsetY.roundToInt()) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(if (compact) 0.9f else 1.08f))
+                }
             }
 
-            Spacer(modifier = Modifier.weight(if (compact) 0.58f else 0.68f))
-
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(animationSpec = tween(320, delayMillis = 60)) +
-                    slideInVertically(animationSpec = tween(420, delayMillis = 60), initialOffsetY = { -trend.verticalSign * it / 4 })
-            ) {
-                HeroBlock(
-                    primaryGlucose = primaryGlucose,
-                    trend = trend,
-                    trendResult = trendResult,
-                    compact = compact,
-                    typographyChoice = typographyChoice,
-                    motionActive = motionActive,
-                    arrowScale = arrowScale,
-                    modifier = Modifier.offset { IntOffset(0, heroOffsetY.roundToInt()) }
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(if (compact) 0.9f else 1.08f))
-
-            AnimatedVisibility(
-                visible = visible,
+                modifier = Modifier.padding(horizontal = 24.dp),
                 enter = fadeIn(animationSpec = tween(360, delayMillis = 150)) +
                     slideInVertically(animationSpec = tween(400, delayMillis = 150), initialOffsetY = { it / 3 })
             ) {
@@ -421,7 +436,7 @@ private fun ActionDock(
                     onClick = onSnooze,
                     modifier = Modifier
                         .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
-                        .height(if (compact) 58.dp else 62.dp),
+                        .heightIn(min = if (compact) 58.dp else 62.dp),
                     shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -440,7 +455,7 @@ private fun ActionDock(
                 onClick = onDismiss,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 82.dp else 90.dp),
+                    .heightIn(min = if (compact) 82.dp else 90.dp),
                 shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
                 contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.buttonColors(

@@ -2753,6 +2753,7 @@
     <string name="wear_prediction_off">Wyłączona — ustawiana w telefonie</string>
     <string name="glucosechartcomplicationlabel">Wykres glukozy</string>
     <string name="wear_chart_complication">Wykres glukozy</string>
+    <string name="wear_glucose_tile_label">Glukoza</string>
     <string name="wear_exchange_title">Wymiana danych</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Transmisja xDrip</string>
@@ -3087,4 +3088,7 @@
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g węglowodanów</string>
     <string name="journal_meal_total">Razem</string>
+    <string name="stream_history_mode">Strumień+Historia</string>
+    <string name="history_stream_mode">Historia+Strumień</string>
+    <string name="libre_history_mode_caption">Historia to własna wartość sensora, zapisywana co 15 minut i opóźniona względem strumienia o około 16 minut. Dopóki historia danej minuty nie dotrze, zastępuje ją strumień.</string>
 </resources>

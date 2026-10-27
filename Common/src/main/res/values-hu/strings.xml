@@ -2805,6 +2805,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="wear_prediction_off">Ki — a telefonon állítható</string>
     <string name="glucosechartcomplicationlabel">Glükózgrafikon</string>
     <string name="wear_chart_complication">Glükózgrafikon</string>
+    <string name="wear_glucose_tile_label">Glükóz</string>
     <string name="wear_exchange_title">Adatcsere</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">xDrip-adatsugárzás</string>
@@ -3118,4 +3119,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g szénhidrát</string>
     <string name="journal_meal_total">Összesen</string>
+    <string name="stream_history_mode">Adatfolyam+Előzmények</string>
+    <string name="history_stream_mode">Előzmények+Adatfolyam</string>
+    <string name="libre_history_mode_caption">Az előzmény a szenzor saját értéke, 15 percenként tárolva, körülbelül 16 perccel az adatfolyam mögött. Amíg egy perc előzménye meg nem érkezik, az adatfolyam helyettesíti.</string>
 </resources>

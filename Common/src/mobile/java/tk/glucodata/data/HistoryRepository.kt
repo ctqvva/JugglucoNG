@@ -811,21 +811,40 @@ class HistoryRepository(context: Context = Applic.app) {
         sensorSerial: String,
         readings: List<HistoryReading>,
         bucketDurationMs: Long,
-    ): Boolean {
-        if (sensorSerial.isBlank() || readings.isEmpty()) return false
+    ): Boolean = replaceSensorBuckets(sensorSerial, readings, bucketDurationMs) == BucketReplaceOutcome.STORED
+
+    enum class BucketReplaceOutcome { STORED, NOTHING_TO_STORE, FAILED }
+
+    /**
+     * [storeReadingsReplacingSensorBuckets], telling a failed write apart from an empty or tombstoned batch.
+     *
+     * For a Libre 1/2 ([historyTimestamps] non-empty) the same transaction voids
+     * records drawn from history rows the batch takes off the Stream lane, so a
+     * crash in between cannot destroy the rows they are judged against. Those
+     * rows are the ones replaced, or [deletedRowsByMinute] when a full resync
+     * already deleted them.
+     */
+    suspend fun replaceSensorBuckets(
+        sensorSerial: String,
+        readings: List<HistoryReading>,
+        bucketDurationMs: Long,
+        historyTimestamps: Set<Long> = emptySet(),
+        deletedRowsByMinute: Map<Long, HistoryReading>? = null,
+    ): BucketReplaceOutcome {
+        if (sensorSerial.isBlank() || readings.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
 
         return withContext(Dispatchers.IO) {
             try {
                 val filteredReadings = filterDeletedReadings(readings)
                 if (filteredReadings.isEmpty()) {
                     Log.d(TAG, "Skipped bucket replace for $sensorSerial — all readings were tombstoned")
-                    return@withContext false
+                    return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
                 }
                 val collapsedReadings = HistoryBucketReplacement.collapseReadings(
                     readings = filteredReadings,
                     bucketDurationMs = bucketDurationMs,
                 )
-                if (collapsedReadings.isEmpty()) return@withContext false
+                if (collapsedReadings.isEmpty()) return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
                 collapsedReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(
                         newest.sensorSerial,
@@ -836,7 +855,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 val plan = HistoryBucketReplacement.planForCollapsedReadings(
                     collapsedReadings = collapsedReadings,
                     bucketDurationMs = bucketDurationMs,
-                ) ?: return@withContext false
+                ) ?: return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
                 val storedReadings = database.withTransaction {
                     val existingProvenance = HashMap<Long, HistoryReading>()
                     for (range in plan.bucketRanges) {
@@ -867,6 +886,13 @@ class HistoryRepository(context: Context = Applic.app) {
                         bucketRanges = plan.bucketRanges
                     )
                     dao.insertAll(readingsWithStableSources)
+                    if (historyTimestamps.isNotEmpty()) {
+                        val previousByMinute = deletedRowsByMinute
+                            ?: existingProvenance.values.associateBy { ReadingDisplay.minuteOf(it.timestamp) }
+                        voidRecordsOfDisplacedSensorHistory(
+                            sensorSerial, readingsWithStableSources, previousByMinute, historyTimestamps,
+                        )
+                    }
                     readingsWithStableSources
                 }
                 BatteryTrace.bump(
@@ -875,10 +901,10 @@ class HistoryRepository(context: Context = Applic.app) {
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
                 forwardBackfillToExchanges(storedReadings)
-                true
+                BucketReplaceOutcome.STORED
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
-                false
+                BucketReplaceOutcome.FAILED
             }
         }
     }
@@ -936,6 +962,68 @@ class HistoryRepository(context: Context = Applic.app) {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed voiding recorded minutes for $roomSerial", e)
                 0
+            }
+        }
+    }
+
+    /** Every stored row of [roomSerial] from [fromMs] on, per minute. */
+    suspend fun storedReadingsByMinuteForSensor(roomSerial: String, fromMs: Long = 0L): Map<Long, HistoryReading> =
+        withContext(Dispatchers.IO) {
+            HashMap<Long, HistoryReading>().also { rows ->
+                dao.getSensorReadingsInTimeRange(roomSerial, fromMs, Long.MAX_VALUE).forEach { row ->
+                    rows[ReadingDisplay.minuteOf(row.timestamp)] = row
+                }
+            }
+        }
+
+    /**
+     * Drops Auto records drawn from a Libre history row that a re-sync has taken
+     * off the Auto line; see [RecordedDisplayVoiding.displacedHistoryMinutes].
+     * Runs inside [replaceSensorBuckets]' transaction: a failure rolls the
+     * replace back with it.
+     */
+    private suspend fun voidRecordsOfDisplacedSensorHistory(
+        roomSerial: String,
+        rewritten: List<HistoryReading>,
+        previousByMinute: Map<Long, HistoryReading>,
+        historyTimestamps: Set<Long>,
+    ) {
+        if (rewritten.isEmpty() || previousByMinute.isEmpty()) return
+        val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
+        val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
+        val minutes = RecordedDisplayVoiding.displacedHistoryMinutes(
+            displayDao.getBetween(start, end), roomSerial, rewritten, previousByMinute, historyTimestamps,
+        )
+        if (minutes.isEmpty()) return
+        var deleted = 0
+        minutes.chunked(500).forEach { chunk -> deleted += displayDao.deleteAtMinutes(chunk) }
+        tk.glucodata.Log.i(TAG, "voided $deleted recorded minutes for $roomSerial: history left the Stream lane")
+    }
+
+    /**
+     * Deletes Libre history rows the export left behind, and the values
+     * recorded from them; see [LibreHistorySyncWindow.rowsLeftBehind]. Null
+     * when the database failed, so the caller can retry.
+     */
+    suspend fun removeSensorHistoryLeftBehind(roomSerial: String, rows: List<HistoryReading>): Int? {
+        if (rows.isEmpty()) return 0
+        return withContext(Dispatchers.IO) {
+            try {
+                val minutes = rows.mapTo(HashSet()) { ReadingDisplay.minuteOf(it.timestamp) }
+                val recorded = displayDao.getBetween(minutes.minOf { it }, minutes.maxOf { it })
+                    .filter { it.timestamp in minutes && tk.glucodata.SensorIdentity.matches(it.sensorSerial, roomSerial) }
+                    .map { it.timestamp }
+                database.withTransaction {
+                    rows.forEach { dao.deleteReadingsAtTimestamp(listOf(roomSerial), it.timestamp) }
+                    recorded.chunked(500).forEach { displayDao.deleteAtMinutes(it) }
+                }
+                tk.glucodata.Log.i(TAG, "removed ${rows.size} history rows left off the Stream lane for $roomSerial")
+                rows.size
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed removing history rows left behind for $roomSerial", e)
+                null
             }
         }
     }
@@ -2001,6 +2089,15 @@ class HistoryRepository(context: Context = Applic.app) {
                 val rawValue = valueRawRaw / 10f
 
                 if (value > 0 || rawValue > 0) {
+                    // Never split a minute across chunks: the second would replace
+                    // the first's row of it, and with it a Libre's History value.
+                    if (HistoryBucketReplacement.mayCloseChunk(
+                            readings, timeSec * 1000L, NATIVE_BACKFILL_INSERT_CHUNK, SENSOR_MINUTE_BUCKET_MS,
+                        )
+                    ) {
+                        storedCount += insertBackfillChunk(serial, readings)
+                        readings.clear()
+                    }
                     readings.add(HistoryReading(
                         timestamp = timeSec * 1000L,
                         sensorSerial = roomSerial,
@@ -2009,10 +2106,6 @@ class HistoryRepository(context: Context = Applic.app) {
                         rate = 0f, // Rate not available from history
                         source = readingSource,
                     ))
-                    if (readings.size >= NATIVE_BACKFILL_INSERT_CHUNK) {
-                        storedCount += insertBackfillChunk(serial, readings)
-                        readings.clear()
-                    }
                 }
             }
 

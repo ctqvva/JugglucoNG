@@ -206,4 +206,62 @@ class RecordedDisplayVoidingTests {
         assertTrue("gated on the driver integrating the calibration", voiding.contains("integratesUserCalibration"))
         assertTrue("a deletion, never a revision", voiding.contains("deleteAtMinutes"))
     }
+
+    // Libre 1/2: its 15-minute history used to share the Auto lane with the
+    // stream. Records drawn from a history row must not keep drawing it there.
+
+    private fun row(minute: Int, second: Int, value: Float, raw: Float = 0f) = HistoryReading(
+        timestamp = T0 + minute * MINUTE + second * 1_000L,
+        sensorSerial = SERIAL,
+        value = value,
+        rawValue = raw,
+        rate = null,
+    )
+
+    @Test
+    fun aRecordFromAHistoryRowTheStreamNowHoldsIsVoid() {
+        val history = row(0, 3, 108f)
+        val stream = row(0, 41, 115f, raw = 108f)
+        val voided = RecordedDisplayVoiding.displacedHistoryMinutes(
+            records = listOf(record(0, 108f)),
+            sensorSerial = SERIAL,
+            rewritten = listOf(stream),
+            previousByMinute = mapOf(record(0, 0f).timestamp to history),
+            historyTimestamps = setOf(history.timestamp),
+        )
+        assertEquals(listOf(record(0, 0f).timestamp), voided)
+    }
+
+    @Test
+    fun aRecordFromAHistoryRowThatLostItsAutoValueIsVoid() {
+        val history = row(0, 3, 108f)
+        val voided = RecordedDisplayVoiding.displacedHistoryMinutes(
+            records = listOf(record(0, 108f)),
+            sensorSerial = SERIAL,
+            rewritten = listOf(history.copy(value = 0f, rawValue = 108f)),
+            previousByMinute = mapOf(record(0, 0f).timestamp to history),
+            historyTimestamps = setOf(history.timestamp),
+        )
+        assertEquals(listOf(record(0, 0f).timestamp), voided)
+    }
+
+    @Test
+    fun streamRecordsAndHistoryStillOnTheAutoLineKeepTheirRecords() {
+        val stream = row(0, 41, 115f)
+        val gapFill = row(1, 3, 108f)
+        val records = listOf(record(0, 115f), record(1, 108f), record(2, 99f, viewMode = 1))
+        val voided = RecordedDisplayVoiding.displacedHistoryMinutes(
+            records = records,
+            sensorSerial = SERIAL,
+            // The stream row gains its History; the gap fill keeps its Auto value.
+            rewritten = listOf(stream.copy(rawValue = 108f), gapFill.copy(rawValue = 108f), row(2, 3, 0f, 99f)),
+            previousByMinute = mapOf(
+                records[0].timestamp to stream,
+                records[1].timestamp to gapFill,
+                records[2].timestamp to row(2, 3, 99f),
+            ),
+            historyTimestamps = setOf(gapFill.timestamp, row(2, 3, 0f).timestamp),
+        )
+        assertTrue(voided.isEmpty())
+    }
 }

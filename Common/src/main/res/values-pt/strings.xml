@@ -2716,6 +2716,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_prediction_off">Desligada — definida no telemóvel</string>
     <string name="glucosechartcomplicationlabel">Gráfico de glicose</string>
     <string name="wear_chart_complication">Gráfico de glicose</string>
+    <string name="wear_glucose_tile_label">Glicose</string>
     <string name="wear_exchange_title">Intercâmbio</string>
     <string name="exchange_toggle_libreview">LibreView</string>
     <string name="exchange_toggle_xdrip_broadcast">Difusão xDrip</string>
@@ -3045,4 +3046,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g de hidratos</string>
     <string name="journal_meal_total">Total</string>
+    <string name="stream_history_mode">Stream+Histórico</string>
+    <string name="history_stream_mode">Histórico+Stream</string>
+    <string name="libre_history_mode_caption">O histórico é o valor do próprio sensor, guardado a cada 15 minutos e cerca de 16 minutos atrás do stream. Até o histórico de um minuto chegar, o stream ocupa o seu lugar.</string>
 </resources>

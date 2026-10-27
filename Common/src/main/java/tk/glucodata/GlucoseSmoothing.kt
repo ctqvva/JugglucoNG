@@ -64,7 +64,7 @@ object GlucoseSmoothing {
                 }
             }
             if (collapseIntoChunks) {
-                result.addAll(collapse(smoothed, collapsedInterval, timestamp, nowMillis))
+                result.addAll(collapse(smoothed, collapsedInterval, timestamp, value, rawValue, nowMillis))
             } else {
                 result.addAll(smoothed)
             }
@@ -234,11 +234,19 @@ object GlucoseSmoothing {
      * Keeps the last reading of each completed interval. The bucket [nowMillis]
      * falls in is still filling, so it is left alone rather than represented by
      * a reading that will be superseded a minute later.
+     *
+     * A lane need not be present on every reading -- Libre's History lane is one
+     * value per 15 minutes -- so when the last reading lacks a lane, the bucket's
+     * newest reading that has it is kept too, at its own time. Moving the value
+     * onto the last reading instead would shift it by up to a bucket and could
+     * stretch two neighbouring History values past the chart's gap limit.
      */
     private fun <T> collapse(
         points: List<T>,
         intervalMinutes: Int,
         timestamp: (T) -> Long,
+        value: (T) -> Float,
+        rawValue: (T) -> Float,
         nowMillis: Long,
     ): List<T> {
         if (points.isEmpty() || intervalMinutes <= 0) return points
@@ -247,16 +255,30 @@ object GlucoseSmoothing {
         val collapsed = ArrayList<T>()
         var activeBucket = Long.MIN_VALUE
         var pending: T? = null
+        var bucketAuto: T? = null
+        var bucketRaw: T? = null
+
+        fun flush() {
+            val last = pending ?: return
+            val autoHolder = bucketAuto?.takeIf { !isValid(value(last)) }
+            val rawHolder = bucketRaw?.takeIf { !isValid(rawValue(last)) }
+            listOfNotNull(autoHolder, rawHolder).distinct().sortedBy(timestamp).forEach(collapsed::add)
+            collapsed.add(last)
+        }
 
         points.forEach { point ->
             val bucket = timestamp(point) / bucketDurationMs
             if (bucket != activeBucket) {
-                if (activeBucket < openBucket) pending?.let(collapsed::add)
+                if (activeBucket < openBucket) flush()
                 activeBucket = bucket
+                bucketAuto = null
+                bucketRaw = null
             }
+            if (isValid(value(point))) bucketAuto = point
+            if (isValid(rawValue(point))) bucketRaw = point
             pending = point
         }
-        if (activeBucket < openBucket) pending?.let(collapsed::add)
+        if (activeBucket < openBucket) flush()
 
         return when {
             collapsed.isNotEmpty() -> collapsed
@@ -264,6 +286,8 @@ object GlucoseSmoothing {
             else -> points
         }
     }
+
+    private fun isValid(value: Float): Boolean = value.isFinite() && value >= MIN_VALID_VALUE
 
     private fun sensorChanged(previous: String?, current: String?): Boolean {
         val a = previous?.trim()?.takeIf { it.isNotEmpty() }

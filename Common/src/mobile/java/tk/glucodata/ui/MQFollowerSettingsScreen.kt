@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -472,20 +473,18 @@ private fun IncomingRequestCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Row(
+            AdaptiveButtonRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                spacing = 12.dp,
             ) {
                 OutlinedButton(
                     onClick = onReject,
-                    modifier = Modifier.weight(1f),
                     enabled = enabled,
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) { Text(stringResource(R.string.mq_friend_request_reject_action)) }
                 FilledTonalButton(
                     onClick = onApprove,
-                    modifier = Modifier.weight(1f),
                     enabled = enabled,
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
