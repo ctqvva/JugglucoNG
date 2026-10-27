@@ -124,6 +124,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
@@ -805,7 +806,12 @@ fun DashboardChartSection(
      * whatever the host draws over it. The plot window does not move: no reading is ever
      * placed where a card could cover it. Zero keeps the chart inside its box.
      */
-    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp
+    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp,
+    /**
+     * The host's side margin. With the backdrop showing, the chart has no visible edge of
+     * its own, so its top-end date label lines up with the host's cards instead.
+     */
+    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp
 ) {
     val chartContent: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(bottom = 0.dp)) {
@@ -859,7 +865,8 @@ fun DashboardChartSection(
                         chartBoostProgress = chartBoostProgress,
                         resetToLatestOnResume = resetToLatestOnResume,
                         onViewportSnapshotChanged = onViewportSnapshotChanged,
-                        backdropBleed = backdropBleed
+                        backdropBleed = backdropBleed,
+                        backdropContentInset = backdropContentInset
                     )
                 } else {
                     Box(Modifier.fillMaxSize())
@@ -983,8 +990,9 @@ fun InteractiveGlucoseChart(
     dataBounds: ChartDataBounds? = null,
     /** Reports the viewport as it moves, so the owner of [fullData] can load around it. */
     onVisibleRangeChanged: ((startMs: Long, endMs: Long) -> Unit)? = null,
-    /** See [DashboardChartSection]'s parameter of the same name. */
-    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp
+    /** See [DashboardChartSection]'s parameters of the same names. */
+    backdropBleed: androidx.compose.ui.unit.Dp = 0.dp,
+    backdropContentInset: androidx.compose.ui.unit.Dp = 16.dp
 ) {
     // --- THEME & PAINTS ---
     val isDark = tk.glucodata.ui.isAppInDarkTheme()
@@ -2793,6 +2801,26 @@ fun InteractiveGlucoseChart(
                 val backdropBottom = backdropBottomStart + backdropBleedPx
                 val backdropGridColor = gridColor.copy(alpha = gridColor.alpha * backdropAlpha)
                 val backdropDateLineColor = gridColor.copy(alpha = 0.8f * backdropAlpha)
+                // A line that marks a moment runs the full height of the plot, and on into
+                // the backdrop above it when that shows, so it comes out from behind the
+                // hero like the grid does instead of starting in mid-air.
+                fun drawMomentLine(
+                    color: Color,
+                    x: Float,
+                    strokeWidth: Float,
+                    pathEffect: androidx.compose.ui.graphics.PathEffect? = null
+                ) {
+                    drawLine(color, Offset(x, 0f), Offset(x, chartHeight), strokeWidth, pathEffect = pathEffect)
+                    if (drawBackdrop) {
+                        drawLine(
+                            color.copy(alpha = color.alpha * backdropAlpha),
+                            Offset(x, backdropTop),
+                            Offset(x, 0f),
+                            strokeWidth,
+                            pathEffect = pathEffect
+                        )
+                    }
+                }
 
                 // --- 1. DRAW Y-AXIS GRID ---
                 val yStep = if (cYRange < 25) 2f else 50f
@@ -3382,10 +3410,9 @@ fun InteractiveGlucoseChart(
                     val calX = timeToDataX(cal.timestamp)
                     if (calX in 0f..width) {
                         // Draw vertical line with opacity
-                        drawLine(
+                        drawMomentLine(
                             color = primaryColor.copy(alpha = 0.4f),
-                            start = Offset(calX, 0f),
-                            end = Offset(calX, chartHeight),
+                            x = calX,
                             strokeWidth = 1.5.dp.toPx()
                         )
                     }
@@ -3584,10 +3611,9 @@ fun InteractiveGlucoseChart(
                             ?.takeIf { it.isFinite() }
                             ?.let { coerceChartYToDrawableRange(it, chartHeight, actionEdgeInset) }
                             ?: coerceChartYToDrawableRange(chartHeight - actionEdgeInset, chartHeight, actionEdgeInset)
-                        drawLine(
+                        drawMomentLine(
                             color = primaryColor.copy(alpha = 0.22f + (0.14f * journalActionIndicatorProgress)),
-                            start = Offset(actionX, 0f),
-                            end = Offset(actionX, chartHeight),
+                            x = actionX,
                             strokeWidth = 1.5.dp.toPx(),
                             pathEffect = dashEffect
                         )
@@ -3607,7 +3633,7 @@ fun InteractiveGlucoseChart(
                 // --- 7. CURSOR ---
                 val cursorX = selectedPoint?.let { timeToDataX(it.timestamp) }
                 if (cursorX != null && cursorX in 0f..width) {
-                    drawLine(hoverLineColor, Offset(cursorX, 0f), Offset(cursorX, chartHeight), 2.dp.toPx())
+                    drawMomentLine(hoverLineColor, cursorX, 2.dp.toPx())
 
                     selectedPoint?.let { p ->
                         val dotRadius = 5.dp.toPx()
@@ -4890,9 +4916,15 @@ fun InteractiveGlucoseChart(
                     targetScale = 0.85f,
                     transformOrigin = TransformOrigin(1f, 0f)
                 ),
+                // Inside a card it keeps its 16 dp from the card's corner. Full-bleed there
+                // is no corner to keep off: it sits at the top of the plot, the list's
+                // spacing below the hero row, and ends on the same line as the cards.
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 16.dp, end = 16.dp)
+                    .padding(
+                        top = androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha),
+                        end = androidx.compose.ui.unit.lerp(16.dp, backdropContentInset, backdropAlpha)
+                    )
             ) {
                 Box(
                     modifier = Modifier
@@ -5136,7 +5168,12 @@ fun InteractiveGlucoseChart(
                     .widthIn(max = maxWidth) // Hard cap: NEVER overflow the container
                     .wrapContentWidth()
                     .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f * safeExpandedProgress),
+                        // Opaque once it stands on its own, like every other card the chart's
+                        // grid passes behind; the same tone the see-through version showed
+                        // over the background. In the collapsed card it fades into the card.
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
+                            .compositeOver(MaterialTheme.colorScheme.background)
+                            .copy(alpha = safeExpandedProgress),
                         shape = RoundedCornerShape(scaled(16.dp))
                     )
                     .padding(
