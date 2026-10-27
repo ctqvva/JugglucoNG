@@ -910,7 +910,15 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                             }.getOrDefault(true)) {
                             System.currentTimeMillis() - ReadingDisplay.sealGraceMs()
                         } else null
-                        minutes.chunked(500).forEach { displayDao.deleteAtMinutes(it, sealHorizon) }
+                        if (minutes.isNotEmpty()) {
+                            var released = 0
+                            minutes.chunked(500).forEach { released += displayDao.deleteAtMinutes(it, sealHorizon) }
+                            tk.glucodata.Log.i(
+                                TAG,
+                                "source changed under ${minutes.size} recorded minutes for $sensorSerial: " +
+                                    "released $released, kept ${minutes.size - released} locked"
+                            )
+                        }
                     }
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = sensorSerial,
