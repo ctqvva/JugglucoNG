@@ -312,9 +312,12 @@ object DexcomShareUploader {
      *        itself and starts the flush when it succeeds, so flushing here too would spend a
      *        second login, and with a wrong password a second failed attempt, on one tap.
      */
-    fun applySettings(context: Context, config: DexcomShareSettings.Config, flush: Boolean = true) {
+    fun applySettings(context: Context, rawConfig: DexcomShareSettings.Config, flush: Boolean = true) {
         try {
             val appContext = context.applicationContext
+            // Normalized here as [DexcomShareSettings.save] does, so the destination compared below
+            // is the one that ends up stored.
+            val config = rawConfig.copy(account = DexcomShareSettings.normalizeAccount(rawConfig.account))
             val destination = destinationOf(config)
             synchronized(lock) {
                 // Switching on starts a new era: the queue of the previous one must not survive,
@@ -358,7 +361,10 @@ object DexcomShareUploader {
         // The verdict belongs to these credentials and this destination, not to the generation
         // alone: the screen saves again on dispose, and a save that leaves the login target
         // unchanged must not make a rejected password look stale.
-        val startedFor = config.copy(serial = DexcomShareSettings.normalizeSerial(config.serial))
+        val startedFor = config.copy(
+            account = DexcomShareSettings.normalizeAccount(config.account),
+            serial = DexcomShareSettings.normalizeSerial(config.serial)
+        )
         executor.execute {
             val serial = startedFor.serial
             var rejected = false

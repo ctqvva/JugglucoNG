@@ -479,6 +479,114 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(1, roomWrites)
     }
 
+    @Test fun internalCalibrationDoesNotConsumeHiddenManualRawReferences() {
+        runBlocking {
+            CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
+                CalibrationEntity(timestamp = NativeInputs.start + 120 * 60_000L, sensorId = serial,
+                    sensorValue = 100f, sensorValueRaw = 100f, userValue = 130f, isRawMode = true))
+            CalibrationManager.loadCalibrations()
+        }
+        CalibrationAccess.register(MobileCalibrationProvider)
+        CalibrationManager.setEnabledForMode(false, false, serial)
+        assertTrue(CalibrationManager.getVisibleCalibrations(false, serial).isEmpty())
+        assertEquals(1, CalibrationManager.getVisibleCalibrations(true, serial).size)
+        runtime.record((0..200).map { sample(it, raw = 100f) })
+        choose(8)
+        val withoutInternalCalibration = room.toMap()
+        choose(9)
+        assertEquals("The Auto reference set is empty even though Raw has a manual calibration",
+            withoutInternalCalibration, room)
+        CalibrationManager.setEnabledForMode(false, true, serial)
+        executor.runNext()
+        assertEquals("An enabled Auto lane with no Auto points also has no correction", withoutInternalCalibration, room)
+        CalibrationManager.setEnabledForMode(false, false, serial)
+        executor.runNext()
+        assertEquals(withoutInternalCalibration, room)
+        assertTrue(CalibrationManager.isEnabledForMode(true, serial))
+        runtime.close()
+        installRuntime()
+        executor.runNext()
+        assertEquals("Restart must not resurrect Raw references into Auto", withoutInternalCalibration, room)
+    }
+
+    @Test fun autoReferenceEnablementControlsTheInternalModelWithoutRawOrOtherSensorLeakage() {
+        val dao = CalibrationDatabase.getInstance(Applic.app).calibrationDao()
+        var auto = CalibrationEntity(timestamp = NativeInputs.start + 150 * 60_000L, sensorId = serial,
+            sensorValue = 100f, sensorValueRaw = 100f, userValue = 120f, isEnabled = false)
+        runBlocking {
+            dao.insert(CalibrationEntity(timestamp = NativeInputs.start + 120 * 60_000L, sensorId = serial,
+                sensorValue = 100f, sensorValueRaw = 100f, userValue = 140f, isRawMode = true))
+            dao.insert(CalibrationEntity(timestamp = NativeInputs.start + 110 * 60_000L, sensorId = "X-OTHER",
+                sensorValue = 100f, sensorValueRaw = 100f, userValue = 160f))
+            dao.insert(auto)
+            auto = dao.getAllSync().single { it.sensorId == serial && !it.isRawMode }
+            CalibrationManager.loadCalibrations()
+        }
+        CalibrationAccess.register(MobileCalibrationProvider)
+        runtime.record((0..200).map { sample(it, raw = 100f) })
+        choose(8)
+        val baseline = room.toMap()
+        choose(9)
+        assertEquals("Disabled Auto points and other sensor points are not references", baseline, room)
+
+        runBlocking { dao.update(auto.copy(isEnabled = true)); CalibrationManager.loadCalibrations() }
+        executor.runNext()
+        assertEquals(baseline.filterKeys { it < auto.timestamp }, room.filterKeys { it < auto.timestamp })
+        assertTrue(room.getValue(sample(151).timestampMs) > baseline.getValue(sample(151).timestampMs) + 10f)
+        val corrected = room.toMap()
+        CalibrationManager.setEnabledForMode(false, false, serial)
+        executor.runNext()
+        assertEquals("The Auto disable control must undo internal correction too", baseline, room)
+        CalibrationManager.setEnabledForMode(false, true, serial)
+        executor.runNext()
+        assertEquals(corrected, room)
+        runBlocking { dao.update(auto.copy(isEnabled = false)); CalibrationManager.loadCalibrations() }
+        executor.runNext()
+        assertEquals(baseline, room)
+
+        runBlocking {
+            val raw = dao.getAllSync().single { it.sensorId == serial && it.isRawMode }
+            dao.update(raw.copy(userValue = 150f))
+            CalibrationManager.loadCalibrations()
+        }
+        assertTrue("Editing an unrelated Raw reference must not rebuild Auto", executor.pending.isEmpty())
+        assertEquals(baseline, room)
+    }
+
+    @Test fun journalFingersticksSharedWithAutoRemainEligibleWhenRawIsDisabled() {
+        runBlocking {
+            CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
+                CalibrationEntity(timestamp = NativeInputs.start + 120 * 60_000L, sensorId = serial,
+                    sensorValue = 100f, sensorValueRaw = 100f, userValue = 130f,
+                    isRawMode = true, journalEntryId = 123L))
+            CalibrationManager.loadCalibrations()
+        }
+        CalibrationManager.setEnabledForMode(true, false, serial)
+        CalibrationAccess.register(MobileCalibrationProvider)
+        assertEquals(1, CalibrationManager.getVisibleCalibrations(false, serial).size)
+        runtime.record((0..200).map { sample(it, raw = 100f) })
+        choose(9)
+        assertTrue(room.getValue(sample(121).timestampMs) > 120f)
+    }
+
+    @Test fun historyMergeUsesTheSameAutoReferenceEligibilityAsLiveReplay() {
+        runBlocking {
+            CalibrationDatabase.getInstance(Applic.app).calibrationDao().insert(
+                CalibrationEntity(timestamp = NativeInputs.start + 120 * 60_000L, sensorId = serial,
+                    sensorValue = 100f, sensorValueRaw = 100f, userValue = 130f, isRawMode = true))
+            CalibrationManager.loadCalibrations()
+        }
+        CalibrationAccess.register(MobileCalibrationProvider)
+        runtime.record((0..200).map { sample(it, raw = 100f) })
+        choose(9)
+        val source = sample(160, raw = 100f)
+        importPackage(packageSettings(stockSettingsPreferences()),
+            JSONArray().put(backupReading(source, 100f)), backupSources(source))
+        val imported = runBlocking { HistoryDatabase.getInstance(Applic.app).historyDao()
+            .getSensorReadingsAtTimestamps(serial, listOf(source.timestampMs)).single() }
+        assertEquals(100f, imported.value, 0.001f)
+    }
+
     @Test fun genericNativeSyncIsDisabledForLiveAndRetainedAiDexInEveryMode() {
         assertFalse(driver.shouldUseNativeHistorySync())
         assertFalse(SensorIdentity.shouldUseNativeHistorySync(serial))

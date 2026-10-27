@@ -615,6 +615,8 @@ public class Notify {
         createNotificationChannel(Applic.app);
         mkpaint();
         if (!isWearable) {
+            NotificationForwardingSettings.pinStandardTextDefault(Applic.app);
+            PeriodicGlucoseUpdates.onProcessStart();
             // Notify is a process singleton; use the application context for its receiver.
             // Screen-on reconciles freshness (and deferred charts); clock changes can flip
             // freshness without any incoming reading, so they reconcile too. Handler delays
@@ -881,6 +883,7 @@ public class Notify {
                     onenot.novalue();
                 } else {
                     onenot.notificationManager.cancel(glucosenotificationid);
+                    forgetPublishedOngoingContent();
                 }
             }
         } else {
@@ -991,6 +994,7 @@ public class Notify {
                         novalue();
                     else {
                         notificationManager.cancel(glucosenotificationid);
+                        forgetPublishedOngoingContent();
                         notificationChartsDeferred = false;
                     }
                 }
@@ -1263,6 +1267,9 @@ public class Notify {
                 synchronized (foregroundPublicationLock) {
                     if (!interactiveRefreshPending) return;
                     interactiveRefreshPending = false;
+                    if (!NotificationRefreshPolicy.shouldRunInteractiveFollowUp(pendingDataRefreshAtUptimeMs)) {
+                        return;
+                    }
                     BatteryTrace.bump("notify.glucose.followup", 20L, "interactive=true");
                     scheduleVisualNotificationRefresh();
                 }
@@ -1271,6 +1278,21 @@ public class Notify {
             }
         }
     };
+
+    /** Renders again once a due periodic update has settled; the render announces it. */
+    private final Runnable periodicAnnouncementRunnable = () -> {
+        try {
+            scheduleVisualNotificationRefresh();
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "periodicAnnouncementRunnable", th);
+        }
+    };
+
+    private void schedulePeriodicAnnouncement() {
+        glucoseRefreshHandler.removeCallbacks(periodicAnnouncementRunnable);
+        glucoseRefreshHandler.postDelayed(periodicAnnouncementRunnable,
+                PeriodicGlucoseUpdates.settleRemainingMillis() + 50L);
+    }
 
     private final Runnable dataChangedGlucoseRefreshRunnable = new Runnable() {
         @Override
@@ -1436,6 +1458,7 @@ public class Notify {
             synchronized (foregroundPublicationLock) {
                 if (generation != foregroundVisualGeneration || keeprunning.theservice != null) return;
                 notificationManager.cancel(glucosenotificationid);
+                forgetPublishedContentLocked();
                 lastDisplayedGlucoseSnapshot = null;
                 cancelOngoingNotificationRefreshes();
             }
@@ -1449,17 +1472,24 @@ public class Notify {
         if (shouldPresentForegroundGlucose() && effective != null && effective.getPrimaryValue() >= 2.0f
                 && NotificationRefreshPolicy.isFresh(effective.getTimeMillis(), now, glucosetimeout)) {
             final float value = effective.getPrimaryValue();
-            final Notification notification;
+            final GlucoseNotificationContent content;
             try {
-                notification = makearrownotification(
+                content = renderGlucoseNotification(
                         FOREGROUND_GLUCOSE_NOTIFICATION_KIND, value,
                         format(usedlocale, glucoseformat, value), toLegacyGlucose(effective),
-                        GLUCOSENOTIFICATION, true, effective);
+                        GLUCOSENOTIFICATION, true, effective, true);
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "reconcileRender", th);
                 return;
             }
-            publishVisualNotification(generation, capturedService, notification, effective);
+            if (publishVisualNotification(generation, capturedService, content.notification, effective,
+                    content.fingerprint)) {
+                PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
+            } else {
+                // A newer render owns the surface, or the post failed and will be retried:
+                // either one announces the reading instead.
+                PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
+            }
             return;
         }
         if (shouldPresentForegroundGlucose() && effective != null
@@ -1471,7 +1501,10 @@ public class Notify {
                 Log.stack(LOG_ID, "reconcileStaleRender", th);
                 return;
             }
-            publishVisualNotification(generation, capturedService, staleNotification, null);
+            publishVisualNotification(generation, capturedService, staleNotification, null,
+                    new NotificationFingerprint().add("stale").add(effective.getTimeMillis())
+                            .add(staleMessage(effective.getTimeMillis())).add(staleReadingBody(effective))
+                            .value());
             return;
         }
         final String status = activeSensorSerial == null || activeSensorSerial.isEmpty()
@@ -1485,7 +1518,8 @@ public class Notify {
             Log.stack(LOG_ID, "reconcileStatusRender", th);
             return;
         }
-        publishVisualNotification(generation, capturedService, statusNotification, null);
+        publishVisualNotification(generation, capturedService, statusNotification, null,
+                new NotificationFingerprint().add("status").add(status).value());
     }
 
     /** Retained last real snapshot when the resolver transiently returns null. Returns
@@ -1525,21 +1559,40 @@ public class Notify {
         return retained;
     }
 
-    private void publishVisualNotification(long generation, Service capturedService,
-            Notification notification, CurrentDisplaySource.Snapshot freshSnapshot) {
+    /**
+     * @param fingerprint content hash of {@code notification}, 0 when unknown. A deferred
+     *                    refresh whose content equals what this owner already shows is
+     *                    not reposted: listener apps would see every repost as an update
+     *                    (#645). Everything else about a successful publication still
+     *                    happens, including the freshness deadline.
+     * @return whether {@code notification} is what the phone shows now
+     */
+    private boolean publishVisualNotification(long generation, Service capturedService,
+            Notification notification, CurrentDisplaySource.Snapshot freshSnapshot, long fingerprint) {
         synchronized (foregroundPublicationLock) {
             if (generation != foregroundVisualGeneration || !shouldKeepForegroundGlucoseNotification()) {
-                return;
+                return false;
             }
             if (capturedService != keeprunning.theservice) {
                 // A newer service epoch owns the surface; never overwrite it.
-                return;
+                return false;
             }
+            final boolean unchanged = NotificationRefreshPolicy.isUnchangedPublication(
+                    fingerprint, publishedContentFingerprint, capturedService, publishedContentOwner);
             try {
-                if (keeprunning.theservice != null) {
-                    keeprunning.theservice.startForeground(glucosenotificationid, notification);
+                if (unchanged) {
+                    if (doLog) {
+                        Log.i(LOG_ID, "publishVisual: content unchanged, not reposted");
+                    }
                 } else {
-                    notificationManager.notify(glucosenotificationid, notification);
+                    publishedContentFingerprint = 0L;
+                    if (keeprunning.theservice != null) {
+                        keeprunning.theservice.startForeground(glucosenotificationid, notification);
+                    } else {
+                        notificationManager.notify(glucosenotificationid, notification);
+                    }
+                    publishedContentFingerprint = fingerprint;
+                    publishedContentOwner = capturedService;
                 }
             } catch (Throwable th) {
                 // Publication failure marks nothing as rendered: the last displayed
@@ -1547,7 +1600,7 @@ public class Notify {
                 // for this generation; it cannot spin if publication keeps failing.
                 Log.stack(LOG_ID, "publishVisual", th);
                 scheduleFailedPublicationRetryLocked(generation, capturedService);
-                return;
+                return false;
             }
             publicationRetryGeneration = 0L;
             publicationRetryService = null;
@@ -1562,6 +1615,7 @@ public class Notify {
             } else {
                 glucoseRefreshHandler.removeCallbacks(freshnessDeadlineRefreshRunnable);
             }
+            return true;
         }
     }
 
@@ -1682,11 +1736,13 @@ public class Notify {
         final long displayedMillis = displayed != null ? displayed.getTimeMillis() : 0L;
         synchronized (foregroundPublicationLock) {
             try {
-                publishPhoneForegroundLocked(content.notification);
+                publishPhoneForegroundLocked(content.notification, content.fingerprint);
             } catch (RuntimeException failure) {
+                PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
                 scheduleFailedPublicationRetryLocked(foregroundVisualGeneration, keeprunning.theservice);
                 throw failure;
             }
+            PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
             hasvalue = true;
             lastForegroundGlucoseTimeMs = displayedMillis;
             lastForegroundGlucoseValue = displayed != null ? displayed.getPrimaryValue() : glvalue;
@@ -3461,8 +3517,22 @@ public class Notify {
         cancelOngoingNotificationRefreshes();
         glucoseRefreshHandler.removeCallbacks(glucoseRefreshRunnable);
         notificationManager.cancel(glucosenotificationid);
+        forgetPublishedOngoingContent();
         notificationChartsDeferred = false;
         notificationManager.cancel(numalarmid);
+    }
+
+    /** The ongoing notification left the shade (cancelled, or swiped on Android 14+):
+     * the next refresh must post it again even when its content is unchanged. Also for
+     * anything else that posts on the foreground ID (the floating overlay service). */
+    public static void forgetPublishedOngoingContent() {
+        final Notify noti = onenot;
+        if (noti == null || isWearable) {
+            return;
+        }
+        synchronized (foregroundPublicationLock) {
+            noti.forgetPublishedContentLocked();
+        }
     }
 
     static public void cancelmessages() {
@@ -3845,6 +3915,9 @@ public class Notify {
                 Notification notif = GluNotBuilder.build();
                 notif.when = glucose.time;
                 notificationManager.notify(glucosealarmid, notif);
+                // Lets a periodic update due for the same reading stand down; the alarm
+                // itself is already out.
+                PeriodicGlucoseUpdates.noteAlertNotificationPosted(glucose.time);
             }
         }
     }
@@ -4008,24 +4081,32 @@ public class Notify {
     }
 
     // UPDATE METHOD
+    /** For callers that post the notification right away, so its announcement counts as made. */
     public Notification makearrownotification(int draw, float glvalue, String message, notGlucose glucose, String type,
             boolean once) {
-        return renderGlucoseNotification(draw, glvalue, message, glucose, type, once, null, false).notification;
-    }
-
-    private Notification makearrownotification(int draw, float glvalue, String message, notGlucose glucose,
-            String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot) {
-        return renderGlucoseNotification(draw, glvalue, message, glucose, type, once,
-                startupSnapshot, startupSnapshot != null).notification;
+        final GlucoseNotificationContent content =
+                renderGlucoseNotification(draw, glvalue, message, glucose, type, once, null, false);
+        PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
+        return content.notification;
     }
 
     private static final class GlucoseNotificationContent {
         final Notification notification;
         final CurrentDisplaySource.Snapshot snapshot;
+        /** {@link NotificationFingerprint} of the content; 0 when unknown. */
+        final long fingerprint;
+        /**
+         * The reading this content announces as a periodic update, 0 for none. Whoever
+         * posts it reports the outcome to {@link PeriodicGlucoseUpdates}.
+         */
+        final long announcedReadingMillis;
 
-        GlucoseNotificationContent(Notification notification, CurrentDisplaySource.Snapshot snapshot) {
+        GlucoseNotificationContent(Notification notification, CurrentDisplaySource.Snapshot snapshot,
+                long fingerprint, long announcedReadingMillis) {
             this.notification = notification;
             this.snapshot = snapshot;
+            this.fingerprint = fingerprint;
+            this.announcedReadingMillis = announcedReadingMillis;
         }
     }
 
@@ -4379,7 +4460,9 @@ public class Notify {
 
         // Standard fields carry the value/status/unit fallback for TalkBack and system
         // notification surfaces that ignore the custom content. The ongoing phone
-        // notification leaves them empty (see CustomGlucoseNotification.apply).
+        // notification carries them only with the standard-text setting, or on the post
+        // that announces a periodic update: listener apps (watch companions) forward
+        // every post of a notification that has them.
         if (!customPhone) {
             GluNotBuilder.setContentTitle(valueText != null && valueText.length() > 0
                     ? valueText.toString() + " " + app.getString(isMmol ? R.string.mmolL : R.string.mgdL)
@@ -4388,13 +4471,44 @@ public class Notify {
                 GluNotBuilder.setContentText(newStatusText.toString());
             }
         }
+        String standardTitle = null;
+        String standardText = null;
+        long announcedReadingMillis = 0L;
+        if (customPhone) {
+            final boolean always = NotificationForwardingSettings.isStandardTextEnabled(prefs);
+            final long readingMillis = fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L;
+            // Periodic updates: text on the announcing post only, with the measurement
+            // time as its body (some watch apps skip notifications without one). A due
+            // reading settles first so its alerts can stand in for the announcement.
+            final int periodic = always || readingMillis <= 0L ? PeriodicGlucoseUpdates.NOT_DUE
+                    : PeriodicGlucoseUpdates.claim(readingMillis, displayGlucoseValue);
+            final boolean announce = periodic == PeriodicGlucoseUpdates.ANNOUNCE;
+            if (periodic == PeriodicGlucoseUpdates.LATER) {
+                schedulePeriodicAnnouncement();
+            }
+            if (always || announce) {
+                final java.util.ArrayList<CharSequence> peerTexts = new java.util.ArrayList<>();
+                for (NotificationChartDrawer.ValueItem peer : peerValueItems) {
+                    if (peer != null) peerTexts.add(peer.text);
+                }
+                standardTitle = GlucoseNotificationText.title(valueText, peerTexts, showArrow ? rate : Float.NaN);
+            }
+            if (always) {
+                standardText = newStatusText != null && newStatusText.length() > 0 ? newStatusText.toString() : null;
+            } else if (announce) {
+                standardText = android.text.format.DateFormat.getTimeFormat(app)
+                        .format(new java.util.Date(readingMillis));
+                announcedReadingMillis = readingMillis;
+            }
+        }
 
         setIcon(GluNotBuilder, displayGlucoseValue, glucose.sensorgen2, peerValueItems);
 
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
         if (customPhone) {
-            CustomGlucoseNotification.apply(GluNotBuilder, remoteViews, remoteViewsExpanded);
+            CustomGlucoseNotification.apply(GluNotBuilder, standardTitle, standardText,
+                    remoteViews, remoteViewsExpanded);
         } else {
             GluNotBuilder.setStyle(new Notification.DecoratedCustomViewStyle());
             GluNotBuilder.setCustomContentView(remoteViews);
@@ -4431,7 +4545,29 @@ public class Notify {
 
         Notification notif = GluNotBuilder.build();
 
-        return new GlucoseNotificationContent(notif, fallbackDisplay);
+        long fingerprint = 0L;
+        if (customPhone) {
+            try {
+                final NotificationFingerprint content = new NotificationFingerprint()
+                        .add(type).add(once).add(standardTitle).add(standardText)
+                        .add(valueText).add(primaryDisplayColor).add(secondaryDisplayColor)
+                        .add(tertiaryDisplayColor).add(rate).add(arrowColor).add(isMmol)
+                        .add(newStatusText).add(shadeNight).add(displayGlucoseValue)
+                        .add(glucose.sensorgen2)
+                        .add(fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L)
+                        .add((long) Applic.app.getResources().getConfiguration().hashCode())
+                        .addPresentationPrefs(prefs)
+                        .add(showChartCollapsed ? chartBitmapCollapsed : null)
+                        .add(showChart ? chartBitmapExpanded : null);
+                for (NotificationChartDrawer.ValueItem peer : peerValueItems) {
+                    content.add(peer.text).add(peer.color).add(peer.rate);
+                }
+                fingerprint = content.value();
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "notificationFingerprint", th);
+            }
+        }
+        return new GlucoseNotificationContent(notif, fallbackDisplay, fingerprint, announcedReadingMillis);
     }
 
     Notification getforgroundnotification() {
@@ -4899,13 +5035,10 @@ public class Notify {
     private Notification makeStaleReadingNotification(CurrentDisplaySource.Snapshot stale) {
         final long actualMillis = stale != null ? stale.getTimeMillis() : 0L;
         final String status = staleMessage(actualMillis);
-        final CharSequence retainedValue = stale != null && stale.getFullFormatted() != null
-                ? stale.getFullFormatted()
-                : (stale != null ? stale.getPrimaryStr() : "");
         final Notification.Builder builder = mkbuilder(GLUCOSENOTIFICATION);
         builder.setSmallIcon(R.drawable.novalue).setOnlyAlertOnce(true)
                 .setContentTitle(status)
-                .setContentText(retainedValue != null ? retainedValue.toString() : "")
+                .setContentText(staleReadingBody(stale))
                 .setOngoing(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setVisibility(VISIBILITY_PUBLIC);
@@ -4934,20 +5067,39 @@ public class Notify {
     private static long startupTicketCounter = 0L;
     private static long startupPendingTicket = 0L;
     private static Service startupPendingService;
+    /** Fingerprint of what the foreground ID currently shows, and who published it;
+     * 0 when unknown (anything other than a fingerprinted render, or a cancel). Guarded
+     * by {@link #foregroundPublicationLock}. */
+    private long publishedContentFingerprint = 0L;
+    private Service publishedContentOwner;
 
     /** Actual phone publication while {@link #foregroundPublicationLock} is held. */
     private void publishPhoneForegroundLocked(Notification notification) {
+        publishPhoneForegroundLocked(notification, 0L);
+    }
+
+    private void publishPhoneForegroundLocked(Notification notification, long fingerprint) {
         final Service owner = keeprunning.theservice;
+        publishedContentFingerprint = 0L;
         if (owner != null) {
             owner.startForeground(glucosenotificationid, notification);
         } else {
             notificationManager.notify(glucosenotificationid, notification);
         }
+        publishedContentFingerprint = fingerprint;
+        publishedContentOwner = owner;
         ++foregroundVisualGeneration;
         if (startupPendingService == owner) {
             startupPendingTicket = 0L;
             startupPendingService = null;
         }
+    }
+
+    /** The foreground ID was cancelled or replaced by something unfingerprinted: the
+     * next refresh must post even if its content matches the last fingerprinted one. */
+    private void forgetPublishedContentLocked() {
+        publishedContentFingerprint = 0L;
+        publishedContentOwner = null;
     }
 
     /**
@@ -4988,6 +5140,7 @@ public class Notify {
         final Notification placeholder = makeRestoreStatusNotification(app.getString(R.string.loading_data));
         final long ticket;
         synchronized (foregroundPublicationLock) {
+            forgetPublishedContentLocked();
             startForegroundService(service, glucosenotificationid, placeholder);
             ticket = ++startupTicketCounter;
             startupPendingTicket = ticket;
@@ -5076,18 +5229,25 @@ public class Notify {
                 final float value = snapshot.getPrimaryValue();
                 final String message = format(usedlocale, glucoseformat, value);
                 final notGlucose legacy = toLegacyGlucose(snapshot);
-                final Notification notif = makearrownotification(
+                final GlucoseNotificationContent content = renderGlucoseNotification(
                         FOREGROUND_GLUCOSE_NOTIFICATION_KIND, value, message, legacy,
-                        GLUCOSENOTIFICATION, true, snapshot);
+                        GLUCOSENOTIFICATION, true, snapshot, true);
                 // Final check and publication are atomic under the gate: a genuine
                 // foreground publication in between invalidates instead of being
                 // overwritten. No history or rendering happens under this lock.
                 synchronized (foregroundPublicationLock) {
                     if (ticket != startupPendingTicket || startupPendingService != target
                             || keeprunning.theservice != target) {
+                        PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
                         return;
                     }
-                    publishPhoneForegroundLocked(notif);
+                    try {
+                        publishPhoneForegroundLocked(content.notification);
+                    } catch (RuntimeException failure) {
+                        PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
+                        throw failure;
+                    }
+                    PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
                     // A successful restore is a genuine epoch: later visual renders
                     // must not overwrite it, the displayed snapshot is retained for
                     // staleness fallback, and the freshness deadline is armed on the
@@ -5133,6 +5293,15 @@ public class Notify {
                 publishStartupStatus(ticket, target, app.getString(R.string.loading_data));
                 break;
         }
+    }
+
+    /** The retained value the stale status shows as its text: every displayed lane. */
+    private static String staleReadingBody(CurrentDisplaySource.Snapshot stale) {
+        if (stale == null) return "";
+        final String full = stale.getFullFormatted();
+        if (full != null) return full;
+        final String primary = stale.getPrimaryStr();
+        return primary != null ? primary : "";
     }
 
     private String staleMessage(long actualMillis) {

@@ -77,6 +77,93 @@ Its custom views already give TalkBack the value as native text or a content
 description, plus the arrow and status. Alarm, stale/status and Wear notifications
 keep their standard text, so alarms still reach the watch.
 
+### Compatibility & forwarding settings
+
+The Watch settings screen now lets the user choose what listener apps can read:
+a "Via phone notifications" section at the bottom, after the dedicated
+integrations (Transport, Wear OS, Garmin). Its "Glucose forwarding" row opens the usual single-choice dialog (Standard Android, Alarms only, Every new
+reading, At an interval; `NotificationForwardingSettings.MODE_CHOICES`). At an
+interval adds an "Interval" row below it with its own 3/5/10-minute dialog. A choice
+applies at once; both rows store one `NotificationForwardingSettings.mode`, and
+choosing At an interval again brings back the last interval. The screen's help
+explains the modes. Alarms only is the 1.2.5 behaviour. Every mode works only through the standard
+title/text of the ongoing notification (81431); there is no second notification.
+Its custom views ignore title/text, so the phone looks the same either way. Alarm
+notifications are the same under every combination.
+
+The same change took two legacy Juggluco switches off that screen. "Notify" set
+`Notify.alertwatch`, which re-alerted the ongoing notification on each reading;
+it was never persisted, so it was off again after every process restart. "Separate"
+set `Notify.alertseparate`, which `Notify` forces to true at start-up; switching it
+off stopped alarm notifications being posted until the next restart. The old
+View-based Watch screen and the Wear exchange toggle still expose them.
+
+- **Standard Android** (`notification_standard_text`). When on, every
+  post of the ongoing notification has a standard title and text again, as in
+  1.2.3–1.2.4. The title is the value(s) and trend glyph, without unit. The text
+  is the status line. When off, the fields are absent rather than empty.
+  The default is pinned once per installation. A fresh install starts with it on.
+  An update starts with it off, because `firstInstallTime != lastUpdateTime`.
+  This keeps the 1.2.5 behaviour for people who already rely on #646. A stored
+  value is never overwritten.
+- **Every new reading / At an interval** (`periodic_glucose_notifications`,
+  interval `periodic_glucose_interval_minutes` ∈ {1, 3, 5, 10}, default 5;
+  anything else reads as 5). Interval 1 is "Every new reading": each new
+  measurement is announced once, with no time spacing. Unlike standard text,
+  unrelated refreshes of the notification (repaints, chart or status changes)
+  stay without title/text.
+  The render asks `PeriodicGlucoseUpdates.claim` whether this post announces the
+  displayed reading. Only that post gets the title and, as text, the measurement
+  time; every other post, including repaints of the same reading, has none.
+  Listener apps forward the announcing post and skip the rest, so the watch gets
+  one message per reading or interval. `PeriodicGlucoseNotificationPolicy` announces only a
+  reading that is new, fresh by `glucosetimeout` and outside the interval. The
+  interval uses elapsed realtime within one boot and falls back to wall time after
+  a reboot. The last reading announced is persisted once its post succeeded (a
+  render that is superseded or fails to post hands the announcement back, and the
+  next render makes it), and readings measured before the process started are a
+  baseline, so a restart never replays a cached value. After the clock is set back,
+  the markers stop holding new readings back, but the reading last announced is
+  never announced again.
+  A due reading settles for 2 s before a re-render announces it, because custom
+  alerts run after the ongoing notification is posted and a forwarded message
+  cannot be taken back. An alarm notification posted for the same measurement
+  (native alarms, posted first) or while the reading settled (custom alerts, which
+  stamp their own time) counts as that interval's message. Picking one of these
+  modes announces the current fresh reading once, without settling. The alarm itself
+  is never touched or delayed.
+- The two are exclusive by construction: the settings store exactly one mode.
+  Rendering also enforces the rule (periodic wins), in case stored values from a
+  backup ever conflict.
+
+Device findings so far, from user reports rather than our own testing: Mi Fitness
+(Mi Band 10) on 1.2.4 forwarded the ongoing notification only after a disconnect
+or an alarm. The forwarded message showed "9,0 / Discovering". Its standard text
+was empty except while the status line had content. This suggests Mi Fitness
+forwards updates of the ongoing notification but skips ones without body text.
+That is why an announcing post always carries the measurement time. Haylou Fun
+forwarded every post that had a title (#645). Treat both as hypotheses until
+tested on a device.
+
+### Repeated posts of the same reading
+
+Each reading used to post the ongoing notification up to three times: directly,
+then a 750 ms interactive follow-up, then a 1 s data-changed reconcile. Listener
+apps see every post, so that is up to three forwards per reading when standard
+text is on. Two bounded changes reduce this. Both paths still exist.
+
+- The interactive follow-up stands down when a data-changed refresh is already
+  queued. That refresh runs after the follow-up would have, so it renders a state
+  that is at least as new.
+- A deferred refresh skips the post when its content fingerprint
+  (`NotificationFingerprint`) equals what the same owner last published. The
+  fingerprint covers the render inputs, the chart pixels and the notification
+  preferences. The refresh still arms the freshness deadline. Backfill,
+  calibration, chart, freshness and preference changes alter the fingerprint, so
+  they still post. Any unfingerprinted post resets the record and forces the next
+  post. That includes startup placeholders, alarms or loss messages on 81431,
+  cancels, a swipe on Android 14+, and the floating overlay service's own post.
+
 Validation includes focused freshness, refresh coalescing, startup supersession,
 service ownership and publication-recovery tests on phone and Wear. Full-app
 stale transitions and Doze still require device checks; a standalone presentation

@@ -287,9 +287,15 @@ internal data class AnytimeIdRange(val fromId: Int, val stopBeforeId: Int) {
 }
 
 /**
- * Missing ids between the newest CT5 record we already hold and a newly arrived
- * live id. Returns null when nothing is missing (the live id is the expected
- * next one, a repeat, or older).
+ * Missing ids between the newest record we hold and a newly arrived live id.
+ * Returns null when nothing is missing (the live id is the expected next one, a
+ * repeat, or older).
+ *
+ * Family-neutral: every Anytime generation advances one id per reading, so a
+ * hole is only ever visible as a jump in the live id. CT-14 needs this as much as
+ * CT5 does — the 2026-10-27 trace went 1946 -> 1956 after a 30-minute freeze and
+ * nothing asked for 1947..1955, because reconnect backfill starts at
+ * lastGlucoseId + 1 and the transmitter calls that "caught up".
  *
  *   last stored/live = 288, next live = 291  ->  289..290
  *
@@ -297,7 +303,7 @@ internal data class AnytimeIdRange(val fromId: Int, val stopBeforeId: Int) {
  * into a full-session replay; the newest part of the gap wins, and anything
  * older than the cap simply stays a gap.
  */
-internal fun ct5ReconnectGap(
+internal fun anytimeReconnectGap(
     highestKnownId: Int,
     liveId: Int,
     maxRecords: Int,
@@ -309,6 +315,42 @@ internal fun ct5ReconnectGap(
     val range = AnytimeIdRange(fromId, stopBeforeId)
     return range.takeUnless { it.isEmpty }
 }
+
+/** CT5 spelling of [anytimeReconnectGap], kept for the call sites that predate it. */
+internal fun ct5ReconnectGap(
+    highestKnownId: Int,
+    liveId: Int,
+    maxRecords: Int,
+): AnytimeIdRange? = anytimeReconnectGap(highestKnownId, liveId, maxRecords)
+
+/**
+ * What a finished gap pass still owes.
+ *
+ * A live id that jumps again during the pass widens the pending envelope past
+ * the range the pass was started with. `100 -> 103` repaired, `103 -> 105`
+ * arriving mid-pass, and 104 was never requested: clearing the envelope on
+ * completion would drop it. Returns null when the pass covered everything that
+ * is still owed.
+ */
+internal fun gapRemainder(
+    runStopBeforeId: Int,
+    reachedId: Int,
+    pendingFromId: Int,
+    pendingStopBeforeId: Int,
+): AnytimeIdRange? {
+    if (pendingFromId < 0 || pendingStopBeforeId <= pendingFromId) return null
+    val fromId = maxOf(pendingFromId, runStopBeforeId, reachedId)
+    if (fromId >= pendingStopBeforeId) return null
+    return AnytimeIdRange(fromId, pendingStopBeforeId)
+}
+
+/** True when a running pass already asks for every id in `[fromId, stopBeforeId)`. */
+internal fun backfillCoversRange(
+    nextRequestId: Int,
+    stopBeforeId: Int,
+    fromId: Int,
+    gapStopBeforeId: Int,
+): Boolean = nextRequestId <= fromId && stopBeforeId >= gapStopBeforeId
 
 /**
  * What is still owed from a persisted gap.

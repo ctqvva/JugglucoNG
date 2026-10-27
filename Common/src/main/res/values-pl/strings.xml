@@ -523,6 +523,7 @@
     <string name="failed_to_connect">Nie udało się połączyć z </string>
     <string name="sensor_not_init">Sensor nie zainicjowany. Najpierw użyj \'Skanuj Sensor\'.</string>
     <string name="invalid_code_format">Nieprawidłowy format kodu. Spróbuj ponownie.</string>
+    <string name="ican_full_box_serial_required">Do aktywacji wymagany jest pełny, 13-znakowy numer seryjny z opakowania iCan</string>
     <string name="sibionics_code_wrong_type">To jest kod %1$s. Wróć i wybierz %1$s.</string>
     <string name="sibionics_code_not_for_type">Ten kod nie należy do %1$s. Wróć i wybierz odpowiedni typ sensora.</string>
     <string name="sibionics_serial_wrong_type">Ten numer seryjny nie pasuje do %1$s. Wróć i wybierz odpowiedni typ sensora.</string>
@@ -580,6 +581,8 @@
     <string name="data_smoothing_graph_only_desc">Bieżąca glukoza, widżety i alarmy pozostają bez wygładzania</string>
     <string name="data_smoothing_exchange_only_title">Tylko wysyłane odczyty</string>
     <string name="data_smoothing_exchange_only_desc">Wygładzaj transmisje i wysyłane dane. Odczyty w aplikacji pozostają bez wygładzania</string>
+    <string name="data_smoothing_causal_title">Filtr Kalmana dla bieżącej wartości</string>
+    <string name="data_smoothing_causal_desc">Szacuje najnowszy odczyt wyłącznie na podstawie wcześniejszych odczytów (poziom i trend), dzięki czemu wartość pokazywana i wysyłana teraz jest taka sama jak ta zachowana w historii. Historia wykresu i Nightscout pozostają przy oknie uśredniania</string>
     <string name="data_smoothing_collapse_title">Mniej odczytów</string>
     <string name="data_smoothing_collapse_desc">Wyświetlaj i wysyłaj mniej odczytów</string>
     <string name="data_smoothing_collapse_desc_match">Jeden odczyt co %1$d min</string>
@@ -682,6 +685,7 @@
     <string name="dexcom_slot_change_desc">Sensor zostanie ponownie sparowany w nowym gnieździe przy użyciu zapisanego kodu. Inne urządzenie będzie mogło potem użyć starego gniazda.</string>
     <string name="dexcom_slot_change_action">Zmień gniazdo</string>
     <string name="dexcom_pairing_code_label">4-cyfrowy kod parowania</string>
+    <string name="dexcom_pairing_code">Kod parowania</string>
     <string name="dexcom_pairing_code_instruction">Wpisz 4-cyfrowy kod parowania wydrukowany na aplikatorze sensora.</string>
     <string name="libre_setup_title">Konfiguracja Libre</string>
     <string name="scan_libre_sensor">Skanuj Sensor Libre</string>
@@ -1669,7 +1673,7 @@
     <string name="predictive_delete_time_period_title">Usunąć ten przedział?</string>
     <string name="predictive_delete_time_period_message">Poprzedni przedział obejmie ten czas.</string>
     <string name="predictive_carb_ratio">Współczynnik węglowodanów</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Wrażliwość na insulinę</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1786,6 +1790,7 @@
     <string name="journal_type_insulin">Insulina</string>
     <string name="journal_type_food">Jedzenie</string>
     <string name="journal_type_bg_short">Glik</string>
+    <string name="journal_type_glucose">Glukoza</string>
     <string name="journal_type_fingerstick">Pomiar z palca</string>
     <string name="journal_type_activity">Aktywność</string>
     <string name="journal_type_note">Notatka</string>
@@ -1805,6 +1810,10 @@
     <string name="journal_intensity_moderate">Umiarkowana</string>
     <string name="journal_intensity_intense">Intensywna</string>
     <string name="journal_insulin_library">Biblioteka insulin</string>
+    <string name="journal_insulin_chart_title">Insulina na wykresie</string>
+    <string name="journal_insulin_chart_stacked">Skumulowana</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Skumulowana, z każdą dawką</string>
+    <string name="journal_insulin_chart_separate">Każda dawka osobno</string>
     <string name="notification_settings_title">Ustawienia powiadomień</string>
     <string name="notification_settings_subtitle">Dostosuj panel powiadomień</string>
     <string name="lock_screen_aod">Ekran blokady (AOD)</string>
@@ -2129,10 +2138,10 @@
     <string name="api_source_status_no_readings">Brak jeszcze odczytów API</string>
     <string name="api_source_status_sync_failed">Synchronizacja źródła API nie powiodła się</string>
     <string name="outbound_api_preset_sheet_title">Wybierz preset miejsca docelowego</string>
-    <string name="outbound_api_preset_custom_json_desc">Wysyła znormalizowany JSON glukozy metodą POST do dowolnego endpointu.</string>
-    <string name="outbound_api_preset_telegram_desc">Wysyła tekst przez Telegram Bot API. URL może wskazywać relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Wysyła kompaktowy tekst GV przez wiadomości społeczności VK.</string>
-    <string name="outbound_api_preset_vk_desc">Wysyła czytelny tekst glukozy przez wiadomości społeczności VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Wysyła znormalizowany JSON glukozy metodą POST do dowolnego endpointu</string>
+    <string name="outbound_api_preset_telegram_desc">Wysyła tekst przez Telegram Bot API. URL może wskazywać relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Wysyła kompaktowy tekst GV przez wiadomości społeczności VK</string>
+    <string name="outbound_api_preset_vk_desc">Wysyła czytelny tekst glukozy przez wiadomości społeczności VK</string>
     <string name="outbound_api_change_preset">Zmień</string>
     <string name="outbound_api_telegram_recipient_help">Użyj numerycznego chat ID lub @nazwy_kanału. Osoba musi najpierw uruchomić bota.</string>
     <string name="outbound_api_vk_recipient_help">Użyj numerycznych ID użytkowników lub peer ID VK. Każdy odbiorca musi najpierw napisać do społeczności.</string>
@@ -2539,7 +2548,7 @@
     <string name="ottai_cloud_offline_routes">Zaimportuj plik danych logowania, aby kontynuować bez chmury — skan QR tylko uzupełnia kod sensora, a NFC jedynie go wybudza.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS alarmowy</string>
-    <string name="outbound_api_preset_sms_desc">Wyślij wiadomość, gdy alarm pozostaje bez reakcji, wartość staje się krytyczna albo zanika transmisja danych.</string>
+    <string name="outbound_api_preset_sms_desc">Wyślij wiadomość, gdy alarm pozostaje bez reakcji, wartość staje się krytyczna albo zanika transmisja danych</string>
     <string name="sms_section_who">Kogo dotyczy</string>
     <string name="sms_subject_name">Imię</string>
     <string name="sms_subject_name_help">Trafia na początek każdej wiadomości, na przykład „Mia: alarm NISKI bez reakcji”.</string>
@@ -2952,6 +2961,7 @@
     <string name="watch_kerfstok_bridge">Most transportowy Kerfstok</string>
     <string name="watch_garmin_status_desc">Stan połączenia i parowanie</string>
     <string name="watch_garmin_enable_hint">Włącz Kerfstok, aby zobaczyć stan</string>
+    <string name="watch_help_forwarding">„Przekazywanie odczytów” określa, co aplikacje zegarków i opasek otrzymują z powiadomienia telefonu. „Standardowy Android” — odczyt przy każdej aktualizacji powiadomienia, więc niektóre zegarki wibrują za każdym razem. „Każdy nowy odczyt” i „Co określony czas” — każdy odczyt raz. „Tylko alarmy” — bez odczytów.</string>
     <string name="watch_help_wearos">Włącz Wear OS, aby korzystać w tej aplikacji z przesyłania wiadomości do zegarka.</string>
     <string name="watch_help_config">W Konfiguracji wybierz zegarek i ustaw bezpośredni routing czujnika.</string>
     <string name="watch_help_garmin">Garmin Connect IQ działa przez Kerfstok i ma osobne sterowanie stanem.</string>
@@ -3026,13 +3036,26 @@
     <string name="nightscout_secret_label">Sekret API lub token dostępu</string>
     <string name="nightscout_api_help">Dla v1 użyj sekretu API, a dla v3 tokenu dostępu Nightscout.</string>
     <string name="nightscout_iob_help">eIOB i COB są wysyłane w polu jugglucong w devicestatus, oddzielnie od standardowej IOB.</string>
-    <string name="medtrum_sensor_desc">Wpisz numer seryjny wydrukowany na plastrze (szesnastkowy)</string>
+    <string name="medtrum_sensor_desc">Wpisz numer seryjny wydrukowany na nadajniku (szesnastkowy)</string>
     <string name="medtrum_setup_saved_title">Sensor zapisany</string>
-    <string name="medtrum_setup_searching">Jeszcze nie połączono. Plaster połączy się sam, gdy będzie w zasięgu.</string>
-    <string name="medtrum_setup_auth_failed">Plaster odrzucił ten numer seryjny. Sprawdź numer wydrukowany na plastrze.</string>
-    <string name="medtrum_setup_device_rejected">To urządzenie nie jest plastrem Medtrum. Upewnij się, że plaster jest w pobliżu, i spróbuj ponownie.</string>
+    <string name="medtrum_setup_searching">Jeszcze nie połączono. Nadajnik połączy się sam, gdy będzie w zasięgu.</string>
+    <string name="medtrum_setup_auth_failed">Nadajnik odrzucił ten numer seryjny. Sprawdź numer wydrukowany na nadajniku.</string>
+    <string name="medtrum_setup_device_rejected">To urządzenie nie jest nadajnikiem Medtrum. Upewnij się, że nadajnik jest w pobliżu, i spróbuj ponownie.</string>
 
     <string name="alert_sound_volume">Głośność dźwięku alarmu</string>
+    <string name="watch_forwarding_section">Przez powiadomienia telefonu</string>
+    <string name="watch_forwarding_title">Przekazywanie odczytów</string>
+    <string name="watch_forwarding_standard">Standardowy Android</string>
+    <string name="watch_forwarding_alarms_only">Tylko alarmy</string>
+    <string name="watch_forwarding_every_reading">Każdy nowy odczyt</string>
+    <string name="watch_forwarding_interval">Co określony czas</string>
+    <string name="watch_forwarding_interval_title">Interwał</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuta</item>
+        <item quantity="few">%d minuty</item>
+        <item quantity="many">%d minut</item>
+        <item quantity="other">%d minuty</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Wysyłaj odczyty do Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

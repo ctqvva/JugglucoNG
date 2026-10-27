@@ -717,21 +717,37 @@ class NightscoutFollowerManager(
             .sortedBy { it.timestampMs }
     }
 
-    private class HttpResponse(val code: Int, val body: String)
+    /** [bearer] is the cached JWT the request carried, null when it went out without one. */
+    private class HttpResponse(val code: Int, val body: String, val bearer: String? = null)
 
     /**
      * One GET against the follower's server. Marks progress on both sides of the call, so a
      * refresh only looks stuck when a single request has not come back.
      */
     private fun httpGet(endpoint: String): HttpResponse {
+        val response = httpGetOnce(endpoint)
+        // A 401 on a cached bearer means the server no longer accepts that JWT -- it signs
+        // them with a key a restart or redeploy can replace. Without this the follower kept
+        // sending the dead token until its own expiry, hours away, so a server restart looked
+        // like a lost connection that only an app restart fixed (#716). Retried even when
+        // another request already replaced the token: the retry then carries that one.
+        if (response.code == HttpURLConnection.HTTP_UNAUTHORIZED && response.bearer != null) {
+            NightscoutFollowerV3.dropToken(response.bearer)
+            return httpGetOnce(endpoint)
+        }
+        return response
+    }
+
+    private fun httpGetOnce(endpoint: String): HttpResponse {
         noteProgress()
+        var bearer: String? = null
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            applyFollowerAuth(this)
+            bearer = applyFollowerAuth(this)
         }
         try {
             val code = connection.responseCode
@@ -739,7 +755,7 @@ class NightscoutFollowerManager(
                 ?.bufferedReader()
                 ?.use { it.readText() }
                 .orEmpty()
-            return HttpResponse(code, body)
+            return HttpResponse(code, body, bearer)
         } finally {
             connection.disconnect()
             noteProgress()
@@ -815,7 +831,8 @@ class NightscoutFollowerManager(
      */
     private val refreshErrorLog = RepeatedFollowerError(REFRESH_ERROR_LOG_INTERVAL_MS)
 
-    private fun applyFollowerAuth(connection: HttpURLConnection) {
+    /** Returns the bearer header it sent, or null when the request went out with [NightscoutFollowerRegistry.applyAuth]. */
+    private fun applyFollowerAuth(connection: HttpURLConnection): String? {
         val bearer = if (useV3) {
             NightscoutFollowerV3.authorizationHeader(
                 NightscoutFollowerRegistry.normalizeUrl(url),
@@ -830,6 +847,7 @@ class NightscoutFollowerManager(
         } else {
             NightscoutFollowerRegistry.applyAuth(connection, secret)
         }
+        return bearer
     }
 
     /**

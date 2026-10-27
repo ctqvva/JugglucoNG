@@ -2200,6 +2200,9 @@ fun SensorCard(
                         if (!(sensor.isCloneSource && sensor.deviceAddress.equals("Unknown", ignoreCase = true))) {
                             DataRow(stringResource(R.string.sensor_address), sensor.deviceAddress)
                         }
+                        if (sensor.dexcomPairingCode.isNotEmpty()) {
+                            DataRow(stringResource(R.string.dexcom_pairing_code), sensor.dexcomPairingCode)
+                        }
                     
                         // FIX: Use Long timestamp directly to avoid String Parsing Locale bugs in formatSensorTime
                         // User reported "100% Fill / Red Color" bug in English Locale, likely due to startMs being 0 or parse fail.

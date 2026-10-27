@@ -92,6 +92,8 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         
         // Satisfy Foreground Service requirement immediately
         startForeground(81431, createForegroundNotification())
+        // That replaced whatever the glucose notification showed on the shared ID.
+        tk.glucodata.Notify.forgetPublishedOngoingContent()
     }
     
     private fun createForegroundNotification(): android.app.Notification {

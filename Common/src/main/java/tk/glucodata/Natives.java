@@ -1354,6 +1354,8 @@ public class Natives {
 
         public static native boolean isAuthenticated(long dataptr);
 
+        public static native String dexPairingCode(long dataptr);
+
         public static native int getDexCertSize(byte[] ar);
 
         public static native void dexSaveDeviceName(long dataptr, String deviceName);

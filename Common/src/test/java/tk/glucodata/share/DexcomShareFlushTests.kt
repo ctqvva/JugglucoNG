@@ -58,7 +58,9 @@ class DexcomShareFlushTests {
         override fun post(url: String, jsonBody: String?): HttpResult {
             calls += url to jsonBody
             return when {
-                url.contains("LoginPublisherAccountByName") -> HttpResult(loginCode, loginBody)
+                url.contains("AuthenticatePublisherAccount") ->
+                    HttpResult(200, "\"1d2c3b4a-0000-4000-8000-00000000abcd\"")
+                url.contains("LoginPublisherAccountById") -> HttpResult(loginCode, loginBody)
                 url.contains("CheckMonitoredReceiverAssignmentStatus") ->
                     HttpResult(200, "\"AssignedToYou\"")
                 url.contains("PostReceiverEgvRecords") -> {
@@ -70,7 +72,7 @@ class DexcomShareFlushTests {
             }
         }
 
-        val loginCalls: Int get() = calls.count { it.first.contains("LoginPublisherAccountByName") }
+        val loginCalls: Int get() = calls.count { it.first.contains("LoginPublisherAccountById") }
 
         val uploadCalls: Int get() = uploadSizes.size
     }

@@ -460,6 +460,7 @@
     <string name="failed_to_connect">Не вдалося підключитися до </string>
     <string name="sensor_not_init">Сенсор не ініціалізовано. Спочатку використовуйте \'Сканувати Сенсор\'.</string>
     <string name="invalid_code_format">Невірний формат коду. Спробуйте знову.</string>
+    <string name="ican_full_box_serial_required">Для активації потрібен повний серійний номер із 13 символів з коробки iCan</string>
     <string name="sibionics_code_wrong_type">Це код %1$s. Поверніться та виберіть %1$s.</string>
     <string name="sibionics_code_not_for_type">Цей код не належить до %1$s. Поверніться та виберіть відповідний тип датчика.</string>
     <string name="sibionics_serial_wrong_type">Цей серійний номер не відповідає %1$s. Поверніться та виберіть відповідний тип датчика.</string>
@@ -517,6 +518,8 @@
     <string name="data_smoothing_graph_only_desc">Поточна глюкоза, віджети й тривоги — без згладжування</string>
     <string name="data_smoothing_exchange_only_title">Лише передані показання</string>
     <string name="data_smoothing_exchange_only_desc">Згладжувати трансляції та завантаження. Показання в застосунку — без згладжування</string>
+    <string name="data_smoothing_causal_title">Фільтр Калмана для поточного значення</string>
+    <string name="data_smoothing_causal_desc">Оцінює останнє показання лише за попередніми (рівень і тренд), тому показане й надіслане зараз значення збігається з тим, що залишиться в історії. Історія графіка та Nightscout залишаються на вікні усереднення</string>
     <string name="data_smoothing_collapse_title">Менше показань</string>
     <string name="data_smoothing_collapse_desc">Зменшити кількість точок на графіку та частоту передачі показань</string>
     <string name="data_smoothing_collapse_desc_match">Одне показання кожні %1$d хв</string>
@@ -619,6 +622,7 @@
     <string name="dexcom_slot_change_desc">Сенсор знову підключиться в новому слоті за збереженим кодом. Після цього старий слот зможе використати інший пристрій.</string>
     <string name="dexcom_slot_change_action">Змінити слот</string>
     <string name="dexcom_pairing_code_label">4-значний код сполучення</string>
+    <string name="dexcom_pairing_code">Код сполучення</string>
     <string name="dexcom_pairing_code_instruction">Введіть 4-значний код сполучення, надрукований на аплікаторі сенсора.</string>
     <string name="libre_setup_title">Налаштування Libre</string>
     <string name="scan_libre_sensor">Сканувати Сенсор Libre</string>
@@ -1709,7 +1713,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Видалити цей період?</string>
     <string name="predictive_delete_time_period_message">Цей час перейде до попереднього періоду.</string>
     <string name="predictive_carb_ratio">Вуглеводний коефіцієнт</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Чутливість до інсуліну</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1826,6 +1830,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Інсулін</string>
     <string name="journal_type_food">Їжа</string>
     <string name="journal_type_bg_short">ГК</string>
+    <string name="journal_type_glucose">Глюкоза</string>
     <string name="journal_type_fingerstick">Пальцевий замір</string>
     <string name="journal_type_activity">Активність</string>
     <string name="journal_type_note">Нотатка</string>
@@ -1845,6 +1850,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Помірна</string>
     <string name="journal_intensity_intense">Інтенсивна</string>
     <string name="journal_insulin_library">Бібліотека інсуліну</string>
+    <string name="journal_insulin_chart_title">Інсулін на графіку</string>
+    <string name="journal_insulin_chart_stacked">Складений</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Складений, з кожною дозою</string>
+    <string name="journal_insulin_chart_separate">Кожна доза окремо</string>
     <string name="journal_curve_reset">Скинути криву</string>
     <string name="journal_active_insulin_subtitle">Враховується в активному інсуліні та прогнозах</string>
     <string name="journal_use_for_calculation">Використовувати для розрахунків</string>
@@ -2170,10 +2179,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Показань API ще немає</string>
     <string name="api_source_status_sync_failed">Помилка синхронізації джерела API</string>
     <string name="outbound_api_preset_sheet_title">Виберіть пресет призначення</string>
-    <string name="outbound_api_preset_custom_json_desc">POST нормалізованого JSON глюкози до будь-якого endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Надсилання тексту через Telegram Bot API. URL можна спрямувати на relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Надсилання компактного тексту GV через повідомлення спільноти VK.</string>
-    <string name="outbound_api_preset_vk_desc">Надсилання читабельного тексту глюкози через повідомлення спільноти VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST нормалізованого JSON глюкози до будь-якого endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Надсилання тексту через Telegram Bot API. URL можна спрямувати на relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Надсилання компактного тексту GV через повідомлення спільноти VK</string>
+    <string name="outbound_api_preset_vk_desc">Надсилання читабельного тексту глюкози через повідомлення спільноти VK</string>
     <string name="outbound_api_change_preset">Змінити</string>
     <string name="outbound_api_telegram_recipient_help">Використовуйте числовий chat ID або @назву_каналу. Людина має спочатку написати боту.</string>
     <string name="outbound_api_vk_recipient_help">Використовуйте числові ID користувачів або peer ID VK. Кожен отримувач має спочатку написати спільноті.</string>
@@ -2577,7 +2586,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Імпортуйте файл облікових даних, щоб продовжити без хмари — сканування QR лише заповнює код сенсора, а NFC лише пробуджує його.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Екстрені SMS</string>
-    <string name="outbound_api_preset_sms_desc">Надсилати повідомлення людям, коли тривога лишилася без відповіді, значення стало критичним або зникла передача даних.</string>
+    <string name="outbound_api_preset_sms_desc">Надсилати повідомлення людям, коли тривога лишилася без відповіді, значення стало критичним або зникла передача даних</string>
     <string name="sms_section_who">Про кого йдеться</string>
     <string name="sms_subject_name">Ім\'я</string>
     <string name="sms_subject_name_help">Додається на початок кожного повідомлення, наприклад «Мія: тривога НИЗЬКИЙ без відповіді».</string>
@@ -2990,6 +2999,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Транспортний міст Kerfstok</string>
     <string name="watch_garmin_status_desc">Стан з’єднання та сполучення</string>
     <string name="watch_garmin_enable_hint">Увімкніть Kerfstok, щоб бачити стан</string>
+    <string name="watch_help_forwarding">«Передавання показів» визначає, що застосунки годинників і браслетів отримують зі сповіщення телефона. «Стандартний Android» — показ при кожному оновленні сповіщення, тому деякі годинники вібрують щоразу. «Кожен новий показ» і «З інтервалом» — кожен показ один раз. «Лише тривоги» — без показів.</string>
     <string name="watch_help_wearos">Увімкніть Wear OS, щоб користуватися передаванням повідомлень на годинник у цьому застосунку.</string>
     <string name="watch_help_config">У розділі «Налаштування» виберіть годинник і задайте пряму маршрутизацію сенсора.</string>
     <string name="watch_help_garmin">Garmin Connect IQ працює через Kerfstok і має окреме керування станом.</string>
@@ -3064,13 +3074,26 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Секрет API або токен доступу</string>
     <string name="nightscout_api_help">Для v1 використовуйте секрет API, для v3 — токен доступу Nightscout.</string>
     <string name="nightscout_iob_help">eIOB і COB передаються в полі jugglucong об’єкта devicestatus окремо від звичайного IOB.</string>
-    <string name="medtrum_sensor_desc">Введіть серійний номер, надрукований на патчі (шістнадцятковий)</string>
+    <string name="medtrum_sensor_desc">Введіть серійний номер, надрукований на трансмітері (шістнадцятковий)</string>
     <string name="medtrum_setup_saved_title">Сенсор збережено</string>
-    <string name="medtrum_setup_searching">Поки не під’єднано. Патч під’єднається сам, коли буде поруч.</string>
-    <string name="medtrum_setup_auth_failed">Патч відхилив цей серійний номер. Перевірте номер на патчі.</string>
-    <string name="medtrum_setup_device_rejected">Цей пристрій не є патчем Medtrum. Переконайтеся, що патч поруч, і спробуйте ще раз.</string>
+    <string name="medtrum_setup_searching">Поки не під’єднано. Трансмітер під’єднається сам, коли буде поруч.</string>
+    <string name="medtrum_setup_auth_failed">Трансмітер відхилив цей серійний номер. Перевірте номер на трансмітері.</string>
+    <string name="medtrum_setup_device_rejected">Цей пристрій не є трансмітером Medtrum. Переконайтеся, що трансмітер поруч, і спробуйте ще раз.</string>
 
     <string name="alert_sound_volume">Гучність звуку тривоги</string>
+    <string name="watch_forwarding_section">Через сповіщення телефона</string>
+    <string name="watch_forwarding_title">Передавання показів</string>
+    <string name="watch_forwarding_standard">Стандартний Android</string>
+    <string name="watch_forwarding_alarms_only">Лише тривоги</string>
+    <string name="watch_forwarding_every_reading">Кожен новий показ</string>
+    <string name="watch_forwarding_interval">З інтервалом</string>
+    <string name="watch_forwarding_interval_title">Інтервал</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d хвилина</item>
+        <item quantity="few">%d хвилини</item>
+        <item quantity="many">%d хвилин</item>
+        <item quantity="other">%d хвилини</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Надсилати показники в Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

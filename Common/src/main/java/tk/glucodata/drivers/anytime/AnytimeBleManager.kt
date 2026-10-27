@@ -152,6 +152,15 @@ class AnytimeBleManager(
         private const val CT5_MAX_GAP_REPAIR_RECORDS = 480
 
         /**
+         * One CT-14 reconnect repairs at most this many ids (3 h at 3 min).
+         *
+         * The sensor keeps only its own recent history and a CT-14 outage is
+         * usually a phone-side freeze, so a bounded tail covers what is still
+         * recoverable without turning a reconnect into a session replay.
+         */
+        private const val CT2_MAX_GAP_REPAIR_RECORDS = 60
+
+        /**
          * CT5 history waits until the streaming session has held together this
          * long. A 0x37 issued seconds after the handshake — or on top of a live
          * ACK — is exactly what the 2026-08-20 trace turned into a disconnect
@@ -326,6 +335,22 @@ class AnytimeBleManager(
     /** What direct connects to this transmitter have actually achieved so far. */
     private val connectMode = AnytimeConnectModeState()
 
+    /** How many GATT sessions in a row established a link and then delivered nothing. */
+    private val sessionChurn = AnytimeSessionChurnState()
+
+    /**
+     * Guards the per-session flags below. Recovery runs on the handler thread and
+     * `onConnectionStateChange` on the BLE callback thread, so setting the outcome
+     * has to be check-and-set under one lock rather than two volatile reads.
+     */
+    private val sessionLock = Any()
+
+    /** Proof of life for the current GATT session; read by [recordSessionOutcome]. */
+    @Volatile private var sessionDeliveredData: Boolean = false
+
+    /** Starts true: until a connection is established there is no session to judge. */
+    @Volatile private var sessionOutcomeRecorded: Boolean = true
+
     @Volatile private var pendingFingerstickMgdl: Int = -1
     @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
     @Volatile private var pendingKrPush: Boolean = false
@@ -350,6 +375,14 @@ class AnytimeBleManager(
     /** Outstanding CT5 gap repair, persisted so a restart resumes it. */
     @Volatile private var ct5PendingGapFromId: Int = -1
     @Volatile private var ct5PendingGapStopBeforeId: Int = -1
+
+    /**
+     * Outstanding CT-14 gap repair. In memory only: the range is re-derived from
+     * the next live id, and a process restart is the one case where the hole is
+     * accepted as lost rather than replayed.
+     */
+    @Volatile private var ct2PendingGapFromId: Int = -1
+    @Volatile private var ct2PendingGapStopBeforeId: Int = -1
     private val ct5SkippedHistoryIds = linkedSetOf<Int>()
     private val ct5ResolvedHistoryIds = linkedSetOf<Int>()
     private var ct5GapFailureTracker = AnytimeCt5GapFailureTracker(CT5_GAP_MAX_FAILED_SESSIONS)
@@ -1325,6 +1358,7 @@ class AnytimeBleManager(
         ct5HighestImportedId = -1
         ct5PendingGapFromId = -1
         ct5PendingGapStopBeforeId = -1
+        clearCt2Gap()
         synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.clear() }
         synchronized(ct5ResolvedHistoryIds) { ct5ResolvedHistoryIds.clear() }
         synchronized(pendingNativeRecomputeIds) { pendingNativeRecomputeIds.clear() }
@@ -1437,8 +1471,13 @@ class AnytimeBleManager(
 
     private fun finishHistoryBackfill() {
         val completedReason = historyBackfillReason
+        val completedStopBeforeId = historyStopBeforeId
         stopHistoryBackfill()
 
+        if (completedReason.startsWith("ct2-gap")) {
+            finishCt2GapRun(completedStopBeforeId)
+            return
+        }
         if (completedReason.startsWith("ct5-gap") || completedReason.startsWith("ct5-reconnect-catchup")) {
             // A run is only one contiguous slice of a possibly sparse envelope.
             // Recompute from cached ids, then repair the next-newest hole before
@@ -1772,6 +1811,134 @@ class AnytimeBleManager(
         maybeResumePendingCt5Gap()
     }
 
+    // ---- CT-14 gap repair ----
+    //
+    // A CT-14 pushes one record per cadence slot and answers a pull with the next
+    // id it has. Nothing in that exchange names the ids a listener missed, so the
+    // hole only shows up as a jump in the live id. Reconnect backfill starts at
+    // lastGlucoseId + 1 and is then told "caught up", which is exactly how the
+    // 2026-10-27 trace lost 1947..1955 after a 30-minute freeze.
+
+    private fun maybeStartCt2GapRepair(liveId: Int) {
+        if (!isCt2() || phase != Phase.STREAMING) return
+        anytimeReconnectGap(
+            highestKnownId = lastGlucoseId,
+            liveId = liveId,
+            maxRecords = CT2_MAX_GAP_REPAIR_RECORDS,
+        )?.let { gap ->
+            Log.i(TAG, "CT2 gap detected $gap (have=$lastGlucoseId live=$liveId)")
+            rememberCt2Gap(gap.fromId, gap.stopBeforeId)
+        }
+        maybeResumeCt2Gap()
+    }
+
+    /**
+     * Keep an outstanding CT-14 gap alive. A newer live id proves nothing about
+     * the hole — the cursor moves with every push, so re-deriving the range from
+     * it would forget a repair that is still owed.
+     */
+    private fun rememberCt2Gap(fromId: Int, stopBeforeId: Int) {
+        if (!isCt2()) return
+        if (fromId < 0 || stopBeforeId <= fromId || stopBeforeId == Int.MAX_VALUE) return
+        val merged = ct5MergeGap(
+            currentFromId = ct2PendingGapFromId,
+            currentStopBeforeId = ct2PendingGapStopBeforeId,
+            newFromId = fromId,
+            newStopBeforeId = stopBeforeId,
+            maxRecords = CT2_MAX_GAP_REPAIR_RECORDS,
+        ) ?: return
+        if (merged.fromId == ct2PendingGapFromId && merged.stopBeforeId == ct2PendingGapStopBeforeId) return
+        ct2PendingGapFromId = merged.fromId
+        ct2PendingGapStopBeforeId = merged.stopBeforeId
+        Log.i(TAG, "CT2 gap $merged outstanding")
+    }
+
+    private fun clearCt2Gap() {
+        if (ct2PendingGapFromId < 0 && ct2PendingGapStopBeforeId < 0) return
+        ct2PendingGapFromId = -1
+        ct2PendingGapStopBeforeId = -1
+    }
+
+    /**
+     * Close out a CT-14 gap pass.
+     *
+     * [historyLastPulledId] is the newest id the transmitter actually answered
+     * with, so finishing short of the range means it has nothing to give for the
+     * rest: retrying the same empty range would only burn GATT sessions, so that
+     * hole is accepted and logged. A live jump during the pass is different — the
+     * envelope can now be wider than the range this pass asked for, and the ids
+     * beyond it were never requested, so they stay outstanding.
+     */
+    private fun finishCt2GapRun(runStopBeforeId: Int) {
+        if (!isCt2()) return
+        val reached = (historyLastPulledId + 1).coerceAtLeast(0)
+        if (reached < runStopBeforeId) {
+            Log.w(
+                TAG,
+                "CT2 gap repair stopped at id=$reached before $runStopBeforeId; " +
+                        "transmitter has no more history for it",
+            )
+        } else {
+            Log.i(TAG, "CT2 gap repair complete through id=$reached")
+        }
+        val stillOwed = gapRemainder(
+            runStopBeforeId = runStopBeforeId,
+            reachedId = reached,
+            pendingFromId = ct2PendingGapFromId,
+            pendingStopBeforeId = ct2PendingGapStopBeforeId,
+        )
+        if (stillOwed != null) {
+            ct2PendingGapFromId = stillOwed.fromId
+            Log.i(TAG, "CT2 gap $stillOwed still outstanding")
+            if (maybeResumeCt2Gap()) return
+        }
+        clearCt2Gap()
+        // A forward or older-prefix pass displaced by this repair gets its turn now.
+        if (!maybeResumeInterruptedBackfill()) maybeStartPendingFreshOlderBackfill()
+    }
+
+    /**
+     * Ask for the ids the live cursor has already moved past.
+     *
+     * A running pass that already asks for the whole range is left alone, whatever
+     * it is — a restored factory-calibrated session starts `post-init` from the
+     * oldest missing raw id, and that pass covers the live gap as well. Only a pass
+     * that would finish before the gap does is displaced, and it is remembered so
+     * it resumes after this repair instead of being dropped.
+     */
+    private fun maybeResumeCt2Gap(): Boolean {
+        if (!isCt2() || phase != Phase.STREAMING) return false
+        val from = ct2PendingGapFromId
+        val stopBefore = ct2PendingGapStopBeforeId
+        if (from < 0 || stopBefore <= from) return false
+        if (historyBackfillActive) {
+            // An active gap pass owns the envelope; a wider live jump is picked up
+            // by finishCt2GapRun, so restarting it here would only re-request ids.
+            if (historyBackfillReason.startsWith("ct2-gap")) return true
+            val coversGap = backfillCoversRange(
+                nextRequestId = nextBackfillIdSkippingCached((historyLastPulledId + 1).coerceAtLeast(0)),
+                stopBeforeId = historyStopBeforeId,
+                fromId = from,
+                gapStopBeforeId = stopBefore,
+            )
+            if (coversGap) return true
+            if (!isDisplaceableBackfillReason()) return false
+            Log.i(
+                TAG,
+                "Pausing $historyBackfillReason so CT2 gap $from..${stopBefore - 1} can be repaired first",
+            )
+            stopHistoryBackfill(rememberForReconnect = true)
+        }
+        startHistoryBackfill("ct2-gap", fromId = from, stopBeforeId = stopBefore)
+        return historyBackfillActive
+    }
+
+    /** Automatic passes a gap repair may take the link from; a manual request may not be. */
+    private fun isDisplaceableBackfillReason(reason: String = historyBackfillReason): Boolean =
+        reason.startsWith("post-init") ||
+                reason.startsWith("interrupted") ||
+                reason.startsWith("ct2-gap")
+
     private fun noteCt5ImportedId(glucoseId: Int) {
         if (!isCt5() || glucoseId < 0) return
         if (glucoseId <= ct5HighestImportedId) return
@@ -2065,6 +2232,7 @@ class AnytimeBleManager(
         if (stop) return
         val gatt = mBluetoothGatt
         Log.w(TAG, "Recovering GATT: $reason")
+        recordSessionOutcome()
         clearGattCallbacks()
         phase = Phase.IDLE
         clearGattReferences()
@@ -2075,7 +2243,7 @@ class AnytimeBleManager(
             .onFailure { Log.stack(TAG, "recoverGattAndReconnect(disconnect:$reason)", it) }
         runCatching { gatt?.close() }
             .onFailure { Log.stack(TAG, "recoverGattAndReconnect(close:$reason)", it) }
-        scheduleReconnect(reason, delayMs)
+        scheduleReconnect(reason, maxOf(delayMs, sessionReconnectDelayMs()))
         UiRefreshBus.requestStatusRefresh()
     }
 
@@ -2259,6 +2427,38 @@ class AnytimeBleManager(
         handler.removeCallbacks(reconnectRunnable)
         handler.postDelayed(reconnectRunnable, delayMs)
     }
+
+    /** A new GATT session has proved nothing yet, including that it can carry data. */
+    private fun beginGattSession() {
+        synchronized(sessionLock) {
+            sessionDeliveredData = false
+            sessionOutcomeRecorded = false
+        }
+    }
+
+    /** Any decoded frame from the sensor proves this session is usable. */
+    private fun noteSessionSensorData() {
+        synchronized(sessionLock) {
+            sessionDeliveredData = true
+            sessionChurn.onSessionDeliveredData()
+        }
+    }
+
+    /**
+     * Record how the current session ended, once. Both the recovery path and the
+     * stack's own disconnect callback lead here, and closing a GATT on purpose
+     * often produces the second one — counting it twice would double the backoff.
+     */
+    private fun recordSessionOutcome() {
+        synchronized(sessionLock) {
+            if (sessionOutcomeRecorded) return
+            sessionOutcomeRecorded = true
+            sessionChurn.onSessionEnded(sessionDeliveredData)
+        }
+    }
+
+    /** Backoff earned by sessions that established a link and then delivered nothing. */
+    private fun sessionReconnectDelayMs(): Long = sessionChurn.retryDelayMs(ACTIVE_SESSION_RECONNECT_DELAY_MS)
 
     private fun noDataWatchdogMs(): Long =
         NO_DATA_WATCHDOG_MULTIPLIER * profile.readingIntervalMinutes * 60L * 1000L
@@ -2546,6 +2746,7 @@ class AnytimeBleManager(
                 // Nothing between opening the attempt and this callback can change the
                 // mode, so asking again reports what this connection was opened with.
                 connectMode.onConnected(usedAutoConnect = useAutoConnect())
+                beginGattSession()
                 cancelReconnect()
                 clearGattCallbacks()
                 mBluetoothGatt = gatt
@@ -2647,11 +2848,15 @@ class AnytimeBleManager(
                         ct5EndCycleSsnInFlight = false
                     }
                     if (!stop) {
+                        recordSessionOutcome()
                         scheduleReconnect(
                             "GATT disconnect status=$status",
-                            connectMode.retryDelayMs(
-                                baseDelayMs = ACTIVE_SESSION_RECONNECT_DELAY_MS,
-                                readingIntervalMs = profile.readingIntervalMinutes * 60L * 1000L,
+                            maxOf(
+                                connectMode.retryDelayMs(
+                                    baseDelayMs = ACTIVE_SESSION_RECONNECT_DELAY_MS,
+                                    readingIntervalMs = profile.readingIntervalMinutes * 60L * 1000L,
+                                ),
+                                sessionReconnectDelayMs(),
                             ),
                         )
                     }
@@ -3745,6 +3950,8 @@ class AnytimeBleManager(
             clearCaughtUpCooldownIfNewerData(anchorId)
         }
         if (push && anchorMs > 0L && anchorId >= 0) {
+            noteSessionSensorData()
+            maybeStartCt2GapRepair(anchorId)
             updateTimelineFromLiveGlucoseId(anchorId, anchorMs, intervalMs)
             maybeStartFreshPostLiveBackfill(anchorId)
         }
@@ -3991,6 +4198,7 @@ class AnytimeBleManager(
         // A protocol-valid frame is proof the sensor is present and connected,
         // whether or not the transmitter has computed glucose for this id yet.
         lastLiveFrameAtMs = now
+        noteSessionSensorData()
         lastIwNa = record.iwNa
         lastIbNa = record.ibNa
         lastTemperatureC = record.temperatureC
@@ -4398,6 +4606,7 @@ class AnytimeBleManager(
         history: Boolean,
         skipHistoryImport: Boolean = false,
     ): Boolean {
+        if (live) noteSessionSensorData()
         // Warm-up gate: hold back readings the model has not settled for yet, so they
         // never reach Nightscout/watch/notifications or the app's own history. CT5
         // produces nothing during warm-up already; CT2/CT3/CT4 model from the very

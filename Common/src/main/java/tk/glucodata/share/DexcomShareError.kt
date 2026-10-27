@@ -83,7 +83,8 @@ object DexcomShareError {
         return body.orEmpty().trim().take(MESSAGE_LIMIT)
     }
 
-    private fun codeOf(body: String?): String? =
+    /** Dexcom's error code, e.g. `AccountPasswordInvalid`; safe to log, unlike its message. */
+    fun codeOf(body: String?): String? =
         jsonOf(body)?.optString("Code").orEmpty().trim().takeIf { it.isNotEmpty() }
 
     private fun messageOf(body: String?): String = jsonOf(body)?.optString("Message").orEmpty()

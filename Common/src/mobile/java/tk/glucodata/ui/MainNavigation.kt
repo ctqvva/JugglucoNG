@@ -32,6 +32,9 @@ import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarArrangement
 import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.key
 import androidx.compose.material3.WideNavigationRail
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.WideNavigationRailItem
@@ -807,15 +810,32 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     }
 
     // Define items for use in both Bar and Rail
-    data class NavItem(val route: String, val label: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector)
+    data class NavItem(
+        val route: String,
+        val label: String,
+        val selectedIcon: ImageVector,
+        val unselectedIcon: ImageVector,
+        val glyph: TabGlyph
+    )
     val navItems = buildList {
-        add(NavItem("stats", stringResource(R.string.statistics_title), Icons.Filled.BarChart, Icons.Outlined.BarChart))
+        add(NavItem("stats", stringResource(R.string.statistics_title), Icons.Filled.BarChart, Icons.Outlined.BarChart, TabGlyph.STATISTICS))
         if (showJournalNav) {
-            add(NavItem("journal", stringResource(R.string.journal_title), Icons.Filled.EditNote, Icons.Outlined.EditNote))
+            add(NavItem("journal", stringResource(R.string.journal_title), Icons.Filled.EditNote, Icons.Outlined.EditNote, TabGlyph.JOURNAL))
         }
-        add(NavItem("dashboard", stringResource(R.string.dashboard), Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle))
-        add(NavItem("sensors", stringResource(R.string.sensor), Icons.Filled.Sensors, Icons.Outlined.Sensors))
-        add(NavItem("settings", stringResource(R.string.settings), Icons.Filled.Settings, Icons.Outlined.Settings))
+        add(NavItem("dashboard", stringResource(R.string.dashboard), Icons.Filled.LegendToggle, Icons.Outlined.LegendToggle, TabGlyph.DASHBOARD))
+        add(NavItem("sensors", stringResource(R.string.sensor), Icons.Filled.Sensors, Icons.Outlined.Sensors, TabGlyph.SENSORS))
+        add(NavItem("settings", stringResource(R.string.settings), Icons.Filled.Settings, Icons.Outlined.Settings, TabGlyph.SETTINGS))
+    }
+    val selectedNavRoute = navItems.firstOrNull {
+        it.route == currentRoute || it.route == getParentRoute(currentRoute)
+    }?.route
+    // Before the graph has its first route nothing is selected yet; the icons must not
+    // read that first selection as a tab switch.
+    val selectionKnown = currentRoute != null
+    val navigationTick = rememberNavigationTick()
+    val onNavItemClick = { route: String ->
+        if (route != selectedNavRoute) navigationTick.play()
+        onNavigate(route)
     }
 
     // One NavHost in one place for both orientations. Rotation is handled by this activity
@@ -829,25 +849,31 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                 Box {
                     ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
                         navItems.forEach { item ->
-                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                            ShortNavigationBarItem(
-                                iconPosition = NavigationItemIconPosition.Top,
-                                icon = {
-                                    TabIcon(
-                                        isSelected = isSelected,
-                                        selectedIcon = item.selectedIcon,
-                                        unselectedIcon = item.unselectedIcon,
-                                        description = item.label,
-                                        isDashboard = item.route == "dashboard",
-                                        isStatistics = item.route == "stats"
-                                    )
-                                },
-                                label = {
-                                    FontScaleCap { AdaptiveNavigationLabel(item.label) }
-                                },
-                                selected = isSelected,
-                                onClick = { onNavigate(item.route) }
-                            )
+                            key(item.route) {
+                                val isSelected = item.route == selectedNavRoute
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val pressed by interactionSource.collectIsPressedAsState()
+                                ShortNavigationBarItem(
+                                    iconPosition = NavigationItemIconPosition.Top,
+                                    icon = {
+                                        TabIcon(
+                                            isSelected = isSelected,
+                                            selectedIcon = item.selectedIcon,
+                                            unselectedIcon = item.unselectedIcon,
+                                            description = item.label,
+                                            glyph = item.glyph,
+                                            pressed = pressed,
+                                            selectionKnown = selectionKnown
+                                        )
+                                    },
+                                    label = {
+                                        FontScaleCap { AdaptiveNavigationLabel(item.label) }
+                                    },
+                                    selected = isSelected,
+                                    onClick = { onNavItemClick(item.route) },
+                                    interactionSource = interactionSource
+                                )
+                            }
                         }
                     }
                     NavigationTapCatcherLayer(navigationTapCatcher)
@@ -862,23 +888,29 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                 Box {
                     WideNavigationRail(arrangement = Arrangement.Center) {
                         navItems.forEach { item ->
-                            val isSelected = currentRoute == item.route || getParentRoute(currentRoute) == item.route
-                            WideNavigationRailItem(
-                                railExpanded = false,
-                                icon = {
-                                    TabIcon(
-                                        isSelected = isSelected,
-                                        selectedIcon = item.selectedIcon,
-                                        unselectedIcon = item.unselectedIcon,
-                                        description = item.label,
-                                        isDashboard = item.route == "dashboard",
-                                        isStatistics = item.route == "stats"
-                                    )
-                                },
-                                label = { FontScaleCap { Text(item.label) } },
-                                selected = isSelected,
-                                onClick = { onNavigate(item.route) }
-                            )
+                            key(item.route) {
+                                val isSelected = item.route == selectedNavRoute
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val pressed by interactionSource.collectIsPressedAsState()
+                                WideNavigationRailItem(
+                                    railExpanded = false,
+                                    icon = {
+                                        TabIcon(
+                                            isSelected = isSelected,
+                                            selectedIcon = item.selectedIcon,
+                                            unselectedIcon = item.unselectedIcon,
+                                            description = item.label,
+                                            glyph = item.glyph,
+                                            pressed = pressed,
+                                            selectionKnown = selectionKnown
+                                        )
+                                    },
+                                    label = { FontScaleCap { Text(item.label) } },
+                                    selected = isSelected,
+                                    onClick = { onNavItemClick(item.route) },
+                                    interactionSource = interactionSource
+                                )
+                            }
                         }
                     }
                     NavigationTapCatcherLayer(navigationTapCatcher)

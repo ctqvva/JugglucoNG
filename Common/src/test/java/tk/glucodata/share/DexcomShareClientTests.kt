@@ -2,6 +2,7 @@ package tk.glucodata.share
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.share.DexcomShareClient.HttpResult
@@ -10,6 +11,7 @@ import tk.glucodata.share.DexcomShareClient.UploadResult
 
 class DexcomShareClientTests {
 
+    private val accountId = "1d2c3b4a-0000-4000-8000-00000000abcd"
     private val session = "session guid/1"
 
     private class FakeTransport(
@@ -29,24 +31,25 @@ class DexcomShareClientTests {
 
     private fun successfulLogin(): FakeTransport = FakeTransport { url ->
         when {
-            url.contains("LoginPublisherAccountByName") -> HttpResult(200, "\"$session\"")
+            url.contains("AuthenticatePublisherAccount") -> HttpResult(200, "\"$accountId\"")
+            url.contains("LoginPublisherAccountById") -> HttpResult(200, "\"$session\"")
             url.contains("CheckMonitoredReceiverAssignmentStatus") -> HttpResult(200, "\"AssignedToYou\"")
             else -> HttpResult(200, "")
         }
     }
 
     @Test
-    fun loginWalksTheEndpointsInOrderAndEncodesTheQuery() {
+    fun loginTradesTheNameForTheAccountIdThenLogsInById() {
         val transport = successfulLogin()
         val result = DexcomShareClient(DexcomShareRegion.OUS, transport)
-            .login("someone@example.com", "secret", "SM00000000")
+            .login("kid_username", "secret", "SM00000000")
 
         assertTrue(result is LoginResult.Ok)
         assertEquals(session, (result as LoginResult.Ok).sessionId)
         assertEquals(
             listOf(
-                "General/LoginPublisherAccountByName",
-                "General/AuthenticatePublisherAccount?sessionId=session+guid%2F1&serialNumber=SM00000000",
+                "General/AuthenticatePublisherAccount",
+                "General/LoginPublisherAccountById",
                 "Publisher/StartRemoteMonitoringSession?sessionId=session+guid%2F1&serialNumber=SM00000000",
                 "Publisher/CheckMonitoredReceiverAssignmentStatus?sessionId=session+guid%2F1&serialNumber=SM00000000",
             ),
@@ -55,14 +58,26 @@ class DexcomShareClientTests {
         assertTrue(transport.calls[0].first.startsWith(DexcomShareRegion.OUS.baseUrl))
 
         val authBody = JSONObject(transport.calls[0].second!!)
-        assertEquals("someone@example.com", authBody.getString("accountName"))
+        assertEquals("kid_username", authBody.getString("accountName"))
         assertEquals("secret", authBody.getString("password"))
         assertEquals(DexcomShareJson.APPLICATION_ID, authBody.getString("applicationId"))
-        // The second step repeats the credentials, exactly as xDrip does.
-        assertEquals(authBody.getString("password"), JSONObject(transport.calls[1].second!!).getString("password"))
-        // The session and monitoring calls carry no body at all.
+
+        val loginBody = JSONObject(transport.calls[1].second!!)
+        assertEquals(accountId, loginBody.getString("accountId"))
+        assertEquals("secret", loginBody.getString("password"))
+        assertEquals(DexcomShareJson.APPLICATION_ID, loginBody.getString("applicationId"))
+        assertFalse(loginBody.has("accountName"))
+
+        // The monitoring calls carry no body at all.
         assertEquals(null, transport.calls[2].second)
         assertEquals(null, transport.calls[3].second)
+    }
+
+    @Test
+    fun theLegacyLoginByNameIsNeverCalled() {
+        val transport = successfulLogin()
+        DexcomShareClient(DexcomShareRegion.US, transport).login("a", "b", "SM00000000")
+        assertTrue(transport.calls.none { it.first.contains("LoginPublisherAccountByName") })
     }
 
     @Test
@@ -73,7 +88,8 @@ class DexcomShareClientTests {
 
         val other = FakeTransport { url ->
             when {
-                url.contains("LoginPublisherAccountByName") -> HttpResult(200, "\"$session\"")
+                url.contains("AuthenticatePublisherAccount") -> HttpResult(200, "\"$accountId\"")
+                url.contains("LoginPublisherAccountById") -> HttpResult(200, "\"$session\"")
                 url.contains("CheckMonitoredReceiverAssignmentStatus") -> HttpResult(200, "NotAssigned")
                 else -> HttpResult(200, "")
             }
@@ -85,20 +101,38 @@ class DexcomShareClientTests {
     }
 
     @Test
-    fun aNullGuidSessionCountsAsAFailedLogin() {
-        val nullGuid = FakeTransport { HttpResult(200, "\"00000000-0000-0000-0000-000000000000\"") }
-        val result = DexcomShareClient(DexcomShareRegion.OUS, nullGuid).login("a", "b", "SM00000000")
+    fun aNullOrBlankAccountIdFailsBeforeAnyPasswordGoesToLoginById() {
+        listOf("\"00000000-0000-0000-0000-000000000000\"", "", "null").forEach { body ->
+            val transport = FakeTransport { url ->
+                if (url.contains("AuthenticatePublisherAccount")) HttpResult(200, body) else HttpResult(200, "")
+            }
+            val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
 
-        assertTrue(result is LoginResult.Failed)
-        assertEquals(DexcomShareError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
-
-        val blank = FakeTransport { HttpResult(200, "") }
-        val blankResult = DexcomShareClient(DexcomShareRegion.OUS, blank).login("a", "b", "SM00000000")
-        assertTrue(blankResult is LoginResult.Failed)
+            assertTrue(body, result is LoginResult.Failed)
+            assertEquals(body, DexcomShareError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
+            assertEquals(body, 1, transport.calls.size)
+        }
     }
 
     @Test
-    fun aFailedLoginCarriesTheClassifiedKind() {
+    fun aNullGuidSessionCountsAsAFailedLogin() {
+        listOf("\"00000000-0000-0000-0000-000000000000\"", "").forEach { body ->
+            val transport = FakeTransport { url ->
+                when {
+                    url.contains("AuthenticatePublisherAccount") -> HttpResult(200, "\"$accountId\"")
+                    else -> HttpResult(200, body)
+                }
+            }
+            val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
+
+            assertTrue(body, result is LoginResult.Failed)
+            assertEquals(body, DexcomShareError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
+            assertEquals(body, 2, transport.calls.size)
+        }
+    }
+
+    @Test
+    fun aRejectedPasswordOnTheAuthenticateStepStopsTheLogin() {
         val transport = FakeTransport {
             HttpResult(500, """{"Code":"AccountPasswordInvalid","Message":"Password is invalid"}""")
         }
@@ -110,6 +144,45 @@ class DexcomShareClientTests {
         assertEquals(500, result.code)
         assertEquals("Password is invalid", result.message)
         assertEquals(1, transport.calls.size)
+    }
+
+    @Test
+    fun badSsoCredentialsOnTheAuthenticateStepFailTheLogin() {
+        val transport = FakeTransport {
+            HttpResult(500, """{"Code":"SSO_AuthenticatePasswordInvalid","Message":"Password is invalid"}""")
+        }
+        val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
+
+        assertTrue(result is LoginResult.Failed)
+        assertEquals(DexcomShareError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
+        assertEquals(1, transport.calls.size)
+    }
+
+    @Test
+    fun aLockoutOnTheAuthenticateStepFailsTheLogin() {
+        val transport = FakeTransport {
+            HttpResult(500, """{"Code":"SSO_AuthenticateMaxAttemptsExceeed","Message":"locked"}""")
+        }
+        val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
+
+        assertTrue(result is LoginResult.Failed)
+        assertEquals(DexcomShareError.Kind.LOCKED, (result as LoginResult.Failed).kind)
+        assertEquals(1, transport.calls.size)
+    }
+
+    @Test
+    fun aRejectedPasswordOnTheLoginByIdStepStopsTheLogin() {
+        val transport = FakeTransport { url ->
+            when {
+                url.contains("AuthenticatePublisherAccount") -> HttpResult(200, "\"$accountId\"")
+                else -> HttpResult(500, """{"Code":"AccountPasswordInvalid","Message":"Password is invalid"}""")
+            }
+        }
+        val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
+
+        assertTrue(result is LoginResult.Failed)
+        assertEquals(DexcomShareError.Kind.BAD_CREDENTIALS, (result as LoginResult.Failed).kind)
+        assertEquals(2, transport.calls.size)
     }
 
     @Test
@@ -160,59 +233,5 @@ class DexcomShareClientTests {
 
         assertTrue(result is UploadResult.Failed)
         assertEquals(DexcomShareError.Kind.TRANSIENT, (result as UploadResult.Failed).kind)
-    }
-
-    @Test
-    fun badSsoCredentialsOnTheAuthenticateStepFailTheLogin() {
-        // xDrip ignores this step, but Dexcom reports bad SSO credentials and lockouts here.
-        // Accepting the session anyway would retry a wrong password on every flush.
-        val transport = FakeTransport { url ->
-            when {
-                url.contains("LoginPublisherAccountByName") -> HttpResult(200, "\"$session\"")
-                url.contains("AuthenticatePublisherAccount") ->
-                    HttpResult(
-                        500,
-                        """{"Code":"SSO_AuthenticatePasswordInvalid","Message":"Password is invalid"}""",
-                    )
-                else -> HttpResult(200, "")
-            }
-        }
-
-        val result = DexcomShareClient(DexcomShareRegion.OUS, transport)
-            .login("someone@example.com", "secret", "SM00000000")
-
-        assertTrue(result is LoginResult.Failed)
-        result as LoginResult.Failed
-        assertEquals(DexcomShareError.Kind.BAD_CREDENTIALS, result.kind)
-        assertEquals("Password is invalid", result.message)
-        assertEquals(2, transport.calls.size)
-    }
-
-    @Test
-    fun aLockoutOnTheAuthenticateStepFailsTheLogin() {
-        val transport = FakeTransport { url ->
-            when {
-                url.contains("LoginPublisherAccountByName") -> HttpResult(200, "\"$session\"")
-                url.contains("AuthenticatePublisherAccount") ->
-                    HttpResult(500, """{"Code":"SSO_AuthenticateMaxAttemptsExceeed","Message":"locked"}""")
-                else -> HttpResult(200, "")
-            }
-        }
-
-        val result = DexcomShareClient(DexcomShareRegion.OUS, transport)
-            .login("someone@example.com", "secret", "SM00000000")
-
-        assertTrue(result is LoginResult.Failed)
-        assertEquals(DexcomShareError.Kind.LOCKED, (result as LoginResult.Failed).kind)
-        assertEquals(2, transport.calls.size)
-    }
-
-    @Test
-    fun anOrdinaryAuthenticateResponseIsStillIgnored() {
-        val transport = successfulLogin()
-        val result = DexcomShareClient(DexcomShareRegion.OUS, transport).login("a", "b", "SM00000000")
-
-        assertTrue(result is LoginResult.Ok)
-        assertEquals(4, transport.calls.size)
     }
 }

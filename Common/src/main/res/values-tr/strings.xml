@@ -500,6 +500,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="failed_to_connect">Bağlantı kurulamadı: </string>
     <string name="sensor_not_init">Sensör başlatılmadı. Önce \'Sensörü Tara\'yı kullanın.</string>
     <string name="invalid_code_format">Geçersiz kod formatı. Tekrar deneyin.</string>
+    <string name="ican_full_box_serial_required">Etkinleştirme için iCan kutusundaki 13 karakterli tam seri numarası gereklidir</string>
     <string name="sibionics_code_wrong_type">Bu bir %1$s kodu. Geri dönüp %1$s seçin.</string>
     <string name="sibionics_code_not_for_type">Bu kod %1$s ile eşleşmiyor. Geri dönüp uygun sensör türünü seçin.</string>
     <string name="sibionics_serial_wrong_type">Bu seri numarası %1$s ile eşleşmiyor. Geri dönüp uygun sensör türünü seçin.</string>
@@ -557,6 +558,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="data_smoothing_graph_only_desc">Güncel glikoz, widget’lar ve alarmlar yumuşatılmaz</string>
     <string name="data_smoothing_exchange_only_title">Yalnızca gönderilen ölçümler</string>
     <string name="data_smoothing_exchange_only_desc">Yayınları ve yüklemeleri yumuşat. Uygulamadaki ölçümler yumuşatılmaz</string>
+    <string name="data_smoothing_causal_title">Geçerli değer için Kalman filtresi</string>
+    <string name="data_smoothing_causal_desc">En yeni ölçümü yalnızca geçmiş ölçümlerden (seviye ve eğilim) tahmin eder; böylece şu anda gösterilen ve gönderilen değer geçmişin sakladığı değerle aynı olur. Grafik geçmişi ve Nightscout ortalama penceresini korur</string>
     <string name="data_smoothing_collapse_title">Daha az ölçüm</string>
     <string name="data_smoothing_collapse_desc">Daha az ölçüm göster ve gönder</string>
     <string name="data_smoothing_collapse_desc_match">Her %1$d dakikada bir ölçüm</string>
@@ -659,6 +662,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="dexcom_slot_change_desc">Sensör, kayıtlı koduyla yeni yuvada yeniden eşleşir. Ardından eski yuvayı başka bir cihaz kullanabilir.</string>
     <string name="dexcom_slot_change_action">Yuvayı değiştir</string>
     <string name="dexcom_pairing_code_label">4 haneli eşleştirme kodu</string>
+    <string name="dexcom_pairing_code">Eşleştirme kodu</string>
     <string name="dexcom_pairing_code_instruction">Sensör aplikatöründe yazan 4 haneli eşleştirme kodunu girin.</string>
     <string name="libre_setup_title">Libre Kurulumu</string>
     <string name="scan_libre_sensor">Libre Sensörü Tara</string>
@@ -1662,7 +1666,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="predictive_delete_time_period_title">Bu zaman aralığı silinsin mi?</string>
     <string name="predictive_delete_time_period_message">Önceki aralık bu zamanı kapsayacak.</string>
     <string name="predictive_carb_ratio">Karbonhidrat oranı</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">İnsülin duyarlılığı</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1779,6 +1783,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_type_insulin">İnsülin</string>
     <string name="journal_type_food">Yiyecek</string>
     <string name="journal_type_bg_short">KŞ</string>
+    <string name="journal_type_glucose">Glikoz</string>
     <string name="journal_type_fingerstick">Parmak ölçümü</string>
     <string name="journal_type_activity">Aktivite</string>
     <string name="journal_type_note">Not</string>
@@ -1798,6 +1803,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_intensity_moderate">Orta</string>
     <string name="journal_intensity_intense">Yoğun</string>
     <string name="journal_insulin_library">İnsülin kitaplığı</string>
+    <string name="journal_insulin_chart_title">Grafikte insülin</string>
+    <string name="journal_insulin_chart_stacked">Yığılmış</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Yığılmış, her dozla</string>
+    <string name="journal_insulin_chart_separate">Her doz ayrı</string>
     <string name="notification_settings_title">Bildirim ayarları</string>
     <string name="notification_settings_subtitle">Bildirim panelini özelleştir</string>
     <string name="lock_screen_aod">Kilit ekranı (AOD)</string>
@@ -2122,10 +2131,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="api_source_status_no_readings">Henüz API ölçümü yok</string>
     <string name="api_source_status_sync_failed">API kaynağı senkronizasyonu başarısız</string>
     <string name="outbound_api_preset_sheet_title">Hedef ön ayarını seç</string>
-    <string name="outbound_api_preset_custom_json_desc">Normalleştirilmiş glikoz JSON’unu herhangi bir endpoint’e POST eder.</string>
-    <string name="outbound_api_preset_telegram_desc">Telegram Bot API ile metin gönderir. URL bir relay’e yönlenebilir.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">VK topluluk mesajlarıyla kompakt GV metni gönderir.</string>
-    <string name="outbound_api_preset_vk_desc">VK topluluk mesajlarıyla okunabilir glikoz metni gönderir.</string>
+    <string name="outbound_api_preset_custom_json_desc">Normalleştirilmiş glikoz JSON’unu herhangi bir endpoint’e POST eder</string>
+    <string name="outbound_api_preset_telegram_desc">Telegram Bot API ile metin gönderir. URL bir relay’e yönlenebilir</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">VK topluluk mesajlarıyla kompakt GV metni gönderir</string>
+    <string name="outbound_api_preset_vk_desc">VK topluluk mesajlarıyla okunabilir glikoz metni gönderir</string>
     <string name="outbound_api_change_preset">Değiştir</string>
     <string name="outbound_api_telegram_recipient_help">Sayısal chat ID veya @kanal_adı kullanın. Kişi önce botu başlatmalıdır.</string>
     <string name="outbound_api_vk_recipient_help">Sayısal VK kullanıcı veya peer ID kullanın. Her alıcı önce topluluğa mesaj yazmalıdır.</string>
@@ -2533,7 +2542,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_cloud_offline_routes">Bulut olmadan devam etmek için bir kimlik bilgileri dosyası içe aktarın — QR taraması yalnızca sensör kodunu doldurur, NFC ise yalnızca sensörü uyandırır.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Acil SMS</string>
-    <string name="outbound_api_preset_sms_desc">Bir alarm yanıtsız kaldığında, bir değer kritikleştiğinde veya veri bağlantısı kesildiğinde kişilere mesaj gönder.</string>
+    <string name="outbound_api_preset_sms_desc">Bir alarm yanıtsız kaldığında, bir değer kritikleştiğinde veya veri bağlantısı kesildiğinde kişilere mesaj gönder</string>
     <string name="sms_section_who">Kimin hakkında</string>
     <string name="sms_subject_name">Ad</string>
     <string name="sms_subject_name_help">Her mesajın başına eklenir, örneğin “Mia: DÜŞÜK alarmı yanıtsız”.</string>
@@ -2938,6 +2947,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="watch_kerfstok_bridge">Kerfstok aktarım köprüsü</string>
     <string name="watch_garmin_status_desc">Bağlantı durumu ve eşleme</string>
     <string name="watch_garmin_enable_hint">Durumu görmek için Kerfstok’u etkinleştirin</string>
+    <string name="watch_help_forwarding">“Glukoz iletimi”, saat ve bileklik uygulamalarının telefon bildiriminden ne alacağını belirler. “Standart Android”: bildirimin her güncellemesinde değer, bu yüzden bazı saatler her seferinde titreşir. “Her yeni değer” ve “Aralıklarla”: her değer bir kez. “Yalnızca alarmlar”: değer yok.</string>
     <string name="watch_help_wearos">Bu uygulamada saat mesaj aktarımını kullanmak için Wear OS’u etkinleştirin.</string>
     <string name="watch_help_config">Bir saat seçmek ve doğrudan sensör yönlendirmesini ayarlamak için Yapılandırma’yı kullanın.</string>
     <string name="watch_help_garmin">Garmin Connect IQ Kerfstok üzerinden çalışır ve ayrı durum denetimlerine sahiptir.</string>
@@ -3012,13 +3022,24 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_secret_label">API sırrı veya erişim belirteci</string>
     <string name="nightscout_api_help">v1 için API sırrını, v3 için Nightscout erişim tokenini kullanın.</string>
     <string name="nightscout_iob_help">eIOB ve COB, standart IOB’den ayrı olarak devicestatus içindeki jugglucong alanında gönderilir.</string>
-    <string name="medtrum_sensor_desc">Yama üzerinde yazan seri numarasını girin (onaltılık)</string>
+    <string name="medtrum_sensor_desc">Verici üzerinde yazan seri numarasını girin (onaltılık)</string>
     <string name="medtrum_setup_saved_title">Sensör kaydedildi</string>
-    <string name="medtrum_setup_searching">Henüz bağlanmadı. Yama menzile girdiğinde kendiliğinden bağlanacak.</string>
-    <string name="medtrum_setup_auth_failed">Yama bu seri numarasını reddetti. Yama üzerindeki numarayı kontrol edin.</string>
-    <string name="medtrum_setup_device_rejected">Bu cihaz bir Medtrum yaması değil. Yamanın yakında olduğundan emin olun ve tekrar deneyin.</string>
+    <string name="medtrum_setup_searching">Henüz bağlanmadı. Verici menzile girdiğinde kendiliğinden bağlanacak.</string>
+    <string name="medtrum_setup_auth_failed">Verici bu seri numarasını reddetti. Verici üzerindeki numarayı kontrol edin.</string>
+    <string name="medtrum_setup_device_rejected">Bu cihaz bir Medtrum vericisi değil. Vericinin yakında olduğundan emin olun ve tekrar deneyin.</string>
 
     <string name="alert_sound_volume">Uyarı sesi düzeyi</string>
+    <string name="watch_forwarding_section">Telefon bildirimleriyle</string>
+    <string name="watch_forwarding_title">Glukoz iletimi</string>
+    <string name="watch_forwarding_standard">Standart Android</string>
+    <string name="watch_forwarding_alarms_only">Yalnızca alarmlar</string>
+    <string name="watch_forwarding_every_reading">Her yeni değer</string>
+    <string name="watch_forwarding_interval">Aralıklarla</string>
+    <string name="watch_forwarding_interval_title">Aralık</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d dakika</item>
+        <item quantity="other">%d dakika</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Ölçümleri Dexcom Follow\'a gönder</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

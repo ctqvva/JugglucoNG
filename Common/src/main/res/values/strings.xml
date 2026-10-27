@@ -783,6 +783,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_slot_change_action">Change slot</string>
     <string name="scan_dexcom">Scan Dexcom</string>
     <string name="dexcom_pairing_code_label">4-digit pairing code</string>
+    <string name="dexcom_pairing_code">Pairing code</string>
     <string name="dexcom_pairing_code_instruction">Enter the 4-digit pairing code printed on the sensor applicator.</string>
 
     <!-- Accu-Chek Setup Wizard -->
@@ -910,6 +911,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="data_smoothing_graph_only_desc">Current glucose, widgets and alerts stay unsmoothed</string>
     <string name="data_smoothing_exchange_only_title">Sent readings only</string>
     <string name="data_smoothing_exchange_only_desc">Smooth broadcasts and uploads. In-app readings stay unsmoothed</string>
+    <string name="data_smoothing_causal_title">Kalman filter for the current value</string>
+    <string name="data_smoothing_causal_desc">Estimate the newest reading from past readings only (level and trend), so the value shown and sent now is the one history keeps. Chart history and Nightscout keep the averaging window</string>
     <string name="data_smoothing_collapse_title">Fewer readings</string>
     <string name="data_smoothing_collapse_desc">Show and send fewer readings</string>
     <string name="data_smoothing_collapse_desc_match">One reading every %1$d min</string>
@@ -1006,6 +1009,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="failed_to_connect">"Failed to connect to "</string>
     <string name="sensor_not_init">Sensor not initialized. Use \'Scan Sensor\' first.</string>
     <string name="invalid_code_format">Invalid code format. Please try again.</string>
+    <string name="ican_full_box_serial_required">Activation requires the full 13-character serial number from the iCan box</string>
     <string name="sibionics_code_wrong_type">This is a %1$s code. Go back and choose %1$s.</string>
     <string name="sibionics_code_not_for_type">This code does not belong to %1$s. Go back and choose the matching sensor type.</string>
     <string name="sibionics_serial_wrong_type">This serial does not match %1$s. Go back and choose the matching sensor type.</string>
@@ -1086,12 +1090,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_sensor_desc" translatable="false">X, Vista, Smart, Lumi</string>
     <string name="ottai_sensor" translatable="false">Ottai / Syai</string>
     <string name="ottai_sensor_desc" translatable="false">M8, X1</string>
-    <string name="medtrum_sensor" translatable="false">Medtrum EasySense</string>
-    <string name="medtrum_sensor_desc">Enter the serial number printed on the patch (hexadecimal)</string>
+    <string name="medtrum_sensor" translatable="false">Medtrum TouchCare</string>
+    <string name="medtrum_sensor_models" translatable="false">S9 MD3660</string>
+    <string name="medtrum_sensor_desc">Enter the serial number printed on the transmitter (hexadecimal)</string>
     <string name="medtrum_setup_saved_title">Sensor saved</string>
-    <string name="medtrum_setup_searching">Not connected yet. The patch connects on its own when it is in range.</string>
-    <string name="medtrum_setup_auth_failed">The patch rejected this serial number. Check the number printed on the patch.</string>
-    <string name="medtrum_setup_device_rejected">This device is not a Medtrum patch. Make sure the patch is in range and try again.</string>
+    <string name="medtrum_setup_searching">Not connected yet. The transmitter connects on its own when it is in range.</string>
+    <string name="medtrum_setup_auth_failed">The transmitter rejected this serial number. Check the number printed on the transmitter.</string>
+    <string name="medtrum_setup_device_rejected">This device is not a Medtrum transmitter. Make sure the transmitter is in range and try again.</string>
     <string name="medtrum_serial_hint" translatable="false">1B2C3D4E</string>
     <string name="medtrum_serial_echo" translatable="false">SN %1$s = %2$d</string>
     <string name="icanhealth_sensor" translatable="false">Sinocare iCan</string>
@@ -2156,7 +2161,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Delete this time period?</string>
     <string name="predictive_delete_time_period_message">The previous period will cover this time.</string>
     <string name="predictive_carb_ratio">Carb ratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulin sensitivity</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -2331,6 +2336,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Food</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Glucose</string>
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Activity</string>
     <string name="journal_type_note">Note</string>
@@ -2350,6 +2356,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Insulin on the chart</string>
+    <string name="journal_insulin_chart_stacked">Stacked</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Stacked, with each dose</string>
+    <string name="journal_insulin_chart_separate">Each dose separately</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>
@@ -2718,10 +2728,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">No API readings yet</string>
     <string name="api_source_status_sync_failed">API source sync failed</string>
     <string name="outbound_api_preset_sheet_title">Choose destination preset</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages.</string>
-    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages</string>
+    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages</string>
     <string name="outbound_api_change_preset">Change</string>
     <string name="outbound_api_telegram_recipient_help">Use a numeric chat ID or @channel username. A person must start the bot first.</string>
     <string name="outbound_api_vk_recipient_help">Use numeric VK user or peer IDs. Each recipient must message the community first.</string>
@@ -2775,7 +2785,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_handover_successor_ready">Successor sensor is ready; automatic handover takes over at expiry</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Emergency SMS</string>
-    <string name="outbound_api_preset_sms_desc">Text people when an alarm goes unanswered, a value turns critical, or the data connection drops.</string>
+    <string name="outbound_api_preset_sms_desc">Text people when an alarm goes unanswered, a value turns critical, or the data connection drops</string>
     <string name="sms_section_who">Who this is about</string>
     <string name="sms_subject_name">Name</string>
     <string name="sms_subject_name_help">Put at the start of every message, for example “Mia: LOW alarm unanswered”.</string>
@@ -3193,6 +3203,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok transport bridge</string>
     <string name="watch_garmin_status_desc">Connection status and pairing</string>
     <string name="watch_garmin_enable_hint">Enable Kerfstok to view status</string>
+    <string name="watch_help_forwarding">“Glucose forwarding” decides what watch and band apps get from the phone notification. “Standard Android”: the reading with every notification update, so some watches buzz each time. “Every new reading” and “At an interval”: each reading once. “Alarms only”: no readings.</string>
     <string name="watch_help_wearos">Enable Wear OS to use watch message transport in this app.</string>
     <string name="watch_help_config">Use Config to pick a watch node and set direct sensor routing.</string>
     <string name="watch_help_garmin">Garmin Connect IQ works through Kerfstok and has separate status controls.</string>
@@ -3277,4 +3288,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_servings_suffix">×</string>
     <string name="journal_food_carbs_result">%1$s g carbs</string>
     <string name="journal_meal_total">Total</string>
+    <string name="watch_forwarding_section">Via phone notifications</string>
+    <string name="watch_forwarding_title">Glucose forwarding</string>
+    <string name="watch_forwarding_standard">Standard Android</string>
+    <string name="watch_forwarding_alarms_only">Alarms only</string>
+    <string name="watch_forwarding_every_reading">Every new reading</string>
+    <string name="watch_forwarding_interval">At an interval</string>
+    <string name="watch_forwarding_interval_title">Interval</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
 </resources>

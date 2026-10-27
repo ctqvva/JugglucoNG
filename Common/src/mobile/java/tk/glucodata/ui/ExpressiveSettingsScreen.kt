@@ -77,6 +77,7 @@ import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
+import tk.glucodata.share.DexcomShareSettings
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.ScheduledBackupSettings
@@ -118,6 +119,12 @@ fun ExpressiveSettingsScreen(
         runCatching { Natives.getuselibreview() }.getOrDefault(false) ||
             runCatching { Natives.getlibreAccountIDnumber() }.getOrDefault(0L) > 0L ||
             hasActiveLibreSensorForLibreView()
+    }
+    // Dexcom Share follows the same rule as LibreView: shown once it is set up, or while a
+    // Dexcom sensor is active.
+    val showDexcomShare = remember {
+        runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
+            hasActiveDexcomSensor()
     }
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
@@ -548,14 +555,16 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/outbound-api") }
                 )
-                SettingsItem(
-                    title = stringResource(R.string.dexcom_share_title),
-                    subtitle = stringResource(R.string.dexcom_share_desc),
-                    icon = Icons.Default.CloudUpload,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/dexcom-share") }
-                )
+                if (showDexcomShare) {
+                    SettingsItem(
+                        title = stringResource(R.string.dexcom_share_title),
+                        subtitle = stringResource(R.string.dexcom_share_desc),
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = exchangeColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
                 SettingsItem(
                     title = stringResource(R.string.mirror),
                     subtitle = stringResource(R.string.mirror_desc),
@@ -1616,5 +1625,13 @@ private fun hasActiveLibreSensorForLibreView(): Boolean = runCatching {
             SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN)
         }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
         kind == SensorSourceResolver.SENSOR_KIND_LIBRE2 || kind == SensorSourceResolver.SENSOR_KIND_LIBRE3
+    }
+}.getOrDefault(false)
+
+/** True when a currently active sensor is a Dexcom. */
+private fun hasActiveDexcomSensor(): Boolean = runCatching {
+    Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
+        SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
+            SensorSourceResolver.SENSOR_KIND_DEXCOM
     }
 }.getOrDefault(false)

@@ -762,6 +762,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="dexcom_slot_change_action">Beddel booska</string>
     <string name="scan_dexcom">Iskaan Dexcom</string>
     <string name="dexcom_pairing_code_label">Koodhka isku-xidhka ee 4 lambar</string>
+    <string name="dexcom_pairing_code">Koodhka isku-xidhka</string>
     <string name="dexcom_pairing_code_instruction">Geli koodhka isku-xidhka ee 4 lambar ee ku qoran qalabka gelinta dareemaha.</string>
 
     <!-- Accu-Chek Setup Wizard -->
@@ -889,6 +890,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="data_smoothing_graph_only_desc">Gulukoosta hadda, widget-yada iyo digniinaha lama simayo</string>
     <string name="data_smoothing_exchange_only_title">Cabbirrada la diro oo keliya</string>
     <string name="data_smoothing_exchange_only_desc">Sim gudbinta iyo gelinta xogta. Cabbirrada abka ku jira lama simayo</string>
+    <string name="data_smoothing_causal_title">Shaandheeyaha Kalman ee qiimaha hadda</string>
+    <string name="data_smoothing_causal_desc">Wuxuu qiyaasaa akhrinta ugu dambeysay isagoo isticmaalaya oo keliya akhrinta hore (heerka iyo jihada), si qiimaha hadda la muujiyay oo la diray uu la mid noqdo kan taariikhdu kaydiso. Taariikhda garaafka iyo Nightscout waxay sii hayaan daaqadda celceliska</string>
     <string name="data_smoothing_collapse_title">Cabbirro ka yar</string>
     <string name="data_smoothing_collapse_desc">Soo bandhig oo dir cabbirro ka yar</string>
     <string name="data_smoothing_collapse_desc_match">Hal cabbir %1$d daqiiqo kasta</string>
@@ -962,6 +965,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="failed_to_connect">"waa ku guuldareystay in lagu xiro"</string>
     <string name="sensor_not_init">Dareemaha lama bilaabin Isticmaal \'Scan Sensor\' marka hore.</string>
     <string name="invalid_code_format">Qaab kood aan sax ahayn Fadlan isku day mar kale</string>
+    <string name="ican_full_box_serial_required">Hawlgelintu waxay u baahan tahay lambarka taxanaha oo dhammaystiran ee 13 xaraf ah ee ku qoran sanduuqa iCan</string>
     <string name="sibionics_code_wrong_type">Kani waa kood %1$s. Dib u noqo oo dooro %1$s.</string>
     <string name="sibionics_code_not_for_type">Koodkan kuma eka %1$s. Dib u noqo oo dooro nooca dareemaha ku habboon.</string>
     <string name="sibionics_serial_wrong_type">Lambarkan taxanaha lama mid aha %1$s. Dib u noqo oo dooro nooca dareemaha ku habboon.</string>
@@ -1903,7 +1907,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="predictive_delete_time_period_title">Ma tirtirtaa waqtigan?</string>
     <string name="predictive_delete_time_period_message">Waqtigii hore ayaa dabooli doona waqtigan.</string>
     <string name="predictive_carb_ratio">Saamiga kaarboon</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Dareenka insulinta</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -2041,6 +2045,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Cunto</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Gulukoos</string>
     <string name="journal_type_fingerstick">Farta gacanta</string>
     <string name="journal_type_activity">Hawsha</string>
     <string name="journal_type_note">Ogow</string>
@@ -2060,6 +2065,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="journal_intensity_moderate">Dhexdhexaad</string>
     <string name="journal_intensity_intense">Xoogan</string>
     <string name="journal_insulin_library">Maktabadda insulinta</string>
+    <string name="journal_insulin_chart_title">Insulinta jaantuska</string>
+    <string name="journal_insulin_chart_stacked">Isku dul saaran</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Isku dul saaran, qiyaas kasta</string>
+    <string name="journal_insulin_chart_separate">Qiyaas kasta gooni</string>
     <string name="journal_archived_presets">Noocyada insulin ee naafada ah</string>
     <string name="journal_curve_title">Qalooca dhaqdhaqaaqa wax laga beddeli karo</string>
     <string name="journal_curve_preview">Hordhac qalooca</string>
@@ -2401,10 +2410,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="api_source_status_no_readings">Wax akhrinta API wali ma jiro</string>
     <string name="api_source_status_sync_failed">Isku xidhka isha API wuu fashilmay</string>
     <string name="outbound_api_preset_sheet_title">Dooro meel u dejisan</string>
-    <string name="outbound_api_preset_custom_json_desc">Ku dhaji gulukoosta caadiga ah ee JSON meel kasta oo dhamaadka ah.</string>
+    <string name="outbound_api_preset_custom_json_desc">Ku dhaji gulukoosta caadiga ah ee JSON meel kasta oo dhamaadka ah</string>
     <string name="outbound_api_preset_telegram_desc">Ku dir qoraalka Telegram Bot API. URL wuxuu tilmaami karaa gudbinta</string>
     <string name="outbound_api_preset_gluco_watch_vk_desc">U dir qoraal GV kooban fariimaha bulshada VK</string>
-    <string name="outbound_api_preset_vk_desc">U dir qoraal gulukoos la akhriyi karo fariimaha bulshada VK.</string>
+    <string name="outbound_api_preset_vk_desc">U dir qoraal gulukoos la akhriyi karo fariimaha bulshada VK</string>
     <string name="outbound_api_change_preset">Beddel</string>
     <string name="outbound_api_telegram_recipient_help">Isticmaal aqoonsiga wada sheekaysiga nambarka ah ama @channel name user. Qofku waa inuu marka hore bilaabo bot-ka.</string>
     <string name="outbound_api_vk_recipient_help">Isticmaal isticmaale VK-ga ama aqoonsiga asaaga ah. Qof kastaa waa inuu marka hore fariin u diraa bulshada.</string>
@@ -2696,7 +2705,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_cloud_offline_routes">Soo deji faylka aqoonsiyada si aad u sii waddo adigoon daruurta isticmaalin — iskaanka QR wuxuu keliya buuxiyaa koodhka dareemaha, NFC-na keliya ayuu kiciyaa.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS degdeg ah</string>
-    <string name="outbound_api_preset_sms_desc">U dir dad markii digniin aan laga jawaabin, qiimuhu halis noqdo, ama xiriirka xogtu go\'o.</string>
+    <string name="outbound_api_preset_sms_desc">U dir dad markii digniin aan laga jawaabin, qiimuhu halis noqdo, ama xiriirka xogtu go\'o</string>
     <string name="sms_section_who">Cidda ay khusayso</string>
     <string name="sms_subject_name">Magaca</string>
     <string name="sms_subject_name_help">Waxaa la dhigayaa bilowga fariin kasta, tusaale “Mia: digniinta HOOSE lagama jawaabin”.</string>
@@ -3095,6 +3104,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="watch_kerfstok_bridge">Buundada gudbinta Kerfstok</string>
     <string name="watch_garmin_status_desc">Xaaladda xiriirka iyo isku xidhka</string>
     <string name="watch_garmin_enable_hint">Daar Kerfstok si aad u aragto xaaladda</string>
+    <string name="watch_help_forwarding">“U gudbinta gulukooska” waxay go\'aamisaa waxa barnaamijyada saacadaha iyo jijimaha ay ka helaan ogeysiiska taleefanka. “Android caadi ah”: akhriska mar kasta oo ogeysiiska la cusboonaysiiyo, sidaa darteed saacadaha qaar ayaa gariira mar kasta. “Akhris kasta oo cusub” iyo “Muddo kasta”: akhris kasta hal mar. “Digniinaha oo keliya”: akhris ma jiro.</string>
     <string name="watch_help_wearos">Daar Wear OS si aad app-kan ugu isticmaasho gudbinta fariimaha saacadda.</string>
     <string name="watch_help_config">Isticmaal Habaynta si aad u doorato saacad oo aad u dejiso hagidda tooska ah ee dareemaha.</string>
     <string name="watch_help_garmin">Garmin Connect IQ wuxuu ku shaqeeyaa Kerfstok wuxuuna leeyahay xakameyn xaalad oo gaar ah.</string>
@@ -3169,13 +3179,24 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_secret_label">Sirta API ama token-ka gelitaanka</string>
     <string name="nightscout_api_help">v1 u isticmaal sirta API, v3-na token-ka gelitaanka Nightscout.</string>
     <string name="nightscout_iob_help">eIOB iyo COB waxaa lagu diraa qaybta jugglucong ee devicestatus, iyagoo ka gooni ah IOB-ga caadiga ah.</string>
-    <string name="medtrum_sensor_desc">Geli lambarka taxanaha ee ku daabacan balastarka (hexadecimal)</string>
+    <string name="medtrum_sensor_desc">Geli lambarka taxanaha ee ku daabacan gudbiyaha (hexadecimal)</string>
     <string name="medtrum_setup_saved_title">Dareemaha waa la keydiyay</string>
-    <string name="medtrum_setup_searching">Weli lama xiriirin. Balastarku wuu isku xiri doonaa marka uu u dhow yahay.</string>
-    <string name="medtrum_setup_auth_failed">Balastarku wuu diiday lambarkan taxanaha. Hubi lambarka ku daabacan balastarka.</string>
-    <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum balastar. Hubi in balastarku uu dhow yahay oo mar kale isku day.</string>
+    <string name="medtrum_setup_searching">Weli lama xiriirin. Gudbiyuhu wuu isku xiri doonaa marka uu u dhow yahay.</string>
+    <string name="medtrum_setup_auth_failed">Gudbiyuhu wuu diiday lambarkan taxanaha. Hubi lambarka ku daabacan gudbiyaha.</string>
+    <string name="medtrum_setup_device_rejected">Qalabkani ma aha Medtrum gudbiye. Hubi in gudbiyuhu uu dhow yahay oo mar kale isku day.</string>
 
     <string name="alert_sound_volume">Codka digniinta</string>
+    <string name="watch_forwarding_section">Iyada oo loo marayo ogeysiisyada taleefanka</string>
+    <string name="watch_forwarding_title">U gudbinta gulukooska</string>
+    <string name="watch_forwarding_standard">Android caadi ah</string>
+    <string name="watch_forwarding_alarms_only">Digniinaha oo keliya</string>
+    <string name="watch_forwarding_every_reading">Akhris kasta oo cusub</string>
+    <string name="watch_forwarding_interval">Muddo kasta</string>
+    <string name="watch_forwarding_interval_title">Muddada</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d daqiiqo</item>
+        <item quantity="other">%d daqiiqo</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">U dir akhrisyada Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

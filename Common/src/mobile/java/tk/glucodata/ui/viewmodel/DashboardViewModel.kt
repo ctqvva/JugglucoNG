@@ -428,6 +428,9 @@ class DashboardViewModel(
     private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
     val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
 
+    private val _dataSmoothingCausal = MutableStateFlow(false)
+    val dataSmoothingCausal = _dataSmoothingCausal.asStateFlow()
+
     private val _previewWindowMode = MutableStateFlow(0)
     val previewWindowMode = _previewWindowMode.asStateFlow()
 
@@ -844,6 +847,7 @@ class DashboardViewModel(
         _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
         _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
         _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
+        _dataSmoothingCausal.value = DataSmoothing.useCausalFilter(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
         _journalEnabled.value = journalEnabled
@@ -1775,6 +1779,13 @@ class DashboardViewModel(
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
+    fun setDataSmoothingCausal(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        DataSmoothing.setUseCausalFilter(context, enabled)
+        _dataSmoothingCausal.value = enabled
+        refreshCurrentDisplayAfterSmoothingChange()
+    }
+
     fun setPreviewWindowMode(mode: Int) {
         val sanitized = mode.coerceIn(0, 2)
         val context = tk.glucodata.Applic.app
@@ -2053,7 +2064,7 @@ class DashboardViewModel(
         insulinSensitivityMgDlPerUnit: Float? = null,
         carbAbsorptionGramsPerHour: Float? = null
     ) {
-        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(1f)
+        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(PredictionModelProfile.CARB_RATIO_STEP)
         val normalizedSensitivity = insulinSensitivityMgDlPerUnit?.roundToStep(1f)
         val normalizedAbsorption = carbAbsorptionGramsPerHour?.roundToStep(1f)
         persistPredictionModelProfile(

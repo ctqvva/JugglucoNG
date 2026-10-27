@@ -61,6 +61,13 @@ object DexcomShareJson {
         .put("applicationId", APPLICATION_ID)
         .toString()
 
+    /** The second login step: the id [authBody] was traded for, with the same password. */
+    fun loginByIdBody(accountId: String, password: String): String = JSONObject()
+        .put("accountId", accountId)
+        .put("password", password)
+        .put("applicationId", APPLICATION_ID)
+        .toString()
+
     /** Oldest first: the caller passes the batch in the order Dexcom should store it. */
     fun uploadBody(serial: String, egvs: List<ShareEgv>): String {
         val array = JSONArray()

@@ -52,6 +52,87 @@ class AiDexAdaptiveV2Test {
         assertEquals(120f / AiDexAdaptiveV2.MGDL_PER_MMOL, last!!.estimate.glucoseMmol, 0.3f)
     }
 
+    @Test fun `references move the visible curve while its factory mapping is catching up`() {
+        val calibrated = AiDexAdaptiveV2()
+        val plain = AiDexAdaptiveV2()
+        val jump = 24 * 60
+        val observed = sortedMapOf<Int, Pair<Float, Float>>()
+        for (i in 0..jump + 570) {
+            val factory = if (i < jump) 105f else 160f
+            val meter = when (i - jump) { 120 -> 167f; 260 -> 174f; else -> null }
+            val input = sample(i, raw = 105f, factory = factory)
+            val refs = meter?.let { listOf(AiDexReference(input.timestampMs, it)) } ?: emptyList()
+            val a = calibrated.process(input, refs)
+            val b = plain.process(input)
+            if (i - jump in setOf(120, 240, 260, 570)) {
+                observed[i - jump] = a!!.estimate.glucoseMmol * AiDexAdaptiveV2.MGDL_PER_MMOL to
+                    b!!.estimate.glucoseMmol * AiDexAdaptiveV2.MGDL_PER_MMOL
+            }
+        }
+        assertTrue("First reference must correct the visible lag: $observed", observed.getValue(120).first >= 150f)
+        assertTrue("Second reference must still affect the curve: $observed", observed.getValue(260).first >= 160f)
+        observed.forEach { (_, values) ->
+            assertTrue("Correction stays bounded: $observed", abs(values.first - values.second) <= 2.5f * AiDexAdaptiveV2.MGDL_PER_MMOL + 0.1f)
+        }
+        assertTrue("Mapping catch-up must not add the initial correction twice: $observed", observed.getValue(570).first < 180f)
+        println("Issue 681 factory-lag replay (calibrated, uncalibrated mg/dL): $observed")
+    }
+
+    @Test fun `a downward reference also corrects a lagging factory mapping immediately`() {
+        val calibrated = AiDexAdaptiveV2()
+        val plain = AiDexAdaptiveV2()
+        var anchored: AiDexAdaptiveResult? = null
+        var baseline: AiDexAdaptiveResult? = null
+        val referenceMinute = 24 * 60 + 120
+        for (i in 0..referenceMinute) {
+            val input = sample(i, raw = 105f, factory = if (i < 24 * 60) 105f else 70f)
+            baseline = plain.process(input)
+            anchored = calibrated.process(input,
+                if (i == referenceMinute) listOf(AiDexReference(input.timestampMs, 75f)) else emptyList())
+        }
+        val before = baseline!!.estimate.glucoseMmol * AiDexAdaptiveV2.MGDL_PER_MMOL
+        val after = anchored!!.estimate.glucoseMmol * AiDexAdaptiveV2.MGDL_PER_MMOL
+        assertEquals(before + 0.8f * (75f - before), after, 0.5f)
+    }
+
+    @Test fun `a meter agreeing with the filtered curve does not correct toward the raw sample`() {
+        val calibrated = settled()
+        val plain = settled()
+        val input = sample(180, raw = 140f, factory = 190f)
+        val baseline = plain.process(input)!!
+        val anchored = calibrated.process(input, listOf(AiDexReference(input.timestampMs,
+            baseline.estimate.glucoseMmol * AiDexAdaptiveV2.MGDL_PER_MMOL)))!!
+        assertEquals(baseline.estimate.glucoseMmol, anchored.estimate.glucoseMmol, 0.03f)
+    }
+
+    @Test fun `drifting mapping and multiple references retain exact snapshot continuation`() {
+        val a = AiDexAdaptiveV2()
+        fun input(i: Int) = sample(i, raw = 105f + 15f * kotlin.math.sin(i / 60.0).toFloat(),
+            factory = if (i < 180) 105f else 150f)
+        for (i in 0..600) a.process(input(i), when (i) {
+            300 -> listOf(AiDexReference(input(i).timestampMs, 155f))
+            500 -> listOf(AiDexReference(input(i).timestampMs, 145f))
+            else -> emptyList()
+        })
+        val b = AiDexAdaptiveV2()
+        assertTrue(b.restore(a.snapshot()))
+        for (i in 601..1600) {
+            val refs = if (i == 900) listOf(AiDexReference(input(i).timestampMs, 160f)) else emptyList()
+            assertEquals(a.process(input(i), refs), b.process(input(i), refs))
+        }
+    }
+
+    @Test fun `version three checkpoints are rejected cleanly for journal replay`() {
+        val old = settled().snapshot()
+        java.nio.ByteBuffer.wrap(old).putInt(4, 3)
+        val crc = java.util.zip.CRC32().apply { update(old, 0, old.size - 8) }.value
+        java.nio.ByteBuffer.wrap(old).putLong(old.size - 8, crc)
+        val model = settled()
+        assertFalse(model.restore(old))
+        val fresh = AiDexAdaptiveV2()
+        for (i in 0..40) assertEquals(fresh.process(sample(i)), model.process(sample(i)))
+    }
+
     @Test fun `an aged sensor offset is learned and keeps lows from being exaggerated`() {
         // factory = 0.8 * raw + 40 mg/dL. A pure ratio would put raw 60 near 60*1.0.
         val model = AiDexAdaptiveV2()

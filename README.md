@@ -18,7 +18,7 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 ## Download
 
 <!-- download-info:start -->
-[![Download JugglucoNG 1.2.5-Alpha for Android](docs/assets/download-android.svg?version=1.2.5-Alpha)][download-phone] [![Nightly builds](docs/assets/download-nightly.svg)](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
+[![Download JugglucoNG 1.2.6-Alpha for Android](docs/assets/download-android.svg?version=1.2.6-Alpha)][download-phone] [![Nightly builds](docs/assets/download-nightly.svg)](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
 <!-- download-info:end -->
 
 <sub>Android 8.0 or newer · [Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub]</sub>
@@ -47,11 +47,11 @@ Browse [all releases](https://github.com/ctqvva/JugglucoNG/releases) for older v
 </details>
 
 <!-- download-links:start -->
-[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.5-Alpha/JugglucoNG-1.2.5-Alpha.apk
-[download-wear]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.5-Alpha/JugglucoNG-1.2.5-Alpha-wear.apk
-[download-phone-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.5-Alpha/JugglucoNG-1.2.5-Alpha-dub.apk
-[download-wear-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.5-Alpha/JugglucoNG-1.2.5-Alpha-wear-dub.apk
-[download-release]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.5-Alpha
+[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.6-Alpha/JugglucoNG-1.2.6-Alpha.apk
+[download-wear]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.6-Alpha/JugglucoNG-1.2.6-Alpha-wear.apk
+[download-phone-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.6-Alpha/JugglucoNG-1.2.6-Alpha-dub.apk
+[download-wear-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.6-Alpha/JugglucoNG-1.2.6-Alpha-wear-dub.apk
+[download-release]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.6-Alpha
 <!-- download-links:end -->
 
 ## Sensor and data-source support

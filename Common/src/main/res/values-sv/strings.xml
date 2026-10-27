@@ -448,6 +448,7 @@
     <string name="failed_to_connect">Misslyckades att ansluta till </string>
     <string name="sensor_not_init">Sensor inte initierad. Använd \'Skanna Sensor\' först.</string>
     <string name="invalid_code_format">Ogiltigt kodformat. Försök igen.</string>
+    <string name="ican_full_box_serial_required">Aktivering kräver det fullständiga serienumret med 13 tecken från iCan-förpackningen</string>
     <string name="sibionics_code_wrong_type">Detta är en %1$s-kod. Gå tillbaka och välj %1$s.</string>
     <string name="sibionics_code_not_for_type">Den här koden hör inte till %1$s. Gå tillbaka och välj rätt sensortyp.</string>
     <string name="sibionics_serial_wrong_type">Det här serienumret stämmer inte med %1$s. Gå tillbaka och välj rätt sensortyp.</string>
@@ -505,6 +506,8 @@
     <string name="data_smoothing_graph_only_desc">Aktuellt glukosvärde, widgetar och larm förblir outjämnade</string>
     <string name="data_smoothing_exchange_only_title">Endast skickade värden</string>
     <string name="data_smoothing_exchange_only_desc">Jämna ut sändningar och uppladdningar. Värden i appen förblir outjämnade</string>
+    <string name="data_smoothing_causal_title">Kalmanfilter för aktuellt värde</string>
+    <string name="data_smoothing_causal_desc">Uppskattar den senaste mätningen endast från tidigare mätningar (nivå och trend), så att värdet som visas och skickas nu är det som historiken behåller. Diagramhistorik och Nightscout behåller medelvärdesfönstret</string>
     <string name="data_smoothing_collapse_title">Färre mätvärden</string>
     <string name="data_smoothing_collapse_desc">Visa och skicka färre värden</string>
     <string name="data_smoothing_collapse_desc_match">Ett värde var %1$d min</string>
@@ -607,6 +610,7 @@
     <string name="dexcom_slot_change_desc">Sensorn parkopplas igen på den nya platsen med sin sparade kod. En annan enhet kan sedan använda den gamla platsen.</string>
     <string name="dexcom_slot_change_action">Byt plats</string>
     <string name="dexcom_pairing_code_label">4-siffrig parkopplingskod</string>
+    <string name="dexcom_pairing_code">Parkopplingskod</string>
     <string name="dexcom_pairing_code_instruction">Ange den 4-siffriga parkopplingskoden som står på sensorapplikatorn.</string>
     <string name="libre_setup_title">Libre Installation</string>
     <string name="scan_libre_sensor">Skanna Libre Sensor</string>
@@ -1634,7 +1638,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Ta bort den här perioden?</string>
     <string name="predictive_delete_time_period_message">Den föregående perioden kommer att täcka den här tiden.</string>
     <string name="predictive_carb_ratio">Kolhydratkvot</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulinkänslighet</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1751,6 +1755,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Mat</string>
     <string name="journal_type_bg_short">BS</string>
+    <string name="journal_type_glucose">Glukos</string>
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Aktivitet</string>
     <string name="journal_type_note">Anteckning</string>
@@ -1770,6 +1775,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Måttlig</string>
     <string name="journal_intensity_intense">Intensiv</string>
     <string name="journal_insulin_library">Insulinbibliotek</string>
+    <string name="journal_insulin_chart_title">Insulin i diagrammet</string>
+    <string name="journal_insulin_chart_stacked">Staplat</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Staplat, med varje dos</string>
+    <string name="journal_insulin_chart_separate">Varje dos för sig</string>
     <string name="notification_settings_title">Aviseringsinställningar</string>
     <string name="notification_settings_subtitle">Anpassa aviseringspanelen</string>
     <string name="lock_screen_aod">Låsskärm (AOD)</string>
@@ -2094,10 +2103,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Inga API-värden ännu</string>
     <string name="api_source_status_sync_failed">Synk av API-källa misslyckades</string>
     <string name="outbound_api_preset_sheet_title">Välj destinationspreset</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normaliserad glukos-JSON till valfri endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Skickar text via Telegram Bot API. URL:en kan peka på en relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Skickar kompakt GV-text via VK-communitymeddelanden.</string>
-    <string name="outbound_api_preset_vk_desc">Skickar läsbar glukostext via VK-communitymeddelanden.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normaliserad glukos-JSON till valfri endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Skickar text via Telegram Bot API. URL:en kan peka på en relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Skickar kompakt GV-text via VK-communitymeddelanden</string>
+    <string name="outbound_api_preset_vk_desc">Skickar läsbar glukostext via VK-communitymeddelanden</string>
     <string name="outbound_api_change_preset">Ändra</string>
     <string name="outbound_api_telegram_recipient_help">Använd numeriskt chat-ID eller @kanalnamn. En person måste starta boten först.</string>
     <string name="outbound_api_vk_recipient_help">Använd numeriska VK-användar- eller peer-ID:n. Varje mottagare måste skriva till communityn först.</string>
@@ -2505,7 +2514,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importera en autentiseringsfil för att fortsätta utan molnet — en QR-skanning fyller bara i sensorkoden och NFC väcker bara sensorn.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Nöd-SMS</string>
-    <string name="outbound_api_preset_sms_desc">Skicka meddelande när ett larm förblir obesvarat, ett värde blir kritiskt eller dataanslutningen försvinner.</string>
+    <string name="outbound_api_preset_sms_desc">Skicka meddelande när ett larm förblir obesvarat, ett värde blir kritiskt eller dataanslutningen försvinner</string>
     <string name="sms_section_who">Vem det gäller</string>
     <string name="sms_subject_name">Namn</string>
     <string name="sms_subject_name_help">Placeras först i varje meddelande, till exempel ”Mia: larm LÅG obesvarat”.</string>
@@ -2910,6 +2919,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok-överföringsbrygga</string>
     <string name="watch_garmin_status_desc">Anslutningsstatus och parkoppling</string>
     <string name="watch_garmin_enable_hint">Aktivera Kerfstok för att se status</string>
+    <string name="watch_help_forwarding">”Vidarebefordra glukos” avgör vad klock- och armbandsappar får från telefonens avisering. ”Standard-Android”: värdet vid varje uppdatering av aviseringen, så vissa klockor vibrerar varje gång. ”Varje nytt värde” och ”Med intervall”: varje värde en gång. ”Endast larm”: inga värden.</string>
     <string name="watch_help_wearos">Aktivera Wear OS för att använda meddelandeöverföring till klockan i den här appen.</string>
     <string name="watch_help_config">Använd Konfiguration för att välja en klocka och ställa in direkt sensordirigering.</string>
     <string name="watch_help_garmin">Garmin Connect IQ går via Kerfstok och har egna statuskontroller.</string>
@@ -2984,13 +2994,24 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API-hemlighet eller åtkomsttoken</string>
     <string name="nightscout_api_help">Använd API-hemligheten med v1 eller en Nightscout-åtkomsttoken med v3.</string>
     <string name="nightscout_iob_help">eIOB och COB skickas i fältet jugglucong i devicestatus, separat från vanlig IOB.</string>
-    <string name="medtrum_sensor_desc">Ange serienumret som står på plåstret (hexadecimalt)</string>
+    <string name="medtrum_sensor_desc">Ange serienumret som står på sändaren (hexadecimalt)</string>
     <string name="medtrum_setup_saved_title">Sensorn sparad</string>
-    <string name="medtrum_setup_searching">Inte ansluten än. Plåstret ansluter av sig själv när det är inom räckhåll.</string>
-    <string name="medtrum_setup_auth_failed">Plåstret avvisade serienumret. Kontrollera numret som står på plåstret.</string>
-    <string name="medtrum_setup_device_rejected">Den här enheten är inte ett Medtrum-plåster. Kontrollera att plåstret är inom räckhåll och försök igen.</string>
+    <string name="medtrum_setup_searching">Inte ansluten än. Sändaren ansluter av sig själv när den är inom räckhåll.</string>
+    <string name="medtrum_setup_auth_failed">Sändaren avvisade serienumret. Kontrollera numret som står på sändaren.</string>
+    <string name="medtrum_setup_device_rejected">Den här enheten är inte en Medtrum-sändare. Kontrollera att sändaren är inom räckhåll och försök igen.</string>
 
     <string name="alert_sound_volume">Volym för larmljud</string>
+    <string name="watch_forwarding_section">Via telefonaviseringar</string>
+    <string name="watch_forwarding_title">Vidarebefordra glukos</string>
+    <string name="watch_forwarding_standard">Standard-Android</string>
+    <string name="watch_forwarding_alarms_only">Endast larm</string>
+    <string name="watch_forwarding_every_reading">Varje nytt värde</string>
+    <string name="watch_forwarding_interval">Med intervall</string>
+    <string name="watch_forwarding_interval_title">Intervall</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minut</item>
+        <item quantity="other">%d minuter</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Skicka värden till Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

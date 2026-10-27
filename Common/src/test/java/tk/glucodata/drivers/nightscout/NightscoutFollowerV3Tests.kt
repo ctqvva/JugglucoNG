@@ -1,5 +1,7 @@
 package tk.glucodata.drivers.nightscout
 
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -115,6 +117,38 @@ class NightscoutFollowerV3Tests {
         assertNull(NightscoutFollowerV3.authorizationHeader(baseUrl, "token=abc", now))
         assertNull(NightscoutFollowerV3.authorizationHeader(baseUrl, "a".repeat(40), now))
         assertNull(NightscoutFollowerV3.authorizationHeader(baseUrl, "   ", now))
+    }
+
+    @Test
+    fun aRefusedTokenIsExchangedAgainInsteadOfReusedUntilItExpires() {
+        // Nightscout signs JWTs with a key a redeploy replaces; afterwards every token it
+        // handed out answers 401 although its exp is hours away (#716).
+        var issued = 0
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/api/v2/authorization/request/") { exchange ->
+            issued++
+            val body = """{"token":"jwt-$issued","exp":${Long.MAX_VALUE / 2_000L}}""".toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.start()
+        try {
+            NightscoutFollowerV3.clearToken()
+            val url = "http://127.0.0.1:${server.address.port}"
+            val now = 1_000_000L
+            assertEquals("Bearer jwt-1", NightscoutFollowerV3.authorizationHeader(url, "reader-0123456789abcdef", now))
+            assertEquals("Bearer jwt-1", NightscoutFollowerV3.authorizationHeader(url, "reader-0123456789abcdef", now))
+
+            assertTrue(NightscoutFollowerV3.dropToken("Bearer jwt-1"))
+            // A second caller refused with the same stale token must not throw away the new one.
+            assertEquals("Bearer jwt-2", NightscoutFollowerV3.authorizationHeader(url, "reader-0123456789abcdef", now))
+            assertFalse(NightscoutFollowerV3.dropToken("Bearer jwt-1"))
+            assertEquals("Bearer jwt-2", NightscoutFollowerV3.authorizationHeader(url, "reader-0123456789abcdef", now))
+            assertEquals(2, issued)
+        } finally {
+            NightscoutFollowerV3.clearToken()
+            server.stop(0)
+        }
     }
 
     // -- repeating failure logging -----------------------------------------

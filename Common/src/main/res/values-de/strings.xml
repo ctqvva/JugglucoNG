@@ -450,9 +450,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="chart_short_title">Grafik</string>
     <string name="target_range_title">Zielbereich</string>
     <string name="chart_limits_title">Grafikbereich</string>
-    <string name="dashboard_range_hours">%1$d S</string>
+    <string name="dashboard_range_hours">%1$d h</string>
     <string name="dashboard_range_days">%1$d T</string>
-    <string name="sensor_age_hours_compact">%1$d S</string>
+    <string name="sensor_age_hours_compact">%1$d h</string>
     <string name="sensor_age_days_compact">%1$d T</string>
     <string name="sensor_reading_age_seconds">%1$ds</string>
     <string name="sensor_reading_age_minutes">%1$dm</string>
@@ -552,6 +552,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="failed_to_connect">Verbindung fehlgeschlagen zu </string>
     <string name="sensor_not_init">Sensor nicht initialisiert. Verwenden Sie zuerst \'Sensor scannen\'.</string>
     <string name="invalid_code_format">Ungültiges Code-Format. Bitte erneut versuchen.</string>
+    <string name="ican_full_box_serial_required">Zur Aktivierung ist die vollständige 13-stellige Seriennummer auf der iCan-Verpackung erforderlich</string>
     <string name="sibionics_code_wrong_type">Das ist ein %1$s-Code. Gehen Sie zurück und wählen Sie %1$s.</string>
     <string name="sibionics_code_not_for_type">Dieser Code gehört nicht zu %1$s. Gehen Sie zurück und wählen Sie den passenden Sensortyp.</string>
     <string name="sibionics_serial_wrong_type">Diese Seriennummer passt nicht zu %1$s. Gehen Sie zurück und wählen Sie den passenden Sensortyp.</string>
@@ -609,6 +610,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="data_smoothing_graph_only_desc">Aktueller Glukosewert, Widgets und Alarme bleiben ungeglättet</string>
     <string name="data_smoothing_exchange_only_title">Nur gesendete Werte</string>
     <string name="data_smoothing_exchange_only_desc">Glättet Broadcasts und Uploads. Werte in der App bleiben ungeglättet</string>
+    <string name="data_smoothing_causal_title">Kalman-Filter für den aktuellen Wert</string>
+    <string name="data_smoothing_causal_desc">Schätzt den neuesten Messwert nur aus früheren Werten (Niveau und Trend), sodass der jetzt angezeigte und gesendete Wert dem entspricht, den der Verlauf behält. Diagrammverlauf und Nightscout behalten das Mittelungsfenster</string>
     <string name="data_smoothing_collapse_title">Weniger Messwerte</string>
     <string name="data_smoothing_collapse_desc">Weniger Werte anzeigen und senden</string>
     <string name="data_smoothing_collapse_desc_match">Ein Wert alle %1$d Min</string>
@@ -711,6 +714,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_slot_change_desc">Der Sensor wird mit seinem gespeicherten Code im neuen Slot neu gekoppelt. Ein anderes Gerät kann danach den alten Slot nutzen.</string>
     <string name="dexcom_slot_change_action">Slot wechseln</string>
     <string name="dexcom_pairing_code_label">4-stelliger Kopplungscode</string>
+    <string name="dexcom_pairing_code">Kopplungscode</string>
     <string name="dexcom_pairing_code_instruction">Geben Sie den 4-stelligen Kopplungscode ein, der auf dem Sensorapplikator steht.</string>
     <string name="libre_setup_title">Libre Einrichtung</string>
     <string name="scan_libre_sensor">Libre Sensor scannen</string>
@@ -916,7 +920,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="eusibionics">Sibionics GS1 EU</string>
     <string name="expired">Abgelaufen</string>
     <string name="days_short">%1$d T</string>
-    <string name="hours_short">%1$d S</string>
+    <string name="hours_short">%1$d h</string>
     <string name="factory_reset_alert">ALLES wird entfernt. Kann nicht rückgängig gemacht werden!</string>
     <string name="factory_reset_confirm">Werkseinstellungen?</string>
     <string name="fiasp">Fiasp</string>
@@ -1767,7 +1771,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="predictive_delete_time_period_title">Diesen Zeitraum löschen?</string>
     <string name="predictive_delete_time_period_message">Der vorherige Zeitraum deckt diese Zeit künftig ab.</string>
     <string name="predictive_carb_ratio">Kohlenhydratfaktor</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/E</string>
+    <string name="predictive_carb_ratio_value">%1$s g/E</string>
     <string name="predictive_insulin_sensitivity">Insulinsensitivität</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/E</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/E</string>
@@ -1938,6 +1942,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Essen</string>
     <string name="journal_type_bg_short">BZ</string>
+    <string name="journal_type_glucose">Glukose</string>
     <string name="journal_type_fingerstick">Blutzuckermessung</string>
     <string name="journal_type_activity">Aktivität</string>
     <string name="journal_type_note">Notiz</string>
@@ -1957,6 +1962,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_intensity_moderate">Moderat</string>
     <string name="journal_intensity_intense">Intensiv</string>
     <string name="journal_insulin_library">Insulinbibliothek</string>
+    <string name="journal_insulin_chart_title">Insulin im Diagramm</string>
+    <string name="journal_insulin_chart_stacked">Gestapelt</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Gestapelt, mit jeder Dosis</string>
+    <string name="journal_insulin_chart_separate">Jede Dosis einzeln</string>
     <string name="journal_archived_presets">Deaktivierte Insulintypen</string>
     <string name="journal_curve_title">Bearbeitbare Wirkungskurve</string>
     <string name="journal_curve_preview">Kurvenvorschau</string>
@@ -2289,10 +2298,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="api_source_status_no_readings">Noch keine API-Werte</string>
     <string name="api_source_status_sync_failed">API-Quellensynchronisierung fehlgeschlagen</string>
     <string name="outbound_api_preset_sheet_title">Zielvorlage wählen</string>
-    <string name="outbound_api_preset_custom_json_desc">Sendet normalisiertes Glukose-JSON per POST an einen beliebigen Endpunkt.</string>
-    <string name="outbound_api_preset_telegram_desc">Sendet Text über die Telegram Bot API. Die URL kann auf ein Relais zeigen.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Sendet kompakten GV-Text über VK-Community-Nachrichten.</string>
-    <string name="outbound_api_preset_vk_desc">Sendet lesbaren Glukosetext über VK-Community-Nachrichten.</string>
+    <string name="outbound_api_preset_custom_json_desc">Sendet normalisiertes Glukose-JSON per POST an einen beliebigen Endpunkt</string>
+    <string name="outbound_api_preset_telegram_desc">Sendet Text über die Telegram Bot API. Die URL kann auf ein Relais zeigen</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Sendet kompakten GV-Text über VK-Community-Nachrichten</string>
+    <string name="outbound_api_preset_vk_desc">Sendet lesbaren Glukosetext über VK-Community-Nachrichten</string>
     <string name="outbound_api_change_preset">Ändern</string>
     <string name="outbound_api_telegram_recipient_help">Numerische Chat-ID oder @Kanalname verwenden. Eine Person muss den Bot zuerst starten.</string>
     <string name="outbound_api_vk_recipient_help">Numerische VK-Benutzer- oder Peer-IDs verwenden. Jeder Empfänger muss der Community zuerst schreiben.</string>
@@ -2502,8 +2511,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="episodes_show_all">Alle %1$d Episoden</string>
     <string name="episodes_hide">Episoden ausblenden</string>
     <string name="stats_duration_minutes">%1$d Min.</string>
-    <string name="stats_duration_hours">%1$d Std.</string>
-    <string name="stats_duration_hours_minutes">%1$d Std. %2$d Min.</string>
+    <string name="stats_duration_hours">%1$d h</string>
+    <string name="stats_duration_hours_minutes">%1$d h %2$d Min.</string>
     <string name="stats_tab_days">Tage</string>
     <string name="stats_tab_hours">Stunden</string>
     <string name="stats_tab_weekdays">Wochentage</string>
@@ -2574,7 +2583,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="stats_arrange_width">Halbe oder volle Breite</string>
     <string name="stats_window_3d">3 T</string>
     <string name="stats_window_today">Heute</string>
-    <string name="stats_window_24h">24 S</string>
+    <string name="stats_window_24h">24 h</string>
     <string name="stats_metric_dawn">Morgendämmerungsanstieg</string>
     <string name="stats_metric_dawn_description">Das Dawn-Phänomen, gemessen: der typische Anstieg vom nächtlichen Tief zum darauffolgenden Morgenhoch. Angegeben als Median über die Tage, damit eine schlechte Nacht ihn nicht bestimmt.</string>
     <string name="stats_metric_mage">MAGE</string>
@@ -2618,7 +2627,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_cloud_offline_routes">Importieren Sie eine Zugangsdaten-Datei, um ohne Cloud fortzufahren — ein QR-Scan trägt nur den Sensorcode ein und NFC weckt den Sensor lediglich auf.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Notfall-SMS</string>
-    <string name="outbound_api_preset_sms_desc">Personen benachrichtigen, wenn ein Alarm unbeantwortet bleibt, ein Wert kritisch wird oder die Datenverbindung ausfällt.</string>
+    <string name="outbound_api_preset_sms_desc">Personen benachrichtigen, wenn ein Alarm unbeantwortet bleibt, ein Wert kritisch wird oder die Datenverbindung ausfällt</string>
     <string name="sms_section_who">Um wen es geht</string>
     <string name="sms_subject_name">Name</string>
     <string name="sms_subject_name_help">Steht am Anfang jeder Nachricht, zum Beispiel „Mia: Alarm TIEF unbeantwortet“.</string>
@@ -3026,6 +3035,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="watch_kerfstok_bridge">Kerfstok-Übertragungsbrücke</string>
     <string name="watch_garmin_status_desc">Verbindungsstatus und Kopplung</string>
     <string name="watch_garmin_enable_hint">Kerfstok aktivieren, um den Status zu sehen</string>
+    <string name="watch_help_forwarding">„Glukose weiterleiten“ legt fest, was Uhren- und Armband-Apps aus der Telefonbenachrichtigung erhalten. „Standard-Android“: der Wert bei jeder Aktualisierung der Benachrichtigung, daher vibrieren manche Uhren jedes Mal. „Jeder neue Wert“ und „In Intervallen“: jeder Wert einmal. „Nur Alarme“: keine Werte.</string>
     <string name="watch_help_wearos">Aktiviere Wear OS, um die Uhr-Nachrichtenübertragung in dieser App zu nutzen.</string>
     <string name="watch_help_config">Unter Konfiguration eine Uhr auswählen und das direkte Sensor-Routing festlegen.</string>
     <string name="watch_help_garmin">Garmin Connect IQ läuft über Kerfstok und hat eigene Statusfunktionen.</string>
@@ -3100,13 +3110,24 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_secret_label">API-Secret oder Zugriffstoken</string>
     <string name="nightscout_api_help">Für v1 das API-Geheimnis verwenden, für v3 ein Nightscout-Zugriffstoken.</string>
     <string name="nightscout_iob_help">eIOB und COB werden im Feld jugglucong von devicestatus übertragen, getrennt vom regulären IOB.</string>
-    <string name="medtrum_sensor_desc">Seriennummer vom Patch eingeben (hexadezimal)</string>
+    <string name="medtrum_sensor_desc">Seriennummer vom Transmitter eingeben (hexadezimal)</string>
     <string name="medtrum_setup_saved_title">Sensor gespeichert</string>
-    <string name="medtrum_setup_searching">Noch nicht verbunden. Der Patch verbindet sich selbst, sobald er in Reichweite ist.</string>
-    <string name="medtrum_setup_auth_failed">Der Patch hat diese Seriennummer abgelehnt. Prüfe die Nummer auf dem Patch.</string>
-    <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Patch. Stellen Sie sicher, dass sich der Patch in Reichweite befindet, und versuchen Sie es erneut.</string>
+    <string name="medtrum_setup_searching">Noch nicht verbunden. Der Transmitter verbindet sich selbst, sobald er in Reichweite ist.</string>
+    <string name="medtrum_setup_auth_failed">Der Transmitter hat diese Seriennummer abgelehnt. Prüfe die Nummer auf dem Transmitter.</string>
+    <string name="medtrum_setup_device_rejected">Dieses Gerät ist kein Medtrum-Transmitter. Stellen Sie sicher, dass sich der Transmitter in Reichweite befindet, und versuchen Sie es erneut.</string>
 
     <string name="alert_sound_volume">Lautstärke des Alarmtons</string>
+    <string name="watch_forwarding_section">Über Telefonbenachrichtigungen</string>
+    <string name="watch_forwarding_title">Glukose weiterleiten</string>
+    <string name="watch_forwarding_standard">Standard-Android</string>
+    <string name="watch_forwarding_alarms_only">Nur Alarme</string>
+    <string name="watch_forwarding_every_reading">Jeder neue Wert</string>
+    <string name="watch_forwarding_interval">In Intervallen</string>
+    <string name="watch_forwarding_interval_title">Intervall</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Werte an Dexcom Follow senden</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

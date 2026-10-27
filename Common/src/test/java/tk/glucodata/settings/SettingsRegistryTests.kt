@@ -53,6 +53,7 @@ class SettingsRegistryTests {
                 KEY_SMOOTHING_GRAPH_ONLY,
                 KEY_SMOOTHING_COLLAPSE_CHUNKS,
                 KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY,
+                KEY_SMOOTHING_CAUSAL_LIVE,
                 KEY_PREDICTION_ENABLED,
                 KEY_PREDICTION_TREND_MOMENTUM,
                 KEY_PREDICTION_CARB_RATIO,

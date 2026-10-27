@@ -176,10 +176,14 @@ final class CustomGlucoseNotification {
         views.setViewPadding(id, rtl ? 0 : pixels, 0, rtl ? pixels : 0, 0);
     }
 
-    /** No standard title/text: watch companion apps forward any notification that has
-     * them, so each per-reading update reached the watch (#645). The custom views
-     * already expose the readout to TalkBack as native text or content descriptions. */
-    static void apply(android.app.Notification.Builder builder, RemoteViews compact, RemoteViews expanded) {
+    /** Standard title/text only when the user keeps them on: watch companion apps
+     * forward any notification that has them, so each per-reading update reached the
+     * watch (#645). Null leaves the field unset, not empty. The custom views expose the
+     * readout to TalkBack either way, as native text or content descriptions. */
+    static void apply(android.app.Notification.Builder builder, CharSequence title, CharSequence text,
+            RemoteViews compact, RemoteViews expanded) {
+        if (title != null && title.length() > 0) builder.setContentTitle(title);
+        if (text != null && text.length() > 0) builder.setContentText(text);
         builder.setStyle(new android.app.Notification.DecoratedCustomViewStyle())
                 .setCustomContentView(compact).setCustomBigContentView(expanded);
     }

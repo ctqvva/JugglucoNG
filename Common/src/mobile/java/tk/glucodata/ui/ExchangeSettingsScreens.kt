@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BluetoothSearching
@@ -41,11 +42,11 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.NotificationImportant
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Share
@@ -64,6 +65,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,6 +74,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,6 +86,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -103,7 +108,9 @@ import tk.glucodata.Applic
 import tk.glucodata.AutoSensorSwitch
 import tk.glucodata.GoogleServices
 import tk.glucodata.Natives
+import tk.glucodata.NotificationForwardingSettings
 import tk.glucodata.Notify
+import tk.glucodata.PeriodicGlucoseUpdates
 import tk.glucodata.R
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.WatchInterop
@@ -125,10 +132,20 @@ fun WatchSettingsScreen(navController: NavController) {
 
     var watchdripEnabled by rememberSaveable { mutableStateOf(Natives.getwatchdrip()) }
     var gadgetBridgeEnabled by rememberSaveable { mutableStateOf(Natives.getgadgetbridge()) }
-    var notifyEnabled by rememberSaveable { mutableStateOf(WatchInterop.isNotifyEnabled()) }
-    var separateEnabled by rememberSaveable { mutableStateOf(Natives.getSeparate()) }
     var wearOsEnabled by rememberSaveable { mutableStateOf(WatchInterop.isWearOsEnabled()) }
     var kerfstokEnabled by rememberSaveable { mutableStateOf(Natives.getusegarmin()) }
+    var forwardingMode by rememberSaveable { mutableIntStateOf(NotificationForwardingSettings.mode(context)) }
+    var showForwardingModeDialog by rememberSaveable { mutableStateOf(false) }
+    var showForwardingIntervalDialog by rememberSaveable { mutableStateOf(false) }
+    val applyForwardingMode: (Int) -> Unit = { mode ->
+        if (mode != forwardingMode) {
+            forwardingMode = mode
+            NotificationForwardingSettings.setMode(context, mode)
+            // Periodic modes send the current reading right away.
+            PeriodicGlucoseUpdates.onSettingChanged(mode > 0)
+            Notify.showoldglucose()
+        }
+    }
     var showHelp by rememberSaveable { mutableStateOf(false) }
     val gmsAvailable = remember { GoogleServices.isPlayServicesAvailable(Applic.app) }
     val wearConfigEnabled = wearOsEnabled && gmsAvailable
@@ -178,7 +195,7 @@ fun WatchSettingsScreen(navController: NavController) {
                         checked = gadgetBridgeEnabled,
                         icon = Icons.Filled.Hub,
                         iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.MIDDLE,
+                        position = CardPosition.BOTTOM,
                         onCheckedChange = {
                             gadgetBridgeEnabled = it
                             Natives.setgadgetbridge(it)
@@ -186,29 +203,6 @@ fun WatchSettingsScreen(navController: NavController) {
                             // The watch mirrors these switches; tell it now
                             // rather than leave it a cycle behind.
                             tk.glucodata.WearToggleSync.push()
-                        }
-                    )
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.notify),
-                        checked = notifyEnabled,
-                        icon = Icons.Filled.NotificationImportant,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.MIDDLE,
-                        onCheckedChange = {
-                            notifyEnabled = it
-                            WatchInterop.setNotifyEnabled(it)
-                        }
-                    )
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.separate),
-                        checked = separateEnabled,
-                        icon = Icons.Filled.Devices,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.BOTTOM,
-                        onCheckedChange = {
-                            separateEnabled = it
-                            Notify.alertseparate = it
-                            Natives.setSeparate(it)
                         }
                     )
                 }
@@ -298,7 +292,62 @@ fun WatchSettingsScreen(navController: NavController) {
                 }
             }
 
+            // What watch and band companion apps get to read from the phone notification.
+            item("watch_forwarding_section") {
+                SectionLabel(stringResource(R.string.watch_forwarding_section), topPadding = 0.dp)
+                val forwardingChoice = NotificationForwardingSettings.choice(forwardingMode)
+                val intervalChosen = forwardingChoice == NotificationForwardingSettings.MODE_INTERVAL
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.watch_forwarding_title),
+                        subtitle = watchForwardingChoiceLabel(forwardingChoice),
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = if (intervalChosen) CardPosition.TOP else CardPosition.SINGLE,
+                        animatePosition = true,
+                        onClick = { showForwardingModeDialog = true }
+                    )
+                    if (intervalChosen) {
+                        SettingsItem(
+                            title = stringResource(R.string.watch_forwarding_interval_title),
+                            subtitle = pluralStringResource(R.plurals.watch_forwarding_minutes, forwardingMode, forwardingMode),
+                            icon = Icons.Default.Timer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            position = CardPosition.BOTTOM,
+                            animatePosition = true,
+                            onClick = { showForwardingIntervalDialog = true }
+                        )
+                    }
+                }
+            }
         }
+    }
+    if (showForwardingModeDialog) {
+        val choice = NotificationForwardingSettings.choice(forwardingMode)
+        WatchForwardingPickerDialog(
+            title = stringResource(R.string.watch_forwarding_title),
+            options = NotificationForwardingSettings.MODE_CHOICES.map { watchForwardingChoiceLabel(it) to it },
+            selected = choice,
+            onSelect = {
+                showForwardingModeDialog = false
+                applyForwardingMode(NotificationForwardingSettings.modeForChoice(context, it))
+            },
+            onDismiss = { showForwardingModeDialog = false }
+        )
+    }
+    if (showForwardingIntervalDialog) {
+        WatchForwardingPickerDialog(
+            title = stringResource(R.string.watch_forwarding_interval_title),
+            options = NotificationForwardingSettings.INTERVAL_CHOICES.map {
+                pluralStringResource(R.plurals.watch_forwarding_minutes, it, it) to it
+            },
+            selected = forwardingMode,
+            onSelect = {
+                showForwardingIntervalDialog = false
+                applyForwardingMode(it)
+            },
+            onDismiss = { showForwardingIntervalDialog = false }
+        )
     }
     if (showHelp) {
         InAppHelpDialog(
@@ -306,10 +355,68 @@ fun WatchSettingsScreen(navController: NavController) {
             lines = listOf(
                 stringResource(R.string.watch_help_wearos),
                 stringResource(R.string.watch_help_config),
-                stringResource(R.string.watch_help_garmin)
+                stringResource(R.string.watch_help_garmin),
+                stringResource(R.string.watch_help_forwarding)
             ),
             onDismiss = { showHelp = false }
         )
+    }
+}
+
+@Composable
+private fun watchForwardingChoiceLabel(choice: Int): String = stringResource(
+    when (choice) {
+        NotificationForwardingSettings.MODE_STANDARD_TEXT -> R.string.watch_forwarding_standard
+        NotificationForwardingSettings.MODE_EVERY_READING -> R.string.watch_forwarding_every_reading
+        NotificationForwardingSettings.MODE_INTERVAL -> R.string.watch_forwarding_interval
+        else -> R.string.watch_forwarding_alarms_only
+    }
+)
+
+@Composable
+private fun WatchForwardingPickerDialog(
+    title: String,
+    options: List<Pair<String, Int>>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                options.forEach { (label, value) ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable { onSelect(value) }
+                            .padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = selected == value, onClick = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        }
     }
 }
 

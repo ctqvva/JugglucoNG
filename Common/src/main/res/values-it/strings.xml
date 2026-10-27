@@ -321,6 +321,7 @@
     <string name="failed_to_connect">Connessione fallita a </string>
     <string name="sensor_not_init">Sensore non inizializzato. Usa prima \'Scansiona Sensore\'.</string>
     <string name="invalid_code_format">Formato codice non valido. Riprova.</string>
+    <string name="ican_full_box_serial_required">Per l’attivazione serve il numero di serie completo di 13 caratteri sulla confezione iCan</string>
     <string name="sibionics_code_wrong_type">Questo è un codice %1$s. Torna indietro e scegli %1$s.</string>
     <string name="sibionics_code_not_for_type">Questo codice non appartiene a %1$s. Torna indietro e scegli il tipo di sensore corretto.</string>
     <string name="sibionics_serial_wrong_type">Questo numero di serie non corrisponde a %1$s. Torna indietro e scegli il tipo di sensore corretto.</string>
@@ -378,6 +379,8 @@
     <string name="data_smoothing_graph_only_desc">Glucosio attuale, widget e avvisi restano senza smussamento</string>
     <string name="data_smoothing_exchange_only_title">Solo valori inviati</string>
     <string name="data_smoothing_exchange_only_desc">Smussa trasmissioni e caricamenti. I valori nell’app restano senza smussamento</string>
+    <string name="data_smoothing_causal_title">Filtro di Kalman per il valore corrente</string>
+    <string name="data_smoothing_causal_desc">Stima l’ultima lettura solo dalle letture passate (livello e tendenza), così il valore mostrato e inviato ora è quello che la cronologia conserva. La cronologia del grafico e Nightscout mantengono la finestra di media</string>
     <string name="data_smoothing_collapse_title">Meno valori</string>
     <string name="data_smoothing_collapse_desc">Mostra e invia meno valori</string>
     <string name="data_smoothing_collapse_desc_match">Un valore ogni %1$d min</string>
@@ -480,6 +483,7 @@
     <string name="dexcom_slot_change_desc">Il sensore verrà abbinato di nuovo sul nuovo slot con il codice salvato. Un altro dispositivo potrà poi usare quello vecchio.</string>
     <string name="dexcom_slot_change_action">Cambia slot</string>
     <string name="dexcom_pairing_code_label">Codice di associazione a 4 cifre</string>
+    <string name="dexcom_pairing_code">Codice di associazione</string>
     <string name="dexcom_pairing_code_instruction">Inserisci il codice di associazione a 4 cifre stampato sull’applicatore del sensore.</string>
     <string name="libre_setup_title">Configurazione Libre</string>
     <string name="scan_libre_sensor">Scansiona Sensore Libre</string>
@@ -1624,7 +1628,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">Eliminare questa fascia?</string>
     <string name="predictive_delete_time_period_message">La fascia precedente coprirà questo orario.</string>
     <string name="predictive_carb_ratio">Rapporto carboidrati</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Sensibilità insulinica</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1741,6 +1745,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">Insulina</string>
     <string name="journal_type_food">Cibo</string>
     <string name="journal_type_bg_short">Glic</string>
+    <string name="journal_type_glucose">Glucosio</string>
     <string name="journal_type_fingerstick">Puntura dito</string>
     <string name="journal_type_activity">Attività</string>
     <string name="journal_type_note">Nota</string>
@@ -1760,6 +1765,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">Moderata</string>
     <string name="journal_intensity_intense">Intensa</string>
     <string name="journal_insulin_library">Libreria insuline</string>
+    <string name="journal_insulin_chart_title">Insulina sul grafico</string>
+    <string name="journal_insulin_chart_stacked">Impilata</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Impilata, con ogni dose</string>
+    <string name="journal_insulin_chart_separate">Ogni dose separata</string>
     <string name="notification_settings_title">Impostazioni notifiche</string>
     <string name="notification_settings_subtitle">Personalizza l\'area notifiche</string>
     <string name="lock_screen_aod">Schermata di blocco (AOD)</string>
@@ -2084,10 +2093,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">Ancora nessuna lettura API</string>
     <string name="api_source_status_sync_failed">Sincronizzazione sorgente API non riuscita</string>
     <string name="outbound_api_preset_sheet_title">Scegli preset destinazione</string>
-    <string name="outbound_api_preset_custom_json_desc">Invia JSON glicemia normalizzato con POST a qualsiasi endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Invia testo con Telegram Bot API. L’URL può puntare a un relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Invia testo GV compatto tramite messaggi community VK.</string>
-    <string name="outbound_api_preset_vk_desc">Invia testo glicemia leggibile tramite messaggi community VK.</string>
+    <string name="outbound_api_preset_custom_json_desc">Invia JSON glicemia normalizzato con POST a qualsiasi endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Invia testo con Telegram Bot API. L’URL può puntare a un relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Invia testo GV compatto tramite messaggi community VK</string>
+    <string name="outbound_api_preset_vk_desc">Invia testo glicemia leggibile tramite messaggi community VK</string>
     <string name="outbound_api_change_preset">Cambia</string>
     <string name="outbound_api_telegram_recipient_help">Usa un chat ID numerico o @nome_canale. La persona deve avviare prima il bot.</string>
     <string name="outbound_api_vk_recipient_help">Usa ID utente o peer VK numerici. Ogni destinatario deve prima scrivere alla community.</string>
@@ -2495,7 +2504,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">Importa un file di credenziali per continuare senza cloud: la scansione QR inserisce solo il codice del sensore e l’NFC si limita a riattivarlo.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">SMS di emergenza</string>
-    <string name="outbound_api_preset_sms_desc">Invia un messaggio quando un allarme resta senza risposta, un valore diventa critico o cade la connessione dati.</string>
+    <string name="outbound_api_preset_sms_desc">Invia un messaggio quando un allarme resta senza risposta, un valore diventa critico o cade la connessione dati</string>
     <string name="sms_section_who">Di chi si tratta</string>
     <string name="sms_subject_name">Nome</string>
     <string name="sms_subject_name_help">Va all\'inizio di ogni messaggio, ad esempio «Mia: allarme BASSO senza risposta».</string>
@@ -2900,6 +2909,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Ponte di trasporto Kerfstok</string>
     <string name="watch_garmin_status_desc">Stato della connessione e associazione</string>
     <string name="watch_garmin_enable_hint">Attiva Kerfstok per vedere lo stato</string>
+    <string name="watch_help_forwarding">«Inoltro glicemia» stabilisce cosa ricevono le app di orologi e braccialetti dalla notifica del telefono. «Android standard»: il valore a ogni aggiornamento della notifica, quindi alcuni orologi vibrano ogni volta. «Ogni nuovo valore» e «A intervalli»: ogni valore una sola volta. «Solo allarmi»: nessun valore.</string>
     <string name="watch_help_wearos">Attiva Wear OS per usare il trasporto messaggi verso l’orologio in questa app.</string>
     <string name="watch_help_config">Usa Configurazione per scegliere un orologio e impostare l’instradamento diretto del sensore.</string>
     <string name="watch_help_garmin">Garmin Connect IQ funziona tramite Kerfstok e ha controlli di stato separati.</string>
@@ -2974,13 +2984,25 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">Segreto API o token di accesso</string>
     <string name="nightscout_api_help">Usa il segreto API con v1 o un token di accesso Nightscout con v3.</string>
     <string name="nightscout_iob_help">eIOB e COB vengono inviati nel campo jugglucong di devicestatus, separatamente dall’IOB standard.</string>
-    <string name="medtrum_sensor_desc">Inserisci il numero di serie stampato sul cerotto (esadecimale)</string>
+    <string name="medtrum_sensor_desc">Inserisci il numero di serie stampato sul trasmettitore (esadecimale)</string>
     <string name="medtrum_setup_saved_title">Sensore salvato</string>
-    <string name="medtrum_setup_searching">Non ancora connesso. Il cerotto si connetterà da solo quando sarà nel raggio d\'azione.</string>
-    <string name="medtrum_setup_auth_failed">Il cerotto ha rifiutato questo numero di serie. Controlla il numero stampato sul cerotto.</string>
-    <string name="medtrum_setup_device_rejected">Questo dispositivo non è un cerotto Medtrum. Assicurati che il cerotto sia vicino e riprova.</string>
+    <string name="medtrum_setup_searching">Non ancora connesso. Il trasmettitore si connetterà da solo quando sarà nel raggio d\'azione.</string>
+    <string name="medtrum_setup_auth_failed">Il trasmettitore ha rifiutato questo numero di serie. Controlla il numero stampato sul trasmettitore.</string>
+    <string name="medtrum_setup_device_rejected">Questo dispositivo non è un trasmettitore Medtrum. Assicurati che il trasmettitore sia vicino e riprova.</string>
 
     <string name="alert_sound_volume">Volume del suono di avviso</string>
+    <string name="watch_forwarding_section">Tramite le notifiche del telefono</string>
+    <string name="watch_forwarding_title">Inoltro glicemia</string>
+    <string name="watch_forwarding_standard">Android standard</string>
+    <string name="watch_forwarding_alarms_only">Solo allarmi</string>
+    <string name="watch_forwarding_every_reading">Ogni nuovo valore</string>
+    <string name="watch_forwarding_interval">A intervalli</string>
+    <string name="watch_forwarding_interval_title">Intervallo</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d minuto</item>
+        <item quantity="many">%d minuti</item>
+        <item quantity="other">%d minuti</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Invia le letture a Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

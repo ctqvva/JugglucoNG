@@ -39,6 +39,9 @@ public class DeleteReceiver extends BroadcastReceiver {
         Applic app=(Applic) context.getApplicationContext();
         app.initproc();
         final String action = intent.getAction();
+        // Android 14+ lets the user swipe the ongoing notification away; repost it on
+        // the next refresh even if the reading has not changed.
+        Notify.forgetPublishedOngoingContent();
         try {
             if (action != null && action.equals(clearnotification)) {
                 {if(doLog) {Log.i(LOG_ID, clearnotification + " Stop Alarm");};};

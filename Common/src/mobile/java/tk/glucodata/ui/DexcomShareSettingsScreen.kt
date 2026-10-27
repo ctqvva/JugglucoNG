@@ -93,7 +93,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
 
     fun currentConfig() = DexcomShareSettings.Config(
         enabled = enabled,
-        account = account,
+        account = DexcomShareSettings.normalizeAccount(account),
         password = password,
         region = region,
         serial = serial,
@@ -101,7 +101,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
 
     fun unchangedSinceOpen(): Boolean =
         enabled == initial.enabled &&
-            account == initial.account &&
+            DexcomShareSettings.normalizeAccount(account) == initial.account &&
             password == initial.password &&
             region == initial.region &&
             DexcomShareSettings.normalizeSerial(serial) == DexcomShareSettings.normalizeSerial(initial.serial)

@@ -1,5 +1,6 @@
 package tk.glucodata.share
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,5 +41,12 @@ class DexcomShareConfigTests {
     @Test
     fun anUnchangedConfigurationIsTheSameLoginTarget() {
         assertTrue(base.copy().sameLoginTarget(base))
+    }
+
+    @Test
+    fun theAccountLosesStraySpaces() {
+        // A keyboard suggestion leaves a trailing space; Dexcom answers it with "invalid password".
+        assertEquals("kid_username", DexcomShareSettings.normalizeAccount(" kid_username \n"))
+        assertEquals("someone@example.com", DexcomShareSettings.normalizeAccount("someone@example.com"))
     }
 }

@@ -714,6 +714,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dexcom_slot_change_action">Слот солих</string>
     <string name="scan_dexcom">Dexcom уншуулах</string>
     <string name="dexcom_pairing_code_label">4 оронтой холбох код</string>
+    <string name="dexcom_pairing_code">Холбох код</string>
     <string name="dexcom_pairing_code_instruction">Мэдрэгчийн аппликатор дээр хэвлэгдсэн 4 оронтой холбох кодыг оруулна уу.</string>
     <!-- Accu-Chek Setup Wizard -->
     <string name="accuchek_setup_title">Accu-Chek тохиргоо</string>
@@ -882,6 +883,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="failed_to_connect">"Холбогдож чадсангүй: "</string>
     <string name="sensor_not_init">Мэдрэгч эхлээгүй байна. Эхлээд Мэдрэгч уншуулах-ыг ашиглана уу.</string>
     <string name="invalid_code_format">Кодын формат буруу байна. Дахин оролдоно уу.</string>
+    <string name="ican_full_box_serial_required">Идэвхжүүлэхийн тулд iCan хайрцаг дээрх 13 тэмдэгттэй бүтэн серийн дугаар шаардлагатай</string>
     <string name="sibionics_code_wrong_type">Энэ бол %1$s код. Буцаж очоод %1$s-г сонгоно уу.</string>
     <string name="sibionics_code_not_for_type">Энэ код %1$s-д хамаарахгүй. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
     <string name="sibionics_serial_wrong_type">Энэ сериал дугаар %1$s-тай тохирохгүй байна. Буцаж очоод тохирох мэдрэгчийн төрлийг сонгоно уу.</string>
@@ -1641,7 +1643,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="predictive_delete_time_period_title">Энэ үеийг устгах уу?</string>
     <string name="predictive_delete_time_period_message">Өмнөх үе энэ цагийг хамарна.</string>
     <string name="predictive_carb_ratio">Carb ratio</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">Insulin sensitivity</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1759,6 +1761,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_type_insulin">Insulin</string>
     <string name="journal_type_food">Food</string>
     <string name="journal_type_bg_short">BG</string>
+    <string name="journal_type_glucose">Глюкоз</string>
     <string name="journal_type_fingerstick">Fingerstick</string>
     <string name="journal_type_activity">Activity</string>
     <string name="journal_type_note">Note</string>
@@ -1778,6 +1781,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_intensity_moderate">Moderate</string>
     <string name="journal_intensity_intense">Intense</string>
     <string name="journal_insulin_library">Insulin library</string>
+    <string name="journal_insulin_chart_title">Графикт инсулин</string>
+    <string name="journal_insulin_chart_stacked">Давхарласан</string>
+    <string name="journal_insulin_chart_stacked_with_doses">Давхарласан, тун бүрээр</string>
+    <string name="journal_insulin_chart_separate">Тун бүр тусдаа</string>
     <string name="journal_archived_presets">Disabled insulin types</string>
     <string name="journal_curve_title">Editable activity curve</string>
     <string name="journal_curve_preview">Curve preview</string>
@@ -2119,10 +2126,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="api_source_status_no_readings">API уншилт хараахан алга</string>``
     <string name="api_source_status_sync_failed">API эх үүсвэрийн синк амжилтгүй</string>
     <string name="outbound_api_preset_sheet_title">Очих газрын бэлэн тохиргоо сонгох</string>
-    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint.</string>
-    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay.</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages.</string>
-    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages.</string>
+    <string name="outbound_api_preset_custom_json_desc">POST normalized glucose JSON to any endpoint</string>
+    <string name="outbound_api_preset_telegram_desc">Send text with the Telegram Bot API. The URL can point to a relay</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">Send compact GV text through VK community messages</string>
+    <string name="outbound_api_preset_vk_desc">Send readable glucose text through VK community messages</string>
     <string name="outbound_api_change_preset">Өөрчлөх</string>
     <string name="outbound_api_telegram_recipient_help">Use a numeric chat ID or @channel username. A person must start the bot first.</string>
     <string name="outbound_api_vk_recipient_help">Use numeric VK user or peer IDs. Each recipient must message the community first.</string>
@@ -2232,6 +2239,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="gs3">Sibionics GS3</string>
     <string name="data_smoothing_exchange_only_title">Зөвхөн илгээх хэмжилт</string>
     <string name="data_smoothing_exchange_only_desc">Дамжуулалт болон байршуулалтыг жигдрүүлнэ. Апп доторх хэмжилтийг жигдрүүлэхгүй</string>
+    <string name="data_smoothing_causal_title">Одоогийн утгын Калманы шүүлтүүр</string>
+    <string name="data_smoothing_causal_desc">Хамгийн сүүлийн уншилтыг зөвхөн өмнөх уншилтуудаар (түвшин ба чиг хандлага) тооцоолдог тул одоо харагдах болон илгээгдэх утга түүхэд хадгалагдах утгатай ижил байна. Графикийн түүх болон Nightscout дундажлалтын цонхыг ашиглана</string>
     <string name="status_invalid_glucose_from_sensor">Сенсороос ирсэн глюкозын утга буруу</string>
     <string name="ottai_settings_desc">Холбогдсон Ottai мэдрэгчийн Ottai дансны хандалт, хадгалсан материал болон тохиргоог удирдана.</string>
     <string name="ottai_account_sensors_title">Ottai дансны мэдрэгчүүд</string>
@@ -2612,7 +2621,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_cloud_offline_routes">Үүлэн үйлчилгээгүй үргэлжлүүлэхийн тулд нэвтрэх мэдээллийн файлыг импортлоно уу — QR уншуулах нь зөвхөн мэдрэгчийн кодыг бөглөж, NFC нь мэдрэгчийг зөвхөн сэрээнэ.</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">Яаралтай SMS</string>
-    <string name="outbound_api_preset_sms_desc">Дохиололд хариу өгөөгүй, утга эгзэгтэй болсон эсвэл дата холболт тасарсан үед хүмүүст мессеж илгээнэ.</string>
+    <string name="outbound_api_preset_sms_desc">Дохиололд хариу өгөөгүй, утга эгзэгтэй болсон эсвэл дата холболт тасарсан үед хүмүүст мессеж илгээнэ</string>
     <string name="sms_section_who">Хэний тухай</string>
     <string name="sms_subject_name">Нэр</string>
     <string name="sms_subject_name_help">Мессеж бүрийн эхэнд тавигдана, жишээ нь «Миа: БАГА дохиололд хариу алга».</string>
@@ -3011,6 +3020,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="watch_kerfstok_bridge">Kerfstok дамжуулах гүүр</string>
     <string name="watch_garmin_status_desc">Холболтын төлөв ба хослуулалт</string>
     <string name="watch_garmin_enable_hint">Төлөвийг харахын тулд Kerfstok-ийг идэвхжүүлнэ үү</string>
+    <string name="watch_help_forwarding">«Глюкоз дамжуулах» нь цаг болон бугуйвчийн аппууд утасны мэдэгдлээс юу авахыг тодорхойлно. «Стандарт Android»: мэдэгдэл шинэчлэгдэх бүрт утга, тиймээс зарим цаг тухай бүрт чичирнэ. «Шинэ утга бүр» ба «Тодорхой хугацаагаар»: утга бүрийг нэг удаа. «Зөвхөн дохиолол»: утгагүй.</string>
     <string name="watch_help_wearos">Энэ апп-д цагны мессеж дамжуулалт ашиглахын тулд Wear OS-ийг идэвхжүүлнэ үү.</string>
     <string name="watch_help_config">Тохиргоо хэсгээс цагаа сонгож, мэдрэгчийн шууд чиглүүлэлтийг тохируулна уу.</string>
     <string name="watch_help_garmin">Garmin Connect IQ нь Kerfstok-оор ажилладаг бөгөөд тусдаа төлөвийн удирдлагатай.</string>
@@ -3085,13 +3095,24 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_secret_label">API нууц эсвэл хандалтын токен</string>
     <string name="nightscout_api_help">v1-д API нууц, v3-д Nightscout хандалтын токен ашиглана уу.</string>
     <string name="nightscout_iob_help">eIOB болон COB нь стандарт IOB-оос тусдаа devicestatus-ийн jugglucong талбарт илгээгдэнэ.</string>
-    <string name="medtrum_sensor_desc">Наалт дээр хэвлэсэн серийн дугаарыг оруулна уу (16-тын)</string>
+    <string name="medtrum_sensor_desc">Дамжуулагч дээр хэвлэсэн серийн дугаарыг оруулна уу (16-тын)</string>
     <string name="medtrum_setup_saved_title">Мэдрэгч хадгалагдлаа</string>
-    <string name="medtrum_setup_searching">Одоогоор холбогдоогүй. Наалт ойр байх үед өөрөө холбогдоно.</string>
-    <string name="medtrum_setup_auth_failed">Наалт энэ серийн дугаарыг хүлээн аваагүй. Наалт дээрх дугаарыг шалгана уу.</string>
-    <string name="medtrum_setup_device_rejected">Энэ төхөөрөмж Medtrum наалт биш. Наалт ойрхон байгаа эсэхийг шалгаад дахин оролдоно уу.</string>
+    <string name="medtrum_setup_searching">Одоогоор холбогдоогүй. Дамжуулагч ойр байх үед өөрөө холбогдоно.</string>
+    <string name="medtrum_setup_auth_failed">Дамжуулагч энэ серийн дугаарыг хүлээн аваагүй. Дамжуулагч дээрх дугаарыг шалгана уу.</string>
+    <string name="medtrum_setup_device_rejected">Энэ төхөөрөмж Medtrum дамжуулагч биш. Дамжуулагч ойрхон байгаа эсэхийг шалгаад дахин оролдоно уу.</string>
 
     <string name="alert_sound_volume">Дохиоллын дууны түвшин</string>
+    <string name="watch_forwarding_section">Утасны мэдэгдлээр</string>
+    <string name="watch_forwarding_title">Глюкоз дамжуулах</string>
+    <string name="watch_forwarding_standard">Стандарт Android</string>
+    <string name="watch_forwarding_alarms_only">Зөвхөн дохиолол</string>
+    <string name="watch_forwarding_every_reading">Шинэ утга бүр</string>
+    <string name="watch_forwarding_interval">Тодорхой хугацаагаар</string>
+    <string name="watch_forwarding_interval_title">Хугацааны зай</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="one">%d минут</item>
+        <item quantity="other">%d минут</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">Үзүүлэлтийг Dexcom Follow руу илгээх</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

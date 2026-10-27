@@ -199,4 +199,69 @@ class AnytimeConnectRetryPolicyTests {
             )
         )
     }
+
+    // ---- Sessions that connect and then deliver nothing ----
+    //
+    // The 2026-10-27 CT-14 trace: the transmitter answered every handshake from
+    // 12:12:45 and then stopped acknowledging writes, so each session died on a
+    // write-ACK timeout. The connect policy saw no timeout at all, stayed at zero
+    // and reconnected every 2 s — 16 connect/handshake cycles in 165 s.
+
+    @Test
+    fun aSessionThatDeliveredNoDataCountsTowardsTheBackoff() {
+        val state = AnytimeSessionChurnState()
+
+        state.onSessionEnded(deliveredData = false)
+        assertEquals(4_000L, state.retryDelayMs(baseMs))
+
+        state.onSessionEnded(deliveredData = false)
+        assertEquals(8_000L, state.retryDelayMs(baseMs))
+    }
+
+    @Test
+    fun anyDecodedFrameEndsTheRunEvenIfTheSessionLaterDrops() {
+        val state = AnytimeSessionChurnState()
+        repeat(3) { state.onSessionEnded(deliveredData = false) }
+        assertEquals(16_000L, state.retryDelayMs(baseMs))
+
+        state.onSessionDeliveredData()
+        assertEquals(0, state.consecutiveFailedSessions)
+        assertEquals(baseMs, state.retryDelayMs(baseMs))
+    }
+
+    @Test
+    fun aSessionThatDeliveredDataItselfIsNotAFailure() {
+        val state = AnytimeSessionChurnState()
+        state.onSessionEnded(deliveredData = false)
+
+        state.onSessionEnded(deliveredData = true)
+
+        assertEquals(0, state.consecutiveFailedSessions)
+        assertEquals(baseMs, state.retryDelayMs(baseMs))
+    }
+
+    @Test
+    fun sessionBackoffStopsAtThirtySeconds() {
+        val delays = (1..6).map {
+            sessionRetryDelayMs(
+                consecutiveFailedSessions = it,
+                baseDelayMs = baseMs,
+                capMs = SESSION_RETRY_MAX_DELAY_MS,
+            )
+        }
+
+        assertEquals(listOf(4_000L, 8_000L, 16_000L, 30_000L, 30_000L, 30_000L), delays)
+    }
+
+    @Test
+    fun sessionBackoffWithoutFailuresKeepsTheNormalDelay() {
+        assertEquals(
+            baseMs,
+            sessionRetryDelayMs(
+                consecutiveFailedSessions = 0,
+                baseDelayMs = baseMs,
+                capMs = SESSION_RETRY_MAX_DELAY_MS,
+            )
+        )
+    }
 }

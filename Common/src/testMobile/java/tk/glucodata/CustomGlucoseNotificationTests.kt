@@ -234,13 +234,46 @@ class CustomGlucoseNotificationTests {
     @Test fun notificationKeepsCustomContentAndActualTimestampWithoutListenerText() {
         val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
             .setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
-        CustomGlucoseNotification.apply(builder, values(expanded = false), values())
+        CustomGlucoseNotification.apply(builder, null, null, values(expanded = false), values())
         val notification = builder.build()
         assertNotNull(notification.contentView)
         assertNotNull(notification.bigContentView)
-        // Watch companion apps forward any notification with standard text (#645).
+        // Watch companion apps forward any notification with standard text (#645):
+        // the fields are absent, not empty strings.
         assertNull(notification.extras.getCharSequence(Notification.EXTRA_TITLE))
         assertNull(notification.extras.getCharSequence(Notification.EXTRA_TEXT))
         assertEquals(123456L, notification.`when`)
+    }
+
+    @Test fun standardTextSettingAddsTitleAndTextBesideTheCustomViews() {
+        val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setWhen(123456L).setShowWhen(true).setOnlyAlertOnce(true)
+        val title = GlucoseNotificationText.title("5,7", listOf("5,5"), 1.5f)
+        CustomGlucoseNotification.apply(builder, title, "+0,2 · IOB 1,2", values(expanded = false), values())
+        val notification = builder.build()
+        assertEquals("5,7 · 5,5 \u2197", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("+0,2 · IOB 1,2", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
+        assertNotNull(notification.contentView)
+        assertNotNull(notification.bigContentView)
+        assertEquals(123456L, notification.`when`)
+    }
+
+    @Test fun emptyStandardTextStaysAbsentRatherThanBlank() {
+        val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
+        CustomGlucoseNotification.apply(builder, "5,7 mmol/L", "", values(expanded = false), values())
+        val notification = builder.build()
+        assertEquals("5,7 mmol/L", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertNull(notification.extras.getCharSequence(Notification.EXTRA_TEXT))
+    }
+
+    @Test fun withoutStandardTextTheReadingStaysAvailableToTalkBack() {
+        val builder = Notification.Builder(app, "glucose").setSmallIcon(android.R.drawable.ic_dialog_info)
+        CustomGlucoseNotification.apply(builder, null, null, values(expanded = false, systemFont = false, rate = 1.5f),
+            values(systemFont = false, rate = 1.5f))
+        val root = builder.build().contentView.apply(app, null)
+        // Painted IBM Plex values carry their text as a content description.
+        assertEquals("5,7", root.findViewById<ImageView>(R.id.notification_glucose_image).contentDescription.toString())
+        assertEquals(app.getString(R.string.notification_trend_rising),
+            root.findViewById<ImageView>(R.id.notification_arrow).contentDescription.toString())
     }
 }

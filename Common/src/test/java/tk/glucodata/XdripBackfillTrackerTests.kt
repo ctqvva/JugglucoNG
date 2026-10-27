@@ -1,7 +1,9 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.XdripBackfillTracker.Candidate
 
@@ -205,6 +207,56 @@ class XdripBackfillTrackerTests {
             listOf((now - 30 * minute)..(now - 28 * minute), (now - 10 * minute)..(now - 9 * minute)),
             coverage.ranges,
         )
+    }
+
+    @Test
+    fun `a reading already sent needs no backfill while a gap does`() {
+        val tracker = XdripBackfillTracker()
+        tracker.recordSent("S", now - 10 * minute, 1, 0L)
+
+        assertFalse(tracker.needsBackfill("S", listOf(point(10)), now))
+        assertTrue(tracker.needsBackfill("S", listOf(point(5)), now))
+        assertFalse(tracker.needsBackfill("S", listOf(point(5)), now - 60 * minute))
+    }
+
+    @Test
+    fun `needsBackfill agrees with pick when the batch changes the cadence`() {
+        fun seeded(): XdripBackfillTracker = XdripBackfillTracker().also { tracker ->
+            tracker.recordSent("S", now - 30 * minute, 1, 0L)
+            // A sparse batch teaches a five-minute cadence.
+            tracker.pick("S", listOf(point(20), point(15)), now)
+            tracker.recordSent("S", now - 5 * minute, 1, 0L)
+            tracker.recordSent("S", now, 1, 0L)
+        }
+        val batch = (4L downTo 1L).map { point(it) }
+
+        val picked = seeded().pick("S", batch, now)
+
+        assertTrue(picked.isNotEmpty())
+        assertEquals(picked.isNotEmpty(), seeded().needsBackfill("S", batch, now))
+    }
+
+    @Test
+    fun `needsBackfill agrees with pick about readings that arrived on time`() {
+        fun seeded(): XdripBackfillTracker = XdripBackfillTracker().also { tracker ->
+            tracker.restore("S", floor(now - 60 * minute))
+            tracker.recordSent("S", now, 1, 0L)
+        }
+        val minutes = (1L..30L).map { point(it).copy(storedAtMs = now - it * minute + second) }
+        val history = listOf(25L, 20L).map {
+            at(now - it * minute - 20 * second).copy(storedAtMs = now - it * minute + 19 * minute)
+        }
+        val late = point(45).copy(storedAtMs = now - 10 * minute)
+
+        assertFalse(seeded().needsBackfill("S", minutes, now))
+        assertFalse(seeded().needsBackfill("S", minutes + history, now))
+        assertTrue(seeded().needsBackfill("S", minutes + late, now))
+        assertEquals(listOf(late.timeMs), seeded().pick("S", minutes + late, now).map { it.timeMs })
+    }
+
+    @Test
+    fun `an unknown sensor needs no backfill`() {
+        assertFalse(XdripBackfillTracker().needsBackfill("S", listOf(point(0)), now))
     }
 
     @Test

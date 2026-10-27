@@ -43,7 +43,7 @@ interface MedtrumDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
         val nowMs = System.currentTimeMillis()
         return ManagedSensorUiSnapshot(
             serial = sn,
-            displayName = "Medtrum EasySense",
+            displayName = "Medtrum TouchCare S9 MD3660",
             deviceAddress = address.ifBlank { "Unknown" },
             startTimeMs = startMs,
             officialEndMs = endMs,

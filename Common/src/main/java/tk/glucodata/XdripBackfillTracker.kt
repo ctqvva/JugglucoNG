@@ -125,36 +125,71 @@ class XdripBackfillTracker(
     ): List<Candidate> {
         val state = states[sensorId] ?: return emptyList()
         val sorted = batch.sortedBy(Candidate::timeMs)
-        measurePeriod(sorted)?.let { state.periodMs = it }
+        measuredPeriod(sorted.map(Candidate::timeMs))?.let { state.periodMs = it }
         state.spacingMs = spacingMs
         val period = period(state)
         val dedupMs = maxOf(period - period / 6, spacingMs)
         val lowerBound = maxOf(nowMs - windowMs, state.startWatermarkMs)
         // An on-time row went out live, so it also covers a late row of the same moment: Libre 3's
         // 5-minute history reaches the phone about 19 minutes after the minute reading it sits next to.
-        for (candidate in sorted) {
-            if (candidate.arrivedLive && candidate.timeMs > lowerBound && candidate.timeMs <= nowMs) {
-                state.sent.add(candidate.timeMs)
-            }
-        }
+        state.sent.addAll(liveArrivals(sorted, nowMs, lowerBound))
         val picked = ArrayList<Candidate>()
         for (candidate in sorted) {
-            if (candidate.timeMs <= lowerBound || candidate.timeMs > nowMs) continue
-            if (!(candidate.mgdl.isFinite() && candidate.mgdl > 0.0)) continue
             if (candidate.arrivedLive) continue
-            if (isRestoredAsSent(state.restored, candidate.timeMs, dedupMs)) continue
-            if (hasSentWithin(state.sent, candidate.timeMs, dedupMs)) continue
+            if (!isDeliverable(state.restored, state.sent, candidate.timeMs, nowMs, dedupMs, lowerBound)) continue
+            if (!(candidate.mgdl.isFinite() && candidate.mgdl > 0.0)) continue
             state.sent.add(candidate.timeMs)
             picked.add(candidate)
         }
         return picked
     }
 
+    private fun liveArrivals(sorted: List<Candidate>, nowMs: Long, lowerBound: Long): List<Long> =
+        sorted.filter { it.arrivedLive && it.timeMs > lowerBound && it.timeMs <= nowMs }.map(Candidate::timeMs)
+
+    private fun isDeliverable(
+        restored: List<LongRange>,
+        sent: TreeSet<Long>,
+        timeMs: Long,
+        nowMs: Long,
+        dedupMs: Long,
+        lowerBound: Long,
+    ): Boolean =
+        timeMs > lowerBound && timeMs <= nowMs &&
+            !isRestoredAsSent(restored, timeMs, dedupMs) &&
+            !hasSentWithin(sent, timeMs, dedupMs)
+
+    /**
+     * Whether [pick] would still send anything from [batch], without recording anything. Lets a
+     * caller skip preparing values for a batch the tracker would drop anyway. Only the times and
+     * arrival of [batch] are read: a row whose value turns out invalid still counts as needed.
+     */
+    @Synchronized
+    fun needsBackfill(
+        sensorId: String,
+        batch: List<Candidate>,
+        nowMs: Long,
+        spacingMs: Long = 0L,
+    ): Boolean {
+        val state = states[sensorId] ?: return false
+        val sorted = batch.sortedBy(Candidate::timeMs)
+        // The same period and coverage pick() would derive from this batch, so the two checks
+        // cannot disagree about what is already covered.
+        val period = measuredPeriod(sorted.map(Candidate::timeMs)) ?: period(state)
+        val dedupMs = maxOf(period - period / 6, spacingMs)
+        val lowerBound = maxOf(nowMs - windowMs, state.startWatermarkMs)
+        val sent = TreeSet(state.sent).apply { addAll(liveArrivals(sorted, nowMs, lowerBound)) }
+        return sorted.any { candidate ->
+            !candidate.arrivedLive &&
+                isDeliverable(state.restored, sent, candidate.timeMs, nowMs, dedupMs, lowerBound)
+        }
+    }
+
     private fun period(state: State): Long = if (state.periodMs > 0L) state.periodMs else DEFAULT_PERIOD_MS
 
     /** Median spacing of consecutive readings, clamped to the 1-5 minute range sensors use. */
-    private fun measurePeriod(sorted: List<Candidate>): Long? {
-        val gaps = sorted.zipWithNext { a, b -> b.timeMs - a.timeMs }
+    private fun measuredPeriod(sortedTimes: List<Long>): Long? {
+        val gaps = sortedTimes.zipWithNext { a, b -> b - a }
             .filter { it in MIN_PERIOD_MS / 2..MAX_PERIOD_MS * 2 }
             .sorted()
         if (gaps.isEmpty()) return null

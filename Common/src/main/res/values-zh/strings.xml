@@ -455,6 +455,7 @@
     <string name="failed_to_connect">无法连接到 </string>
     <string name="sensor_not_init">传感器未初始化。请先使用“扫描传感器”。</string>
     <string name="invalid_code_format">无效的代码格式。请重试。</string>
+    <string name="ican_full_box_serial_required">激活需要 iCan 包装盒上完整的 13 位序列号</string>
     <string name="sibionics_code_wrong_type">这是 %1$s 的代码。请返回并选择 %1$s。</string>
     <string name="sibionics_code_not_for_type">此代码不属于 %1$s。请返回并选择匹配的传感器类型。</string>
     <string name="sibionics_serial_wrong_type">此序列号与 %1$s 不匹配。请返回并选择匹配的传感器类型。</string>
@@ -512,6 +513,8 @@
     <string name="data_smoothing_graph_only_desc">当前血糖、小组件和警报不做平滑处理</string>
     <string name="data_smoothing_exchange_only_title">仅发送的读数</string>
     <string name="data_smoothing_exchange_only_desc">平滑广播和上传的数据。应用内的读数不做平滑处理</string>
+    <string name="data_smoothing_causal_title">当前值的卡尔曼滤波</string>
+    <string name="data_smoothing_causal_desc">仅根据过去的读数（水平和趋势）估算最新读数，因此现在显示和发送的值与历史记录保留的值一致。图表历史和 Nightscout 仍使用平均窗口</string>
     <string name="data_smoothing_collapse_title">减少读数</string>
     <string name="data_smoothing_collapse_desc">减少显示和发送的读数</string>
     <string name="data_smoothing_collapse_desc_match">每 %1$d 分钟一个读数</string>
@@ -614,6 +617,7 @@
     <string name="dexcom_slot_change_desc">传感器将使用已保存的代码在新槽位上重新配对。之后其他设备可以使用旧槽位。</string>
     <string name="dexcom_slot_change_action">更换槽位</string>
     <string name="dexcom_pairing_code_label">4 位配对码</string>
+    <string name="dexcom_pairing_code">配对码</string>
     <string name="dexcom_pairing_code_instruction">输入传感器助针器上印刷的 4 位配对码。</string>
     <string name="libre_setup_title">Libre 设置</string>
     <string name="scan_libre_sensor">扫描 Libre 传感器</string>
@@ -1650,7 +1654,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="predictive_delete_time_period_title">删除这个时段？</string>
     <string name="predictive_delete_time_period_message">前一个时段将覆盖这段时间。</string>
     <string name="predictive_carb_ratio">碳水比</string>
-    <string name="predictive_carb_ratio_value">%1$.0f g/U</string>
+    <string name="predictive_carb_ratio_value">%1$s g/U</string>
     <string name="predictive_insulin_sensitivity">胰岛素敏感度</string>
     <string name="predictive_sensitivity_value_mgdl">%1$.0f mg/dL/U</string>
     <string name="predictive_sensitivity_value_mmol">%1$.1f mmol/L/U</string>
@@ -1767,6 +1771,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_type_insulin">胰岛素</string>
     <string name="journal_type_food">食物</string>
     <string name="journal_type_bg_short">血糖</string>
+    <string name="journal_type_glucose">葡萄糖</string>
     <string name="journal_type_fingerstick">指尖血糖</string>
     <string name="journal_type_activity">活动</string>
     <string name="journal_type_note">备注</string>
@@ -1786,6 +1791,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_intensity_moderate">中等</string>
     <string name="journal_intensity_intense">高强度</string>
     <string name="journal_insulin_library">胰岛素库</string>
+    <string name="journal_insulin_chart_title">图表上的胰岛素</string>
+    <string name="journal_insulin_chart_stacked">堆叠</string>
+    <string name="journal_insulin_chart_stacked_with_doses">堆叠，并显示每次剂量</string>
+    <string name="journal_insulin_chart_separate">每次剂量分开显示</string>
     <string name="notification_settings_title">通知设置</string>
     <string name="notification_settings_subtitle">自定义通知栏</string>
     <string name="lock_screen_aod">锁屏（AOD）</string>
@@ -2110,10 +2119,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_status_no_readings">还没有 API 读数</string>
     <string name="api_source_status_sync_failed">API 源同步失败</string>
     <string name="outbound_api_preset_sheet_title">选择目标预设</string>
-    <string name="outbound_api_preset_custom_json_desc">将标准化血糖 JSON 通过 POST 发送到任意端点。</string>
-    <string name="outbound_api_preset_telegram_desc">通过 Telegram Bot API 发送文本。URL 可指向中继服务。</string>
-    <string name="outbound_api_preset_gluco_watch_vk_desc">通过 VK 社区消息发送紧凑 GV 文本。</string>
-    <string name="outbound_api_preset_vk_desc">通过 VK 社区消息发送可读血糖文本。</string>
+    <string name="outbound_api_preset_custom_json_desc">将标准化血糖 JSON 通过 POST 发送到任意端点</string>
+    <string name="outbound_api_preset_telegram_desc">通过 Telegram Bot API 发送文本。URL 可指向中继服务</string>
+    <string name="outbound_api_preset_gluco_watch_vk_desc">通过 VK 社区消息发送紧凑 GV 文本</string>
+    <string name="outbound_api_preset_vk_desc">通过 VK 社区消息发送可读血糖文本</string>
     <string name="outbound_api_change_preset">更改</string>
     <string name="outbound_api_telegram_recipient_help">使用数字 chat ID 或 @频道名。用户必须先启动机器人。</string>
     <string name="outbound_api_vk_recipient_help">使用数字 VK 用户 ID 或 peer ID。每个接收者必须先给社区发消息。</string>
@@ -2521,7 +2530,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_cloud_offline_routes">请导入凭据文件以在不使用云端的情况下继续——扫描二维码只会填写传感器代码，NFC 只会唤醒传感器。</string>
     <!-- Emergency SMS destination -->
     <string name="outbound_api_preset_sms">紧急短信</string>
-    <string name="outbound_api_preset_sms_desc">当警报无人处理、数值进入危险区间或数据连接中断时，向他人发送短信。</string>
+    <string name="outbound_api_preset_sms_desc">当警报无人处理、数值进入危险区间或数据连接中断时，向他人发送短信</string>
     <string name="sms_section_who">关于谁</string>
     <string name="sms_subject_name">姓名</string>
     <string name="sms_subject_name_help">放在每条消息开头，例如“Mia：低血糖警报无人处理”。</string>
@@ -2925,6 +2934,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="watch_kerfstok_bridge">Kerfstok 传输桥</string>
     <string name="watch_garmin_status_desc">连接状态和配对</string>
     <string name="watch_garmin_enable_hint">启用 Kerfstok 以查看状态</string>
+    <string name="watch_help_forwarding">“血糖转发”决定手表和手环应用能从手机通知中获得什么。“标准 Android”：每次通知更新都带读数，因此部分手表每次都会振动。“每个新读数”和“按间隔”：每个读数只发送一次。“仅警报”：不发送读数。</string>
     <string name="watch_help_wearos">启用 Wear OS 以在此应用中使用手表消息传输。</string>
     <string name="watch_help_config">在“配置”中选择手表并设置传感器直连路由。</string>
     <string name="watch_help_garmin">Garmin Connect IQ 通过 Kerfstok 工作，并有单独的状态控制。</string>
@@ -2999,13 +3009,23 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_secret_label">API 密钥或访问令牌</string>
     <string name="nightscout_api_help">v1 使用 API 密钥，v3 使用 Nightscout 访问令牌。</string>
     <string name="nightscout_iob_help">eIOB 和 COB 通过 devicestatus 的 jugglucong 字段发送，与标准 IOB 分开。</string>
-    <string name="medtrum_sensor_desc">输入贴片上印的序列号（十六进制）</string>
+    <string name="medtrum_sensor_desc">输入发射器上印的序列号（十六进制）</string>
     <string name="medtrum_setup_saved_title">传感器已保存</string>
-    <string name="medtrum_setup_searching">尚未连接。贴片进入范围后会自动连接。</string>
-    <string name="medtrum_setup_auth_failed">贴片拒绝了此序列号。请检查贴片上印的号码。</string>
-    <string name="medtrum_setup_device_rejected">此设备不是 Medtrum 贴片。请确认贴片在附近，然后重试。</string>
+    <string name="medtrum_setup_searching">尚未连接。发射器进入范围后会自动连接。</string>
+    <string name="medtrum_setup_auth_failed">发射器拒绝了此序列号。请检查发射器上印的号码。</string>
+    <string name="medtrum_setup_device_rejected">此设备不是 Medtrum 发射器。请确认发射器在附近，然后重试。</string>
 
     <string name="alert_sound_volume">警报音量</string>
+    <string name="watch_forwarding_section">通过手机通知</string>
+    <string name="watch_forwarding_title">血糖转发</string>
+    <string name="watch_forwarding_standard">标准 Android</string>
+    <string name="watch_forwarding_alarms_only">仅警报</string>
+    <string name="watch_forwarding_every_reading">每个新读数</string>
+    <string name="watch_forwarding_interval">按间隔</string>
+    <string name="watch_forwarding_interval_title">间隔</string>
+    <plurals name="watch_forwarding_minutes">
+        <item quantity="other">%d 分钟</item>
+    </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
     <string name="dexcom_share_desc">将读数上传到 Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>

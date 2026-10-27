@@ -8,12 +8,15 @@ import java.net.URLEncoder
 import tk.glucodata.Log
 
 /**
- * The Share publisher calls, mirrored from xDrip+ `sharemodels/DexcomShare.java`.
+ * The Share publisher calls.
  *
- * This is an unofficial API, so the call sequence is copied rather than designed: log in with
- * the account name, authenticate the publisher, start a monitoring session, and only then check
- * (and if needed replace) the receiver assignment. Nothing here retries — the retry rules depend
- * on state the uploader holds, and a wrong guess here can lock the user's Dexcom account.
+ * This is an unofficial API. The login follows pydexcom, the maintained Share client: trade the
+ * account name for the account id, then log in with that id. xDrip's older
+ * `LoginPublisherAccountByName` is the path pydexcom moved away from, and username logins were
+ * reported failing on it (ctqvva/JugglucoNG#674). After the login, the monitoring steps are
+ * copied from xDrip `sharemodels/DexcomShare.java`: start a monitoring session, then check (and
+ * if needed replace) the receiver assignment. Nothing here retries. The retry rules depend on
+ * state the uploader holds, and a wrong guess here can lock the user's Dexcom account.
  */
 class DexcomShareClient(
     private val region: DexcomShareRegion,
@@ -46,14 +49,36 @@ class DexcomShareClient(
     }
 
     fun login(account: String, password: String, serial: String): LoginResult {
-        val authBody = DexcomShareJson.authBody(account, password)
-        val login = transport.post(url("General/LoginPublisherAccountByName"), authBody)
+        // Dexcom reports a wrong password, an unknown account and a lockout on this step.
+        val authenticate = transport.post(
+            url("General/AuthenticatePublisherAccount"),
+            DexcomShareJson.authBody(account, password)
+        )
+        logStep("AuthenticatePublisherAccount", authenticate)
+        if (authenticate.code !in 200..299) return failedLogin(authenticate)
+
+        val accountId = DexcomShareJson.parseJsonString(authenticate.body)
+        if (!isIssuedId(accountId)) {
+            // A well-formed "no account" answer. Treating it as anything but bad credentials
+            // would retry the same name and password until the account locks.
+            if (Log.doLog) Log.i(LOG_ID, "AuthenticatePublisherAccount returned no account id")
+            return LoginResult.Failed(
+                DexcomShareError.Kind.BAD_CREDENTIALS,
+                authenticate.code,
+                "Dexcom found no account for this name in this region"
+            )
+        }
+
+        val login = transport.post(
+            url("General/LoginPublisherAccountById"),
+            DexcomShareJson.loginByIdBody(accountId, password)
+        )
+        logStep("LoginPublisherAccountById", login)
         if (login.code !in 200..299) return failedLogin(login)
 
         val sessionId = DexcomShareJson.parseJsonString(login.body)
-        if (sessionId.isEmpty() || sessionId == NULL_SESSION_ID) {
-            // Dexcom answers a failed login with a well-formed "no session" too. Treating it as
-            // anything but bad credentials would retry a wrong password until the account locks.
+        if (!isIssuedId(sessionId)) {
+            if (Log.doLog) Log.i(LOG_ID, "LoginPublisherAccountById returned no session")
             return LoginResult.Failed(
                 DexcomShareError.Kind.BAD_CREDENTIALS,
                 login.code,
@@ -61,41 +86,26 @@ class DexcomShareClient(
             )
         }
 
-        // Steps 2 and 3 are fire-and-forget in xDrip: their results are ignored. One exception is
-        // deliberate — for SSO accounts this is where Dexcom reports a wrong password or a
-        // lockout, and accepting the session anyway would retry that password on every flush,
-        // which is exactly the loop the credentials policy exists to prevent.
-        val authenticate = transport.post(
-            serverUrl("General/AuthenticatePublisherAccount", sessionId, serial),
-            authBody
-        )
-        logNonSuccess("AuthenticatePublisherAccount", authenticate.code)
-        when (val kind = DexcomShareError.classify(authenticate.code, authenticate.body)) {
-            DexcomShareError.Kind.BAD_CREDENTIALS,
-            DexcomShareError.Kind.LOCKED -> return LoginResult.Failed(
-                kind,
-                authenticate.code,
-                DexcomShareError.message(authenticate.body)
-            )
-            else -> Unit
-        }
+        // The monitoring steps are fire-and-forget in xDrip: their results are ignored.
         val start = transport.post(
             serverUrl("Publisher/StartRemoteMonitoringSession", sessionId, serial),
             null
         )
-        logNonSuccess("StartRemoteMonitoringSession", start.code)
+        logStep("StartRemoteMonitoringSession", start)
 
         val assignment = transport.post(
             serverUrl("Publisher/CheckMonitoredReceiverAssignmentStatus", sessionId, serial),
             null
         )
+        logStep("CheckMonitoredReceiverAssignmentStatus", assignment)
         if (DexcomShareJson.parseJsonString(assignment.body) != ASSIGNED_TO_YOU) {
             val replace = transport.post(
                 serverUrl("Publisher/ReplacePublisherAccountMonitoredReceiver", sessionId, serial),
                 null
             )
-            logNonSuccess("ReplacePublisherAccountMonitoredReceiver", replace.code)
+            logStep("ReplacePublisherAccountMonitoredReceiver", replace)
         }
+        if (Log.doLog) Log.i(LOG_ID, "login ok")
         return LoginResult.Ok(sessionId)
     }
 
@@ -129,13 +139,22 @@ class DexcomShareClient(
 
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
-    private fun logNonSuccess(step: String, code: Int) {
-        if (Log.doLog && code !in 200..299) Log.i(LOG_ID, "$step answered with HTTP $code")
+    /** An id Dexcom actually issued: blank and the all-zero UUID are its "nobody" answers. */
+    private fun isIssuedId(id: String): Boolean = id.isNotBlank() && id != NULL_ID
+
+    /**
+     * One line per step, so a trace shows where a login stopped. Only the HTTP code and Dexcom's
+     * error code: the account, the password, the ids and Dexcom's message text stay out.
+     */
+    private fun logStep(step: String, result: HttpResult) {
+        if (!Log.doLog || result.code in 200..299) return
+        val dexcomCode = DexcomShareError.codeOf(result.body)?.let { " $it" }.orEmpty()
+        Log.i(LOG_ID, "$step answered with HTTP ${result.code}$dexcomCode")
     }
 
     companion object {
         private const val LOG_ID = "DexcomShare"
-        private const val NULL_SESSION_ID = "00000000-0000-0000-0000-000000000000"
+        private const val NULL_ID = "00000000-0000-0000-0000-000000000000"
         private const val ASSIGNED_TO_YOU = "AssignedToYou"
 
         /** 15 s to connect, 20 s to read — Dexcom's own client uses similar values. */

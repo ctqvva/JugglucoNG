@@ -161,6 +161,23 @@ class AiDexAlgorithmControllerTest {
             replacement.live(sample(index, raw = 100f + index % 4), refs))
     }
 
+    @Test fun `output anchored calibration agrees across live replay and restart during mapping catchup`() {
+        val selection = AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED
+        val sources = (0..1800).map { sample(it, factory = if (it < 1440) 105f else 160f, raw = 105f) }
+        val refs = listOf(AiDexReference(start + 1560 * 60_000L, 167f), AiDexReference(start + 1700 * 60_000L, 174f))
+        val live = AiDexAlgorithmContext(selection)
+        val outputs = sources.map { live.process(it, refs) }
+        val model = controller(selection)
+        model.record(sources)
+        assertEquals(outputs, replay(model, refs))
+        val restarted = AiDexAlgorithmController(model.journal, selection)
+        assertEquals(outputs, replay(restarted, refs))
+        assertTrue(outputs[1560].glucoseMgDl >= 150f)
+        assertTrue(outputs[1700].glucoseMgDl >= 160f)
+        assertEquals(live.process(sample(1801, 160f, 105f), refs),
+            restarted.live(sample(1801, 160f, 105f), refs))
+    }
+
     @Test fun `late history causes replay and cannot become current live`() {
         val model = controller(AiDexAlgorithmSelection.ADAPTIVE_V2)
         model.record((0..180).filter { it != 90 }.map { sample(it) })
@@ -273,14 +290,14 @@ class AiDexAlgorithmControllerTest {
         } finally { release.countDown(); executor.shutdownNow() }
     }
 
-    @Test fun `calibration anchors preserve both lanes units and explicit duplicate preference`() {
-        val raw = doubleArrayOf(2.0, 5.0, start.toDouble())
+    @Test fun `auto calibration anchors preserve units and deduplicate timestamps`() {
         val auto = doubleArrayOf(7.0, 6.0, start.toDouble())
-        val refs = AiDexAlgorithmReferences.decode(raw, auto, true)
+        val refs = AiDexAlgorithmReferences.decode(auto, true)
         assertEquals(1, refs.size)
         assertEquals(6f * AiDexAdaptiveV2.MGDL_PER_MMOL, refs.single().glucoseMgDl, 0.001f)
-        assertEquals(120f, AiDexAlgorithmReferences.decode(doubleArrayOf(), doubleArrayOf(90.0, 120.0, start.toDouble()), false).single().glucoseMgDl, 0f)
-        assertEquals(2, AiDexAlgorithmReferences.decode(raw, doubleArrayOf(7.0, 6.0, (start + 60_000).toDouble()), true).size)
-        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0), doubleArrayOf(1.0, Double.NaN, 0.0), true).isEmpty())
+        assertEquals(120f, AiDexAlgorithmReferences.decode(doubleArrayOf(90.0, 120.0, start.toDouble()), false).single().glucoseMgDl, 0f)
+        assertEquals(1, AiDexAlgorithmReferences.decode(auto + auto, true).size)
+        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0), true).isEmpty())
+        assertTrue(AiDexAlgorithmReferences.decode(doubleArrayOf(1.0, Double.NaN, 0.0), true).isEmpty())
     }
 }

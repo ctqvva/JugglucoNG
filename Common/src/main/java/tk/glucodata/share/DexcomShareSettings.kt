@@ -81,11 +81,15 @@ object DexcomShareSettings {
     @JvmStatic
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, false)
 
+    /** Switched on, or an account was saved: the settings entry stays reachable either way. */
+    fun isSetUp(context: Context): Boolean =
+        isEnabled(context) || readEncrypted(context, KEY_ACCOUNT).isNotBlank()
+
     fun load(context: Context): Config {
         val stored = prefs(context)
         return Config(
             enabled = stored.getBoolean(KEY_ENABLED, false),
-            account = readEncrypted(context, KEY_ACCOUNT),
+            account = normalizeAccount(readEncrypted(context, KEY_ACCOUNT)),
             password = readEncrypted(context, KEY_PASSWORD),
             region = regionOf(stored.getString(KEY_REGION, null)),
             serial = normalizeSerial(stored.getString(KEY_SERIAL, null).orEmpty())
@@ -110,7 +114,8 @@ object DexcomShareSettings {
      * The session id is not stored here — it lives in memory in [DexcomShareUploader]. Call this
      * through [DexcomShareUploader.applySettings], which fences off results of the old settings.
      */
-    fun save(context: Context, config: Config) {
+    fun save(context: Context, rawConfig: Config) {
+        val config = rawConfig.copy(account = normalizeAccount(rawConfig.account))
         val wasEnabled = isEnabled(context)
         val stored = load(context)
         val credentialsChanged =
@@ -142,6 +147,13 @@ object DexcomShareSettings {
             editor.commit()
         }.onFailure { Log.stack(LOG_ID, "save", it) }
     }
+
+    /**
+     * A keyboard suggestion often leaves a trailing space, and Dexcom answers that with "invalid
+     * password". The password is left exactly as typed: spaces may belong to it.
+     */
+    @JvmStatic
+    fun normalizeAccount(raw: String): String = raw.trim()
 
     @JvmStatic
     fun normalizeSerial(raw: String): String {
