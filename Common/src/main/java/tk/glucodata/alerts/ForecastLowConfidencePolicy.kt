@@ -64,6 +64,11 @@ internal class ForecastLowConfidencePolicy {
         val horizon = AlertGlucoseMath.normalizedForecastMinutes(forecastMinutes)
         val nextContext = Context(sensorId, sensorGen, condition.threshold, horizon, isMmol)
         if (context != nextContext) {
+            // Timestamp ordering belongs to one sensor generation. A replacement
+            // can report an older sample that is still fresh enough to alert.
+            if (context?.sensorId != sensorId || context?.sensorGen != sensorGen) {
+                lastReadingTimeMs = 0L
+            }
             reset()
             context = nextContext
         }

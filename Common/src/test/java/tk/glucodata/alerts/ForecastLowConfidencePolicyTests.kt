@@ -111,6 +111,66 @@ class ForecastLowConfidencePolicyTests {
         assertEquals(Decision.CONFIRMED, tick(p, 180, sensor = "sensor-b", generation = 2, glucose = 115f))
     }
 
+    @Test fun sensorAndGenerationChangesAcceptUrgentEarlierReadings() {
+        for (mmol in listOf(false, true)) {
+            for (generationChange in listOf(false, true)) {
+                for (imminent in listOf(false, true)) {
+                    val p = ForecastLowConfidencePolicy()
+                    assertEquals(Decision.CONFIRMING, tick(p, 300, mmol = mmol))
+                    assertEquals(if (imminent) Decision.IMMINENT else Decision.NEAR_THRESHOLD,
+                        tick(p, 240, glucose = if (imminent) 100f else 80f,
+                            rate = if (imminent) -3f else -1f, mmol = mmol,
+                            sensor = if (generationChange) "sensor-a" else "sensor-b",
+                            generation = if (generationChange) 2 else 1, ageMs = 60_000))
+                }
+            }
+        }
+    }
+
+    @Test fun sensorAndGenerationChangesUseTheirOwnTimestampForConfirmation() {
+        for (generationChange in listOf(false, true)) {
+            for (offset in listOf(-60L, 0L, 60L)) {
+                val p = ForecastLowConfidencePolicy()
+                tick(p, 300)
+                val sensor = if (generationChange) "sensor-a" else "sensor-b"
+                val generation = if (generationChange) 2 else 1
+                val seconds = 300 + offset
+                val ageMs = maxOf(0L, -offset) * 1000
+                assertEquals(Decision.CONFIRMING,
+                    tick(p, seconds, sensor = sensor, generation = generation, ageMs = ageMs))
+                repeat(4) {
+                    assertEquals(Decision.CONFIRMING,
+                        tick(p, seconds, sensor = sensor, generation = generation, ageMs = ageMs + (it + 1) * 10_000))
+                }
+                assertEquals(Decision.CONFIRMED,
+                    tick(p, seconds + 60, glucose = 115f, sensor = sensor, generation = generation, ageMs = ageMs))
+            }
+        }
+    }
+
+    @Test fun sameSensorConfigurationChangesCannotReuseTheSameReading() {
+        repeat(3) { change ->
+            val p = ForecastLowConfidencePolicy()
+            tick(p)
+            val threshold = if (change == 0) 72f else 70f
+            val horizon = if (change == 1) 25 else 20
+            val mmol = change == 2
+            assertEquals(Decision.CONFIRMING,
+                tick(p, threshold = threshold, horizon = horizon, mmol = mmol))
+            assertEquals(Decision.CONFIRMING,
+                tick(p, 60, glucose = 115f, threshold = threshold, horizon = horizon, mmol = mmol))
+            assertEquals(Decision.CONFIRMED,
+                tick(p, 120, glucose = 112f, threshold = threshold, horizon = horizon, mmol = mmol))
+        }
+    }
+
+    @Test fun sameSensorOutOfOrderUrgentReadingIsStillRejected() {
+        val p = ForecastLowConfidencePolicy()
+        tick(p, 300)
+        assertEquals(Decision.NO_CANDIDATE,
+            tick(p, 240, glucose = 80f, rate = -1f, ageMs = 60_000))
+    }
+
     @Test fun thresholdHorizonAndUnitChangesRestartConfirmation() {
         val p = ForecastLowConfidencePolicy()
         tick(p)
