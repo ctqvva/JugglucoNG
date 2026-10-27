@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -76,7 +78,8 @@ fun <T> ConnectedButtonGroup(
     Row(
         modifier = modifier
             .selectableGroup()
-            .height(itemHeight),
+            .heightIn(min = itemHeight)
+            .height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(spacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -105,7 +108,7 @@ fun <T> ConnectedButtonGroup(
                 onCheckedChange = { onOptionSelected(option) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(itemHeight),
+                    .fillMaxHeight(),
                 shapes = when {
                     options.size == 1 -> ToggleButtonDefaults.shapesFor(itemHeight)
                     index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
@@ -155,7 +158,6 @@ fun <T> ConnectedButtonGroup(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight()
                         .onSizeChanged { availableWidthPx = it.width }
                         .padding(horizontal = 2.dp),
                     horizontalArrangement = Arrangement.Center,

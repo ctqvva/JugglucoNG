@@ -2,6 +2,7 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -668,33 +669,36 @@ private fun DeliverySection(
 }
 
 @Composable
-private fun PresetSummaryRow(
-    preset: String,
-    onChangePreset: () -> Unit
-) {
+private fun PresetSummaryRow(preset: String, onChangePreset: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(CardPosition.SINGLE, radius = 10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = onChangePreset,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding,
+                    ) {
+                        Text(stringResource(R.string.outbound_api_change_preset))
+                    }
+                }
+            },
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(R.string.outbound_api_provider),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = stringResource(presetTitle(preset)),
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
                 )
-            }
-            TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
     }
@@ -964,69 +968,71 @@ internal fun ToggleRow(
 }
 
 @Composable
-internal fun NumberStepper(
-    label: String,
-    value: Int,
-    range: IntRange,
-    onChange: (Int) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        Surface(
-            shape = cardShape(CardPosition.SINGLE, radius = 24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
-        ) {
-            Row(
-                modifier = Modifier.height(48.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
-                    IconButton(
-                        onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
-                        enabled = value > range.first,
-                        modifier = Modifier.size(48.dp),
-                        shapes = IconButtonDefaults.shapes()
+internal fun NumberStepper(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    AdaptiveTrailingRow(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = cardShape(CardPosition.SINGLE, radius = 24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Row(
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            Icons.Filled.Remove,
-                            contentDescription = stringResource(R.string.outbound_api_decrease_value)
+                        IconButtonTooltip(stringResource(R.string.outbound_api_decrease_value)) {
+                            IconButton(
+                                onClick = { onChange((value - 1).coerceAtLeast(range.first)) },
+                                enabled = value > range.first,
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Remove,
+                                    contentDescription =
+                                        stringResource(R.string.outbound_api_decrease_value),
+                                )
+                            }
+                        }
+                        Text(
+                            text = value.toString(),
+                            modifier = Modifier.widthIn(min = 34.dp),
+                            textAlign = TextAlign.Center,
+                            style =
+                                MaterialTheme.typography.titleMedium.copy(
+                                    fontFeatureSettings = "tnum"
+                                ),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
-                    }
-                }
-                Text(
-                    text = value.toString(),
-                    modifier = Modifier.widthIn(min = 34.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
-                    IconButton(
-                        onClick = { onChange((value + 1).coerceAtMost(range.last)) },
-                        enabled = value < range.last,
-                        modifier = Modifier.size(48.dp),
-                        shapes = IconButtonDefaults.shapes()
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.outbound_api_increase_value)
-                        )
+                        IconButtonTooltip(stringResource(R.string.outbound_api_increase_value)) {
+                            IconButton(
+                                onClick = { onChange((value + 1).coerceAtMost(range.last)) },
+                                enabled = value < range.last,
+                                modifier = Modifier.size(48.dp),
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription =
+                                        stringResource(R.string.outbound_api_increase_value),
+                                )
+                            }
+                        }
                     }
                 }
             }
+        },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }

@@ -364,7 +364,7 @@ fun CalibrationBottomSheet(
                                 FilledTonalButton(
                                     onClick = { selectedTimestamp = System.currentTimeMillis() },
                                     contentPadding = PaddingValues(horizontal = 16.dp),
-                                    modifier = Modifier.height(32.dp),
+                                    modifier = Modifier.heightIn(min = 32.dp),
                                     shapes = ButtonDefaults.shapes()
                                 ) {
                                     Text(stringResource(R.string.now))

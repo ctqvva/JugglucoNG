@@ -36,6 +36,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.FlowRow
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -2022,14 +2025,15 @@ private fun OttaiSensorMaterialCard(
 //
             if (ready) {
                 Text(stringResource(R.string.ottai_import_export_title), style = MaterialTheme.typography.titleSmall)
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = onExport,
                         enabled = enabled && canExport,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -2040,7 +2044,7 @@ private fun OttaiSensorMaterialCard(
                     OutlinedButton(
                         onClick = onImport,
                         enabled = enabled,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
@@ -2283,28 +2287,31 @@ private fun OttaiBleScanPanel(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        Row(
+        AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = {
+                            scanStats = emptyMap()
+                            scanError = null
+                            scanPermissionGranted = hasBleScanPermissions(context)
+                            bluetoothEnabled = scanner.isBluetoothEnabled()
+                            scanRetryKey += 1
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) {
+                        Text(stringResource(R.string.search_bluetooth))
+                    }
+                }
+            },
         ) {
             Text(
                 stringResource(R.string.ottai_ble_scan_title),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.titleMedium,
             )
-            OutlinedButton(
-                onClick = {
-                    scanStats = emptyMap()
-                    scanError = null
-                    scanPermissionGranted = hasBleScanPermissions(context)
-                    bluetoothEnabled = scanner.isBluetoothEnabled()
-                    scanRetryKey += 1
-                },
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
-            ) {
-                Text(stringResource(R.string.search_bluetooth))
-            }
         }
         if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
             val messageRes = when {
@@ -2333,7 +2340,7 @@ private fun OttaiBleScanPanel(
                         }
                     }
                 },
-                modifier = Modifier.height(ui.buttonHeight),
+                modifier = Modifier.heightIn(min = ui.buttonHeight),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {

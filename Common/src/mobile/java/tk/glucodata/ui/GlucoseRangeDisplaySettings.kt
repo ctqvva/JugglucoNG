@@ -1,5 +1,6 @@
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -302,25 +303,28 @@ private fun GlucoseRangeSliderRow(
     isMmol: Boolean,
     colorBand: Band? = null,
     onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit
+    onValueChangeFinished: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            AdaptiveTrailingRow(
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = formatRangeValue(value, isMmol),
+                            style =
+                                MaterialTheme.typography.titleLargeEmphasized.copy(
+                                    fontFeatureSettings = "tnum"
+                                ),
+                        )
+                    }
+                }
+            ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = formatRangeValue(value, isMmol),
-                    style = MaterialTheme.typography.titleLargeEmphasized.copy(
-                        fontFeatureSettings = "tnum"
-                    )
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             Slider(
@@ -328,7 +332,7 @@ private fun GlucoseRangeSliderRow(
                 onValueChange = onValueChange,
                 onValueChangeFinished = onValueChangeFinished,
                 valueRange = bounds,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         colorBand?.let { band ->

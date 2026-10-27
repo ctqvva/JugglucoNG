@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -421,7 +422,7 @@ private fun ActionDock(
                     onClick = onSnooze,
                     modifier = Modifier
                         .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
-                        .height(if (compact) 58.dp else 62.dp),
+                        .heightIn(min = if (compact) 58.dp else 62.dp),
                     shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -440,7 +441,7 @@ private fun ActionDock(
                 onClick = onDismiss,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 82.dp else 90.dp),
+                    .heightIn(min = if (compact) 82.dp else 90.dp),
                 shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
                 contentPadding = ButtonDefaults.ContentPadding,
                 colors = ButtonDefaults.buttonColors(

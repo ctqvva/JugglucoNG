@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -392,22 +393,11 @@ private fun MQScanStep(
                 tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
             }
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.mq_searching_sensors),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    TextButton(onClick = { showAllDevices = !showAllDevices }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                        Text(
-                            if (showAllDevices) stringResource(R.string.show_sensors_only)
-                            else stringResource(R.string.see_all_devices)
-                        )
-                    }
-                }
+                ScanFilterHeader(
+                    title = stringResource(R.string.mq_searching_sensors),
+                    showAllDevices = showAllDevices,
+                    onToggleFilter = { showAllDevices = !showAllDevices },
+                )
             }
             items(devices) { device ->
                 if (!showAllDevices && !device.isLikelyMq) return@items
@@ -526,7 +516,7 @@ private fun MQScanStep(
                                         }
                                     }
                                 },
-                                modifier = Modifier.height(ui.buttonHeight),
+                                modifier = Modifier.heightIn(min = ui.buttonHeight),
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = ButtonDefaults.ContentPadding
                             ) {
