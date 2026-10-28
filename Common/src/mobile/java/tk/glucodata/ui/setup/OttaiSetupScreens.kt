@@ -434,23 +434,21 @@ internal fun OttaiSensorCard(
                     }
                 }
             }
-            if (!loading) {
-                AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    if (onExport != null) {
-                        OutlinedButton(
-                            onClick = onExport,
-                            enabled = !busy,
-                            modifier = Modifier.heightIn(min = 48.dp),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) {
-                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.ottai_export))
-                        }
+            AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
+                if (!loading && onExport != null) {
+                    OutlinedButton(
+                        onClick = onExport,
+                        enabled = !busy,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) {
+                        Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.ottai_export))
                     }
-                    OttaiImportButton(onClick = onImport, enabled = !busy)
                 }
+                OttaiImportButton(onClick = onImport, enabled = !busy)
             }
         }
     }

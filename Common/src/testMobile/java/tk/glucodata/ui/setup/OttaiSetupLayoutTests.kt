@@ -202,6 +202,8 @@ class OttaiSetupLayoutTests {
         compose.onNodeWithText(statusTitle).assertDoesNotExist()
         compose.runOnIdle { canConnect = true; loading = true }
         compose.onNodeWithText("Connect").assertDoesNotExist()
+        compose.onNodeWithText(importLabel).assertIsEnabled()
+        compose.onNodeWithText(exportLabel).assertDoesNotExist()
         compose.runOnIdle { loading = false }
         val connect = compose.onNodeWithText("Connect").assertIsEnabled()
         val importAction = compose.onNodeWithText(importLabel).assertIsEnabled()
