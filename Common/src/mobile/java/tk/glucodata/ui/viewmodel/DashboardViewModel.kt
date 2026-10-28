@@ -279,6 +279,9 @@ class DashboardViewModel(
     private val _glucodataBroadcastEnabled = MutableStateFlow(false)
     val glucodataBroadcastEnabled = _glucodataBroadcastEnabled.asStateFlow()
 
+    private val _xdripFollowerEnabled = MutableStateFlow(false)
+    val xdripFollowerEnabled = _xdripFollowerEnabled.asStateFlow()
+
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
 
@@ -935,6 +938,7 @@ class DashboardViewModel(
         _xDripBroadcastEnabled.value = Natives.getxbroadcast()
         _patchedLibreBroadcastEnabled.value = Natives.getlibrelinkused()
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+        _xdripFollowerEnabled.value = tk.glucodata.XdripFollowerSend.isEnabled(context)
         _broadcastComputedTrend.value = prefs.getBoolean(tk.glucodata.BroadcastTrendRate.PREF_KEY, false)
         _xdripReportAsLibre2.value = prefs.getBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, false)
 
@@ -1742,6 +1746,11 @@ class DashboardViewModel(
              tk.glucodata.JugglucoSend.setreceivers()
         }
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+    }
+
+    fun setXdripFollowerEnabled(enabled: Boolean) {
+        tk.glucodata.XdripFollowerSend.setEnabled(tk.glucodata.Applic.app, enabled)
+        _xdripFollowerEnabled.value = enabled
     }
 
     fun toggleNotificationChart(enabled: Boolean) {

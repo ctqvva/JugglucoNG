@@ -214,10 +214,14 @@ public class Applic extends Application implements androidx.work.Configuration.P
     }
 
     public void setunit(int unit) {
+        // First label legacy rows using the old preference, then refresh their
+        // display projection after changing it. Startup sets units separately.
+        CalibrationProfileAccess.onDisplayUnitChanged();
         if (Applic.unit != unit)
             SuperGattCallback.previousglucosevalue = 0.0f;
         Natives.setunit(unit);
         Notify.mkunitstr(app, unit);
+        CalibrationProfileAccess.onDisplayUnitChanged();
     }
 
     public void sendlabels() {

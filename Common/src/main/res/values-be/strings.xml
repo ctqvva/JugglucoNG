@@ -987,6 +987,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="writedown">Write down!</string>
     <string name="xdrip_report_as_libre2_title">Ідэнтыфікаваць як Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Дазваляе AAPS уключыць SMB always з гэтым датчыкам. Уключайце, толькі калі давяраеце яго паказанням</string>
+    <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Адпраўляць паказанні глюкозы ў xDrip+ на гэтым тэлефоне</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="zero">0</string>
 

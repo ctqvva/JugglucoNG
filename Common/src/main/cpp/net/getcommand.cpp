@@ -347,8 +347,7 @@ static bool mergeMirrorPollHoles(std::string_view path, int fp, uint32_t offset,
     return false;
 }
 
-static constexpr std::string_view mirrorCalibrationPrefix = "mirror/calibration/";
-static constexpr std::string_view mirrorCalibrationSuffix = ".json";
+#include "MirrorCalibrationExchange.hpp"
 static constexpr std::string_view mirrorIobSnapshotPath = "mirror/iob.json";
 static constexpr std::string_view mirrorJournalSnapshotPath = "mirror/journal.json";
 static constexpr std::string_view cloneRecoveryPrefix = "mirror/backfill/";
@@ -607,12 +606,6 @@ static bool saveCloneRecoveryVirtualFile(CloneRecoveryPathKind kind,
     }
 }
 
-static bool isMirrorCalibrationProfilePath(std::string_view name) {
-    return name.size() >= (mirrorCalibrationPrefix.size() + mirrorCalibrationSuffix.size()) &&
-           name.substr(0, mirrorCalibrationPrefix.size()) == mirrorCalibrationPrefix &&
-           name.substr(name.size() - mirrorCalibrationSuffix.size()) == mirrorCalibrationSuffix;
-}
-
 static std::string extractMirrorCalibrationSerial(std::string_view name) {
     if (!isMirrorCalibrationProfilePath(name)) {
         return {};
@@ -620,6 +613,30 @@ static std::string extractMirrorCalibrationSerial(std::string_view name) {
     const auto start = mirrorCalibrationPrefix.size();
     const auto len = name.size() - start - mirrorCalibrationSuffix.size();
     return std::string(name.substr(start, len));
+}
+
+static bool sendMirrorCalibrationProfile(Connect *connect, crypt_t *ctx,
+                                          std::string_view path, uint32_t offset,
+                                          uint32_t length) {
+    if (length > mirrorCalibrationMaximumBytes || offset != 0) return false;
+    const auto serial = mirrorCalibrationSerial(path);
+    if (serial.empty()) return false;
+    extern std::string javaExportCalibrationProfile(const char *);
+    const std::string id(serial);
+    // Read the live accepted profile, not the last file received from the
+    // master: that file may have been rejected because our local edit is newer.
+    const std::string json = javaExportCalibrationProfile(id.c_str());
+    const int wireBytes = aligner<alignof(dataonly)>(sizeof(dataonly) + length);
+    std::unique_ptr<senddata_t[], ardeleter<4, senddata_t>> response(
+        new (std::align_val_t(4), std::nothrow) senddata_t[wireBytes],
+        ardeleter<4, senddata_t>());
+    if (!response) return false;
+    memset(response.get(), 0, wireBytes);
+    auto *data = reinterpret_cast<dataonly *>(response.get());
+    data->len = mirrorCalibrationResponseLength(json.size(), offset, length);
+    if (length > 0 && data->len > 0)
+        memcpy(data->data, json.data(), data->len);
+    return connect->r_noacksendcommand(ctx, response.get(), wireBytes);
 }
 
 static std::string collectFileOncePayload(const struct fileonce_t *gegs,
@@ -902,6 +919,10 @@ extern                bool updateDevices() ;
                 return {-1,0};
                 }
             it += comlen;
+            if (isMirrorCalibrationProfilePath(path)) {
+                ret = sendMirrorCalibrationProfile(this, ctx, path, ask->off, ask->len);
+                break;
+                }
             if (recoveryKind != CloneRecoveryPathKind::none) {
                 ret = sendCloneRecoveryVirtualFile(this, ctx, recoveryKind, path,
                                                    ask->off, ask->len);

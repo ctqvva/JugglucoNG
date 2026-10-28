@@ -154,6 +154,7 @@ fun ExpressiveSettingsScreen(
     val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
     val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
     val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+    val xdripFollowerEnabled by viewModel.xdripFollowerEnabled.collectAsStateWithLifecycle()
     val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
     val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
 
@@ -275,6 +276,7 @@ fun ExpressiveSettingsScreen(
     // answers "who gets my glucose?" without opening it.
     val phoneAppsLabel = buildList {
         if (xdripEnabled) add(stringResource(R.string.settings_app_name_xdrip))
+        if (xdripFollowerEnabled) add(stringResource(R.string.xdrip_follower_title))
         if (patchedLibreEnabled) add(stringResource(R.string.settings_app_name_patched_libre))
         if (glucodataBroadcastEnabled) add(stringResource(R.string.settings_app_name_glucodata))
         if (healthConnectEnabled) {

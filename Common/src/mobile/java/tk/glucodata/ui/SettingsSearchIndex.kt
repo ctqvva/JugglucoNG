@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.TrackChanges
@@ -85,6 +86,7 @@ internal object SettingsSearchAnchors {
     const val NOTIFICATION_DELTA = "notification/delta"
     const val NOTIFICATION_IOB = "notification/iob"
     const val XDRIP = "phone-apps/xdrip"
+    const val XDRIP_FOLLOWER = "phone-apps/xdrip-follower"
     const val PATCHED_LIBRE = "phone-apps/patched-libre"
     const val GLUCODATA = "phone-apps/glucodata"
     const val HEALTH_CONNECT = "phone-apps/health-connect"
@@ -277,6 +279,9 @@ internal object SettingsSearchIndex {
             terms = listOf("xDrip", "AAPS", "AndroidAPS", "GlucoDataHandler", "GDH", "Glucodata", "LibreLink", "broadcast")),
         SettingsSearchEntry(R.string.settings_xdrip_broadcast_title, PHONE_APPS, Icons.Default.Radio, T,
             route("settings/phone-apps"), terms = listOf("AAPS", "AndroidAPS"), anchor = SettingsSearchAnchors.XDRIP),
+        SettingsSearchEntry(R.string.xdrip_follower_title, PHONE_APPS, Icons.Default.Sync, T,
+            route("settings/phone-apps"), terms = listOf("xDrip", "Follower", "NSClient"),
+            anchor = SettingsSearchAnchors.XDRIP_FOLLOWER),
         SettingsSearchEntry(R.string.settings_patched_libre_title, PHONE_APPS, Icons.Default.Share, T,
             route("settings/phone-apps"), terms = listOf("LibreLink"), anchor = SettingsSearchAnchors.PATCHED_LIBRE),
         SettingsSearchEntry(R.string.settings_glucodata_title, PHONE_APPS, Icons.AutoMirrored.Filled.Send, T,

@@ -1028,6 +1028,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="writedown">Write down!</string>
     <string name="xdrip_report_as_libre2_title">Представляться как Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Позволяет AAPS включить SMB always с этим датчиком. Включайте, только если доверяете его показаниям</string>
+    <string name="xdrip_compatible_desc">Совместимый с AAPS</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Отправлять показания глюкозы в xDrip+ на этом телефоне</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="zero">0</string>
 

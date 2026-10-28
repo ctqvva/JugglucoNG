@@ -1023,6 +1023,9 @@
     <string name="writedown">Zapisz!</string>
     <string name="xdrip_report_as_libre2_title">Identyfikuj jako Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Pozwala AAPS włączyć SMB zawsze dla tego sensora. Włącz tylko, jeśli ufasz jego odczytom</string>
+    <string name="xdrip_compatible_desc">Local broadcast</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Wysyłaj odczyty glukozy do xDrip+ na tym telefonie</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="zero">0</string>
 

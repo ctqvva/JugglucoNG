@@ -1695,40 +1695,61 @@ public:
                      uint16_t &startSendCalibrate) {
     const int lastsens = last();
     const int first = startSendCalibrate;
-    if (lastsens < first)
-      return 2;
     extern std::mutex caliMutex;
-    std::lock_guard<std::mutex> lock(caliMutex);
     extern std::string javaExportCalibrationProfile(const char *serial);
-    int did = 0;
-    for (int sindex = first; sindex <= lastsens; ++sindex) {
-      SensorGlucoseData *sens = getSensorData(sindex);
-      if (!sens)
-        return 0;
-      alignMirrorRemoteBase(sens, sindex);
-      int res = sens->updateCali(pass, connect, ind, sindex);
-      if (!res)
-        return 0;
-      did |= res;
-      const char *serial = getsensor(sindex)->shortsensorname_chars();
-      if (serial && serial[0]) {
-        if (std::string json = javaExportCalibrationProfile(serial);
-            !json.empty()) {
-          std::string relpath = "mirror/calibration/";
-          relpath += serial;
-          relpath += ".json";
-          if (!connect->senddata(pass, 0,
-                        reinterpret_cast<const senddata_t *>(json.data()),
-                        static_cast<int>(json.size()), relpath)) {
-            LOGGER("sendCalibrates: failed sending Kotlin profile for %s\n",
-                   serial);
-            return 0;
-          }
-          did |= 1;
-        }
+    extern std::vector<std::string> javaMirrorCalibrationSensorIds();
+    auto profileIds = javaMirrorCalibrationSensorIds();
+    int did = 2;
+    {
+      std::lock_guard<std::mutex> lock(caliMutex);
+      for (int sindex = first; sindex <= lastsens; ++sindex) {
+        SensorGlucoseData *sens = getSensorData(sindex);
+        if (!sens)
+          return 0;
+        alignMirrorRemoteBase(sens, sindex);
+        int res = sens->updateCali(pass, connect, ind, sindex);
+        if (!res)
+          return 0;
+        did |= res;
       }
     }
-    startSendCalibrate = lastsens;
+    // Return discovery covers the whole shared sensor roster, even when the
+    // forward native calibration cursor has advanced past an uncalibrated sensor.
+    for (int sindex = 0; sindex <= lastsens; ++sindex) {
+      const char *serial = getsensor(sindex)->shortsensorname_chars();
+      if (serial && serial[0] &&
+          std::none_of(profileIds.begin(), profileIds.end(), [&](const auto &id) {
+            return id == serial || sensorindex(id) == sindex || sensorindexshort(id) == sindex;
+          }))
+        profileIds.emplace_back(serial);
+    }
+    // A managed driver's profile must not depend on a native shell or cursor.
+    // Keep the existing per-sensor path/JSON so older receivers can import it.
+    for (const auto &id : profileIds) {
+      if (id.empty() || id.find_first_of("/\\") != std::string::npos ||
+          id == "." || id == "..")
+        continue;
+      const char *serial = id.c_str();
+      if (std::string json = javaExportCalibrationProfile(serial);
+          !json.empty()) {
+        std::string relpath = "mirror/calibration/";
+        relpath += serial;
+        relpath += ".json";
+        if (!connect->senddata(pass, 0,
+                      reinterpret_cast<const senddata_t *>(json.data()),
+                      static_cast<int>(json.size()), relpath)) {
+          LOGGER("sendCalibrates: failed sending Kotlin profile for %s\n",
+                 serial);
+          return 0;
+        }
+        did |= 1;
+      }
+      // Pull even when this device cannot export a profile for the sensor.
+      if (!connect->pullMirrorCalibrationProfile(pass, id))
+        return 0;
+    }
+    if (lastsens >= first)
+      startSendCalibrate = lastsens;
     return did;
   }
   int update(crypt_t *pass, Connect *connect, const int ind, int &startupdate,

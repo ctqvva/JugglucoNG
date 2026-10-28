@@ -217,6 +217,14 @@
     <string name="xdripbroadcast">Libre (patched App)</string>
     <string name="xdrip_report_as_libre2_title">Identify as Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Lets AAPS allow SMB always with this sensor. Turn on only if you trust its readings</string>
+    <string name="aaps_broadcast">Glucodata</string>
+    <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
+    <string name="broadcast_computed_trend_title">Broadcast app trend</string>
+    <string name="broadcast_computed_trend_desc">Use the app’s trend instead of the sensor’s</string>
+    <string name="xdrip_compatible_title">xDrip broadcast</string>
+    <string name="xdrip_compatible_desc">AAPS compatible</string>
+    <string name="xdrip_follower_title">xDrip+ Sync Follower</string>
+    <string name="xdrip_follower_desc">Send glucose to xDrip+ on this phone</string>
     <string name="health_connect_title">Health Connect</string>
     <string name="sensorpermission">Sensors permission</string>
  <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
