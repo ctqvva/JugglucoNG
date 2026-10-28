@@ -1,8 +1,8 @@
 // JugglucoNG — Ottai setup: the pieces the wizard is built from.
 //
 // OttaiSetupWizard.kt owns the state and every cloud/BLE call; this file only lays out the
-// screens: the card every Ottai status shares, the NFC wake card, the chosen-sensor card, the
-// account and registration pages, and the saved-sensors page.
+// screens: the card every Ottai status shares, the NFC wake hint, the chosen-sensor card, the QR
+// page, the account and registration pages, and the saved-sensors page.
 
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
@@ -12,6 +12,22 @@ import android.content.Intent
 import android.nfc.NfcAdapter
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import tk.glucodata.ui.isAppInDarkTheme
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,9 +85,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -100,7 +116,6 @@ import tk.glucodata.drivers.ottai.normalizeOttaiPhone
 import tk.glucodata.ui.StatusPalette
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.IconButtonTooltip
-import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
@@ -219,79 +234,6 @@ internal fun OttaiCardActions(content: @Composable RowScope.() -> Unit) {
     )
 }
 
-/**
- * A pick-one row for the nearby list: the settings-row surface and inset, with a selected
- * state the reader can see (container + check) and a screen reader can hear (radio role).
- */
-@Composable
-internal fun OttaiChoiceRow(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconTint: Color?,
-    selected: Boolean,
-    position: CardPosition,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    trailingText: String? = null,
-) {
-    Surface(
-        selected = selected,
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(position),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-    ) {
-        Row(
-            modifier = Modifier
-                .heightIn(min = 72.dp)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
-            IconTile(
-                icon = icon,
-                tint = tint,
-                containerColor = if (iconTint != null) {
-                    tint.copy(alpha = IconTileDefaults.ContainerAlpha)
-                } else {
-                    Color.Transparent
-                },
-            )
-            Spacer(Modifier.width(IconTileDefaults.Gap))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (trailingText != null) {
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    trailingText,
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selected) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-    }
-}
-
 /** A caption under a group: muted, on the group's left edge. */
 @Composable
 internal fun OttaiCaption(text: String, modifier: Modifier = Modifier, isError: Boolean = false) {
@@ -307,101 +249,59 @@ internal fun OttaiCaption(text: String, modifier: Modifier = Modifier, isError: 
 internal enum class OttaiNfcWakeState { IDLE, LISTENING, UNCONFIRMED, WOKE }
 
 /**
- * The NFC wake step, shown only for Ottai China and Syai: their new sensors stay silent over
- * Bluetooth until an NFC field wakes them. It is already listening when it appears, and it also
- * answers the two reasons a phone stays silent: no NFC at all, and NFC switched off.
+ * The NFC wake, said in one line under the search header. China and Syai sensors stay silent over
+ * Bluetooth until an NFC field wakes them, and the phone listens the whole time the search is
+ * open, so there is nothing to press. A phone without NFC shows nothing; NFC switched off gets the
+ * way to turn it on. The icon and text line up with the device rows' icon and name.
  */
 @Composable
-internal fun OttaiNfcWakeCard(
-    state: OttaiNfcWakeState,
-    onStart: () -> Unit,
-) {
+internal fun OttaiNfcHintRow(state: OttaiNfcWakeState, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val adapter = remember { runCatching { NfcAdapter.getDefaultAdapter(context) }.getOrNull() }
     var nfcEnabled by remember { mutableStateOf(adapter?.isEnabled == true) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { nfcEnabled = adapter?.isEnabled == true }
+    if (adapter == null) return
 
-    when {
-        adapter == null -> OttaiCard(
-            title = stringResource(R.string.ottai_nfc_missing_title),
-            body = stringResource(R.string.ottai_nfc_missing_body),
-            icon = Icons.Default.Nfc,
-            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    val icon = if (state == OttaiNfcWakeState.WOKE && nfcEnabled) Icons.Default.Check else Icons.Default.Nfc
+    val tint = when {
+        !nfcEnabled -> StatusPalette.warning()
+        state == OttaiNfcWakeState.WOKE -> StatusPalette.success()
+        state == OttaiNfcWakeState.UNCONFIRMED -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val text = stringResource(
+        when {
+            !nfcEnabled -> R.string.ottai_nfc_off_title
+            state == OttaiNfcWakeState.WOKE -> R.string.ottai_nfc_woke_title
+            state == OttaiNfcWakeState.UNCONFIRMED -> R.string.ottai_nfc_unconfirmed
+            else -> R.string.ottai_nfc_hint
+        },
+    )
+    Row(
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint)
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        !nfcEnabled -> OttaiCard(
-            title = stringResource(R.string.ottai_nfc_off_title),
-            body = stringResource(R.string.ottai_nfc_off_body),
-            icon = Icons.Default.Nfc,
-            iconColor = StatusPalette.warning(),
-            actions = {
-                OttaiCardActions {
-                    Button(
-                        onClick = {
-                            val opened = runCatching {
-                                context.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
-                            }.isSuccess
-                            if (!opened) runCatching {
-                                context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
-                            }
-                        },
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) { Text(stringResource(R.string.ottai_nfc_open_settings)) }
-                }
-            },
-        )
-        state == OttaiNfcWakeState.WOKE -> OttaiCard(
-            title = stringResource(R.string.ottai_nfc_woke_title),
-            body = stringResource(R.string.ottai_nfc_woke_body),
-            icon = Icons.Default.Check,
-            iconColor = StatusPalette.success(),
-            actions = {
-                OttaiCardActions {
-                    TextButton(
-                        onClick = onStart,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding,
-                    ) { Text(stringResource(R.string.ottai_nfc_again)) }
-                }
-            },
-        )
-        else -> {
-            val listening = state != OttaiNfcWakeState.IDLE
-            val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-            OttaiCard(
-                title = stringResource(
-                    if (listening) R.string.ottai_nfc_listening_title else R.string.ottai_nfc_idle_title,
-                ),
-                body = stringResource(R.string.ottai_nfc_body),
-                icon = Icons.Default.Nfc,
-                hero = true,
-                loading = listening,
-                iconColor = if (listening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary,
-                iconContainerColor = MaterialTheme.colorScheme.primary,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = onContainer,
-                supportingColor = onContainer,
-                details = if (state == OttaiNfcWakeState.UNCONFIRMED) {
-                    {
-                        Text(
-                            stringResource(R.string.ottai_nfc_unconfirmed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+        if (!nfcEnabled) {
+            TextButton(
+                onClick = {
+                    val opened = runCatching {
+                        context.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
+                    }.isSuccess
+                    if (!opened) runCatching {
+                        context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
                     }
-                } else null,
-                actions = if (!listening) {
-                    {
-                        OttaiCardActions {
-                            Button(
-                                onClick = onStart,
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding,
-                            ) { Text(stringResource(R.string.ottai_nfc_start)) }
-                        }
-                    }
-                } else null,
-            )
+                },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding,
+            ) { Text(stringResource(R.string.ottai_nfc_open_settings)) }
         }
     }
 }
@@ -413,6 +313,7 @@ internal fun OttaiNfcWakeCard(
  */
 @Composable
 internal fun OttaiSensorCard(
+    sensorId: String,
     state: OttaiMaterialState,
     loading: Boolean,
     signedIn: Boolean,
@@ -452,6 +353,7 @@ internal fun OttaiSensorCard(
         else -> null
     }
     val meta = listOfNotNull(
+        sensorId.takeIf { it.isNotBlank() },
         deviceVersion.takeIf { !loading && it.isNotBlank() }
             ?.let { stringResource(R.string.ottai_device_version_label, it) },
         bindingText,
@@ -470,7 +372,7 @@ internal fun OttaiSensorCard(
                 if (meta.isNotEmpty()) {
                     Text(
                         meta,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -547,8 +449,10 @@ internal fun OttaiUnusedBindingCard(
     sensorId: String,
     enabled: Boolean,
     onUnbind: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     OttaiCard(
+        modifier = modifier,
         title = stringResource(R.string.ottai_unused_binding_title),
         body = stringResource(R.string.ottai_unused_binding_desc, sensorId),
         icon = Icons.Default.LinkOff,
@@ -577,9 +481,10 @@ private fun OttaiUnbindButton(enabled: Boolean, onClick: () -> Unit) {
 // ---- Account ----
 
 /**
- * The account page: who is signed in and to which backend, or the sign-in form. China signs in
- * by SMS; Ottai Global and Syai by email/username and password. On success the wizard returns to
- * setup, where the account row now says who is signed in.
+ * The account page: who is signed in and to which backend, or the sign-in form. Signed out, this
+ * is where setup opens, because no new sensor works without the account; saved sensors stay one
+ * row away for the offline route. China signs in by SMS; Ottai Global and Syai by email/username
+ * and password. On success the wizard moves on to the sensor search.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -594,6 +499,8 @@ internal fun OttaiAccountStep(
     onSignedIn: (login: String) -> Unit,
     onSignOut: () -> Unit,
     onRegister: () -> Unit,
+    savedSummary: String,
+    onOpenSaved: () -> Unit,
     // The wizard's scope, not this page's: leaving the page mid-request must not cancel the
     // coroutine after the cloud call has already stored a session, or onSignedIn never runs.
     scope: CoroutineScope,
@@ -658,11 +565,6 @@ internal fun OttaiAccountStep(
             return@Column
         }
 
-        Text(
-            stringResource(R.string.ottai_account_intro),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         if (message.isNotBlank()) OttaiCaption(message, isError = true)
 
         SectionLabel(stringResource(R.string.ottai_account_app_question))
@@ -855,6 +757,16 @@ internal fun OttaiAccountStep(
                 contentPadding = ButtonDefaults.TextButtonContentPadding,
             ) { Text(stringResource(R.string.ottai_register_cta)) }
         }
+
+        Spacer(Modifier.size(24.dp))
+        SettingsItem(
+            title = stringResource(R.string.ottai_saved_sensors_title),
+            subtitle = savedSummary,
+            icon = Icons.Default.Key,
+            iconTint = MaterialTheme.colorScheme.secondary,
+            position = CardPosition.SINGLE,
+            onClick = if (!busy) onOpenSaved else null,
+        )
     }
 }
 
@@ -1050,6 +962,221 @@ internal fun OttaiRegisterStep(
                 }
             }
             if (status.isNotBlank()) OttaiCaption(status, isError = statusIsError)
+        }
+    }
+}
+
+// ---- QR code ----
+
+/**
+ * Scan or type the sensor's code. The drawing shows which code: the one on the white applicator's
+ * label. A box serial still works, but the applicator is what the user is holding.
+ */
+@Composable
+internal fun OttaiQrStep(
+    ui: WizardUiMetrics,
+    onScanned: (raw: String) -> Boolean,
+    onEntered: (code: String) -> Unit,
+) {
+    var typed by remember { mutableStateOf("") }
+    val code = OttaiConstants.extractSetupCode(typed)
+        ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
+    val invalid = typed.length >= 12 && code == null
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ui.horizontalPadding)
+            .padding(top = 8.dp, bottom = 32.dp),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = OttaiHeroShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                OttaiApplicatorDrawing(
+                    modifier = Modifier
+                        .widthIn(max = 320.dp)
+                        .fillMaxWidth()
+                        .aspectRatio(2.2f),
+                )
+                Spacer(Modifier.size(16.dp))
+                Text(
+                    stringResource(R.string.ottai_qr_title),
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Spacer(Modifier.size(16.dp))
+        InlineQrScannerCard(
+            modifier = Modifier.fillMaxWidth().height(240.dp),
+            onScanResult = onScanned,
+        )
+        Spacer(Modifier.size(24.dp))
+        OutlinedTextField(
+            value = typed,
+            onValueChange = { typed = it.trim() },
+            label = { Text(stringResource(R.string.ottai_sensor_mac_hint)) },
+            supportingText = if (invalid) {
+                { Text(stringResource(R.string.ottai_sensor_id_supporting)) }
+            } else null,
+            isError = invalid,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { code?.let(onEntered) }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.size(16.dp))
+        Button(
+            onClick = { code?.let(onEntered) },
+            enabled = code != null,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ContentPadding,
+        ) { Text(stringResource(R.string.continue_action)) }
+    }
+}
+
+/**
+ * The Ottai applicator as the user sees it: a white capsule with a grip-dotted cap and a label,
+ * the label's QR code framed in the theme colour. Drawn, not a bitmap, so it follows the theme
+ * and the font scale's width. Static: nothing here changes, so nothing moves.
+ */
+@Composable
+private fun OttaiApplicatorDrawing(modifier: Modifier = Modifier) {
+    val dark = isAppInDarkTheme()
+    // ui-guardrails: allow-begin hex_color - a picture of a physical object: its own white plastic, black print and Ottai blue, not theme roles
+    // A white plastic object: a touch dimmer on a dark screen so it does not glare.
+    val bodyTop = if (dark) Color(0xFFE9E9E6) else Color(0xFFFFFFFF)
+    val bodyBottom = if (dark) Color(0xFFC8C8C4) else Color(0xFFE2E2DE)
+    val edge = if (dark) Color(0xFF9E9E99) else Color(0xFFC4C4BF)
+    val ink = Color(0xFF1D1D1F)
+    val brand = Color(0xFF2E5BD8)
+    // ui-guardrails: allow-end
+    val frame = MaterialTheme.colorScheme.primary
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.5.dp.toPx()
+
+        // Body and its cap seam.
+        drawRoundRect(
+            brush = Brush.verticalGradient(listOf(bodyTop, bodyBottom)),
+            cornerRadius = CornerRadius(h / 2),
+        )
+        drawRoundRect(color = edge, cornerRadius = CornerRadius(h / 2), style = Stroke(stroke))
+        val seam = Path().apply {
+            moveTo(w * 0.2f, h * 0.05f)
+            quadraticTo(w * 0.17f, h / 2, w * 0.2f, h * 0.95f)
+        }
+        drawPath(seam, color = edge, style = Stroke(stroke))
+        val dot = 1.6.dp.toPx()
+        val pitch = 6.dp.toPx()
+        for (col in 0..2) for (row in 0..col) {
+            drawCircle(
+                color = edge,
+                radius = dot,
+                center = Offset(w * 0.07f + col * pitch, h / 2 + (row - col / 2f) * pitch),
+            )
+        }
+
+        // The label, its text lines, and the code.
+        val labelLeft = w * 0.25f
+        val labelRight = w * 0.91f
+        val labelTop = h * 0.2f
+        val labelBottom = h * 0.8f
+        val labelH = labelBottom - labelTop
+        drawRoundRect(
+            color = Color.White,
+            topLeft = Offset(labelLeft, labelTop),
+            size = Size(labelRight - labelLeft, labelH),
+            cornerRadius = CornerRadius(4.dp.toPx()),
+        )
+        drawRoundRect(
+            color = edge.copy(alpha = 0.6f),
+            topLeft = Offset(labelLeft, labelTop),
+            size = Size(labelRight - labelLeft, labelH),
+            cornerRadius = CornerRadius(4.dp.toPx()),
+            style = Stroke(1.dp.toPx()),
+        )
+        val line = labelH * 0.09f
+        val textLeft = labelLeft + labelH * 0.18f
+        drawRoundRect(
+            color = brand,
+            topLeft = Offset(textLeft, labelTop + labelH * 0.2f),
+            size = Size(labelH * 0.55f, line * 1.4f),
+            cornerRadius = CornerRadius(line),
+        )
+        listOf(0.48f to 0.9f, 0.66f to 0.75f).forEach { (y, length) ->
+            drawRoundRect(
+                color = edge,
+                topLeft = Offset(textLeft, labelTop + labelH * y),
+                size = Size(labelH * length, line),
+                cornerRadius = CornerRadius(line / 2),
+            )
+        }
+
+        val qr = labelH * 0.62f
+        val qrLeft = labelRight - labelH * 0.2f - qr
+        val qrTop = labelTop + (labelH - qr) / 2
+        val module = qr / 9f
+        fun cell(x: Int, y: Int, span: Int = 1) = drawRect(
+            color = ink,
+            topLeft = Offset(qrLeft + x * module, qrTop + y * module),
+            size = Size(module * span, module * span),
+        )
+        // Three finder squares, then a fixed scatter of data modules.
+        listOf(0 to 0, 6 to 0, 0 to 6).forEach { (x, y) ->
+            drawRect(
+                color = ink,
+                topLeft = Offset(qrLeft + x * module + module / 4, qrTop + y * module + module / 4),
+                size = Size(module * 2.5f, module * 2.5f),
+                style = Stroke(module / 2),
+            )
+            cell(x + 1, y + 1)
+        }
+        listOf(
+            4 to 0, 4 to 1, 3 to 2, 5 to 2, 4 to 3, 0 to 4, 2 to 4, 3 to 4, 6 to 4, 8 to 4,
+            1 to 5, 4 to 5, 7 to 5, 4 to 6, 6 to 6, 8 to 6, 3 to 7, 5 to 7, 7 to 7, 4 to 8, 6 to 8, 8 to 8,
+        ).forEach { (x, y) -> cell(x, y) }
+
+        // The frame that says "this one".
+        val margin = qr * 0.24f
+        val left = qrLeft - margin
+        val top = qrTop - margin
+        val right = qrLeft + qr + margin
+        val bottom = qrTop + qr + margin
+        drawRoundRect(
+            color = frame.copy(alpha = 0.12f),
+            topLeft = Offset(left, top),
+            size = Size(right - left, bottom - top),
+            cornerRadius = CornerRadius(6.dp.toPx()),
+        )
+        val arm = (right - left) * 0.3f
+        val frameStroke = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+        listOf(
+            Triple(Offset(left, top), 1f, 1f),
+            Triple(Offset(right, top), -1f, 1f),
+            Triple(Offset(left, bottom), 1f, -1f),
+            Triple(Offset(right, bottom), -1f, -1f),
+        ).forEach { (corner, dx, dy) ->
+            val bracket = Path().apply {
+                moveTo(corner.x + dx * arm, corner.y)
+                lineTo(corner.x, corner.y)
+                lineTo(corner.x, corner.y + dy * arm)
+            }
+            drawPath(bracket, color = frame, style = frameStroke)
         }
     }
 }
