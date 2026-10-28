@@ -442,6 +442,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="notification_chart_title">Diagramm in Benachrichtigung anzeigen</string>
     <string name="notification_chart_desc">Glukosekurve in der Statusleiste anzeigen</string>
     <string name="google_scan_desc">Google Play Dienste für QR-Scan verwenden</string>
+    <string name="mirror_desc">Daten über Internet/Heimnetz teilen/empfangen</string>
     <string name="nightscout_desc">Messwerte senden oder empfangen</string>
     <string name="glucose_alerts_title">Warnungen und Alarme</string>
     <string name="glucose_range_title">Glukosebereich</string>
@@ -592,6 +593,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="alert_sound">Alarmton</string>
     <string name="vibrate_only">Nur Vibrieren</string>
     <string name="sound_vibrate">Ton &amp; Vibrieren</string>
+    <string name="turbo_title">Turbo (Hohe Priorität)</string>
+    <string name="turbo_desc">Fordert hohe Verbindungspriorität an</string>
+    <string name="autoconnect_title">Android (AutoConnect)</string>
+    <string name="autoconnect_desc">Verwendet passive Hintergrundverbindung</string>
     <string name="graph_smoothing_title">Datenglättung</string>
     <string name="graph_smoothing_desc">Glättet Diagrammdaten und, sofern „Nur Diagramm glätten“ nicht aktiv ist, aufgelöste Glukosewerte</string>
     <string name="graph_smoothing_none">Deaktiviert</string>
@@ -617,11 +622,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="preview_window_expanded_only">Nur in erweiterter Ansicht (Standard)</string>
     <string name="preview_window_always">Immer</string>
     <string name="preview_window_never">Nie</string>
+    <string name="debug_logs_desc">Trace.log und Logcat anzeigen</string>
     <string name="export_data">Verlauf exportieren</string>
     <string name="export_data_desc">Glukosewerte als CSV/Text speichern</string>
     <string name="export_settings">Einstellungen exportieren</string>
     <string name="export_settings_desc">Alle App-Einstellungen, Zugangsdaten und Geräteschlüssel speichern</string>
     <string name="export_data_settings">Daten/Einstellungen exportieren</string>
+    <string name="export_data_settings_desc">Einstellungen, Verlauf, Kalibrierungen oder ein vollständiges Paket auswählen</string>
     <string name="export_compression">Komprimierung</string>
     <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
@@ -677,14 +684,17 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="import_data">Verlauf importieren</string>
     <string name="import_data_desc">Sicherung oder Libreview-Datei laden</string>
     <string name="import_data_settings">Daten/Einstellungen importieren</string>
+    <string name="import_data_settings_desc">Verlauf-CSV oder JugglucoNG-Export wiederherstellen</string>
     <string name="settings_import_confirm_title">Einstellungen importieren?</string>
     <string name="settings_import_confirm_message">Dies ersetzt App-Einstellungen, Zugangsdaten, Geräteschlüssel und Spiegelkonfiguration und startet die App neu.</string>
     <string name="settings_import_successful">Einstellungen importiert. Neustart…</string>
     <string name="danger_zone">Gefahrenzone</string>
     <string name="clear_history">Verlauf löschen</string>
+    <string name="clear_history_desc_short">Alle Glukosewerte entfernen</string>
     <string name="clear_app_data">App-Daten löschen</string>
     <string name="clear_app_data_desc">Verlauf und Cache entfernen, Einstellungen behalten</string>
     <string name="factory_reset">Werkseinstellungen</string>
+    <string name="factory_reset_desc">Alles entfernen, zurück zum Ausgangszustand</string>
     <string name="sibionics_setup_title">Sibionics Einrichtung</string>
     <string name="dexcom_setup_title">Dexcom Einrichtung</string>
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
@@ -799,11 +809,13 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Lautstärke-/Vibrationsprofil</string>
     <string name="ICE">ICE</string>
+    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Abspaltung von Juggluco</string>
     <string name="refreshing">Wird aktualisiert…</string>
     <string name="accuchek_scan_instruction">Scannen Sie die Datenmatrix auf Ihrem Accu-Chek SmartGuide Sensor</string>
     <string name="accuchek_setup_title">Accu-Chek einrichten</string>
     <string name="add_sensor">Sensor hinzufügen</string>
+    <string name="advanced_title">Erweitert</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">Verbunden!</string>
     <string name="aidex_connecting_to">Verbindung zu %1$s wird hergestellt…</string>
@@ -914,6 +926,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="finish_setup">Fertig</string>
     <string name="forget_sensor_desc">Entfernt den Sensor aus der Liste. Nach erneutem Scannen kann er wieder erscheinen.</string>
     <string name="forget_sensor_title">Sensor vergessen?</string>
+    <string name="glucodata_subtitle">Glucodata</string>
+    <string name="broadcast_computed_trend_title">App-Trend senden</string>
+    <string name="broadcast_computed_trend_desc">App-Trend statt Sensortrend verwenden</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google-Scanner</string>
     <string name="gvi">GVI</string>
@@ -962,6 +977,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libreview_active_desc">LibreView-Upload aktivieren</string>
     <string name="libreview_config">LibreView</string>
     <string name="libreview_current">Aktuellen Glukosewert anzeigen</string>
+    <string name="libreview_desc">Synchronisierung mit Abbott LibreView</string>
     <string name="libreview_email">E-Mail</string>
     <string name="libreview_get_account_id">Konto-ID anfordern</string>
     <string name="libreview_is_viewed">Als angesehen markieren</string>
@@ -983,6 +999,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="min">Min</string>
     <string name="min_glucose">Min</string>
     <string name="mmolL">mmol/L</string>
+    <string name="nightscout_config">Nightscout-Einstellungen</string>
     <string name="no_data_available">Keine Daten verfügbar</string>
     <string name="no_sensor_description">Einen CGM-Sensor verbinden, um Glukosewerte zu erfassen.</string>
     <string name="no_sensor_title">Kein Sensor verbunden</string>
@@ -1088,9 +1105,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="very_high">Sehr hoch</string>
     <string name="very_low">Sehr niedrig</string>
     <string name="wipe_data">Sensordaten löschen</string>
+    <string name="xdrip_compatible_desc">AAPS-kompatibel</string>
     <string name="xdrip_report_as_libre2_title">Als Libre 2 ausgeben</string>
     <string name="xdrip_report_as_libre2_desc">Erlaubt AAPS „SMB immer“ mit diesem Sensor. Nur aktivieren, wenn Sie seinen Werten vertrauen</string>
     <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Glukosewerte an Health Connect senden, damit kompatible Gesundheits-Apps sie nutzen können</string>
+    <string name="xdrip_compatible_title">xDrip Broadcast</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1490,6 +1510,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="wearosinfo">Informationen zu Wear OS</string>
     <string name="wipe_sensor_data_desc">Sensordaten von diesem Gerät löschen.</string>
     <string name="wipe_sensor_data_title">Sensordaten löschen</string>
+    <string name="manual_calibration">Manuelle Kalibrierung</string>
 
 
     <!-- Report localization -->
@@ -1949,6 +1970,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="journal_curve_add_point">Kurvenpunkt hinzufügen</string>
     <string name="journal_curve_point">Punkt %1$d</string>
     <string name="journal_curve_minutes">Minute</string>
+    <string name="notification_settings_title">Benachrichtigungseinstellungen</string>
+    <string name="notification_settings_subtitle">Benachrichtigungsleiste anpassen</string>
+    <string name="lock_screen_aod">Sperrbildschirm (AOD)</string>
+    <string name="aod_settings_title">AOD-Einstellungen</string>
     <string name="aod_show_on_lockscreen">Auf dem Sperrbildschirm anzeigen</string>
     <string name="aod_show_on_lockscreen_desc">Auch anzeigen, wenn der Bildschirm an und gesperrt ist</string>
     <string name="customize_always_on_display">Always-on-Display anpassen</string>
@@ -1978,6 +2003,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="alignment_right">Rechts</string>
     <string name="cgm_readiness_title">Systemprüfung</string>
     <string name="cgm_readiness_dashboard_title">CGM-Einrichtung braucht Aufmerksamkeit</string>
+    <string name="cgm_readiness_settings_desc">Bluetooth, Alarme, Akku, Benachrichtigungen und Hintergrundverhalten prüfen</string>
     <string name="cgm_readiness_ready_title">System bereit</string>
     <string name="cgm_readiness_attention_title">Aufmerksamkeit erforderlich</string>
     <string name="cgm_readiness_ready_body">Bluetooth, Alarme, Benachrichtigungen und Hintergrund-Einstellungen sehen bereit aus.</string>
@@ -2174,6 +2200,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="volume_profile_vibrate_only">Nur Vibration</string>
     <string name="volume_profile_silent">Stumm</string>
     <string name="restart_app">App neu starten</string>
+    <string name="restart_app_desc">Anwendung erzwungen neu starten</string>
     <string name="haptics">Haptik</string>
     <string name="sound_duration">Tondauer</string>
     <string name="haptic_profile_soft">Sanft</string>
@@ -2181,6 +2208,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="haptic_profile_strong">Stark</string>
     <string name="haptic_profile_escalating">Ansteigend</string>
     <string name="outbound_api_title">API-Ziele</string>
+    <string name="outbound_api_desc">Vorlagen für die Zustellung an Chatbots, Webhooks und per Notfall-SMS</string>
     <string name="outbound_api_settings_title">API-Ziele</string>
     <string name="outbound_api_master_desc">Live-Werte an aktivierte Ziele senden</string>
     <string name="outbound_api_destinations">Ziele</string>
@@ -3097,6 +3125,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
         <item quantity="other">%d Minuten</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Werte an Dexcom Follow senden</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
     <string name="dexcom_share_active">An Dexcom senden</string>
     <string name="dexcom_share_active_desc">Aktuelle Werte von diesem Telefon an Dexcom Follow senden</string>
@@ -3124,67 +3153,19 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <!-- Settings tab -->
     <string name="settings_section_display">Anzeige</string>
     <string name="settings_section_sharing">Teilen</string>
-    <string name="settings_section_sensors">Sensoren</string>
     <string name="settings_section_backup">Sicherung und Wiederherstellung</string>
     <string name="settings_section_devices">Geräte</string>
-    <string name="settings_section_general">Allgemein</string>
-    <string name="settings_section_troubleshooting">Fehlerbehebung</string>
-    <string name="settings_unit_title">Glukoseeinheit</string>
-    <string name="settings_alerts_desc">Tief, hoch und Signalverlust</string>
-    <string name="settings_alerts_off_desc">Alle Warnungen sind aus</string>
-    <string name="settings_calibration_title">Kalibrierung</string>
-    <string name="settings_calibration_desc">Modus %1$s</string>
-    <string name="settings_smoothing_off_desc">Aus</string>
-    <string name="settings_prediction_desc">Glukoseprognose</string>
     <string name="settings_dashboard_charts_title">Dashboard und Diagramme</string>
     <string name="settings_dashboard_charts_desc">Zielbereich und Farben</string>
-    <string name="settings_notification_title">Glukose-Benachrichtigung</string>
-    <string name="settings_notification_desc">Wert, Pfeil und Diagramm</string>
-    <string name="settings_floating_desc">Über anderen Apps</string>
-    <string name="settings_floating_permission_desc">Berechtigung nötig</string>
-    <string name="settings_lock_screen_title">Sperrbildschirm (AOD)</string>
-    <string name="settings_lock_screen_desc">Schrift und Stil</string>
-    <string name="settings_lock_screen_off_desc">Bedienungshilfen-Zugriff nötig</string>
-    <string name="settings_journal_desc">Mahlzeiten, Insulin und Notizen</string>
-    <string name="settings_glucose_meters_desc">Bluetooth-Blutzuckermessgeräte</string>
     <string name="settings_phone_apps_title">Apps auf diesem Telefon</string>
     <string name="settings_phone_apps_none">Keine</string>
     <string name="settings_app_name_patched_libre">Libre (gepatcht)</string>
-    <string name="settings_nightscout_desc">Hochladen oder folgen</string>
-    <string name="settings_libreview_desc">Upload zu Abbott</string>
-    <string name="settings_dexcom_share_desc">Für Dexcom Follow</string>
-    <string name="settings_mirror_desc">Zwischen deinen Geräten</string>
-    <string name="settings_webserver_desc">Nightscout-API auf diesem Handy</string>
-    <string name="settings_outbound_api_desc">Webhooks, Bots und SMS</string>
-    <string name="settings_cgm_readiness_desc">Berechtigungen, Akku und Alarme</string>
     <string name="settings_sensor_connection_title">Verbindung und Übergabe</string>
     <string name="settings_sensor_connection_desc">Übergabe und Bluetooth</string>
     <string name="settings_mq_account_desc">Konto und Sync</string>
     <string name="settings_ottai_desc">Konto und Sensoreinrichtung</string>
-    <string name="settings_export_title">Exportieren</string>
-    <string name="settings_export_desc">In eine Datei speichern</string>
-    <string name="settings_import_title">Importieren</string>
-    <string name="settings_import_desc">Aus Export oder CSV</string>
-    <string name="settings_debug_logs_desc">Für Fehlerberichte</string>
-    <string name="settings_restart_desc">App schließen und neu öffnen</string>
-    <string name="settings_clear_history_desc">Alle Werte löschen</string>
-    <string name="settings_clear_app_data_desc">Einstellungen bleiben</string>
-    <string name="settings_factory_reset_desc">Alles löschen</string>
-    <string name="settings_xdrip_broadcast_title">xDrip+-Broadcast</string>
-    <string name="settings_xdrip_broadcast_desc">Für xDrip+ und AAPS</string>
-    <string name="settings_patched_libre_title">Broadcast der gepatchten Libre-App</string>
-    <string name="settings_patched_libre_desc">Für Apps, die die gepatchte Libre-App lesen</string>
-    <string name="settings_glucodata_title">Glucodata-Broadcast</string>
-    <string name="settings_glucodata_desc">Für GlucoDataHandler</string>
-    <string name="settings_health_connect_desc">Werte mit Gesundheits-Apps teilen</string>
     <string name="settings_broadcast_options">Broadcast-Optionen</string>
-    <string name="settings_app_trend_title">Trend der App senden</string>
-    <string name="settings_app_trend_desc">Trendpfeil der App statt des Sensors verwenden</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
-    <string name="settings_turbo_title">Hohe Verbindungspriorität</string>
-    <string name="settings_turbo_desc">Schnellerer Bluetooth-Austausch, etwas mehr Akkuverbrauch</string>
-    <string name="settings_autoconnect_title">Automatisch verbinden</string>
-    <string name="settings_autoconnect_desc">Android verbindet den Sensor im Hintergrund neu</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>

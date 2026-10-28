@@ -210,9 +210,14 @@
     <string name="wifi">Wi-Fi</string>
     <string name="heartrate">Зүрхний цохилт</string>
     <string name="xdripbroadcast">Libre (засварласан апп)</string>
+    <string name="aaps_broadcast">Glucodata</string>
+    <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
+    <string name="xdrip_compatible_title">xDrip broadcast</string>
+    <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="xdrip_report_as_libre2_title">Libre 2 гэж танилцуулах</string>
     <string name="xdrip_report_as_libre2_desc">AAPS-д энэ мэдрэгчтэй SMB always ашиглахыг зөвшөөрнө. Уншилтад нь итгэж байвал л асаана уу</string>
     <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Тохирох эрүүл мэндийн аппуудад зориулж глюкозын хэмжилтийг Health Connect руу илгээх</string>
     <string name="sensorpermission">Мэдрэгчийн зөвшөөрөл</string>
     <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
     <string name="floatglucose">Хөвөгч глюкоз</string>
@@ -489,6 +494,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_chart_title">Мэдэгдлийн график</string>
     <string name="notification_chart_desc">Мэдэгдлийн мөрөнд глюкозын графикийг харуулах</string>
     <string name="google_scan_desc">QR скан хийхэд Google Play үйлчилгээг ашиглах</string>
+    <string name="mirror_desc">Датаг интернет/локал сүлжээгээр хуваалцах/хүлээн авах</string>
     <string name="nightscout_desc">Хэмжилт илгээх эсвэл хүлээн авах</string>
     <string name="glucose_alerts_title">Дохио ба сэрүүлэг</string>
     <string name="glucose_range_title">Глюкозын хүрээ</string>
@@ -591,9 +597,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="theme_system">Системийн үндсэн</string>
     <string name="theme_light">Цайвар</string>
     <string name="theme_dark">Харанхуй</string>
+    <string name="advanced_title">Нарийвчилсан</string>
     <string name="debug_logs">Дебаг логууд</string>
+    <string name="nightscout_config">Nightscout тохиргоо</string>
     <!-- LibreView Settings -->
     <string name="libreview_config">LibreView</string>
+    <string name="libreview_desc">Abbott LibreView-тэй синк хийх</string>
     <string name="libreview_settings_title">LibreView тохиргоо</string>
     <string name="libreview_email">И-мэйл</string>
     <string name="libreview_password">Нууц үг</string>
@@ -769,6 +778,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="import_data">Өгөгдөл импортлох</string>
     <string name="import_data_desc">Нөөц файл эсвэл Libreview файл ачаалах</string>
     <string name="import_data_settings">Өгөгдөл/Тохиргоо импортлох</string>
+    <string name="import_data_settings_desc">Түүхийн CSV эсвэл JugglucoNG экспортыг сэргээх</string>
     <string name="settings_import_confirm_title">Тохиргоог импортлох уу?</string>
     <string name="settings_import_confirm_message">Энэ нь апп-ийн тохиргоо, нэвтрэх мэдээлэл, төхөөрөмжийн түлхүүрүүд болон mirror тохиргоог сольж, апп-ийг дахин эхлүүлнэ.</string>
     <string name="settings_import_successful">Тохиргоо импортлогдлоо. Дахин эхлүүлж байна…</string>
@@ -784,13 +794,19 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="danger_zone">Аюултай бүс</string>
     <string name="clear_history">Түүхийг цэвэрлэх</string>
     <string name="clear_history_desc_long">Бүх глюкозын уншилтуудыг устгах. Буцаах боломжгүй.</string>
+    <string name="clear_history_desc_short">Өгөгдлийн сангаас бүх глюкозын уншилтуудыг устгах</string>
     <string name="clear_app_data">Апп-ийн өгөгдлийг цэвэрлэх</string>
     <string name="clear_app_data_desc">Түүх болон кэшийг устгах, тохиргоог үлдээх</string>
     <string name="factory_reset">Үйлдвэрийн тохиргоонд буцаах</string>
+    <string name="factory_reset_desc">Бүх зүйлийг устгаж, анхны төлөвт нь буцаах</string>
     <string name="factory_reset_alert">БҮХ ЗҮЙЛИЙГ устгах. Буцаах боломжгүй!</string>
     <string name="factory_reset_confirm">Үйлдвэрийн тохиргоонд буцаах уу?</string>
     <string name="clean_history_confirm">Түүхийг цэвэрлэх үү?</string>
     <string name="clean_data_confirm">Апп-ийн өгөгдлийг цэвэрлэх үү?</string>
+    <string name="turbo_title">Турбо (өндөр ач холбогдолтой)</string>
+    <string name="turbo_desc">Холболтын өндөр ач холбогдол хүсэх</string>
+    <string name="autoconnect_title">Автоматаар холбогдох</string>
+    <string name="autoconnect_desc">Идэвхгүй арын холболтыг ашиглана</string>
     <string name="graph_smoothing_title">Өгөгдлийг жигдлэх</string>
     <string name="graph_smoothing_desc">График өгөгдлийг жигдлэх ба хэрэв \'Зөвхөн графикийг жигдлэх\' идэвхжөөгүй бол глюкозын утгуудыг мөн жигдлэх</string>
     <string name="graph_smoothing_none">Идэвхгүй</string>
@@ -812,6 +828,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="preview_window_expanded_only">Дэлгэсэн харагдац (үндсэн)</string>
     <string name="preview_window_always">Үргэлж</string>
     <string name="preview_window_never">Хэзээ ч үгүй</string>
+    <string name="debug_logs_desc">trace.log болон logcat харах</string>
     <string name="unit_mg">мг/дл</string>
     <string name="unit_mmol">ммоль/л</string>
     <string name="alert_mode">Дохионы горим</string>
@@ -1405,6 +1422,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wearosinfo">Wearosinfo</string>
     <string name="wipe_sensor_data_desc">Delete sensor data from this device.</string>
     <string name="wipe_sensor_data_title">Wipe sensor data</string>
+    <string name="manual_calibration">Manual calibarion</string>
     <!-- Report localization -->
     <string name="report_generated_page">Generated %1$s · Page %2$d</string>
     <string name="report_patient_information">Patient information</string>
@@ -1788,6 +1806,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_active_insulin_until">Running until %1$s</string>
     <string name="journal_preset_nph">Intermediate / NPH</string>
     <string name="journal_preset_ultra_long_basal">Ultra long basal</string>
+    <string name="notification_settings_title">Notification settings</string>
+    <string name="notification_settings_subtitle">Customize notification shade</string>
+    <string name="lock_screen_aod">Lock screen (AOD)</string>
+    <string name="aod_settings_title">AOD settings</string>
     <string name="aod_show_on_lockscreen">Түгжээтэй дэлгэцэд харуулах</string>
     <string name="aod_show_on_lockscreen_desc">Дэлгэц асаалттай бөгөөд түгжээтэй үед бас харуулах</string>
     <string name="customize_always_on_display">Customize always-on display</string>
@@ -1817,6 +1839,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="alignment_right">Right</string>
     <string name="cgm_readiness_title">Системийн шалгалт</string>
     <string name="cgm_readiness_dashboard_title">CGM тохиргоонд анхаарал хэрэгтэй</string>
+    <string name="cgm_readiness_settings_desc">Check Bluetooth, alarms, battery, notifications, and background behavior</string>
     <string name="cgm_readiness_ready_title">System ready</string>
     <string name="cgm_readiness_attention_title">Needs attention</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarms, notifications, and background settings look ready.</string>
@@ -2005,6 +2028,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="volume_profile_vibrate_only">Vibrate only</string>
     <string name="volume_profile_silent">Silent</string>
     <string name="restart_app">Restart App</string>
+    <string name="restart_app_desc">Force restart the application</string>
     <string name="haptics">Haptics</string>
     <string name="sound_duration">Sound duration</string>
     <string name="haptic_profile_soft">Soft</string>
@@ -2012,6 +2036,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="haptic_profile_strong">Strong</string>
     <string name="haptic_profile_escalating">Escalating</string>
     <string name="outbound_api_title">API destinations</string>
+    <string name="outbound_api_desc">Урьдчилсан тохиргоонд суурилсан чатбот, webhook болон яаралтай SMS хүргэлт</string>
     <string name="outbound_api_settings_title">API destinations</string>
     <string name="outbound_api_master_desc">Send live readings to enabled destinations</string>
     <string name="outbound_api_destinations">Destinations</string>
@@ -2328,6 +2353,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Хурдан унах</string>
     <string name="alert_rising_fast">Хурдан өсөх</string>
+    <string name="broadcast_computed_trend_title">Аппын трендийг дамжуулах</string>
+    <string name="broadcast_computed_trend_desc">Мэдрэгчийн оронд аппын трендийг ашиглах</string>
     <string name="dashboard_show_delta_desc">Тренд сумны доор дельта интервал дээрх хэмжсэн өөрчлөлт</string>
     <string name="dashboard_show_delta_title">Хяналтын самбар дээрх Delta (Δ).</string>
     <string name="delta_alarm_interval_follow">Δ-тэй адил (%1$d мин)</string>
@@ -3083,6 +3110,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
         <item quantity="other">%d минут</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">Үзүүлэлтийг Dexcom Follow руу илгээх</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
     <string name="dexcom_share_active">Dexcom руу илгээх</string>
     <string name="dexcom_share_active_desc">Энэ утаснаас бодит цагийн үзүүлэлтийг Dexcom Follow руу илгээх</string>
@@ -3110,67 +3138,19 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- Settings tab -->
     <string name="settings_section_display">Дэлгэц</string>
     <string name="settings_section_sharing">Хуваалцах</string>
-    <string name="settings_section_sensors">Мэдрэгчүүд</string>
     <string name="settings_section_backup">Нөөцлөх ба сэргээх</string>
     <string name="settings_section_devices">Төхөөрөмжүүд</string>
-    <string name="settings_section_general">Ерөнхий</string>
-    <string name="settings_section_troubleshooting">Асуудал шийдвэрлэх</string>
-    <string name="settings_unit_title">Глюкозын нэгж</string>
-    <string name="settings_alerts_desc">Бага, өндөр ба дохио тасрах</string>
-    <string name="settings_alerts_off_desc">Бүх сэрэмжлүүлэг унтраалттай</string>
-    <string name="settings_calibration_title">Каллибраци</string>
-    <string name="settings_calibration_desc">%1$s горим</string>
-    <string name="settings_smoothing_off_desc">Унтраалттай</string>
-    <string name="settings_prediction_desc">Глюкозын таамаг</string>
     <string name="settings_dashboard_charts_title">Хяналтын самбар ба график</string>
     <string name="settings_dashboard_charts_desc">Зорилтот муж ба өнгө</string>
-    <string name="settings_notification_title">Глюкозын мэдэгдэл</string>
-    <string name="settings_notification_desc">Утга, сум ба график</string>
-    <string name="settings_floating_desc">Бусад апп-ын дээр</string>
-    <string name="settings_floating_permission_desc">Зөвшөөрөл шаардлагатай</string>
-    <string name="settings_lock_screen_title">Түгжээтэй дэлгэц (AOD)</string>
-    <string name="settings_lock_screen_desc">Фонт ба загвар</string>
-    <string name="settings_lock_screen_off_desc">Хүртээмжийн эрх шаардлагатай</string>
-    <string name="settings_journal_desc">Хоол, инсулин ба тэмдэглэл</string>
-    <string name="settings_glucose_meters_desc">Bluetooth глюкометрүүд</string>
     <string name="settings_phone_apps_title">Энэ утсан дээрх аппууд</string>
     <string name="settings_phone_apps_none">Байхгүй</string>
     <string name="settings_app_name_patched_libre">Засварласан Libre</string>
-    <string name="settings_nightscout_desc">Илгээх эсвэл дагах</string>
-    <string name="settings_libreview_desc">Abbott руу илгээх</string>
-    <string name="settings_dexcom_share_desc">Dexcom Follow-д</string>
-    <string name="settings_mirror_desc">Таны төхөөрөмжүүдийн хооронд</string>
-    <string name="settings_webserver_desc">Энэ утсан дээрх Nightscout API</string>
-    <string name="settings_outbound_api_desc">Webhook, бот ба SMS</string>
-    <string name="settings_cgm_readiness_desc">Зөвшөөрөл, батарей ба сэрүүлэг</string>
     <string name="settings_sensor_connection_title">Холболт ба шилжүүлэлт</string>
     <string name="settings_sensor_connection_desc">Шилжүүлэлт ба Bluetooth</string>
     <string name="settings_mq_account_desc">Бүртгэл ба синк</string>
     <string name="settings_ottai_desc">Бүртгэл ба мэдрэгчийн тохиргоо</string>
-    <string name="settings_export_title">Экспорт</string>
-    <string name="settings_export_desc">Файлд хадгалах</string>
-    <string name="settings_import_title">Импорт</string>
-    <string name="settings_import_desc">Экспорт эсвэл CSV-ээс</string>
-    <string name="settings_debug_logs_desc">Алдааны тайланд</string>
-    <string name="settings_restart_desc">Аппыг хааж дахин нээх</string>
-    <string name="settings_clear_history_desc">Бүх утгыг устгах</string>
-    <string name="settings_clear_app_data_desc">Тохиргоо хадгалагдана</string>
-    <string name="settings_factory_reset_desc">Бүгдийг устгах</string>
-    <string name="settings_xdrip_broadcast_title">xDrip+ broadcast</string>
-    <string name="settings_xdrip_broadcast_desc">xDrip+ ба AAPS-д</string>
-    <string name="settings_patched_libre_title">Засварласан Libre аппын broadcast</string>
-    <string name="settings_patched_libre_desc">Засварласан Libre аппыг уншдаг аппуудад</string>
-    <string name="settings_glucodata_title">Glucodata broadcast</string>
-    <string name="settings_glucodata_desc">GlucoDataHandler-д</string>
-    <string name="settings_health_connect_desc">Утгыг эрүүл мэндийн аппуудтай хуваалцах</string>
     <string name="settings_broadcast_options">Broadcast тохиргоо</string>
-    <string name="settings_app_trend_title">Аппын чиг хандлагыг илгээх</string>
-    <string name="settings_app_trend_desc">Мэдрэгчийнхийн оронд аппын чиг хандлагын сумыг ашиглах</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
-    <string name="settings_turbo_title">Өндөр холболтын тэргүүлэх эрх</string>
-    <string name="settings_turbo_desc">Илүү хурдан Bluetooth солилцоо, батерей бага зэрэг илүү зарцуулна</string>
-    <string name="settings_autoconnect_title">Автомат холболт</string>
-    <string name="settings_autoconnect_desc">Android мэдрэгчийг арын горимд дахин холбоно</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Тохиргооноос хайх</string>
     <string name="settings_search_no_results">“%1$s”-тэй тохирох тохиргоо алга</string>

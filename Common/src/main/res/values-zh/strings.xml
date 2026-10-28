@@ -350,6 +350,7 @@
     <!-- New Strings for Material UI & Language Support -->
 
     <string name="google_scan_desc">使用 Google Play 服务进行扫码</string>
+    <string name="mirror_desc">通过互联网/家庭网络共享/接收数据</string>
     <string name="nightscout_desc">发送或接收读数</string>
     <string name="glucose_alerts_title">警报与闹铃</string>
     <string name="glucose_range_title">血糖范围</string>
@@ -495,6 +496,10 @@
     <string name="alert_sound">警报声音</string>
     <string name="vibrate_only">仅振动</string>
     <string name="sound_vibrate">声音和振动</string>
+    <string name="turbo_title">Turbo (高优先级)</string>
+    <string name="turbo_desc">请求高连接优先级</string>
+    <string name="autoconnect_title">Android (自动连接)</string>
+    <string name="autoconnect_desc">使用被动后台连接</string>
     <string name="graph_smoothing_title">数据平滑</string>
     <string name="graph_smoothing_desc">平滑图表数据，并在未启用“仅平滑图表”时平滑解析后的葡萄糖值</string>
     <string name="graph_smoothing_none">已关闭</string>
@@ -520,11 +525,13 @@
     <string name="preview_window_expanded_only">仅在展开视图中（默认）</string>
     <string name="preview_window_always">始终</string>
     <string name="preview_window_never">从不</string>
+    <string name="debug_logs_desc">查看 trace.log 和 logcat</string>
     <string name="export_data">导出历史记录</string>
     <string name="export_data_desc">将读数保存为 CSV/文本</string>
     <string name="export_settings">导出设置</string>
     <string name="export_settings_desc">保存所有应用设置、凭据和设备密钥</string>
     <string name="export_data_settings">导出数据/设置</string>
+    <string name="export_data_settings_desc">选择设置、历史记录、校准或完整包</string>
     <string name="export_compression">压缩</string>
     <string name="export_compression_none">JSON</string>
     <string name="export_compression_gzip">Gzip</string>
@@ -580,14 +587,17 @@
     <string name="import_data">导入历史记录</string>
     <string name="import_data_desc">加载备份或 Libreview 文件</string>
     <string name="import_data_settings">导入数据/设置</string>
+    <string name="import_data_settings_desc">恢复历史 CSV 或 JugglucoNG 导出文件</string>
     <string name="settings_import_confirm_title">导入设置？</string>
     <string name="settings_import_confirm_message">这会替换应用设置、凭据、设备密钥和镜像配置，然后重启应用。</string>
     <string name="settings_import_successful">设置已导入。正在重启…</string>
     <string name="danger_zone">危险区域</string>
     <string name="clear_history">清除历史记录</string>
+    <string name="clear_history_desc_short">删除所有读数</string>
     <string name="clear_app_data">清除应用数据</string>
     <string name="clear_app_data_desc">删除历史/缓存，保留设置</string>
     <string name="factory_reset">恢复出厂设置</string>
+    <string name="factory_reset_desc">删除所有内容，恢复初始状态</string>
     <string name="sibionics_setup_title">Sibionics 设置</string>
     <string name="dexcom_setup_title">Dexcom 设置</string>
     <string name="dexcom_sensor_desc">G7、ONE+、Flex</string>
@@ -695,10 +705,12 @@
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">音量/振动配置</string>
     <string name="ICE">ICE</string>
+    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">扫描 Accu-Chek SmartGuide 传感器上的数据矩阵</string>
     <string name="accuchek_setup_title">Accu-Chek 设置</string>
     <string name="add_sensor">Add Sensor</string>
+    <string name="advanced_title">Advanced</string>
     <string name="afrezza">Afrezza</string>
     <string name="aidex_connected">已连接！</string>
     <string name="aidex_connecting_to">正在连接到 %1$s…</string>
@@ -797,6 +809,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="finish_setup">完成</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
+    <string name="glucodata_subtitle">Glucodata</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
     <string name="gvi">总收入指数</string>
@@ -849,6 +862,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libreview_active_desc">启用 LibreView 上传</string>
     <string name="libreview_config">自由视图</string>
     <string name="libreview_current">显示当前血糖</string>
+    <string name="libreview_desc">与 Abbott LibreView 同步</string>
     <string name="libreview_email">电子邮件</string>
     <string name="libreview_get_account_id">获取账户ID</string>
     <string name="libreview_is_viewed">标记为已查看</string>
@@ -889,6 +903,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="min_glucose">最小</string>
     <string name="mmolL">mmol/L</string>
     <string name="newdata">"New data"</string>
+    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
@@ -995,9 +1010,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
+    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">识别为 Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">允许 AAPS 对此传感器启用“始终 SMB”。仅在您信任其读数时开启</string>
     <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">将血糖读数发送到 Health Connect，供兼容的健康应用使用</string>
+    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1808,6 +1826,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_right">右对齐</string>
     <string name="cgm_readiness_title">系统检查</string>
     <string name="cgm_readiness_dashboard_title">CGM 设置需要处理</string>
+    <string name="cgm_readiness_settings_desc">检查蓝牙、闹钟、电池、通知和后台行为</string>
     <string name="cgm_readiness_ready_title">系统已就绪</string>
     <string name="cgm_readiness_attention_title">需要注意</string>
     <string name="cgm_readiness_ready_body">蓝牙、闹钟、通知和后台设置看起来已就绪。</string>
@@ -2002,6 +2021,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="volume_profile_vibrate_only">仅振动</string>
     <string name="volume_profile_silent">静音</string>
     <string name="restart_app">重启应用</string>
+    <string name="restart_app_desc">强制重启应用程序</string>
     <string name="haptics">触感</string>
     <string name="sound_duration">声音时长</string>
     <string name="haptic_profile_soft">柔和</string>
@@ -2009,6 +2029,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="haptic_profile_strong">强烈</string>
     <string name="haptic_profile_escalating">递增</string>
     <string name="outbound_api_title">API 目标</string>
+    <string name="outbound_api_desc">基于预设的聊天机器人、Webhook 和紧急短信发送</string>
     <string name="outbound_api_settings_title">API 目标</string>
     <string name="outbound_api_master_desc">将实时读数发送到已启用的目标</string>
     <string name="outbound_api_destinations">目标</string>
@@ -2226,6 +2247,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">快速下降</string>
     <string name="alert_rising_fast">快速崛起</string>
+    <string name="broadcast_computed_trend_title">广播应用趋势</string>
+    <string name="broadcast_computed_trend_desc">使用应用趋势代替传感器趋势</string>
     <string name="dashboard_show_delta_desc">趋势箭头下方的 Delta 间隔内测得的变化</string>
     <string name="dashboard_show_delta_title">仪表板上的 Delta (Δ)</string>
     <string name="delta_alarm_interval_follow">与 Δ 相同（%1$d 分钟）</string>
@@ -3000,6 +3023,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="other">%d 分钟</item>
     </plurals>
     <string name="dexcom_share_title">Dexcom Share</string>
+    <string name="dexcom_share_desc">将读数上传到 Dexcom Follow</string>
     <string name="dexcom_share_settings_title">Dexcom Share</string>
     <string name="dexcom_share_active">分享到 Dexcom</string>
     <string name="dexcom_share_active_desc">将此手机的实时读数发送到 Dexcom Follow</string>
@@ -3027,67 +3051,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- Settings tab -->
     <string name="settings_section_display">显示</string>
     <string name="settings_section_sharing">共享</string>
-    <string name="settings_section_sensors">传感器</string>
     <string name="settings_section_backup">备份与恢复</string>
     <string name="settings_section_devices">设备</string>
-    <string name="settings_section_general">通用</string>
-    <string name="settings_section_troubleshooting">故障排除</string>
-    <string name="settings_unit_title">血糖单位</string>
-    <string name="settings_alerts_desc">低血糖、高血糖和信号丢失</string>
-    <string name="settings_alerts_off_desc">所有提醒已关闭</string>
-    <string name="settings_calibration_title">校准</string>
-    <string name="settings_calibration_desc">%1$s 模式</string>
-    <string name="settings_smoothing_off_desc">关闭</string>
-    <string name="settings_prediction_desc">血糖预测</string>
     <string name="settings_dashboard_charts_title">仪表盘与图表</string>
     <string name="settings_dashboard_charts_desc">目标范围和颜色</string>
-    <string name="settings_notification_title">血糖通知</string>
-    <string name="settings_notification_desc">数值、箭头和图表</string>
-    <string name="settings_floating_desc">显示在其他应用上层</string>
-    <string name="settings_floating_permission_desc">需要权限</string>
-    <string name="settings_lock_screen_title">锁屏（AOD）</string>
-    <string name="settings_lock_screen_desc">字体和样式</string>
-    <string name="settings_lock_screen_off_desc">需要无障碍权限</string>
-    <string name="settings_journal_desc">餐食、胰岛素和备注</string>
-    <string name="settings_glucose_meters_desc">蓝牙血糖仪</string>
     <string name="settings_phone_apps_title">本机应用</string>
     <string name="settings_phone_apps_none">无</string>
     <string name="settings_app_name_patched_libre">修改版 Libre</string>
-    <string name="settings_nightscout_desc">上传或关注</string>
-    <string name="settings_libreview_desc">上传到 Abbott</string>
-    <string name="settings_dexcom_share_desc">用于 Dexcom Follow</string>
-    <string name="settings_mirror_desc">在你的设备之间</string>
-    <string name="settings_webserver_desc">本机上的 Nightscout API</string>
-    <string name="settings_outbound_api_desc">Webhook、机器人和短信</string>
-    <string name="settings_cgm_readiness_desc">权限、电池和闹钟</string>
     <string name="settings_sensor_connection_title">连接与交接</string>
     <string name="settings_sensor_connection_desc">交接和蓝牙</string>
     <string name="settings_mq_account_desc">账号和同步</string>
     <string name="settings_ottai_desc">账号和传感器设置</string>
-    <string name="settings_export_title">导出</string>
-    <string name="settings_export_desc">保存到文件</string>
-    <string name="settings_import_title">导入</string>
-    <string name="settings_import_desc">从导出文件或 CSV</string>
-    <string name="settings_debug_logs_desc">用于错误报告</string>
-    <string name="settings_restart_desc">关闭并重新打开应用</string>
-    <string name="settings_clear_history_desc">删除所有读数</string>
-    <string name="settings_clear_app_data_desc">保留设置</string>
-    <string name="settings_factory_reset_desc">删除全部</string>
-    <string name="settings_xdrip_broadcast_title">xDrip+ 广播</string>
-    <string name="settings_xdrip_broadcast_desc">用于 xDrip+ 和 AAPS</string>
-    <string name="settings_patched_libre_title">修改版 Libre 应用广播</string>
-    <string name="settings_patched_libre_desc">用于读取修改版 Libre 应用的应用</string>
-    <string name="settings_glucodata_title">Glucodata 广播</string>
-    <string name="settings_glucodata_desc">用于 GlucoDataHandler</string>
-    <string name="settings_health_connect_desc">与健康应用共享读数</string>
     <string name="settings_broadcast_options">广播选项</string>
-    <string name="settings_app_trend_title">发送应用的趋势</string>
-    <string name="settings_app_trend_desc">使用应用的趋势箭头而非传感器的</string>
     <string name="settings_bluetooth_section">蓝牙</string>
-    <string name="settings_turbo_title">高连接优先级</string>
-    <string name="settings_turbo_desc">蓝牙数据交换更快，耗电略多</string>
-    <string name="settings_autoconnect_title">自动连接</string>
-    <string name="settings_autoconnect_desc">由 Android 在后台重新连接传感器</string>
     <!-- Settings search -->
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_no_results">没有与“%1$s”匹配的设置</string>
