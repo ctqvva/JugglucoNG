@@ -163,7 +163,7 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.journal_title, TOP, Icons.Default.EditNote, P, route("settings/journal"),
             keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
                 R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title,
-                R.string.journal_import_health_activity)),
+                R.string.journal_import_health_activity, R.string.journal_section_import)),
         SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL, Icons.Default.EditNote, P,
             route("settings/journal/calculations")),
         SettingsSearchEntry(R.string.journal_entry_types_title, JOURNAL, Icons.Default.EditNote, P,
