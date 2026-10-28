@@ -1087,12 +1087,13 @@ internal fun OttaiSearchList(
 internal fun OttaiImportButton(
     onClick: () -> Unit,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     label: String = stringResource(R.string.ottai_import_file),
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
         shapes = ButtonDefaults.shapes(),
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
@@ -1139,7 +1140,7 @@ internal fun OttaiSensorIdEntry(
             Spacer(Modifier.size(8.dp))
             Button(
                 onClick = { enter() },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
             ) { Text(stringResource(R.string.continue_action)) }

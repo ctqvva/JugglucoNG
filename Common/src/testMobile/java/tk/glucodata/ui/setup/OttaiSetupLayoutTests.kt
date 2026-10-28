@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -189,7 +190,7 @@ class OttaiSetupLayoutTests {
                         onImport = {},
                         onSignIn = {},
                     )
-                    OttaiImportButton(onClick = {}, enabled = true)
+                    OttaiImportButton(onClick = {}, enabled = true, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
@@ -248,7 +249,9 @@ class OttaiSetupLayoutTests {
                             }
                         },
                         idEntry = { OttaiSensorIdEntry(onEntered = {}) },
-                        footer = { OttaiImportButton(onClick = {}, enabled = true) },
+                        footer = {
+                            OttaiImportButton(onClick = {}, enabled = true, modifier = Modifier.padding(horizontal = 16.dp))
+                        },
                     )
                 }
             }

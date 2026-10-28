@@ -1509,7 +1509,11 @@ fun OttaiSetupWizard(
                             ) {
                                 // Keys, not a sensor: the file stands in for the account, so it
                                 // sits with the saved sensors it adds to, not beside QR.
-                                OttaiImportButton(onClick = launchImport, enabled = !busy)
+                                OttaiImportButton(
+                                    onClick = launchImport,
+                                    enabled = !busy,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                )
                                 Spacer(Modifier.size(16.dp))
                                 SettingsItem(
                                     title = stringResource(R.string.ottai_saved_sensors_title),
