@@ -156,6 +156,8 @@ internal fun OttaiCard(
     supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     details: (@Composable ColumnScope.() -> Unit)? = null,
     actions: (@Composable ColumnScope.() -> Unit)? = null,
+    // In place of the glyph: the card's one action when it acts on the title itself.
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -165,7 +167,7 @@ internal fun OttaiCard(
     ) {
         // The hero's wider inset keeps its text clear of the 28dp corners.
         Column(modifier = Modifier.padding(if (hero) 24.dp else 16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(verticalAlignment = if (trailing != null) Alignment.CenterVertically else Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         title,
@@ -181,13 +183,17 @@ internal fun OttaiCard(
                     }
                 }
                 Spacer(Modifier.width(16.dp))
-                OttaiCardGlyph(
-                    icon = icon,
-                    color = iconColor,
-                    containerColor = iconContainerColor,
-                    loading = loading,
-                    size = if (hero) 64.dp else 48.dp,
-                )
+                if (trailing != null) {
+                    trailing()
+                } else {
+                    OttaiCardGlyph(
+                        icon = icon,
+                        color = iconColor,
+                        containerColor = iconContainerColor,
+                        loading = loading,
+                        size = if (hero) 64.dp else 48.dp,
+                    )
+                }
             }
             if (details != null) {
                 Spacer(Modifier.size(12.dp))
@@ -532,14 +538,12 @@ internal fun OttaiAccountCard(
             title = accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
             body = stringResource(accountRegion.fullLabelRes),
             icon = Icons.Default.AccountCircle,
-            actions = {
-                OttaiCardActions {
-                    OutlinedButton(
-                        onClick = onSignOut,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) { Text(stringResource(R.string.ottai_sign_out)) }
-                }
+            trailing = {
+                OutlinedButton(
+                    onClick = onSignOut,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) { Text(stringResource(R.string.ottai_sign_out)) }
             },
         )
         return
@@ -638,6 +642,9 @@ internal fun OttaiAccountCard(
                 label = { r -> Text(stringResource(r.fullLabelRes)) },
                 labelText = { r -> context.getString(r.fullLabelRes) },
                 modifier = Modifier.fillMaxWidth(),
+                // The default unselected container is this card's own colour; one step down
+                // keeps the unselected buttons visible, as on the sensor card.
+                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             )
             Spacer(Modifier.size(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -741,32 +748,31 @@ internal fun OttaiAccountCard(
             if (form.status.isNotBlank()) OttaiCaption(form.status, isError = form.statusIsError)
         },
         actions = {
-            Button(
-                onClick = signIn,
-                enabled = !busy && if (useSms) {
-                    smsPhone != null && form.code.isNotBlank() && form.requestId.isNotBlank()
-                } else {
-                    form.phone.isNotBlank() && form.password.isNotBlank()
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
-            ) {
-                if (busy) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.ottai_login_button))
+            OttaiCardActions {
+                if (region.webBase != null && !region.usesSms) {
+                    TextButton(
+                        onClick = onRegister,
+                        enabled = !busy,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.TextButtonContentPadding,
+                    ) { Text(stringResource(R.string.ottai_register_cta)) }
                 }
-            }
-            if (region.webBase != null && !region.usesSms) {
-                Spacer(Modifier.size(8.dp))
-                TextButton(
-                    onClick = onRegister,
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                Button(
+                    onClick = signIn,
+                    enabled = !busy && if (useSms) {
+                        smsPhone != null && form.code.isNotBlank() && form.requestId.isNotBlank()
+                    } else {
+                        form.phone.isNotBlank() && form.password.isNotBlank()
+                    },
                     shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                ) { Text(stringResource(R.string.ottai_register_cta)) }
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    if (busy) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.ottai_login_button))
+                    }
+                }
             }
         },
     )

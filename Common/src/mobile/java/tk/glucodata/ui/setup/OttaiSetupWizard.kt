@@ -21,8 +21,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material3.TextButton
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.material.icons.filled.FileDownload
-import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ListItem
@@ -553,8 +554,11 @@ fun OttaiSetupWizard(
     var nfcScanRestartKey by remember { mutableStateOf(0) }
 
     // Ottai China and Syai sensors stay silent until an NFC field wakes them, so the search
-    // listens for one the whole time it is open. Only an Ottai Global account goes without.
-    val nfcWakeListening = !signedIn || OttaiConstants.requiresNfcActivationWake(accountApiBase)
+    // listens for one the whole time it is open: for that account, or signed out, for the
+    // backend picked on the sign-in card. Ottai Global goes without.
+    val nfcWakeListening = OttaiConstants.requiresNfcActivationWake(
+        if (signedIn) accountApiBase else region.base,
+    )
     var nfcWake by remember {
         mutableStateOf(if (OttaiNfc.dumpMode) OttaiNfcWakeState.LISTENING else OttaiNfcWakeState.IDLE)
     }
@@ -1361,6 +1365,7 @@ fun OttaiSetupWizard(
                         restartKey = nfcScanRestartKey,
                         enabled = !busy && !materialLoading,
                         onAddressSelected = selectNearby,
+                        onScanQr = { step = OttaiSetupStep.QR },
                         // Typing fields in the header: keep everything in one list, so the
                         // keyboard opening never moves the form and drops its focus.
                         pinFooter = signedIn,
@@ -1421,28 +1426,18 @@ fun OttaiSetupWizard(
                                     bottom = ui.spacerMedium,
                                 ),
                             ) {
-                                AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(
-                                        onClick = { step = OttaiSetupStep.QR },
-                                        modifier = Modifier.heightIn(min = 56.dp),
-                                        shapes = ButtonDefaults.shapes(),
-                                        contentPadding = ButtonDefaults.ContentPadding,
-                                    ) {
-                                        Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.scan_qr_button))
-                                    }
-                                    OutlinedButton(
-                                        onClick = launchImport,
-                                        enabled = !busy,
-                                        modifier = Modifier.heightIn(min = 56.dp),
-                                        shapes = ButtonDefaults.shapes(),
-                                        contentPadding = ButtonDefaults.ContentPadding,
-                                    ) {
-                                        Icon(Icons.Default.FileDownload, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.ottai_import_file))
-                                    }
+                                // Keys, not a sensor: the file stands in for the account, so it
+                                // sits with the saved sensors it adds to, not beside QR.
+                                OutlinedButton(
+                                    onClick = launchImport,
+                                    enabled = !busy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                                    shapes = ButtonDefaults.shapes(),
+                                    contentPadding = ButtonDefaults.ContentPadding,
+                                ) {
+                                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.ottai_import_file))
                                 }
                                 Spacer(Modifier.size(16.dp))
                                 SettingsItem(
@@ -1633,6 +1628,7 @@ private fun OttaiSearchStep(
     restartKey: Int,
     enabled: Boolean,
     onAddressSelected: (String) -> Unit,
+    onScanQr: () -> Unit,
     pinFooter: Boolean,
     header: @Composable ColumnScope.() -> Unit,
     nfcHint: (@Composable () -> Unit)?,
@@ -1647,7 +1643,6 @@ private fun OttaiSearchStep(
     var scanRetryKey by remember { mutableStateOf(0) }
     var scanError by remember { mutableStateOf<BleDeviceScanner.ScanStartError?>(null) }
     var requestedPermissionOnce by remember { mutableStateOf(false) }
-    var showAllDevices by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -1781,11 +1776,11 @@ private fun OttaiSearchStep(
             .mapNotNull { it.address.takeIf(String::isNotBlank)?.uppercase() }
             .toSet()
     }
+    // Every hit is listed (the scan already asks for the CGM service); likely Ottai first.
     // The official scanner's -70 dBm rule ranks, never hides: an Ottai transmitter worn under
     // clothing routinely sits below it, and hiding it made it look like no sensor at all.
     val devices = scanStats.values
         .filter { it.candidate.address.uppercase() !in knownAddresses }
-        .filter { showAllDevices || it.candidate.isLikelyOttai }
         .sortedWith(
             compareByDescending<OttaiScanStats> { if (it.isStableOfficialCandidate) 1 else 0 }
                 .thenByDescending { if (it.candidate.isLikelyOttai) 1 else 0 }
@@ -1796,12 +1791,25 @@ private fun OttaiSearchStep(
     val searchHeader: @Composable ColumnScope.() -> Unit = {
         header()
         Spacer(Modifier.height(ui.spacerMedium))
-        ScanFilterHeader(
-            title = stringResource(R.string.ottai_searching_sensors),
-            showAllDevices = showAllDevices,
-            onToggleFilter = { showAllDevices = !showAllDevices },
-            modifier = Modifier.padding(horizontal = ui.horizontalPadding),
-        )
+        // QR is the other way to find the sensor, so it sits with the search.
+        AdaptiveTrailingRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = ui.horizontalPadding),
+            // The text button's own padding is the gap.
+            spacing = 0.dp,
+            trailingContent = {
+                TextButton(
+                    onClick = onScanQr,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.scan_qr_button))
+                }
+            },
+        ) {
+            Text(stringResource(R.string.ottai_searching_sensors), style = MaterialTheme.typography.titleMedium)
+        }
         nfcHint?.invoke()
         if (scanBlocked) {
             Spacer(Modifier.height(ui.spacerMedium))
