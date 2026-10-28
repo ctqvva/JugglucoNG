@@ -7,6 +7,7 @@ import android.content.Context
 import java.lang.reflect.Proxy
 import java.util.UUID
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -98,6 +99,8 @@ class OttaiStreamRecoveryTests {
     @Test
     fun newActivationDiscardsThePreviousCloudStartAndHistoryEstimate() {
         set("streamStartTimeMs", oldStart)
+        val r = reading(11)
+        invoke("emitReading", r, true, r.monitorTimeMs, listOf(r), 0, false)
         invoke("markActivationCommandSent")
         val context = RuntimeEnvironment.getApplication() as Applic
         assertEquals(0L, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
@@ -105,6 +108,8 @@ class OttaiStreamRecoveryTests {
         assertTrue(OttaiRegistry.loadProvisionalActiveTime(context, sensor) > 0L)
         assertEquals(0L, get("streamStartTimeMs"))
         assertEquals(0, invoke("estimatedNewestDataNo"))
+        val arrival = System.currentTimeMillis()
+        assertEquals(arrival, invoke("resolveSampleTimeMs", r.copy(monitorTimeMs = 0L), true, arrival))
     }
 
     @Test
@@ -187,6 +192,74 @@ class OttaiStreamRecoveryTests {
         invoke("emitReading", r, true, arrival, listOf(r), 0, true)
         assertEquals(start, get("streamStartTimeMs"))
     }
+
+    @Test
+    fun repeatedCounterKeepsItsCappedTimeBeforeAndAfterArrivalPassesTheLateAnchor() {
+        val arrival = System.currentTimeMillis()
+        val genuineStart = arrival - 11 * 60_000L
+        // A poll of counter 10 arrived twenty seconds late. Counter 11 is prompt, so its
+        // anchored date is ahead of arrival and must be capped, but only once for this counter.
+        val delayedPollAt = arrival - 60_000L + 20_000L
+        invoke("seedStreamTimeAnchor", 10, delayedPollAt, "live", true, delayedPollAt)
+        set("lastDataNo", 10)
+        val r = reading(11)
+        val first = invoke("emitReading", r, true, arrival, listOf(r), 0, false)!!
+        assertEquals(arrival, emittedLong(first, "sampleMs"))
+        assertTrue(emittedBoolean(first, "publishCurrent"))
+        for (delay in listOf(8_000L, 25_000L)) {
+            val replay = invoke("emitReading", r, true, arrival + delay, listOf(r), 0, false)!!
+            assertEquals(arrival, emittedLong(replay, "sampleMs"))
+            assertFalse(emittedBoolean(replay, "publishCurrent"))
+            assertFalse(emittedBoolean(replay, "persist"))
+            assertEquals(arrival, manager.getCurrentSnapshot(Long.MAX_VALUE)?.timeMillis)
+        }
+        assertEquals(genuineStart + 20_000L, get("streamStartTimeMs"))
+        // Distinct counters must still publish and corroborate the bounded anchor correction.
+        val next = reading(12)
+        val emitted = invoke("emitReading", next, true, arrival + 60_000L, listOf(next), 0, false)!!
+        assertTrue(emittedBoolean(emitted, "publishCurrent"))
+        val following = reading(13)
+        invoke("emitReading", following, true, arrival + 120_000L, listOf(following), 0, false)
+        assertEquals(genuineStart, get("streamStartTimeMs"))
+        val replay = invoke("emitReading", next, true, arrival + 128_000L, listOf(next), 0, false)!!
+        assertEquals(arrival + 60_000L, emittedLong(replay, "sampleMs"))
+        assertFalse(emittedBoolean(replay, "publishCurrent"))
+    }
+
+    @Test
+    fun genuineLowerCountersReplaceACorruptHighActivationCandidateAndPersistTheStart() {
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = 0L))
+        val arrival = System.currentTimeMillis()
+        val start = arrival - 20 * 60_000L
+        fun resolve(n: Int, delay: Long) = invoke("resolveSampleTimeMs",
+            reading(n).copy(monitorTimeMs = 0L), true, arrival + delay)
+        resolve(20, 0L)
+        resolve(2_000, 60_000L)
+        assertEquals(2_000, get("pendingConfirmedDataNo"))
+        resolve(21, 60_000L)
+        assertEquals(21, get("pendingConfirmedDataNo"))
+        assertEquals(0L, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+        resolve(21, 68_000L) // replay cannot confirm the replacement candidate
+        assertEquals(0L, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+        resolve(22, 120_000L)
+        assertEquals(start, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+        assertEquals(start, OttaiRegistry.loadMaterials(RuntimeEnvironment.getApplication(), sensor).activeTimeMs)
+    }
+
+    @Test
+    fun sameCounterCannotReplaceOrConfirmACandidateAfterALongDelay() {
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = 0L))
+        val start = System.currentTimeMillis() - 20 * 60_000L
+        invoke("offerConfirmedActiveTime", start, 20)
+        invoke("offerConfirmedActiveTime", start + 5 * 60_000L, 20)
+        assertEquals(start, get("pendingConfirmedStartMs"))
+        assertEquals(0L, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+    }
+
+    private fun emittedLong(reading: Any, name: String): Long =
+        reading.javaClass.getDeclaredField(name).apply { isAccessible = true }.getLong(reading)
+    private fun emittedBoolean(reading: Any, name: String): Boolean =
+        reading.javaClass.getDeclaredField(name).apply { isAccessible = true }.getBoolean(reading)
 
     private fun reading(n: Int) = OttaiReading(
         OttaiRecord(n, 0, n * 60, 13_411, 33.8, ByteArray(12)), 7.2,
