@@ -24,25 +24,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OttaiRegionalTransportTests {
-    @Test fun ordinaryCnPhoneCallsKeepMainsTransportOutsideTheOtaExperiment() {
+    @Test fun ordinaryCnPhoneAccountLookupUsesTheSecureTransportDependency() {
         val common = OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 123L, "synthetic")
         val url = OttaiConstants.API_BASE + OttaiConstants.EP_GET_BIND_DEVICE
-        val targets = mutableListOf<String>()
-        lateinit var connection: HttpURLConnection
-        val result = OttaiCloudClient.requestWithResult("GET", url, null, common, openConnection = { target ->
-            targets += target
-            object : HttpURLConnection(URL(target)) {
-                override fun connect() = Unit
-                override fun usingProxy() = false
-                override fun disconnect() = Unit
-                override fun getResponseCode() = 200
-                override fun getInputStream() = ByteArrayInputStream("""{"code":"OK","data":null}""".toByteArray())
-            }.also { connection = it }
-        })
+        val server = Server(OttaiConstants.API_BASE)
+        val result = OttaiCloudClient.requestWithResult("GET", url, null, common, openConnection = server::connection)
         assertNull(result.failure)
-        assertEquals(listOf(url), targets)
-        assertEquals(common["versionName"], connection.getRequestProperty("versionName"))
-        assertNull(connection.getRequestProperty("cipherUserId"))
+        assertEquals(2, server.calls.size)
+        assertTrue(server.calls.all { it.url.startsWith(OttaiConstants.API_BASE + "/cgm/security/app/server/") })
+        assertEquals("1.63.0", server.calls.last().headers["versionName"])
+        assertEquals(common["deviceId"], server.calls.last().headers["cipherUserId"])
     }
 
     private val headers = mapOf("deviceId" to "ottai-watch:a:synthetic-install", "appName" to "ottai-watch",

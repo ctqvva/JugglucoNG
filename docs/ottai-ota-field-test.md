@@ -11,6 +11,14 @@ OTA experiment. Both require the sensor to be disconnected from managed monitori
 
 ## Regions and verification
 
+PR #739 is stacked on the CN mobile secure-transport fix in #755. Its test build includes
+both changes: ordinary CN account/device lookup, validation and credential bootstrap use
+the encrypted channel before the separate OTA flow can run. The supplied fresh-CN trace
+`juggluco-trace-20261029-020202.log` shows why this dependency is required: the old
+`/deviceBind/list` and `/device/validateDeviceByMacV2` routes both return HTTP 403 with
+`NET_SECURITY_PLAINTEXT_ROUTE_FORBIDDEN`. Splitting the reviews must not omit this setup
+dependency from the test build. Signed-in CN behavior still needs verification with it included.
+
 New experiments are available in debug and release builds, on the selected sensor card, for
 signed-in CN phone, Ottai Global and Syai sessions with saved keys and a BLE address.
 An existing unfinished journal remains accessible without account
@@ -247,10 +255,12 @@ Firmware files, credentials and raw captures must stay outside the repository.
 
 ## Cloud scope
 
-Ordinary CN login, account lookup, binding and activation retain main's transport in this
-PR. Their general encrypted migration is isolated in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755),
-pending a signed-in CN account test. Only the explicit OTA client's check, report and preparation
-bind use the experiment's secure CN channel here. Global/Syai keep main's regional transport.
+Ordinary CN login, account lookup, binding and activation use the encrypted migration reviewed
+in the base [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). The #739 test build
+includes both branches so setup is available before the OTA experiment. A signed-in CN account
+test with that combined build remains pending. OTA checks, the explicit V3 authentication
+comparison, reports and preparation binds use their own captured client. Global/Syai keep
+main's regional transport.
 
 Preparation tolerates cloud version metadata that omits the sensor's variant or supplies its
 application profile. A conflicting named build or variant is still rejected, and MAC/auth-key

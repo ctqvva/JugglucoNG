@@ -29,11 +29,12 @@ Each operation clears its ephemeral keys. OTA check, the explicit V3-authenticat
 report and user-confirmed preparation
 bind are scoped to this client.
 
-Ordinary CN login, device lists, binding and activation retain main's transport. The broader
-CN migration previously included here is now isolated in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755),
+Ordinary CN login, device lists, binding and activation use the secure transport dependency
+in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). PR #739 is stacked on it,
 pending signed-in CN validation. The supplied plaintext-route rejection is evidence for that
 fix, but anonymous probes do not prove real account compatibility. No general CN dispatcher
-change is included in this OTA PR. Main's global/Syai login and serial lookup remain intact.
+change needs review in the OTA diff; the combined test build includes it from the base PR.
+Main's global/Syai login and serial lookup remain intact.
 
 Successful worker shutdown drains advisory reporting without retaining BLE. Reopening a
 saved target only verifies it; it does not re-send reporting. Fresh factory preparation waits
@@ -103,9 +104,10 @@ by `scripts/ottai/net_security_vectors.py`. Its fixed scalars are public synthet
 Tests cover exact exchange/GET/POST vectors, sequence and nonce changes, response authentication,
 server signature, plaintext rejection, safe business diagnostics, expiry, close and clock correction.
 Synthetic HTTP tests exercise the OTA client on all three account backends, including the
-preparation bind, authentication and failure handling. A separate regression verifies ordinary
-CN phone calls keep main's original URL/version and do not enter the experiment's encrypted
-channel. The app-wide CN dispatch tests live in the separate draft PR.
+preparation bind, authentication and failure handling. The app-wide CN dispatch tests come
+from the base PR, and the combined branch verifies ordinary CN phone account calls use that
+secure dependency before OTA. They cover the device-list and validation routes rejected in
+the fresh-CN field trace, as well as login and credential-bootstrap calls.
 
 To reproduce the optional anonymous production-code probe, compile these files together with
 `kotlinc -cp <org.json.jar> -include-runtime -d <probe.jar>` from the repository root:
@@ -116,8 +118,7 @@ To reproduce the optional anonymous production-code probe, compile these files t
 
 Run `java -cp <probe.jar>:<org.json.jar> tk.glucodata.drivers.ottai.RegionalLoginProbeKt`.
 It performs anonymous requests to the regional API-token endpoints and prints only pass messages.
-It is not part of CI. The separate CN production probe is retained in draft PR #755 rather
-than bundled with the experimental feature.
+It is not part of CI. The CN production probe is provided by the base PR #755.
 
 The authenticated OTA offer for the user's running sensor, firmware-host download, and physical
 transfer still require the phone test. Anonymous transport success does not establish that the
