@@ -79,17 +79,24 @@ data class ReadingDisplay(
      * late, a second sensor can still claim the minute, a fingerstick entered
      * after the fact should still reshape the line around it. Presented minutes
      * inside the window are recorded too, but remain revisable until they age out.
+     *
+     * @param graceMs the window in force, from [sealGraceMs]. A caller reads it
+     *   once per pass, so every minute of one query is judged by the same window.
      */
-    fun isSealedAt(nowMs: Long): Boolean = (nowMs - timestamp) >= DISPLAY_SEAL_GRACE_MS
+    fun isSealedAt(nowMs: Long, graceMs: Long): Boolean = (nowMs - timestamp) >= graceMs
 
     companion object {
         /**
-         * How long a recorded main value stays re-derivable.
-         *
-         * An hour, so that a calibration entered well after the fingerstick it
-         * refers to still moves the line it was meant to correct.
+         * How long a recorded main value stays re-derivable unless the user
+         * picked another window — see the default's reasoning at
+         * [tk.glucodata.chart.MainSensorOwnership.DEFAULT_SEAL_GRACE_MS].
          */
-        const val DISPLAY_SEAL_GRACE_MS = tk.glucodata.chart.MainSensorOwnership.SEAL_GRACE_MS
+        const val DEFAULT_SEAL_GRACE_MS = tk.glucodata.chart.MainSensorOwnership.DEFAULT_SEAL_GRACE_MS
+
+        /** The grace window in force: the user's choice, or the default. */
+        fun sealGraceMs(): Long =
+            runCatching { tk.glucodata.data.calibration.CalibrationManager.displaySealGraceMs() }
+                .getOrDefault(DEFAULT_SEAL_GRACE_MS)
 
         const val MINUTE_MS = tk.glucodata.chart.MainSensorOwnership.MINUTE_MS
 

@@ -55,6 +55,25 @@ final class NotificationRefreshPolicy {
         return !wearable && glucoseChannel && (onlyAlertOnce || alertWatch);
     }
 
+    /**
+     * A deferred refresh may skip its post only when its content is known (non-zero
+     * fingerprint) and equals what the same owner last published. A new service, a
+     * cancel or any unfingerprinted publication in between resets the record to 0.
+     */
+    static boolean isUnchangedPublication(long fingerprint, long publishedFingerprint,
+            Object owner, Object publishedOwner) {
+        return fingerprint != 0L && fingerprint == publishedFingerprint && owner == publishedOwner;
+    }
+
+    /**
+     * The interactive follow-up only exists to catch the live reading's Room write. A
+     * data-changed refresh already queued renders the same newest state moments later,
+     * so the follow-up would be a second post of the same reading.
+     */
+    static boolean shouldRunInteractiveFollowUp(long pendingDataRefreshAtMs) {
+        return pendingDataRefreshAtMs == 0L;
+    }
+
     static boolean shouldSchedulePublicationRetry(long retryGeneration, long generation) {
         return generation != 0L && retryGeneration != generation;
     }

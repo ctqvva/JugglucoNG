@@ -1,0 +1,36 @@
+<resources>
+    <string name="libresetalllabels">Először adja meg a társított telefonon minden címkéhez, hogy mi történjen vele.</string>
+    <string name="colors_style_setting">@string/colors</string>
+    <string name="ambient_style_name">Készenléti stílus</string>
+    <string name="red_style_name">Piros stílus</string>
+    <string name="green_style_name">Zöld stílus</string>
+    <string name="blue_style_name">Kék stílus</string>
+    <string name="gray_style_name">Szürke stílus</string>
+    <string name="yellow_style_name">Sárga stílus</string>
+    <string name="white_style_name">Fehér stílus</string>
+    <string name="title_activity_watch_face_config">Beállítások</string>
+    <string name="talkhelp" />
+    <string name="wear_sensor_day_label">Nap</string>
+    <string name="wear_sensor_day_format">%1$s. nap</string>
+    <string name="wear_return_sensor_to_phone">Szenzor visszaadása a telefonnak</string>
+    <string name="wear_claim_watch_owns">Az óra olvassa a szenzort</string>
+    <string name="wear_claim_waiting">Várakozás a szenzorhoz való csatlakozásra</string>
+    <string name="wear_calibration_on">Kalibráció bekapcsolva</string>
+    <string name="wear_calibration_off">Kalibráció kikapcsolva</string>
+    <string name="wear_calibration_clear">Kalibrációk törlése</string>
+    <string name="wear_calibration_delete">Kalibráció törlése</string>
+    <string name="wear_color_in_range">Tartományon belüli értékek színezése</string>
+    <string name="wear_color_in_range_on">Minden érték színezve</string>
+    <string name="wear_color_in_range_off">Csak a magas és alacsony értékek színezve</string>
+    <string name="wear_journal_disabled">Az itteni használathoz engedélyezze a naplót a telefonon.</string>
+    <string name="wear_journal_insulin">Inzulin</string>
+    <string name="wear_journal_carbs">Szénhidrát</string>
+    <string name="wear_journal_add">Naplóbejegyzés hozzáadása</string>
+    <string name="wear_reading_actions_title">Mérés</string>
+    <string name="wear_calibration_edit">Kalibráció szerkesztése</string>
+    <string name="wear_journal_delete">Törlés</string>
+    <string name="wear_journal_pending">Várakozás a telefonra</string>
+    <string name="wear_sensor_forget">Szenzor elfelejtése</string>
+    <string name="wear_multi_sensor_complication">Több szenzor értékei</string>
+    <string name="wear_multi_sensor_arrow_complication">Több szenzor értékei + trendnyilak</string>
+</resources>

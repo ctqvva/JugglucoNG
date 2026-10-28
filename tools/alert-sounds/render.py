@@ -156,7 +156,7 @@ def voice(style, midi, duration, cue, seed):
     return tone
 
 
-def render(style, cue):
+def render(style, cue, peak_normalize=True):
     score = SCORES[style][cue]
     out = np.zeros(round(SYNTH_RATE*(max(t+d for t,_,d,_ in score)+1.02)))
     reflections = {
@@ -182,7 +182,8 @@ def render(style, cue):
     out[-round(.18*RATE):] *= np.linspace(1,0,round(.18*RATE))**2
     target_rms = 10**((-16 if cue.startswith('urgent') else -18.5)/20)
     active = out[np.abs(out)>.012*np.max(np.abs(out))]
-    out *= min(target_rms/np.sqrt(np.mean(active**2)),10**(-3/20)/np.max(np.abs(out)))
+    peak_gain = 10**((-1 if peak_normalize else -3)/20)/np.max(np.abs(out))
+    out *= peak_gain if peak_normalize else min(target_rms/np.sqrt(np.mean(active**2)), peak_gain)
     return np.rint(out*32767).astype('<i2')
 
 
@@ -216,7 +217,7 @@ def main():
             else:
                 dest.write_bytes(data)
             normalized = samples.astype(float)/32768
-            assert np.max(np.abs(normalized))<.709, name
+            assert np.max(np.abs(normalized))<.892, name
             assert samples[0]==samples[-1]==0, name
             assert abs(np.mean(normalized))<.001, name
             stats[name] = dict(seconds=round(len(samples)/RATE,3),

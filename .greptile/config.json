@@ -4,7 +4,7 @@
     "logic",
     "syntax"
   ],
-  "ignorePatterns": "Common/src/main/cpp/libjuice/**\nCommon/src/main/cpp/LibAscon/**\nCommon/src/main/cpp/bcrypt/**\nCommon/src/main/cpp/curve/nanovg/**\nCommon/schemas/**\nupstream_strings.xml\ndocs/test-coverage-map.md\n**/*.so\n**/*.png\n**/*.webp\n**/*.bak",
+  "ignorePatterns": "Common/src/main/cpp/libjuice/**\nCommon/src/main/cpp/LibAscon/**\nCommon/src/main/cpp/bcrypt/**\nCommon/src/main/cpp/curve/nanovg/**\nCommon/schemas/**\ntools/archive/**\ndocs/test-coverage-map.md\n**/*.so\n**/*.png\n**/*.webp\n**/*.bak",
   "instructions": "JugglucoNG is an Android CGM app (Java, Kotlin, and C++ over JNI) with a phone and a Wear OS flavour. People dose insulin and react to alarms from its numbers, so report concrete defects the PR introduces or makes reachable: wrong, stale or doubly calibrated readings, dropped or withheld readings, lost history, driver loops and stalls, crashes, broken builds and security problems. Do not comment on formatting, naming, logging style or missing tests on their own. The finding criteria, repository background and known false positives are in .greptile/rules.md.",
   "rules": [
     {

@@ -8,8 +8,11 @@ import tk.glucodata.Applic
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
+import tk.glucodata.drivers.ManagedSensorUiFamily
 
 object AnytimeManagedSensorIdentityAdapter : ManagedSensorIdentityAdapter {
+    override val uiFamily = ManagedSensorUiFamily.ANYTIME
+
 
     private val STABLE_HEX_SENSOR_ID = Regex("^[0-9A-F]{12,16}$", RegexOption.IGNORE_CASE)
     private val STABLE_MAC_SENSOR_ID = Regex("^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$", RegexOption.IGNORE_CASE)

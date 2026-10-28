@@ -62,6 +62,11 @@ object OttaiNfc {
         dumpMode = true
     }
 
+    /** Ends setup's capture; an activation retry's arming is left alone. */
+    fun disarmSetup() {
+        if (activationSensorId == null) dumpMode = false
+    }
+
     fun armForActivationRetry(sensorId: String) {
         activationSensorId = OttaiConstants.canonicalSensorId(sensorId)
         dumpMode = true

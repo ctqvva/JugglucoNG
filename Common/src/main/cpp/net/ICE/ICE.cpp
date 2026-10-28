@@ -66,6 +66,7 @@ using namespace std::literals;
 #include "RecoveryTrace.hpp"
 #include "RecoveryWakeBridge.hpp"
 #include "net/makerandom.hpp"
+#include "BundledTurnServers.hpp"
 
 extern std::mutex turn_server_mutex;
 
@@ -1138,16 +1139,8 @@ time_t oldTwilioTimes=
 std::numeric_limits<time_t>::max();
 #endif
 
-static bool turnTextPresent(const char *value) {
-    return value&&value[0];
-    }
-
 static bool isTwilioTurnServer(const juice_turn_server_t &server) {
     return turnTextPresent(server.host)&&!strcmp(server.host,"global.turn.twilio.com");
-    }
-
-static bool hasTurnCredentials(const juice_turn_server_t &server) {
-    return server.username&&server.password;
     }
 
 #if JUGGLUCO_HAS_TWILIO_TOKEN
@@ -1234,23 +1227,8 @@ juice_agent *createAgent(int allindex) {
     static initJuice el;
     LOGGER("createAgent(%d)\n",allindex);
               
-    static   juice_turn_server_t default_turn_servers[]{
-#if !defined(JUGGLUCO_DISTRIBUTION) && __has_include("turnservers.local.hpp")
-        #include "turnservers.local.hpp"
-#else
-        #include "turnservers.hpp"
-#endif
-        /*
-        for example:
-        {
-        .host="relay1.expressturn.com",
-        .username="efPU52K4SLOQ34W2QY",
-        .password="1TJPNFxHKXrZfelz",
-        .port=3480
-        } */
-         };
-
-    static constexpr const  int defaultservercount=sizeof(default_turn_servers)/sizeof(default_turn_servers[0]);
+    static auto default_turn_servers=std::to_array(bundledTurnServers);
+    static constexpr int defaultservercount=std::size(bundledTurnServers);
     const juice_turn_server_t *turn_servers;
     int servercount;
 
@@ -1285,11 +1263,13 @@ juice_agent *createAgent(int allindex) {
         turn_servers=&conf_server;
         }
     else {
-        refreshTwilioTurnCredentials(default_turn_servers,defaultservercount);
-        usable_turn_servers=usableDefaultTurnServers(default_turn_servers,defaultservercount);
+        refreshTwilioTurnCredentials(default_turn_servers.data(),defaultservercount);
+        usable_turn_servers=usableDefaultTurnServers(default_turn_servers.data(),defaultservercount);
         servercount=static_cast<int>(usable_turn_servers.size());
         turn_servers=servercount?usable_turn_servers.data():nullptr;
         }
+    LOGGER("createAgent: %d usable TURN servers (%s)\n",servercount,
+           has_configured_turn?"user configured":"bundled");
     const auto networkConfig=currentICEConfig();
     const bool useConfiguredTurnForStun=
         networkConfig.useTurnForStun&&has_configured_turn;

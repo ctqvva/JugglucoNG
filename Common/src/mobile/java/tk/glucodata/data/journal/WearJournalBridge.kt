@@ -47,6 +47,7 @@ object WearJournalBridge : JournalBridge {
                     val repository = JournalRepository()
                     val entries = repository
                         .getEntriesBetweenSnapshot(fromMs, System.currentTimeMillis())
+                        .filterNot { it.type == JournalEntryType.TEMP_BASAL }
                         .sortedByDescending { it.timestamp }
                         .take(MAX_ENTRIES)
                     val presets = repository.getInsulinPresetsSnapshot()
@@ -125,7 +126,8 @@ object WearJournalBridge : JournalBridge {
         JournalEntryType.CARBS -> WearJournalSync.TYPE_CARBS
         JournalEntryType.FINGERSTICK -> WearJournalSync.TYPE_FINGERSTICK
         JournalEntryType.ACTIVITY -> WearJournalSync.TYPE_ACTIVITY
-        JournalEntryType.NOTE -> WearJournalSync.TYPE_NOTE
+        // Not shown on the watch; filtered out before encoding anyway.
+        JournalEntryType.TEMP_BASAL, JournalEntryType.NOTE -> WearJournalSync.TYPE_NOTE
     }
 
     private fun titleFor(type: JournalEntryType, amount: Float): String {

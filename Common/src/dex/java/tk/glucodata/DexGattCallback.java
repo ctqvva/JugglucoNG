@@ -66,11 +66,29 @@ import static tk.glucodata.util.sleep;
 public class DexGattCallback extends SuperGattCallback {
 private static final long DEXCOM_WARMUP_MSEC = 30L * 60L * 1000L;
 private static final long DEXCOM_WARMUP_RETRY_SLACK_MSEC = 15_000L;
-private static final int DEXCOM_RESCAN_AFTER_TIMEOUTS = 2;
+private static final long DEXCOM_CONNECT_ATTEMPT_TIMEOUT_MS = 45_000L;
+private static final long DEXCOM_RECONNECT_QUIET_MS = 5_000L;
+private static final String DEX_CONNECT_PREFS = "dex_connect";
+private static final String DIRECT_CONNECT_UNREACHABLE_PREFIX = "direct_unreachable_";
+private volatile boolean directConnectUnreachable;
+private BluetoothGatt connectedAttempt;
 private boolean known=false;
+private int authSlot;
     public DexGattCallback(String SerialNumber, long dataptr) {
         super(SerialNumber, dataptr, 0x40);
         known=dexKnownSensor(dataptr);
+        // A sensor paired before slots were selectable is paired on the mobile-app slot.
+        if (dataptr != 0L && !DexcomBluetoothSlot.isPinned(SerialNumber) && Natives.isAuthenticated(dataptr))
+            DexcomBluetoothSlot.pin(SerialNumber, DexcomBluetoothSlot.DEFAULT);
+        authSlot = DexcomBluetoothSlot.isPinned(SerialNumber)
+                ? DexcomBluetoothSlot.forSensor(SerialNumber)
+                : DexcomBluetoothSlot.forNewPairings();
+        // Dexcom's saved identity remains usable after process death. getnew=true in
+        // the base constructor hides it until another scan sets scannedAddress.
+        if (mActiveDeviceAddress == null)
+            mActiveDeviceAddress = Natives.getDeviceAddress(dataptr, false);
+        directConnectUnreachable = Applic.app.getSharedPreferences(DEX_CONNECT_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(DIRECT_CONNECT_UNREACHABLE_PREFIX + SerialNumber, false);
 //        ownDeviceName=Natives.dexGetDeviceName(dataptr);
         {if(doLog) {Log.d(LOG_ID, SerialNumber + " DexGattCallback(..)");};};
         showtime=6*60*1000L;
@@ -100,6 +118,8 @@ private boolean known=false;
     private static final int GetData = SendKeyChallengeOut + 1;
 
 private void docmd0(BluetoothGatt bluetoothGatt) {
+     // A full pairing claims the slot; from here on this sensor keeps it.
+     DexcomBluetoothSlot.pinIfUnset(SerialNumber, authSlot);
      certinbufiter = 0;
      certinbuf=new byte[160];
      phase = Round1;
@@ -107,7 +127,8 @@ private void docmd0(BluetoothGatt bluetoothGatt) {
    }
     @SuppressLint("MissingPermission")
     @Override // android.bluetooth.BluetoothGattCallback
-    public void onDescriptorWrite(BluetoothGatt bluetoothGatt, BluetoothGattDescriptor bluetoothGattDescriptor, int status) {
+    public synchronized void onDescriptorWrite(BluetoothGatt bluetoothGatt, BluetoothGattDescriptor bluetoothGattDescriptor, int status) {
+        if (stop || bluetoothGatt != mBluetoothGatt) return;
         super.onDescriptorWrite(bluetoothGatt, bluetoothGattDescriptor, status);
         BluetoothGattCharacteristic characteristic = bluetoothGattDescriptor.getCharacteristic();
         if (doLog) {
@@ -169,7 +190,7 @@ private void getlock() {
     wakelock.acquire();
     {if(doLog) {Log.i(LOG_ID,"getlock");};};
     }
-private void releaselock() {
+private synchronized void releaselock() {
     var lock=wakelock;
     if(lock!=null) {
         wakelock=null;
@@ -180,16 +201,67 @@ private void releaselock() {
 private int triedinvain=0;
 
 private boolean connected=false;
-private int connectionTimeouts=0;
+    private void preferBackgroundConnect(String why) {
+        if (directConnectUnreachable) return;
+        directConnectUnreachable = true;
+        Applic.app.getSharedPreferences(DEX_CONNECT_PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean(DIRECT_CONNECT_UNREACHABLE_PREFIX + SerialNumber, true).apply();
+        if (doLog) Log.i(LOG_ID, SerialNumber + " prefer background connect: " + why);
+    }
+
+    @Override
+    protected boolean useAutoConnect() {
+        return super.useAutoConnect() || directConnectUnreachable;
+    }
+
+    @Override
+    protected long connectionAttemptTimeoutMillis() {
+        // A background attempt needs to survive until the next five-minute advert.
+        // LossOfSensorAlarm remains responsible for recovery if it never connects.
+        return useAutoConnect() ? 0L : DEXCOM_CONNECT_ATTEMPT_TIMEOUT_MS;
+    }
+
+    @Override
+    protected void onConnectionAttemptTimeout() {
+        preferBackgroundConnect("silent direct connect");
+    }
+
+    @Override
+    public synchronized boolean connectDevice(long delayMillis) {
+        if (stop || dataptr == 0L || CloneSensorRegistry.isCloneSensor(SerialNumber)
+                || SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return false;
+        if (delayMillis > 0L) {
+            // An executor timer cannot wake a suspended CPU, and its pending latch
+            // would prevent an alarm/scan from requesting an immediate connection.
+            onalarm = setalarm(System.currentTimeMillis() + delayMillis, onalarm, SerialNumber);
+            if (onalarm != null) return true;
+            // Keep recovery queued if the OS refuses the wakeup alarm.
+            return super.connectDevice(0L);
+        }
+        cancelalarm();
+        return super.connectDevice(0L);
+    }
+
+    @Override
+    public synchronized void setPause(boolean pause) {
+        super.setPause(pause);
+        if (pause) {
+            cancelalarm();
+            releaselock();
+        }
+    }
+
     @SuppressLint("MissingPermission")
     @Override
-    public void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
+    public synchronized void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
         noteFirstGattCallback("onConnectionStateChange", bluetoothGatt);
+        if (bluetoothGatt != mBluetoothGatt) return;
         if (stop) {
             releaselock();
             {if(doLog) {Log.i(LOG_ID, "onConnectionStateChange stop==true");};};
             return;
         }
+        if (!acceptConnectionAttemptCallback(bluetoothGatt, newState)) return;
         long tim = System.currentTimeMillis();
         final var bondstate = bluetoothGatt.getDevice().getBondState();
         if (doLog) {
@@ -198,7 +270,7 @@ private int connectionTimeouts=0;
 
         }
         if(newState == BluetoothProfile.STATE_CONNECTED) {
-          connectionTimeouts=0;
+          connectedAttempt = bluetoothGatt;
           if(bondstate == BluetoothDevice.BOND_BONDING) {
               {if(doLog) {Log.i(LOG_ID, "wait BOND_BONDING");};};
               }
@@ -231,20 +303,28 @@ private int connectionTimeouts=0;
                    {if(doLog) {Log.i(LOG_ID, "BOND_BONDING");};};
                    }
             if(newState == BluetoothProfile.STATE_DISCONNECTED) {
-              if(status == BluetoothGatt.GATT_CONNECTION_TIMEOUT) {
-                  ++connectionTimeouts;
-                  {if(doLog) {Log.i(LOG_ID, "Dexcom connection timeout count=" + connectionTimeouts);};};
-                  if(connectionTimeouts >= DEXCOM_RESCAN_AFTER_TIMEOUTS) {
-                      {if(doLog) {Log.i(LOG_ID, "Dexcom connection timeout: clear cached runtime address and rescan");};};
-                      searchforDeviceAddress();
-                      connectionTimeouts = 0;
-                  }
-              }
-              else {
-                  connectionTimeouts = 0;
-              }
+              final boolean reachedSensor = connectedAttempt == bluetoothGatt;
+              // A failed direct dial between adverts does not invalidate the address.
+              // Status 133 is the older stacks' generic connect failure.
+              if (!reachedSensor
+                      && (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133))
+                  preferBackgroundConnect("connect failed status=" + status);
+              connectedAttempt = null;
               if(!stop) {
-                  if(!known){
+                  // A live link dropping before the first reading does not by
+                  // itself mean pairing failed. Keep the bond for the next slot;
+                  // retain bounded recovery after repeated empty sessions,
+                  // including authentication failures before the data phase.
+                  if(reachedSensor) {
+                      if(!removedBond && datatime==0
+                              && triedinvain>(isWearable?1:4)) {
+                          {if(doLog) {Log.i(LOG_ID,"tried too often "+triedinvain);};};
+                          unbond();
+                          triedinvain=-10;
+                      } else if(datatime==0) {
+                          ++triedinvain;
+                      }
+                  } else if(!known){
                       if(phase==GetData&&!removedBond) {
                           unbond();
                           }
@@ -284,39 +364,34 @@ private int connectionTimeouts=0;
                   var sensorbluetooth = SensorBluetooth.blueone;
                   if (sensorbluetooth != null) {
                     if(justdata) {
+                        // After a data response the sensor is quiet until its next slot.
+                        preferBackgroundConnect("data response received");
                         Applic.wakemirrors();
-//                        long alreadywaited = tim - constatchange[0];
                         final long alreadywaited = tim - datatime;
                         if(lastDataInvalidDuringWarmup) {
                             long stillwait = lastWarmupRetryAt - tim;
                             {if(doLog) {Log.i(LOG_ID, "warmup alreadywaited=" + alreadywaited + " stillwait=" + stillwait);};};
                             if(stillwait < 0L)
                                 stillwait = 0L;
-                            if(getalarmclock()) {
-                                if(stillwait > 0L)
-                                    onalarm=setalarm(tim+stillwait,onalarm,SerialNumber );
-                                 else
-                                    sensorbluetooth.connectToActiveDevice(this, 0);
-                            } else {
-                                sensorbluetooth.connectToActiveDevice(this, stillwait);
-                            }
+                            sensorbluetooth.connectToActiveDevice(this, stillwait);
                         }
                         else if(getalarmclock()) {
-                            //long stillwait=justdata?(6700-alreadywaited):0;
+                            // Slot timing follows the sample; the quiet period follows reception.
+                            final long sinceSample = sampletime > 0L ? tim - sampletime : alreadywaited;
                             final long mmsectimebetween = 5 * 60 * 1000;
-                            long stillwait = mmsectimebetween - alreadywaited - 27500;
-                            {if(doLog) {Log.i(LOG_ID, "justdata=" + justdata + " alreadywaited=" + alreadywaited + " stillwait=" + stillwait);};};
-                            if(stillwait>0)
-                                onalarm=setalarm(tim+stillwait,onalarm,SerialNumber );
-                             else
-                                sensorbluetooth.connectToActiveDevice(this, 0);
+                            long stillwait = mmsectimebetween - sinceSample - 27500;
+                            {if(doLog) {Log.i(LOG_ID, "justdata=" + justdata + " sinceSample=" + sinceSample + " stillwait=" + stillwait);};};
+                            sensorbluetooth.connectToActiveDevice(this, Math.max(DEXCOM_RECONNECT_QUIET_MS, stillwait));
                         } else {
                             long stillwait = 7000 - alreadywaited;
                             {if(doLog) {Log.i(LOG_ID, "alreadywaited=" + alreadywaited + " stillwait=" + stillwait);};};
-                            if(stillwait<0) 
-                                stillwait=0;
-                            sensorbluetooth.connectToActiveDevice(this, stillwait);
+                            sensorbluetooth.connectToActiveDevice(this, Math.max(DEXCOM_RECONNECT_QUIET_MS, stillwait));
                         }
+                    }
+                    else if(reachedSensor) {
+                        // Give a closing live link time to settle before reconnecting.
+                        // Reaching the sensor does not indicate a failed direct dial.
+                        sensorbluetooth.connectToActiveDevice(this, DEXCOM_RECONNECT_QUIET_MS);
                     }
                     else {
                             {if(doLog) {Log.i(LOG_ID,"connect direct");};};
@@ -379,7 +454,8 @@ private int connectionTimeouts=0;
 
 
     @Override // android.bluetooth.BluetoothGattCallback
-    public void onServicesDiscovered(BluetoothGatt bluetoothGatt, int status) {
+    public synchronized void onServicesDiscovered(BluetoothGatt bluetoothGatt, int status) {
+        if (stop || bluetoothGatt != mBluetoothGatt) return;
         {if(doLog) {Log.i(LOG_ID, "BLE onServicesDiscovered invoked, status: " + status);};};
         if (status == GATT_SUCCESS) {
                 if(!discover(bluetoothGatt)) 
@@ -458,11 +534,12 @@ private void sendcertthread() {
 
 
     private void requestAuth() {
-        {if(doLog) {Log.i(LOG_ID,"requestAuth()");};};
+        {if(doLog) {Log.i(LOG_ID,"requestAuth() slot="+authSlot);};};
         Random.fillbytes(random8);
         var uit = new byte[10];
         System.arraycopy(random8, 0, uit, 1, random8.length);
-        uit[0] = uit[9] = (byte) 0x02;
+        uit[0] = (byte) 0x02;
+        uit[9] = (byte) authSlot;
         charact[1].setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
         tryer(()->write(1, uit));
       }
@@ -550,8 +627,11 @@ private boolean removedBond=false;
                 boolean aesSu = Natives.dex8AES(dataptr, random8, 0, aes, 0);
                 {if(doLog){Log.showbytes("dex8AES ", aes);};}
                 {if(doLog){Log.showbytes("value ", value);};}
-                boolean verified = equalpart(aes, value, 1);
+                // The echo and sensor challenge are eight bytes each, after
+                // the opcode. Native AES below reads eight bytes at offset nine.
+                boolean verified = aesSu && value.length >= 17 && equalpart(aes, value, 1);
                 {if(doLog) {Log.i(LOG_ID,  SerialNumber +" "+ mActiveDeviceAddress + " dex8AES =" + aesSu + (verified ? " verified" : " not verified"));};};
+                if(verified) known=true;
                if(!verified) {
                   handshake = "dex8AES different";
                   wrotepass[1] = System.currentTimeMillis();
@@ -592,13 +672,17 @@ private boolean removedBond=false;
                   return;
                   }
                 boolean isbonded = bond == 1;
+                // Seen on a watch pairing on slot 3: there, certificates sent without
+                // auth==1 only make the sensor hang up, and a fresh pairing exchanges
+                // certificates even when Android kept a bond made for another slot.
+                final boolean watchSlot = authSlot == DexcomBluetoothSlot.SMART_WATCH;
 
-                if(!newcertificates&&auth != 1) {
+                if((watchSlot||!newcertificates)&&auth != 1) {
                     handshake = "auth != 1";
                     wrotepass[1] = System.currentTimeMillis();
                     resetCerts();
                 } else {
-                    if(auth==1&&isbonded||(bonded&&bond==2)) {
+                    if(auth==1&&isbonded||(bonded&&bond==2&&!(watchSlot&&newcertificates))) {
                         getdatacmd();
                     } else {
                         askcertificate(SendCertificate1);
@@ -737,7 +821,10 @@ private    void getdatacmd() {
         write(1, buf);
     }
 private boolean justdata=false;
+// Reception time drives the quiet period and recent-response guard.
 private long datatime=0L;
+// Native decoding adjusts this timestamp for sample age; use it only for slot timing.
+private long sampletime=0L;
 private boolean lastDataInvalidDuringWarmup=false;
 private long lastWarmupRetryAt=0L;
 private boolean isWarmupReading(long readingTimeMsec, long res) {
@@ -773,8 +860,8 @@ private    void getdata(byte[] value) {
                 handleGlucoseResult(res, newtime);
                 Applic.scheduler.schedule(()->{
                   if(connected) askbackfill();}, 10, TimeUnit.MILLISECONDS);
-//                datatime=timmsec;
-                datatime=newtime;
+                datatime=timmsec;
+                sampletime=newtime;
                 if(savename) saveDeviceName();
             };break;
            case 0x59:{
@@ -795,19 +882,25 @@ private    void getdata(byte[] value) {
 
     @Override // android.bluetooth.BluetoothGattCallback
     public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic bluetoothGattCharacteristic, @NonNull byte[] value) {
-        if(doLog)
-            {if(doLog){Log.showbytes("DexGattCallback onCharacteristicChanged UUID: " + bluetoothGattCharacteristic.getUuid().toString(), value);};}
-        if (bluetoothGattCharacteristic.equals(charact[2])) {
-            Natives.dexbackfill(dataptr, value);
-            return;
-        }
+        // Keep the native pointer alive through processing and publication.
+        // Roster readers use snapshots, so publication need not take the roster
+        // monitor held by teardown while it waits for this callback to finish.
+        synchronized (this) {
+            if (stop || gatt != mBluetoothGatt) return;
+            if(doLog)
+                {if(doLog){Log.showbytes("DexGattCallback onCharacteristicChanged UUID: " + bluetoothGattCharacteristic.getUuid().toString(), value);};}
+            if (bluetoothGattCharacteristic.equals(charact[2])) {
+                Natives.dexbackfill(dataptr, value);
+                return;
+            }
 
-        if (bluetoothGattCharacteristic.equals(charact[3])) {
-            getcert(value);
-        } else if (bluetoothGattCharacteristic.equals(charact[1])) {
-            authenticate(value);
-        } else if (bluetoothGattCharacteristic.equals(charact[0])) {
-            getdata(value);
+            if (bluetoothGattCharacteristic.equals(charact[3])) {
+                getcert(value);
+            } else if (bluetoothGattCharacteristic.equals(charact[1])) {
+                authenticate(value);
+            } else if (bluetoothGattCharacteristic.equals(charact[0])) {
+                getdata(value);
+            }
         }
     }
 
@@ -821,6 +914,32 @@ private    void getdata(byte[] value) {
         Natives.dexResetKeys(dataptr);
          disconnect();
 //        docmd0(mBluetoothGatt);
+    }
+
+public int getAuthSlot() {
+    return authSlot;
+    }
+
+/** The sensor's 4-digit pairing code, or null when it is not stored. */
+public String getPairingCode() {
+    return dataptr == 0L ? null : Natives.dexPairingCode(dataptr);
+    }
+
+/**
+ * Moves this sensor to another slot. The key and bond belong to the old slot, so both are
+ * dropped and the next connection pairs again from the stored sensor code, as a new sensor
+ * does. Call while paused: a paused disconnect never reaches close(), so the old session's
+ * handshake phase is reset here, or the next connection would skip pairing.
+ */
+public synchronized boolean changeAuthSlot(int slot) {
+    if (!DexcomBluetoothSlot.isValid(slot) || slot == authSlot) return false;
+    {if(doLog) {Log.i(LOG_ID, SerialNumber + " changeAuthSlot " + authSlot + " -> " + slot);};};
+    close();
+    DexcomBluetoothSlot.pin(SerialNumber, slot);
+    authSlot = slot;
+    if (dataptr != 0L) Natives.dexResetKeys(dataptr);
+    unbond();
+    return true;
     }
 
 
@@ -893,7 +1012,9 @@ private    void getdata(byte[] value) {
     }
 
     @Override
-    public void bonded() {
+    public synchronized void bonded() {
+        final BluetoothGatt expectedGatt = mBluetoothGatt;
+        if (stop || expectedGatt == null || mActiveBluetoothDevice == null) return;
         final var bondstate = mActiveBluetoothDevice.getBondState();
         switch(bondstate) {
             case BluetoothDevice.BOND_BONDING: {
@@ -936,9 +1057,12 @@ private    void getdata(byte[] value) {
                 getdatacmd();
                 if(!has_service) {
                     Applic.RunOnUiThread(() -> {
-                        if (!mBluetoothGatt.discoverServices()) {
-                            Log.e(LOG_ID, "bonded(): bluetoothGatt.discoverServices()  failed");
-                            disconnect();
+                        synchronized (DexGattCallback.this) {
+                            if (stop || expectedGatt != mBluetoothGatt) return;
+                            if (!expectedGatt.discoverServices()) {
+                                Log.e(LOG_ID, "bonded(): bluetoothGatt.discoverServices()  failed");
+                                disconnect();
+                            }
                         }
                         });
                     }
@@ -1027,7 +1151,11 @@ private void resetconnect() {
       }
    }
 @Override
-public void close() {
+public synchronized void close() {
+   // Retired GATT callbacks are ignored, so teardown owns releasing this lock.
+   releaselock();
+   connected = false;
+   connectedAttempt = null;
    resetconnect();
    super.close();
    }

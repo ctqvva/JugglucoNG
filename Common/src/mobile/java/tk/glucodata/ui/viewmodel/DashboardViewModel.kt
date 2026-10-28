@@ -36,8 +36,10 @@ import tk.glucodata.SensorIdentity
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistorySync
 import tk.glucodata.data.journal.AapsJournalImport
+import tk.glucodata.data.journal.JournalDashboardVisibility
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
+import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
@@ -277,8 +279,14 @@ class DashboardViewModel(
     private val _glucodataBroadcastEnabled = MutableStateFlow(false)
     val glucodataBroadcastEnabled = _glucodataBroadcastEnabled.asStateFlow()
 
+    private val _xdripFollowerEnabled = MutableStateFlow(false)
+    val xdripFollowerEnabled = _xdripFollowerEnabled.asStateFlow()
+
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
+
+    private val _xdripReportAsLibre2 = MutableStateFlow(false)
+    val xdripReportAsLibre2 = _xdripReportAsLibre2.asStateFlow()
 
     /**
      * The chart's line: every sensor that covers the visible window, merged.
@@ -425,6 +433,9 @@ class DashboardViewModel(
     private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
     val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
 
+    private val _dataSmoothingCausal = MutableStateFlow(false)
+    val dataSmoothingCausal = _dataSmoothingCausal.asStateFlow()
+
     private val _previewWindowMode = MutableStateFlow(0)
     val previewWindowMode = _previewWindowMode.asStateFlow()
 
@@ -433,6 +444,9 @@ class DashboardViewModel(
 
     private val _journalNavigationTabEnabled = MutableStateFlow(false)
     val journalNavigationTabEnabled = _journalNavigationTabEnabled.asStateFlow()
+
+    private val _journalDashboardHiddenTypes = MutableStateFlow<Set<JournalEntryType>>(emptySet())
+    val journalDashboardHiddenTypes = _journalDashboardHiddenTypes.asStateFlow()
 
     private val _journalDoseCalculatorEnabled = MutableStateFlow(false)
     val journalDoseCalculatorEnabled = _journalDoseCalculatorEnabled.asStateFlow()
@@ -545,6 +559,11 @@ class DashboardViewModel(
     private val _journalEntries = MutableStateFlow<List<JournalEntry>>(emptyList())
     val journalEntries = _journalEntries.asStateFlow()
 
+    // AAPS temp basal segments, kept apart from the journal rows: the chart hangs them as
+    // icicles, and nothing that lists, counts or doses journal rows should see them.
+    private val _journalTempBasals = MutableStateFlow<List<JournalEntry>>(emptyList())
+    val journalTempBasals = _journalTempBasals.asStateFlow()
+
     private val _journalInsulinPresets = MutableStateFlow<List<JournalInsulinPreset>>(emptyList())
     val journalInsulinPresets = _journalInsulinPresets.asStateFlow()
 
@@ -618,7 +637,13 @@ class DashboardViewModel(
     private fun ensureJournalEntriesObserved() {
         if (journalEntriesJob?.isActive == true) return
         journalEntriesJob = viewModelScope.launch {
-            journalRepository.observeEntries().collect { _journalEntries.value = it }
+            journalRepository.observeEntriesWithTempBasal()
+                .map { entries -> entries.partition { it.type == JournalEntryType.TEMP_BASAL } }
+                .flowOn(Dispatchers.Default)
+                .collect { (tempBasals, rows) ->
+                    _journalEntries.value = rows
+                    _journalTempBasals.value = tempBasals
+                }
         }
     }
 
@@ -841,10 +866,14 @@ class DashboardViewModel(
         _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
         _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
         _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
+        _dataSmoothingCausal.value = DataSmoothing.useCausalFilter(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
         _journalEnabled.value = journalEnabled
         _journalNavigationTabEnabled.value = prefs.getBoolean(JOURNAL_NAVIGATION_TAB_KEY, false)
+        _journalDashboardHiddenTypes.value = JournalDashboardVisibility.decode(
+            prefs.getStringSet(JournalDashboardVisibility.HIDDEN_TYPES_KEY, null)
+        )
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
         _stateDoseHintEnabled.value = prefs.getBoolean(STATE_DOSE_HINT_KEY, true)
         _stateDoseHintCorrectInRange.value = prefs.getBoolean(STATE_DOSE_HINT_IN_RANGE_KEY, true)
@@ -909,7 +938,9 @@ class DashboardViewModel(
         _xDripBroadcastEnabled.value = Natives.getxbroadcast()
         _patchedLibreBroadcastEnabled.value = Natives.getlibrelinkused()
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+        _xdripFollowerEnabled.value = tk.glucodata.XdripFollowerSend.isEnabled(context)
         _broadcastComputedTrend.value = prefs.getBoolean(tk.glucodata.BroadcastTrendRate.PREF_KEY, false)
+        _xdripReportAsLibre2.value = prefs.getBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, false)
 
         _hasLowAlarm.value = Natives.hasalarmlow()
         _lowAlarmThreshold.value = Natives.alarmlow()
@@ -1695,6 +1726,13 @@ class DashboardViewModel(
         _broadcastComputedTrend.value = enabled
     }
 
+    fun setXdripReportAsLibre2(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, enabled).apply()
+        _xdripReportAsLibre2.value = enabled
+    }
+
     fun toggleGlucodataBroadcast(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         if (enabled) {
@@ -1708,6 +1746,11 @@ class DashboardViewModel(
              tk.glucodata.JugglucoSend.setreceivers()
         }
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+    }
+
+    fun setXdripFollowerEnabled(enabled: Boolean) {
+        tk.glucodata.XdripFollowerSend.setEnabled(tk.glucodata.Applic.app, enabled)
+        _xdripFollowerEnabled.value = enabled
     }
 
     fun toggleNotificationChart(enabled: Boolean) {
@@ -1764,6 +1807,13 @@ class DashboardViewModel(
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
+    fun setDataSmoothingCausal(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        DataSmoothing.setUseCausalFilter(context, enabled)
+        _dataSmoothingCausal.value = enabled
+        refreshCurrentDisplayAfterSmoothingChange()
+    }
+
     fun setPreviewWindowMode(mode: Int) {
         val sanitized = mode.coerceIn(0, 2)
         val context = tk.glucodata.Applic.app
@@ -1790,6 +1840,14 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_NAVIGATION_TAB_KEY, enabled).apply()
         _journalNavigationTabEnabled.value = enabled
+    }
+
+    fun setJournalTypeShownOnDashboard(type: JournalEntryType, visible: Boolean) {
+        val hidden = JournalDashboardVisibility.toggled(_journalDashboardHiddenTypes.value, type, visible)
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(JournalDashboardVisibility.HIDDEN_TYPES_KEY, JournalDashboardVisibility.encode(hidden)).apply()
+        _journalDashboardHiddenTypes.value = hidden
     }
 
     fun setJournalDoseCalculatorEnabled(enabled: Boolean) {
@@ -2042,7 +2100,7 @@ class DashboardViewModel(
         insulinSensitivityMgDlPerUnit: Float? = null,
         carbAbsorptionGramsPerHour: Float? = null
     ) {
-        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(1f)
+        val normalizedCarbRatio = carbRatioGramsPerUnit?.roundToStep(PredictionModelProfile.CARB_RATIO_STEP)
         val normalizedSensitivity = insulinSensitivityMgDlPerUnit?.roundToStep(1f)
         val normalizedAbsorption = carbAbsorptionGramsPerHour?.roundToStep(1f)
         persistPredictionModelProfile(

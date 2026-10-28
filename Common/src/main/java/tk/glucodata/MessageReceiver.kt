@@ -51,6 +51,7 @@ class MessageReceiver: WearableListenerService() {
         }
         Log.i(LOG_ID,"onMessageReceived start $path"  )
         when(WearMessagePath.fromWire(path)) {
+            WearMessagePath.ALERT_ACK -> WearAlertSync.onMessage(data)
             WearMessagePath.DEFAULTS ->  {
                 val sender = tk.glucodata.MessageSender.getMessageSender()
                 if (sender == null) {
@@ -73,6 +74,7 @@ class MessageReceiver: WearableListenerService() {
                 // Each side advertises its protocol version on the handshake; a mismatch is logged
                 // here instead of the peers silently disagreeing about message shapes.
                 WearProtocol.onPeerVersionReport(data)
+                WearAlertSync.pushTo(messageEvent.sourceNodeId)
                 }
             WearMessagePath.DATA   -> {
                 // Phone-to-phone mirroring only. On the watch this legacy
@@ -94,7 +96,8 @@ class MessageReceiver: WearableListenerService() {
                     // watch that missed the change-time push would keep the
                     // compiled-in defaults for good.
                     GlucoseColorSync.pushIfChanged(messageEvent.sourceNodeId)
-                    WearPrefsSync.pushIfChanged(messageEvent.sourceNodeId)
+                    // A previous prefs reply may have been lost, even if sendMessage succeeded.
+                    WearPrefsSync.pushTo(messageEvent.sourceNodeId)
                     WearToggleSync.pushIfChanged(messageEvent.sourceNodeId)
                     // Answer the handshake with this build's protocol version.
                     MessageSender.sendProtocol(messageEvent.sourceNodeId)

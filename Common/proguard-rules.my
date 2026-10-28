@@ -110,3 +110,6 @@
 # reference. Both also carry @Keep at their declaration; keep the two in sync.
 -keep class tk.glucodata.update.AppUpdateCheckWorker { public <init>(...); }
 -keep class tk.glucodata.update.AppUpdateInstallReceiver { public <init>(...); }
+
+# Looked up by name from native code (g.cpp isManagedDirectStreamSensorId); R8 would otherwise rename it.
+-keep class tk.glucodata.SensorIdentity { public static boolean usesNativeDirectStreamShell(java.lang.String); }

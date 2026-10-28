@@ -41,6 +41,18 @@ object DisplayTrendSource {
         }
 
         val candidate = GlucosePoint(current.timeMillis, autoValue, rawValue)
+        candidate.sensorSerial = current.sensorId ?: activeSensorSerial
+        // The live tail can replace the persisted point of the same minute.
+        // Carry that minute's interval and record, never an older sensor's band.
+        history.asReversed().firstOrNull { point ->
+            point.timestamp / 60_000L == candidate.timestamp / 60_000L &&
+                (point.sensorSerial == null || candidate.sensorSerial == null ||
+                    SensorIdentity.matches(point.sensorSerial, candidate.sensorSerial))
+        }?.let { point ->
+            candidate.uncertainty = point.uncertainty?.shifted(candidate.value - point.value)
+            candidate.sealedDisplayValue = point.sealedDisplayValue
+            candidate.sealedDisplayViewMode = point.sealedDisplayViewMode
+        }
         if (history.isEmpty()) {
             return listOf(candidate)
         }

@@ -1037,6 +1037,8 @@ object SibionicsRegistry {
 }
 
 object SibionicsManagedSensorIdentityAdapter : tk.glucodata.drivers.ManagedSensorIdentityAdapter {
+    override val uiFamily = tk.glucodata.drivers.ManagedSensorUiFamily.SIBIONICS
+
     private fun hasExplicitPrefix(sensorId: String?): Boolean =
         sensorId?.trim()?.startsWith(SibionicsConstants.MANAGED_PREFIX, ignoreCase = true) == true
 

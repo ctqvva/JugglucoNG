@@ -77,7 +77,8 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(addSIscangetName)(
   auto [sensindex, sens] = sensors->makeSIsensorindex(scangegs, time(nullptr));
   if (sens) {
     const char *name = sens->shortsensorname()->data();
-    LOGGER("addSIscangetName(%s)=%s\n", gegs, name);
+    // Not the scanned text: a CareSens Air code carries the pairing PIN.
+    LOGGER("addSIscangetName()=%s\n", name);
     sendstreaming(sens); // TODO??
     backup->resendResetDevices();
     backup->wakebackup(Backup::wakeall);

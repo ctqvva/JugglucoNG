@@ -88,23 +88,6 @@ class StatsViewModel : ViewModel() {
     private val tag = "StatsViewModel"
     private val historyRepository = HistoryRepository()
 
-    private data class StatsHistorySignature(
-        val size: Int,
-        val firstTimestamp: Long,
-        val lastTimestamp: Long,
-        val contentHash: Long
-    )
-
-    private data class StatsHistoryEdgeSignature(
-        val size: Int,
-        val firstTimestamp: Long,
-        val middleTimestamp: Long,
-        val lastTimestamp: Long,
-        val firstValueBits: Int,
-        val middleValueBits: Int,
-        val lastValueBits: Int
-    )
-
     private data class StatsDisplayHistoryCacheKey(
         val historySignature: StatsHistorySignature,
         val viewMode: Int,
@@ -492,7 +475,7 @@ class StatsViewModel : ViewModel() {
 
             historyRepository.getDisplayHistoryFlowForStats(serial, startTime)
                 .conflate()
-                .distinctUntilChangedBy(::historyEdgeSignature)
+                .distinctUntilChangedBy(::statsHistorySignature)
                 .collect { points ->
                     _historyPoints.value = points
                     _isLoading.value = false
@@ -729,7 +712,7 @@ class StatsViewModel : ViewModel() {
         history: List<GlucosePoint>,
         viewMode: Int,
         unit: GlucoseUnit,
-        historySignature: StatsHistorySignature = historySignature(history),
+        historySignature: StatsHistorySignature = statsHistorySignature(history),
         useCache: Boolean = true
     ): List<GlucosePoint> {
         if (history.isEmpty()) return emptyList()
@@ -753,6 +736,7 @@ class StatsViewModel : ViewModel() {
         val hideInitialWhenCalibrated = CalibrationManager.shouldHideInitialWhenCalibrated()
         val sensorSerial = activeSerial ?: history.firstOrNull()?.sensorSerial
         val calibratedDisplayValues = arrayOfNulls<Float>(history.size)
+        val recordedIndices = BooleanArray(history.size)
 
         run {
             history.withIndex()
@@ -787,7 +771,11 @@ class StatsViewModel : ViewModel() {
 
             // A reading whose displayed value was recorded overrides the series
             // recomputed above: the statistic has to describe what was on screen,
-            // not what today's calibration would have made of it.
+            // not what today's calibration would have made of it — in whichever
+            // lane it was shown. Gating it by the lane selected now (#499) let a
+            // raw/auto switch re-derive every minute recorded in the other lane,
+            // so the statistics moved with the toggle and with any calibration
+            // added afterwards, which is the one thing a record must not do.
             //
             // Converted, because the two sides are not in the same unit.
             // [calibratedDisplayValues] holds display units — it is filled from
@@ -802,7 +790,10 @@ class StatsViewModel : ViewModel() {
             history.forEachIndexed { index, point ->
                 point.sealedDisplayValue
                     ?.takeIf { it.isFinite() && it > 0f }
-                    ?.let { calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol) }
+                    ?.let {
+                        calibratedDisplayValues[index] = GlucoseFormatter.displayFromMgDl(it, isMmol)
+                        recordedIndices[index] = true
+                    }
             }
         }
 
@@ -818,7 +809,8 @@ class StatsViewModel : ViewModel() {
                 viewMode = pointViewMode,
                 unit = unit,
                 calibratedDisplayValue = calibratedDisplayValue,
-                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated
+                hideInitialWhenCalibrated = calibratedDisplayValue != null && hideInitialWhenCalibrated,
+                calibratedIsRecorded = recordedIndices[index]
             )
             if (primaryValueMgDl == null || !primaryValueMgDl.isFinite() || primaryValueMgDl <= 0f) {
                 null
@@ -902,7 +894,7 @@ class StatsViewModel : ViewModel() {
             )
         }
 
-        val historySignature = historySignature(rawHistory)
+        val historySignature = statsHistorySignature(rawHistory)
         val sensorModesHash = sensorViewModesHash(resolveHistoricalSensorViewModes(rawHistory, viewMode))
         val cacheKey = StatsRangeProjectionCacheKey(
             historySignature = historySignature,
@@ -1041,7 +1033,8 @@ class StatsViewModel : ViewModel() {
         viewMode: Int,
         unit: GlucoseUnit,
         calibratedDisplayValue: Float?,
-        hideInitialWhenCalibrated: Boolean
+        hideInitialWhenCalibrated: Boolean,
+        calibratedIsRecorded: Boolean = false
     ): Float? {
         val isMmol = unit == GlucoseUnit.MMOL
         val displayValues = DisplayValueResolver.resolve(
@@ -1050,55 +1043,14 @@ class StatsViewModel : ViewModel() {
             viewMode = viewMode,
             isMmol = isMmol,
             calibratedValue = calibratedDisplayValue,
-            hideInitialWhenCalibrated = hideInitialWhenCalibrated
+            hideInitialWhenCalibrated = hideInitialWhenCalibrated,
+            calibratedIsRecorded = calibratedIsRecorded
         )
         val primaryDisplayValue = displayValues.primaryValue
         if (!primaryDisplayValue.isFinite() || primaryDisplayValue <= 0f) {
             return null
         }
         return toMgDl(primaryDisplayValue, unit)
-    }
-
-    private fun historySignature(points: List<GlucosePoint>): StatsHistorySignature {
-        if (points.isEmpty()) {
-            return StatsHistorySignature(
-                size = 0,
-                firstTimestamp = 0L,
-                lastTimestamp = 0L,
-                contentHash = 0L
-            )
-        }
-
-        var hash = 1125899906842597L
-        points.forEach { point ->
-            hash = 31L * hash + point.timestamp
-            hash = 31L * hash + java.lang.Float.floatToRawIntBits(point.value).toLong()
-            hash = 31L * hash + java.lang.Float.floatToRawIntBits(point.rawValue).toLong()
-            hash = 31L * hash + (point.sensorSerial?.hashCode()?.toLong() ?: 0L)
-        }
-
-        return StatsHistorySignature(
-            size = points.size,
-            firstTimestamp = points.first().timestamp,
-            lastTimestamp = points.last().timestamp,
-            contentHash = hash
-        )
-    }
-
-    private fun historyEdgeSignature(points: List<GlucosePoint>): StatsHistoryEdgeSignature {
-        if (points.isEmpty()) {
-            return StatsHistoryEdgeSignature(0, 0L, 0L, 0L, 0, 0, 0)
-        }
-        val middle = points[points.lastIndex / 2]
-        return StatsHistoryEdgeSignature(
-            size = points.size,
-            firstTimestamp = points.first().timestamp,
-            middleTimestamp = middle.timestamp,
-            lastTimestamp = points.last().timestamp,
-            firstValueBits = java.lang.Float.floatToRawIntBits(points.first().value),
-            middleValueBits = java.lang.Float.floatToRawIntBits(middle.value),
-            lastValueBits = java.lang.Float.floatToRawIntBits(points.last().value)
-        )
     }
 
     private fun maybeRefreshTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {

@@ -1,5 +1,7 @@
 package tk.glucodata.ui.setup
 
+import tk.glucodata.ui.components.AdaptiveButtonRow
+import androidx.compose.material3.ButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -181,16 +183,17 @@ internal fun AiDexKeyManagementScreen(
                 )
 
                 if (keySaved) {
-                    Row(
+                    AdaptiveButtonRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Button(
                             onClick = {
                                 exportLauncher.launch("aidex_${normalizedSerial.orEmpty()}.json")
                             },
                             enabled = !busy && normalizedSerial != null,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
                         ) {
                             Icon(Icons.Default.FileUpload, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
@@ -201,7 +204,9 @@ internal fun AiDexKeyManagementScreen(
                                 importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                             },
                             enabled = !busy,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
                         ) {
                             Icon(Icons.Default.FileDownload, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
@@ -215,6 +220,8 @@ internal fun AiDexKeyManagementScreen(
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -259,6 +266,8 @@ internal fun AiDexKeyManagementScreen(
                     },
                     enabled = !busy && signedIn && normalizedSerial != null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
                 ) {
                     if (busy) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -309,6 +318,8 @@ internal fun AiDexKeyManagementScreen(
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Text(stringResource(R.string.mq_account_sign_out_action))
                     }
@@ -362,6 +373,8 @@ internal fun AiDexKeyManagementScreen(
                             },
                             enabled = !busy && normalizedPhone != null,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
                         ) {
                             Text(stringResource(R.string.ottai_send_code))
                         }
@@ -424,6 +437,8 @@ internal fun AiDexKeyManagementScreen(
                             (if (loginMethod == AiDexAccountLoginMethod.SMS) code.isNotBlank()
                             else password.isNotBlank()),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         Text(stringResource(R.string.ottai_login_button))
                     }
@@ -443,6 +458,8 @@ internal fun AiDexKeyManagementScreen(
             onClick = onClose,
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding,
         ) {
             Text(stringResource(R.string.close))
         }

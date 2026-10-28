@@ -230,10 +230,15 @@ static public boolean deleteUrl(String urlstring,String secret) {
  */
 @Keep
 static public int deleteUrlCode(String urlstring,String secret) {
+    return deleteUrlCode(urlstring,secret,true);
+    }
+
+private static int deleteUrlCode(String urlstring,String secret,boolean retryRejectedToken) {
     patch();
     uploadtime=System.currentTimeMillis();
     {if(doLog) {Log.i(LOG_ID,"deleteUrl "+urlstring);};};
     HttpURLConnection urlConnection=null;
+    String auth=null;
     try {
         URL url = new URL(urlstring);
     uploadstatus=" start deleteURL "+urlstring;
@@ -243,7 +248,7 @@ static public int deleteUrlCode(String urlstring,String secret) {
         if(secret!=null)
                 urlConnection.setRequestProperty("api-secret", secret);
         else {
-            final String auth = gettoken(
+            auth = gettoken(
                     uploadtime,
                     UPLOAD_CONNECT_TIMEOUT_MS,
                     UPLOAD_READ_TIMEOUT_MS,
@@ -258,6 +263,11 @@ static public int deleteUrlCode(String urlstring,String secret) {
         urlConnection.setRequestMethod("DELETE");
 
         final int code=urlConnection.getResponseCode();
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
+            urlConnection.disconnect();
+            return deleteUrlCode(urlstring,secret,false);
+            }
         String res=getstring(urlConnection);
         lastPrimaryResponseBody=res;
         if(code==HTTP_OK || code==HttpURLConnection.HTTP_NO_CONTENT) {
@@ -408,6 +418,34 @@ static public String getV3AuthorizationHeader() {
 
 private static synchronized String getCachedToken(long now) {
     return now<expire ? token : "";
+    }
+
+/**
+ * Forgets the cached token after Nightscout answered it with 401.
+ *
+ * <p>Nightscout signs its JWTs with a key that a restart can replace (a redeploy or image
+ * update regenerates it), and every token it handed out before then is refused from that
+ * moment on. This class used to keep sending the refused one until its own expiry, eight
+ * hours by default, so a server restart looked like a connection only an app restart could
+ * bring back (#716).
+ *
+ * <p>Only clears the cache while {@code rejected} is still what it holds: requests carrying
+ * the same old token run concurrently (device status has its own thread), and the first 401
+ * may already have fetched a good replacement. Callers retry once either way, so the later
+ * ones pick that replacement up instead of failing the pass.
+ */
+private static synchronized void dropRejectedToken(String rejected) {
+    if(rejected==null || rejected.isEmpty() || !rejected.equals(token))
+        return;
+    Log.i(LOG_ID,"Nightscout refused the cached token; exchanging a new one");
+    token="";
+    expire=0L;
+    }
+
+/** For v3 requests made outside this class: the header from {@link #getV3AuthorizationHeader} got a 401. */
+@Keep
+static public void dropRejectedV3AuthorizationHeader(String rejected) {
+    dropRejectedToken(rejected);
     }
 
 private static long ancillaryTokenAttemptTime=0L;
@@ -679,6 +717,30 @@ private static int uploadWithTimeouts(
         boolean updateVisibleStatus,
         String requestKind
 ) {
+    return uploadWithTimeouts(
+            httpurl,
+            postdata,
+            secret,
+            requestMethod,
+            connectTimeoutMs,
+            readTimeoutMs,
+            updateVisibleStatus,
+            requestKind,
+            true
+    );
+    }
+
+private static int uploadWithTimeouts(
+        String httpurl,
+        byte[] postdata,
+        String secret,
+        String requestMethod,
+        int connectTimeoutMs,
+        int readTimeoutMs,
+        boolean updateVisibleStatus,
+        String requestKind,
+        boolean retryRejectedToken
+) {
     if(updateVisibleStatus)
         patch();
     final long requestTime=System.currentTimeMillis();
@@ -687,6 +749,7 @@ private static int uploadWithTimeouts(
     final int payloadLength=postdata==null ? 0 : postdata.length;
     {if(doLog) {Log.i(LOG_ID,requestKind+" upload("+httpurl+",#"+payloadLength+","+requestMethod+")");};};
     HttpURLConnection urlConnection=null;
+    String auth=null;
     try {
 
       if(httpurl==null || !(httpurl.startsWith("https://") || httpurl.startsWith("http://"))) {
@@ -720,7 +783,7 @@ private static int uploadWithTimeouts(
             // nothing refills it, so device status stayed dead until a manual resend
             // happened to trigger a primary upload. It now fetches a token itself, but
             // throttled: a refusing server is asked once per interval, not per attempt.
-            final String auth = updateVisibleStatus
+            auth = updateVisibleStatus
                     ? gettoken(requestTime, connectTimeoutMs, readTimeoutMs, true)
                     : getAncillaryToken(requestTime);
             if(auth.isEmpty()) {
@@ -737,6 +800,22 @@ private static int uploadWithTimeouts(
             outputPost.flush();
         }
         final int code=urlConnection.getResponseCode();
+        // A 401 stored nothing, so sending the same document again with a fresh token is safe.
+        if(code==HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && auth!=null) {
+            dropRejectedToken(auth);
+            urlConnection.disconnect();
+            return uploadWithTimeouts(
+                    httpurl,
+                    postdata,
+                    secret,
+                    requestMethod,
+                    connectTimeoutMs,
+                    readTimeoutMs,
+                    updateVisibleStatus,
+                    requestKind,
+                    false
+            );
+            }
         String res=getstring(urlConnection);
         if(updateVisibleStatus)
             lastPrimaryResponseBody=res;

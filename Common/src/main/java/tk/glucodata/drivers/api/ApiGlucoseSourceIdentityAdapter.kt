@@ -8,6 +8,9 @@ import tk.glucodata.drivers.ManagedBluetoothSensorDriver
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
 
 object ApiGlucoseSourceIdentityAdapter : ManagedSensorIdentityAdapter {
+    // Readings another app pushed in; no sensor family this app can vouch for.
+    override val uiFamily = tk.glucodata.drivers.ManagedSensorUiFamily.GENERIC
+
 
     override fun matchesCallbackId(callbackId: String?, sensorId: String): Boolean {
         val normalized = callbackId?.trim().takeIf { !it.isNullOrEmpty() } ?: return false

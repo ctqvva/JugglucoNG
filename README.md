@@ -2,11 +2,11 @@
 
 # JugglucoNG
 
-JugglucoNG is an experimental continuous glucose monitoring app for Android. JugglucoNG is an experimental continuous glucose monitoring app for Android.
+JugglucoNG is an experimental continuous glucose monitoring app for Android.
 
 Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap Korthals Altes, it continues to evolve with a modern Compose UI using Material 3, a sensor-independent data layer, support for multiple CGM systems, a treatment journal with IOB/eIOB/COB tracking, predictive simulation, a redesigned alarm engine, and bidirectional Nightscout integration.
 
-![Screenshot](juggluco_screenshot.png)
+![Screenshot](docs/assets/juggluco_screenshot.png)
 
 <sub>English · Беларуская · 中文 · Deutsch · Français · Italiano · Nederlands · Polski · Português · Русский · Svenska · Soomaali · Türkçe · Українська · Монгол</sub>
 
@@ -15,7 +15,44 @@ Originally forked from [Juggluco](https://github.com/j-kaltes/Juggluco) by Jaap 
 >
 > JugglucoNG may contain bugs and may display incorrect, delayed, or missing data. Do not rely on it as the sole basis for treatment, insulin dosing, diagnosis, or other medical decisions. Always verify clinically significant readings using the manufacturer's official system or another appropriate method.
 
-**Latest alpha:** [Releases](https://github.com/ctqvva/JugglucoNG/releases)
+## Download
+
+<!-- download-info:start -->
+[![Download JugglucoNG 1.2.7-Alpha for Android](docs/assets/download-android.svg?version=1.2.7-Alpha)][download-phone] [![Nightly builds](docs/assets/download-nightly.svg)](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
+<!-- download-info:end -->
+
+<sub>Android 8.0 or newer · [Release notes][download-release] · [Wear OS][download-wear] · [Phone DUB][download-phone-dub] · [Wear OS DUB][download-wear-dub]</sub>
+
+<details>
+<summary>Installation and other versions</summary>
+
+Open the downloaded APK on your phone. If Android asks, allow installation from
+the browser or file manager you used. Back up settings and data before updating;
+the matching APK updates your existing installation.
+
+| Download | Use it for |
+| --- | --- |
+| **[Android phone][download-phone]** | The standard phone app; the right choice for most people |
+| [Wear OS][download-wear] | A Wear OS watch |
+| [Phone DUB][download-phone-dub] | A second, separate phone app with its own data |
+| [Wear OS DUB][download-wear-dub] | The matching separate app on a Wear OS watch |
+
+Standard and DUB installations update with their matching APK. Watch APKs are
+installed on the watch. [Nightlies](https://github.com/ctqvva/JugglucoNG/releases?q=nightly-&expanded=true)
+are test builds from recent main changes; choose the file ending in `-phone.apk`
+for a standard phone.
+
+Browse [all releases](https://github.com/ctqvva/JugglucoNG/releases) for older versions.
+
+</details>
+
+<!-- download-links:start -->
+[download-phone]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.7-Alpha/JugglucoNG-1.2.7-Alpha.apk
+[download-wear]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.7-Alpha/JugglucoNG-1.2.7-Alpha-wear.apk
+[download-phone-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.7-Alpha/JugglucoNG-1.2.7-Alpha-dub.apk
+[download-wear-dub]: https://github.com/ctqvva/JugglucoNG/releases/download/1.2.7-Alpha/JugglucoNG-1.2.7-Alpha-wear-dub.apk
+[download-release]: https://github.com/ctqvva/JugglucoNG/releases/tag/1.2.7-Alpha
+<!-- download-links:end -->
 
 ## Sensor and data-source support
 
@@ -66,6 +103,8 @@ git submodule update --init
 ```
 
 The app is localized into 15 languages; new user-facing strings go into `Common/src/main/res/values/strings.xml` and every `values-*` locale.
+
+Build helpers live in [scripts/](scripts/README.md), developer tools in `tools/`, and documentation images in `docs/assets/`. Historical root files are preserved in [tools/archive/root-cleanup/](tools/archive/root-cleanup/README.md).
 
 ## Version history
 

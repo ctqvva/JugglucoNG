@@ -273,6 +273,32 @@ int SensorGlucoseData::updatescan(crypt_t *pass, Connect *connect, int ind,
           }
         }
         return 2;
+      } else if (isAir()) {
+        if (!getinfo()->update[ind].siScan && getinfo()->airData.pinCode[0]) {
+          std::vector<subdata> vect;
+          vect.reserve(3);
+          vect.push_back({meminfo.data(), 0,
+                          offsetof(Info, lastHistoricLifeCountReceivedPos)});
+          // The air flag is a bitfield in the byte after customCalIndex.
+          constexpr const int offair =
+              offsetof(Info, customCalIndex) + sizeof(Info::customCalIndex);
+          static_assert(offair < offsetof(Info, resetModeStartTime));
+          vect.push_back({meminfo.data() + offair, offair, 1});
+          vect.push_back({meminfo.data() + offsetof(Info, airData),
+                          offsetof(Info, airData), sizeof(Info::airData)});
+          if (!connect->senddata(pass, vect, infopath)) {
+            LOGSTRING("GLU: senddata info.data failed\n");
+            return 0;
+          }
+          getinfo()->update[ind].siScan = true;
+          return 5;
+        } else {
+          if (getinfo()->update[ind].sendstreaming) {
+            getinfo()->update[ind].sendstreaming = false;
+            return 5;
+          }
+        }
+        return 2;
       } else {
 
         bool did = false;

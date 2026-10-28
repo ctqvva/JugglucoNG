@@ -105,7 +105,7 @@ class SilentNotificationAlertTests {
                     }
                     void cancelRetrySession(int kind, String reason) { cancelledRetries++; }
                     void syncRetrySession(int kind, float value, String message, notGlucose glucose, String type, AlertConfig config, boolean first) { throw new AssertionError("Silent refresh rescheduled retry"); }
-                    void deliverTriggeredAlert(int kind, float value, String message, notGlucose glucose, String type) { throw new AssertionError("Silent refresh fired an alert"); }
+                    void deliverInitialAlert(int kind, float value, String message, notGlucose glucose, String type, AlertConfig config, boolean production) { throw new AssertionError("Silent refresh fired an alert"); }
                     void updateForegroundGlucoseNotification(int kind, float value, notGlucose glucose) { refreshes++; }
                     void arrowglucosenotification(int kind, float value, String message, notGlucose glucose, String type, boolean alarm) { refreshes++; }
                     public void refresh(int kind) { arrowglucosealarm(kind, 63f, "63", null, GLUCOSENOTIFICATION, false); }

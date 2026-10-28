@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,7 +53,7 @@ class ExportPackageCodecTests {
             .put("missing", JSONObject.NULL)
             .put("items", org.json.JSONArray().put("first").put(2))
         val encoded = ByteArrayOutputStream().also { output ->
-            ExportPackageCodec.writeJson(output, payload, ExportCompression.GZIP)
+            runBlocking { ExportPackageCodec.writeJson(output, payload, ExportCompression.GZIP) }
         }.toByteArray()
 
         val decoded = JSONObject(ExportPackageCodec.readUtf8(ByteArrayInputStream(encoded)))

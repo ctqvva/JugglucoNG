@@ -29,7 +29,7 @@ fun rememberWizardUiMetrics(): WizardUiMetrics {
             spacerLarge = 24.dp,
             spacerMedium = 12.dp,
             spacerSmall = 8.dp,
-            buttonHeight = 46.dp
+            buttonHeight = 48.dp
         )
     } else {
         WizardUiMetrics(

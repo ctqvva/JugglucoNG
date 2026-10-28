@@ -34,7 +34,8 @@ enum class ManagedSensorCalibrationSource {
 
 enum class ManagedSensorUiFamily(
     /**
-     * What the native info block stores for this family (three bits, 0 = unknown).
+     * What the native info block stores for this family (four bits, 0 = unknown;
+     * 8-15 use the fourth bit, which builds before it read as 0).
      * Fixed here rather than taken from ordinal(), because the value is on disk
      * and travels to other phones over Clone: reordering the enum must not
      * relabel anyone's sensor.
@@ -48,7 +49,8 @@ enum class ManagedSensorUiFamily(
     ANYTIME(4),
     OTTAI(5),
     SIBIONICS(6),
-    NIGHTSCOUT(7);
+    NIGHTSCOUT(7),
+    MEDTRUM(8);
 
     companion object {
         fun fromNativeCode(code: Int): ManagedSensorUiFamily =
@@ -97,6 +99,8 @@ data class ManagedSensorUiSnapshot(
     val vendorFirmware: String = "",
     val vendorHardware: String = "",
     val vendorModel: String = "",
+    /** Badge brand when it differs from the family's own ("LUMI" for a Lumiflex AiDex). */
+    val vendorBrand: String = "",
     val resetCompensationActive: Boolean = false,
     val resetCompensationStatus: String = "",
 )
@@ -163,6 +167,9 @@ interface ManagedBluetoothSensorDriver {
 
     /** True when this driver consumes calibration for the requested display mode. */
     fun integratesUserCalibration(isRawMode: Boolean): Boolean = false
+
+    /** A replay changes Auto values even when calibration is disabled or Stock is restored. */
+    fun rewritesAutoHistory(): Boolean = false
 
     /** Calibration points or policy changed; stateful managed models may rebuild locally. */
     fun onUserCalibrationRevisionChanged(revision: Long) {}

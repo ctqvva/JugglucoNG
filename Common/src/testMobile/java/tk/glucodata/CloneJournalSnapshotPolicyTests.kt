@@ -57,7 +57,7 @@ class CloneJournalSnapshotPolicyTests {
             baseId = "journal:42",
         )
 
-        assertEquals(5, recordIds.size)
+        assertEquals(6, recordIds.size)
         assertTrue(recordIds.all { it.startsWith("clone:test-origin:journal:42:") })
     }
 

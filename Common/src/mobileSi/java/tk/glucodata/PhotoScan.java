@@ -223,6 +223,92 @@ public class PhotoScan {
         return text.endsWith("MirrorJuggluco") || text.contains("\"port\"");
     }
 
+    // CareSens Air: optional i-SENS GTIN plus four AIs whose lengths
+    // upstream Juggluco requires exactly. AI 21, 240 and 250 are variable length in GS1,
+    // so decoders that drop the GS separators are handled by these lengths.
+    private static final String CARESENS_AIR_COMPANY = "8806712";
+    private static final String[] CARESENS_AIR_AIS = {"01", "17", "21", "240", "250"};
+    private static final int[] CARESENS_AIR_LENGTHS = {14, 6, 12, 6, 16};
+
+    /**
+     * The canonical form native expects for a CareSens Air code — GS 01 gtin 17 expiry
+     * 21 serial GS 240 pin GS 250 code, the layout of careSenseAirScan_t — or null when
+     * the payload is not one.
+     */
+    static String buildCareSensAirPayload(String input) {
+        if (input == null) {
+            return null;
+        }
+        String text = stripSymbologyPrefix(input.replace(" ", "")).replace("^]", GROUP_SEPARATOR);
+        final String[] values = new String[CARESENS_AIR_AIS.length];
+        int pos = 0;
+        while (pos < text.length()) {
+            if (text.charAt(pos) == GROUP_SEPARATOR_CHAR) {
+                pos++;
+                continue;
+            }
+            int field = -1;
+            for (int i = 0; i < CARESENS_AIR_AIS.length; i++) {
+                if (text.startsWith(CARESENS_AIR_AIS[i], pos)) {
+                    field = i;
+                    break;
+                }
+            }
+            if (field < 0 || values[field] != null) {
+                return null;
+            }
+            pos += CARESENS_AIR_AIS[field].length();
+            final int length = CARESENS_AIR_LENGTHS[field];
+            int end = text.indexOf(GROUP_SEPARATOR_CHAR, pos);
+            if (end < 0) {
+                end = text.length();
+            }
+            if (end - pos < length) {
+                return null;
+            }
+            // Longer than the field means the separator after it was dropped.
+            values[field] = text.substring(pos, pos + length);
+            pos += length;
+        }
+        // Upstream also accepts the 53-byte form containing only AIs 17/21/240/250.
+        for (int i = 1; i < values.length; i++) {
+            if (values[i] == null) {
+                return null;
+            }
+        }
+        final String gtin = values[0];
+        if ((gtin != null && (!gtin.substring(1, 8).equals(CARESENS_AIR_COMPANY) || !isDigits(gtin)))
+                || !isDigits(values[1])
+                || !isPrintable(values[2]) || !isPrintable(values[3]) || !isPrintable(values[4])) {
+            return null;
+        }
+        // Keep the persisted record and PIN offset unchanged. Zeros only pad the
+        // absent GTIN; identity still comes from expiry + serial, as upstream.
+        return GROUP_SEPARATOR + "01" + (gtin != null ? gtin : "00000000000000")
+                + "17" + values[1] + "21" + values[2]
+                + GROUP_SEPARATOR + "240" + values[3] + GROUP_SEPARATOR + "250" + values[4];
+    }
+
+    private static boolean isDigits(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c < '0' || c > '9') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isPrintable(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c <= ' ' || c > '~') {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static String sanitizeAlnumUpper(String value) {
         if (value == null || value.isEmpty()) {
             return "";
@@ -689,6 +775,11 @@ public class PhotoScan {
 
         if (request != REQUEST_BARCODE || trimmed.isEmpty() || isLikelyMirrorPayload(trimmed)) {
             return trimmed;
+        }
+
+        final String careSensAir = buildCareSensAirPayload(trimmed);
+        if (careSensAir != null) {
+            return careSensAir;
         }
 
         String normalized = trimmed;

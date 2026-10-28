@@ -146,6 +146,8 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
             rssi = callback.readrssi,
             dataptr = dataptr,
             viewMode = viewMode,
+            customAlgorithmEnabled = isCustomAlgorithmEnabled(),
+            customAlgorithmMode = getCustomAlgorithmMode(),
             supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = supportsManualCalibration(),
             supportsHardwareReset = runCatching { supportsResetAction() }.getOrDefault(true),
@@ -159,6 +161,7 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
             vendorFirmware = runCatching { vendorFirmwareVersion }.getOrDefault(""),
             vendorHardware = runCatching { vendorHardwareVersion }.getOrDefault(""),
             vendorModel = runCatching { vendorModelName }.getOrDefault(""),
+            vendorBrand = runCatching { vendorBrandName }.getOrDefault(""),
             resetCompensationActive = runCatching { resetCompensationEnabled }.getOrDefault(false),
             resetCompensationStatus = runCatching { getCompensationStatusText() }.getOrDefault(""),
         )
@@ -215,6 +218,9 @@ interface AiDexDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDr
 
     /** Model name from startup metadata / vendor device-info (e.g. "GX-01S"). */
     val vendorModelName: String
+
+    /** Product brand the sensor advertises when it is a rebrand ("LUMI"), else blank. Badge only. */
+    val vendorBrandName: String get() = ""
 
     // ── Lifecycle ───────────────────────────────────────────────────────
 

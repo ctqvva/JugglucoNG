@@ -14,13 +14,13 @@ import tk.glucodata.Applic
 object GlucoseUncertaintyDisplay {
 
     private const val PREF_NAME = "tk.glucodata_preferences"
-    private const val PREF_RIBBON = "glucose_uncertainty_ribbon"
+    private const val PREF_RIBBON = tk.glucodata.chart.UncertaintyBands.PREFERENCE_KEY
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
     fun isRibbonEnabled(context: Context): Boolean =
-        runCatching { prefs(context).getBoolean(PREF_RIBBON, true) }.getOrDefault(true)
+        tk.glucodata.chart.UncertaintyBands.isEnabled(context)
 
     /** Reads the app context; for composables that do not hold one. */
     fun isRibbonEnabled(): Boolean =

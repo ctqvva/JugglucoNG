@@ -28,6 +28,9 @@ internal object SealedGlucoseValue {
         isRawMode: Boolean,
         sensorId: String?
     ): Float? {
+        // The record is what the main line showed, whichever lane drew it —
+        // the same rule the chart builder applies (recordedMainValue), or rows
+        // and charts disagree minute by minute after a view-mode switch.
         point.sealedDisplayValue?.takeIf { it.isFinite() && it > 0.1f }?.let { return it }
         return computeCalibrated(
             baseValue = if (isRawMode) point.rawValue else point.value,

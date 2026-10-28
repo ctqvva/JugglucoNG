@@ -7,6 +7,13 @@ import tk.glucodata.CalibrationProfileBridge
  * [CalibrationManager]; the mirror import policy still decides whether it applies.
  */
 object MobileCalibrationProfileBridge : CalibrationProfileBridge {
+    override fun onDisplayUnitChanged() {
+        CalibrationManager.isCalibrationStateLoaded()
+    }
+
+    override fun mirrorProfileSensorIds(): Array<String> =
+        CalibrationManager.mirrorProfileSensorIds()
+
     override fun exportProfileForSensorAsJson(sensorId: String): String? =
         CalibrationManager.exportProfileForSensorAsJson(sensorId)
 

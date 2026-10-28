@@ -95,6 +95,7 @@ class CloneJournalIdentityTests {
                 "clone:test-origin-alpha:journal:91:fingerstick",
                 "clone:test-origin-alpha:journal:91:activity",
                 "clone:test-origin-alpha:journal:91:note",
+                "clone:test-origin-alpha:journal:91:temp_basal",
             ),
             CloneJournalIdentity.entryIdsForTombstoneBase(base),
         )

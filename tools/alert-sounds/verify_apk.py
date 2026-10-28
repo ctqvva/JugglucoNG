@@ -18,7 +18,7 @@ def main():
     manifest = json.loads((ROOT / 'tools/alert-sounds/asset-manifest.json').read_text())
     expected = {entry['file'].removesuffix('.m4a'): (ROOT / 'Common/src/main/res/raw' / entry['file']).read_bytes()
                 for entry in manifest['assets'].values()}
-    assert len(expected) == 54, f'Expected 54 source sounds, found {len(expected)}'
+    assert len(expected) == 63, f'Expected 63 source sounds, found {len(expected)}'
     assert len(manifest['legacy']) == 9
     for apk in args.apks:
         table = subprocess.check_output([args.aapt2, 'dump', 'resources', str(apk)], text=True)
@@ -34,7 +34,7 @@ def main():
                 match = re.search(r'resource \S+ raw/' + re.escape(name) + r'\n\s+\(\) \(file\) (\S+)', table)
                 assert match, f'{apk}: missing legacy resource {name}'
                 assert archive.read(match[1]) == source.read_bytes(), name
-        print(f'{apk.name}: legacy originals retained; all 54 named resources resolve to byte-identical AAC')
+        print(f'{apk.name}: legacy originals retained; all 63 named resources resolve to byte-identical AAC')
 
 
 if __name__ == '__main__':

@@ -7,9 +7,7 @@ import tk.glucodata.CustomAlertAccess
 import tk.glucodata.Log
 import tk.glucodata.Notify
 import tk.glucodata.alerts.AlertRepository
-import tk.glucodata.alerts.AlertStateTracker
 import tk.glucodata.alerts.AlertType
-import tk.glucodata.alerts.SnoozeManager
 
 /**
  * Handles notification actions for alerts (snooze, dismiss, ignore) on both
@@ -30,72 +28,23 @@ class AlarmActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)
         val fallbackAlertTypeId = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
-        val resolvedAlertType = AlertType.fromId(Notify.resolveAlertKind(fallbackAlertTypeId))
 
         when (intent.action) {
-            ACTION_DISMISS -> {
-                Log.i(LOG_ID, "Dismiss action received for alert type: $resolvedAlertType")
-                Notify.cancelQueuedAlarmActivityLaunch(
-                    Notify.resolveAlertKind(fallbackAlertTypeId),
-                    customAlertId,
-                    "notification-dismiss"
-                )
-                Notify.stopalarm()
-                if (customAlertId != null) {
-                    CustomAlertAccess.dismissAlert(customAlertId)
-                } else {
-                    resolvedAlertType?.let {
-                        if (AlertStateTracker.onAlertDismissed(it)) {
-                            SnoozeManager.clearSnooze(it)
-                            Notify.cancelCurrentRetrySession("notification-dismiss")
-                        }
-                    }
-                }
-                Notify.cancelAlertNotification()
-            }
+            ACTION_DISMISS -> tk.glucodata.alerts.AlertActions.handle(
+                fallbackAlertTypeId.takeIf { it >= 0 } ?: Notify.resolveAlertKind(-1), customAlertId
+            )
 
             ACTION_SNOOZE -> {
-                Log.i(LOG_ID, "Snooze action received for alert type: $resolvedAlertType")
-                Notify.cancelQueuedAlarmActivityLaunch(
-                    Notify.resolveAlertKind(fallbackAlertTypeId),
-                    customAlertId,
-                    "notification-snooze"
-                )
-
-                val snoozeMinutes = if (intent.hasExtra(EXTRA_SNOOZE_MINUTES)) {
+                val kind = fallbackAlertTypeId.takeIf { it >= 0 } ?: Notify.resolveAlertKind(-1)
+                val minutes = if (intent.hasExtra(EXTRA_SNOOZE_MINUTES)) {
                     intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 15)
-                } else if (customAlertId != null) {
-                    15
-                } else {
-                    resolvedAlertType?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
-                }
-
-                var productionAction = true
-                if (customAlertId != null) {
-                    CustomAlertAccess.snoozeAlert(customAlertId, snoozeMinutes)
-                    Notify.cancelCurrentRetrySession("notification-snooze-custom-before-stop")
-                } else {
-                    productionAction = resolvedAlertType?.let {
-                        !AlertStateTracker.consumeManualTestAction(it)
-                    } ?: true
-                    if (productionAction) {
-                        resolvedAlertType?.let {
-                            SnoozeManager.snooze(it, snoozeMinutes)
-                            AlertStateTracker.resetState(it)
-                            Log.i(LOG_ID, "Snoozed ${it.name} for $snoozeMinutes minutes")
-                        }
-                        Notify.cancelCurrentRetrySession("notification-snooze-before-stop")
-                    }
-                }
-                Notify.stopalarm()
-                if (productionAction) {
-                    Notify.cancelCurrentRetrySession("notification-snooze-after-stop")
-                }
-                Notify.cancelAlertNotification()
+                } else if (customAlertId != null) 15
+                else AlertType.fromId(kind)?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+                tk.glucodata.alerts.AlertActions.handle(kind, customAlertId, minutes)
             }
 
             ACTION_IGNORE -> {
-                Log.i(LOG_ID, "Ignore action received for alert type: $resolvedAlertType")
+                Log.i(LOG_ID, "Ignore action received for alert type: $fallbackAlertTypeId")
                 Notify.cancelQueuedAlarmActivityLaunch(
                     Notify.resolveAlertKind(fallbackAlertTypeId),
                     customAlertId,

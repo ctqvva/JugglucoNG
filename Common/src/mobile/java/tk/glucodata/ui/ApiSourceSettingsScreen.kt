@@ -2,6 +2,10 @@
 
 package tk.glucodata.ui
 
+import tk.glucodata.ui.components.AdaptiveTrailingRow
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
@@ -38,8 +41,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.drivers.api.ApiGlucoseSourceRegistry
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.SectionLabel
@@ -186,17 +188,9 @@ fun ApiSourceSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.api_source_settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { persist(connect = enabled); navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.navigate_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            AppTopBar(
+                title = stringResource(R.string.api_source_settings_title),
+                onNavigateBack = { persist(connect = enabled); navController.popBackStack() },
             )
         }
     ) { padding ->
@@ -216,7 +210,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
                             modifier = Modifier.heightIn(min = 54.dp),
@@ -248,7 +242,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
 
                         Column(
                             modifier = Modifier.alpha(activeAlpha),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SourcePresetRow(
                                 preset = preset,
@@ -282,11 +276,13 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                         PasswordVisualTransformation()
                                     },
                                     trailingIcon = {
-                                        IconButton(onClick = { showSecret = !showSecret }) {
-                                            Icon(
-                                                if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                                contentDescription = null
-                                            )
+                                        IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                            IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                                Icon(
+                                                    if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                    contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                                )
+                                            }
                                         }
                                     },
                                     keyboardOptions = KeyboardOptions(
@@ -422,7 +418,7 @@ private fun SourceIcon(enabled: Boolean) {
                 imageVector = Icons.Filled.CloudDownload,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -438,12 +434,15 @@ private fun SourcePresetRow(
         shape = cardShape(CardPosition.SINGLE, radius = 10.dp),
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        AdaptiveTrailingRow(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            trailingContent = {
+                TextButton(onClick = onChangePreset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
+                    Text(stringResource(R.string.outbound_api_change_preset))
+                }
+            }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = stringResource(R.string.api_source_preset),
                     style = MaterialTheme.typography.labelMedium,
@@ -453,9 +452,6 @@ private fun SourcePresetRow(
                     text = stringResource(apiSourcePresetTitle(preset)),
                     style = MaterialTheme.typography.bodyLarge
                 )
-            }
-            TextButton(onClick = onChangePreset) {
-                Text(stringResource(R.string.outbound_api_change_preset))
             }
         }
     }
@@ -496,7 +492,7 @@ private fun SourcePresetPickerSheet(
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
                             modifier = Modifier.size(42.dp),
@@ -508,7 +504,7 @@ private fun SourcePresetPickerSheet(
                                     imageVector = preset.icon,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.tertiary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }

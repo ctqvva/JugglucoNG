@@ -16,6 +16,8 @@ class JournalRepository {
         const val PREFS_NAME = "tk.glucodata_preferences"
         const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v6"
         const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v2"
+        const val SENDER_ONLY_NOTES_SWEPT_KEY = "journal_aaps_sender_only_notes_swept_v1"
+        const val DELETE_CHUNK = 500
     }
 
     private val database = HistoryDatabase.getInstance(Applic.app)
@@ -27,6 +29,17 @@ class JournalRepository {
     // write re-mapped every entry ever written on the main thread. flowOn keeps
     // the mapping with the query.
     fun observeEntries(): Flow<List<JournalEntry>> {
+        return observeEntriesWithTempBasal()
+            // Temp basal is an AAPS-imported graph segment, not a journal row.
+            .map { it.withoutTempBasal() }
+            .flowOn(Dispatchers.Default)
+    }
+
+    /**
+     * Every stored row, temp basal included. Only the chart wants the temp basal segments;
+     * everything that lists, counts or doses journal rows uses [observeEntries].
+     */
+    fun observeEntriesWithTempBasal(): Flow<List<JournalEntry>> {
         return dao.observeEntries()
             .map { entries -> entries.map(JournalEntryEntity::toModel) }
             .flowOn(Dispatchers.Default)
@@ -351,6 +364,26 @@ class JournalRepository {
             tk.glucodata.data.calibration.JournalCalibrationSync.onJournalChanged()
         }
         return deleted.size
+    }
+
+    /**
+     * Deletes the notes earlier imports made out of nothing but AAPS's sender stamp, one per
+     * temp basal or profile switch. The parser no longer writes them, so this runs once.
+     *
+     * @return how many rows were deleted
+     */
+    suspend fun deleteAapsSenderOnlyNotesOnce(): Int {
+        if (prefs.getBoolean(SENDER_ONLY_NOTES_SWEPT_KEY, false)) return 0
+        val ids = dao.getImportedEntriesOfType(
+            JournalEntryType.NOTE.storageValue,
+            listOf(JournalEntrySource.AAPS.storageValue, JournalEntrySource.NIGHTSCOUT.storageValue)
+        )
+            .filter { JournalTreatmentTransfer.isAapsSenderOnlyNote(it.note) }
+            .mapNotNull { it.sourceRecordId }
+        // A few hundred a day add up; keep each IN list under SQLite's variable limit.
+        val deleted = ids.chunked(DELETE_CHUNK).sumOf { deleteEntriesBySourceRecordIds(it) }
+        prefs.edit().putBoolean(SENDER_ONLY_NOTES_SWEPT_KEY, true).apply()
+        return deleted
     }
 
     suspend fun deleteEntry(entryId: Long) {

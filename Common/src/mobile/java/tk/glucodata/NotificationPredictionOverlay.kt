@@ -18,6 +18,25 @@ import java.util.Locale
 import tk.glucodata.GlucosePoint as NativeGlucosePoint
 import tk.glucodata.ui.GlucosePoint as UiGlucosePoint
 
+internal fun buildNotificationPredictionHistory(
+    source: List<NativeGlucosePoint>,
+    calibrationSensorId: String?
+): List<UiGlucosePoint> {
+    // This formatter belongs to one calculation; SimpleDateFormat is not thread-safe.
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return source.map { point ->
+        UiGlucosePoint(
+            value = point.value,
+            rawValue = point.rawValue,
+            timestamp = point.timestamp,
+            time = timeFormat.format(Date(point.timestamp)),
+            sensorSerial = point.sensorSerial?.takeIf { it.isNotBlank() } ?: calibrationSensorId,
+            sealedDisplayValue = point.sealedDisplayValue.takeIf { it.isFinite() && it > 0.1f },
+            sealedDisplayViewMode = point.sealedDisplayViewMode.takeIf { it >= 0 }
+        )
+    }
+}
+
 @Keep
 object NotificationPredictionOverlay : NotificationPredictionBridge {
     private const val PREFS_NAME = tk.glucodata.settings.SettingsRegistry.FILE
@@ -61,17 +80,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
         if (source.size < 2) return emptyList()
 
         val unit = if (isMmol) "mmol/L" else "mg/dL"
-        // This formatter belongs to one calculation; SimpleDateFormat is not thread-safe.
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val uiHistory = source.map { point ->
-            UiGlucosePoint(
-                value = point.value,
-                rawValue = point.rawValue,
-                timestamp = point.timestamp,
-                time = timeFormat.format(Date(point.timestamp)),
-                sensorSerial = calibrationSensorId
-            )
-        }
+        val uiHistory = buildNotificationPredictionHistory(source, calibrationSensorId)
         val baselineTime = uiHistory.lastOrNull { point ->
             point.timestamp > 0L && ((point.value.isFinite() && point.value > 0.1f) ||
                 (point.rawValue.isFinite() && point.rawValue > 0.1f))

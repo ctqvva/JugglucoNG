@@ -8,14 +8,29 @@ enum class JournalEntryType(val storageValue: String) {
     CARBS("carbs"),
     FINGERSTICK("fingerstick"),
     ACTIVITY("activity"),
-    NOTE("note");
+    NOTE("note"),
+
+    /**
+     * A temporary basal imported from AAPS. Not user-addable and not a journal row in the
+     * UI sense: it exists so the graph can hang an "icicle" bar for the segment.
+     * [JournalEntry.amount] holds the delivered rate in U/h, [JournalEntry.durationMinutes]
+     * the segment length.
+     */
+    TEMP_BASAL("temp_basal");
 
     companion object {
+        /** The types a person adds, edits and filters by; temp basal is imported chart data. */
+        val journalRowTypes: List<JournalEntryType> = entries.filterNot { it == TEMP_BASAL }
+
         fun fromStorage(value: String?): JournalEntryType {
             return entries.firstOrNull { it.storageValue == value } ?: NOTE
         }
     }
 }
+
+/** The journal rows proper: everything but the AAPS temp basal chart segments. */
+fun List<JournalEntry>.withoutTempBasal(): List<JournalEntry> =
+    filterNot { it.type == JournalEntryType.TEMP_BASAL }
 
 enum class JournalIntensity(val storageValue: String) {
     LIGHT("light"),
@@ -218,6 +233,8 @@ data class JournalChartMarker(
     val chartYFraction: Float? = null,
     val durationMinutes: Int? = null,
     val curvePoints: List<JournalCurvePoint> = emptyList(),
+    /** What [curvePoints] were measured as; a steady-state curve isn't one injection's action. */
+    val curveEvidence: JournalCurveEvidence? = null,
     val activeStartMillis: Long? = null,
     val activeEndMillis: Long? = null
 )

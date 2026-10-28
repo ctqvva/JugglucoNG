@@ -26,6 +26,9 @@
             android:textAppearance="@android:style/TextAppearance.Material.Notification.Info"
             android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end"
             android:textSize="12sp" android:visibility="gone" />
+        <ImageView android:id="@+id/notification_status_image"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:visibility="gone" />
     </LinearLayout>
     <FrameLayout android:id="@+id/chart_container"
         android:layout_width="0dp" android:layout_height="48dp"

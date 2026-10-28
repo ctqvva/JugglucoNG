@@ -4,7 +4,7 @@
 // Known `0x2AA7` payload families:
 // - 19-byte live/current frames:
 //   Header (3 bytes cleartext): [seq_lo, seq_hi, 0x02]
-//   Payload (16 bytes AES-128-ECB encrypted with a firmware-selected hardcoded key)
+//   Payload (16 bytes AES-128-CBC/PKCS7 with the challenge-derived IV, like the history lanes)
 // - raw 16-byte authenticated history frames (AES-CBC/PKCS7)
 // - vendor `SN*R` history batches (AES-CBC/PKCS7 envelope)
 
@@ -19,12 +19,22 @@ data class ICanHealthGlucoseReading(
     val sequenceNumber: Int,     // From cleartext header (u16 LE)
     val glucoseMmolL: Float,     // mmol/L (raw sensor value)
     val glucoseMgdl: Float,      // mg/dL (converted)
-    val statusByte: Int,         // Session-varying status
+    /** Live frames carry the launcher state (0x80 = RUNNING) after the content-length byte. */
+    val statusByte: Int,
     /** High nibble of the glucose field. Purpose unknown; constant per sensor. */
     val dataState: Int,
     /** Unsigned 12-bit glucose value exactly as it came off the wire. */
     val mantissa: Int = 0,
+    /**
+     * Legacy vendor decode of the byte pair the history family uses for current. In the live
+     * CBC frame that pair is part of the zero-filled tail, so this is a constant, not a
+     * measurement — kept so a future consumer can pick it up without re-plumbing the parse.
+     */
     val currentValue: Float,
+    /**
+     * Always 0 in the live CBC frame: the temperature bytes are zero fill there. The history
+     * family does carry a real temperature at the same offset.
+     */
     val temperatureC: Float,
 )
 
@@ -42,7 +52,7 @@ data class ICanHealthSessionStartTime(
     val hour: Int,
     val minute: Int,
     val second: Int,
-    val timezoneOffset15Min: Int?, // Time Zone, 15-minute increments, null when unknown
+    val timezoneOffset15Min: Int?, // Time Zone, 15-minute increments, null when unknown or vendor-constant
     val dstOffset15Min: Int? = null, // DST Offset, 15-minute increments, null when unknown
 ) {
     /** Total UTC offset in 15-minute increments, or null when the sensor told us nothing usable. */
@@ -61,7 +71,9 @@ data class ICanHealthSessionStartTime(
      *
      * So an offset of exactly zero is treated as *unknown* rather than as UTC. That costs nothing
      * for a genuinely-UTC device (local and UTC agree there) and repairs every other timezone.
-     * Only a non-zero offset is taken at face value.
+     * Only a non-zero offset is taken at face value — and never the vendor's hard-coded `0x14`,
+     * which [parseSessionStartTime] has already dropped (it lies on every sensor started outside
+     * UTC+5).
      */
     fun toEpochMillis(): Long {
         val offset15Min = utcOffset15MinOrNull()
@@ -116,10 +128,47 @@ object ICanHealthParser {
     private const val MAX_DST_OFFSET_15MIN = 8 // double daylight time, +2h
 
     /**
+     * Time Zone value the vendor app's writer hard-codes into `0x2AAA`, regardless of the phone's
+     * real zone.
+     *
+     * The vendor SDK emits a constant `20` = UTC+5:00 next to the wall clock
+     * (`j2.java:1115`: `{yearLo, yearHi, month, day, hour, min, sec, 20, 0}`). An Android at `+08`
+     * (Aug 2026) reading a vendor-started sensor shows `0x14`, and the `0x2AA9` counter proves that
+     * stored offset is fake: it puts the session start exactly 3 h away (`drift=179min` in the
+     * driver's warning), i.e. at the device's `+08` rather than at `+05`.
+     *
+     * The byte is only *the vendor's* constant, though. [buildSessionStartWrite] stores the real
+     * offset, and sensors started by this driver report `0x20` (+08, Aug 2026), `0x28` (+10,
+     * Sep 2026) and `0x0C` (+03, Oct 2026). So `20` means "written by the vendor app" *or* "a device
+     * genuinely at UTC+5:00", and the payload cannot tell the two apart.
+     *
+     * Treated as absent, like the specification's "unknown" sentinel, so the wall clock is read in
+     * the device's own zone. That is right whenever the reader is in the writer's zone — every
+     * observed vendor-started sensor, and any UTC+5 device reading its own sensor — and off by the
+     * zone difference only for an honest UTC+5 write read from elsewhere.
+     */
+    private const val TIME_ZONE_VENDOR_CONSTANT = 20 // 0x14, +5:00
+
+    /**
      * Parse a 19-byte glucose notification.
+     *
+     * The 16-byte payload is AES-128-CBC/PKCS7 with the same challenge-derived IV as the history
+     * lanes (`buildAuthIv(challenge)`), captured from the official iOS client (PacketLogger
+     * 2026-09-26/27, notes §10.8). The old ECB read disagreed only at the IV byte positions, so
+     * the value/sequence bytes happened to be correct while the "status" byte and the current
+     * field were decryption artifacts.
+     *
+     * The PKCS7-unpadded frame is 13 bytes:
+     *   [0]    content length (0x0D)
+     *   [1]    launcher state (0x80 = RUNNING)
+     *   [2..3] value u16 LE (hundredths of mmol/L, or the direct variant selected by SN)
+     *   [4..5] sequence u16 LE, mirroring the cleartext header
+     *   [6]    constant 0x01 ("one new record available")
+     *   [7..12] six zero bytes (no current/temperature in this frame)
      *
      * @param data Raw 19-byte BLE notification from CGM Measurement characteristic
      * @param aesKey 16-byte AES key for decryption
+     * @param authChallenge 4-byte challenge from the F3 response; the CBC IV is derived from it
      * @return Parsed reading, or null on failure
      */
     fun parseGlucoseNotification(
@@ -146,18 +195,28 @@ object ICanHealthParser {
             // Continue anyway — some firmware versions may differ
         }
 
-        // Decrypt the 16-byte payload
+        // Decrypt the 16-byte payload. Unlike the old ECB read, CBC needs the challenge: the IV
+        // is built from it, so without all four bytes the frame cannot be decoded at all.
+        val iv = authChallenge?.let { buildAuthIv(it) }
+        if (iv == null) {
+            logError("parseGlucose: rejecting live frame without a 4-byte auth challenge for the CBC IV")
+            return null
+        }
         val encrypted = data.copyOfRange(3, 19)
-        val decrypted = ICanHealthCrypto.decryptBlock(encrypted, aesKey) ?: run {
-            logError("parseGlucose: AES decryption failed")
+        val decrypted = ICanHealthCrypto.decryptCbcPkcs7(encrypted, aesKey, iv) ?: run {
+            logError("parseGlucose: AES-CBC decryption failed")
             return null
         }
 
-        // Validate fixed marker before accepting any decrypted glucose. With the
-        // wrong firmware key AES output can still decode to an in-range number.
-        val sizeFlags = decrypted[ICanHealthConstants.OFFSET_SIZE_FLAGS].toInt() and 0xFF
-        if (sizeFlags != 0x0D) {
-            logWarn("parseGlucose: rejecting packet with sizeFlags=0x${"%02X".format(sizeFlags)}, expected 0x0D")
+        // Byte 0 is the content length and PKCS7 has already stripped the three pad bytes, so a
+        // well-formed frame is exactly that long. Anything else is a decryption accident (wrong
+        // key or challenge) or a frame family this parser does not know.
+        val sizeFlags = decrypted.getOrElse(ICanHealthConstants.OFFSET_SIZE_FLAGS) { 0 }.toInt() and 0xFF
+        if (sizeFlags != 0x0D || decrypted.size != sizeFlags) {
+            logWarn(
+                "parseGlucose: rejecting packet with sizeFlags=0x${"%02X".format(sizeFlags)} " +
+                    "and content length ${decrypted.size}, expected 0x0D"
+            )
             return null
         }
 
@@ -181,6 +240,9 @@ object ICanHealthParser {
         val dataState = field.nibble
         val glucoseMmolL = field.glucoseMmolL
         val glucoseMgdl = field.glucoseMgdl
+        // The verified live frame has no current or temperature fields: bytes 9..12 are zero fill
+        // in the 13-byte content. Both decodes are kept for a future consumer (the history family
+        // does carry real values at these offsets) but neither is a measurement here.
         val currentValue = decodeCurrentValue(
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE],
             decrypted[ICanHealthConstants.OFFSET_CURRENT_U16LE + 1]
@@ -247,10 +309,16 @@ object ICanHealthParser {
         if (year == 0 || year == 0xFFFF || month !in 1..12 || day !in 1..31) {
             return null
         }
-        // Time Zone: sint8. -128 is the spec's "unknown"; anything outside UTC-12..UTC+14 is junk.
+        // Time Zone: sint8. -128 is the spec's "unknown"; anything outside UTC-12..UTC+14 is junk,
+        // and 0x14 is the vendor's hard-coded constant rather than a real offset (see
+        // TIME_ZONE_VENDOR_CONSTANT).
         val tzOffset15Min = data.getOrNull(7)
             ?.toInt()
-            ?.takeIf { it != TIME_ZONE_UNKNOWN && it in MIN_TIME_ZONE_15MIN..MAX_TIME_ZONE_15MIN }
+            ?.takeIf {
+                it != TIME_ZONE_UNKNOWN &&
+                    it != TIME_ZONE_VENDOR_CONSTANT &&
+                    it in MIN_TIME_ZONE_15MIN..MAX_TIME_ZONE_15MIN
+            }
 
         // DST Offset: uint8. 255 is the spec's "unknown"; real values are 0, 2, 4 or 8.
         val dstOffset15Min = data.getOrNull(8)
@@ -550,6 +618,25 @@ object ICanHealthParser {
                 data[2] == 0x01.toByte()
     }
 
+    /**
+     * Calibration marker of a sensor-info response (little-endian short), or null when the frame
+     * does not carry one. Fresh, not-yet-provisioned sensors answer `0xFFFF`; after the
+     * correctCode write path runs, the marker changes to a concrete value (the wire order in the
+     * capture `1C F6 01 4E 02` reads 0x024E = 590).
+     */
+    fun parseSensorInfoMarker(data: ByteArray): Int? {
+        if (!isSensorInfoResponse(data) || data.size < 5) return null
+        return ((data[4].toInt() and 0xFF) shl 8) or (data[3].toInt() and 0xFF)
+    }
+
+    /** True when a sensor-info response marks the sensor as missing its vendor calibration. */
+    fun isSensorInfoMissingCalibration(data: ByteArray): Boolean =
+        parseSensorInfoMarker(data) == 0xFFFF
+
+    fun parseCorrectCodeResult(data: ByteArray): Int? =
+        if (data.size >= 3 && data[0] == 0x1c.toByte() && data[1] == 0xf2.toByte())
+            data[2].toInt() and 0xff else null
+
     fun parseRawDeviceSerial(data: ByteArray): String {
         if (data.isEmpty()) return ""
         val printableAscii = data.all { byte ->
@@ -743,7 +830,12 @@ object ICanHealthParser {
         } else {
             ICanHealthConstants.LEGACY_HISTORY_GLUCOSE_XOR_TABLE_OLD
         }
-        val offset = (challenge[3].toInt() and 0xFF) % (table.size - 2)
+        // The table offset comes from the FIRST challenge byte. The official iOS client's capture
+        // (iCGM-t3, 2026-09-26/27) decodes to the sensor's own history record at the same sequence
+        // only this way: seq 18 under `30 13 AA 84` -> 5.97, seq 117 under `F8 93 7B 8C` -> 3.85.
+        // Keying it on challenge[3] instead turned every warm-up reading into a wrong value: #731's
+        // seq 99 read 40.6 instead of the 8.2 its history held.
+        val offset = (challenge[0].toInt() and 0xFF) % (table.size - 2)
         return byteArrayOf(
             ((low.toInt() and 0xFF) xor (table[offset].toInt() and 0xFF)).toByte(),
             ((high.toInt() and 0xFF) xor (table[offset + 1].toInt() and 0xFF)).toByte(),
@@ -771,9 +863,9 @@ object ICanHealthParser {
      * Dump everything needed to understand one measurement from a single trace.
      *
      * The decrypted block is otherwise invisible, which has repeatedly made captures unable to
-     * answer questions about the encoding. Bytes 6..8 come along because the driver parses
-     * nothing from them, and the whole block because the fields it does parse have turned out
-     * not to mean what their names say.
+     * answer questions about the encoding. The whole content comes along because the fields the
+     * driver does parse have turned out not to mean what their names once said — the live frame
+     * carries a launcher state, not a status, and its current/temperature pair is zero fill.
      */
     private fun logGlucoseFieldDiagnostics(
         decrypted: ByteArray,
@@ -787,8 +879,9 @@ object ICanHealthParser {
                 "glucose field seq=$headerSeq nibble=${field.nibble} mantissa=${field.mantissa}" +
                     " -> ${"%.1f".format(field.glucoseMmolL)} mmol/L" +
                     " (${"%.1f".format(field.glucoseMgdl)} mg/dL)" +
-                    " | flags=0x${"%02X".format(decrypted[1])}" +
-                    " status=${decrypted.copyOfRange(6, minOf(9, decrypted.size)).toHex()}" +
+                    " | contentLen=0x${"%02X".format(decrypted.getOrElse(0) { 0 })}" +
+                    " launcher=0x${"%02X".format(decrypted.getOrElse(1) { 0 })}" +
+                    " tail=${decrypted.copyOfRange(6, minOf(9, decrypted.size)).toHex()}" +
                     " field11_12=${"%.1f".format(temperatureC)}" +
                     " block=${decrypted.toHex()}"
             )

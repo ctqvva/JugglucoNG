@@ -1003,6 +1003,9 @@ void javaMirrorReconcilePrimarySensor(const char *serial) {
     LOGGER("javaMirrorReconcilePrimarySensor(%s)\n", serial ? serial : "(null)");
 }
 extern std::string javaExportCalibrationProfile(const char *serial);
+std::vector<std::string> javaMirrorCalibrationSensorIds() {
+    return {};
+}
 std::string javaExportCalibrationProfile(const char *serial) {
     LOGGER("javaExportCalibrationProfile(%s)\n", serial ? serial : "(null)");
     return readMirrorCalibrationFile(serial);

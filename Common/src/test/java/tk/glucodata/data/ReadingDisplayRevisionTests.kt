@@ -51,7 +51,8 @@ class ReadingDisplayRevisionTests {
     @Test fun changedValueAndProvenanceStillReviseUnsealedMinutes() {
         listOf(
             mapOf("displayMgdl" to 121f), mapOf("sensorSerial" to "B"),
-            mapOf("viewMode" to 1), mapOf("calibrationFingerprint" to 8L),
+            // Same-lane presentation change (auto → auto+raw): still a revision.
+            mapOf("viewMode" to 2), mapOf("calibrationFingerprint" to 8L),
         ).forEach { change ->
             database().use { db ->
                 assertEquals(1, revise(db, change))
@@ -60,8 +61,42 @@ class ReadingDisplayRevisionTests {
         }
     }
 
+    @Test fun aViewModeSwitchRevisesUnsealedMinutesLikeACalibrationChange() {
+        // Unsealed records are never drawn: after a raw/auto switch the grace
+        // hour is already on screen in the new lane. Refusing the revision
+        // sealed those minutes with the old lane's numbers an hour later.
+        listOf(1, 3).forEach { mode ->
+            database().use { db ->
+                assertEquals(1, revise(db, mapOf("viewMode" to mode, "displayMgdl" to 31.4f)))
+            }
+        }
+    }
+
+    @Test fun aViewModeSwitchCannotReachASealedMinute() {
+        listOf(1, 3).forEach { mode ->
+            database().use { db ->
+                assertEquals(0, revise(db, mapOf("sealHorizon" to 60000L, "viewMode" to mode, "displayMgdl" to 31.4f)))
+            }
+        }
+    }
+
     @Test fun sealedMinuteCannotBeChanged() = database().use { db ->
         assertEquals(0, revise(db, mapOf("sealHorizon" to 60000L, "displayMgdl" to 130f, "sensorSerial" to "B")))
+    }
+
+    @Test fun repeatedTogglesLeaveTheLastPresentationInsideTheGraceWindow() {
+        database().use { db ->
+            for ((index, requestedMode) in listOf(0, 1, 2, 3, 2, 1, 0, 3).withIndex()) {
+                assertEquals(1, revise(db, mapOf("viewMode" to requestedMode, "displayMgdl" to 130f + index)))
+            }
+            db.createStatement().use { statement ->
+                statement.executeQuery("SELECT viewMode, displayMgdl FROM reading_display").use {
+                    it.next()
+                    assertEquals(3, it.getInt(1))
+                    assertEquals(137f, it.getFloat(2), 0.001f)
+                }
+            }
+        }
     }
 
     @Test fun minuteImmediatelyInsideGraceWindowCanChange() = database().use { db ->

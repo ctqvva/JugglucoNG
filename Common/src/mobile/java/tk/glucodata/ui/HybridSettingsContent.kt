@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.CloneIceNetworkConfig
 import tk.glucodata.R
 import tk.glucodata.ui.components.*
+import tk.glucodata.ui.components.AppTopBar
 
 internal data class TurnEndpoint(
     val host: String,
@@ -143,15 +143,11 @@ internal fun HybridSettingsContent(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.clone_network_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.navigate_back))
-                    }
-                },
+            AppTopBar(
+                title = stringResource(R.string.clone_network_title),
+                onNavigateBack = onBack,
                 actions = {
-                    IconButton(onClick = { showHelp = true }) {
+                    IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
                         Icon(Icons.Default.HelpOutline, stringResource(R.string.help))
                     }
                 },
@@ -226,7 +222,7 @@ internal fun HybridSettingsContent(
                     Modifier.verticalScroll(rememberScrollState()),
                 )
             },
-            confirmButton = { TextButton(onClick = { showHelp = false }) { Text(stringResource(R.string.ok)) } },
+            confirmButton = { TextButton(onClick = { showHelp = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.ok)) } },
         )
     }
 }
@@ -244,7 +240,7 @@ private fun ApplyRow(visible: Boolean, onApply: () -> Unit) {
         exit = shrinkVertically() + fadeOut(),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Button(onClick = onApply) {
+            Button(onClick = onApply, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
                 Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.clone_apply))
@@ -361,7 +357,7 @@ private fun TurnServerSetting(
             isError = !draft.turnPasswordValid,
             visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { visible = !visible }) {
+                IconButton(onClick = { visible = !visible }, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         stringResource(if (visible) R.string.hide_password else R.string.show_password),

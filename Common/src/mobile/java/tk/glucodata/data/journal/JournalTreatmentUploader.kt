@@ -719,20 +719,25 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         }.getOrDefault(false)
     }
 
-    private fun fetchTreatmentsJson(baseUrl: String, secret: String, useV3: Boolean): String {
+    private fun fetchTreatmentsJson(
+        baseUrl: String,
+        secret: String,
+        useV3: Boolean,
+        retryRejectedToken: Boolean = true,
+    ): String {
         val normalized = NightscoutFollowerRegistry.normalizeUrl(baseUrl)
         if (normalized.isBlank()) return "[]"
         val endpoint = treatmentFetchUrl(normalized, useV3)
+        // v3 reads want the same bearer token the v3 upload path already obtains and
+        // caches; the configured secret is an access token there, and hashing it into an
+        // api-secret header is what the 401 was.
+        val v3Auth = if (useV3) NightPost.getV3AuthorizationHeader() else ""
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout journal sync")
-            // v3 reads want the same bearer token the v3 upload path already obtains and
-            // caches; the configured secret is an access token there, and hashing it into an
-            // api-secret header is what the 401 was.
-            val v3Auth = if (useV3) NightPost.getV3AuthorizationHeader() else ""
             if (v3Auth.isNotEmpty()) {
                 setRequestProperty("Authorization", v3Auth)
             } else {
@@ -741,6 +746,12 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         }
         try {
             val code = connection.responseCode
+            // The cached JWT outlived the key that signed it (Nightscout restarted, #716).
+            if (code == HttpURLConnection.HTTP_UNAUTHORIZED && retryRejectedToken && v3Auth.isNotEmpty()) {
+                NightPost.dropRejectedV3AuthorizationHeader(v3Auth)
+                connection.disconnect()
+                return fetchTreatmentsJson(baseUrl, secret, useV3, retryRejectedToken = false)
+            }
             val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()
                 ?.use { it.readText() }

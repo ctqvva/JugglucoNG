@@ -77,6 +77,18 @@ internal object NightscoutFollowerV3 {
     }
 
     /**
+     * Forgets [rejectedHeader] after the server answered it with 401, so the next call exchanges
+     * the access token again instead of resending a JWT the server no longer verifies. True when
+     * it was still the cached one; false when a newer token already replaced it, which is kept.
+     */
+    @Synchronized
+    fun dropToken(rejectedHeader: String): Boolean {
+        if (cached?.header != rejectedHeader) return false
+        cached = null
+        return true
+    }
+
+    /**
      * Authorization header for a v3 read, exchanging the access token for a bearer JWT and
      * caching it until it expires. Returns null when the secret is already a header value or
      * no token could be had, so the caller falls back to [NightscoutFollowerRegistry.applyAuth]

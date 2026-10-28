@@ -254,6 +254,10 @@ object HistorySyncAccess {
         HistorySyncBridgeAccess.syncRecentSensorFromNative(serial, anchorTimeMs)
 
     @JvmStatic
+    fun syncSensorWindowFromNative(serial: String?, startTimeMs: Long) =
+        HistorySyncBridgeAccess.syncSensorWindowFromNative(serial, startTimeMs)
+
+    @JvmStatic
     fun forceFullSyncForSensor(serial: String?) =
         HistorySyncBridgeAccess.forceFullSyncForSensor(serial)
 

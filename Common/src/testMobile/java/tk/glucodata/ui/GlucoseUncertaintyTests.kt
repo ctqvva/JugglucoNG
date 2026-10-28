@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.GlucoseUncertainty
 import tk.glucodata.ui.util.inDisplayUnit
+import tk.glucodata.ui.util.toSharedGlucosePoint
 
 /**
  * The generic uncertainty representation and the unit handling around it.
@@ -16,6 +17,19 @@ import tk.glucodata.ui.util.inDisplayUnit
  * not model uncertainty, must keep working and render as a plain line.
  */
 class GlucoseUncertaintyTests {
+
+    @Test fun sharedNotificationAndAodPointsKeepConvertedIntervalsAndRecordedOwnership() {
+        for (sensor in listOf("X-AIDEX", "SIBI:SENSOR")) {
+            val point = GlucosePoint(108f, "", 60_000L, 90f, sensorSerial = sensor,
+                sealedDisplayValue = 126f, sealedDisplayViewMode = 0,
+                uncertainty = GlucoseUncertainty(90f, 144f))
+            val shared = point.inDisplayUnit(true).toSharedGlucosePoint()
+            assertEquals(5f, shared.uncertainty!!.lower, 0.02f)
+            assertEquals(8f, shared.uncertainty!!.upper, 0.02f)
+            assertEquals(7f, shared.sealedDisplayValue, 0.02f)
+            assertEquals(sensor, shared.sensorSerial)
+        }
+    }
 
     @Test
     fun aPointWithoutUncertaintyIsTheDefault() {

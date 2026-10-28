@@ -25,38 +25,42 @@ class LiveCalibrationPolicyTests {
     }
 
     @Test
-    fun aidexLeavesGenericCalibrationToTheApp() {
-        // Default false is what makes handleGlucoseResult apply getCalibratedValue.
-        // AiDEX does not override the flag, so its direct live path stays on that gate.
-        // Ottai is not part of this: its live value is published as resolved formula
-        // glucose and never reaches integratesUserCalibration.
+    fun aidexIntegratesOnlyTheCalibratedAdaptiveAutoLane() {
         val contract = source("Common/src/main/java/tk/glucodata/drivers/ManagedBluetoothSensorDriver.kt")
         assertTrue(
             contract.contains("fun integratesUserCalibration(isRawMode: Boolean): Boolean = false"),
         )
-        for (path in listOf(
-            "Common/src/main/java/tk/glucodata/drivers/aidex/AiDexDriver.kt",
-            "Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt",
-        )) {
-            assertFalse(path, source(path).contains("fun integratesUserCalibration"))
+        for (mode in tk.glucodata.drivers.aidex.AiDexAlgorithmSelection.entries) {
+            assertEquals(mode == tk.glucodata.drivers.aidex.AiDexAlgorithmSelection.ADAPTIVE_V2_CALIBRATED,
+                mode.calibration)
         }
+        val manager = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
+        assertTrue(manager.contains("!isRawMode && algorithmRuntime.controller.appliedSelection.calibration"))
     }
 
     @Test
     fun aidexDirectLivePassesItsRawLaneIntoTheSharedPublishPath() {
         val aidex = source("Common/src/main/java/tk/glucodata/drivers/aidex/native/ble/AiDexBleManager.kt")
-        assertTrue(aidex.contains("handleGlucoseResult(res, sampleTimestampMs, normalizedRawValue ?: Float.NaN)"))
+        val incoming = aidex.substringAfter("private fun handleParsedLiveReading(").substringBefore("private fun resolveTrustedLiveOffsetMinutes")
+        assertTrue(incoming.contains("normalizedRawValue ?: Float.NaN"))
+        assertTrue(incoming.contains("algorithmRuntime.live(input)"))
+        val publish = aidex.substringAfter("private fun publishAlgorithmReading(").substringBefore("private fun storeAlgorithmLive(")
+        assertTrue(publish.contains("LiveReadingLanes.stock("))
+        assertTrue(publish.contains("row.source.rawMgDl.takeIf"))
+        assertFalse(publish.contains("LiveReadingLanes.resolved("))
     }
 
     @Test
-    fun ottaiPublishesCurrentThroughTheResolvedExternalPath() {
-        // displayValue is formula glucose in display units, not a user calibration.
-        // processExternalCurrentReading marks it resolved, so the display does not
-        // calibrate it. handleGlucoseResult would apply getCalibratedValue once,
-        // the first time, because Ottai does not fold calibration in. This must stay
-        // the only publish of that sample: both paths would publish it twice.
+    fun ottaiResolvesUserCalibrationBeforePublishingCurrent() {
         val ottai = source("Common/src/main/java/tk/glucodata/drivers/ottai/OttaiBleManager.kt")
-        assertTrue(ottai.contains("processExternalCurrentReading(id, reading.displayValue"))
+        val publish = ottai.substringAfter("private fun publishCurrentReading(")
+            .substringBefore("private fun resolveSampleTimeMs(")
+        assertTrue(publish.contains("CurrentDisplaySource.resolveIncomingReading("))
+        assertTrue(publish.contains("LiveReadingLanes.stock(reading.displayValue, Float.NaN)"))
+        assertTrue(publish.contains("preferredSensorId = id"))
+        assertTrue(publish.contains("preferIncomingSample = true"))
+        assertTrue(publish.contains("LiveReadingLanes.resolved(display.primaryValue)"))
+        assertFalse(publish.contains("processExternalCurrentReading(id, reading.displayValue"))
         assertFalse(ottai.contains("handleGlucoseResult("))
     }
 

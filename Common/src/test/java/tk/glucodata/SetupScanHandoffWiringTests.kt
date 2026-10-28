@@ -70,7 +70,7 @@ class SetupScanHandoffWiringTests {
         val scanEffect = section(
             wizard,
             "DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey)",
-            "LaunchedEffect(scanPermissionGranted",
+            "val knownAddresses = remember(",
         )
         // Connect arms the managed scan before the panel leaves. Only leaving hands the radio back.
         assertFalse(scanEffect.substring(scanEffect.lastIndexOf("onDispose {")).contains("scanStarter"))

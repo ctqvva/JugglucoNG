@@ -8,7 +8,7 @@ needed.
 
 1. In xDrip+, choose **xDrip Sync Follower** as the data source. In its advanced
    settings, keep **Accept glucose** (`accept_nsclient_sgv`) enabled.
-2. In JugglucoNG, open **Settings → Exchange data** and enable
+2. In JugglucoNG, open **Settings → Apps on this phone** and enable
    **xDrip+ Sync Follower**.
 
 JugglucoNG sends the current value, timestamp and trend when the exchange

@@ -1,5 +1,6 @@
 package tk.glucodata.data
 
+import tk.glucodata.ui.util.toSharedGlucosePoint
 import android.content.Context
 import android.util.Log
 import tk.glucodata.chart.MainSensorOwnership
@@ -21,6 +22,10 @@ import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.XdripBackfill
+import tk.glucodata.share.DexcomShareBackfillTrend
+import tk.glucodata.share.DexcomShareSettings
+import tk.glucodata.share.DexcomShareUploader
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -37,9 +42,10 @@ import kotlin.concurrent.withLock
  * - Backfilling ALL existing history from ALL active sensors on first run
  * - Querying history for chart display (per-sensor or all)
  */
-class HistoryRepository(context: Context = Applic.app) {
-    
-    private val database = HistoryDatabase.getInstance(context)
+class HistoryRepository internal constructor(private val database: HistoryDatabase) {
+    @JvmOverloads
+    constructor(context: Context = Applic.app) : this(HistoryDatabase.getInstance(context))
+
     private val dao = database.historyDao()
     private val uncertaintyDao = database.readingUncertaintyDao()
     private val displayDao = database.readingDisplayDao()
@@ -324,7 +330,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.inDisplayUnit(isMmol).map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    p.toSharedGlucosePoint()
                 }
             }
         }
@@ -351,16 +357,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     .getHistoryForDisplaySensor(serial, startTime)
                     .inDisplayUnit(isMmol)
                     .map { p ->
-                        // Carry the record across. This bridge used to keep only
-                        // (timestamp, value, rawValue), so every consumer behind
-                        // it — the notification chart first among them — could
-                        // only draw today's derivation of a line the user had
-                        // already been shown.
-                        tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue).also { out ->
-                            out.sealedDisplayValue = p.sealedDisplayValue ?: Float.NaN
-                            out.sealedDisplayViewMode = p.sealedDisplayViewMode ?: -1
-                            out.sensorSerial = p.sensorSerial
-                        }
+                        p.toSharedGlucosePoint()
                     }
             }
         }
@@ -395,7 +392,7 @@ class HistoryRepository(context: Context = Applic.app) {
                     emptyList()
                 }
                 uiPoints.map { p ->
-                    tk.glucodata.GlucosePoint(p.timestamp, p.value, p.rawValue)
+                    p.toSharedGlucosePoint()
                 }
             }
         }
@@ -614,8 +611,14 @@ class HistoryRepository(context: Context = Applic.app) {
                         sensorSerial = roomSerial,
                         readings = readings,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
+                        invalidateAutoDisplayRecords = runCatching {
+                            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(sensorSerial, false) ||
+                                tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(sensorSerial)
+                        }.getOrDefault(false),
+                        invalidateRawDisplayRecords = runCatching {
+                            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(sensorSerial, true)
+                        }.getOrDefault(false),
                     )
-                    if (stored) repository.voidRecordsRewrittenByDriver(sensorSerial, roomSerial, readings)
                     stored
                 }.also { stored ->
                     if (stored) {
@@ -713,6 +716,41 @@ class HistoryRepository(context: Context = Applic.app) {
 
 
     /**
+     * Hands a stored batch to every exchange output that needs history: the xDrip broadcast, so
+     * readings missed live still reach AAPS, and Dexcom Share, so a disconnect does not leave a
+     * hole in the shared stream.
+     */
+    private fun forwardBackfillToExchanges(readings: List<HistoryReading>) {
+        readings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
+            val backfillRows = rows.map {
+                XdripBackfill.Row(it.timestamp, it.value, it.rawValue, it.rate, it.firstStoredAt)
+            }
+            XdripBackfill.onHistoryStored(serial, backfillRows)
+            // Resolving a row to the value a live send would carry costs a native snapshot,
+            // smoothing and calibration per row, so it is skipped for the many users who never
+            // switch Share on. The uploader checks the same flag again before it sends anything.
+            val app = Applic.app
+            if (app != null && DexcomShareSettings.isEnabled(app)) {
+                DexcomShareUploader.onHistoryStored(
+                    serial,
+                    dexcomRows(backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
+                )
+            }
+        }
+    }
+
+    /** The rows Dexcom Share should hear about, each with its trend ([DexcomShareBackfillTrend]). */
+    private fun dexcomRows(
+        rows: List<XdripBackfill.Row>,
+        displayed: List<XdripBackfill.DisplayedRow>,
+    ): List<DexcomShareUploader.Row> {
+        val rateByTime = rows.associate { it.timeMs to it.rate }
+        return DexcomShareBackfillTrend.rows(
+            displayed.map { DexcomShareBackfillTrend.Source(it.timeMs, it.mgdl, rateByTime[it.timeMs]) },
+        )
+    }
+
+    /**
      * Store multiple readings at once (used for backfill).
      * Readings must already have sensorSerial set.
      */
@@ -729,7 +767,8 @@ class HistoryRepository(context: Context = Applic.app) {
                 filteredReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(newest.sensorSerial, newest.timestamp, writer = "storeReadings")
                 }
-                database.withTransaction {
+                // With their stored provenance: the backfill tells live rows from late ones by it.
+                val storedReadings = database.withTransaction {
                     val existingByKey = HashMap<Pair<String, Long>, HistoryReading>()
                     filteredReadings.groupBy(HistoryReading::sensorSerial).forEach { (serial, rows) ->
                         rows.map(HistoryReading::timestamp).distinct().chunked(DELETED_TIMESTAMP_QUERY_CHUNK)
@@ -750,8 +789,10 @@ class HistoryRepository(context: Context = Applic.app) {
                         )
                     }
                     dao.insertAll(readingsWithStableProvenance)
+                    readingsWithStableProvenance
                 }
                 BatteryTrace.bump("room.history.insert_batch", logEvery = 20L, detail = "size=${filteredReadings.size}")
+                forwardBackfillToExchanges(storedReadings)
                 // Only log small batches (likely genuine new data, not re-syncs)
                 if (filteredReadings.size <= 10) {
                     Log.d(TAG, "Stored ${filteredReadings.size} readings")
@@ -771,21 +812,48 @@ class HistoryRepository(context: Context = Applic.app) {
         sensorSerial: String,
         readings: List<HistoryReading>,
         bucketDurationMs: Long,
-    ): Boolean {
-        if (sensorSerial.isBlank() || readings.isEmpty()) return false
+        invalidateAutoDisplayRecords: Boolean = false,
+        invalidateRawDisplayRecords: Boolean = false,
+    ): Boolean = replaceSensorBuckets(
+        sensorSerial, readings, bucketDurationMs,
+        invalidateAutoDisplayRecords = invalidateAutoDisplayRecords,
+        invalidateRawDisplayRecords = invalidateRawDisplayRecords,
+    ) == BucketReplaceOutcome.STORED
+
+    enum class BucketReplaceOutcome { STORED, NOTHING_TO_STORE, FAILED }
+
+    /**
+     * [storeReadingsReplacingSensorBuckets], telling a failed write apart from an empty or tombstoned batch.
+     *
+     * For a Libre 1/2 ([historyTimestamps] non-empty) the same transaction voids
+     * records drawn from history rows the batch takes off the Stream lane, so a
+     * crash in between cannot destroy the rows they are judged against. Those
+     * rows are the ones replaced, or [deletedRowsByMinute] when a full resync
+     * already deleted them.
+     */
+    suspend fun replaceSensorBuckets(
+        sensorSerial: String,
+        readings: List<HistoryReading>,
+        bucketDurationMs: Long,
+        historyTimestamps: Set<Long> = emptySet(),
+        deletedRowsByMinute: Map<Long, HistoryReading>? = null,
+        invalidateAutoDisplayRecords: Boolean = false,
+        invalidateRawDisplayRecords: Boolean = false,
+    ): BucketReplaceOutcome {
+        if (sensorSerial.isBlank() || readings.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
 
         return withContext(Dispatchers.IO) {
             try {
                 val filteredReadings = filterDeletedReadings(readings)
                 if (filteredReadings.isEmpty()) {
                     Log.d(TAG, "Skipped bucket replace for $sensorSerial — all readings were tombstoned")
-                    return@withContext false
+                    return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
                 }
                 val collapsedReadings = HistoryBucketReplacement.collapseReadings(
                     readings = filteredReadings,
                     bucketDurationMs = bucketDurationMs,
                 )
-                if (collapsedReadings.isEmpty()) return@withContext false
+                if (collapsedReadings.isEmpty()) return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
                 collapsedReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(
                         newest.sensorSerial,
@@ -796,8 +864,8 @@ class HistoryRepository(context: Context = Applic.app) {
                 val plan = HistoryBucketReplacement.planForCollapsedReadings(
                     collapsedReadings = collapsedReadings,
                     bucketDurationMs = bucketDurationMs,
-                ) ?: return@withContext false
-                database.withTransaction {
+                ) ?: return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
+                val storedReadings = database.withTransaction {
                     val existingProvenance = HashMap<Long, HistoryReading>()
                     for (range in plan.bucketRanges) {
                         val startTimeInclusive = range.firstBucketId * bucketDurationMs
@@ -821,73 +889,126 @@ class HistoryRepository(context: Context = Applic.app) {
                             ),
                         )
                     }
+                    // The record may be smoothed or calibrated, so comparing it
+                    // with a sensor value cannot establish that history changed.
+                    // Compare the actual source rows, under the same transaction
+                    // as the replacement and invalidation. Even a real source
+                    // change cannot remove a locked presentation while "Keep
+                    // displayed values" is on: the new source belongs in the
+                    // preview. Only still-settling records may be released then.
+                    if (invalidateAutoDisplayRecords || invalidateRawDisplayRecords) {
+                        val records = displayDao.getBetween(
+                            ReadingDisplay.minuteOf(collapsedReadings.first().timestamp),
+                            ReadingDisplay.minuteOf(collapsedReadings.last().timestamp),
+                        )
+                        val minutes = RecordedDisplayVoiding.changedMinutes(
+                            records, sensorSerial, existingProvenance.values.toList(), readingsWithStableSources,
+                            invalidateAutoDisplayRecords, invalidateRawDisplayRecords,
+                        )
+                        val sealHorizon = if (runCatching {
+                                CalibrationManager.shouldFreezeDisplayedValues()
+                            }.getOrDefault(true)) {
+                            System.currentTimeMillis() - ReadingDisplay.sealGraceMs()
+                        } else null
+                        if (minutes.isNotEmpty()) {
+                            var released = 0
+                            minutes.chunked(500).forEach { released += displayDao.deleteAtMinutes(it, sealHorizon) }
+                            tk.glucodata.Log.i(
+                                TAG,
+                                "source changed under ${minutes.size} recorded minutes for $sensorSerial: " +
+                                    "released $released, kept ${minutes.size - released} locked"
+                            )
+                        }
+                    }
                     deleteSensorRowsInBucketRanges(
                         sensorSerial = sensorSerial,
                         bucketDurationMs = bucketDurationMs,
                         bucketRanges = plan.bucketRanges
                     )
                     dao.insertAll(readingsWithStableSources)
+                    if (historyTimestamps.isNotEmpty()) {
+                        val previousByMinute = deletedRowsByMinute
+                            ?: existingProvenance.values.associateBy { ReadingDisplay.minuteOf(it.timestamp) }
+                        voidRecordsOfDisplacedSensorHistory(
+                            sensorSerial, readingsWithStableSources, previousByMinute, historyTimestamps,
+                        )
+                    }
+                    readingsWithStableSources
                 }
                 BatteryTrace.bump(
                     "room.history.replace_bucket_batch",
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
-                true
+                forwardBackfillToExchanges(storedReadings)
+                BucketReplaceOutcome.STORED
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
-                false
+                BucketReplaceOutcome.FAILED
             }
         }
     }
 
+    /** Every stored row of [roomSerial] from [fromMs] on, per minute. */
+    suspend fun storedReadingsByMinuteForSensor(roomSerial: String, fromMs: Long = 0L): Map<Long, HistoryReading> =
+        withContext(Dispatchers.IO) {
+            HashMap<Long, HistoryReading>().also { rows ->
+                dao.getSensorReadingsInTimeRange(roomSerial, fromMs, Long.MAX_VALUE).forEach { row ->
+                    rows[ReadingDisplay.minuteOf(row.timestamp)] = row
+                }
+            }
+        }
+
     /**
-     * Drops recorded main values that a driver's rewrite of its own history has
-     * made void — see [RecordedDisplayVoiding] for what that means and why it is
-     * a deletion. Only a lane whose calibration the driver integrates qualifies;
-     * on every other sensor the rewrite is a re-sync of the same numbers and the
-     * record stands.
+     * Drops Auto records drawn from a Libre history row that a re-sync has taken
+     * off the Auto line; see [RecordedDisplayVoiding.displacedHistoryMinutes].
+     * Runs inside [replaceSensorBuckets]' transaction: a failure rolls the
+     * replace back with it.
      */
-    suspend fun voidRecordsRewrittenByDriver(
-        driverSerial: String,
+    private suspend fun voidRecordsOfDisplacedSensorHistory(
         roomSerial: String,
         rewritten: List<HistoryReading>,
-    ): Int {
-        if (rewritten.isEmpty()) return 0
-        val autoIntegrated = runCatching {
-            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, false)
-        }.getOrDefault(false)
-        val rawIntegrated = runCatching {
-            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(driverSerial, true)
-        }.getOrDefault(false)
-        if (!autoIntegrated && !rawIntegrated) return 0
+        previousByMinute: Map<Long, HistoryReading>,
+        historyTimestamps: Set<Long>,
+    ) {
+        if (rewritten.isEmpty() || previousByMinute.isEmpty()) return
+        val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
+        val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
+        val minutes = RecordedDisplayVoiding.displacedHistoryMinutes(
+            displayDao.getBetween(start, end), roomSerial, rewritten, previousByMinute, historyTimestamps,
+        )
+        if (minutes.isEmpty()) return
+        var deleted = 0
+        // This is the Libre lane migration's removal of an invalid source,
+        // rather than a recalibration/replay of a retained sensor lane.
+        minutes.chunked(500).forEach { chunk -> deleted += displayDao.deleteAtMinutes(chunk, sealHorizon = null) }
+        tk.glucodata.Log.i(TAG, "voided $deleted recorded minutes for $roomSerial: history left the Stream lane")
+    }
+
+    /**
+     * Deletes Libre history rows the export left behind, and the values
+     * recorded from them; see [LibreHistorySyncWindow.rowsLeftBehind]. Null
+     * when the database failed, so the caller can retry.
+     */
+    suspend fun removeSensorHistoryLeftBehind(roomSerial: String, rows: List<HistoryReading>): Int? {
+        if (rows.isEmpty()) return 0
         return withContext(Dispatchers.IO) {
             try {
-                val start = ReadingDisplay.minuteOf(rewritten.minOf { it.timestamp })
-                val end = ReadingDisplay.minuteOf(rewritten.maxOf { it.timestamp })
-                val records = displayDao.getBetween(start, end)
-                val minutes = RecordedDisplayVoiding.minutesToVoid(
-                    records, roomSerial, rewritten, autoIntegrated, rawIntegrated,
-                )
-                if (minutes.isEmpty()) return@withContext 0
-                var deleted = 0
+                val minutes = rows.mapTo(HashSet()) { ReadingDisplay.minuteOf(it.timestamp) }
+                val recorded = displayDao.getBetween(minutes.minOf { it }, minutes.maxOf { it })
+                    .filter { it.timestamp in minutes && tk.glucodata.SensorIdentity.matches(it.sensorSerial, roomSerial) }
+                    .map { it.timestamp }
                 database.withTransaction {
-                    // Under SQLite's older 999-variable ceiling, which some devices still have.
-                    minutes.chunked(500).forEach { chunk ->
-                        deleted += displayDao.deleteAtMinutes(chunk)
-                    }
+                    rows.forEach { dao.deleteReadingsAtTimestamp(listOf(roomSerial), it.timestamp) }
+                    recorded.chunked(500).forEach { displayDao.deleteAtMinutes(it, sealHorizon = null) }
                 }
-                tk.glucodata.Log.i(
-                    TAG,
-                    "voided $deleted recorded minutes for $roomSerial: the driver rewrote " +
-                        "${rewritten.size} readings between $start and $end"
-                )
-                deleted
+                tk.glucodata.Log.i(TAG, "removed ${rows.size} history rows left off the Stream lane for $roomSerial")
+                rows.size
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Failed voiding recorded minutes for $roomSerial", e)
-                0
+                Log.e(TAG, "Failed removing history rows left behind for $roomSerial", e)
+                null
             }
         }
     }
@@ -1093,21 +1214,12 @@ class HistoryRepository(context: Context = Applic.app) {
                 mapped
             } else {
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 val indexed = display.indexedDisplay()
                 mapped.map { point ->
                     val sealed = indexed[displayKey(point.timestamp)]
-                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
+                        ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
                         ?.takeIf { SensorIdentity.matches(point.sensorSerial, it.sensorSerial) }
-                        ?.takeIf { record ->
-                            val serial = point.sensorSerial ?: return@takeIf true
-                            recordStillDescribes(
-                                HistoryReading(
-                                    timestamp = point.timestamp, sensorSerial = serial,
-                                    value = point.value, rawValue = point.rawValue, rate = null,
-                                ),
-                                record,
-                            )
-                        }
                         ?: return@map point
                     point.copy(sealedDisplayValue = sealed.displayMgdl, sealedDisplayViewMode = sealed.viewMode)
                 }
@@ -1216,8 +1328,9 @@ class HistoryRepository(context: Context = Applic.app) {
             val freezeEnabled = indexed.isNotEmpty() &&
                 runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
             val nowMs = System.currentTimeMillis()
+            val graceMs = ReadingDisplay.sealGraceMs()
             mergeQueryReadings(readings, preferredSerial).map { reading ->
-                mapReadingForStats(reading, indexed, freezeEnabled, nowMs)
+                mapReadingForStats(reading, indexed, freezeEnabled, nowMs, graceMs)
             }
         }.flowOn(Dispatchers.IO)
     }
@@ -1290,8 +1403,9 @@ class HistoryRepository(context: Context = Applic.app) {
                 val readings = dao.getReadingsSince(startTime)
                 val display = displayRecordsFor(startTime)
                 val nowMs = System.currentTimeMillis()
+                val graceMs = ReadingDisplay.sealGraceMs()
                 mergeQueryReadings(readings, preferredSerial).map { reading ->
-                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs)
+                    mapReadingForStats(reading, display, display.isNotEmpty(), nowMs, graceMs)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting stats display history", e)
@@ -1667,8 +1781,9 @@ class HistoryRepository(context: Context = Applic.app) {
         val nowMs = System.currentTimeMillis()
         val freezeEnabled = display.isNotEmpty() &&
             runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)
+        val graceMs = if (freezeEnabled) ReadingDisplay.sealGraceMs() else 0L
         return readings.map { reading ->
-            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs)
+            val sealed = if (!freezeEnabled) null else sealedRecordForLine(reading, display, nowMs, graceMs)
             GlucosePoint(
                 value = reading.value,
                 time = formatTime(reading.timestamp),
@@ -1759,8 +1874,18 @@ class HistoryRepository(context: Context = Applic.app) {
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay> = emptyMap(),
         freezeEnabled: Boolean = false,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        graceMs: Long = ReadingDisplay.sealGraceMs(),
     ): GlucosePoint {
+        // The lane tag travels with the value as provenance. It does not gate
+        // the record: a statistic describes the main value that was shown,
+        // whichever lane showed it — see HistoryChartModelBuilder.recordedMainValue.
+        val sealed = if (!freezeEnabled) {
+            null
+        } else {
+            display[displayKey(reading.timestamp)]
+                ?.takeIf { it.isUsable && it.isSealedAt(nowMs, graceMs) }
+        }
         return GlucosePoint(
             value = reading.value,
             time = "",
@@ -1769,19 +1894,8 @@ class HistoryRepository(context: Context = Applic.app) {
             rate = reading.rate,
             sensorSerial = reading.sensorSerial,
             source = reading.source,
-            sealedDisplayValue = if (!freezeEnabled) {
-                null
-            } else {
-                display[displayKey(reading.timestamp)]
-                    ?.takeIf { it.isUsable && it.isSealedAt(nowMs) }
-                    // The minute's record whoever showed it — but not a stale
-                    // one of this reading's own sensor; see recordStillDescribes.
-                    ?.takeIf { record ->
-                        !SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||
-                            recordStillDescribes(reading, record)
-                    }
-                    ?.displayMgdl
-            },
+            sealedDisplayValue = sealed?.displayMgdl,
+            sealedDisplayViewMode = sealed?.viewMode,
         )
     }
 
@@ -1928,6 +2042,15 @@ class HistoryRepository(context: Context = Applic.app) {
                 val rawValue = valueRawRaw / 10f
 
                 if (value > 0 || rawValue > 0) {
+                    // Never split a minute across chunks: the second would replace
+                    // the first's row of it, and with it a Libre's History value.
+                    if (HistoryBucketReplacement.mayCloseChunk(
+                            readings, timeSec * 1000L, NATIVE_BACKFILL_INSERT_CHUNK, SENSOR_MINUTE_BUCKET_MS,
+                        )
+                    ) {
+                        storedCount += insertBackfillChunk(serial, readings)
+                        readings.clear()
+                    }
                     readings.add(HistoryReading(
                         timestamp = timeSec * 1000L,
                         sensorSerial = roomSerial,
@@ -1936,10 +2059,6 @@ class HistoryRepository(context: Context = Applic.app) {
                         rate = 0f, // Rate not available from history
                         source = readingSource,
                     ))
-                    if (readings.size >= NATIVE_BACKFILL_INSERT_CHUNK) {
-                        storedCount += insertBackfillChunk(serial, readings)
-                        readings.clear()
-                    }
                 }
             }
 
@@ -2135,8 +2254,9 @@ class HistoryRepository(context: Context = Applic.app) {
      * A minute older than the grace window freezes on first presentation:
      * nothing was on screen for it before, so the first time it is shown is the
      * only honest answer, and it must not move afterwards. A minute still inside
-     * the window is revised, because it is still settling. Which of the two
-     * happens is decided by the database rather than here — see
+     * the window is revised, because it is still settling — by a calibration
+     * change or a view-mode switch alike, so it seals as it was last shown.
+     * Which of the two happens is decided by the database rather than here — see
      * [ReadingDisplayDao.reviseIfUnsealed].
      *
      * @return newly inserted minutes, or null if disabled or the transaction failed.
@@ -2149,7 +2269,7 @@ class HistoryRepository(context: Context = Applic.app) {
         return withContext(Dispatchers.IO) {
             try {
                 val nowMs = System.currentTimeMillis()
-                val sealHorizon = nowMs - ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+                val sealHorizon = nowMs - ReadingDisplay.sealGraceMs()
                 val fingerprints = HashMap<String, Long>()
                 val rows = entries.mapNotNull { entry ->
                     if (!entry.displayMgdl.isFinite() || entry.displayMgdl <= 0f) return@mapNotNull null
@@ -2231,7 +2351,7 @@ class HistoryRepository(context: Context = Applic.app) {
                 displayDao.mainLineOwners(startTime).associate { it.timestamp to it.sensorSerial }
             }.getOrDefault(emptyMap())
         }
-        return MainSensorOwnership(recorded, nowMs)
+        return MainSensorOwnership(recorded, nowMs, ReadingDisplay.sealGraceMs())
     }
 
     /**
@@ -2248,43 +2368,14 @@ class HistoryRepository(context: Context = Applic.app) {
     private fun sealedRecordForLine(
         reading: HistoryReading,
         display: Map<Long, ReadingDisplay>,
-        nowMs: Long
+        nowMs: Long,
+        graceMs: Long,
     ): ReadingDisplay? {
         val record = display[displayKey(reading.timestamp)] ?: return null
-        if (!record.isUsable || !record.isSealedAt(nowMs)) return null
+        if (!record.isUsable || !record.isSealedAt(nowMs, graceMs)) return null
         if (!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial)) return null
-        if (!recordStillDescribes(reading, record)) return null
         return record
     }
-
-    /**
-     * Whether a record of this reading's own sensor still describes the number
-     * it was drawn from.
-     *
-     * A sensor whose driver integrates the user's calibration shows its stored
-     * number as it is; the record of such a minute can only equal that number
-     * or be stale — left behind when the driver replayed its algorithm and
-     * replaced the row. Drawing a stale one froze the line at a calibration
-     * the user had since changed, and where the record belonged to the other
-     * sensor the line showed the new number instead, so a two-sensor store
-     * drew the old and the new numbers side by side, minute by minute. The
-     * rewrite voids such records ([voidRecordsRewrittenByDriver]); this is the
-     * same rule at read time, so a store that already holds them draws the
-     * sensor's number without waiting for the next rewrite. The record's
-     * ownership of the minute is untouched: only its value is set aside.
-     */
-    private fun recordStillDescribes(reading: HistoryReading, record: ReadingDisplay): Boolean {
-        val serial = reading.sensorSerial
-        val autoIntegrated = integratesLane(serial, isRawMode = false)
-        val rawIntegrated = integratesLane(serial, isRawMode = true)
-        if (!autoIntegrated && !rawIntegrated) return true
-        return RecordedDisplayVoiding.recordStandsFor(record, reading, autoIntegrated, rawIntegrated)
-    }
-
-    private fun integratesLane(serial: String, isRawMode: Boolean): Boolean =
-        runCatching {
-            tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(serial, isRawMode)
-        }.getOrDefault(false)
 
     /**
      * The recorded main value's key: the minute, and nothing else.

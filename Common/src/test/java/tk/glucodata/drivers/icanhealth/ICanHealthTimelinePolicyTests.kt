@@ -113,4 +113,198 @@ class ICanHealthTimelinePolicyTests {
         sequenceUnitMs = sequenceUnitMs,
         toleranceMs = toleranceMs,
     )
+
+    @Test
+    fun newestLiveReadingOneHourBehindClockIsStale() {
+        val now = 1_791_470_457_000L
+        assertTrue(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_596_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun newestLiveReadingWithinLagWindowIsKept() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17073, currentSequenceNumber = 17070,
+                resolvedMs = now - 180_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun delayedOlderSequenceIsNeverTreatedAsStale() {
+        val now = 1_791_470_457_000L
+        assertFalse(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = 17060, currentSequenceNumber = 17070,
+                resolvedMs = now - 3_600_000L, nowMs = now, maxLagMs = 600_000L,
+            )
+        )
+    }
+
+    @Test
+    fun edgeAnHourBehindTheCounterReadIsDivergent() {
+        val observed = 1_791_470_432_000L
+        assertTrue(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 3_631_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun edgeNearTheCounterReadIsNotDivergent() {
+        val observed = 1_791_470_432_000L
+        assertFalse(
+            ICanHealthConstants.isAnchorDivergentFromObservedSequence(observed - 60_000L, observed, 600_000L)
+        )
+    }
+
+    @Test
+    fun missingCounterObservationIsNeverDivergent() {
+        assertFalse(ICanHealthConstants.isAnchorDivergentFromObservedSequence(1L, 0L, 600_000L))
+    }
+
+    /**
+     * Replay of the exact values in juggluco-trace-20261008-175444.log: the counter (seq 17070)
+     * read at 17:40:32 and a skewed covered edge reconstructing 16:38:01 for that same sequence.
+     * The plausibility window alone let that edge through, so every live reading was stored an
+     * hour late (seq 17073 arriving at 17:40:57 was stored at 16:41:01).
+     */
+    @Test
+    fun replay_traceSkewedEdgeIsRejectedByTheCounterRead() {
+        val anchor = ICanHealthConstants.persistedCoveredAnchorMs(
+            persistedCoveredSequence = traceCoveredSequence,
+            persistedCoveredTimestampMs = traceSkewedEdgeMs,
+            currentSequenceNumber = traceCounterSequence,
+            sequenceUnitMs = sequenceUnitMs,
+        )
+        assertEquals(traceSkewedEdgeMs, anchor)
+        // The trace's failure mode: the edge sits inside the plausibility window.
+        assertTrue(anchor in tracePlausibleRange)
+
+        assertFalse(
+            ICanHealthConstants.isPersistedCoveredAnchorUsable(
+                anchorMs = anchor,
+                sequenceObservedAtMs = traceCounterObservedAtMs,
+                divergenceToleranceMs = maxLiveLagMs,
+                plausibleRange = tracePlausibleRange,
+            )
+        )
+    }
+
+    @Test
+    fun replay_traceEdgeThatAgreesWithTheCounterReadIsUsed() {
+        val anchor = ICanHealthConstants.persistedCoveredAnchorMs(
+            persistedCoveredSequence = traceCoveredSequence - 5,
+            persistedCoveredTimestampMs = traceCounterObservedAtMs - 5 * sequenceUnitMs - 31_000L,
+            currentSequenceNumber = traceCounterSequence,
+            sequenceUnitMs = sequenceUnitMs,
+        )
+        assertEquals(1_791_470_401_000L, anchor) // 17:40:01
+
+        assertTrue(
+            ICanHealthConstants.isPersistedCoveredAnchorUsable(
+                anchorMs = anchor,
+                sequenceObservedAtMs = traceCounterObservedAtMs,
+                divergenceToleranceMs = maxLiveLagMs,
+                plausibleRange = tracePlausibleRange,
+            )
+        )
+    }
+
+    /**
+     * Replay of juggluco-trace-20261027-114127.log: the sensor stopped at seq 9516 at 11:05:34 and
+     * the counter never moved again. Every ~11 minutes the driver dropped the edge as "too old",
+     * re-anchored it to `now` and re-imported the same four records with fresh timestamps
+     * (3.4/3.6/3.7/3.9 at 11:09:29, again at 11:20:17, again at 11:31:10 — all uploaded to
+     * Nightscout). A non-advancing counter must keep its anchor.
+     */
+    @Test
+    fun stalledCounterKeepsItsAnchorInsteadOfReanchoringTheFrozenTail() {
+        val coveredSequence = 9516
+        val coveredAtMs = 1_793_088_334_127L // 11:05:34, the last record the sensor produced
+        val counterReadAtMs = 1_793_089_109_171L // 11:18:29, same counter value
+        val anchor = ICanHealthConstants.persistedCoveredAnchorMs(
+            persistedCoveredSequence = coveredSequence,
+            persistedCoveredTimestampMs = coveredAtMs,
+            currentSequenceNumber = coveredSequence,
+            sequenceUnitMs = 60_000L,
+        )
+        assertEquals(coveredAtMs, anchor)
+
+        assertTrue(
+            ICanHealthConstants.isPersistedCoveredEdgeStalled(
+                persistedCoveredSequence = coveredSequence,
+                currentSequenceNumber = coveredSequence,
+            )
+        )
+        // The old behaviour: 13 minutes adrift from the counter read, so "unusable", dropped and
+        // re-anchored to the read moment — which is what fabricated the repeated readings.
+        assertFalse(
+            ICanHealthConstants.isPersistedCoveredAnchorUsable(
+                anchorMs = anchor,
+                sequenceObservedAtMs = counterReadAtMs,
+                divergenceToleranceMs = 10 * 60_000L,
+                plausibleRange = (coveredAtMs - 6 * 60 * 60_000L)..counterReadAtMs,
+            )
+        )
+    }
+
+    @Test
+    fun advancedCounterIsNotMistakenForAStall() {
+        assertFalse(
+            ICanHealthConstants.isPersistedCoveredEdgeStalled(
+                persistedCoveredSequence = 9516,
+                currentSequenceNumber = 9519,
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.isPersistedCoveredEdgeStalled(
+                persistedCoveredSequence = -1,
+                currentSequenceNumber = 9516,
+            )
+        )
+    }
+
+    @Test
+    fun persistedAnchorOutsideThePlausibleRangeIsNotUsedEvenWithoutACounterRead() {
+        assertFalse(
+            ICanHealthConstants.isPersistedCoveredAnchorUsable(
+                anchorMs = tracePlausibleRange.first - 1L,
+                sequenceObservedAtMs = 0L,
+                divergenceToleranceMs = maxLiveLagMs,
+                plausibleRange = tracePlausibleRange,
+            )
+        )
+    }
+
+    /** Second line of defence: had the skewed anchor been used, the live guard restamps it. */
+    @Test
+    fun replay_traceLiveReadingFromTheSkewedEdgeIsStale() {
+        val resolvedLiveMs = traceSkewedEdgeMs + (traceLiveSequence - traceCounterSequence) * sequenceUnitMs
+        assertEquals(1_791_466_861_000L, resolvedLiveMs) // 16:41:01, what the trace stored
+        assertTrue(
+            ICanHealthConstants.isStaleLiveTimestamp(
+                sequenceNumber = traceLiveSequence,
+                currentSequenceNumber = traceCounterSequence,
+                resolvedMs = resolvedLiveMs,
+                nowMs = traceLiveArrivalMs,
+                maxLagMs = maxLiveLagMs,
+            )
+        )
+    }
+
+    private val maxLiveLagMs = 600_000L
+    private val traceCoveredSequence = 17_070
+    private val traceCounterSequence = 17_070
+    private val traceLiveSequence = 17_073
+    private val traceCounterObservedAtMs = 1_791_470_432_000L // 17:40:32
+    private val traceLiveArrivalMs = 1_791_470_457_000L       // 17:40:57
+    private val traceSkewedEdgeMs = 1_791_466_681_000L        // 16:38:01
+    // Days of session behind, a few minutes of future drift ahead: the edge an hour back fits.
+    private val tracePlausibleRange = (traceLiveArrivalMs - 14 * 24 * 60 * 60 * 1000L)..(traceLiveArrivalMs + 5 * 60 * 1000L)
 }

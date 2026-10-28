@@ -8,6 +8,8 @@ import tk.glucodata.drivers.ManagedBluetoothSensorDriver
 import tk.glucodata.drivers.ManagedSensorIdentityAdapter
 
 object NightscoutFollowerIdentityAdapter : ManagedSensorIdentityAdapter {
+    override val uiFamily = tk.glucodata.drivers.ManagedSensorUiFamily.NIGHTSCOUT
+
 
     override fun matchesCallbackId(callbackId: String?, sensorId: String): Boolean {
         val normalized = callbackId?.trim().takeIf { !it.isNullOrEmpty() } ?: return false

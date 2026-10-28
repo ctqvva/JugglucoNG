@@ -13,7 +13,9 @@ object CurrentDisplaySource {
     internal data class SmoothingMode(
         val smoothAllData: Boolean,
         val smoothingMinutes: Int,
-        val collapseChunks: Boolean
+        val collapseChunks: Boolean,
+        /** Estimate with [CausalGlucoseFilter] instead of the averaging window. */
+        val causal: Boolean = false
     )
 
     data class Snapshot(
@@ -69,6 +71,37 @@ object CurrentDisplaySource {
         )
     }
 
+    /** No smoothing of any kind: what the sensor reported, for anchoring a calibration. */
+    internal val MEASURED = SmoothingMode(smoothAllData = false, smoothingMinutes = 0, collapseChunks = false)
+
+    /**
+     * The history a live resolution loads. Causal estimation is defined over [CausalGlucoseFilter.WINDOW_MS],
+     * so loading less would make the live estimate a function of a shorter window than the backfill's.
+     */
+    internal fun liveHistoryWindowMs(requestedMs: Long, causal: Boolean): Long =
+        if (causal) requestedMs.coerceAtLeast(CausalGlucoseFilter.WINDOW_MS) else requestedMs
+
+    /** Whether [points] holds a reading no older than [maxAgeMs] at [nowMs]. */
+    internal fun hasReadingWithin(points: List<GlucosePoint>, nowMs: Long, maxAgeMs: Long): Boolean =
+        points.any { nowMs - it.timestamp <= maxAgeMs }
+
+    /**
+     * The current reading as measured. A fingerstick is paired with this, never with a smoothed
+     * or filtered estimate: anchoring a calibration to an estimate bakes the estimator's error
+     * into every later value.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun resolveCurrentMeasured(
+        maxAgeMillis: Long = Notify.glucosetimeout,
+        preferredSensorId: String? = null,
+    ): Snapshot? = resolveCurrentInternal(
+        maxAgeMillis = maxAgeMillis,
+        preferredSensorId = preferredSensorId,
+        historyWindowMs = DEFAULT_HISTORY_WINDOW_MS,
+        smoothingMode = MEASURED
+    )
+
     private fun resolveCurrentInternal(
         maxAgeMillis: Long,
         preferredSensorId: String?,
@@ -79,16 +112,23 @@ object CurrentDisplaySource {
         val current = CurrentGlucoseSource.getFresh(maxAgeMillis, resolvedSensorId)
         val isMmol = Applic.unit == 1
         val now = System.currentTimeMillis()
-        val liveHistoryWindowMs = historyWindowMs.coerceAtLeast(LIVE_CONTEXT_WINDOW_MS)
+        val liveHistoryWindowMs = liveHistoryWindowMs(
+            historyWindowMs.coerceAtLeast(LIVE_CONTEXT_WINDOW_MS),
+            smoothingMode.causal
+        )
         val historyStart = when {
             current != null && current.timeMillis > 0L -> (current.timeMillis - liveHistoryWindowMs).coerceAtLeast(0L)
-            else -> now - historyWindowMs
+            else -> now - liveHistoryWindowMs
         }
         val recentPoints = try {
             NotificationHistorySource.getDisplayHistory(historyStart, isMmol, resolvedSensorId)
         } catch (_: Throwable) {
             emptyList()
         }
+        // The causal filter loads a longer window than the caller asked for. With no live sample,
+        // a point only that longer window reaches must not become the current value; within
+        // [historyWindowMs] the last reading is shown as before, whatever the smoothing.
+        if (current == null && !hasReadingWithin(recentPoints, now, historyWindowMs)) return null
         val viewMode = resolveSensorViewMode(resolvedSensorId)
         return resolveSnapshot(
             current = current,
@@ -128,6 +168,10 @@ object CurrentDisplaySource {
      * [resolveCurrent] would resolve it once it is the current one. The two used
      * to be separate copies, and the alert engine switches between them from one
      * tick to the next: any difference fires an alert and clears it again.
+     * [preferIncomingSample] prevents a neighboring history timestamp from replacing
+     * a known live sample while its storage write is pending. Earlier samples still
+     * participate in configured smoothing and trend estimation, but chunk collapsing
+     * cannot remove the incoming sample from live publication.
      */
     @JvmStatic
     @JvmOverloads
@@ -139,14 +183,19 @@ object CurrentDisplaySource {
         sensorGen: Int = 0,
         index: Int = 0,
         source: String = "incoming",
-        historyWindowMs: Long = DEFAULT_HISTORY_WINDOW_MS
+        historyWindowMs: Long = DEFAULT_HISTORY_WINDOW_MS,
+        preferIncomingSample: Boolean = false
     ): Snapshot? {
         if (!reading.hasValue || targetTimeMillis <= 0L) {
             return null
         }
         val resolvedSensorId = preferredSensorId ?: SensorIdentity.resolveMainSensor()
         val isMmol = Applic.unit == 1
-        val liveHistoryWindowMs = historyWindowMs.coerceAtLeast(LIVE_CONTEXT_WINDOW_MS)
+        val smoothingMode = localSmoothingMode()
+        val liveHistoryWindowMs = liveHistoryWindowMs(
+            historyWindowMs.coerceAtLeast(LIVE_CONTEXT_WINDOW_MS),
+            smoothingMode.causal
+        )
         val historyStart = (targetTimeMillis - liveHistoryWindowMs).coerceAtLeast(0L)
         val recentPoints = try {
             NotificationHistorySource.getDisplayHistory(historyStart, isMmol, resolvedSensorId)
@@ -169,8 +218,9 @@ object CurrentDisplaySource {
             historyStart = historyStart,
             viewMode = resolveSensorViewMode(resolvedSensorId),
             isMmol = isMmol,
-            smoothingMode = localSmoothingMode(),
-            sensorId = resolvedSensorId
+            smoothingMode = smoothingMode,
+            sensorId = resolvedSensorId,
+            preferIncomingSample = preferIncomingSample
         )
     }
 
@@ -182,7 +232,9 @@ object CurrentDisplaySource {
         viewMode: Int,
         isMmol: Boolean,
         smoothingMode: SmoothingMode,
-        sensorId: String?
+        sensorId: String?,
+        preferIncomingSample: Boolean = false,
+        nowMillis: Long = System.currentTimeMillis()
     ): Snapshot? {
         val processedPoints = prepareRecentPointsForCurrent(
             recentPoints = recentPoints,
@@ -191,23 +243,32 @@ object CurrentDisplaySource {
             viewMode = viewMode,
             smoothAllData = smoothingMode.smoothAllData,
             smoothingMinutes = smoothingMode.smoothingMinutes,
-            collapseChunks = smoothingMode.collapseChunks
+            collapseChunks = smoothingMode.collapseChunks,
+            nowMillis = nowMillis,
+            preferIncomingSample = preferIncomingSample,
+            causal = smoothingMode.causal,
+            mgdlPerUnit = if (isMmol) MGDL_PER_MMOLL else 1f
+        )
+        val targetTime = exchangeTargetTimeMillis(
+            collapseChunks = smoothingMode.collapseChunks && !preferIncomingSample,
+            processedPoints = processedPoints,
+            liveTimeMillis = current?.timeMillis
         )
         val initialSnapshot = resolveFromLive(
             liveValueText = current?.valueText,
             liveNumericValue = current?.let { liveLaneValue(it, viewMode) } ?: Float.NaN,
             liveCalibratedValue = current?.calibratedNumericValue ?: Float.NaN,
             rate = current?.rate ?: Float.NaN,
-            targetTimeMillis = exchangeTargetTimeMillis(
-                collapseChunks = smoothingMode.collapseChunks,
-                processedPoints = processedPoints,
-                liveTimeMillis = current?.timeMillis
-            ),
+            targetTimeMillis = targetTime,
             sensorId = sensorId,
             sensorGen = current?.sensorGen ?: 0,
             index = current?.index ?: 0,
             source = current?.source ?: if (processedPoints.isNotEmpty()) "history" else "none",
-            recentPoints = processedPoints,
+            // A known live sample must not borrow a neighboring minute's glucose
+            // (or its raw lane). Keep the full series for smoothing and trends.
+            recentPoints = if (preferIncomingSample) {
+                processedPoints.filter { it.timestamp == targetTime }
+            } else processedPoints,
             viewMode = viewMode,
             isMmol = isMmol
         ) ?: return null
@@ -258,18 +319,30 @@ object CurrentDisplaySource {
         smoothAllData: Boolean,
         smoothingMinutes: Int,
         collapseChunks: Boolean,
-        nowMillis: Long = System.currentTimeMillis()
+        nowMillis: Long = System.currentTimeMillis(),
+        preferIncomingSample: Boolean = false,
+        causal: Boolean = false,
+        mgdlPerUnit: Float = 1f
     ): List<GlucosePoint> {
-        val pointsWithCurrent = mergeLivePoint(recentPoints, current, historyStart, viewMode)
-        return if (smoothAllData) {
-            DataSmoothing.smoothNativePoints(
+        val pointsWithCurrent = mergeLivePoint(recentPoints, current, historyStart, viewMode, preferIncomingSample)
+        // Chunk collapsing is presentation thinning. A known incoming sample
+        // must remain available at its own timestamp for live publication.
+        val collapse = collapseChunks && !preferIncomingSample
+        return when {
+            !smoothAllData -> pointsWithCurrent
+            causal -> DataSmoothing.smoothNativePointsCausal(
                 pointsWithCurrent,
                 smoothingMinutes,
-                collapseChunks,
+                collapse,
+                mgdlPerUnit,
                 nowMillis
             )
-        } else {
-            pointsWithCurrent
+            else -> DataSmoothing.smoothNativePoints(
+                pointsWithCurrent,
+                smoothingMinutes,
+                collapse,
+                nowMillis
+            )
         }
     }
 
@@ -279,7 +352,8 @@ object CurrentDisplaySource {
         return SmoothingMode(
             smoothAllData = smoothAllData,
             smoothingMinutes = smoothingMinutes,
-            collapseChunks = smoothAllData && DataSmoothing.collapseChunks(Applic.app)
+            collapseChunks = smoothAllData && DataSmoothing.collapseChunks(Applic.app),
+            causal = DataSmoothing.useCausalFilter(Applic.app)
         )
     }
 
@@ -289,7 +363,8 @@ object CurrentDisplaySource {
             smoothingMinutes = DataSmoothing.getMinutes(context),
             graphOnly = DataSmoothing.isGraphOnly(context),
             exchangeOutputsOnly = DataSmoothing.smoothOnlyExchangeOutputs(context),
-            collapseChunks = DataSmoothing.collapseChunks(context)
+            collapseChunks = DataSmoothing.collapseChunks(context),
+            causal = DataSmoothing.useCausalFilter(context)
         )
     }
 
@@ -304,13 +379,15 @@ object CurrentDisplaySource {
         smoothingMinutes: Int,
         graphOnly: Boolean,
         exchangeOutputsOnly: Boolean,
-        collapseChunks: Boolean
+        collapseChunks: Boolean,
+        causal: Boolean = false
     ): SmoothingMode = SmoothingMode(
         smoothAllData = DataSmoothing.shouldSmoothExchangeOutputs(
             smoothingMinutes, graphOnly, exchangeOutputsOnly, collapseChunks
         ),
         smoothingMinutes = smoothingMinutes,
-        collapseChunks = false
+        collapseChunks = false,
+        causal = causal
     )
 
     @JvmStatic
@@ -546,7 +623,8 @@ object CurrentDisplaySource {
         points: List<GlucosePoint>,
         current: CurrentGlucoseSource.Snapshot?,
         historyStart: Long,
-        viewMode: Int
+        viewMode: Int,
+        preferIncomingSample: Boolean
     ): List<GlucosePoint> {
         if (current == null || current.timeMillis < historyStart) {
             return points
@@ -554,6 +632,7 @@ object CurrentDisplaySource {
         val latestHistory = points.lastOrNull()
         if (latestHistory != null &&
             kotlin.math.abs(latestHistory.timestamp - current.timeMillis) <= MATCH_WINDOW_MS &&
+            (!preferIncomingSample || latestHistory.timestamp == current.timeMillis) &&
             hasUsableDisplayLane(latestHistory, viewMode)
         ) {
             return points

@@ -1,0 +1,74 @@
+{
+  "alert_xdrip_low.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -4.41,
+    "active_rms_dbfs": -4.38,
+    "sha256": "d79af37202c622c8b6df76f7c1484a9265f89ab156075ade1bf76993c4258f91"
+  },
+  "alert_xdrip_high.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -8.78,
+    "active_rms_dbfs": -4.46,
+    "sha256": "8777ee1bff6633d516e69bbf440f7467c157dd6dc01c0b0e726a9fcfb0cdb989"
+  },
+  "alert_xdrip_urgent_low.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -4.41,
+    "active_rms_dbfs": -4.39,
+    "sha256": "623eb98d36cf808f5a2b3c532afe542fdbe1fb9b02a46a005c585eaf787b7a8e"
+  },
+  "alert_xdrip_urgent_high.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.15,
+    "active_rms_dbfs": -4.49,
+    "sha256": "a869d1286ab6e8d3863afeaff311579aabb502421e3cfdc206c3d17d38e4e6f6"
+  },
+  "alert_xdrip_falling.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.49,
+    "active_rms_dbfs": -4.42,
+    "sha256": "a9408e01a3adfc9339fb83ecfcbc2eded31d0a13b463cbaa9ad6e56d392c026b"
+  },
+  "alert_xdrip_rising.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -6.49,
+    "active_rms_dbfs": -4.41,
+    "sha256": "16cf7ec12f1e37b71c84c5ac78ba6325e0c44f78cc5a0eb84af70a355663abbe"
+  },
+  "alert_xdrip_signal.wav": {
+    "frames": 288000,
+    "seconds": 6.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -15.24,
+    "active_rms_dbfs": -4.56,
+    "sha256": "84dd31f8a34ab45b317e8fcd0ca9da8640261320188b2bae56c9a55680496a22"
+  },
+  "alert_xdrip_reminder.wav": {
+    "frames": 192000,
+    "seconds": 4.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -10.14,
+    "active_rms_dbfs": -4.48,
+    "sha256": "054d170d0a34ca8f8866287ce22e37155d7ab6cf0bcb9bfcea08c5ca427bfa23"
+  },
+  "alert_xdrip_notice.wav": {
+    "frames": 144000,
+    "seconds": 3.0,
+    "peak_dbfs": -1.0,
+    "rms_dbfs": -10.32,
+    "active_rms_dbfs": -4.52,
+    "sha256": "6a239aa756d675c0291a15d7196bea80eb16293800000f7c1f10d0b9d90d25b9"
+  }
+}

@@ -79,6 +79,17 @@ internal object CalibrationMath {
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
 
+    /**
+     * A raw value that is safe to store beside a calibration, or zero when the source has none.
+     *
+     * A driver without a raw lane reports it as `NaN` (iCan's `resolveRawLaneValue` does), and
+     * SQLite stores a non-finite REAL as NULL while the column is NOT NULL — so the calibration row
+     * would fail to insert instead of being recorded. Zero is what the raw lane already means for
+     * such a sensor: no raw value to pair with the calibration.
+     */
+    fun sensorValueRawForStorage(raw: Float): Float =
+        raw.takeIf { it.isFinite() && it > 0f } ?: 0f
+
     fun resolvePointsForTimestamp(
         allPoints: List<CalPoint>,
         targetTimestamp: Long,

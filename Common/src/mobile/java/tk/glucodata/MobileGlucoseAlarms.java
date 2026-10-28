@@ -67,11 +67,11 @@ public    void handlealarm() {
                     long lasttime=Natives.lastglucosetime( );
                     if(lasttime!=0L)
                         wastime=lasttime;
-                    Notify.onenot.lossalarm(wastime);
-                     if(SuperGattCallback.doWearInt)  {
+                    // A suppressed outage remains pending for the next scheduled check.
+                    saidloss = Notify.onenot.lossalarm(wastime);
+                     if(saidloss && SuperGattCallback.doWearInt)  {
                         WearInt.missingalarm(nu /*SIC, that what xDrip is doing*/);
                         }
-                    saidloss = true;
                     }
                  else {
                     Notify.onenot.oldnotification(wastime);

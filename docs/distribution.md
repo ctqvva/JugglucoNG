@@ -19,6 +19,12 @@ continues to use the existing `thekeyfile`, `thepassword`, `thekeyalias`,
 `thekeypassword` Gradle properties; no new local keystore is needed. Use an
 absolute `thekeyfile` path. Never paste signing values into commands or logs.
 
+Canonical builds also require `JUGGLUCO_TURN_SERVERS`, a JSON array of relay-only
+credentials described below. This restores the bundled TURN fallback removed
+from production builds in 1.2.3. Missing/empty credentials stop the build before
+Gradle; every configured host, username and password must also be present in
+each requested APK's `libg.so`, for every selected ABI, before staging succeeds.
+
 Verified outputs are in `build/dist/<target>/`. Only the requested variants are
 staged/reported. A failed build clears the previous distribution for that target.
 Raw `Common/build/outputs/apk` can still contain older variants; do not upload
@@ -36,7 +42,7 @@ both ABIs. Additional Gradle options can follow the target, e.g. `--offline
 
 The environments are configured in the repository:
 
-- `production-signing`: **main branch only**, four signing secrets, licensing flag.
+- `production-signing`: **main branch only**, four signing secrets, TURN input, licensing flag.
 - `production-pr-review`: **main controller only**, approval by `ctqvva`, admin
   bypass disabled, **no secrets**. Approval covers one immutable PR source snapshot.
 - `nightly-publication`: **main branch only**, no reviewer and no secrets;
@@ -53,6 +59,7 @@ enter these environment secrets (never repository secrets):
 | `ANDROID_STORE_PASSWORD` | Existing `thepassword` |
 | `ANDROID_KEY_ALIAS` | Existing `thekeyalias` |
 | `ANDROID_KEY_PASSWORD` | Existing `thekeypassword` |
+| `CLONE_TURN_SERVERS_JSON` | JSON array of credentialed UDP TURN relays, as below |
 
 Base64 is encoding, not encryption. Enter it through GitHub's secret UI or pipe
 it directly into `gh secret set --env production-signing`; do not save it in the
@@ -60,6 +67,45 @@ checkout or terminal output. The build decodes into a temporary file with privat
 permissions, removes it on exit, and passes the existing Gradle properties via
 step-local environment variables. No signing material reaches the publication
 job or artifacts.
+
+### Bundled Clone TURN fallback
+
+Set `CLONE_TURN_SERVERS_JSON` in `production-signing` to an array with 1–2 entries
+(this libjuice fork attempts at most two relays):
+
+```json
+[
+  {"host":"turn.example.org","port":3478,"username":"app-relay-user","password":"app-relay-password"}
+]
+```
+
+Supply **relay allocation credentials only**. Do not supply a Twilio account SID,
+account auth token, coturn shared HMAC secret, signing key, or expiring credentials
+that will stop working after the APK ships. Relay credentials bundled in an APK
+are extractable: use a dedicated account with quotas/revocation and permission
+to redistribute its credentials. This restores a static default service; it does
+not implement an online temporary-credential issuer or HTTPS transport. Port 443
+still means UDP for this client, not TURN/TLS.
+
+For local canonical builds, read the same JSON from a private file into
+`JUGGLUCO_TURN_SERVERS` without printing it. In Actions, both trusted-main builds
+(including release/nightly) and approved PR builds receive the protected secret.
+Ordinary CI uses synthetic credentials and needs no secret. `build-dist.sh`
+generates a private temporary header under ignored `build/private`, removes it
+on exit, and checks the actual APK libraries before staging. Generated headers,
+native intermediate objects and configuration must not be uploaded as artifacts;
+the credentials themselves are intentionally present in APKs.
+
+`python3 tools/test-clone-turn.py` exercises real authentication, allocation and
+bidirectional delivery against a local relay using the production header path.
+It withholds all direct remote candidates, blocks discovered direct UDP paths
+with a test-only socket shim, and includes a rejected relay alongside a working
+one. A negative control rejects both relays and requires no delivery. This
+checks transport behavior without public services. It does
+not prove the configured public relays are reachable or accept their credentials;
+verify those separately, and test real phones across different networks before
+calling the release regression resolved. User-supplied TURN still overrides the
+bundled list.
 
 All callers of `signed-build.yml` must retain `secrets: inherit`: GitHub currently
 resolves the reusable job's environment secrets as empty without explicit secret
@@ -140,7 +186,7 @@ The Actions App token needs the PR scope even though timeline comments use the
 
 **Nightly prerelease** runs daily at **00:23 UTC / 05:23 Asia/Yekaterinburg**.
 GitHub's scheduler can run late. Only the captured official main SHA is eligible;
-its push CI must have passed. If that SHA matches the last successfully published
+its push or manually dispatched CI must have passed. If that SHA matches the last successfully published
 nightly, the expensive build and signing jobs are skipped. A queued older snapshot
 is also skipped; divergent main history fails for inspection. All commits merged
 to main count as changes, including build/documentation changes. A failed build
@@ -165,7 +211,7 @@ Signing uses the existing main-only `production-signing` environment. The separa
 `nightly-publication` job has `contents: write` and no signing material. Unlike a
 regular release, publication has no approval gate: requesting unattended nightlies
 authorizes publication of these trusted main snapshots. PR signing still requires
-its separate owner gate. No new secrets are needed.
+its separate owner gate. The same protected TURN input is used for nightly builds.
 
 The **three most recent published nightlies** are retained. Cleanup deletes only
 this automation's marked, dated prereleases and their tags; it preserves regular
@@ -204,6 +250,46 @@ existing `make-update-manifest.sh`, and validates manifest contents against APKs
 The schema remains 1, with only the two phone entries; Wear stays out of the
 phone updater. Names match existing releases exactly. The default release is
 latest even with an `-Alpha` name, matching 1.2.2; prerelease is explicit.
+Generated release notes compare against GitHub's latest published non-prerelease,
+including when the new version is marked prerelease. Nightlies and other
+prereleases cannot become that changelog baseline. Nightly notes keep their
+separate previous-nightly comparison.
+
+After successful versioned publication, the workflow refreshes the README's
+marked download links and version button. The primary download is the newest
+published versioned release, **including prereleases** and excluding nightlies or
+drafts; all four links use the existing versioned APK names from that release.
+The download button shows that release's version. A secondary button links to
+nightly builds. Promoting a prerelease keeps the same version and APK links,
+so the README needs no change for promotion.
+
+The existing updater filters out GitHub prereleases but scans **all** non-prereleases,
+not just GitHub's "Latest" release. Keeping a version prerelease is the compatible
+way to hold it back from installed clients while offering it for manual download.
+`--latest=false` is not an updater holdback, and removing the manifest is insufficient
+because older clients can fall back to APK filenames. README selection does not
+change release flags or updater eligibility. Release-note comparison continues to
+use the last non-prerelease, independently of manual download selection.
+
+To promote an existing release, open GitHub Releases, edit it, clear **This is a
+pre-release**, and choose **Update release**. This makes the same APK eligible for
+the app updater without rebuilding or renaming it.
+
+**Refresh README downloads** handles manual publication/promotion and independent
+retries. Both update paths read the README and version button at the same main
+commit, preserve unrelated edits, and publish both files in one commit. A
+non-fast-forward ref update fails safely if main changes concurrently. They use
+`contents: write` and `actions: write` to dispatch the existing read-only main CI
+for a bot README commit; no new credentials or signing secrets are involved.
+Nightlies still require passing CI at the exact main SHA. For a local documentation
+edit, run `python3 scripts/dist/update-readme-downloads.py --local`.
+
+The post-publication refresh and standalone refresh share the `readme-downloads`
+job concurrency group. Each selects the latest release after acquiring that
+lock, so a delayed older event cannot roll links back after a newer refresh.
+The helper also captures main before reading releases. CI retry uses the newest
+matching main push/dispatch run, as nightly selection does: a newer failed or
+cancelled run requires a retry even when an older run succeeded.
 
 Signing has `contents: read`. Only the separate approved publication job has
 `contents: write`. That job creates a draft at the captured SHA, uploads the four
@@ -260,7 +346,8 @@ Two other ignored local inputs exist: `net/ICE/turnservers.local.hpp` and
 `twilio.local.hpp`. They are optional credential overrides, **not required build
 inputs**, and are intentionally never restored. Canonical distributions define
 `JUGGLUCO_DISTRIBUTION` so native code ignores these local headers even on the
-owner's checkout; users can configure their TURN server in app settings. Ordinary
+owner's checkout; they instead require the explicit relay-only TURN input above.
+Users can configure their TURN server in app settings. Ordinary
 local Gradle development builds retain the optional overrides. No contents or
 credential hashes from these headers are recorded.
 

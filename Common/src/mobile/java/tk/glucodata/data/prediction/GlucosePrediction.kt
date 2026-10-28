@@ -152,6 +152,7 @@ private fun JournalEntry.projectedDisplayDelta(
                 )
         }
         JournalEntryType.FINGERSTICK,
+        JournalEntryType.TEMP_BASAL,
         JournalEntryType.NOTE -> 0f
     }
 }

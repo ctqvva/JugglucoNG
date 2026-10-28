@@ -1,6 +1,8 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -416,6 +418,48 @@ class CurrentDisplaySourceTests {
         assertEquals(134f, resolve(resolved, listOf(GlucosePoint(timestamp, 92f, 0f))).primaryValue, 0.001f)
     }
 
+    /** #479: AiDEX's reconnect bridge carries stock 208, not an already resolved 208. */
+    @Test
+    fun reconnectBridgeCalibratesOnceBeforeAndAfterHistoryArrivesInBothUnits() {
+        val timestamp = 1_790_686_749_000L
+        for (isMmol in listOf(false, true)) {
+            val divisor = if (isMmol) 18.0182f else 1f
+            withOffsetCalibration(-44f / divisor) {
+                val reading = LiveReadingLanes.stock(208f / divisor, Float.NaN)
+                val current = incoming(reading, timestamp)
+                val history = listOf(GlucosePoint(timestamp, 208f / divisor, 0f))
+                for (recent in listOf(emptyList(), history)) {
+                    val published = resolve(current, recent, isMmol = isMmol).primaryValue
+                    assertEquals(164f / divisor, published, 0.001f)
+                    // The notification/header callback keeps the stock lanes for later
+                    // alert ticks. Publishing the calibrated float as stock would apply twice.
+                    val callback = requireNotNull(CurrentGlucoseSource.callbackSnapshot(
+                        latest = notGlucose(timestamp, "", 0f, 0),
+                        publishedValue = published,
+                        reading = reading,
+                        sensorId = SENSOR,
+                        now = timestamp,
+                        maxAgeMillis = 60_000L,
+                    ))
+                    assertEquals(published, resolve(callback, recent, isMmol = isMmol).primaryValue, 0.001f)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun reconnectAndHistoryCatchUpUseTheHistoryRawLaneInRawPrimaryViews() = withOffsetCalibration(-44f) {
+        val timestamp = 1_790_686_749_000L
+        val current = incoming(LiveReadingLanes.stock(208f, Float.NaN), timestamp)
+        val history = listOf(GlucosePoint(timestamp, 208f, 180f))
+        for (mode in listOf(1, 3)) {
+            val display = resolve(current, history, viewMode = mode)
+            assertEquals(136f, display.primaryValue, 0.001f)
+            assertEquals(180f, display.rawValue, 0.001f)
+            assertEquals(208f, display.autoValue, 0.001f)
+        }
+    }
+
     /** Raw-primary view: the raw lane has to arrive as raw, or it is shown uncalibrated. */
     @Test
     fun rawPrimaryLiveReading_calibratesTheRawLane() = withOffsetCalibration(42f) {
@@ -439,14 +483,15 @@ class CurrentDisplaySourceTests {
     private fun resolve(
         current: CurrentGlucoseSource.Snapshot,
         recentPoints: List<GlucosePoint>,
-        viewMode: Int = 0
+        viewMode: Int = 0,
+        isMmol: Boolean = false
     ): CurrentDisplaySource.Snapshot = requireNotNull(
         CurrentDisplaySource.resolveSnapshot(
             current = current,
             recentPoints = recentPoints,
             historyStart = current.timeMillis - 60_000L,
             viewMode = viewMode,
-            isMmol = false,
+            isMmol = isMmol,
             smoothingMode = CurrentDisplaySource.SmoothingMode(
                 smoothAllData = false,
                 smoothingMinutes = 0,
@@ -455,6 +500,87 @@ class CurrentDisplaySourceTests {
             sensorId = SENSOR
         )
     )
+
+    @Test
+    fun prepareRecentPointsForCurrent_causalModeDoesNotJumpToALoneLiveSpike() {
+        val minute = 60_000L
+        val recentPoints = (0 until 19).map { GlucosePoint(it * minute, 100f, 100f) }
+        val current = CurrentGlucoseSource.Snapshot(
+            timeMillis = 20L * minute,
+            valueText = "",
+            numericValue = 160f,
+            rawNumericValue = Float.NaN,
+            rate = 0f,
+            sensorId = "test",
+            sensorGen = 0,
+            index = 0,
+            source = "test"
+        )
+        val processed = CurrentDisplaySource.prepareRecentPointsForCurrent(
+            recentPoints = recentPoints,
+            current = current,
+            historyStart = 0L,
+            viewMode = 0,
+            smoothAllData = true,
+            smoothingMinutes = 5,
+            collapseChunks = false,
+            causal = true,
+            mgdlPerUnit = 1f
+        )
+        assertEquals(20L * minute, processed.last().timestamp)
+        assertTrue(processed.last().value < 110f)
+    }
+
+    @Test
+    fun exchangeSmoothingMode_carriesTheCausalSwitch() {
+        val mode = CurrentDisplaySource.exchangeSmoothingMode(
+            smoothingMinutes = 5, graphOnly = false, exchangeOutputsOnly = true,
+            collapseChunks = false, causal = true
+        )
+        assertTrue(mode.smoothAllData)
+        assertTrue(mode.causal)
+    }
+
+    @Test
+    fun measuredModeNeverSmooths() {
+        val mode = CurrentDisplaySource.MEASURED
+        assertEquals(false, mode.smoothAllData)
+        assertEquals(false, mode.causal)
+        assertEquals(false, mode.collapseChunks)
+    }
+
+    @Test
+    fun causalFilterWidensTheLiveHistoryWindowToItsWholeWindow() {
+        val trendWindow = 25 * 60_000L
+        assertEquals(trendWindow, CurrentDisplaySource.liveHistoryWindowMs(trendWindow, causal = false))
+        assertEquals(
+            CausalGlucoseFilter.WINDOW_MS,
+            CurrentDisplaySource.liveHistoryWindowMs(trendWindow, causal = true)
+        )
+        assertEquals(
+            90 * 60_000L,
+            CurrentDisplaySource.liveHistoryWindowMs(90 * 60_000L, causal = true)
+        )
+    }
+
+    @Test
+    fun aReadingOnlyTheCausalWindowReachesIsNotCurrent() {
+        val now = 1_700_000_000_000L
+        val requested = DisplayTrendSource.TREND_WINDOW_MS
+        // The last reading stays current for the whole window the caller asked for, as without
+        // the filter: a signal loss of a few minutes must not blank the value.
+        assertTrue(
+            CurrentDisplaySource.hasReadingWithin(
+                listOf(GlucosePoint(now - 20 * 60_000L, 100f, 90f)), now, requested
+            )
+        )
+        assertFalse(
+            CurrentDisplaySource.hasReadingWithin(
+                listOf(GlucosePoint(now - 40 * 60_000L, 100f, 90f)), now, requested
+            )
+        )
+        assertFalse(CurrentDisplaySource.hasReadingWithin(emptyList(), now, requested))
+    }
 
     private fun withOffsetCalibration(offsetMgdl: Float, block: () -> Unit) {
         CalibrationAccess.register(object : CalibrationProvider {

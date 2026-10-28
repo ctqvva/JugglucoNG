@@ -57,4 +57,69 @@ class ICanHealthOnboardingCandidateTests {
         assertTrue(ICanHealthConstants.isICanHealthDevice("SN9150002398"))
         assertTrue(ICanHealthConstants.isICanHealthDevice("83D005442574"))
     }
+
+    @Test
+    fun aNamedCandidateNeedsGattDiscoveryEvenWhenItsAdvertListsAnotherService() {
+        val nus = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
+        assertTrue(ICanHealthConstants.isICanHealthDevice("SatelliteOnline5885"))
+        // A full discovery can disqualify the glucometer, while a real CGM may have
+        // advertised the same subset and expose CGM only during discovery.
+        assertTrue(ICanHealthConstants.isConclusivelyNotCgm(listOf(gap, gattService, nus)))
+        assertFalse(ICanHealthConstants.isConclusivelyNotCgm(listOf(gap, gattService, nus, ICanHealthConstants.CGM_SERVICE)))
+    }
+
+    @Test
+    fun serviceDiscoveryRetainsCandidatesWhenOnlyGenericServicesArrive() {
+        assertFalse(ICanHealthConstants.isConclusivelyNotCgm(emptyList()))
+        assertFalse(ICanHealthConstants.isConclusivelyNotCgm(listOf(gap, gattService)))
+        assertFalse(ICanHealthConstants.isConclusivelyNotCgm(listOf(ICanHealthConstants.CGM_SERVICE)))
+    }
+
+    @Test
+    fun aNamedCandidateAdvertisingAnotherSensorsSerialIsSkippedDuringOnboarding() {
+        assertTrue(
+            ICanHealthConstants.advertisedNameConflictsWithOnboarding(
+                "ZA1OR03MSE50",
+                "iCGM-0123456789ABCDEF",
+            )
+        )
+    }
+
+    @Test
+    fun aNamedCandidateAdvertisingTheOnboardingSerialStaysEligible() {
+        // Production layout: ZA1OR03MSE50 (active code) -> 01OR03MS00070101 (DIS serial).
+        assertFalse(
+            ICanHealthConstants.advertisedNameConflictsWithOnboarding(
+                "ZA1OR03MSE50",
+                "01OR03MS00070101",
+            )
+        )
+        assertFalse(
+            ICanHealthConstants.advertisedNameConflictsWithOnboarding(
+                "ZA1OR03MSE50",
+                "iCGM-01OR03MS00070101",
+            )
+        )
+    }
+
+    @Test
+    fun aGenericNameWithoutASerialStaysPairableDuringOnboarding() {
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("ZA1OR03MSE50", "CGM"))
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("ZA1OR03MSE50", "Sinocare CGM"))
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("ZA1OR03MSE50", null))
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("ZA1OR03MSE50", "  "))
+    }
+
+    @Test
+    fun aShortSerialShapedNameStaysOnThePostConnectionGate() {
+        // The Anytime transmitter from the trace: matched by the broad name check, then
+        // rejected once its GATT table shows no CGM service.
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("ZA1OR03MSE50", "SN9150002398"))
+    }
+
+    @Test
+    fun withoutAnOnboardingSnNoCandidateIsFilteredByName() {
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding(null, "iCGM-0123456789ABCDEF"))
+        assertFalse(ICanHealthConstants.advertisedNameConflictsWithOnboarding("", "iCGM-0123456789ABCDEF"))
+    }
 }

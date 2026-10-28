@@ -1,5 +1,7 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -87,7 +89,9 @@ fun GlucosePalettePresetSelector(modifier: Modifier = Modifier) {
                     GlucosePaletteState.clearOverrides(context)
                 },
                 label = { Text(stringResource(presetLabelRes(preset))) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                shapes = FilterChipDefaults.shapes(),
+                colors = FilterChipDefaults.filterChipColors()
             )
         }
     }
@@ -106,7 +110,9 @@ fun GlucosePaletteResetAllButton(modifier: Modifier = Modifier) {
             )
             TextButton(
                 onClick = { GlucosePaletteState.clearOverrides(context) },
-                modifier = Modifier.align(Alignment.End)
+                modifier = Modifier.align(Alignment.End),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.glucose_palette_reset_all))
             }
@@ -122,7 +128,7 @@ fun GlucoseBandColorButton(
 ) {
     val context = LocalContext.current
     val revision = GlucosePaletteState.revision
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     var showDialog by remember { mutableStateOf(false) }
     val color = remember(revision, isDark, band) { effectiveBandColor(band, isDark) }
 
@@ -161,7 +167,7 @@ fun GlucoseTargetBackgroundColorButton(
 ) {
     val context = LocalContext.current
     val revision = GlucosePaletteState.revision
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = tk.glucodata.ui.isAppInDarkTheme()
     var showDialog by remember { mutableStateOf(false) }
     val color = remember(revision, isDark) {
         GlucoseRangeColors.targetBackground(isDark)
@@ -224,7 +230,7 @@ fun ExpressiveColorPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 tk.glucodata.ui.components.ExpressiveHueWheelPicker(
                     hue = colorState.hue,
                     onHueChange = { hue ->
@@ -296,7 +302,9 @@ fun ExpressiveColorPickerDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(composedColor) }
+                onClick = { onConfirm(composedColor) },
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.TextButtonContentPadding
             ) {
                 Text(stringResource(R.string.save))
             }
@@ -304,11 +312,11 @@ fun ExpressiveColorPickerDialog(
         dismissButton = {
             Row {
                 if (onReset != null) {
-                    TextButton(onClick = onReset) {
+                    TextButton(onClick = onReset, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                         Text(stringResource(R.string.glucose_palette_reset))
                     }
                 }
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
                     Text(stringResource(R.string.cancel))
                 }
             }

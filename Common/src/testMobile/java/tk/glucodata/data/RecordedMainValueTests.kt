@@ -14,7 +14,7 @@ class RecordedMainValueTests {
 
     private companion object {
         const val MINUTE = ReadingDisplay.MINUTE_MS
-        const val GRACE = ReadingDisplay.DISPLAY_SEAL_GRACE_MS
+        const val GRACE = ReadingDisplay.DEFAULT_SEAL_GRACE_MS
         const val NOW = 1_800_000_000_000L
     }
 
@@ -50,13 +50,13 @@ class RecordedMainValueTests {
             calibrationFingerprint = 1L,
             recordedAt = NOW,
         )
-        assertTrue(old.isSealedAt(NOW))
+        assertTrue(old.isSealedAt(NOW, GRACE))
     }
 
     @Test
     fun theGraceWindowBoundaryFallsOnTheReadingsOwnAge() {
-        assertFalse(record(NOW - GRACE + MINUTE).isSealedAt(NOW))
-        assertTrue(record(NOW - GRACE - MINUTE).isSealedAt(NOW))
+        assertFalse(record(NOW - GRACE + MINUTE).isSealedAt(NOW, GRACE))
+        assertTrue(record(NOW - GRACE - MINUTE).isSealedAt(NOW, GRACE))
     }
 
     @Test
@@ -164,15 +164,13 @@ class RecordedMainValueTests {
             "the flow path must apply the same owner check",
             flow.contains("SensorIdentity.matches(point.sensorSerial, it.sensorSerial)"),
         )
-        // Statistics want the main value shown at the minute whoever showed it,
-        // so another sensor's record is taken as it is; only a stale record of
-        // the reading's own sensor is set aside (see recordStillDescribes).
+        // Statistics describe the saved main value whoever showed it. Display
+        // smoothing is allowed to differ from the stored sensor values.
         val stats = repo.substringAfter("private fun mapReadingForStats").substringBefore("\n    }")
+        assertFalse(stats.contains("SensorIdentity.matches"))
         assertTrue(
-            stats.contains(
-                "!SensorIdentity.matches(reading.sensorSerial, record.sensorSerial) ||\n" +
-                    "                            recordStillDescribes(reading, record)"
-            ),
+            "the lane the record was shown on travels with it as provenance",
+            stats.contains("sealedDisplayViewMode = sealed?.viewMode"),
         )
     }
 

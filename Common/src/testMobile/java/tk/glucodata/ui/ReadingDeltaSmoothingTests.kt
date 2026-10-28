@@ -95,4 +95,24 @@ class ReadingDeltaSmoothingTests {
         val series = buildSmoothedConsumerHistory(spikeAtTheEdge, 0, collapseChunks = false)
         assertEquals(deltaRate(spikeAtTheEdge), deltaRate(series), 0.0001f)
     }
+
+    @Test
+    fun smoothingKeepsEachSurvivingMinutesRecordAndLaneWithoutInventingRecords() {
+        val points = series(List(30) { 100f }).mapIndexed { index, point ->
+            if (index % 3 == 0) point else point.copy(
+                sealedDisplayValue = 120f + index,
+                sealedDisplayViewMode = index % 4
+            )
+        }
+        val byTimestamp = points.associateBy { it.timestamp }
+        for (collapse in listOf(false, true)) {
+            val smoothed = buildSmoothedConsumerHistory(points, 5, collapse)
+            assertTrue(smoothed.isNotEmpty())
+            smoothed.forEach { point ->
+                val original = byTimestamp.getValue(point.timestamp)
+                assertEquals(original.sealedDisplayValue, point.sealedDisplayValue)
+                assertEquals(original.sealedDisplayViewMode, point.sealedDisplayViewMode)
+            }
+        }
+    }
 }

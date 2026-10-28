@@ -63,3 +63,24 @@ jobs:
           PRERELEASE: ${{ inputs.prerelease }}
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/dist/publish-release.py
+  update-readme:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: write # Start read-only CI for the post-release README commit.
+    # Same repository-wide lock as manual/release-event refreshes. Publication
+    # does not hold it during building; the helper reads releases inside the job.
+    concurrency:
+      group: readme-downloads
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Refresh README manual downloads after publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/dist/update-readme-downloads.py

@@ -20,11 +20,25 @@ object AiDexSerialIdentity {
             "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
         RegexOption.IGNORE_CASE,
     )
+    // A family word may carry the generation letter glued to it, as in "IndiaX-22222E7T6K".
     private val familyPrefixed = Regex(
-        "(?:^|\\s)(?:AIDEX|LINX|LUMI|VISTA|SMART)\\s*[-_]?\\s*" +
+        "(?:^|\\s)(?:AIDEX|LINX|LUMI|VISTA|SMART|INDIA)\\s*(?:[A-Z]\\s*-|[-_])?\\s*" +
             "([A-Z0-9]{$MIN_SERIAL_LENGTH,$MAX_SERIAL_LENGTH})(?=\$|\\s)",
         RegexOption.IGNORE_CASE,
     )
+
+    // Rebrands whose advertisement names the product line. Display only: the badge reads it,
+    // identity and pairing never do. Anything unlisted keeps the family badge.
+    private val productBrands = listOf(
+        Regex("^\\s*lumi(?:flex)?(?=\$|[\\s_0-9-])", RegexOption.IGNORE_CASE) to "LUMI",
+    )
+
+    /** Badge brand for an advertised name such as "Lumi-2222258CUW", or null for the family's own. */
+    fun productBrandFromAdvertisement(rawName: String?): String? {
+        if (rawName.isNullOrBlank()) return null
+        return productBrands.firstOrNull { (pattern, _) -> pattern.containsMatchIn(rawName) }?.second
+    }
+
     fun canonicalFromAdvertisement(rawName: String): String? {
         val trimmed = rawName.trim()
         generationPrefixed.find(trimmed)?.let { match ->

@@ -329,6 +329,7 @@ static public void updateall() {
     ShortArrowValueDataSourceService.Companion.update();
     ChartDataSourceService.update();
     MultiSensorDataSourceService.update();
+    tk.glucodata.tile.GlucoseTileService.Companion.update();
     }
 
 }

@@ -70,6 +70,37 @@ class ICanHealthSessionStartTimeTests {
     }
 
     @Test
+    fun parseSessionStartTime_treatsVendorConstantOffsetAsUnknown() {
+        // The vendor app hard-codes 0x14 (+5:00) next to every 2AAA wall clock, whatever the
+        // phone's real zone is, so the field cannot be believed. Captures from a +05 iPhone
+        // (2026-09-27) and a +08 Android phone (2026-08-19) both carry 0x14 while the 2AA9
+        // counter agrees with the local wall clock in both cases.
+        val parsed = ICanHealthParser.parseSessionStartTime(sessionStartBytes(tz = 0x14, dst = 0))
+
+        assertNotNull(parsed)
+        assertNull(parsed!!.timezoneOffset15Min)
+        assertNull(parsed.utcOffset15MinOrNull())
+    }
+
+    @Test
+    fun toEpochMillis_vendorConstantOffsetResolvesToTheLocalWallClock() {
+        // Session start 2026-09-27 02:08:45 stored with the vendor's fake +5:00 on a phone in
+        // another zone: the instant must be that wall clock in the device zone, not
+        // "02:08:45 local minus five hours".
+        val parsed = ICanHealthParser.parseSessionStartTime(
+            sessionStartBytes(
+                month = 9, day = 27, hour = 2, minute = 8, second = 45, tz = 0x14, dst = 0,
+            )
+        )!!
+
+        val epochMs = parsed.toEpochMillis()
+
+        assertEquals(localMillis(month = 9, day = 27, hour = 2, minute = 8, second = 45), epochMs)
+        // On the UTC+3 test zone the old reading of 0x14 was exactly three hours late.
+        assertEquals(THREE_HOURS_MS, utcMillis(month = 9, day = 27, hour = 2, minute = 8, second = 45) - epochMs)
+    }
+
+    @Test
     fun parseSessionStartTime_toleratesSevenByteCharacteristic() {
         val short = sessionStartBytes(tz = 0, dst = 0).copyOfRange(0, 7)
 

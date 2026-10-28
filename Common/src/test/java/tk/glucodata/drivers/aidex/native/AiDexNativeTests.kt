@@ -272,6 +272,27 @@ class SerialCryptoTests {
     }
 
     @Test
+    fun testIndiaSerialUsesBareSerialChallengeAndIvForNewAndStoredSensors() {
+        val name = "IndiaX-22222E7T6K"
+        val canonical = requireNotNull(AiDexSerialIdentity.canonicalFromAdvertisement(name))
+        val recovered = requireNotNull(AiDexSerialIdentity.advertisedProtocolSerialForMacFallback(
+            storedSensorId = "X-4038020A4517",
+            address = "40:38:02:0A:45:17",
+            advertisedName = name,
+        ))
+        val expectedChallenge = SerialCrypto.deriveSecret("22222E7T6K")
+        val expectedIv = SerialCrypto.deriveIv("22222E7T6K")
+        val macChallenge = AiDexKeyExchange("X-4038020A4517").getChallenge()
+        for (serial in listOf(name, canonical, recovered)) {
+            val exchange = AiDexKeyExchange(serial)
+            assertEquals("22222E7T6K", exchange.bareSerial)
+            assertArrayEquals(expectedChallenge, exchange.getChallenge())
+            assertArrayEquals(expectedIv, exchange.snIv)
+            assertFalse(macChallenge.contentEquals(exchange.getChallenge()))
+        }
+    }
+
+    @Test
     fun testDeriveSecretAndIV_Length() {
         val secret = SerialCrypto.deriveSecret("22222689WH")
         val iv = SerialCrypto.deriveIv("22222689WH")
@@ -824,6 +845,7 @@ class AdvertisementTests {
         assertTrue(AiDexOpcodes.isAiDexDevice("AiDEX X-2222267V4E"))
         assertTrue(AiDexOpcodes.isAiDexDevice("AiDEX X-22222689WH"))
         assertTrue(AiDexOpcodes.isAiDexDevice("Smart-22222BZTJ3"))
+        assertTrue(AiDexOpcodes.isAiDexDevice("IndiaX-22222E7T6K"))
     }
 
     @Test
@@ -1087,6 +1109,32 @@ class StartupMetadataParsingTests {
     }
 
     @Test
+    fun testParseStartupDeviceInfoFrame_liveLumiReplyWithModelCode() {
+        // Lumi-2222258CUW, fw 1.7.1, 2026-10-17: opcode, ACK 0x01, model code 0x8000, CRC stripped.
+        val frame = AiDexParser.dataFromHex("1001008001070103100047582D3031530000")
+
+        val parsed = AiDexParser.parseStartupDeviceInfoFrame(frame)
+
+        assertNotNull(parsed)
+        assertEquals("1.7", parsed!!.firmwareVersion)
+        assertEquals("1.3", parsed.hardwareVersion)
+        assertEquals(16, parsed.wearDays)
+        assertEquals("GX-01S", parsed.modelName)
+    }
+
+    @Test
+    fun testParseStartupDeviceInfoFrame_modelCodeNeedsAckAndReadableModel() {
+        // Same reply without the ACK byte in front of the non-zero code: still rejected.
+        assertNull(AiDexParser.parseStartupDeviceInfoFrame(
+            AiDexParser.dataFromHex("1002008001070103100047582D3031530000"),
+        ))
+        // ACK present but the "model" is not text: a misaligned frame, rejected.
+        assertNull(AiDexParser.parseStartupDeviceInfoFrame(
+            AiDexParser.dataFromHex("100100800107010310000102030405060000"),
+        ))
+    }
+
+    @Test
     fun testParseLocalStartTimePayload_acceptsPlausibleDate() {
         val payload = byteArrayOf(
             0xEA.toByte(), 0x07,
@@ -1262,6 +1310,35 @@ class DefaultParamCatalogCompareTests {
         assertEquals(16, AiDexWearProfile.resolve(16, 15))
         assertEquals(15, AiDexWearProfile.resolve(15, 15))
         assertEquals(12, AiDexWearProfile.resolve(12, null))
+    }
+
+    @Test
+    fun resolveRanksARememberedByteBetweenTheLiveByteAndTheRating() {
+        // A 16-day sensor reports model GX-01S (rated 15): before 0x10 is read again this
+        // connection, its earlier byte still beats the rating.
+        assertEquals(16, AiDexWearProfile.resolve(null, 16, AiDexWearProfile.ratedDays("GX-01S")))
+        // This connection's byte wins over an older one.
+        assertEquals(15, AiDexWearProfile.resolve(15, 16, 15))
+        assertEquals(15, AiDexWearProfile.resolve(0, 0, 15))
+        assertEquals(15, AiDexWearProfile.resolve(null, -1, 15))
+        assertEquals(16, AiDexWearProfile.resolve(null, 16, null))
+        assertNull(AiDexWearProfile.resolve(null, null, null))
+    }
+
+    @Test
+    fun productBrandComesOnlyFromALumiAdvertisement() {
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumi-2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("lumi 2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumi2222258CUW"))
+        assertEquals("LUMI", AiDexSerialIdentity.productBrandFromAdvertisement("Lumiflex LinX X-2222293NWA"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("Luminous-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("X-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("AiDEX X-2222267V4E"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("LinX-2222258CUW"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement("64:02:8F:CC:03:E7"))
+        assertNull(AiDexSerialIdentity.productBrandFromAdvertisement(null))
+        // The brand is a label only: a Lumi advertisement keeps the same canonical X- identity.
+        assertEquals("X-2222258CUW", AiDexSerialIdentity.canonicalFromAdvertisement("Lumi-2222258CUW"))
     }
 
     @Test

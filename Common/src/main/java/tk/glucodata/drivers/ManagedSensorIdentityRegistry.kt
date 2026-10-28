@@ -9,6 +9,7 @@ import tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter
 import tk.glucodata.drivers.api.ApiGlucoseSourceIdentityAdapter
 import tk.glucodata.drivers.anytime.AnytimeManagedSensorIdentityAdapter
 import tk.glucodata.drivers.icanhealth.ICanHealthManagedSensorIdentityAdapter
+import tk.glucodata.drivers.medtrum.MedtrumIdentityAdapter
 import tk.glucodata.drivers.mq.MQManagedSensorIdentityAdapter
 import tk.glucodata.drivers.ottai.OttaiManagedSensorIdentityAdapter
 import tk.glucodata.drivers.sibionics.SibionicsManagedSensorIdentityAdapter
@@ -22,6 +23,7 @@ object ManagedSensorIdentityRegistry {
         AnytimeManagedSensorIdentityAdapter,
         ICanHealthManagedSensorIdentityAdapter,
         MQManagedSensorIdentityAdapter,
+        MedtrumIdentityAdapter,
         OttaiManagedSensorIdentityAdapter,
         SibionicsManagedSensorIdentityAdapter,
         NightscoutFollowerIdentityAdapter,
@@ -45,6 +47,20 @@ object ManagedSensorIdentityRegistry {
                 }
             }
         }
+    }
+
+    /**
+     * The family whose persisted record owns [sensorId], or null when no
+     * adapter claims it. Reads only the adapters' own records: no driver needs
+     * to be running, and no SensorBluetooth lock is taken, so this is safe on
+     * the reading broadcast path.
+     */
+    @JvmStatic
+    fun resolvePersistedFamily(sensorId: String?): ManagedSensorUiFamily? {
+        val normalized = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return null
+        return all.firstOrNull { adapter ->
+            runCatching { adapter.hasPersistedManagedRecord(normalized) }.getOrDefault(false)
+        }?.uiFamily
     }
 
     fun persistedSensorIds(context: Context): List<String> =

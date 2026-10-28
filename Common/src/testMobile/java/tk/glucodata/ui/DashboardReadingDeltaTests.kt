@@ -89,6 +89,36 @@ class DashboardReadingDeltaTests {
     }
 
     @Test
+    fun rawPrimaryDoesNotShowAutoMovementOnAFlatRawSeries() {
+        for (isMmol in listOf(false, true)) for (interval in listOf(1, 5)) {
+            val divisor = if (isMmol) 18.0182f else 1f
+            val history = oneMinuteCadence(10) { minutesAgo -> (110f - minutesAgo * 2f) / divisor }
+                .map { it.copy(rawValue = 74.2f / divisor) }
+            val anchors = listOf(history.last().timestamp)
+            val raw = readingDeltaTexts(anchors, history, isMmol, interval, useRaw = true).single()
+            val auto = readingDeltaTexts(anchors, history, isMmol, interval).single()
+            assertEquals(if (isMmol) "0.0" else "0", raw)
+            org.junit.Assert.assertNotEquals(raw, auto)
+            // A fresh history list on foreground refresh keeps the same lane.
+            assertEquals(raw, readingDeltaTexts(anchors, history.map { it.copy() }, isMmol, interval, useRaw = true).single())
+        }
+    }
+
+    @Test
+    fun rawDeltaUsesTheSameWalkBackAndFallbackAsTheNotification() {
+        val history = oneMinuteCadence(10) { 100f }.mapIndexed { index, point ->
+            point.copy(rawValue = if (index == 4) 0f else 80f + index * 2f)
+        }
+        for (interval in listOf(1, 5)) {
+            val newest = history.last()
+            val previous = history.asReversed().first { newest.timestamp - it.timestamp >= GlucoseDelta.minGapMillis(interval) }
+            val expected = GlucoseDelta.format(GlucoseDelta.delta(newest.timestamp, newest.rawValue,
+                previous.timestamp, if (previous.rawValue > 0f) previous.rawValue else previous.value, interval), false)
+            assertEquals(expected, readingDeltaTexts(listOf(newest.timestamp), history, false, interval, useRaw = true).single())
+        }
+    }
+
+    @Test
     fun everyRowMatchesAPerRowWalkBack() {
         // Mixed shape: a climb, a plateau of repeats, a sensor dropout value.
         val values = listOf(90f, 92f, 92f, 0f, 95f, 99f, 104f, 104f, 110f, 118f, 121f, 119f, 122f, 130f, 133f)

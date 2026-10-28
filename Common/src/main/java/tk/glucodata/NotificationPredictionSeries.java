@@ -11,9 +11,16 @@ public final class NotificationPredictionSeries {
 
     public final int kind;
     public final List<NotificationPredictionPoint> points;
+    public final tk.glucodata.chart.PredictionBand band;
 
     public NotificationPredictionSeries(int kind, List<NotificationPredictionPoint> points) {
+        this(kind, points, null);
+    }
+
+    public NotificationPredictionSeries(int kind, List<NotificationPredictionPoint> points,
+            tk.glucodata.chart.PredictionBand band) {
         this.kind = kind;
         this.points = points;
+        this.band = band;
     }
 }

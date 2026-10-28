@@ -11,6 +11,12 @@ import tk.glucodata.SuperGattCallback
  */
 interface ManagedSensorIdentityAdapter {
 
+    /**
+     * Which family this adapter's sensors belong to. Lets shared code name a
+     * sensor from its persisted record alone, with no live driver to ask.
+     */
+    val uiFamily: ManagedSensorUiFamily
+
     fun matchesCallbackId(callbackId: String?, sensorId: String): Boolean = false
 
     fun resolveCanonicalSensorId(sensorId: String?): String? = null

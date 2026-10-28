@@ -46,6 +46,7 @@ import java.util.Objects;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.RequiresApi;
@@ -746,13 +747,12 @@ public class SensorBluetooth {
         scanstart = false;
     }
 
-    // static final ArrayList<SuperGattCallback> gattcallbacks = new ArrayList<>();
-    public static final ArrayList<SuperGattCallback> gattcallbacks = new ArrayList<>();
+    // Readers take snapshots without waiting for connection processing or teardown.
+    // Compound roster updates still use this object's monitor to serialize writers.
+    public static final CopyOnWriteArrayList<SuperGattCallback> gattcallbacks = new CopyOnWriteArrayList<>();
 
     public static ArrayList<SuperGattCallback> mygatts() {
-        synchronized (gattcallbacks) {
-            return new ArrayList<>(gattcallbacks);
-        }
+        return new ArrayList<>(gattcallbacks);
     }
 
     private static void addSelectionCandidate(List<String> candidates, Set<String> seen, String serial) {
@@ -804,10 +804,8 @@ public class SensorBluetooth {
         } catch (Throwable t) {
             Log.e(LOG_ID, "resolvePreferredCurrentSensor activeSensors failed: " + t.getMessage());
         }
-        synchronized (gattcallbacks) {
-            for (SuperGattCallback cb : gattcallbacks) {
-                addSelectionCandidate(candidates, seen, cb.SerialNumber);
-            }
+        for (SuperGattCallback cb : mygatts()) {
+            addSelectionCandidate(candidates, seen, cb.SerialNumber);
         }
         return SensorIdentity.resolveAvailableMainSensor(
                 Natives.lastsensorname(),
@@ -1220,10 +1218,24 @@ public class SensorBluetooth {
         return gatt == null ? 0L : gatt.constatchange[1];
     }
 
+    /**
+     * Runs {@code block} under the roster lock that {@link #blockLocalCloneConnection}
+     * pauses callbacks under, so a Clone flag change cannot land between a sync's
+     * decision to pause and the pause itself.
+     */
+    public static <T> T withCallbackRoster(java.util.function.Supplier<T> block) {
+        synchronized (gattcallbacks) {
+            return block.get();
+        }
+    }
+
     /** Keep mirrored sensor records visible without claiming their physical transmitter. */
     public static void blockLocalCloneConnection(String sensorId) {
         if (sensorId == null || sensorId.isEmpty()) return;
         synchronized (gattcallbacks) {
+            // Asked at pause time, not by the caller: a sync that checked the flag
+            // before the user took the sensor over must not pause it afterwards.
+            if (!CloneSensorRegistry.isCloneSensor(sensorId)) return;
             for (SuperGattCallback callback : gattcallbacks) {
                 if (SensorIdentity.matches(callback.SerialNumber, sensorId)) {
                     callback.setPause(true);
@@ -1329,6 +1341,10 @@ public class SensorBluetooth {
             if (active != null && active.length > 0) {
                 blueone.setDevices(active);
             }
+            // With no native sensors setDevices() is skipped, and with it the managed
+            // callbacks removeDevices() just freed; a Nightscout follower would stay gone.
+            tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE
+                    .ensureFollowerRunning(Applic.app);
             return true;
         } catch (Throwable t) {
             Log.stack(LOG_ID, "syncNativeDevicesNoBluetooth", t);
@@ -1674,6 +1690,26 @@ public class SensorBluetooth {
         return false;
     }
 
+    private static final long GHOST_RECONCILE_MIN_INTERVAL_MS = 60_000L;
+    private static long lastGhostReconcileMs = 0L;
+
+    /**
+     * Rebuilds the callback roster after a sensor was removed from native storage but its
+     * callback is still registered. Rate limited, as it runs on the reading path.
+     *
+     * @return the result of {@link #updateDevices()}; callers must not read it as "roster changed"
+     */
+    public static boolean reconcileGhostMainSensor() {
+        final long now = System.currentTimeMillis();
+        synchronized (SensorBluetooth.class) {
+            if (now - lastGhostReconcileMs < GHOST_RECONCILE_MIN_INTERVAL_MS) {
+                return false;
+            }
+            lastGhostReconcileMs = now;
+        }
+        return updateDevices();
+    }
+
     boolean checkandconnect(SuperGattCallback cb, long delay) {
         if (doLog) {
             Log.i(LOG_ID, "checkandconnect(" + cb.SerialNumber + "," + delay + ")");
@@ -1748,6 +1784,9 @@ public class SensorBluetooth {
                 }
                 if (vers == 0x20) {
                     return new AccuGattCallback(name, dataptr);
+                }
+                if (vers == SensorSourceResolver.SENSOR_KIND_CARESENS_AIR) {
+                    return new AirGattCallback(name, dataptr);
                 }
             }
             if (tk.glucodata.BuildConfig.SiBionics == 1) {
@@ -2034,15 +2073,30 @@ public class SensorBluetooth {
             pairingRequestReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    {
+                    try {
+                        final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        final String address = device != null ? device.getAddress() : null;
                         if (doLog) {
-                            Log.i(LOG_ID, "onReceive ACTION_PAIRING_REQUEST");
+                            Log.i(LOG_ID, "onReceive ACTION_PAIRING_REQUEST " + address);
                         }
-                        ;
+                        if (address == null) {
+                            return;
+                        }
+                        for (var cb : gattcallbacks) {
+                            if (address.equals(cb.mActiveDeviceAddress)) {
+                                // Sensors that pair with a PIN (CareSens Air) answer it themselves.
+                                if (cb.pairingRequest())
+                                    abortBroadcast();
+                                return;
+                            }
+                        }
+                    } catch (Throwable th) {
+                        Log.stack(LOG_ID, "ACTION_PAIRING_REQUEST", th);
                     }
-                    ;
                 }
             };
+            // Protected system broadcasts are exempt from Android 14's export-flag
+            // requirement. NOT_EXPORTED would also reject the Bluetooth process.
             Applic.app.registerReceiver(pairingRequestReceiver,
                     new IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST));
         } catch (Throwable e) {
@@ -2066,15 +2120,13 @@ public class SensorBluetooth {
     private void addReceivers() {
         addBluetoothStateReceiver();
         addBondStateReceiver();
-        if (Build.VERSION.SDK_INT < 26)
-            addPairingRequestReceiver();
+        addPairingRequestReceiver();
     }
 
     private void removeReceivers() {
         removeBluetoothStateReceiver();
         removeBondStateReceiver();
-        if (Build.VERSION.SDK_INT < 26)
-            removePairingRequestReceiver();
+        removePairingRequestReceiver();
     }
 
     private BroadcastReceiver bondStateReceiver = null;

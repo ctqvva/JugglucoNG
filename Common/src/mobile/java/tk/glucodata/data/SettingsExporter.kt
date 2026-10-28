@@ -181,7 +181,7 @@ object SettingsExporter {
 
     private suspend fun importPayloadUnchecked(
         context: Context,
-        payload: JSONObject
+        payload: JSONObject,
     ): ImportSummary {
         require(payload.optString("schema") == SCHEMA) { "Unsupported settings export" }
         val schemaVersion = payload.optInt("schemaVersion", 0)
@@ -191,7 +191,7 @@ object SettingsExporter {
 
         val preferencesSummary = importSharedPreferences(
             context,
-            payload.optJSONObject("sharedPreferences") ?: JSONObject()
+            payload.optJSONObject("sharedPreferences") ?: JSONObject(),
         )
         val nativeFileCount = importNativeSettingsFiles(
             context,
@@ -270,30 +270,46 @@ object SettingsExporter {
         return result
     }
 
-    private fun importSharedPreferences(
+    internal fun importSharedPreferences(
         context: Context,
-        exportedPreferences: JSONObject
+        exportedPreferences: JSONObject,
     ): Pair<Int, Int> {
+        val aidexName = "AiDexNativePrefs"
+        fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
+            key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
+        // Settings change requests, not the provenance of retained glucose.
+        fun importEditor(name: String): android.content.SharedPreferences.Editor {
+            val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            if (name == aidexName) {
+                // Leave ownership keys untouched, including changes committed
+                // by a writer during import; don't restore an earlier snapshot.
+                prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
+            } else editor.clear()
+            return editor
+        }
         val importedNames = exportedPreferences.keySet()
         discoverSharedPreferenceNames(context)
             .filterNot { it in importedNames }
             .forEach { name ->
-                context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                    .edit()
-                    .clear()
-                    .commit()
+                importEditor(name).commit()
             }
 
         var importedValueCount = 0
         importedNames.sorted().forEach { name ->
             val entry = exportedPreferences.optJSONObject(name) ?: return@forEach
             val values = entry.optJSONObject("values") ?: JSONObject()
-            val editor = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                .edit()
-                .clear()
+            val editor = importEditor(name)
 
-            values.keySet().sorted().forEach { key ->
+            values.keySet().sorted().forEach valueLoop@ { key ->
+                if (name == aidexName && historyKey(key)) return@valueLoop
                 putPreferenceValue(editor, key, values.getJSONObject(key))
+                if (name == aidexName && key.startsWith("algorithmMode_")) {
+                    // An imported request cannot claim that local history has
+                    // already been rewritten, even when the backup lacks a mode.
+                    val appliedKey = key.replaceFirst("algorithmMode_", "algorithmAppliedMode_")
+                    if (!context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(appliedKey)) editor.putInt(appliedKey, 0)
+                }
                 importedValueCount++
             }
 

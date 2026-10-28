@@ -91,4 +91,65 @@ class ICanHealthHistoryPolicyTests {
         assertTrue(merged.contains(321))
         assertTrue(merged.contains(324))
     }
+
+    @Test
+    fun tailRetry_sendsAFarBehindRequestToTheLiveEdge() {
+        // The shape every refused read has in the logs: both command families fail while the
+        // request sits days behind the sensor's own end index.
+        assertEquals(
+            3555,
+            ICanHealthHistoryPolicy.tailRetryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 3558,
+                requestedSequence = 3,
+            )
+        )
+    }
+
+    @Test
+    fun tailRetry_isSkippedWhenTheFailedRequestWasAlreadyAtTheTail() {
+        assertNull(
+            ICanHealthHistoryPolicy.tailRetryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 300,
+                requestedSequence = 297,
+            )
+        )
+        assertNull(
+            ICanHealthHistoryPolicy.tailRetryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 300,
+                requestedSequence = 300,
+            )
+        )
+    }
+
+    @Test
+    fun tailRetry_needsTheFailedRequestToBeMoreThanOneIntervalBehindTheTail() {
+        // liveEdge = 300 - 3 = 297; within one interval of it (296) is not worth retrying ...
+        assertNull(
+            ICanHealthHistoryPolicy.tailRetryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 300,
+                requestedSequence = 296,
+            )
+        )
+        // ... but a request more than one interval behind it is.
+        assertEquals(
+            297,
+            ICanHealthHistoryPolicy.tailRetryStartSequence(
+                readingIntervalMinutes = 3,
+                currentSequence = 300,
+                requestedSequence = 290,
+            )
+        )
+    }
+
+    @Test
+    fun tailRetry_isSkippedWithoutAKnownLiveEdgeOrInterval() {
+        assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(3, -1, 3))
+        assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(3, 0, 3))
+        assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(3, 3, 3))
+        assertNull(ICanHealthHistoryPolicy.tailRetryStartSequence(0, 300, 3))
+    }
 }

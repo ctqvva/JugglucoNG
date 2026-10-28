@@ -1,5 +1,8 @@
 package tk.glucodata.ui.alerts
 
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -100,6 +103,9 @@ object CustomSoundRepository {
 fun SoundPicker(
     currentUri: String?,
     alertTypeId: Int = 0,
+    soundVolumePercent: Int = tk.glucodata.alerts.AlertSoundVolume.DEFAULT_PERCENT,
+    intensityProfile: String = "STRONG",
+    audioUsage: Int = AudioAttributes.USAGE_NOTIFICATION,
     onSoundSelected: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -110,6 +116,7 @@ fun SoundPicker(
     var isPlaying by remember { mutableStateOf(false) }
     var playingUri by remember { mutableStateOf<String?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var soundBoost by remember { mutableStateOf<tk.glucodata.alerts.AlertSoundBoost?>(null) }
 
     // Preview what choosing App Default will save, not the previous native selection.
     val appDefaultUri = remember(alertTypeId, context.packageName) {
@@ -121,7 +128,10 @@ fun SoundPicker(
         // in some MediaPlayer states, including a preview that has not prepared yet.
         val previous = mediaPlayer
         mediaPlayer = null
-        previous?.release()
+        try { previous?.release() } finally {
+            soundBoost?.close()
+            soundBoost = null
+        }
         isPlaying = false
         playingUri = null
     }
@@ -130,7 +140,10 @@ fun SoundPicker(
         onDispose {
             val previous = mediaPlayer
             mediaPlayer = null
-            previous?.release()
+            try { previous?.release() } finally {
+                soundBoost?.close()
+                soundBoost = null
+            }
         }
     }
 
@@ -197,13 +210,21 @@ fun SoundPicker(
 
             player.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(audioUsage)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
             player.setDataSource(context, actualUri)
             player.setOnPreparedListener { prepared ->
-                if (mediaPlayer === prepared) prepared.start()
+                if (mediaPlayer === prepared) {
+                    val gain = tk.glucodata.alerts.AlertSoundVolume.gain(soundVolumePercent, intensityProfile)
+                    prepared.setVolume(gain, gain)
+                    soundBoost = tk.glucodata.alerts.AlertSoundBoost.attach(prepared.audioSessionId, soundVolumePercent)
+                    try { prepared.start() } catch (e: Exception) {
+                        android.util.Log.w("SoundPicker", "Could not start preview", e)
+                        stopSound()
+                    }
+                }
             }
             player.setOnCompletionListener { completed ->
                 if (mediaPlayer === completed) stopSound()
@@ -293,7 +314,9 @@ fun SoundPicker(
             TextButton(onClick = {
                 stopSound()
                 onDismiss()
-            }) {
+            },
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.TextButtonContentPadding) {
                 Text(stringResource(R.string.cancel))
             }
         }
@@ -321,11 +344,13 @@ private fun SoundRow(
             modifier = Modifier.weight(1f).padding(start = 8.dp),
             style = MaterialTheme.typography.bodyLarge
         )
-        IconButton(onClick = onPlay) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)
-            )
+        IconButtonTooltip(if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)) {
+            IconButton(onClick = onPlay, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.preview)
+                )
+            }
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

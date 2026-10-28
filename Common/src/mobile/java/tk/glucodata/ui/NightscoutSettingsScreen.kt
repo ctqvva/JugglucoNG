@@ -1,7 +1,16 @@
 package tk.glucodata.ui
 
+import androidx.compose.material3.FilterChipDefaults
+import tk.glucodata.ui.components.IconButtonTooltip
+import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,22 +24,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Api
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,8 +56,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,10 +69,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -83,6 +95,7 @@ import tk.glucodata.data.journal.JournalTreatmentUploader
 import tk.glucodata.drivers.nightscout.NightscoutFollowerPollPolicy
 import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
 import tk.glucodata.drivers.nightscout.NightscoutModePreference
+import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
@@ -108,6 +121,8 @@ private sealed class TokenState {
     data class Err(val message: String) : TokenState()
 }
 
+private enum class NightscoutHelp { GENERAL, POLLING }
+
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
 /** "HTTP 403" reads the same in every locale; a request that never got an answer does not. */
@@ -124,6 +139,12 @@ private fun failureDetail(context: android.content.Context, code: Int): String =
  */
 internal fun nightscoutTestEndpointPath(useV3: Boolean): String =
     if (useV3) "api/v3/status" else "api/v1/status.json"
+
+internal fun nightscoutTestUsesV3(
+    mode: NightscoutModePreference.Mode,
+    uploadV3: Boolean,
+    followV3: Boolean
+): Boolean = if (mode == NightscoutModePreference.Mode.FOLLOW) followV3 else uploadV3
 
 internal fun nightscoutResponseDetail(body: String): String {
     return NightscoutTokenGrant.refusalMessage(body)
@@ -241,6 +262,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var deviceStatusCode by rememberSaveable { mutableStateOf(0) }
     var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
     var tokenState by remember { mutableStateOf<TokenState>(TokenState.Idle) }
+    var help by rememberSaveable { mutableStateOf<NightscoutHelp?>(null) }
 
     var mode by rememberSaveable {
         mutableStateOf(
@@ -309,14 +331,15 @@ fun NightscoutSettingsScreen(navController: NavController) {
             testState = withContext(Dispatchers.IO) {
                 try {
                     val baseUrl = NightscoutFollowerRegistry.normalizeUrl(url)
-                    val path = nightscoutTestEndpointPath(isV3)
+                    val testV3 = nightscoutTestUsesV3(mode, uploadV3 = isV3, followV3 = followerV3)
+                    val path = nightscoutTestEndpointPath(testV3)
                     val conn = (java.net.URL("$baseUrl/$path").openConnection() as java.net.HttpURLConnection).apply {
                         connectTimeout = 10_000
                         readTimeout = 10_000
                         requestMethod = "GET"
                         setRequestProperty("Accept", "application/json")
                     }
-                    applyNightscoutTestAuth(conn, baseUrl, secret, isV3)
+                    applyNightscoutTestAuth(conn, baseUrl, secret, testV3)
                     val code = conn.responseCode
                     conn.disconnect()
                     // A bare status code sends people debugging the server; the endpoint says
@@ -461,14 +484,14 @@ fun NightscoutSettingsScreen(navController: NavController) {
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.nightscout_settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_back))
+            AppTopBar(
+                title = stringResource(R.string.nightscout_settings_title),
+                onNavigateBack = { navController.popBackStack() },
+                actions = {
+                    NightscoutHelpButton(stringResource(R.string.nightscout_settings_title)) {
+                        help = NightscoutHelp.GENERAL
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -535,7 +558,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
                             value = url,
@@ -555,17 +578,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             onValueChange = { secret = it; testState = TestState.Idle },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text(stringResource(R.string.api_secret_label)) },
+                            label = { Text(stringResource(R.string.nightscout_secret_label)) },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { persistSettings(connectFollower = isActive && mode == NightscoutModePreference.Mode.FOLLOW) }),
                             trailingIcon = {
-                                IconButton(onClick = { showSecret = !showSecret }) {
-                                    Icon(
-                                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = null
-                                    )
+                                IconButtonTooltip(if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)) {
+                                    IconButton(onClick = { showSecret = !showSecret }, shapes = IconButtonDefaults.shapes()) {
+                                        Icon(
+                                            imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = if (showSecret) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
+                                        )
+                                    }
                                 }
                             }
                         )
@@ -573,63 +598,96 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
 
-            // Test connection and token refresh — available regardless of mode
+            // Test the API selected for the current direction.
             item("nightscout_test") {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val showTokenAction = mode == NightscoutModePreference.Mode.UPLOAD && isV3
+                    val testAction: @Composable (Modifier) -> Unit = { actionModifier ->
                         OutlinedButton(
                             onClick = { testConnection() },
                             enabled = isActive && testState !is TestState.Testing,
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 56.dp)
+                            modifier = actionModifier.heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (testState is TestState.Testing) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(10.dp))
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_test_testing))
                             } else {
                                 Icon(Icons.Default.NetworkCheck, contentDescription = null)
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_test_connection))
                             }
                         }
+                    }
+                    val tokenAction: @Composable (Modifier) -> Unit = { actionModifier ->
                         OutlinedButton(
                             onClick = { refreshToken() },
                             enabled = isActive && tokenState !is TokenState.Refreshing,
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 56.dp)
+                            modifier = actionModifier.heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
                         ) {
                             if (tokenState is TokenState.Refreshing) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(10.dp))
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_token_refreshing))
                             } else {
                                 Icon(Icons.Default.Refresh, contentDescription = null)
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.nightscout_refresh_token))
                             }
                         }
                     }
-                    when (val t = tokenState) {
-                        is TokenState.Ok -> Text(
-                            text = stringResource(
-                                R.string.nightscout_token_ok,
-                                formatStatusTime(t.expiresAtMillis / 1000L),
-                                t.permissions.joinToString(", ").ifEmpty { "-" }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val density = LocalDensity.current
+                        val textMeasurer = rememberTextMeasurer()
+                        val actionStyle = MaterialTheme.typography.labelLarge
+                        val labels = listOf(
+                            stringResource(if (testState is TestState.Testing) R.string.nightscout_test_testing else R.string.nightscout_test_connection),
+                            stringResource(if (tokenState is TokenState.Refreshing) R.string.nightscout_token_refreshing else R.string.nightscout_refresh_token)
                         )
-                        is TokenState.Err -> Text(
-                            text = stringResource(R.string.nightscout_token_error, t.message),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                        else -> {}
+                        val widestLabel = with(density) {
+                            labels.maxOf { textMeasurer.measure(it, style = actionStyle).size.width }.toDp()
+                        }
+                        // Each button needs its label, a 24dp icon, an 8dp gap and 48dp padding.
+                        val requiredRowWidth = (widestLabel + 80.dp) * 2 + 8.dp
+                        if (showTokenAction && maxWidth < requiredRowWidth) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                testAction(Modifier.fillMaxWidth())
+                                tokenAction(Modifier.fillMaxWidth())
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                testAction(Modifier.weight(1f).fillMaxHeight())
+                                if (showTokenAction) tokenAction(Modifier.weight(1f).fillMaxHeight())
+                            }
+                        }
+                    }
+                    if (mode == NightscoutModePreference.Mode.UPLOAD && isV3) {
+                        when (val t = tokenState) {
+                            is TokenState.Ok -> Text(
+                                text = stringResource(
+                                    R.string.nightscout_token_ok,
+                                    formatStatusTime(t.expiresAtMillis / 1000L),
+                                    t.permissions.joinToString(", ").ifEmpty { "-" }
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                            is TokenState.Err -> Text(
+                                stringResource(R.string.nightscout_token_error, t.message),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                            else -> {}
+                        }
                     }
                     when (val s = testState) {
                         is TestState.Ok -> Text(
@@ -664,17 +722,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = stringResource(R.string.nightscout_follow_interval_title),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = stringResource(R.string.nightscout_follow_interval_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            NightscoutCardHeading(stringResource(R.string.nightscout_follow_interval_title)) {
+                                help = NightscoutHelp.POLLING
+                            }
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 NightscoutFollowerPollPolicy.CHOICES_MINUTES.forEach { minutes ->
                                     FilterChip(
@@ -683,16 +735,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                             pollMinutes = minutes
                                             NightscoutFollowerRegistry.savePollMinutes(context, minutes)
                                         },
-                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) }
+                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) },
+                                        shapes = FilterChipDefaults.shapes(),
+                                        colors = FilterChipDefaults.filterChipColors()
                                     )
                                 }
-                            }
-                            if (NightscoutFollowerPollPolicy.isThrottledByDoze(pollMinutes)) {
-                                Text(
-                                    text = stringResource(R.string.nightscout_follow_interval_doze),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     }
@@ -714,14 +761,18 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(text = stringResource(R.string.status), style = MaterialTheme.typography.titleMedium)
                             Text(text = uploaderSummary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             Text(
                                 text = responseSummary,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isActive && lastResponseCode != 0 && lastResponseCode !in 200..299) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                             Text(
                                 text = stringResource(R.string.nightscout_status_last_attempt, formatStatusTime(lastAttemptTime)),
@@ -761,7 +812,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         SettingsSwitchItem(
-                            title = stringResource(R.string.sendamounts),
+                            title = stringResource(R.string.nightscout_send_treatments),
                             subtitle = stringResource(R.string.nightscout_send_amounts_desc),
                             checked = sendTreatments,
                             onCheckedChange = {
@@ -772,19 +823,6 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             iconTint = MaterialTheme.colorScheme.primary,
                             enabled = isActive,
                             position = CardPosition.TOP
-                        )
-                        SettingsSwitchItem(
-                            title = stringResource(R.string.nightscout_receive_amounts),
-                            subtitle = stringResource(R.string.nightscout_receive_amounts_desc),
-                            checked = receiveTreatments,
-                            onCheckedChange = {
-                                receiveTreatments = it
-                                JournalTreatmentUploader.setReceiveTreatments(it)
-                            },
-                            icon = Icons.Default.Link,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                            enabled = isActive,
-                            position = CardPosition.MIDDLE
                         )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_send_long_insulin),
@@ -798,6 +836,19 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Icons.Default.Medication,
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             enabled = isActive && sendTreatments,
+                            position = CardPosition.MIDDLE
+                        )
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_receive_amounts),
+                            subtitle = stringResource(R.string.nightscout_receive_amounts_desc),
+                            checked = receiveTreatments,
+                            onCheckedChange = {
+                                receiveTreatments = it
+                                JournalTreatmentUploader.setReceiveTreatments(it)
+                            },
+                            icon = Icons.Default.Link,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            enabled = isActive,
                             position = CardPosition.MIDDLE
                         )
                         SettingsSwitchItem(
@@ -818,7 +869,10 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             title = stringResource(R.string.nightscout_use_v3_api),
                             subtitle = stringResource(R.string.nightscout_use_v3_api_desc),
                             checked = isV3,
-                            onCheckedChange = { isV3 = it },
+                            onCheckedChange = {
+                                isV3 = it
+                                testState = TestState.Idle
+                            },
                             icon = Icons.Default.Api,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
@@ -844,10 +898,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-                        )
+                        ),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Send, contentDescription = null)
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.sendnow))
                     }
                 }
@@ -863,17 +919,17 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         enabled = isActive,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 56.dp)
+                            .heightIn(min = 56.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(stringResource(R.string.resend_data_reset))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.nightscout_resend_data))
                     }
                 }
             }
 
-            // Follow-only items. The uploader's v3 switch above is an uploader setting: a
-            // follower may point at a different server, so it carries its own.
             if (mode == NightscoutModePreference.Mode.FOLLOW) {
                 item("nightscout_follow_options_group") {
                     SettingsSwitchItem(
@@ -883,6 +939,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                         onCheckedChange = {
                             followerV3 = it
                             persistSettings(connectFollower = isActive)
+                            testState = TestState.Idle
                         },
                         icon = Icons.Default.Science,
                         iconTint = MaterialTheme.colorScheme.tertiary,
@@ -892,5 +949,71 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    help?.let { topic ->
+        val useV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) followerV3 else isV3
+        val title = stringResource(when (topic) {
+            NightscoutHelp.GENERAL -> R.string.nightscout_settings_title
+            NightscoutHelp.POLLING -> R.string.nightscout_follow_interval_title
+        })
+        AlertDialog(
+            onDismissRequest = { help = null },
+            title = { Text(title) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (topic) {
+                        NightscoutHelp.POLLING -> {
+                            Text(stringResource(R.string.nightscout_follow_interval_desc))
+                            Text(stringResource(R.string.nightscout_follow_interval_doze))
+                        }
+                        NightscoutHelp.GENERAL -> {
+                            Text(stringResource(R.string.nightscout_api_help))
+                            if (mode == NightscoutModePreference.Mode.UPLOAD) {
+                                Text(stringResource(R.string.nightscout_iob_help))
+                            }
+                            if (useV3) {
+                                Text(
+                                    stringResource(R.string.nightscout_permissions_title),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                SelectionContainer {
+                                    Text(stringResource(
+                                        if (mode == NightscoutModePreference.Mode.FOLLOW) R.string.nightscout_permissions_follow
+                                        else R.string.nightscout_permissions_upload
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { help = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.close)) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun NightscoutHelpButton(topic: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(48.dp), shapes = IconButtonDefaults.shapes()) {
+        Icon(
+            Icons.AutoMirrored.Filled.HelpOutline,
+            contentDescription = "$topic: ${stringResource(R.string.help)}",
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun NightscoutCardHeading(title: String, modifier: Modifier = Modifier, onHelp: () -> Unit) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+        NightscoutHelpButton(title, onHelp)
     }
 }

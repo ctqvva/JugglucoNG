@@ -74,6 +74,9 @@ interface ReadingUncertaintyDao {
     @Query("DELETE FROM reading_uncertainty WHERE sensorSerial IN (:serials)")
     suspend fun deleteForSensors(serials: List<String>)
 
+    @Query("DELETE FROM reading_uncertainty WHERE sensorSerial = :serial AND timestamp IN (:minutes)")
+    suspend fun deleteForSensorMinutes(serial: String, minutes: List<Long>)
+
     @Query("DELETE FROM reading_uncertainty")
     suspend fun deleteAll()
 

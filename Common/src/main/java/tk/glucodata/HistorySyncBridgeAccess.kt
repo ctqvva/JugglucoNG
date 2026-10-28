@@ -38,6 +38,13 @@ object HistorySyncBridgeAccess {
     }
 
     @JvmStatic
+    fun syncSensorWindowFromNative(serial: String?, startTimeMs: Long) {
+        if (serial.isNullOrBlank()) return
+        runCatching { bridge?.syncSensorWindowFromNative(serial, startTimeMs) }
+            .onFailure { Log.stack(TAG, "syncSensorWindowFromNative failed", it) }
+    }
+
+    @JvmStatic
     fun forceFullSyncForSensor(serial: String?) {
         if (serial.isNullOrBlank()) return
         val target = bridge

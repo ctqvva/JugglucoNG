@@ -1,0 +1,38 @@
+{
+  "screenWidthPx": 1080,
+  "densityDpi": 420,
+  "itemWidthPx": 216,
+  "minimumGutterPx": 21,
+  "labels": [
+    {
+      "label": "Статистика",
+      "boundsPx": "[23,2279][193,2320]",
+      "leftGutterPx": 23,
+      "rightGutterPx": 23
+    },
+    {
+      "label": "Журнал",
+      "boundsPx": "[264,2279][383,2320]",
+      "leftGutterPx": 48,
+      "rightGutterPx": 49
+    },
+    {
+      "label": "Главная",
+      "boundsPx": "[480,2279][600,2320]",
+      "leftGutterPx": 48,
+      "rightGutterPx": 48
+    },
+    {
+      "label": "Датчики",
+      "boundsPx": "[691,2279][820,2320]",
+      "leftGutterPx": 43,
+      "rightGutterPx": 44
+    },
+    {
+      "label": "Настройки",
+      "boundsPx": "[891,2279][1053,2320]",
+      "leftGutterPx": 27,
+      "rightGutterPx": 27
+    }
+  ]
+}

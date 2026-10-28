@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -30,7 +29,8 @@ enum class SensorType {
     ICANHEALTH,
     MQ,
     ANYTIME,
-    OTTAI
+    OTTAI,
+    MEDTRUM
 }
 
 /** One sensor family the user can add: shared by the picker sheet and the empty-state cards. */
@@ -52,6 +52,7 @@ internal val sensorTypeOptions = listOf(
     SensorTypeOption(SensorType.ACCUCHEK, Icons.Default.QrCodeScanner, R.string.accuchek_sensor, R.string.accuchek_sensor_desc),
     SensorTypeOption(SensorType.CARESENS_AIR, Icons.Default.QrCodeScanner, R.string.caresens_air_sensor, R.string.caresens_air_sensor_desc),
     SensorTypeOption(SensorType.MQ, Icons.Default.Bluetooth, R.string.mq_sensor, R.string.mq_sensor_desc),
+    SensorTypeOption(SensorType.MEDTRUM, Icons.Default.Bluetooth, R.string.medtrum_sensor, R.string.medtrum_sensor_models),
 )
 
 /**
@@ -66,8 +67,8 @@ fun SensorTypePicker(
     val metrics = rememberAdaptiveWindowMetrics()
     val compact = metrics.isCompact
     val horizontalPadding = if (compact) 12.dp else 16.dp
-    val bottomPadding = if (compact) 18.dp else 28.dp
-    val itemSpacing = if (compact) 6.dp else 8.dp
+    val bottomPadding = if (compact) 16.dp else 28.dp
+    val itemSpacing = 8.dp
     val itemVerticalPadding = if (compact) 8.dp else 10.dp
     val iconContainerSize = if (compact) 36.dp else 42.dp
     val iconInnerPadding = if (compact) 8.dp else 10.dp
@@ -92,8 +93,7 @@ fun SensorTypePicker(
             item {
                 Text(
                     text = stringResource(R.string.select_sensor_type),
-                    style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = if (compact) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleLargeEmphasized,
                     modifier = Modifier.padding(bottom = if (compact) 2.dp else 4.dp)
                 )
             }
@@ -144,7 +144,7 @@ private fun SensorTypeItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = itemVerticalPadding),
+                .padding(horizontal = if (compact) 12.dp else 12.dp, vertical = itemVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -162,13 +162,12 @@ private fun SensorTypeItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(if (compact) 10.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

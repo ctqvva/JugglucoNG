@@ -15,7 +15,9 @@ enum class SensorVendor(
     GLUTEC(R.string.sensor_vendor_glutec),
     YUWELL(R.string.sensor_vendor_yuwell),
     OTTAI(R.string.sensor_vendor_ottai),
+    ISENS(R.string.sensor_vendor_isens),
     NIGHTSCOUT(R.string.sensor_type_nightscout),
+    MEDTRUM(R.string.sensor_vendor_medtrum),
     UNKNOWN(R.string.unknown),
     ;
 
@@ -30,6 +32,7 @@ enum class SensorVendor(
             ManagedSensorUiFamily.OTTAI -> OTTAI
             ManagedSensorUiFamily.SIBIONICS -> SIBIONICS
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
+            ManagedSensorUiFamily.MEDTRUM -> MEDTRUM
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
@@ -39,6 +42,7 @@ enum class SensorVendor(
             SensorSourceResolver.SENSOR_KIND_SIBIONICS -> SIBIONICS
             SensorSourceResolver.SENSOR_KIND_DEXCOM -> DEXCOM
             SensorSourceResolver.SENSOR_KIND_ACCUCHEK -> ROCHE
+            SensorSourceResolver.SENSOR_KIND_CARESENS_AIR -> ISENS
             SensorSourceResolver.SENSOR_KIND_AIDEX,
             LEGACY_AIDEX_STREAM_KIND -> MICROTECH
             else -> UNKNOWN
@@ -61,6 +65,9 @@ data class SensorBadge(val brand: String, val model: String) {
 /**
  * Badge lines for a sensor: the product line on top, the concrete model underneath.
  *
+ * [vendorBrand] replaces the family word when a driver knows the sensor is sold under another
+ * name, such as an AiDex advertising itself as "Lumi-…". Blank keeps the family's own word.
+ *
  * The model line is whatever the driver reported for this specific device — "Sibionics 2",
  * "iCan i6", "CT5" — because that is the name the sensor wizard and the Model row already use.
  * Only when a driver reports nothing does it fall back to the family's own name, and when even
@@ -70,10 +77,11 @@ fun sensorBadge(
     vendor: SensorVendor,
     type: SensorTypeName,
     vendorModel: String = "",
+    vendorBrand: String = "",
 ): SensorBadge {
     val reported = modelToken(vendorModel)
     val model = reported.ifEmpty { fallbackModelToken(type) }
-    return when (vendor) {
+    val badge = when (vendor) {
         SensorVendor.ABBOTT -> SensorBadge("LIBRE", model)
         SensorVendor.SIBIONICS -> SensorBadge("SIBI", model)
         SensorVendor.DEXCOM -> SensorBadge("DEX", model)
@@ -83,9 +91,13 @@ fun sensorBadge(
         SensorVendor.GLUTEC -> SensorBadge("GLUTEC", model)
         SensorVendor.YUWELL -> SensorBadge("ANYTIME", model)
         SensorVendor.OTTAI -> SensorBadge("OTTAI", model)
+        SensorVendor.ISENS -> SensorBadge("CARE", model)
         SensorVendor.NIGHTSCOUT -> SensorBadge("NIGHT", "SCOUT")
+        SensorVendor.MEDTRUM -> SensorBadge("MT", model)
         SensorVendor.UNKNOWN -> SensorBadge("", "")
     }
+    val brand = vendorBrand.trim().uppercase()
+    return if (brand.isEmpty() || badge.brand.isEmpty()) badge else badge.copy(brand = brand)
 }
 
 /** Model name for sensors whose driver reports none, e.g. the natively-decoded Libre and Dexcom. */
@@ -97,6 +109,7 @@ private fun fallbackModelToken(type: SensorTypeName): String = when (type) {
     SensorTypeName.SIBIONICS_GS3 -> "GS3"
     SensorTypeName.DEXCOM_G7 -> "G7"
     SensorTypeName.ACCUCHEK_SMARTGUIDE -> "CHEK"
+    SensorTypeName.CARESENS_AIR -> "AIR"
     SensorTypeName.MQ -> "MQ"
     else -> ""
 }
@@ -130,12 +143,14 @@ enum class SensorTypeName(
     SIBIONICS_GS3(R.string.sensor_type_sibionics_gs3),
     DEXCOM_G7(R.string.sensor_type_dexcom_g7),
     ACCUCHEK_SMARTGUIDE(R.string.sensor_type_accuchek_smartguide),
+    CARESENS_AIR(R.string.caresens_air_sensor),
     AIDEX_LINX(R.string.sensor_type_aidex_linx),
     ICAN_I3(R.string.sensor_type_ican_i3),
     MQ(R.string.sensor_type_mq),
     ANYTIME(R.string.sensor_type_anytime),
     OTTAI_CGM(R.string.sensor_type_ottai),
     NIGHTSCOUT(R.string.sensor_type_nightscout),
+    MEDTRUM_EASYSENSE(R.string.medtrum_sensor),
     UNKNOWN(R.string.unknown),
     ;
 
@@ -157,6 +172,7 @@ enum class SensorTypeName(
                 else -> SIBIONICS_GS1
             }
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
+            ManagedSensorUiFamily.MEDTRUM -> MEDTRUM_EASYSENSE
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
@@ -170,6 +186,7 @@ enum class SensorTypeName(
                 if (isSibionics2) SIBIONICS_2 else SIBIONICS_GS1
             SensorSourceResolver.SENSOR_KIND_DEXCOM -> DEXCOM_G7
             SensorSourceResolver.SENSOR_KIND_ACCUCHEK -> ACCUCHEK_SMARTGUIDE
+            SensorSourceResolver.SENSOR_KIND_CARESENS_AIR -> CARESENS_AIR
             SensorSourceResolver.SENSOR_KIND_AIDEX,
             LEGACY_AIDEX_STREAM_KIND -> AIDEX_LINX
             else -> UNKNOWN

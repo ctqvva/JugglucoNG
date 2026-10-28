@@ -58,6 +58,15 @@ object DataSmoothing {
         SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.readBool(context)
 
     /**
+     * Whether the newest reading — the one shown as current and the one sent out — is estimated
+     * by [CausalGlucoseFilter] instead of the edge of the averaging window. Only the method
+     * changes: where smoothing applies is still decided by the three switches above.
+     */
+    @JvmStatic
+    fun useCausalFilter(context: Context): Boolean =
+        SettingsRegistry.SMOOTHING_CAUSAL_LIVE.readBool(context)
+
+    /**
      * The three places a reading is used, and the one question each of them asks.
      *
      * The settings are three independent switches, so every caller used to recombine them
@@ -198,6 +207,14 @@ object DataSmoothing {
     }
 
     @JvmStatic
+    fun setUseCausalFilter(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(SettingsRegistry.SMOOTHING_CAUSAL_LIVE.key, enabled)
+            .apply()
+    }
+
+    @JvmStatic
     fun collapseIntervalMinutes(smoothingMinutes: Int): Int {
         val sanitized = sanitizeMinutes(smoothingMinutes)
         if (sanitized <= 0) {
@@ -241,6 +258,10 @@ object DataSmoothing {
             val source = points[index]
             val point = GlucosePoint(source.timestamp, smoothedAuto[index], smoothedRaw[index])
             point.color = source.color
+            point.sensorSerial = source.sensorSerial
+            point.sealedDisplayValue = source.sealedDisplayValue
+            point.sealedDisplayViewMode = source.sealedDisplayViewMode
+            point.uncertainty = source.uncertainty?.shifted(point.value - source.value)
             smoothed.add(point)
         }
 
@@ -250,6 +271,16 @@ object DataSmoothing {
             smoothed
         }
     }
+
+    /**
+     * Whether two display points belong to the same sensor. A point without a serial is the merged
+     * live sample of the selected sensor; aliases of one sensor match through
+     * [SensorIdentity.matches], while imported readings do not.
+     */
+    internal fun sameCausalSource(a: GlucosePoint, b: GlucosePoint): Boolean =
+        a.sensorSerial.isNullOrBlank() ||
+            b.sensorSerial.isNullOrBlank() ||
+            SensorIdentity.matches(a.sensorSerial, b.sensorSerial)
 
     private fun smoothSeries(
         points: List<GlucosePoint>,
@@ -261,6 +292,50 @@ object DataSmoothing {
         timestamp = { it.timestamp },
         selector = { if (useRawValue) it.rawValue else it.value },
     )
+
+    /**
+     * [smoothNativePoints] with [CausalGlucoseFilter] in place of the averaging window: every
+     * point is estimated from the past only, so the newest one is not an edge fit and will not be
+     * redrawn differently once later readings arrive. [smoothingMinutes] still gates it (0 = off)
+     * and still sets the collapse interval.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun smoothNativePointsCausal(
+        points: List<GlucosePoint>?,
+        smoothingMinutes: Int,
+        collapseChunks: Boolean,
+        mgdlPerUnit: Float,
+        nowMillis: Long = System.currentTimeMillis()
+    ): List<GlucosePoint> {
+        if (points.isNullOrEmpty()) return emptyList()
+        val sanitizedMinutes = sanitizeMinutes(smoothingMinutes)
+        if (sanitizedMinutes <= 0) return points
+
+        val autoLane = CausalGlucoseFilter.filterLane(
+            points, { it.timestamp }, { it.value }, mgdlPerUnit, sameSource = ::sameCausalSource
+        )
+        val rawLane = CausalGlucoseFilter.filterLane(
+            points, { it.timestamp }, { it.rawValue }, mgdlPerUnit, sameSource = ::sameCausalSource
+        )
+        val filtered = ArrayList<GlucosePoint>(points.size)
+        points.indices.forEach { index ->
+            val source = points[index]
+            val point = GlucosePoint(source.timestamp, autoLane[index], rawLane[index])
+            point.color = source.color
+            point.sensorSerial = source.sensorSerial
+            point.sealedDisplayValue = source.sealedDisplayValue
+            point.sealedDisplayViewMode = source.sealedDisplayViewMode
+            point.uncertainty = source.uncertainty?.shifted(autoLane[index] - source.value)
+            filtered.add(point)
+        }
+        return if (collapseChunks) {
+            collapsePointsForDisplay(filtered, collapseIntervalMinutes(sanitizedMinutes), nowMillis)
+        } else {
+            filtered
+        }
+    }
+    private fun isValidLane(value: Float): Boolean = value.isFinite() && value >= 0.1f
 
     internal fun collapsePointsForDisplay(
         points: List<GlucosePoint>,
@@ -276,21 +351,35 @@ object DataSmoothing {
         val collapsed = ArrayList<GlucosePoint>()
         var activeBucket = Long.MIN_VALUE
         var pending: GlucosePoint? = null
+        var bucketAuto: GlucosePoint? = null
+        var bucketRaw: GlucosePoint? = null
+
+        // The bucket's last point, and for a lane it lacks the bucket's newest
+        // point that has it, at its own time: Libre's History lane is one value
+        // per 15 minutes, and moving it onto the last point could stretch two
+        // neighbouring values past the chart's gap limit.
+        fun flush() {
+            val last = pending ?: return
+            val autoHolder = bucketAuto?.takeIf { !isValidLane(last.value) }
+            val rawHolder = bucketRaw?.takeIf { !isValidLane(last.rawValue) }
+            listOfNotNull(autoHolder, rawHolder).distinct().sortedBy { it.timestamp }.forEach(collapsed::add)
+            collapsed.add(last)
+        }
 
         for (point in points) {
             val bucket = point.timestamp / bucketDurationMs
             if (bucket != activeBucket) {
-                if (activeBucket < openBucket) {
-                    pending?.let(collapsed::add)
-                }
+                if (activeBucket < openBucket) flush()
                 activeBucket = bucket
+                bucketAuto = null
+                bucketRaw = null
             }
+            if (isValidLane(point.value)) bucketAuto = point
+            if (isValidLane(point.rawValue)) bucketRaw = point
             pending = point
         }
 
-        if (activeBucket < openBucket) {
-            pending?.let(collapsed::add)
-        }
+        if (activeBucket < openBucket) flush()
         return when {
             collapsed.isNotEmpty() -> collapsed
             points.isNotEmpty() -> listOf(points.last())

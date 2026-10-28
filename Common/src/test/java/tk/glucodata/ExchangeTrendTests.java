@@ -57,6 +57,18 @@ public class ExchangeTrendTests {
     }
 
     @Test
+    public void adaptiveAidexCanDiscardTheStockTrendBeforePublishingItsOwnRate() {
+        final String sensorId = "X-ADAPTIVE-TREND";
+        final long timestamp = 1_700_000_000_000L;
+        ExchangeTrend.cacheAiDexTrend(sensorId, timestamp, -20);
+        assertEquals(ExchangeTrend.SINGLE_DOWN, ExchangeTrend.resolve(sensorId, timestamp, 2.0f).index);
+        ExchangeTrend.clearAiDexTrend(sensorId);
+        ExchangeTrend selected = ExchangeTrend.resolve(sensorId, timestamp, 2.0f);
+        assertEquals(ExchangeTrend.SINGLE_UP, selected.index);
+        assertEquals("rate", selected.source);
+    }
+
+    @Test
     public void nameAndArrowForIndex_areStableForExchangePayloads() {
         assertEquals("DoubleUp", ExchangeTrend.nameForIndex(ExchangeTrend.DOUBLE_UP));
         assertEquals("SingleUp", ExchangeTrend.nameForIndex(ExchangeTrend.SINGLE_UP));

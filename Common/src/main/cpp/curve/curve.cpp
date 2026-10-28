@@ -1734,7 +1734,8 @@ int JCurve::displaycurve(NVGcontext *avg, time_t nu) {
 
     //        if(showhistories)
     const auto senso = his;
-    if (senso->isLibre() || (showhistories && settings->data()->dexcomPredict))
+    if (senso->isLibre() || senso->isAir() ||
+        (showhistories && settings->data()->dexcomPredict))
       histpositions[i] = histPositions(his, starttime2, endtime);
     else
       histpositions[i] = {0, 0};

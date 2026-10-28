@@ -1,0 +1,72 @@
+{
+  "deviceId": "ottai:a:n:00000000-0000-0000-0000-000000000001",
+  "now": 1793000000000,
+  "expires": 1793003600000,
+  "exchangeRequest": {
+    "clientPubKeyX": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY=",
+    "clientPubKeyY": "T+NC4v4af5uO5+tKfA+eFivOM1drMV7Oy7ZAaDe/UfU=",
+    "clientTimestamp": 1793000000000,
+    "clientSignature": "7d14940fceee487abae9530db49e97932e183a8b94abe186af599792fbddac2c"
+  },
+  "exchangeResponse": {
+    "code": "OK",
+    "data": {
+      "serverPubKeyX": "fPJ7GI0DT36KUjgDBLUaw8CJaeJ38hs1pgtI/EdmmXg=",
+      "serverPubKeyY": "B3dVENuO0EApPZrGn3Qw27p9reY86YIpngS3nSJ4c9E=",
+      "serverTimestamp": 1793000000000,
+      "serverSignature": "bffc3608449449f3180d3e9d86091b34679e03f2ce9e614c5d71d3ea9aa41831",
+      "expireTime": "1793003600000",
+      "secretId": "synthetic-exchange-1",
+      "ciphertext": "yE9X61Eg6QeYr1sfng3i7+G8EEiNg8Z/TlliZU8WXfcfBmof3/S/xcl75iwcO9iayAfw0x4NbM9aS7v8PBiMo7BNu+toMzajq3kv1D1yu3vr2B/rN4SdpA==",
+      "iv": "AAECAwQFBgcICQoL",
+      "authTag": "5mk7Xn9jmGir41SME5r0Qg=="
+    }
+  },
+  "query": {
+    "deviceVersion": "E1.1.4(V1.7.S2530.1),STDRD"
+  },
+  "report": "{\"mac\":\"AABBCCDDEEFF\",\"sourceVersion\":\"E1.1.4(V1.7.S2530.1),STDRD\",\"targetVersion\":\"V1.8.0\",\"upgradeStatus\":1}",
+  "get": {
+    "headers": {
+      "cipherNonceId": "2114621382456250368",
+      "cipherTimeNow": "1793000000000",
+      "cipherSecretId": "synthetic-exchange-1",
+      "cipherUserId": "ottai:a:n:00000000-0000-0000-0000-000000000001",
+      "cipherSeq": "1"
+    },
+    "envelope": {
+      "cipherParamText": "j3GzhMD0F1DmWFrRBHbOG1dD9aPLALHOe002viArbIQyZlyOqBmCi3AC9WYa2A==",
+      "cipherParamMac": "H/vW8cVenWFgpogBex+vBg==",
+      "cipherParamNonce": "EBESExQVFhcYGRob",
+      "cipherParamSignature": "siGDFG4bUHledPL8H3k8fnJKMdgVQAUgAI3EUj8La2g="
+    }
+  },
+  "post": {
+    "headers": {
+      "cipherNonceId": "2114621382456250369",
+      "cipherTimeNow": "1793000000000",
+      "cipherSecretId": "synthetic-exchange-1",
+      "cipherUserId": "ottai:a:n:00000000-0000-0000-0000-000000000001",
+      "cipherSeq": "2"
+    },
+    "envelope": {
+      "cipherBodyText": "1y4hIWPGh2k7wv/rlmUyzr/QDL64spnEfcca9wAjyeUIrki8reOfXUCJuCtKdSUI1qlLKZIJfYH9+171YTt0OpDklBD/Mvx0PhlCwIyBtxMGk2dsB0tjaN8xq/BAOFkGD6crwORkg8KWLBo0R54=",
+      "cipherBodyMac": "eNnsmrBmPsk26XYvw6QPmw==",
+      "cipherBodyNonce": "ICEiIyQlJicoKSor",
+      "cipherBodySignature": "wNPPMWpQb0ZtiL3zS7r3omePR25S5odLI7HBZD69gAk="
+    }
+  },
+  "response": {
+    "cipherSecretId": "synthetic-exchange-1",
+    "cipherText": "7sOd+xbEpLk3IN0Svd8eheQHJHZllIcp55fpJVVjDr0dWat78uXTgDwOCnt5t4BY1KiO88mQYnAL+8wdJ9PQKNK+oA==",
+    "cipherMac": "FdG6n0QP/bYGBvG+tSbAdw==",
+    "cipherNonce": "MDEyMzQ1Njc4OTo7"
+  },
+  "plainResponse": {
+    "code": "OK",
+    "data": {
+      "requiredUpgrade": false,
+      "allowUpgrade": false
+    }
+  }
+}

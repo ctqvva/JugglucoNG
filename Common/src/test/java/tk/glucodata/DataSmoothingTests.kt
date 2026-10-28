@@ -249,6 +249,55 @@ class DataSmoothingTests {
     }
 
     @Test
+    fun causalSmoothingFiltersBothLanesAndKeepsTimestamps() {
+        val minute = 60_000L
+        val points = (0 until 30).map { i ->
+            GlucosePoint(i * minute, 100f + (i % 2) * 6f, 90f + (i % 2) * 6f)
+        }
+        val out = DataSmoothing.smoothNativePointsCausal(points, smoothingMinutes = 5,
+            collapseChunks = false, mgdlPerUnit = 1f, nowMillis = Long.MAX_VALUE / 2)
+        assertEquals(points.map { it.timestamp }, out.map { it.timestamp })
+        assertTrue(out.last().value in 100f..106f)
+        assertTrue(out.last().rawValue in 90f..96f)
+        assertTrue(kotlin.math.abs(out.last().value - out[out.size - 2].value) < 3f)
+    }
+
+    @Test
+    fun causalSmoothingOfTheNewestPointIgnoresNothingButThePast() {
+        val minute = 60_000L
+        val base = (0 until 30).map { i -> GlucosePoint(i * minute, 100f + (i % 3) * 5f, 0f) }
+        val a = DataSmoothing.smoothNativePointsCausal(base.take(20), 5, false, 1f, Long.MAX_VALUE / 2)
+        val b = DataSmoothing.smoothNativePointsCausal(base, 5, false, 1f, Long.MAX_VALUE / 2)
+        assertEquals(a.last().value, b[19].value, 0f)
+    }
+
+    @Test
+    fun causalSmoothingIsOffWhenTheWindowIsOff() {
+        val points = listOf(GlucosePoint(0L, 100f, 0f), GlucosePoint(60_000L, 200f, 0f))
+        assertEquals(points, DataSmoothing.smoothNativePointsCausal(points, 0, false, 1f))
+    }
+
+    @Test
+    fun importedReadingsDoNotShareTheSelectedSensorsFilterState() {
+        val selected = GlucosePoint(0L, 100f, 90f).also { it.sensorSerial = "30211DF2J38" }
+        val alias = GlucosePoint(60_000L, 100f, 90f).also { it.sensorSerial = "30211df2j38" }
+        val imported = GlucosePoint(60_000L, 200f, 190f).also { it.sensorSerial = "__imported_csv__" }
+        val live = GlucosePoint(120_000L, 100f, 90f)
+
+        assertTrue(DataSmoothing.sameCausalSource(selected, alias))
+        assertTrue(DataSmoothing.sameCausalSource(selected, live))
+        assertFalse(DataSmoothing.sameCausalSource(selected, imported))
+    }
+
+    @Test
+    fun causalLiveSettingIsRegisteredMirroredAndOffByDefault() {
+        val definition = tk.glucodata.settings.SettingsRegistry.SMOOTHING_CAUSAL_LIVE
+        assertEquals("dashboard_data_smoothing_causal_live", definition.key)
+        assertEquals(false, definition.defaultValue)
+        assertTrue(tk.glucodata.settings.SettingsRegistry.definitions.contains(definition))
+    }
+
+    @Test
     fun exchangeSmoothingMinutesIsPulledBackInByCollapseUnderGraphOnly() {
         assertEquals(
             0,
@@ -268,5 +317,25 @@ class DataSmoothingTests {
                 collapseChunks = true
             )
         )
+    }
+
+    @Test
+    fun collapsePointsForDisplayKeepsASparseLaneTheLastReadingLacksAtItsOwnTime() {
+        // Libre's History lane is one value per 15 minutes.
+        val points = (0..5).map { minute ->
+            GlucosePoint(minute * 60_000L, (100 + minute).toFloat(), if (minute == 3) 130f else 0f)
+        }
+
+        val collapsed = DataSmoothing.collapsePointsForDisplay(
+            points = points,
+            smoothingMinutes = 3,
+            nowMillis = 60L * 60_000L
+        )
+
+        assertEquals(listOf(2L * 60_000L, 3L * 60_000L, 5L * 60_000L), collapsed.map { it.timestamp })
+        assertEquals(0f, collapsed[0].rawValue, 1e-6f)
+        assertEquals(130f, collapsed[1].rawValue, 1e-6f)
+        assertEquals(105f, collapsed[2].value, 1e-6f)
+        assertEquals(0f, collapsed[2].rawValue, 1e-6f)
     }
 }

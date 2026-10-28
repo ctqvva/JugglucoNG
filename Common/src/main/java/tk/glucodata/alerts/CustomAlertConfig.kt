@@ -34,6 +34,7 @@ data class CustomAlertConfig(
     
     // Standard Alert Features
     val sound: Boolean = true,
+    val soundVolumePercent: Int = AlertSoundVolume.DEFAULT_PERCENT,
     val vibrate: Boolean = true,
     val flash: Boolean = false,
     val style: String = "alarm", // notification, alarm, both
@@ -86,6 +87,7 @@ data class CustomAlertConfig(
             put("endTimeMinutes", endTimeMinutes)
             
             put("sound", sound)
+            put("soundVolumePercent", AlertSoundVolume.sanitize(soundVolumePercent))
             put("vibrate", vibrate)
             put("flash", flash)
             put("style", style)
@@ -128,6 +130,7 @@ data class CustomAlertConfig(
                 endTimeMinutes = json.optInt("endTimeMinutes", 1440),
                 
                 sound = json.optBoolean("sound", true),
+                soundVolumePercent = AlertSoundVolume.sanitize(json.optInt("soundVolumePercent", AlertSoundVolume.DEFAULT_PERCENT)),
                 vibrate = json.optBoolean("vibrate", true),
                 flash = json.optBoolean("flash", false),
                 style = json.optString("style", "alarm"),

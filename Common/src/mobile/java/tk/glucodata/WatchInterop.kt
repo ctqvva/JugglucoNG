@@ -49,14 +49,6 @@ object WatchInterop {
     )
 
     @JvmStatic
-    fun isNotifyEnabled(): Boolean = Applic.isWatchNotifyEnabled()
-
-    @JvmStatic
-    fun setNotifyEnabled(enabled: Boolean) {
-        Applic.setWatchNotifyEnabled(enabled)
-    }
-
-    @JvmStatic
     fun isGooglePlayServicesAvailable(): Boolean = GoogleServices.isPlayServicesAvailable(Applic.app)
 
     @JvmStatic

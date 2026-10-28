@@ -85,12 +85,18 @@ object OttaiCloudClient {
     /**
      * A non-secret cloud failure: [text] is what the UI appends, [code] is the backend's business
      * code (see the BIZ_ constants) for the callers that act on a specific one. [code] is blank
-     * for the failures we raise ourselves, before any response exists.
+     * for the failures we raise ourselves, before any response exists. [httpStatus] is 0 when no
+     * HTTP response arrived.
      */
-    data class CloudFailure(val text: String, val code: String = "") {
+    data class CloudFailure(val text: String, val code: String = "", val httpStatus: Int = 0) {
         /** The backend no longer accepts the stored session; the caller must sign in again. */
         val isTokenInvalid: Boolean get() = code.equals(BIZ_TOKEN_INVALID, ignoreCase = true)
     }
+
+    /** Failure belongs to this unbind attempt even if another cloud request finishes meanwhile. */
+    data class UnbindResult(val released: Boolean, val failure: CloudFailure? = null)
+
+    internal data class CloudRequestResult(val body: JSONObject?, val failure: CloudFailure?)
 
     /** Last non-secret failure reason (HTTP + business code/message); null after a call that succeeded. */
     @Volatile
@@ -130,7 +136,7 @@ object OttaiCloudClient {
 
     data class DeviceValidation(
         val device: DeviceResp,
-        /** New CN firmware exposes metadata through V3, then supplies keyA only from bindV3. */
+        /** New CN firmware and every Syai sensor expose metadata through V3; keyA comes only from bindV3. */
         val requiresV3Bind: Boolean,
     )
 
@@ -206,6 +212,41 @@ object OttaiCloudClient {
     private fun activeProfile(ctx: Context, apiBase: String): OttaiRegistry.SessionProfile =
         if (apiBase == OttaiConstants.API_BASE) OttaiRegistry.loadSessionProfile(ctx)
         else OttaiRegistry.SessionProfile.WATCH
+
+    /**
+     * Backends whose session can sign /cgmAuth/verify and bindV3. CN accepts only the current
+     * phone identity there. Syai and Ottai global retired validateDeviceByMacV2 and legacy
+     * composite/bind (Spring 404, 2026-10-12) and serve the same V3 routes to the watch identity
+     * they issue tokens to — on Syai, a watch-signed verify got past the signature check to
+     * DEVICE_AUTH_KEY_INDEX_ERROR on a dummy challenge, where a wrong sign is User_SignatureInvalid.
+     */
+    internal fun supportsActiveAuth(apiBase: String, profile: OttaiRegistry.SessionProfile): Boolean =
+        when (apiBase) {
+            OttaiConstants.API_BASE -> profile == OttaiRegistry.SessionProfile.CN_PHONE
+            OttaiConstants.API_BASE_SYAI, OttaiConstants.API_BASE_GLOBAL -> true
+            else -> false
+        }
+
+    /** A signed-in session on a backend that can run the V3 Active Auth bootstrap. */
+    fun activeAuthSessionAvailable(ctx: Context): Boolean {
+        if (OttaiRegistry.loadAccessToken(ctx).isBlank()) return false
+        val apiBase = base(ctx)
+        return supportsActiveAuth(apiBase, activeProfile(ctx, apiBase))
+    }
+
+    /**
+     * Read-only V2 validation has to give way to V3 when the backend answers
+     * AppDevice_Upgrade_Version (CN, new firmware) or no longer routes V2 at all (HTTP 404, every
+     * Syai sensor since October 2026).
+     */
+    internal fun shouldValidateViaV3(
+        apiBase: String,
+        profile: OttaiRegistry.SessionProfile,
+        v2Failure: CloudFailure?,
+    ): Boolean {
+        if (v2Failure == null || !supportsActiveAuth(apiBase, profile)) return false
+        return v2Failure.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true) || v2Failure.httpStatus == 404
+    }
 
     private fun requestDeviceId(ctx: Context, profile: OttaiRegistry.SessionProfile): String =
         if (profile == OttaiRegistry.SessionProfile.CN_PHONE) {
@@ -346,18 +387,18 @@ object OttaiCloudClient {
         val profile = profileOverride ?: activeProfile(ctx, apiBase)
         val deviceId = requestDeviceId(ctx, profile)
         val sig = signForProfile(profile, deviceId, ts)
-        val resp = httpGet(
+        val result = httpGetWithResult(
             apiBase + OttaiConstants.EP_API_TOKEN,
             mapOf("signature" to sig),
             headers(ctx, ts, apiBase, authorizationOverride, profile),
         )
-        return resp?.optStringDeep("data")
+        return if (result.failure == null) result.body?.optStringDeep("data") else null
     }
 
     /** POST /user/smsCode — needs apiToken; sig over (phone, apiToken). Returns requestId. */
     fun requestSmsCode(ctx: Context, phone: String, phoneCode: String = "86"): String? {
         val profile = OttaiRegistry.SessionProfile.CN_PHONE
-        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
+        val apiToken = getApiToken(ctx, OttaiConstants.API_BASE, "", profile) ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); Log.w(TAG, "apiToken failed"); return null }
         val ts = now()
         val deviceId = requestDeviceId(ctx, profile)
         val ph = normalizePhone(phone)
@@ -404,11 +445,7 @@ object OttaiCloudClient {
             headers(ctx, ts, OttaiConstants.API_BASE, "", profile),
         ) ?: return null
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
-        val result = LoginResult(
-            userId = data.optString("userId").orEmptyIfNull(),
-            accessToken = data.optString("accessToken").orEmptyIfNull(),
-            glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
-        )
+        val result = mobileLoginResult(data)
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, OttaiConstants.API_BASE)  // this account lives on the CN backend
             OttaiRegistry.saveSessionProfile(ctx, profile)
@@ -447,7 +484,7 @@ object OttaiCloudClient {
         // or web-only JWT): with no override, send no Authorization header at all.
         val authorization = authorizationOverride ?: ""
         val apiToken = getApiToken(ctx, base, authorization)
-            ?: run { lastFailure = CloudFailure("apiToken failed"); return null }
+            ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); return null }
         val ts = now()
         val deviceId = requestDeviceId(ctx, OttaiRegistry.SessionProfile.WATCH)
         val body = JSONObject().apply {
@@ -464,11 +501,7 @@ object OttaiCloudClient {
             headers(ctx, ts, base, authorization),
         ) ?: return null
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return null
-        val result = LoginResult(
-            userId = data.optString("userId").orEmptyIfNull(),
-            accessToken = data.optString("accessToken").orEmptyIfNull(),
-            glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
-        )
+        val result = mobileLoginResult(data)
         if (result.ok) {
             OttaiRegistry.saveApiBase(ctx, base)  // subsequent validate/list/bind use this backend
             OttaiRegistry.saveSessionProfile(ctx, OttaiRegistry.SessionProfile.WATCH)
@@ -507,10 +540,47 @@ object OttaiCloudClient {
     fun validateByMac(ctx: Context, mac: String): DeviceResp? =
         validateForSetup(ctx, mac)?.device?.takeIf { it.keyA.isNotBlank() }
 
+    internal data class SensorIdLookup(val sensorId: String?, val failure: CloudFailure? = null)
+
+    /** Read-only box-serial lookup. A serial must never be used as a cloud MAC or BLE address. */
+    internal fun resolveSetupSensorId(ctx: Context, input: String): SensorIdLookup {
+        val apiBase = base(ctx)
+        return resolveSetupSensorId(input, apiBase) { path, body ->
+            requestWithResult("POST", apiBase + path, body.toString(),
+                headers(ctx, now(), apiBase) + ("Content-Type" to "application/json;charset=UTF-8"))
+        }
+    }
+
+    internal fun resolveSetupSensorId(
+        input: String,
+        apiBase: String,
+        lookup: (String, JSONObject) -> CloudRequestResult,
+    ): SensorIdLookup {
+        val code = OttaiConstants.extractSetupCode(input)
+        if (OttaiConstants.looksLikeMac(code)) return SensorIdLookup(OttaiConstants.canonicalSensorId(code))
+        if (!OttaiConstants.isBoxSerial(code)) return SensorIdLookup(null, CloudFailure("sensor_code_invalid"))
+        // CN 1.63 builder 0x8fa9dc: POST {mac, colorBoxTailSn}; response data.mac.
+        // The global 1.33 client names the corresponding route getDeviceMacOrSnInfo2.
+        val paths = if (apiBase == OttaiConstants.API_BASE) listOf(OttaiConstants.EP_MAC_OR_SN_INFO)
+            else listOf(OttaiConstants.EP_MAC_OR_SN_INFO_V2, OttaiConstants.EP_MAC_OR_SN_INFO)
+        for ((index, path) in paths.withIndex()) {
+            val result = lookup(path, JSONObject().put("mac", JSONObject.NULL).put("colorBoxTailSn", code))
+            if (result.failure != null) {
+                if (result.failure.httpStatus == 404 && index < paths.lastIndex) continue
+                return SensorIdLookup(null, result.failure)
+            }
+            val mac = result.body?.optJSONObject("data")?.optString("mac")
+            if (OttaiConstants.looksLikeMac(mac)) return SensorIdLookup(OttaiConstants.canonicalSensorId(mac))
+            return SensorIdLookup(null, CloudFailure("sensor_lookup_invalid_response"))
+        }
+        return SensorIdLookup(null, CloudFailure("sensor_lookup_failed"))
+    }
+
     /**
      * Read-only validation. Existing sensors retain the proven V2 GET flow. Current CN firmware
-     * answers V2 with AppDevice_Upgrade_Version and requires a V3 JSON POST; that response carries
-     * authoritative device metadata but deliberately no keyA.
+     * answers V2 with AppDevice_Upgrade_Version, and Syai no longer routes V2 at all; both require
+     * a V3 JSON POST ([shouldValidateViaV3]). That response carries authoritative device metadata
+     * but deliberately no keyA.
      */
     fun validateForSetup(ctx: Context, mac: String): DeviceValidation? {
         val canonical = OttaiConstants.canonicalSensorId(mac)
@@ -520,17 +590,15 @@ object OttaiCloudClient {
         val profile = activeProfile(ctx, apiBase)
         val deviceId = requestDeviceId(ctx, profile)
         Log.i(TAG, "validate session profile=${profile.name.lowercase(Locale.ROOT)}")
-        val resp = httpGet(
+        val v2 = httpGetWithResult(
             apiBase + OttaiConstants.EP_VALIDATE_BY_MAC,
             mapOf("mac" to canonical, "signature" to signForProfile(profile, deviceId, ts, canonical)),
             headers(ctx, ts, apiBase, profileOverride = profile),
         )
-        if (resp != null) {
+        v2.body?.let { resp ->
             parseDeviceResp(resp)?.let { return DeviceValidation(it, requiresV3Bind = false) }
         }
-        if (apiBase != OttaiConstants.API_BASE || profile != OttaiRegistry.SessionProfile.CN_PHONE ||
-            !lastFailure?.code.equals(BIZ_UPGRADE_VERSION, ignoreCase = true)
-        ) return null
+        if (!shouldValidateViaV3(apiBase, profile, v2.failure)) return null
 
         val v3Ts = now()
         val body = JSONObject().apply {
@@ -543,7 +611,7 @@ object OttaiCloudClient {
             headers(ctx, v3Ts, apiBase, profileOverride = profile),
         ) ?: return null
         val device = parseDeviceResp(v3, requireKeyA = false) ?: return null
-        Log.i(TAG, "CN V3 validation ok mac=$canonical version=${device.deviceVersion}")
+        Log.i(TAG, "V3 validation ok mac=$canonical version=${device.deviceVersion}")
         // The BLE Active Auth chain binds later, on its own connection; keep the version the
         // server validated so bindV3 can repeat it exactly.
         OttaiRegistry.saveLastValidatedDeviceVersion(ctx, canonical, device.deviceVersion)
@@ -715,13 +783,21 @@ object OttaiCloudClient {
     /** PUT /deviceBind/unBindDevice — release a cloud binding. */
     fun unbind(ctx: Context, mac: String): Boolean = unbind(ctx, mac, null)
 
+    fun unbindWithResult(ctx: Context, mac: String): UnbindResult = unbindWithResult(ctx, mac, null)
+
     private fun unbind(
         ctx: Context,
         mac: String,
         headerOverride: ((Long) -> Map<String, String>)?,
-    ): Boolean {
+    ): Boolean = unbindWithResult(ctx, mac, headerOverride).released
+
+    private fun unbindWithResult(
+        ctx: Context,
+        mac: String,
+        headerOverride: ((Long) -> Map<String, String>)?,
+    ): UnbindResult {
         val canonical = OttaiConstants.canonicalSensorId(mac)
-        if (canonical.isBlank()) return false
+        if (canonical.isBlank()) return UnbindResult(false, CloudFailure("unbind requires mac"))
         val ts = now()
         val body = JSONObject().apply {
             put("mac", canonical)
@@ -729,12 +805,18 @@ object OttaiCloudClient {
             put("unbindType", 0)
         }
         val requestHeaders = headerOverride?.invoke(ts) ?: headers(ctx, ts, base(ctx))
-        val resp = httpPutJson(base(ctx) + OttaiConstants.EP_UNBIND, body.toString(), requestHeaders) ?: return false
+        return unbindResponseResult(
+            httpPutJsonWithResult(base(ctx) + OttaiConstants.EP_UNBIND, body.toString(), requestHeaders),
+        )
+    }
+
+    internal fun unbindResponseResult(result: CloudRequestResult): UnbindResult {
+        val resp = result.body ?: return UnbindResult(false, result.failure)
         val bizCode = resp.opt("code")?.toString().orEmpty()
         // BIZ_END_USING says the server had already finished with this sensor, so the binding the
         // caller wanted released is gone either way — not a failure to report.
-        return bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true) ||
-            bizCode.equals(BIZ_END_USING, ignoreCase = true)
+        val released = result.failure == null || bizCode.equals(BIZ_END_USING, ignoreCase = true)
+        return UnbindResult(released, result.failure.takeUnless { released })
     }
 
     /** GET /deviceBind/getBindDevice — current account-bound sensor, no signature. */
@@ -756,9 +838,82 @@ object OttaiCloudClient {
         val deviceVersion: String,
         val bindTime: Long,
         val unbindTime: Long,
+        /** Current-binding lookup overrides historical timestamps when available. */
+        val boundToAccount: Boolean? = null,
     ) {
         /** Still bound (vs. a previously-used sensor that was unbound). */
-        val isActive: Boolean get() = unbindTime <= 0L
+        val isActive: Boolean get() = boundToAccount ?: (unbindTime <= 0L)
+    }
+
+    data class AccountDevicesResult(val devices: List<DeviceSummary>?, val failure: CloudFailure? = null)
+
+    /** Read-only account snapshot: history alone does not identify the current binding. */
+    fun accountDevices(ctx: Context): AccountDevicesResult {
+        val apiBase = base(ctx)
+        val requestHeaders = headers(ctx, now(), apiBase)
+        val history = httpGetWithResult(
+            apiBase + OttaiConstants.EP_DEVICE_LIST,
+            mapOf("pageSize" to "80", "pageNumber" to "1"),
+            requestHeaders,
+        )
+        if (history.failure?.isTokenInvalid == true) return AccountDevicesResult(null, history.failure)
+        val binding = httpGetWithResult(
+            apiBase + OttaiConstants.EP_GET_BIND_DEVICE,
+            emptyMap(),
+            requestHeaders,
+        )
+        val result = accountDevicesResult(history, binding)
+        Log.i(
+            TAG,
+            "account binding current=${result.devices?.firstOrNull { it.isActive }?.mac ?: "none"} " +
+                "rows=${result.devices?.size ?: 0} checked=${result.failure == null}",
+        )
+        if (result.failure != null) {
+            val data = binding.body?.optJSONObject("data") ?: binding.body?.optJSONObject("result")
+            val fields = data?.keys()?.asSequence()?.take(12)?.joinToString(",").orEmpty()
+            Log.w(TAG, "account binding lookup failed: ${result.failure.text} dataFields=$fields")
+        }
+        return result
+    }
+
+    internal fun accountDevicesResult(
+        history: CloudRequestResult,
+        binding: CloudRequestResult,
+    ): AccountDevicesResult {
+        history.failure?.takeIf { it.isTokenInvalid }?.let { return AccountDevicesResult(null, it) }
+        binding.failure?.let { return AccountDevicesResult(null, it) }
+        val body = binding.body ?: return AccountDevicesResult(null, CloudFailure("Empty account binding response"))
+        val data = body.optJSONObject("data") ?: body.optJSONObject("result")
+        val vo = data?.optJSONObject("cgmDeviceRespVO") ?: data
+        val mac = OttaiConstants.canonicalSensorId(vo?.optString("mac").orEmptyIfNull())
+        val historyDevices = if (history.failure == null) history.body?.let(::parseDeviceSummaries).orEmpty() else emptyList()
+        if (!OttaiConstants.looksLikeMac(mac)) {
+            // Explicit null/empty data means no binding. An unfamiliar non-empty response must
+            // not be presented as proof that a sensor is unbound.
+            val explicitlyEmpty = if (data != null) data.length() == 0 else
+                (body.has("data") && body.isNull("data")) || (body.has("result") && body.isNull("result"))
+            if (!explicitlyEmpty) {
+                return AccountDevicesResult(null, CloudFailure("Account binding response has no valid sensor MAC"))
+            }
+            if (history.failure != null) return AccountDevicesResult(null, history.failure)
+            return AccountDevicesResult(historyDevices.map { it.copy(boundToAccount = false) })
+        }
+        val previous = historyDevices.firstOrNull { OttaiConstants.canonicalSensorId(it.mac) == mac }
+        val current = DeviceSummary(
+            mac = mac,
+            serialNo = vo?.optString("serialNo").orEmptyIfNull().ifBlank { previous?.serialNo.orEmpty() },
+            deviceType = vo?.optString("deviceType").orEmptyIfNull().ifBlank { "cgm" },
+            deviceVersion = vo?.optString("deviceVersion").orEmptyIfNull().ifBlank { previous?.deviceVersion.orEmpty() },
+            bindTime = data?.optLongLoose("bindTime")?.takeIf { it > 0L }
+                ?: vo?.optLongLoose("bindTime")?.takeIf { it > 0L } ?: previous?.bindTime ?: 0L,
+            unbindTime = 0L,
+            boundToAccount = true,
+        )
+        return AccountDevicesResult(
+            listOf(current) + historyDevices
+                .filter { OttaiConstants.canonicalSensorId(it.mac) != mac }
+                .map { it.copy(boundToAccount = false) },
+        )
     }
 
     /**
@@ -773,6 +928,10 @@ object OttaiCloudClient {
             mapOf("pageSize" to pageSize.toString(), "pageNumber" to pageNumber.toString()),
             headers(ctx, ts, base(ctx)),
         ) ?: return emptyList()
+        return parseDeviceSummaries(resp)
+    }
+
+    internal fun parseDeviceSummaries(resp: JSONObject): List<DeviceSummary> {
         val data = resp.optJSONObject("data") ?: resp.optJSONObject("result") ?: return emptyList()
         val items = data.optJSONArray("items")
             ?: data.optJSONArray("list")
@@ -927,12 +1086,13 @@ object OttaiCloudClient {
         // short pause covers a transient throttle so a single user tap doesn't fail spuriously.
         repeat(2) { attempt ->
             val ts = now()
-            val resp = httpGet(
+            val result = httpGetWithResult(
                 "$webBase/user/apiToken",
                 mapOf("signature" to webSign(webAppFor(webBase), ts.toString())),
                 webHeaders(webBase, ts),
             )
-            val tok = resp?.optStringDeep("data")
+            if (result.failure != null) return null
+            val tok = result.body?.optStringDeep("data")
             if (!tok.isNullOrBlank()) return tok
             if (attempt == 0) runCatching { Thread.sleep(900) }
         }
@@ -947,10 +1107,11 @@ object OttaiCloudClient {
      */
     private fun webPostRetry(webBase: String, path: String, buildBody: (apiToken: String, ts: Long) -> JSONObject): JSONObject? {
         repeat(5) { attempt ->
-            val apiToken = getWebApiToken(webBase) ?: run { lastFailure = CloudFailure("apiToken failed"); return null }
+            val apiToken = getWebApiToken(webBase) ?: run { if (lastFailure == null) lastFailure = CloudFailure("apiToken failed"); return null }
             val ts = now()
-            val resp = httpPostJson("$webBase$path", buildBody(apiToken, ts).toString(), webHeaders(webBase, ts)) ?: return null
-            if (!resp.optString("code").equals("User_SignatureInvalid", ignoreCase = true)) return resp
+            val result = requestWithResult("POST", "$webBase$path", buildBody(apiToken, ts).toString(),
+                webHeaders(webBase, ts) + ("Content-Type" to "application/json;charset=UTF-8"))
+            if (!result.failure?.code.equals("User_SignatureInvalid", ignoreCase = true)) return result.body
             if (attempt < 4) runCatching { Thread.sleep(500) }
         }
         return null
@@ -1011,25 +1172,34 @@ object OttaiCloudClient {
      * profile lookup and a token-rejected accountLogin are retried; a wrong password is not.
      */
     private fun upgradeWebSession(ctx: Context, resp: JSONObject, password: String, webBase: String): LoginResult? {
+        val mobileBase = webBaseToMobile(webBase)
+        return upgradeWebSession(resp,
+            readProfile = { token ->
+                if (isSyai(webBase)) mobileGetUser(ctx, mobileBase, token) else webGetUser(webBase, token)
+            },
+            login = { name, token -> passwordLogin(ctx, name, password, mobileBase, authorizationOverride = token) },
+        )
+    }
+
+    internal fun upgradeWebSession(
+        resp: JSONObject,
+        readProfile: (String) -> JSONObject?,
+        login: (String, String) -> LoginResult?,
+    ): LoginResult? {
         val webToken = (resp.optJSONObject("data") ?: resp.optJSONObject("result"))
-            ?.optString("accessToken").orEmptyIfNull()
+            ?.let(::webAccessToken).orEmpty()
         if (webToken.isBlank()) {
             // request() already captured the backend's business error, if any.
             if (lastError.isBlank()) lastFailure = CloudFailure("web login returned no session")
             return null
         }
-        val mobileBase = webBaseToMobile(webBase)
         // Syai's web profile omits both userName and glucoseSecretKey. Its mobile profile accepts
         // the web JWT and exposes the server-assigned userName; Ottai's web profile does too.
         var userName: String? = null
-        repeat(WEB_UPGRADE_ATTEMPTS) { attempt ->
-            val profile = if (isSyai(webBase)) {
-                mobileGetUser(ctx, mobileBase, webToken)
-            } else {
-                webGetUser(webBase, webToken)
-            }
+        for (attempt in 0 until WEB_UPGRADE_ATTEMPTS) {
+            val profile = readProfile(webToken)
             userName = profile?.optString("userName").orEmptyIfNull().takeIf { it.isNotBlank() }
-            if (userName != null) return@repeat
+            if (userName != null) break
             if (profile != null) {
                 lastFailure = CloudFailure("account profile has no username")
                 return null
@@ -1044,15 +1214,25 @@ object OttaiCloudClient {
         // mobile side rejects that token rather than the password, once with no Authorization at
         // all (the shape the Ottai global upgrade originally shipped with). A rejected token is
         // not a failed-login attempt, so this cannot count towards a lockout.
-        passwordLogin(ctx, name, password, mobileBase, authorizationOverride = webToken)
+        login(name, webToken)
             ?.takeIf { it.ok }?.let { return it }
         if (lastFailure?.isTokenInvalid == true) {
-            passwordLogin(ctx, name, password, mobileBase, authorizationOverride = "")
+            login(name, "")
                 ?.takeIf { it.ok }?.let { return it }
         }
         if (lastError.isBlank()) lastFailure = CloudFailure("mobile login upgrade failed")
         return null
     }
+
+    /** Syai's secure login returns data.jwtToken; older Ottai responses use data.accessToken. */
+    internal fun webAccessToken(data: JSONObject): String =
+        (data.optJSONObject("jwtToken") ?: data).optString("accessToken").orEmptyIfNull()
+
+    internal fun mobileLoginResult(data: JSONObject) = LoginResult(
+        userId = data.optString("userId").orEmptyIfNull(),
+        accessToken = webAccessToken(data),
+        glucoseSecretKey = data.optString("glucoseSecretKey").orEmptyIfNull(),
+    )
 
     private const val WEB_UPGRADE_ATTEMPTS = 3
     private const val WEB_UPGRADE_RETRY_MS = 500L
@@ -1161,68 +1341,114 @@ object OttaiCloudClient {
             (if (isSyai(webBase)) mapOf("deviceId" to WEB_DEVICE_ID) else emptyMap()) +
             ("Authorization" to "Bearer $accessToken")
 
-    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? {
+    private fun httpGet(base: String, query: Map<String, String>, headers: Map<String, String>): JSONObject? =
+        httpGetWithResult(base, query, headers).body
+
+    private fun httpGetWithResult(base: String, query: Map<String, String>, headers: Map<String, String>): CloudRequestResult {
         val qs = query.entries.joinToString("&") {
             "${enc(it.key)}=${enc(it.value)}"
         }
         val url = if (qs.isEmpty()) base else "$base?$qs"
-        return request("GET", url, null, headers)
+        return requestWithResult("GET", url, null, headers)
     }
 
     private fun httpPostJson(url: String, body: String, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? =
         request("POST", url, body, headers + ("Content-Type" to "application/json;charset=UTF-8"), timeoutMs)
 
-    private fun httpPutJson(url: String, body: String, headers: Map<String, String>): JSONObject? =
-        request(
+    private fun httpPutJsonWithResult(url: String, body: String, headers: Map<String, String>): CloudRequestResult =
+        requestWithResult(
             TEMPORARY_MATERIAL_UNBIND_METHOD,
             url,
             body,
             headers + ("Content-Type" to "application/json;charset=UTF-8"),
         )
 
-    private fun request(method: String, url: String, body: String?, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? {
-        var conn: HttpURLConnection? = null
+    private fun request(method: String, url: String, body: String?, headers: Map<String, String>, timeoutMs: Int = TIMEOUT_MS): JSONObject? =
+        requestWithResult(method, url, body, headers, timeoutMs).body
+
+    internal fun requestWithResult(
+        method: String,
+        url: String,
+        body: String?,
+        headers: Map<String, String>,
+        timeoutMs: Int = TIMEOUT_MS,
+        openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
+    ): CloudRequestResult {
+        var legacyConnection: HttpURLConnection? = null
         return try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = method
-                connectTimeout = TIMEOUT_MS
-                readTimeout = timeoutMs
-                headers.forEach { (k, v) -> setRequestProperty(k, v) }
-                if (body != null) {
-                    doOutput = true
-                    val bytes = body.toByteArray(Charsets.UTF_8)
-                    setRequestProperty("Content-Length", bytes.size.toString())
-                    outputStream.use { it.write(bytes) }
+            val route = OttaiRegionalTransport.route(url)
+            val reply = if (route != null) {
+                val transport = OttaiRegionalTransport(route, headers) { verb, target, payload, common ->
+                    rawRequest(verb, target, payload, common, timeoutMs, openConnection)
                 }
-            }
-            val code = conn.responseCode
-            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            val text = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
+                try { transport.request(method, body) } finally { transport.close() }
+            } else rawRequest(method, url, body, headers, timeoutMs,
+                { target -> openConnection(target).also { legacyConnection = it } }, disconnect = false)
+            val code = reply.status
+            val json = reply.json
             val path = url.substringBefore('?').substringAfterLast("/server")
-            val json = if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull()
             // Capture non-secret business error (code/message) for the UI/logs.
             val bizCode = json?.opt("code")?.toString().orEmpty()
             val bizMsg = (json?.opt("message") ?: json?.opt("msg") ?: json?.opt("detailMessage"))
                 ?.toString().orEmpty().takeIf { it != "null" }.orEmpty()
             val bizOk = bizCode.isBlank() || bizCode == "200" || bizCode.equals("OK", ignoreCase = true)
-            if (code !in 200..299 || !bizOk) {
-                lastFailure = CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode)
-                Log.w(TAG, "$path -> $lastError")
+            val failure = if (code !in 200..299 || !bizOk) {
+                CloudFailure("http=$code biz=$bizCode ${bizMsg.take(120)}".trim(), bizCode, code)
+            } else null
+            // Keep the legacy diagnostic for older callers, but return this request's own value.
+            lastFailure = failure
+            if (failure != null) {
+                Log.w(TAG, "$path -> ${failure.text}")
             } else {
-                lastFailure = null
                 // Without this a successful cloud phase is invisible and reconstructable only from
                 // the absence of warnings. Path and status ONLY: the body carries keyA and the
                 // account glucoseSecretKey.
                 Log.i(TAG, "$path -> http=$code")
             }
-            json
+            CloudRequestResult(if (route != null && failure != null) null else json, failure)
+        } catch (error: OttaiOtaCloudException) {
+            val failure = CloudFailure(error.diagnostic, error.businessCode, error.httpStatus)
+            lastFailure = failure
+            Log.w(TAG, "secure request failed: ${error.diagnostic}")
+            CloudRequestResult(null, failure)
         } catch (t: Throwable) {
-            lastFailure = CloudFailure("network: ${t.message}")
+            val failure = CloudFailure("network: ${t.message}")
+            lastFailure = failure
             Log.w(TAG, "request failed ${url.substringBefore('?')}: ${t.message}")
-            null
+            CloudRequestResult(null, failure)
         } finally {
-            conn?.disconnect()
+            // Publish this request's result before cleanup can complete another request.
+            legacyConnection?.disconnect()
         }
+    }
+
+    private fun rawRequest(
+        method: String,
+        url: String,
+        body: String?,
+        headers: Map<String, String>,
+        timeoutMs: Int,
+        openConnection: (String) -> HttpURLConnection,
+        disconnect: Boolean = true,
+    ): OttaiNetSecurity.Reply {
+        val conn = openConnection(url)
+        return try {
+            conn.requestMethod = method
+            conn.instanceFollowRedirects = false
+            conn.connectTimeout = TIMEOUT_MS
+            conn.readTimeout = timeoutMs
+            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+            if (body != null) {
+                conn.doOutput = true
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                conn.setRequestProperty("Content-Length", bytes.size.toString())
+                conn.outputStream.use { it.write(bytes) }
+            }
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val text = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
+            OttaiNetSecurity.Reply(code, if (text.isBlank()) null else runCatching { JSONObject(text) }.getOrNull())
+        } finally { if (disconnect) conn.disconnect() }
     }
 
     private fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")

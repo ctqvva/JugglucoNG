@@ -213,23 +213,15 @@ public class Applic extends Application implements androidx.work.Configuration.P
         ;
     }
 
-    public static boolean isWatchNotifyEnabled() {
-        return Notify.alertwatch;
-    }
-
-    public static void setWatchNotifyEnabled(boolean on) {
-        if (app != null) {
-            app.setnotify(on);
-        } else {
-            Notify.alertwatch = on;
-        }
-    }
-
     public void setunit(int unit) {
+        // First label legacy rows using the old preference, then refresh their
+        // display projection after changing it. Startup sets units separately.
+        CalibrationProfileAccess.onDisplayUnitChanged();
         if (Applic.unit != unit)
             SuperGattCallback.previousglucosevalue = 0.0f;
         Natives.setunit(unit);
         Notify.mkunitstr(app, unit);
+        CalibrationProfileAccess.onDisplayUnitChanged();
     }
 
     public void sendlabels() {
@@ -519,6 +511,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
         }
         ;
         SensorBluetooth.destructor();
+        // The teardown frees every callback, including a Nightscout follower that never used
+        // Bluetooth, and cancels its poll alarm with it.
+        tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry.INSTANCE.ensureFollowerRunning(app);
         if (Natives.activeBackupHostNr() <= 0) {
             keeprunning.stop();
         }
@@ -1053,6 +1048,12 @@ public class Applic extends Application implements androidx.work.Configuration.P
             }
             VariantBootstrapAccess.create().start(this);
             SensorOwnershipRuntime.start();
+            if (!isWearable) {
+                // Widgets keep their last picture across a process death, but the expiry
+                // alarm does not survive it. Redraw them from the saved reading: a fresh
+                // one re-arms its expiry, an expired one becomes "No new value since …".
+                GlucoseUpdateBroadcaster.send(this);
+            }
             if (isWearable) {
                 var refresh = GlucoseValueRefreshAccess.get();
                 if (refresh != null) refresh.updateAll();

@@ -95,10 +95,14 @@ data class SensorInfo(
     val vendorFirmware: String = "",  // AiDex: firmware version from GET_DEVICE_INFO
     val vendorHardware: String = "",  // AiDex: hardware version from GET_DEVICE_INFO
     val vendorModel: String = "",  // AiDex: model name from GET_DEVICE_INFO (e.g. "GX-01S")
+    val vendorBrand: String = "",  // AiDex: advertised rebrand for the badge (e.g. "LUMI"), blank = family
     val isIcan: Boolean = false,
     val isAnytime: Boolean = false,  // Anytime/Yuwell: vendor reports battery as percent + voltage
+    val isMedtrum: Boolean = false,  // Medtrum EasySense: manual calibration via the patch's 0x40 command
     val vendor: SensorVendor = SensorVendor.UNKNOWN,
     val sensorType: SensorTypeName = SensorTypeName.UNKNOWN,
+    /** Libre 1/2: the two lanes are the Stream and the sensor's own History. */
+    val hasLibreHistoryLane: Boolean = false,
     // Edit 59: Reset compensation state
     val resetCompensationActive: Boolean = false,  // AiDex: whether initialization bias compensation is active
     val resetCompensationStatus: String = "",  // AiDex: human-readable compensation status (e.g. "Phase 1: ×1.176 (23h left)")
@@ -107,6 +111,12 @@ data class SensorInfo(
     val handoffUiState: SensorHandoffUiState = SensorHandoffUiState.NONE,
     val sensorIndex: Int = -1,
     val isCloneSource: Boolean = false,
+    /** A mirrored sensor this phone took over and reads itself; it can be handed back. */
+    val isCloneTakenOver: Boolean = false,
+    /** A Clone record this phone has a driver for, so taking it over can actually read it. */
+    val canTakeOverClone: Boolean = false,
+    val dexcomBluetoothSlot: Int = 0,  // Dexcom G7: authentication slot 1-3, 0 = not a Dexcom callback
+    val dexcomPairingCode: String = "",  // Dexcom G7: the 4-digit sensor code, blank = not stored
 ) {
     /** Get the assigned color for this sensor */
     val color: Color get() = Color(assignedColorArgb)
@@ -166,9 +176,17 @@ class SensorViewModel : ViewModel() {
         // under, so the raw serial the callback carries has to count too.
         val clone = tk.glucodata.CloneSensorRegistry.isCloneSensor(resolved) ||
             tk.glucodata.CloneSensorRegistry.isCloneSensor(sensor.serial)
+        val takenOver = !clone && tk.glucodata.CloneSensorRegistry.isReceptionEnabled() &&
+            (tk.glucodata.CloneSensorRegistry.isTakenOver(resolved) ||
+                tk.glucodata.CloneSensorRegistry.isTakenOver(sensor.serial))
         return sensor.copy(
             serial = resolved,
             isCloneSource = clone,
+            isCloneTakenOver = takenOver,
+            canTakeOverClone = clone && (
+                tk.glucodata.CloneSensorRegistry.canTakeOver(resolved) ||
+                    tk.glucodata.CloneSensorRegistry.canTakeOver(sensor.serial)
+                ),
         )
     }
 
@@ -378,6 +396,7 @@ class SensorViewModel : ViewModel() {
         val isMq = snapshot.uiFamily == ManagedSensorUiFamily.MQ
         val isIcan = snapshot.uiFamily == ManagedSensorUiFamily.ICAN
         val isAnytime = snapshot.uiFamily == ManagedSensorUiFamily.ANYTIME
+        val isMedtrum = snapshot.uiFamily == ManagedSensorUiFamily.MEDTRUM
         val isSibionics = snapshot.uiFamily == ManagedSensorUiFamily.SIBIONICS
         val isSibionics2 = isSibionics && snapshot.vendorModel.equals("Sibionics 2", ignoreCase = true)
         val detailsConnectionStatus = if (snapshot.showConnectionStatusInDetails) {
@@ -422,6 +441,7 @@ class SensorViewModel : ViewModel() {
             isMq = isMq,
             isIcan = isIcan,
             isAnytime = isAnytime,
+            isMedtrum = isMedtrum,
             vendor = SensorVendor.fromManagedFamily(snapshot.uiFamily),
             sensorType = SensorTypeName.fromManagedFamily(snapshot.uiFamily, snapshot.vendorModel),
             startMs = snapshot.startTimeMs,
@@ -453,6 +473,7 @@ class SensorViewModel : ViewModel() {
             vendorFirmware = snapshot.vendorFirmware,
             vendorHardware = snapshot.vendorHardware,
             vendorModel = snapshot.vendorModel,
+            vendorBrand = snapshot.vendorBrand,
             resetCompensationActive = snapshot.resetCompensationActive,
             resetCompensationStatus = snapshot.resetCompensationStatus,
             handoffUiState = handoffUiState,
@@ -674,6 +695,11 @@ class SensorViewModel : ViewModel() {
                             isAidex = false,
                             vendor = sensorVendor,
                             sensorType = sensorType,
+                            // Asked of the native record, which a Clone receiver or an
+                            // NFC-only Libre has even where the type above is unknown.
+                            hasLibreHistoryLane = runCatching {
+                                Natives.hasSensorHistoryLane(gatt.dataptr)
+                            }.getOrDefault(false),
                             startMs = startMs,
                             officialEndMs = officialEndMs,
                             expectedEndMs = expectedEndMs,
@@ -686,6 +712,8 @@ class SensorViewModel : ViewModel() {
                             isActive = isActiveSensor,
                             handoffUiState = handoffUiState,
                             sensorIndex = sensorIndex,
+                            dexcomBluetoothSlot = (gatt as? tk.glucodata.DexGattCallback)?.authSlot ?: 0,
+                            dexcomPairingCode = (gatt as? tk.glucodata.DexGattCallback)?.pairingCode.orEmpty(),
                         )
                     }
                 } catch (e: Exception) {
@@ -787,6 +815,18 @@ class SensorViewModel : ViewModel() {
             }
         }
     }
+
+    fun setAiDexAlgorithmMode(serial: String, mode: Int) {
+        val gatt = findGatt(serial) ?: return
+        val driver = gatt as? tk.glucodata.drivers.aidex.AiDexDriver ?: return
+        aiDexAlgorithmChoices.submit(gatt.SerialNumber) {
+            val success = runCatching { driver.setCustomAlgorithmMode(mode) }.getOrDefault(false)
+            android.util.Log.i("SensorVM", "AiDex algorithm mode=$mode result=$success serial=$serial")
+            refreshSensors()
+        }
+    }
+
+    private val aiDexAlgorithmChoices by lazy { OrderedSensorActions(viewModelScope) }
 
     fun setSibionicsAlgorithmSensitivity(serial: String, sensitivity: Float?) {
         val gatt = findGatt(serial) ?: return
@@ -1297,6 +1337,49 @@ class SensorViewModel : ViewModel() {
         }
     }
 
+    /** Moves a Dexcom sensor to another authentication slot; it pairs again on the next connection. */
+    fun setDexcomBluetoothSlot(serial: String, slot: Int) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(serial)) return
+        val gatt = findGatt(serial) as? tk.glucodata.DexGattCallback ?: return
+        if (gatt.authSlot == slot) return
+        val wasPaused = SensorBluetooth.isSensorPaused(gatt)
+        // Runs to the end here rather than in viewModelScope: leaving the screen mid-way
+        // would cancel it with the sensor still paused. changeAuthSlot closes the old
+        // session itself, so there is no disconnect to wait for.
+        gatt.setPause(true)
+        gatt.changeAuthSlot(slot)
+        if (gatt.dataptr != 0L) {
+            try { Natives.resetbluetooth(gatt.dataptr) } catch (_: Throwable) {}
+        }
+        // A sensor the user paused stays paused; it pairs on the new slot when resumed.
+        if (!wasPaused) {
+            gatt.setPause(false)
+            gatt.connectDevice(200)
+        }
+        refreshSensors()
+    }
+
+    /**
+     * Stops deferring to the Clone sender and connects to the sensor from this
+     * phone. A transmitter that serves one phone at a time is only reached once
+     * the sender lets go of it, the way a follower picked it up before Clone.
+     */
+    fun takeOverCloneSensor(serial: String) {
+        if (!tk.glucodata.CloneSensorRegistry.takeOver(serial)) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // A mirrored record normally keeps its (paused) callback; rebuild the
+            // roster in case it was never given one.
+            if (findGatt(serial) == null) SensorBluetooth.updateDevices()
+            reconnectSensor(serial)
+        }
+    }
+
+    /** Undoes [takeOverCloneSensor]: Clone delivers the readings again and this phone lets go. */
+    fun handBackCloneSensor(serial: String) {
+        if (!tk.glucodata.CloneSensorRegistry.handBack(serial)) return
+        disconnectSensor(serial)
+    }
+
     fun returnSensorToPhone(serial: String) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!tk.glucodata.WatchInterop.returnSensorToPhone(serial)) {
@@ -1566,6 +1649,47 @@ class SensorViewModel : ViewModel() {
                 if (!removed) gatt.releasePostUnpairBroadcastScanSuppression()
             }
         }
+    }
+
+    /**
+     * Ottai Disconnect. Plain removal keeps the credentials and the account binding; only the
+     * explicit [forgetAndUnbind] choice deletes the keys and releases the binding. A failed or
+     * impossible unbind (signed out, offline) leaves the binding in place, and Ottai setup lists
+     * it at the top with its own Unbind action.
+     */
+    fun disconnectOttaiSensor(serial: String, wipeData: Boolean, forgetAndUnbind: Boolean): Boolean {
+        if (!forgetAndUnbind) return terminateSensor(serial, wipeData)
+        // Resolve while the managed record still exists; removal turns it into a draft.
+        val canonical = tk.glucodata.drivers.ottai.OttaiManagedSensorIdentityAdapter
+            .resolveCanonicalSensorId(serial)
+            ?: tk.glucodata.drivers.ottai.OttaiConstants.canonicalSensorId(serial)
+        if (!terminateSensor(serial, wipeData)) return false
+        val app = tk.glucodata.Applic.app ?: return true
+        // Delete now, not after the unbind: that request can take up to 30 s, and the sensor sits
+        // in Saved credentials meanwhile. Reconnecting it there makes it managed again, and
+        // forgetCredentials refuses a managed sensor, so the keys would silently survive.
+        // The unbind needs only the id and the account session, not the keys.
+        tk.glucodata.drivers.ottai.OttaiRegistry.forgetCredentials(app, canonical)
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val released = tk.glucodata.drivers.ottai.OttaiConstants.looksLikeMac(canonical) &&
+                tk.glucodata.drivers.ottai.OttaiRegistry.loadAccessToken(app).isNotBlank() &&
+                runCatching {
+                    tk.glucodata.drivers.ottai.OttaiCloudClient.unbindWithResult(app, canonical).released
+                }.onFailure {
+                    android.util.Log.w("SensorVM", "Ottai unbind $canonical failed: ${it.message}")
+                }.getOrDefault(false)
+            android.util.Log.i("SensorVM", "Ottai forget+unbind $canonical released=$released")
+            if (!released) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        app,
+                        app.getString(tk.glucodata.R.string.ottai_disconnect_unbind_failed),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+        return true
     }
 
     /**

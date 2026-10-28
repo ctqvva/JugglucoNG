@@ -17,6 +17,7 @@ import tk.glucodata.ui.AlarmActivityAccess
 class AlarmLaunchReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         try {
+            if (AlarmActivityAccess.isAcknowledged(intent)) return
             val base = AlarmActivityAccess.newIntent(context.applicationContext)
             if (base == null) {
                 Log.e(LOG_ID, "no alarm activity registered; dropping launch")

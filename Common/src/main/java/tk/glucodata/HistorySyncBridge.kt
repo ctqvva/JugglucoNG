@@ -12,6 +12,8 @@ interface HistorySyncBridge {
 
     fun syncRecentSensorFromNative(serial: String, anchorTimeMs: Long)
 
+    fun syncSensorWindowFromNative(serial: String, startTimeMs: Long)
+
     fun forceFullSyncForSensor(serial: String)
 
     fun mergeFullSyncForSensor(serial: String)

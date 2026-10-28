@@ -24,6 +24,8 @@ public class MobileVariantBootstrap implements VariantBootstrap {
         // Re-arm the nightly backup chain from process start, not only from the
         // settings screen: a chain that died stays dead until someone re-enqueues it.
         ScheduledBackupWorker.initialize(application);
+        // AAPS reports its temp basal only in the status line it broadcasts for xDrip.
+        tk.glucodata.receivers.AapsStatusLineReceiver.register(application);
     }
 
     @Override

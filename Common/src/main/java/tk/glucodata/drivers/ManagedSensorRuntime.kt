@@ -2,6 +2,8 @@ package tk.glucodata.drivers
 
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
+import tk.glucodata.Applic
+import tk.glucodata.drivers.aidex.AiDexRetainedCalibration
 
 object ManagedSensorRuntime {
     // resolveDriver builds a full UI snapshot per driver just to match a sensor, so the calibration
@@ -65,11 +67,16 @@ object ManagedSensorRuntime {
         val key = "$resolved|$isRawMode"
         integratesUserCalibrationCache[key]?.let { return it }
         // No driver yet: don't cache — the answer can change once the sensor connects.
-        val driver = resolveDriver(resolved) ?: return false
+        val driver = resolveDriver(resolved)
+            ?: return AiDexRetainedCalibration.integrates(Applic.app, resolved, isRawMode)
         val result = runCatching { driver.integratesUserCalibration(isRawMode) }.getOrDefault(false)
         integratesUserCalibrationCache[key] = result
         return result
     }
+
+    @JvmStatic
+    fun rewritesAutoHistory(sensorId: String?): Boolean =
+        runCatching { resolveDriver(sensorId)?.rewritesAutoHistory() == true }.getOrDefault(false)
 
     @JvmStatic
     fun notifyUserCalibrationRevisionChanged(revision: Long) {

@@ -9,10 +9,10 @@ ext {
     // Bump the app version here only. Wear releases use appVersionCode + 1000000
     // so Play accepts both APKs in one release (distinct versionCodes per form
     // factor). Scheme originates on the wearos branch — keep the two in step.
-    appVersionCode = 1023
+    appVersionCode = 1027
     // Base version, without the flavour/build-type suffix chain that gets appended
     // to versionName. Used for the APK filename so it stays readable.
-    appVersionName = '1.2.3-Alpha'
+    appVersionName = '1.2.7-Alpha'
 
     ndkver       = '29.0.14206865'
     CMAKEVERSION = '4.1.2'
@@ -112,9 +112,14 @@ android {
         externalNativeBuild {
             cmake {
                 version = "$CMAKEVERSION"
-                // Distribution builds must not embed ignored local TURN/Twilio credentials.
+                // Explicit relay-only input; ignored local headers/account tokens stay excluded.
                 if (project.hasProperty('requireProductionSigning')) {
+                    if (!project.hasProperty('distributionTurnDirectory') ||
+                            !file("${project.property('distributionTurnDirectory')}/distribution-turn.hpp").isFile()) {
+                        throw new GradleException('Distribution requires Clone TURN input; use scripts/build-dist.sh')
+                    }
                     cppFlags "-DJUGGLUCO_DISTRIBUTION=1"
+                    arguments "-DJUGGLUCO_DISTRIBUTION_TURN_DIR=${file(project.property('distributionTurnDirectory')).absolutePath}"
                 }
                 cppFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
                 cFlags " -DAPPID=\"quotes($applicationId)\"   -DAPPVERSION=\"quotes($versionName)\"  -DLIBRE3=1 -DSIBIONICS=1 -DDEXCOM=1 "
@@ -291,7 +296,12 @@ android {
         includeInApk = true
         includeInBundle = true
     }
-    compileSdk = 37
+    compileSdk {
+        // Compose 1.13 (material3 1.5) needs the 37.1 minor SDK.
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
     buildToolsVersion = '37.0.0'
     buildFeatures {
         aidl = true
@@ -365,7 +375,7 @@ dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     // Compose (versions come from the BOM unless pinned deliberately)
-    def composeBom = platform('androidx.compose:compose-bom:2026.08.00')
+    def composeBom = platform('androidx.compose:compose-bom-alpha:2026.10.00')
     implementation composeBom
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
@@ -440,6 +450,10 @@ dependencies {
     wearImplementation 'androidx.wear.watchface:watchface-complications-data-source-ktx:1.2.1'
     wearImplementation 'androidx.core:core-splashscreen:1.2.0'
     wearImplementation 'androidx.wear.protolayout:protolayout-external-protobuf:1.4.2'
+    // Glucose tile (tk.glucodata.tile)
+    wearImplementation 'androidx.wear.tiles:tiles:1.6.2'
+    wearImplementation 'androidx.wear.protolayout:protolayout:1.4.2'
+    wearImplementation 'androidx.concurrent:concurrent-futures:1.2.0'
     // Wear Compose Material 3 (Expressive) UI
     wearImplementation 'androidx.wear.compose:compose-material3:1.6.2'
     wearImplementation 'androidx.wear.compose:compose-foundation:1.6.2'
@@ -457,5 +471,6 @@ dependencies {
     // exported schemas in Common/schemas.
     testImplementation 'org.robolectric:robolectric:4.14'
     testImplementation 'androidx.test:core:1.6.1'
+    testMobileImplementation 'androidx.compose.ui:ui-test-junit4'
     testImplementation "androidx.room:room-testing:$room_version"
 }

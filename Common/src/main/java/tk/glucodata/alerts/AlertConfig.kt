@@ -146,6 +146,7 @@ data class AlertConfig(
     
     // Sound & vibration
     val soundEnabled: Boolean = true,
+    val soundVolumePercent: Int = AlertSoundVolume.DEFAULT_PERCENT,
     val customSoundUri: String? = null,     // null = use default
     val vibrationEnabled: Boolean = true,
     val hapticProfile: HapticProfile = HapticProfile.STRONG,

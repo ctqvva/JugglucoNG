@@ -44,6 +44,11 @@ interface ReadingDisplayDao {
      * invalidate every chart query observing the table.
      * A stale or incorrect horizon would weaken this bound. There is no other update
      * and no REPLACE anywhere in this DAO.
+     *
+     * A view-mode toggle revises like a calibration change does. Unsealed
+     * records are never drawn, so the hour before a toggle is already shown in
+     * the new lane; refusing the revision (#499) sealed those minutes with the
+     * old lane's numbers an hour later, and the line moved under the user.
      */
     @Query(
         """
@@ -70,6 +75,9 @@ interface ReadingDisplayDao {
 
     @Query("SELECT * FROM reading_display WHERE timestamp >= :startTime ORDER BY timestamp ASC")
     suspend fun getAllSince(startTime: Long): List<ReadingDisplay>
+
+    @Query("SELECT * FROM reading_display WHERE timestamp > :afterTimestamp ORDER BY timestamp ASC LIMIT :limit")
+    suspend fun getPageAfter(afterTimestamp: Long, limit: Int): List<ReadingDisplay>
 
     @Query(
         "SELECT * FROM reading_display WHERE timestamp >= :startTime AND timestamp <= :endTime " +
@@ -122,13 +130,15 @@ interface ReadingDisplayDao {
     suspend fun deleteForSensors(serials: List<String>)
 
     /**
-     * Voids records whose sensor has rewritten the number they were drawn from —
-     * see [tk.glucodata.data.RecordedDisplayVoiding]. A deletion, not a
-     * revision: the minute goes back to having no record, and is recorded again
-     * the next time it is presented.
+     * Releases records whose source changed, subject to the display lock.
+     * With "Keep displayed values" on, [sealHorizon] protects locked minutes
+     * in SQL just as [reviseIfUnsealed] does. Null permits deletion regardless
+     * of age (keeping is off, or an explicit source-removal migration).
+     * Released minutes are recorded again the next time they are presented.
      */
-    @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes)")
-    suspend fun deleteAtMinutes(minutes: List<Long>): Int
+    @Query("DELETE FROM reading_display WHERE timestamp IN (:minutes) " +
+        "AND (:sealHorizon IS NULL OR timestamp > :sealHorizon)")
+    suspend fun deleteAtMinutes(minutes: List<Long>, sealHorizon: Long?): Int
 
     @Query("DELETE FROM reading_display")
     suspend fun deleteAll()

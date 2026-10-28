@@ -79,6 +79,14 @@ class ICanHealthParserExtraTests {
     }
 
     @Test
+    fun sessionStartIgnoresTheVendorsHardCodedOffset() {
+        // 0x14 is what the vendor's writer puts next to every 2AAA wall clock, whatever the
+        // phone's zone — it is not an offset we can use.
+        assertNull(ICanHealthParser.parseSessionStartTime(sessionStart(tz = 0x14))!!.timezoneOffset15Min)
+        assertNull(ICanHealthParser.parseSessionStartTime(sessionStart(tz = 0x14))!!.utcOffset15MinOrNull())
+    }
+
+    @Test
     fun sessionStartRejectsInvalidDatesAndShortData() {
         assertNull(ICanHealthParser.parseSessionStartTime(sessionStart(year = 0)))
         assertNull(ICanHealthParser.parseSessionStartTime(sessionStart(month = 13)))

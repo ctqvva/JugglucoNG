@@ -105,6 +105,82 @@ internal object CloneLiveTransportPolicy {
     }
 }
 
+/**
+ * Moves a mirrored sensor between the receiver's Clone set and its taken-over
+ * set, keeping the route it arrived by so handing it back restores the card as
+ * it was. [matches] says whether a stored key names the sensor being moved.
+ */
+internal object CloneTakeOverPolicy {
+    data class Entries(
+        val clone: Map<String, CloneTransport>,
+        val takenOver: Map<String, CloneTransport>,
+    )
+
+    fun takeOver(entries: Entries, aliases: Set<String>, matches: (String) -> Boolean): Entries {
+        val moving = entries.clone.filterKeys(matches)
+        val transport = moving.values.firstOrNull { it != CloneTransport.UNKNOWN }
+            ?: moving.values.firstOrNull()
+            ?: CloneTransport.UNKNOWN
+        return Entries(
+            clone = entries.clone.filterKeys { !matches(it) },
+            takenOver = entries.takenOver.filterKeys { !matches(it) } +
+                aliases.associateWith { transport },
+        )
+    }
+
+    fun handBack(entries: Entries, aliases: Set<String>, matches: (String) -> Boolean): Entries {
+        val returning = entries.takenOver.filterKeys(matches)
+        val transport = returning.values.firstOrNull { it != CloneTransport.UNKNOWN }
+            ?: CloneTransport.UNKNOWN
+        return Entries(
+            clone = entries.clone.filterKeys { !matches(it) } + aliases.associateWith { transport },
+            takenOver = entries.takenOver.filterKeys { !matches(it) },
+        )
+    }
+
+    fun isTakenOver(takenOver: Map<String, CloneTransport>, matches: (String) -> Boolean): Boolean =
+        takenOver.keys.any(matches)
+
+    /** Native kinds this phone reads from the mirrored record alone. */
+    private val nativeReadableKinds = setOf(
+        SensorSourceResolver.SENSOR_KIND_LIBRE2,
+        SensorSourceResolver.SENSOR_KIND_LIBRE3,
+        SensorSourceResolver.SENSOR_KIND_SIBIONICS,
+        SensorSourceResolver.SENSOR_KIND_ACCUCHEK,
+        SensorSourceResolver.SENSOR_KIND_DEXCOM,
+        SensorSourceResolver.SENSOR_KIND_CARESENS_AIR,
+    )
+
+    /**
+     * Whether this phone can read the sensor itself once it stops deferring.
+     *
+     * A Kotlin-driven sensor needs its driver record (keys, cursor, algorithm
+     * state), and that lives on the sender; Clone carries only the native
+     * shell. Without a record here the shell would be dialled as whatever its
+     * native kind defaults to, and the Sibionics orphan sweep finishes a SIBI:
+     * shell the moment its Clone flag is gone.
+     *
+     * @param hasLocalManagedRecord a managed adapter holds a record for it here
+     * @param stampedFamilyCode the managed family stamped in the native record, 0 if none
+     * @param nativeKind the native record's sensor kind
+     * @param fullNativeName the native record's full name
+     */
+    fun canTakeOver(
+        hasLocalManagedRecord: Boolean,
+        stampedFamilyCode: Int,
+        nativeKind: Int,
+        fullNativeName: String?,
+    ): Boolean {
+        if (hasLocalManagedRecord) return true
+        if (stampedFamilyCode != 0) return false
+        if (fullNativeName?.trim()?.startsWith(
+                tk.glucodata.drivers.sibionics.SibionicsConstants.MANAGED_PREFIX,
+                ignoreCase = true,
+            ) == true) return false
+        return nativeKind in nativeReadableKinds
+    }
+}
+
 /** Records which sensor files are being populated by the phone-to-phone clone path. */
 object CloneSensorRegistry {
     /** How long a quiet mirror keeps its claim on a sensor. */
@@ -116,6 +192,7 @@ object CloneSensorRegistry {
     private const val KEY_SENSOR_IDS = "clone_source_sensor_ids_v1"
     private const val KEY_SENSOR_CONNECTIONS = "clone_source_connection_labels_v1"
     private const val KEY_RECEPTION_ENABLED = "clone_reception_enabled_v1"
+    private const val KEY_TAKEN_OVER_IDS = "clone_taken_over_sensor_ids_v1"
     private val lock = Any()
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -162,6 +239,10 @@ object CloneSensorRegistry {
         synchronized(lock) {
             val preferences = prefs() ?: return false
             if (!preferences.getBoolean(KEY_RECEPTION_ENABLED, true)) return false
+            // A sensor this phone took over still accepts what the sender
+            // mirrors, but the sync must not flag it as Clone again: that would
+            // pause the local connection the user just asked for.
+            if (isTakenOverLocked(preferences, aliases)) return true
             val current = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null))
             val effectiveTransport = if (transport == CloneTransport.UNKNOWN) {
                 aliases.asSequence().mapNotNull(current::get).firstOrNull() ?: CloneTransport.UNKNOWN
@@ -256,6 +337,109 @@ object CloneSensorRegistry {
     @JvmStatic
     fun isCloneSensor(sensorId: String?): Boolean {
         return transportForSensor(sensorId) != null
+    }
+
+    private fun matcherFor(keys: Set<String>): (String) -> Boolean = { stored ->
+        stored in keys || candidateKeys(stored).any { it in keys }
+    }
+
+    private fun isTakenOverLocked(
+        preferences: android.content.SharedPreferences,
+        keys: Set<String>,
+    ): Boolean = CloneTakeOverPolicy.isTakenOver(
+        CloneSensorKeyCodec.decode(preferences.getString(KEY_TAKEN_OVER_IDS, null)),
+        matcherFor(keys),
+    )
+
+    /** Whether the user moved this mirrored sensor onto this phone's own Bluetooth. */
+    @JvmStatic
+    fun isTakenOver(sensorId: String?): Boolean {
+        val keys = candidateKeys(sensorId)
+        if (keys.isEmpty()) return false
+        return synchronized(lock) {
+            val preferences = prefs() ?: return@synchronized false
+            isTakenOverLocked(preferences, keys)
+        }
+    }
+
+    /** See [CloneTakeOverPolicy.canTakeOver]. Reads prefs and the native record only. */
+    @JvmStatic
+    fun canTakeOver(sensorId: String?): Boolean {
+        val id = sensorId?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+        val hasLocalRecord = runCatching {
+            tk.glucodata.drivers.ManagedSensorIdentityRegistry.resolvePersistedFamily(id) != null
+        }.getOrDefault(false)
+        val snapshot = runCatching { Natives.getSensorUiSnapshot(id) }.getOrNull()
+        val fullName = runCatching { Natives.resolveFullSensorName(id) }.getOrNull()
+        return CloneTakeOverPolicy.canTakeOver(
+            hasLocalManagedRecord = hasLocalRecord,
+            stampedFamilyCode = snapshot?.getOrNull(5)?.toInt() ?: 0,
+            nativeKind = snapshot?.getOrNull(0)?.toInt() ?: SensorSourceResolver.SENSOR_KIND_UNKNOWN,
+            fullNativeName = fullName,
+        )
+    }
+
+    /**
+     * The receiver stops deferring to the sender for [sensorId] and may dial it
+     * itself, as a follower could before Clone existed. The sensor record,
+     * its history and the mirrored data all stay; only the Clone flag moves
+     * aside, so every local connect gate opens. Mirror syncs keep importing.
+     */
+    @JvmStatic
+    fun takeOver(sensorId: String?): Boolean {
+        if (!canTakeOver(sensorId)) return false
+        val keys = candidateKeys(sensorId) + listOfNotNull(registryKey(sensorId))
+        if (keys.isEmpty()) return false
+        // A mirror sync decides to pause a Clone callback and pauses it under the
+        // roster lock (SensorBluetooth.blockLocalCloneConnection). Clearing the
+        // flag under the same lock means a sync either pauses before this and the
+        // caller's reconnect undoes it, or sees the flag gone and leaves it alone.
+        val stored = SensorBluetooth.withCallbackRoster {
+            synchronized(lock) {
+                val preferences = prefs() ?: return@synchronized false
+                val updated = CloneTakeOverPolicy.takeOver(currentEntriesLocked(preferences), keys, matcherFor(keys))
+                storeEntriesLocked(preferences, updated)
+                true
+            }
+        }
+        if (!stored) return false
+        keys.forEach(lastMirrorSeen::remove)
+        Log.i("CloneSensorRegistry", "takeOver $sensorId")
+        return true
+    }
+
+    /**
+     * Undoes [takeOver]: the sensor is a Clone record again and the caller
+     * closes the local connection, so the sender can have the transmitter back.
+     */
+    @JvmStatic
+    fun handBack(sensorId: String?): Boolean {
+        val keys = candidateKeys(sensorId) + listOfNotNull(registryKey(sensorId))
+        if (keys.isEmpty()) return false
+        synchronized(lock) {
+            val preferences = prefs() ?: return false
+            if (!preferences.getBoolean(KEY_RECEPTION_ENABLED, true)) return false
+            val updated = CloneTakeOverPolicy.handBack(currentEntriesLocked(preferences), keys, matcherFor(keys))
+            storeEntriesLocked(preferences, updated)
+        }
+        Log.i("CloneSensorRegistry", "handBack $sensorId")
+        return true
+    }
+
+    private fun currentEntriesLocked(preferences: android.content.SharedPreferences) =
+        CloneTakeOverPolicy.Entries(
+            clone = CloneSensorKeyCodec.decode(preferences.getString(KEY_SENSOR_IDS, null)),
+            takenOver = CloneSensorKeyCodec.decode(preferences.getString(KEY_TAKEN_OVER_IDS, null)),
+        )
+
+    private fun storeEntriesLocked(
+        preferences: android.content.SharedPreferences,
+        entries: CloneTakeOverPolicy.Entries,
+    ) {
+        preferences.edit()
+            .putString(KEY_SENSOR_IDS, CloneSensorKeyCodec.encode(entries.clone))
+            .putString(KEY_TAKEN_OVER_IDS, CloneSensorKeyCodec.encode(entries.takenOver))
+            .apply()
     }
 
     fun hasAnyCloneSensor(): Boolean = synchronized(lock) {

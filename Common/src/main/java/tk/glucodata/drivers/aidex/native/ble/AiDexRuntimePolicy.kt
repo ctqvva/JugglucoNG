@@ -273,6 +273,27 @@ internal object AiDexRuntimePolicy {
         return !hasModelMetadata || !hasAuthoritativeSessionStart || !hasSensorReportedWearDays
     }
 
+    const val STARTUP_DEVICE_INFO_MAX_ATTEMPTS = 3
+    const val STARTUP_DEVICE_INFO_RETRY_SPACING_MS = 30_000L
+
+    /**
+     * Startup `0x10` is the only source of the sensor's own wear byte. It used to be sent once
+     * per connection, so a single lost or unusable reply left the card on the model rating
+     * until the next reconnect while the metadata pass kept re-arming every minute. A few
+     * spaced attempts per connection cover a dropped reply without polling the sensor forever.
+     */
+    fun shouldRequestStartupDeviceInfo(
+        startupMetadataComplete: Boolean,
+        attemptsThisConnection: Int,
+        lastRequestAtMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (startupMetadataComplete) return false
+        if (attemptsThisConnection >= STARTUP_DEVICE_INFO_MAX_ATTEMPTS) return false
+        if (attemptsThisConnection == 0 || lastRequestAtMs <= 0L) return true
+        return nowMs - lastRequestAtMs >= STARTUP_DEVICE_INFO_RETRY_SPACING_MS
+    }
+
     /**
      * [calibrationRangeKnownEmpty] is set once the sensor has answered `GET_CALIBRATION_RANGE`
      * with an empty range. A sensor that has never been calibrated would otherwise keep the

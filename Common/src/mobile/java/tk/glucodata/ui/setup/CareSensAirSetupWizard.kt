@@ -9,15 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,13 +48,10 @@ fun CareSensAirSetupWizard(
     BackHandler(onBack = onDismiss)
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.caresens_air_setup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.caresens_air_setup_title),
+                onNavigateBack = onDismiss,
+                navigationContentDescription = stringResource(R.string.cancel),
             )
         }
     ) { padding ->

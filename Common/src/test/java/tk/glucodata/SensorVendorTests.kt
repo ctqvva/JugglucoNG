@@ -15,6 +15,8 @@ class SensorVendorTests {
         assertEquals(SensorVendor.OTTAI, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.OTTAI))
         assertEquals(SensorVendor.SIBIONICS, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS))
         assertEquals(SensorVendor.NIGHTSCOUT, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
+        assertEquals(SensorVendor.MEDTRUM, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.MEDTRUM))
+        assertEquals(ManagedSensorUiFamily.MEDTRUM, ManagedSensorUiFamily.fromNativeCode(8))
         assertEquals(SensorVendor.UNKNOWN, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
     }
 
@@ -26,6 +28,7 @@ class SensorVendorTests {
         assertEquals(SensorVendor.DEXCOM, SensorVendor.fromNativeKind(SensorSourceResolver.SENSOR_KIND_DEXCOM))
         assertEquals(SensorVendor.ROCHE, SensorVendor.fromNativeKind(SensorSourceResolver.SENSOR_KIND_ACCUCHEK))
         assertEquals(SensorVendor.MICROTECH, SensorVendor.fromNativeKind(SensorSourceResolver.SENSOR_KIND_AIDEX))
+        assertEquals(SensorVendor.ISENS, SensorVendor.fromNativeKind(SensorSourceResolver.SENSOR_KIND_CARESENS_AIR))
     }
 
     @Test
@@ -45,6 +48,7 @@ class SensorVendorTests {
         assertEquals(SensorTypeName.ACCUCHEK_SMARTGUIDE, SensorTypeName.fromNativeKind(SensorSourceResolver.SENSOR_KIND_ACCUCHEK))
         assertEquals(SensorTypeName.AIDEX_LINX, SensorTypeName.fromNativeKind(SensorSourceResolver.SENSOR_KIND_AIDEX))
         assertEquals(SensorTypeName.AIDEX_LINX, SensorTypeName.fromNativeKind(0x100))
+        assertEquals(SensorTypeName.CARESENS_AIR, SensorTypeName.fromNativeKind(SensorSourceResolver.SENSOR_KIND_CARESENS_AIR))
         assertEquals(SensorTypeName.UNKNOWN, SensorTypeName.fromNativeKind(-1))
     }
 
@@ -73,6 +77,21 @@ class SensorVendorTests {
             SensorBadge("AIDEX", "GX-01S"),
             sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S"),
         )
+    }
+
+    @Test
+    fun aDriverReportedBrandReplacesOnlyTheFamilyWord() {
+        assertEquals(
+            SensorBadge("LUMI", "GX-01S"),
+            sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S", "Lumi"),
+        )
+        // Blank keeps the family's own word.
+        assertEquals(
+            SensorBadge("AIDEX", "GX-01S"),
+            sensorBadge(SensorVendor.MICROTECH, SensorTypeName.AIDEX_LINX, "GX-01S", " "),
+        )
+        // A glyph-only badge stays a glyph.
+        assertEquals(SensorBadge("", ""), sensorBadge(SensorVendor.UNKNOWN, SensorTypeName.UNKNOWN, "", "LUMI"))
     }
 
     @Test
@@ -138,6 +157,7 @@ class SensorVendorTests {
         assertEquals(SensorTypeName.SIBIONICS_2, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics 2"))
         assertEquals(SensorTypeName.SIBIONICS_GS3, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics GS3"))
         assertEquals(SensorTypeName.NIGHTSCOUT, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
+        assertEquals(SensorTypeName.MEDTRUM_EASYSENSE, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.MEDTRUM))
         assertEquals(SensorTypeName.UNKNOWN, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
     }
 }

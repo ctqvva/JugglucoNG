@@ -12,6 +12,7 @@ fun journalTypeColor(type: JournalEntryType): Color = when (type) {
     JournalEntryType.FINGERSTICK -> Color(0xFF9D5A54)
     JournalEntryType.ACTIVITY -> Color(0xFFA66D39)
     JournalEntryType.NOTE -> Color(0xFF79639A)
+    JournalEntryType.TEMP_BASAL -> Color(0xD33172DE)
 }
 
 fun journalTypeSelectedContainerColor(type: JournalEntryType, surfaceColor: Color): Color {

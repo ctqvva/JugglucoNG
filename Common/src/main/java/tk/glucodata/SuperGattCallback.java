@@ -39,6 +39,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver;
+import tk.glucodata.share.DexcomShareSettings;
+import tk.glucodata.share.DexcomShareUploader;
 
 import static android.bluetooth.BluetoothDevice.BOND_BONDED;
 import static android.bluetooth.BluetoothDevice.BOND_BONDING;
@@ -118,6 +120,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     /** Opt in only for drivers whose silent connect failure is covered by this deadline. */
     protected long connectionAttemptTimeoutMillis() { return 0L; }
 
+    /** Let an opted-in driver adjust its retry policy after a silent connect attempt. */
+    protected void onConnectionAttemptTimeout() { }
+
     protected final void watchConnectionAttempt(BluetoothGatt attempt) {
         synchronized (this) {
             if (mBluetoothGatt != attempt || stop) return;
@@ -132,6 +137,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 || CloneSensorRegistry.isCloneSensor(SerialNumber)
                 || SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return;
         Log.i(LOG_ID, SerialNumber + " no connection result before deadline; retrying");
+        onConnectionAttemptTimeout();
         closeGattTransport();
         connectDevice(0);
     }
@@ -517,21 +523,61 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 || alarm == 19;
     }
 
-    public static void processExternalCurrentReading(String sensorSerial, float glucoseValue, float rate,
+    /**
+     * Publish without storing: stock lanes need display resolution; resolved values are final.
+     *
+     * There is deliberately no bare-float overload. One existed and took its value as
+     * resolved, so every driver that handed over the sensor's own number (AiDEX,
+     * Sibionics, Ottai) skipped software calibration on the notification and the
+     * alerts while the chart applied it (#479). A caller has to say which it holds.
+     */
+    public static void processExternalCurrentReading(String sensorSerial, LiveReadingLanes reading, float rate,
             long timmsec, int sensorgen) {
-        if (!Float.isFinite(glucoseValue) || glucoseValue <= 0f || timmsec <= 0L) {
+        processExternalCurrentReading(sensorSerial, reading, rate, timmsec, sensorgen, 0L);
+    }
+
+    /** Managed drivers with a known activation preserve it for the exchange feeds. */
+    public static void processExternalCurrentReading(String sensorSerial, LiveReadingLanes reading, float rate,
+            long timmsec, int sensorgen, long sensorStartMs) {
+        if (reading == null || !reading.getHasValue() || timmsec <= 0L) {
             return;
-        }
-        if (glucosealarms == null) {
-            glucosealarms = GlucoseAlarmsAccess.create(Applic.app);
         }
         final String resolvedSensorSerial = (sensorSerial != null && !sensorSerial.isEmpty())
                 ? sensorSerial
                 : Natives.lastsensorname();
+        final float glucoseValue;
+        if (reading.isResolved()) {
+            glucoseValue = reading.getResolvedValue();
+        } else {
+            // These are the known incoming lanes. Room may still contain only the
+            // previous minute while the driver's asynchronous write is pending.
+            final var display = CurrentDisplaySource.resolveIncomingReading(reading, rate, timmsec,
+                    resolvedSensorSerial, sensorgen, 0, "external-current",
+                    DisplayTrendSource.TREND_WINDOW_MS, true);
+            if (display != null) {
+                glucoseValue = display.getPrimaryValue();
+            } else {
+                // Resolution failing is no reason to withhold the reading: publish the
+                // sensor's own number, as the bare-float path always did.
+                glucoseValue = stockPrimaryValue(reading);
+                if (!Float.isFinite(glucoseValue) || glucoseValue <= 0f) {
+                    return;
+                }
+                Log.w(LOG_ID, "processExternalCurrentReading: display resolution failed for "
+                        + resolvedSensorSerial + "; publishing the stock value");
+            }
+        }
+        if (glucosealarms == null) {
+            glucosealarms = GlucoseAlarmsAccess.create(Applic.app);
+        }
         final int mgdlValue = Math.round(glucoseValue * (Applic.unit == 1 ? mgdLmult : 1.0f));
-        // Both callers hand over a value CurrentDisplaySource already resolved.
         dowithglucose(resolvedSensorSerial, mgdlValue, glucoseValue, rate, 0, timmsec,
-                0L, Notify.glucosetimeout, sensorgen, LiveReadingLanes.resolved(glucoseValue));
+                sensorStartMs, Notify.glucosetimeout, sensorgen, reading);
+    }
+
+    private static float stockPrimaryValue(LiveReadingLanes reading) {
+        final float auto = reading.getStockAuto();
+        return (Float.isFinite(auto) && auto > 0.1f) ? auto : reading.getStockRaw();
     }
 
     private static long[] loadRecentSensorHistory(String sensorSerial, long startTimeSec) {
@@ -690,6 +736,19 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             // If we can't determine main sensor, default to allowing (safety)
             isMainSensor = true;
         }
+        if (!isMainSensor && SensorIdentity.isGhostMainSensor(resolvedMainName)) {
+            // The main sensor was removed but its callback lingered. Rebuild the roster and
+            // resolve again regardless of the return value: it reports whether a connection
+            // was started, not whether the roster changed.
+            SensorBluetooth.reconcileGhostMainSensor();
+            try {
+                resolvedMainName = SensorIdentity.resolveLiveMainSensor(SerialNumber);
+                isMainSensor = resolvedMainName == null || resolvedMainName.isEmpty()
+                        || SensorIdentity.matches(SerialNumber, resolvedMainName);
+            } catch (Throwable t) {
+                isMainSensor = true;
+            }
+        }
         if (!isMainSensor) {
             if (doLog) {
                 // Reuse the resolution above. Re-calling resolveLiveMainSensor here
@@ -714,6 +773,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
 
         glucosealarms.setagealarm(timmsec, showtime);
+        GlucoseUpdateBroadcaster.armFreshnessDeadline(timmsec);
         final var alertEvaluation = tk.glucodata.alerts.AlertRuntimeManager.INSTANCE.onNewReading(SerialNumber,
                 reading, rate, timmsec, sensorgen);
         final boolean runtimeHandledStandardGlucoseAlert = alertEvaluation.getStandardGlucoseAlertHandled();
@@ -840,11 +900,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
             return;
         final boolean shouldBroadcastMinuteUpdate = tim > nexttime;
         final boolean outboundApiEnabled = OutboundApiSettings.isEnabled(app);
+        // Credentials and the pending queue live on the phone, so the watch never sends.
+        final boolean dexcomShareEnabled = !isWearable && DexcomShareSettings.isEnabled(app);
         final boolean followerFeedEnabled = !isWearable && XdripFollowerSend.isEnabled(app);
         final boolean loopFeedEnabled = Natives.getxbroadcast() || (!isWearable && Natives.getlibrelinkused());
         final boolean shouldResolveExchangePayload =
                 Natives.getJugglucobroadcast()
                 || outboundApiEnabled
+                || dexcomShareEnabled
                 || (shouldBroadcastMinuteUpdate && (
                         loopFeedEnabled
                         || followerFeedEnabled
@@ -867,6 +930,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 !isWearable && doWearInt,
                 !isWearable && doGadgetbridge,
                 loopFeedEnabled,
+                dexcomShareEnabled,
                 followerFeedEnabled);
         // The loop feed shares the same payload JUGGLUCO/OUTBOUND_API get: it is resolved from the
         // same gl/rate/timmsec this call received, so reusing it can never carry a stale timestamp.
@@ -892,6 +956,13 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getTrendName(),
                     exchangePayload.getTrendRate(),
                     alarm);
+        // Share wants the mg/dL value, never the display value, which may be mmol/L.
+        if (exchangeOutputDecision.getSendDexcomShare())
+            DexcomShareUploader.onLiveReading(
+                    exchangePayload.getSensorId(),
+                    exchangePayload.getPrimaryMgdl(),
+                    exchangePayload.getTrendIndex(),
+                    exchangePayload.getTimeMillis());
         // Readings travel to whichever device is not holding the sensor, so the
         // watch pushes too when it is the one reading. A reading that arrived
         // from the peer is not sent straight back.
@@ -920,6 +991,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                             + " exchangeOnly=" + DataSmoothing.smoothOnlyExchangeOutputs(app)
                             + " payloadAgeMs=" + (System.currentTimeMillis() - loopFeedPayload.getTimeMillis()));
                 SendLikexDrip.broadcastglucose(loopFeedPayload, sensorstartmsec);
+                XdripBackfill.recordLiveSent(loopFeedPayload.getSensorId(), loopFeedPayload.getTimeMillis(),
+                        loopFeedPayload.getSensorGen(), sensorstartmsec);
             }
             if (!isWearable) {
                 if (exchangeOutputDecision.getSendWearInt())
@@ -976,6 +1049,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         var health = HealthConnectAccess.get();
         if (health != null) health.writeAll(sensorptr, SerialNumber);
+    }
+
+    /** Finish the accepted live path for a managed driver that publishes explicit lanes. */
+    protected final void completeManagedLiveReading(long timestampMs) {
+        markLocalReadingAccepted(timestampMs);
+        charcha[0] = timestampMs;
+        exportToHealthConnect();
+        SensorBluetooth.othersworking(this, timestampMs);
     }
 
     protected void handleGlucoseResult(long res, long timmsec) {
@@ -1668,6 +1749,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     public void bonded() {
+    }
+
+    /**
+     * ACTION_PAIRING_REQUEST for this callback's device. Return true after answering it
+     * (setPin), so the system pairing dialog is suppressed.
+     */
+    public boolean pairingRequest() {
+        return false;
     }
 
     public String mygetDeviceName() {
