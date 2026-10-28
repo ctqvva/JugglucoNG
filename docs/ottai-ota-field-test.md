@@ -119,6 +119,16 @@ authentication changes eligibility; it does not assume the backend requires that
 that it will offer firmware. Challenges, signatures and server authentication values are
 not logged. A failure or closing the dialog retires outstanding callbacks.
 
+Field result from `juggluco-trace-20261028-224815.log.txt`: the started Global sensor
+on `E1.2.6(V1.7.SH2616.1),STDRD` reached `writeback_complete` and `judge` three times.
+All three authenticated offer responses were `required=false allowed=false image=false`.
+Two rechecks also reached `local_auth_restored` and `NO_UPDATE`, retaining active status
+3; those complete runs took 29 and 24 seconds. Other rechecks ended in `CLOSED` during
+authentication/restoration, without a logged failure. Fresh V3 proof alone did not change
+offer eligibility for this sensor/account. This does not establish an activation-state
+restriction or parity with the official app's request/client identity. No installation was
+offered in these attempts.
+
 1. Export its credentials and any history you want to keep. Disconnect it from monitoring
    while retaining local credentials/history. Stop other apps from reconnecting to it. A
    managed record or callback in this test app still prevents the separate BLE session;
