@@ -162,13 +162,15 @@ class OttaiSetupLayoutTests {
     }
 
     @Test
-    fun connectAppearsOnlyWhenUsableAndImportStaysSecondary() {
+    fun connectAppearsOnlyWhenUsableAndImportMatchesItsSize() {
         var canConnect by mutableStateOf(false)
         var loading by mutableStateOf(false)
         var connected = false
         var importLabel = ""
+        var statusTitle = ""
         compose.setContent {
             importLabel = LocalContext.current.getString(R.string.ottai_import_file)
+            statusTitle = LocalContext.current.getString(R.string.ottai_state_active)
             MaterialTheme(typography = AppTypography) {
                 androidx.compose.foundation.layout.Column(Modifier.width(320.dp).testTag("card")) {
                     OttaiSensorCard(
@@ -192,13 +194,15 @@ class OttaiSetupLayoutTests {
             }
         }
         compose.onNodeWithText("Connect").assertDoesNotExist()
+        compose.onNodeWithText(statusTitle).assertDoesNotExist()
         compose.runOnIdle { canConnect = true; loading = true }
         compose.onNodeWithText("Connect").assertDoesNotExist()
         compose.runOnIdle { loading = false }
         val connect = compose.onNodeWithText("Connect").assertIsEnabled()
         val connectBounds = connect.fetchSemanticsNode().boundsInRoot
         val importBounds = compose.onNodeWithText(importLabel).fetchSemanticsNode().boundsInRoot
-        assertTrue("Import must stay narrower than the primary action", importBounds.width < connectBounds.width)
+        assertEquals("Import and Connect must have equal width", connectBounds.width, importBounds.width, 1f)
+        assertEquals("Import and Connect must have equal height", connectBounds.height, importBounds.height, 1f)
         capture("primary-and-import")
         connect.performClick()
         compose.runOnIdle { assertTrue(connected) }

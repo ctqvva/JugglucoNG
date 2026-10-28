@@ -323,9 +323,8 @@ internal fun OttaiNfcHintRow(state: OttaiNfcWakeState, modifier: Modifier = Modi
 }
 
 /**
- * The chosen sensor: where its credentials stand, and the setup's one action. Connect lives in
- * the card because it acts on exactly this sensor; with no credentials and no account it is
- * replaced by the two ways to get them.
+ * The chosen sensor's identity, useful status and action in a standard card.
+ * With no credentials and no account, offer import or sign-in instead of Connect.
  */
 @Composable
 internal fun OttaiSensorCard(
@@ -345,14 +344,6 @@ internal fun OttaiSensorCard(
     onSignIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (icon, tint) = when (state) {
-        OttaiMaterialState.MISSING -> Icons.Default.Key to MaterialTheme.colorScheme.onSurfaceVariant
-        OttaiMaterialState.PARTIAL -> Icons.Default.Warning to StatusPalette.warning()
-        OttaiMaterialState.READY_TO_ACTIVATE -> Icons.Default.PlayArrow to MaterialTheme.colorScheme.primary
-        OttaiMaterialState.WARMING_UP -> Icons.Default.HourglassTop to MaterialTheme.colorScheme.primary
-        OttaiMaterialState.ACTIVE -> Icons.Default.Check to StatusPalette.success()
-        OttaiMaterialState.EXPIRED -> Icons.Default.EventBusy to MaterialTheme.colorScheme.onSurfaceVariant
-    }
     // Only the states that leave a question open get a sentence; the rest are said by the title
     // and the button.
     val body = when {
@@ -378,76 +369,73 @@ internal fun OttaiSensorCard(
     val bindingFailed = bindingState == OttaiCloudBindingUiState.ERROR
     val getCredentials = !loading && state == OttaiMaterialState.MISSING && !signedIn
 
-    OttaiCard(
-        modifier = modifier,
-        title = stringResource(if (loading) R.string.ottai_state_fetching else ottaiMaterialStateTitle(state)),
-        body = body,
-        icon = icon,
-        iconColor = tint,
-        loading = loading,
-        details = if (meta.isNotEmpty() || bindingFailed || message.isNotBlank()) {
-            {
-                if (meta.isNotEmpty()) {
-                    Text(
-                        meta,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (bindingFailed) {
-                    Text(
-                        stringResource(R.string.ottai_cloud_binding_error),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                if (message.isNotBlank()) {
-                    if (meta.isNotEmpty() || bindingFailed) Spacer(Modifier.size(8.dp))
-                    Text(
-                        message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (messageIsError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (meta.isNotEmpty()) {
+                Text(
+                    meta,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (loading) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.ottai_state_fetching), style = MaterialTheme.typography.bodyMedium)
                 }
             }
-        } else null,
-        actions = if (getCredentials || (!loading && canConnect)) {
-            {
-                if (getCredentials) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        OttaiImportButton(onClick = onImport, enabled = !busy)
-                        Button(
-                            onClick = onSignIn,
-                            enabled = !busy,
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) { Text(stringResource(R.string.ottai_login_button)) }
-                    }
-                } else if (!loading && canConnect) {
-                    Button(
-                        onClick = onConnect,
-                        enabled = !busy && !loading && canConnect,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) {
-                        if (busy) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text(connectLabel)
-                        }
+            if (body != null) {
+                Text(body, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (bindingFailed) {
+                Text(
+                    stringResource(R.string.ottai_cloud_binding_error),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (message.isNotBlank()) {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (messageIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (getCredentials) {
+                OttaiImportButton(onClick = onImport, enabled = !busy)
+                Button(
+                    onClick = onSignIn,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) { Text(stringResource(R.string.ottai_login_button)) }
+            } else if (!loading && canConnect) {
+                Button(
+                    onClick = onConnect,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    if (busy) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(connectLabel)
                     }
                 }
             }
-        } else null,
-    )
+        }
+    }
 }
 
 internal fun ottaiMaterialStateTitle(state: OttaiMaterialState): Int = when (state) {
@@ -1094,18 +1082,19 @@ internal fun OttaiSearchList(
     }
 }
 
-/** A secondary file action, using the app's normal text-button size. */
+/** A full-width secondary action, matching the primary button's normal minimum height. */
 @Composable
 internal fun OttaiImportButton(
     onClick: () -> Unit,
     enabled: Boolean,
     label: String = stringResource(R.string.ottai_import_file),
 ) {
-    TextButton(
+    OutlinedButton(
         onClick = onClick,
         enabled = enabled,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         shapes = ButtonDefaults.shapes(),
-        contentPadding = ButtonDefaults.TextButtonContentPadding,
+        contentPadding = ButtonDefaults.ContentPadding,
     ) {
         Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
