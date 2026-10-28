@@ -3278,4 +3278,49 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="settings_search_hint">Raadi dejinta</string>
     <string name="settings_search_no_results">Ma jiro dejin u dhiganta “%1$s”</string>
     <string name="settings_search_clear">Tirtir raadinta</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Tijaabada firmware-ka</string>
+    <string name="ottai_ota_warning">Cusboonaysiin fashilanta waxay dareemaha ka dhigi kartaa mid aan shaqayn. Shaashaddan fur oo taleefanka u dhowee dareemaha.</string>
+    <string name="ottai_ota_connecting">Isku xidhid aan hawlgelin lahayn…</string>
+    <string name="ottai_ota_authenticating">Xaqiijinta aqoonsiga dareemaha…</string>
+    <string name="ottai_ota_checking">Hubinta iyo soo dejinta firmware-ka…</string>
+    <string name="ottai_ota_recovery">Xirmada soo kabashada waa diyaar. Rakibiddu waxay xirmadii la kaydiyey ka bilaabaysaa bilowga.</string>
+    <string name="ottai_ota_ready">Xirmada firmware-ka waa diyaar. Dareemaha lama hawlgelin.</string>
+    <string name="ottai_ota_no_update">Cusboonaysiin firmware lama soo bandhigin</string>
+    <string name="ottai_ota_installing">Rakibidda firmware-ka…</string>
+    <string name="ottai_ota_reconnecting">Dib u xidhid iyo hubinta nooca la rakibay…</string>
+    <string name="ottai_ota_preparing">Cusboonaysiinta aqoonsiyada iyo qorista dejimaha warshadda…</string>
+    <string name="ottai_ota_complete">Diyaarintu way dhammaatay. Xidh daaqaddan, dabadeed si caadi ah ugu xidh si aad dareemaha u hawlgeliso.</string>
+    <string name="ottai_ota_failed">Tijaabadu way joogsatay. Hubi diiwaanka raadraaca ka hor isku dayga xiga. Cusboonaysiin aan dhammaan waxay xannibtaa hawlgelinta.</string>
+    <string name="ottai_ota_version">Dareeme: %1$s · Cusboonaysiin: %2$s</string>
+    <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Koodhka ogaanshaha: %1$s</string>
+    <string name="ottai_ota_install">Rakib firmware-ka</string>
+    <string name="ottai_ota_parameters">Qor dejimaha warshadda oo keliya</string>
+    <string name="ottai_ota_confirm">Rakib cusboonaysiintan tijaabada ah? Waxay dareemaha si joogto ah u joojin kartaa. Hawlgelintu waxay si gooni ah u dhacdaa ka dib xaqiijinta nooca iyo dejimaha warshadda.</string>
+    <string name="ottai_ota_parameters_confirm">Qor isku-dhufayaasha iyo cabbir-habaynta warshadda ee la taageero? Tani waxay beddeshaa dejimaha iyada oo aan firmware la cusboonaysiin ama muddada dareemaha la bilaabin.</string>
+    <string name="ottai_ota_check">Hubi firmware-ka (tijaabo)</string>
+    <string name="ottai_ota_cloud_recheck">Mar kale ku hubi xaqiijinta daruurta V3</string>
+    <string name="ottai_ota_cloud_authenticating">Waxaa lagu xaqiijinayaa akoonkaaga Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Mar kale hubi helitaanka firmware-ka adigoo adeegsanaya xaqiijinta dareemaha ee server-ka. Tani ma hawlgelinayso dareemaha mana ku xirayso akoonka.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Marka hore dareemahan ka gooy kormeerka. Cusboonaysiinta dareeme bilaabmay waxay tirtiri kartaa akhrisyada, dib u bilaabi kartaa muddadiisa ama joojin kartaa dareemaha.</string>
+    <string name="ottai_ota_fresh_mode">Dareeme cusub</string>
+    <string name="ottai_ota_started_mode">Dareeme bilaabmay</string>
+    <string name="ottai_ota_started_ready">Cusboonaysiinta dareemaha bilaabmay waa diyaar. Eeg xogta bilowga ah ka hor rakibidda.</string>
+    <string name="ottai_ota_result_active">Firmware waa la cusboonaysiiyey. Dareemuhu wuxuu sheegayaa inuu firfircoon yahay; eeg diiwaanka ka hor dib ugu xidhidda kormeerka.</string>
+    <string name="ottai_ota_result_ended">Firmware waa la cusboonaysiiyey. Dareemuhu wuxuu sheegayaa inuu dhammaaday; eeg diiwaanka.</string>
+    <string name="ottai_ota_result_reset">Firmware waa la cusboonaysiiyey. Dareemuhu wuxuu sheegayaa inaan la hawlgelin; dib u hawlgelin lama isku dayin.</string>
+    <string name="ottai_ota_started_confirm">Ku rakib dareemahan bilaabmay? Akhrisyada iyo xaaladda shaqada waa la tirtiri karaa ama dib ayaa loo bilaabi karaa. Tijaabadu waxay diiwaangelisaa natiijada iyada oo aan dib loo hawlgelin ama dejimaha warshadda la qorin.</string>
+    <string name="ottai_ota_observation">%1$s · xaalad %2$d · muddada %3$s ilbiriqsi · diiwaankii u dambeeyey %4$s · RTC %5$s ilbiriqsi</string>
+    <string name="ottai_ota_before">Ka hor</string>
+    <string name="ottai_ota_after">Ka dib</string>
+
+    <string name="ottai_ota_discard">Ka tag tijaabada firmware</string>
+    <string name="ottai_ota_discard_confirm">Ma tirtirtaa xirmada kaydsan oo ma fasaxdaa xiriirka? Tani ma soo celinayso firmware-kii ama dejintii hore. Qoris go’day waxay weli u baahan kartaa soo kabasho.</string>
+    <string name="ottai_ota_pending">Tijaabo firmware oo aan dhammaan ayaa xannibaysa xiriirka. Fur soo kabashada firmware si aad u sii waddo ama uga tagto tijaabada.</string>
+    <string name="ottai_ota_finish_preparation">Firmware waa la hubiyey. Xaqiiji dejinta warshadda si loo dhammaystiro habaynta.</string>
+    <string name="ottai_ota_discard_failed">Lama joojin karin tijaabada firmware. Mar kale isku day.</string>
 </resources>

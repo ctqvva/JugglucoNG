@@ -3100,4 +3100,49 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Rechercher dans les paramètres</string>
     <string name="settings_search_no_results">Aucun paramètre ne correspond à « %1$s »</string>
     <string name="settings_search_clear">Effacer la recherche</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Test expérimental du micrologiciel</string>
+    <string name="ottai_ota_warning">Un échec peut rendre le capteur inutilisable. Gardez cet écran ouvert et le téléphone près du capteur.</string>
+    <string name="ottai_ota_connecting">Connexion sans activation…</string>
+    <string name="ottai_ota_authenticating">Vérification de l’identité du capteur…</string>
+    <string name="ottai_ota_checking">Vérification et téléchargement du micrologiciel…</string>
+    <string name="ottai_ota_recovery">Paquet de récupération prêt. L’installation reprend le paquet enregistré depuis le début.</string>
+    <string name="ottai_ota_ready">Micrologiciel prêt. Le capteur n’est pas activé.</string>
+    <string name="ottai_ota_no_update">Aucune mise à jour proposée</string>
+    <string name="ottai_ota_installing">Installation du micrologiciel…</string>
+    <string name="ottai_ota_reconnecting">Reconnexion et vérification de la version installée…</string>
+    <string name="ottai_ota_preparing">Actualisation des identifiants et écriture des paramètres d’usine…</string>
+    <string name="ottai_ota_complete">Préparation terminée. Fermez cette fenêtre, puis connectez-vous normalement pour activer le capteur.</string>
+    <string name="ottai_ota_failed">Test arrêté. Consultez le journal de trace avant de réessayer. Une mise à jour inachevée bloque l’activation.</string>
+    <string name="ottai_ota_version">Capteur : %1$s · Mise à jour : %2$s</string>
+    <string name="ottai_ota_package">%1$d octets · SHA-256 : %2$s</string>
+    <string name="ottai_ota_error_code">Code de diagnostic : %1$s</string>
+    <string name="ottai_ota_install">Installer le micrologiciel</string>
+    <string name="ottai_ota_parameters">Écrire uniquement les paramètres d’usine</string>
+    <string name="ottai_ota_confirm">Installer cette mise à jour expérimentale ? Le capteur peut devenir définitivement inutilisable. L’activation se fait séparément après vérification de la version et des paramètres d’usine.</string>
+    <string name="ottai_ota_parameters_confirm">Écrire les coefficients et l’étalonnage d’usine pris en charge ? Cela modifie la configuration sans mettre à jour le micrologiciel ni démarrer la durée de vie du capteur.</string>
+    <string name="ottai_ota_check">Vérifier le micrologiciel (expérimental)</string>
+    <string name="ottai_ota_cloud_recheck">Revérifier avec l’authentification cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Authentification via votre compte Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Revérifier la disponibilité du firmware avec l’authentification du capteur par le serveur. Cela n’active pas le capteur et ne l’associe pas au compte.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Déconnectez d’abord ce capteur de la surveillance. Sa mise à jour peut effacer les mesures, réinitialiser sa durée de vie ou arrêter le capteur.</string>
+    <string name="ottai_ota_fresh_mode">Nouveau capteur</string>
+    <string name="ottai_ota_started_mode">Capteur déjà démarré</string>
+    <string name="ottai_ota_started_ready">Mise à jour prête pour le capteur démarré. Vérifiez les données initiales avant l’installation.</string>
+    <string name="ottai_ota_result_active">Micrologiciel mis à jour. Le capteur se déclare actif ; consultez la trace avant de reconnecter la surveillance.</string>
+    <string name="ottai_ota_result_ended">Micrologiciel mis à jour. Le capteur se déclare terminé ; consultez la trace.</string>
+    <string name="ottai_ota_result_reset">Micrologiciel mis à jour. Le capteur se déclare non activé ; aucune réactivation tentée.</string>
+    <string name="ottai_ota_started_confirm">Installer sur ce capteur déjà démarré ? Ses mesures et son état peuvent être effacés ou réinitialisés. Le test enregistre le résultat sans réactivation ni écriture des paramètres d’usine.</string>
+    <string name="ottai_ota_observation">%1$s · état %2$d · durée %3$s s · dernier enregistrement %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Avant</string>
+    <string name="ottai_ota_after">Après</string>
+
+    <string name="ottai_ota_discard">Abandonner le test du micrologiciel</string>
+    <string name="ottai_ota_discard_confirm">Supprimer le paquet enregistré et débloquer la connexion ? Cela ne restaure ni le micrologiciel ni les réglages précédents. Une écriture interrompue peut encore nécessiter une récupération.</string>
+    <string name="ottai_ota_pending">Un test de micrologiciel inachevé bloque la connexion. Ouvrez la récupération pour reprendre ou abandonner le test.</string>
+    <string name="ottai_ota_finish_preparation">Micrologiciel vérifié. Confirmez les paramètres usine pour terminer la configuration.</string>
+    <string name="ottai_ota_discard_failed">Impossible d’abandonner le test. Réessayez.</string>
 </resources>

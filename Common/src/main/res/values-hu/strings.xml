@@ -3162,4 +3162,49 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="settings_search_hint">Keresés a beállításokban</string>
     <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
     <string name="settings_search_clear">Keresés törlése</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Kísérleti firmware-teszt</string>
+    <string name="ottai_ota_warning">A sikertelen frissítés használhatatlanná teheti az érzékelőt. Tartsa nyitva ezt a képernyőt, és a telefont az érzékelő közelében.</string>
+    <string name="ottai_ota_connecting">Csatlakozás aktiválás nélkül…</string>
+    <string name="ottai_ota_authenticating">Az érzékelő azonosságának ellenőrzése…</string>
+    <string name="ottai_ota_checking">Firmware ellenőrzése és letöltése…</string>
+    <string name="ottai_ota_recovery">A helyreállítási csomag kész. A telepítés a mentett csomag elejéről indul újra.</string>
+    <string name="ottai_ota_ready">A firmware-csomag kész. Az érzékelő nincs aktiválva.</string>
+    <string name="ottai_ota_no_update">Nincs felajánlott firmware-frissítés</string>
+    <string name="ottai_ota_installing">Firmware telepítése…</string>
+    <string name="ottai_ota_reconnecting">Újracsatlakozás és a telepített verzió ellenőrzése…</string>
+    <string name="ottai_ota_preparing">Hitelesítő adatok frissítése és gyári paraméterek írása…</string>
+    <string name="ottai_ota_complete">Az előkészítés kész. Zárja be az ablakot, majd csatlakozzon a szokásos módon az aktiváláshoz.</string>
+    <string name="ottai_ota_failed">A teszt leállt. Újrapróbálás előtt ellenőrizze a nyomkövetési naplót. A befejezetlen frissítés blokkolja az aktiválást.</string>
+    <string name="ottai_ota_version">Érzékelő: %1$s · Frissítés: %2$s</string>
+    <string name="ottai_ota_package">%1$d bájt · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosztikai kód: %1$s</string>
+    <string name="ottai_ota_install">Firmware telepítése</string>
+    <string name="ottai_ota_parameters">Csak gyári paraméterek írása</string>
+    <string name="ottai_ota_confirm">Telepíti ezt a kísérleti frissítést? Az érzékelő végleg használhatatlanná válhat. Az aktiválás külön, a verzió és a gyári paraméterek ellenőrzése után történik.</string>
+    <string name="ottai_ota_parameters_confirm">Kiírja a támogatott gyári együtthatókat és kalibrációt? Ez firmware-frissítés és az élettartam indítása nélkül módosítja a beállításokat.</string>
+    <string name="ottai_ota_check">Firmware ellenőrzése (kísérleti)</string>
+    <string name="ottai_ota_cloud_recheck">Újraellenőrzés V3 felhőhitelesítéssel</string>
+    <string name="ottai_ota_cloud_authenticating">Hitelesítés az Ottai-fiókon keresztül…</string>
+    <string name="ottai_ota_cloud_recheck_hint">A firmware elérhetőségének újraellenőrzése szerveres szenzorhitelesítéssel. Ez nem aktiválja és nem köti a fiókhoz a szenzort.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Először válassza le az érzékelőt a megfigyelésről. Egy elindított érzékelő frissítése törölheti a méréseket, visszaállíthatja az élettartamot vagy leállíthatja az érzékelőt.</string>
+    <string name="ottai_ota_fresh_mode">Új érzékelő</string>
+    <string name="ottai_ota_started_mode">Elindított érzékelő</string>
+    <string name="ottai_ota_started_ready">Az elindított érzékelő frissítése kész. Telepítés előtt ellenőrizze a kiindulási adatokat.</string>
+    <string name="ottai_ota_result_active">Firmware frissítve. Az érzékelő aktív állapotot jelez; az újracsatlakoztatás előtt ellenőrizze a naplót.</string>
+    <string name="ottai_ota_result_ended">Firmware frissítve. Az érzékelő befejezett állapotot jelez; ellenőrizze a naplót.</string>
+    <string name="ottai_ota_result_reset">Firmware frissítve. Az érzékelő nincs aktiválva; nem történt újraaktiválási kísérlet.</string>
+    <string name="ottai_ota_started_confirm">Telepíti erre az elindított érzékelőre? A mérések és a működési állapot törlődhetnek vagy visszaállhatnak. A teszt újraaktiválás és gyári paraméterek írása nélkül rögzíti az eredményt.</string>
+    <string name="ottai_ota_observation">%1$s · állapot %2$d · élettartam %3$s s · utolsó rekord %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Előtte</string>
+    <string name="ottai_ota_after">Utána</string>
+
+    <string name="ottai_ota_discard">Firmware-teszt elvetése</string>
+    <string name="ottai_ota_discard_confirm">Törli a mentett csomagot és engedélyezi a kapcsolódást? Ez nem állítja vissza a korábbi firmware-t vagy beállításokat. A megszakadt írás még helyreállítást igényelhet.</string>
+    <string name="ottai_ota_pending">Egy befejezetlen firmware-teszt blokkolja a kapcsolódást. A folytatáshoz vagy elvetéshez nyissa meg a firmware helyreállítását.</string>
+    <string name="ottai_ota_finish_preparation">A firmware ellenőrizve. A beállítás befejezéséhez erősítse meg a gyári paraméterek írását.</string>
+    <string name="ottai_ota_discard_failed">A firmware-teszt nem vethető el. Próbálja újra.</string>
 </resources>

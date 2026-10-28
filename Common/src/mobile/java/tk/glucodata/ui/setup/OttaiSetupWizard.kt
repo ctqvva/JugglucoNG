@@ -89,6 +89,7 @@ import tk.glucodata.SensorBluetooth
 import tk.glucodata.drivers.ottai.OttaiBleManager
 import tk.glucodata.drivers.ottai.OttaiCloudClient
 import tk.glucodata.drivers.ottai.OttaiConstants
+import tk.glucodata.drivers.ottai.OttaiFirmwareSession
 import tk.glucodata.drivers.ottai.OttaiNfc
 import tk.glucodata.drivers.ottai.OttaiRegistry
 import tk.glucodata.ui.components.AppTopBar
@@ -163,6 +164,7 @@ private fun fetchOttaiMaterials(
     mac: String,
     deviceVersion: String? = null,
     historicalActiveTimeMs: Long = 0L,
+    allowBinding: Boolean = false,
 ): OttaiMaterialFetch {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return OttaiMaterialFetch(null) }
     OttaiRegistry.loadMaterials(context, canonical).takeIf { it.authKeys != null }
@@ -189,6 +191,8 @@ private fun fetchOttaiMaterials(
         return OttaiCloudClient.toMaterials(context, boundId, resp)?.takeIf { it.authKeys != null }
     }
     fun viaTemporaryBind(): OttaiRegistry.DeviceMaterials? {
+        // Selection/automatic lookup must never consume a fresh sensor's pre-bind OTA window.
+        if (!allowBinding) return null
         // Account-list selections supply the real version. Syai and global Ottai additionally
         // permit recovery of an expired sensor outside the signed-in account; allow their known
         // bind metadata only after validate explicitly returned OutOfProduceTime. Other manually
@@ -272,6 +276,15 @@ private fun ottaiMaterialFailureMessage(
  * Add + connect a sensor whose materials are already saved. This is called only from
  * the explicit setup action; [activate] arms the irreversible first-use sequence.
  */
+internal fun ottaiFirmwareEntryAvailable(signedIn: Boolean, sessionReady: Boolean,
+    hasAddress: Boolean, pending: Boolean): Boolean =
+    pending || (signedIn && sessionReady && hasAddress)
+
+internal fun ottaiConnectFailureMessage(context: Context, sensorId: String): String = context.getString(
+    if (OttaiFirmwareSession.hasPendingTransfer(context, sensorId)) R.string.ottai_ota_pending
+    else R.string.ottai_connect_failed,
+)
+
 private fun connectOttaiSensor(
     context: Context,
     mac: String,
@@ -280,6 +293,7 @@ private fun connectOttaiSensor(
     route: OttaiSetupConnectRoute,
 ): Boolean {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return false }
+    if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) return false
     val ble = OttaiConstants.normalizeBleAddress(
         bleAddress, allowPlain = false,
     ) ?: OttaiConstants.normalizeBleAddress(
@@ -531,6 +545,7 @@ fun OttaiSetupWizard(
     var currentMaterials by remember { mutableStateOf<OttaiRegistry.DeviceMaterials?>(null) }
     var materialLoading by remember { mutableStateOf(false) }
     var credentialBootstrap by remember { mutableStateOf<OttaiBleManager?>(null) }
+    var showFirmwareTest by remember { mutableStateOf(false) }
     var lastAutoFetchId by remember { mutableStateOf("") }
     var materialRefresh by remember { mutableStateOf(0) }
     // The account's sensors (current + past); null = not loaded yet, empty = none.
@@ -780,8 +795,8 @@ fun OttaiSetupWizard(
     // leaves that at WOKE and would not re-run this.
     // Once nothing here needs a wake (signed in to Ottai Global, or Global picked), setup must
     // let go of NFC: a held capture swallows the next Libre or pen tap.
-    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey) {
-        if (!nfcWakeListening) {
+    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey, showFirmwareTest) {
+        if (!nfcWakeListening || showFirmwareTest) {
             OttaiNfc.disarmSetup()
         } else if (step == OttaiSetupStep.SEARCH) {
             OttaiNfc.armForSetup()
@@ -1027,6 +1042,10 @@ fun OttaiSetupWizard(
         if (busy || materialLoading) return
         val canonical = OttaiConstants.canonicalSensorId(mac)
         cloudId = canonical
+        if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
+            showStatus(context.getString(R.string.ottai_ota_pending), error = true)
+            return
+        }
         busy = true
         showStatus("")
         materialLoading = false
@@ -1075,6 +1094,7 @@ fun OttaiSetupWizard(
                         canonical,
                         selected?.deviceVersion ?: selectedDeviceVersion,
                         selected?.bindTime ?: 0L,
+                        allowBinding = connectAfterCredentialFetch,
                     )
                 }.onFailure { Log.w(tag, "fetch credentials: ${it.message}") }.getOrNull()
             }
@@ -1084,6 +1104,13 @@ fun OttaiSetupWizard(
                 signedIn = signedIn,
             )
             if (route == OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP) {
+                if (!connectAfterCredentialFetch) {
+                    // Row selection may validate/read credentials, but server-auth + bindV3
+                    // belongs to an explicit Connect. Fresh OTA is available before that bind.
+                    selectedDeviceVersion = fetched?.validatedDeviceVersion.orEmpty()
+                    busy = false
+                    return@launch
+                }
                 val explicitBle = OttaiConstants.normalizeBleAddress(
                     selectedBleAddress,
                     allowPlain = false,
@@ -1128,7 +1155,7 @@ fun OttaiSetupWizard(
                                     showStatus("")
                                     step = OttaiSetupStep.CONNECTING
                                 } else {
-                                    showStatus(context.getString(R.string.ottai_connect_failed), error = true)
+                                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
                                     nfcScanRestartKey += 1
                                 }
                             }
@@ -1145,7 +1172,7 @@ fun OttaiSetupWizard(
                 if (credentialBootstrap == null) {
                     busy = false
                     materialLoading = false
-                    showStatus(context.getString(R.string.ottai_connect_failed), error = true)
+                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
                 }
                 return@launch
             }
@@ -1194,7 +1221,7 @@ fun OttaiSetupWizard(
                     savedRefresh += 1
                     step = OttaiSetupStep.CONNECTING
                 } else {
-                    showStatus(context.getString(R.string.ottai_connect_failed), error = true)
+                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
                     nfcScanRestartKey += 1
                 }
             } else if (materials != null) {
@@ -1202,7 +1229,7 @@ fun OttaiSetupWizard(
                 // Materials in hand and the connect still refused: that is a local
                 // registry failure, so the fetch message's offline routes would
                 // not help.
-                showStatus(context.getString(R.string.ottai_connect_failed), error = true)
+                showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
             } else {
                 busy = false
                 showStatus(ottaiMaterialFailureMessage(context, fetched?.failure), error = true)
@@ -1292,7 +1319,14 @@ fun OttaiSetupWizard(
             OttaiSetupStep.QR, OttaiSetupStep.SAVED_SENSORS, OttaiSetupStep.REGISTER -> step = OttaiSetupStep.SEARCH
         }
     }
-    BackHandler(onBack = goBack)
+    if (showFirmwareTest) {
+        OttaiFirmwareTestDialog(cloudId, bleAddress) {
+            showFirmwareTest = false
+            savedRefresh += 1
+            materialRefresh += 1
+        }
+    }
+    BackHandler(enabled = !showFirmwareTest, onBack = goBack)
 
     val onSignedIn: (String) -> Unit = {
         accountMessage = ""
@@ -1375,6 +1409,13 @@ fun OttaiSetupWizard(
                 }
             },
             onImport = launchImport,
+            onFirmware = if (!busy && !materialLoading && ottaiFirmwareEntryAvailable(signedIn,
+                OttaiCloudClient.loadOtaSession(context),
+                OttaiConstants.normalizeBleAddress(bleAddress) != null,
+                OttaiFirmwareSession.hasPendingTransfer(context, cloudId))) ({
+                OttaiSetupScanHold.stopPanelScans()
+                showFirmwareTest = true
+            }) else null,
             onSignIn = { openSignIn() },
             onExport = if (hasMaterials && hasSensorCode) {
                 {
@@ -1455,7 +1496,8 @@ fun OttaiSetupWizard(
                     OttaiSearchStep(
                         ui = ui,
                         restartKey = nfcScanRestartKey,
-                        enabled = !busy && !materialLoading,
+                        enabled = !busy && !materialLoading && !showFirmwareTest,
+                        scanPaused = showFirmwareTest,
                         selectedSensor = selectedSensor,
                         scrollRequest = searchScrollRequest,
                         focusSelectedSensor = focusSelectedSensor,
@@ -1639,6 +1681,7 @@ private fun OttaiSearchStep(
     ui: WizardUiMetrics,
     restartKey: Int,
     enabled: Boolean,
+    scanPaused: Boolean,
     selectedSensor: (@Composable () -> Unit)?,
     scrollRequest: Int,
     focusSelectedSensor: Boolean,
@@ -1705,8 +1748,8 @@ private fun OttaiSearchStep(
         }
     }
 
-    DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey) {
-        if (!scanPermissionGranted || !bluetoothEnabled) {
+    DisposableEffect(scanPermissionGranted, bluetoothEnabled, scanRetryKey, restartKey, scanPaused) {
+        if (scanPaused || !scanPermissionGranted || !bluetoothEnabled) {
             scanner.stopScan()
             scanStats = emptyMap()
             scanActive = false

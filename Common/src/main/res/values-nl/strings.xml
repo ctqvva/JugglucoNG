@@ -3136,4 +3136,49 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="settings_search_hint">Instellingen zoeken</string>
     <string name="settings_search_no_results">Geen instellingen gevonden voor ‘%1$s’</string>
     <string name="settings_search_clear">Zoekopdracht wissen</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimentele firmwaretest</string>
+    <string name="ottai_ota_warning">Een mislukte update kan de sensor onbruikbaar maken. Houd dit scherm open en de telefoon dicht bij de sensor.</string>
+    <string name="ottai_ota_connecting">Verbinden zonder activering…</string>
+    <string name="ottai_ota_authenticating">Sensoridentiteit controleren…</string>
+    <string name="ottai_ota_checking">Firmware controleren en downloaden…</string>
+    <string name="ottai_ota_recovery">Herstelpakket gereed. De installatie begint opnieuw met het opgeslagen pakket.</string>
+    <string name="ottai_ota_ready">Firmwarepakket gereed. De sensor is niet geactiveerd.</string>
+    <string name="ottai_ota_no_update">Geen firmwareupdate aangeboden</string>
+    <string name="ottai_ota_installing">Firmware installeren…</string>
+    <string name="ottai_ota_reconnecting">Opnieuw verbinden en de geïnstalleerde versie controleren…</string>
+    <string name="ottai_ota_preparing">Inloggegevens vernieuwen en fabrieksparameters schrijven…</string>
+    <string name="ottai_ota_complete">Voorbereiding voltooid. Sluit dit venster en verbind normaal om de sensor te activeren.</string>
+    <string name="ottai_ota_failed">Firmwaretest gestopt. Controleer het tracelogboek voordat je opnieuw probeert. Onvoltooide updates blokkeren activering.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
+    <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
+    <string name="ottai_ota_install">Firmware installeren</string>
+    <string name="ottai_ota_parameters">Alleen fabrieksparameters schrijven</string>
+    <string name="ottai_ota_confirm">Deze experimentele update installeren? Dit kan de sensor permanent uitschakelen. Activering volgt apart na controle van de versie en fabrieksparameters.</string>
+    <string name="ottai_ota_parameters_confirm">De ondersteunde fabriekscoëfficiënten en kalibratie schrijven? Dit wijzigt de configuratie zonder firmwareupdate of het starten van de levensduur.</string>
+    <string name="ottai_ota_check">Firmware controleren (experimenteel)</string>
+    <string name="ottai_ota_cloud_recheck">Opnieuw controleren met V3-cloudverificatie</string>
+    <string name="ottai_ota_cloud_authenticating">Verifiëren via je Ottai-account…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Controleer firmware opnieuw met sensorverificatie via de server. Dit activeert de sensor niet en koppelt hem niet aan het account.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Koppel deze sensor eerst los van de bewaking. Een update van een gestarte sensor kan metingen wissen, de levensduur resetten of de sensor beëindigen.</string>
+    <string name="ottai_ota_fresh_mode">Nieuwe sensor</string>
+    <string name="ottai_ota_started_mode">Gestarte sensor</string>
+    <string name="ottai_ota_started_ready">Update voor de gestarte sensor gereed. Controleer de beginwaarden vóór installatie.</string>
+    <string name="ottai_ota_result_active">Firmware bijgewerkt. De sensor meldt actief; controleer het tracelogboek voordat je de bewaking verbindt.</string>
+    <string name="ottai_ota_result_ended">Firmware bijgewerkt. De sensor meldt beëindigd; controleer het tracelogboek.</string>
+    <string name="ottai_ota_result_reset">Firmware bijgewerkt. De sensor meldt niet geactiveerd; er is geen heractivering geprobeerd.</string>
+    <string name="ottai_ota_started_confirm">Op deze gestarte sensor installeren? Metingen en bedrijfsstatus kunnen worden gewist of gereset. De test registreert het resultaat zonder heractivering of het schrijven van fabrieksparameters.</string>
+    <string name="ottai_ota_observation">%1$s · status %2$d · levensduur %3$s s · laatste record %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Voor</string>
+    <string name="ottai_ota_after">Na</string>
+
+    <string name="ottai_ota_discard">Firmwaretest verwijderen</string>
+    <string name="ottai_ota_discard_confirm">Opgeslagen pakket verwijderen en verbinding vrijgeven? Dit herstelt de vorige firmware of instellingen niet. Na een onderbroken update kan herstel nog nodig zijn.</string>
+    <string name="ottai_ota_pending">Een onvoltooide firmwaretest blokkeert de verbinding. Open firmwareherstel om de test te hervatten of te verwijderen.</string>
+    <string name="ottai_ota_finish_preparation">Firmware gecontroleerd. Bevestig de fabrieksparameters om de installatie af te ronden.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretest kon niet worden verwijderd. Probeer opnieuw.</string>
 </resources>

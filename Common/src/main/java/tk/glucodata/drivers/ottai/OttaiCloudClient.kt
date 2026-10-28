@@ -132,6 +132,8 @@ object OttaiCloudClient {
         val retainTime: Long,        // destruction value (ms) -> BLE p.E; 0 => server default
         val deviceVersion: String,
         val deviceId: Int,
+        val calibrationValueK: Double? = null,
+        val calibrationValueB: Double? = null,
     )
 
     data class DeviceValidation(
@@ -179,16 +181,21 @@ object OttaiCloudClient {
         shaInfo: String,
     ): String {
         val identity = sessionIdentity(profile)
-        return md5Hex(
-            identity.appName +
-                commonHeaderDeviceId(identity, deviceId) +
+        return cgmAuthVerifyIdentitySign(identity.appName, commonHeaderDeviceId(identity, deviceId),
+            timestampMillis, mac, paramStr, shaInfo)
+    }
+
+    /** Sign the exact outgoing identity, including its already-prefixed deviceId header. */
+    private fun cgmAuthVerifyIdentitySign(appName: String, headerDeviceId: String, timestampMillis: Long,
+        mac: String, paramStr: String, shaInfo: String): String = md5Hex(
+            appName +
+                headerDeviceId +
                 mac.uppercase(Locale.ROOT) +
                 paramStr.uppercase(Locale.ROOT) +
                 shaInfo.uppercase(Locale.ROOT) +
                 timestampMillis.toString() +
                 SEED,
         )
-    }
 
     internal fun cgmAuthVerifyRequestBody(
         mac: String,
@@ -982,6 +989,8 @@ object OttaiCloudClient {
             retainTime = vo.optLongLoose("retainTime"),
             deviceVersion = vo.optString("deviceVersion").orEmptyIfNull(),
             deviceId = vo.optInt("id", 0),
+            calibrationValueK = vo.optionalFiniteDouble("calibrationValueK"),
+            calibrationValueB = vo.optionalFiniteDouble("calibrationValueB"),
         )
     }
 
@@ -1011,8 +1020,104 @@ object OttaiCloudClient {
             preheatPeriodMs = resp.preheatPeriodTime,
             deviceVersion = resp.deviceVersion,
             deviceId = resp.deviceId,
+            calibrationValueK = resp.calibrationValueK,
+            calibrationValueB = resp.calibrationValueB,
         )
     }
+
+    internal data class OtaOffer(val downloadUrl: String?, val required: Boolean, val allowed: Boolean)
+
+    internal fun parseOtaOffer(json: JSONObject): OtaOffer {
+        val data = json.optJSONObject("data") ?: json.optJSONObject("result")
+            ?: throw IllegalArgumentException("ota_response")
+        require(data.has("requiredUpgrade") && data.has("allowUpgrade")) { "ota_flags" }
+        val url = data.optString("downloadUrl").takeIf { it.isNotBlank() && it != "null" }
+        return OtaOffer(url, data.getBoolean("requiredUpgrade"), data.getBoolean("allowUpgrade"))
+    }
+
+    /** A wizard's worker snapshots the issuing backend and account identity. */
+    internal class OtaClient(
+        private val apiBase: String,
+        private val accountHeaders: Map<String, String>,
+        private val openConnection: (String) -> HttpURLConnection = { target ->
+            (URL(target).openConnection() as HttpURLConnection).apply { instanceFollowRedirects = false }
+        },
+        private val userId: String = "",
+    ) {
+        constructor(ctx: Context) : this(
+            base(ctx), headers(ctx, now(), base(ctx)), userId = OttaiRegistry.loadUserId(ctx),
+        ) { require(loadOtaSession(ctx)) { "ota_session" } }
+        private var closed = false
+        init {
+            require(apiBase in setOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI))
+            require(accountHeaders["Authorization"].orEmpty().isNotBlank())
+        }
+
+        private fun request(method: String, path: String, query: Map<String, String> = emptyMap(), body: String? = null,
+            timestampMillis: Long = now()): JSONObject {
+            if (closed) throw OttaiOtaCloudException("cancelled")
+            val qs = query.entries.joinToString("&") { "${enc(it.key)}=${enc(it.value)}" }
+            val url = apiBase + OttaiConstants.PREFIX + path + if (qs.isEmpty()) "" else "?$qs"
+            val common = accountHeaders + mapOf("timestamp" to timestampMillis.toString(), "traceId" to UUID.randomUUID().toString())
+            val route = OttaiRegionalTransport.route(url, common) ?: throw OttaiOtaCloudException("ota_session")
+            val transport = OttaiRegionalTransport(route, common) { verb, target, payload, requestHeaders ->
+                rawRequest(verb, target, payload, requestHeaders, TIMEOUT_MS, openConnection)
+            }
+            // Each operation owns and clears its keys, including the post-transfer report.
+            return try { transport.requestChecked(method, body) } finally { transport.close() }
+        }
+
+        fun judgeOta(mac: String, firmware: String): OtaOffer = parseOtaOffer(request("GET",
+            OttaiConstants.EP_OTA_JUDGE, mapOf("mac" to mac, "deviceVersion" to firmware, "deviceType" to "cgm")))
+
+        /** Fresh V3 proof for the explicit recheck; never binds or issues activation commands. */
+        fun verifySensor(mac: String, deviceParam: ByteArray, deviceSignature: ByteArray): V3AuthMaterial {
+            val id = OttaiConstants.canonicalSensorId(mac)
+            require(OttaiConstants.looksLikeMac(id) && deviceParam.size == 68 && deviceSignature.size == 32) { "cloud_auth_parameter" }
+            val appName = accountHeaders["appName"].orEmpty()
+            val headerId = accountHeaders["deviceId"].orEmpty()
+            if (appName.isBlank() || headerId.isBlank()) throw OttaiOtaCloudException("ota_session")
+            val timestamp = now()
+            val param = OttaiCrypto.bytesToHex(deviceParam).uppercase(Locale.ROOT)
+            val signature = OttaiCrypto.bytesToHex(deviceSignature).uppercase(Locale.ROOT)
+            val sign = cgmAuthVerifyIdentitySign(appName, headerId, timestamp, id, param, signature)
+            val body = cgmAuthVerifyRequestBody(id, param, signature, sign, timestamp)
+            val response = request("POST", OttaiConstants.EP_CGM_AUTH_VERIFY.removePrefix(OttaiConstants.PREFIX),
+                body = body.toString(), timestampMillis = timestamp)
+            val data = response.optJSONObject("data") ?: response.optJSONObject("result")
+                ?: throw IllegalArgumentException("cloud_auth_material")
+            return V3AuthMaterial(data.optString("auth"), data.optString("shaInfo"),
+                data.optString("kb"), data.optString("cf"))
+        }
+
+        fun reportOtaSuccess(mac: String, source: String, target: String) {
+            request("POST", OttaiConstants.EP_OTA_REPORT, body = JSONObject().apply {
+                put("mac", mac)
+                put("sourceVersion", source)
+                put("targetVersion", target)
+                put("upgradeStatus", 1)
+                put("remark", "JugglucoNG experimental; version readback verified")
+            }.toString())
+        }
+
+        /** Explicit firmware preparation uses this client's account, without changing normal CN dispatch. */
+        fun bindMaterials(mac: String, firmware: String): DeviceResp {
+            if (userId.isBlank()) throw OttaiOtaCloudException("ota_session")
+            val body = bindRequestBody(mac, firmware, userId, now() / 1_000L, BindContract.V3)
+            return parseDeviceResp(request("POST", OttaiConstants.EP_BIND_V3.removePrefix(OttaiConstants.PREFIX),
+                body = body.toString())) ?: throw IllegalArgumentException("materials_refresh")
+        }
+        fun close() { closed = true }
+    }
+
+    internal fun supportsOtaSession(apiBase: String, profile: OttaiRegistry.SessionProfile, hasToken: Boolean): Boolean =
+        hasToken && supportsActiveAuth(apiBase, profile)
+
+    internal fun loadOtaSession(ctx: Context): Boolean =
+        supportsOtaSession(base(ctx), activeProfile(ctx, base(ctx)), OttaiRegistry.loadAccessToken(ctx).isNotBlank())
+
+    private fun JSONObject.optionalFiniteDouble(key: String): Double? =
+        if (!has(key) || isNull(key)) null else optDouble(key, Double.NaN).takeIf { it.isFinite() }
 
     // ---- HTTP ----
 
@@ -1376,7 +1481,7 @@ object OttaiCloudClient {
     ): CloudRequestResult {
         var legacyConnection: HttpURLConnection? = null
         return try {
-            val route = OttaiRegionalTransport.route(url)
+            val route = OttaiRegionalTransport.route(url, headers)
             val reply = if (route != null) {
                 val transport = OttaiRegionalTransport(route, headers) { verb, target, payload, common ->
                     rawRequest(verb, target, payload, common, timeoutMs, openConnection)

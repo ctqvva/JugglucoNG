@@ -3093,4 +3093,49 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Sök i inställningar</string>
     <string name="settings_search_no_results">Inga inställningar matchar ”%1$s”</string>
     <string name="settings_search_clear">Rensa sökning</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimentellt firmwaretest</string>
+    <string name="ottai_ota_warning">En misslyckad uppdatering kan göra sensorn obrukbar. Håll skärmen öppen och telefonen nära sensorn.</string>
+    <string name="ottai_ota_connecting">Ansluter utan aktivering…</string>
+    <string name="ottai_ota_authenticating">Verifierar sensorns identitet…</string>
+    <string name="ottai_ota_checking">Kontrollerar och hämtar firmware…</string>
+    <string name="ottai_ota_recovery">Återställningspaket klart. Installationen börjar om från det sparade paketets början.</string>
+    <string name="ottai_ota_ready">Firmwarepaket klart. Sensorn är inte aktiverad.</string>
+    <string name="ottai_ota_no_update">Ingen firmwareuppdatering erbjuds</string>
+    <string name="ottai_ota_installing">Installerar firmware…</string>
+    <string name="ottai_ota_reconnecting">Återansluter och kontrollerar installerad version…</string>
+    <string name="ottai_ota_preparing">Uppdaterar inloggningsuppgifter och skriver fabriksparametrar…</string>
+    <string name="ottai_ota_complete">Förberedelsen är klar. Stäng dialogrutan och anslut normalt för att aktivera sensorn.</string>
+    <string name="ottai_ota_failed">Testet stoppades. Kontrollera spårningsloggen innan du försöker igen. Ofullständiga uppdateringar blockerar aktivering.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Uppdatering: %2$s</string>
+    <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnostikkod: %1$s</string>
+    <string name="ottai_ota_install">Installera firmware</string>
+    <string name="ottai_ota_parameters">Skriv endast fabriksparametrar</string>
+    <string name="ottai_ota_confirm">Installera denna experimentella uppdatering? Sensorn kan sluta fungera permanent. Aktivering sker separat efter kontroll av version och fabriksparametrar.</string>
+    <string name="ottai_ota_parameters_confirm">Skriva de fabrikskoefficienter och kalibreringsvärden som stöds? Detta ändrar konfigurationen utan firmwareuppdatering eller start av sensorns livslängd.</string>
+    <string name="ottai_ota_check">Kontrollera firmware (experimentellt)</string>
+    <string name="ottai_ota_cloud_recheck">Kontrollera igen med V3-molnautentisering</string>
+    <string name="ottai_ota_cloud_authenticating">Autentiserar via ditt Ottai-konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Kontrollera firmware igen med serverbaserad sensorautentisering. Detta aktiverar inte sensorn och kopplar den inte till kontot.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Koppla först bort sensorn från övervakningen. Uppdatering av en startad sensor kan radera mätvärden, återställa livslängden eller avsluta sensorn.</string>
+    <string name="ottai_ota_fresh_mode">Ny sensor</string>
+    <string name="ottai_ota_started_mode">Startad sensor</string>
+    <string name="ottai_ota_started_ready">Uppdatering för startad sensor klar. Kontrollera utgångsvärdena före installation.</string>
+    <string name="ottai_ota_result_active">Firmware uppdaterad. Sensorn rapporterar aktiv; kontrollera spårningsloggen innan övervakningen ansluts igen.</string>
+    <string name="ottai_ota_result_ended">Firmware uppdaterad. Sensorn rapporterar avslutad; kontrollera spårningsloggen.</string>
+    <string name="ottai_ota_result_reset">Firmware uppdaterad. Sensorn rapporterar inte aktiverad; ingen återaktivering har försökts.</string>
+    <string name="ottai_ota_started_confirm">Installera på denna startade sensor? Mätvärden och driftstatus kan raderas eller återställas. Testet registrerar resultatet utan återaktivering eller skrivning av fabriksparametrar.</string>
+    <string name="ottai_ota_observation">%1$s · status %2$d · livslängd %3$s s · senaste post %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Före</string>
+    <string name="ottai_ota_after">Efter</string>
+
+    <string name="ottai_ota_discard">Kasta firmwaretest</string>
+    <string name="ottai_ota_discard_confirm">Ta bort det sparade paketet och tillåta anslutning? Detta återställer inte tidigare firmware eller inställningar. En avbruten skrivning kan fortfarande kräva återställning.</string>
+    <string name="ottai_ota_pending">Ett oavslutat firmwaretest blockerar anslutningen. Öppna firmwareåterställning för att återuppta eller kasta testet.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verifierad. Bekräfta fabriksparametrarna för att slutföra inställningen.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretestet kunde inte kastas. Försök igen.</string>
 </resources>

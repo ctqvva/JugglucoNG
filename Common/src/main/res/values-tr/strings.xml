@@ -3121,4 +3121,49 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="settings_search_hint">Ayarlarda ara</string>
     <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>
     <string name="settings_search_clear">Aramayı temizle</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Deneysel ürün yazılımı testi</string>
+    <string name="ottai_ota_warning">Başarısız bir güncelleme sensörü kullanılamaz hâle getirebilir. Bu ekranı açık tutun ve telefonu sensöre yakın tutun.</string>
+    <string name="ottai_ota_connecting">Etkinleştirmeden bağlanılıyor…</string>
+    <string name="ottai_ota_authenticating">Sensör kimliği doğrulanıyor…</string>
+    <string name="ottai_ota_checking">Ürün yazılımı denetleniyor ve indiriliyor…</string>
+    <string name="ottai_ota_recovery">Kurtarma paketi hazır. Kaydedilen paket baştan yüklenir.</string>
+    <string name="ottai_ota_ready">Ürün yazılımı hazır. Sensör etkinleştirilmedi.</string>
+    <string name="ottai_ota_no_update">Ürün yazılımı güncellemesi sunulmadı</string>
+    <string name="ottai_ota_installing">Ürün yazılımı yükleniyor…</string>
+    <string name="ottai_ota_reconnecting">Yeniden bağlanılıyor ve yüklü sürüm denetleniyor…</string>
+    <string name="ottai_ota_preparing">Kimlik bilgileri yenileniyor ve fabrika parametreleri yazılıyor…</string>
+    <string name="ottai_ota_complete">Hazırlık tamamlandı. Bu pencereyi kapatıp sensörü etkinleştirmek için normal şekilde bağlanın.</string>
+    <string name="ottai_ota_failed">Test durduruldu. Yeniden denemeden önce izleme günlüğünü kontrol edin. Tamamlanmamış güncellemeler etkinleştirmeyi engeller.</string>
+    <string name="ottai_ota_version">Sensör: %1$s · Güncelleme: %2$s</string>
+    <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Tanılama kodu: %1$s</string>
+    <string name="ottai_ota_install">Ürün yazılımını yükle</string>
+    <string name="ottai_ota_parameters">Yalnızca fabrika parametrelerini yaz</string>
+    <string name="ottai_ota_confirm">Bu deneysel güncelleme yüklensin mi? Sensör kalıcı olarak kullanılamaz hâle gelebilir. Sürüm ve fabrika parametreleri doğrulandıktan sonra ayrıca etkinleştirilir.</string>
+    <string name="ottai_ota_parameters_confirm">Desteklenen fabrika katsayıları ve kalibrasyon yazılsın mı? Bu işlem ürün yazılımını güncellemeden veya sensör ömrünü başlatmadan yapılandırmayı değiştirir.</string>
+    <string name="ottai_ota_check">Ürün yazılımını denetle (deneysel)</string>
+    <string name="ottai_ota_cloud_recheck">V3 bulut kimlik doğrulamasıyla yeniden denetle</string>
+    <string name="ottai_ota_cloud_authenticating">Ottai hesabınız üzerinden kimlik doğrulanıyor…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Sunucu aracılı sensör kimlik doğrulamasıyla bellenim kullanılabilirliğini yeniden denetleyin. Bu işlem sensörü etkinleştirmez veya hesaba bağlamaz.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Önce bu sensörün izleme bağlantısını kesin. Başlatılmış bir sensörü güncellemek okumaları silebilir, ömrünü sıfırlayabilir veya sensörü sonlandırabilir.</string>
+    <string name="ottai_ota_fresh_mode">Yeni sensör</string>
+    <string name="ottai_ota_started_mode">Başlatılmış sensör</string>
+    <string name="ottai_ota_started_ready">Başlatılmış sensör için güncelleme hazır. Yüklemeden önce başlangıç verilerini inceleyin.</string>
+    <string name="ottai_ota_result_active">Ürün yazılımı güncellendi. Sensör etkin olduğunu bildiriyor; izlemeye yeniden bağlamadan önce günlüğü inceleyin.</string>
+    <string name="ottai_ota_result_ended">Ürün yazılımı güncellendi. Sensör sona erdiğini bildiriyor; günlüğü inceleyin.</string>
+    <string name="ottai_ota_result_reset">Ürün yazılımı güncellendi. Sensör etkin olmadığını bildiriyor; yeniden etkinleştirme denenmedi.</string>
+    <string name="ottai_ota_started_confirm">Bu başlatılmış sensöre yüklensin mi? Okumalar ve çalışma durumu silinebilir veya sıfırlanabilir. Test, yeniden etkinleştirmeden veya fabrika parametrelerini yazmadan sonucu kaydeder.</string>
+    <string name="ottai_ota_observation">%1$s · durum %2$d · ömür %3$s sn · son kayıt %4$s · RTC %5$s sn</string>
+    <string name="ottai_ota_before">Önce</string>
+    <string name="ottai_ota_after">Sonra</string>
+
+    <string name="ottai_ota_discard">Firmware testini iptal et</string>
+    <string name="ottai_ota_discard_confirm">Kayıtlı paket silinsin ve bağlantı açılsın mı? Bu, önceki firmware veya ayarları geri yüklemez. Kesilen yazma işlemi hâlâ kurtarma gerektirebilir.</string>
+    <string name="ottai_ota_pending">Tamamlanmamış bir firmware testi bağlantıyı engelliyor. Sürdürmek veya iptal etmek için firmware kurtarmayı açın.</string>
+    <string name="ottai_ota_finish_preparation">Firmware doğrulandı. Kurulumu bitirmek için fabrika parametrelerini onaylayın.</string>
+    <string name="ottai_ota_discard_failed">Firmware testi iptal edilemedi. Tekrar deneyin.</string>
 </resources>

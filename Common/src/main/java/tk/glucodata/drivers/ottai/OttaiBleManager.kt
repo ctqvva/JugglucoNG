@@ -4053,6 +4053,11 @@ class OttaiBleManager(
     override fun requestActivation(): Boolean {
         val force = forceActivationRequested
         forceActivationRequested = false
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+            Log.w(TAG, "activation refused: finish the pending firmware test first")
+            return false
+        }
         if (!force && (effectiveActiveTimeMs() > 0L || activationCommandSentAtMs > 0L)) {
             Log.i(TAG, "activation request ignored — command already sent/start time known")
             activateRequestedFor = null
@@ -4138,6 +4143,11 @@ class OttaiBleManager(
     }
 
     private fun startActivationWrites(gatt: BluetoothGatt) {
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+            failActivation("pending firmware test")
+            return
+        }
         if (!activationNegotiationActive || maxActiveCandidatesMs.isEmpty()) {
             beginActivationNegotiation()
         }

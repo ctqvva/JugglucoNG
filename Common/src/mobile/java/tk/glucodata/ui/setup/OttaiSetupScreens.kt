@@ -344,6 +344,7 @@ internal fun OttaiSensorCard(
     onImport: () -> Unit,
     onSignIn: () -> Unit,
     onExport: (() -> Unit)? = null,
+    onFirmware: (() -> Unit)? = null,
     onSensorIdChange: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -438,6 +439,15 @@ internal fun OttaiSensorCard(
                         Text(connectLabel)
                     }
                 }
+            }
+            if (!loading && onFirmware != null) {
+                OutlinedButton(
+                    onClick = onFirmware,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) { Text(stringResource(R.string.ottai_ota_check)) }
             }
             AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
                 if (!loading && onExport != null) {
