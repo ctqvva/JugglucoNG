@@ -342,6 +342,49 @@ class OttaiFirmwareControllerTests {
         assertFalse(io.saved)
     }
 
+    @Test fun exactGlobalTraceRevisionStopsAtTheNullTerminatorBeforeTheCloudOffer() {
+        val bytes = OttaiCrypto.hexToBytes("45312e322e362856312e372e5348323631362e31292c53544452440047")
+        val revision = "E1.2.6(V1.7.SH2616.1),STDRD"
+        val (controller, io) = normal(version = revision, command = 3,
+            mode = OttaiFirmwareMode.STARTED_SENSOR, revisionBytes = bytes)
+        assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
+        assertEquals(revision, controller.state.firmware)
+        assertEquals(listOf(revision), io.offerVersions)
+        assertTrue(io.logs.contains("software_revision length=29 hex=45312e322e362856312e372e5348323631362e31292c53544452440047"))
+        assertEquals(2, io.writes.size) // Authentication only; installation still requires confirmation.
+        assertFalse(io.saved)
+    }
+
+    @Test fun terminatedRevisionWithBufferTailCanVerifyTheInstalledApplicationBuild() {
+        val (controller, io) = normal(version = "E1.2.6(V1.7.SH2616.1),STDRD", command = 3,
+            mode = OttaiFirmwareMode.STARTED_SENSOR, target = "V1.8.SH2700.1")
+        controller.install()
+        while (controller.state.stage == OttaiFirmwareStage.INSTALLING) { io.tick(); io.acknowledge() }
+        val answer = requireNotNull(io.readAnswer)
+        val readback = "E1.2.7(V1.8.SH2700.1),STDRD"
+        io.readAnswer = { ch -> if (ch == OttaiConstants.CHAR_SOFTWARE_VERSION)
+            readback.toByteArray() + byteArrayOf(0, 'G'.code.toByte()) else answer(ch) }
+        io.tick()
+        io.connected!!(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
+        repeat(2) { io.tick(); io.acknowledge() }
+        assertEquals(OttaiFirmwareStage.COMPLETE, controller.state.stage)
+        assertEquals(readback, controller.state.firmware)
+        assertTrue(io.reported)
+        assertTrue(io.cleared)
+    }
+
+    @Test fun emptyOrMalformedPrefixCannotUseBytesAfterTheNullTerminatorAsARevision() {
+        listOf("\u0000V1.7", "V1.\u00017\u0000G").forEach { raw ->
+            val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR,
+                revisionBytes = raw.toByteArray())
+            assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+            assertEquals("firmware_profile", controller.state.errorCode)
+            assertEquals(0, io.offerRequests)
+            assertTrue(io.writes.isEmpty())
+            assertFalse(io.saved)
+        }
+    }
+
     @Test fun compositeSourceRecoveryPreservesTheFullRevisionWithoutAnotherOffer() {
         val (controller, io) = normal(version = TEST_OTTAI_COMPOSITE_REVISION) {
             it.journal = image.copy(source = TEST_OTTAI_COMPOSITE_REVISION)

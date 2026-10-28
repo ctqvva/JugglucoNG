@@ -135,6 +135,10 @@ its separate provisioning flow.
 
 ## Transfer and recovery
 
+- The BLE revision is read up to its first NUL terminator. A Global field trace returned
+  `E1.2.6(V1.7.SH2616.1),STDRD` followed by `00 47`; bytes after `00` are excluded from
+  cloud offers, saved revision identity and reboot verification. The bounded raw hex
+  remains in the trace for diagnosis. Empty or malformed revision prefixes still fail.
 - CN 1.44's reported sequence is used: control `00`, exact file bytes on the data
   characteristic, then control `06`. Every write uses a response and waits for its callback.
   The finish byte is deliberately **not** guessed again as `03` on failure.
