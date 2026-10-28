@@ -215,16 +215,9 @@
  <string name="wifi">Wifi</string>
  <string name="heartrate">Heart rate</string>
     <string name="xdripbroadcast">Libre (patched App)</string>
-    <string name="aaps_broadcast">Glucodata</string>
-    <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
-    <string name="broadcast_computed_trend_title">Broadcast app trend</string>
-    <string name="broadcast_computed_trend_desc">Use the app’s trend instead of the sensor’s</string>
-    <string name="xdrip_compatible_title">xDrip broadcast</string>
-    <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="xdrip_report_as_libre2_title">Identify as Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Lets AAPS allow SMB always with this sensor. Turn on only if you trust its readings</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Send glucose readings to Health Connect for compatible health apps</string>
     <string name="sensorpermission">Sensors permission</string>
  <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
  <string name="floatglucose">Floating glucose</string>
@@ -523,7 +516,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_chart_title">Notification Chart</string>
     <string name="notification_chart_desc">Display glucose graph in notification bar</string>
     <string name="google_scan_desc">Use Google Play Services for QR scanning</string>
-    <string name="mirror_desc">Share/Receive data via Internet/Home Net</string>
     <string name="nightscout_desc">Send or receive readings</string>
     <string name="glucose_alerts_title">Alerts and alarms</string>
     <string name="glucose_range_title">Glucose range</string>
@@ -655,7 +647,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="advanced_title">Advanced</string>
     <string name="debug_logs">Debug logs</string>
-    <string name="nightscout_config">Nightscout config</string>
     
     <!-- LibreView Settings -->
     <string name="libreview_config">LibreView</string>
@@ -892,10 +883,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clean_history_confirm">Clear History?</string>
     <string name="clean_data_confirm">Clear App Data?</string>
     
-    <string name="turbo_title">Turbo (high priority)</string>
-    <string name="turbo_desc">Requests high connection priority</string>
-    <string name="autoconnect_title">AutoConnect</string>
-    <string name="autoconnect_desc">Uses passive background connection</string>
     <string name="graph_smoothing_title">Data smoothing</string>
     <string name="graph_smoothing_desc">Smooth chart data and, unless Smooth only graph is enabled, resolved glucose values</string>
     <string name="graph_smoothing_none">Disabled</string>
@@ -1808,7 +1795,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wearosinfo">Wearosinfo</string>
     <string name="wipe_sensor_data_desc">Delete sensor data from this device.</string>
     <string name="wipe_sensor_data_title">Wipe sensor data</string>
-    <string name="manual_calibration">Manual calibration</string>
 
 
 
@@ -2384,8 +2370,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_chart_pause_screen_off_summary">Redraws when the screen turns on. The chart may briefly be hidden.</string>
     <string name="notification_status_line_section">Status line</string>
     <string name="display_readouts_section">Dashboard readouts</string>
-    <string name="lock_screen_aod">Lock screen (AOD)</string>
-    <string name="aod_settings_title">AOD settings</string>
     <string name="aod_show_on_lockscreen">Show on the lock screen</string>
     <string name="aod_show_on_lockscreen_desc">Also show while the screen is on and locked</string>
     <string name="customize_always_on_display">Customize always-on display</string>
@@ -3291,24 +3275,54 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="other">%d minutes</item>
     </plurals>
     <!-- Settings tab -->
-    <string name="settings_watch_desc" translatable="false">WearOS, Watchdrip, GadgetBridge, Kerfstok</string>
+    <string name="settings_watch_desc" translatable="false">Wear OS · Garmin · Watchdrip · Gadgetbridge</string>
     <string name="settings_app_name_xdrip" translatable="false">xDrip+</string>
     <string name="settings_app_name_glucodata" translatable="false">Glucodata</string>
     <string name="settings_section_display">Display</string>
     <string name="settings_section_sharing">Sharing</string>
     <string name="settings_section_backup">Backup and restore</string>
     <string name="settings_section_devices">Devices</string>
+    <string name="settings_unit_title">Glucose unit</string>
+    <string name="settings_alerts_desc">Lows, highs, fast changes and signal loss</string>
+    <string name="settings_alerts_off_desc">All alerts are off</string>
+    <string name="settings_calibration_title">Calibration</string>
+    <string name="settings_calibration_desc">Fingerstick corrections · %1$s mode</string>
+    <string name="settings_smoothing_off_desc">Readings shown as measured</string>
+    <string name="settings_prediction_desc">Forecast glucose from trend, carbs and insulin</string>
     <string name="settings_dashboard_charts_title">Dashboard and charts</string>
-    <string name="settings_dashboard_charts_desc">Target range and colors</string>
+    <string name="settings_dashboard_charts_desc">Target range, colors and readouts</string>
+    <string name="settings_floating_desc">Current reading on top of other apps</string>
+    <string name="settings_floating_permission_desc">Needs permission to show over other apps</string>
+    <string name="settings_lock_screen_title">Lock screen (AOD)</string>
+    <string name="settings_lock_screen_desc">Current reading on the lock screen and always-on display</string>
+    <string name="settings_lock_screen_off_desc">Turned on in Accessibility settings</string>
+    <string name="settings_journal_desc">Meals, insulin, activity and notes</string>
     <string name="settings_phone_apps_title">Apps on this phone</string>
-    <string name="settings_phone_apps_none">None</string>
+    <string name="settings_phone_apps_none">Not sending to any app</string>
     <string name="settings_app_name_patched_libre">Patched Libre</string>
+    <string name="settings_mirror_desc">Send or receive readings between your devices</string>
+    <string name="settings_webserver_desc">Nightscout API on this phone</string>
     <string name="settings_sensor_connection_title">Connection and handover</string>
-    <string name="settings_sensor_connection_desc">Handover and Bluetooth</string>
-    <string name="settings_mq_account_desc">Account and sync</string>
-    <string name="settings_ottai_desc">Account and sensor setup</string>
+    <string name="settings_sensor_connection_desc">Sensor handover, Bluetooth priority and auto-connect</string>
+    <string name="settings_mq_account_desc">Account, server and sync for MQ sensors</string>
+    <string name="settings_ottai_desc">Account access and sensor setup</string>
+    <string name="settings_export_title">Export</string>
+    <string name="settings_import_title">Import</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+ broadcast</string>
+    <string name="settings_xdrip_broadcast_desc">For xDrip+ and AAPS</string>
+    <string name="settings_patched_libre_title">Patched Libre app broadcast</string>
+    <string name="settings_patched_libre_desc">For apps set to read the patched Libre app</string>
+    <string name="settings_glucodata_title">Glucodata broadcast</string>
+    <string name="settings_glucodata_desc">For GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Share readings with health apps</string>
     <string name="settings_broadcast_options">Broadcast options</string>
+    <string name="settings_app_trend_title">Send the app’s trend</string>
+    <string name="settings_app_trend_desc">Use the app’s trend arrow instead of the sensor’s</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">High connection priority</string>
+    <string name="settings_turbo_desc">Faster Bluetooth exchanges, at some battery cost</string>
+    <string name="settings_autoconnect_title">Auto-connect</string>
+    <string name="settings_autoconnect_desc">Let Android reconnect the sensor in the background</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_no_results">No settings match “%1$s”</string>

@@ -431,10 +431,6 @@
     <string name="alert_sound">Гук Трывогі</string>
     <string name="vibrate_only">Толькі Вібрацыя</string>
     <string name="sound_vibrate">Гук і Вібрацыя</string>
-    <string name="turbo_title">Турба (Высокі Прыярытэт)</string>
-    <string name="turbo_desc">Запытвае высокі прыярытэт злучэння</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Выкарыстоўвае пасіўнае фонавае злучэнне</string>
     <string name="graph_smoothing_title">Згладжванне даных</string>
     <string name="graph_smoothing_desc">Згладжвае даныя графіка і, калі не ўключана «Згладжваць толькі графік», разлічаныя значэнні глюкозы</string>
     <string name="graph_smoothing_none">Адключана</string>
@@ -559,7 +555,6 @@
     <string name="notification_chart_title">Паказваць графік у апавяшчэннях</string>
     <string name="notification_chart_desc">Адлюстроўваць графік глюкозы ў радку стану</string>
     <string name="google_scan_desc">Выкарыстоўваць сэрвісы Google Play для сканавання QR</string>
-    <string name="mirror_desc">Дзяліцца/атрымліваць дадзеныя праз Інтэрнэт/Хатнюю сетку</string>
     <string name="nightscout_desc">Адпраўка і атрыманне паказанняў</string>
     <string name="glucose_alerts_title">Апавяшчэнні і сігналы</string>
     <string name="glucose_range_title">Дыяпазон глюкозы</string>
@@ -683,7 +678,6 @@
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профіль гучнасці/вібрацыі</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Адсканіруйце матрыцу дадзеных на датчыку Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Налада Accu-Chek</string>
@@ -790,7 +784,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="finish_setup">Скончыць</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
     <string name="gvi">GVI</string>
@@ -884,7 +877,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="min">Мін</string>
     <string name="min_glucose">Мін</string>
     <string name="newdata">"New data"</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
@@ -993,12 +985,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Ідэнтыфікаваць як Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Дазваляе AAPS уключыць SMB always з гэтым датчыкам. Уключайце, толькі калі давяраеце яго паказанням</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Адпраўляць паказанні глюкозы ў Health Connect для сумяшчальных праграм здароўя</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1581,7 +1570,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="in_use">%1$s выкарыстоўваецца</string>
     <string name="initializing">Ініцыялізацыя</string>
     <string name="label">Пазнака</string>
-    <string name="manual_calibration">Ручная каліброўка</string>
     <string name="mirrorscansucces">Паспяхова дададзена злучэнне ў левае сярэдняе меню→Люстэрка.</string>
     <string name="no_sensors_found">Датчыкі не знойдзены</string>
     <string name="wear_libre_nfc_caveat">Сэнсары Libre спачатку актывуюцца праз NFC тэлефона. Пасля актывацыі гэты гадзіннік можа ўзяць працу на сябе.</string>
@@ -1853,8 +1841,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_use_for_calculation_subtitle">Дазваляе прапаноўваць дозу і вугляводы</string>
     <string name="notification_settings_title">Налады апавяшчэнняў</string>
     <string name="notification_settings_subtitle">Наладзьце шторку апавяшчэнняў</string>
-    <string name="lock_screen_aod">Экран блакіроўкі (AOD)</string>
-    <string name="aod_settings_title">Налады AOD</string>
     <string name="aod_show_on_lockscreen">Паказваць на экране блакіроўкі</string>
     <string name="aod_show_on_lockscreen_desc">Паказваць таксама, калі экран уключаны і заблакаваны</string>
     <string name="customize_always_on_display">Наладзьце заўсёды ўключаны экран</string>
@@ -2299,8 +2285,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Хуткае падзенне</string>
     <string name="alert_rising_fast">Хуткі рост</string>
-    <string name="broadcast_computed_trend_title">Перадаваць трэнд праграмы</string>
-    <string name="broadcast_computed_trend_desc">Выкарыстоўваць трэнд праграмы замест трэнду датчыка</string>
     <string name="dashboard_show_delta_desc">Вымеранае змяненне ў дэльта-інтэрвале пад стрэлкай трэнду</string>
     <string name="dashboard_show_delta_title">Дэльта (Δ) на прыборнай панэлі</string>
     <string name="delta_alarm_interval_follow">Як Δ (%1$d хв)</string>
@@ -3116,17 +3100,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_section_sharing">Абмен данымі</string>
     <string name="settings_section_backup">Рэзервовае капіраванне і аднаўленне</string>
     <string name="settings_section_devices">Прылады</string>
+    <string name="settings_unit_title">Адзінка глюкозы</string>
+    <string name="settings_alerts_desc">Нізкі, высокі, хуткія змены і страта сігналу</string>
+    <string name="settings_alerts_off_desc">Усе апавяшчэнні выключаны</string>
+    <string name="settings_calibration_title">Каліброўка</string>
+    <string name="settings_calibration_desc">Карэкцыя па глюкометры · рэжым %1$s</string>
+    <string name="settings_smoothing_off_desc">Значэнні паказваюцца як вымераныя</string>
+    <string name="settings_prediction_desc">Прагноз глюкозы па трэндзе, вугляводах і інсуліне</string>
     <string name="settings_dashboard_charts_title">Галоўны экран і графікі</string>
-    <string name="settings_dashboard_charts_desc">Мэтавы дыяпазон і колеры</string>
+    <string name="settings_dashboard_charts_desc">Мэтавы дыяпазон, колеры і паказчыкі</string>
+    <string name="settings_floating_desc">Бягучае значэнне па-над іншымі праграмамі</string>
+    <string name="settings_floating_permission_desc">Патрэбны дазвол на паказ па-над іншымі праграмамі</string>
+    <string name="settings_lock_screen_title">Экран блакіроўкі (AOD)</string>
+    <string name="settings_lock_screen_desc">Бягучае значэнне на экране блакіроўкі і Always-on Display</string>
+    <string name="settings_lock_screen_off_desc">Уключаецца ў наладах спецыяльных магчымасцей</string>
+    <string name="settings_journal_desc">Ежа, інсулін, актыўнасць і нататкі</string>
     <string name="settings_phone_apps_title">Праграмы на гэтым тэлефоне</string>
-    <string name="settings_phone_apps_none">Ніякіх</string>
+    <string name="settings_phone_apps_none">Ніводная праграма не атрымлівае даныя</string>
     <string name="settings_app_name_patched_libre">Патчаны Libre</string>
+    <string name="settings_mirror_desc">Адпраўка або атрыманне значэнняў паміж вашымі прыладамі</string>
+    <string name="settings_webserver_desc">API Nightscout на гэтым тэлефоне</string>
     <string name="settings_sensor_connection_title">Падключэнне і перадача</string>
-    <string name="settings_sensor_connection_desc">Перадача і Bluetooth</string>
-    <string name="settings_mq_account_desc">Акаўнт і сінхранізацыя</string>
-    <string name="settings_ottai_desc">Акаўнт і наладжванне сенсара</string>
+    <string name="settings_sensor_connection_desc">Перадача сенсара, прыярытэт Bluetooth і аўтападключэнне</string>
+    <string name="settings_mq_account_desc">Акаўнт, сервер і сінхранізацыя для сенсараў MQ</string>
+    <string name="settings_ottai_desc">Доступ да акаўнта і наладка сенсара</string>
+    <string name="settings_export_title">Экспарт</string>
+    <string name="settings_import_title">Імпарт</string>
+    <string name="settings_xdrip_broadcast_title">Трансляцыя xDrip+</string>
+    <string name="settings_xdrip_broadcast_desc">Для xDrip+ і AAPS</string>
+    <string name="settings_patched_libre_title">Трансляцыя патчанай праграмы Libre</string>
+    <string name="settings_patched_libre_desc">Для праграм, якія чытаюць патчаную праграму Libre</string>
+    <string name="settings_glucodata_title">Трансляцыя Glucodata</string>
+    <string name="settings_glucodata_desc">Для GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Дзяліцца значэннямі з праграмамі для здароўя</string>
     <string name="settings_broadcast_options">Параметры трансляцыі</string>
+    <string name="settings_app_trend_title">Адпраўляць трэнд праграмы</string>
+    <string name="settings_app_trend_desc">Выкарыстоўваць стрэлку трэнду праграмы замест сенсара</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Высокі прыярытэт падключэння</string>
+    <string name="settings_turbo_desc">Хутчэйшы абмен праз Bluetooth коштам крыху большага расходу батарэі</string>
+    <string name="settings_autoconnect_title">Аўтападключэнне</string>
+    <string name="settings_autoconnect_desc">Android сам перападключае сенсар у фоне</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Пошук у наладах</string>
     <string name="settings_search_no_results">Няма налад, падобных да «%1$s»</string>

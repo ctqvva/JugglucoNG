@@ -103,8 +103,8 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                 val bluetoothColor = MaterialTheme.colorScheme.onSurfaceVariant
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
-                        title = stringResource(R.string.turbo_title),
-                        subtitle = stringResource(R.string.turbo_desc),
+                        title = stringResource(R.string.settings_turbo_title),
+                        subtitle = stringResource(R.string.settings_turbo_desc),
                         checked = highPriority,
                         icon = Icons.Default.Speed,
                         iconTint = bluetoothColor,
@@ -112,8 +112,8 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         onCheckedChange = { SensorConnectionSettings.highPriority = it; highPriority = it }
                     )
                     SettingsSwitchItem(
-                        title = stringResource(R.string.autoconnect_title),
-                        subtitle = stringResource(R.string.autoconnect_desc),
+                        title = stringResource(R.string.settings_autoconnect_title),
+                        subtitle = stringResource(R.string.settings_autoconnect_desc),
                         checked = autoConnect,
                         icon = Icons.Default.Autorenew,
                         iconTint = bluetoothColor,

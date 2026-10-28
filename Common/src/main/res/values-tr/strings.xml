@@ -395,7 +395,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="notification_chart_title">Bildirimde grafiği göster</string>
     <string name="notification_chart_desc">Durum çubuğunda glikoz grafiğini göster</string>
     <string name="google_scan_desc">QR tarama için Google Play Hizmetlerini kullan</string>
-    <string name="mirror_desc">İnternet/Ev Ağı üzerinden veri paylaş/al</string>
     <string name="nightscout_desc">Ölçüm gönder veya al</string>
     <string name="glucose_alerts_title">Uyarılar ve alarmlar</string>
     <string name="glucose_range_title">Glukoz aralığı</string>
@@ -541,10 +540,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="alert_sound">Uyarı Sesi</string>
     <string name="vibrate_only">Sadece Titreşim</string>
     <string name="sound_vibrate">Ses ve Titreşim</string>
-    <string name="turbo_title">Turbo (Yüksek Öncelik)</string>
-    <string name="turbo_desc">Yüksek bağlantı önceliği ister</string>
-    <string name="autoconnect_title">Android (Otomatik Bağlan)</string>
-    <string name="autoconnect_desc">Pasif arka plan bağlantısı kullanır</string>
     <string name="graph_smoothing_title">Veri yumuşatma</string>
     <string name="graph_smoothing_desc">Grafik verilerini ve, “Yalnızca grafiği yumuşat” etkin değilse, çözümlenmiş glikoz değerlerini yumuşatır</string>
     <string name="graph_smoothing_none">Kapalı</string>
@@ -745,7 +740,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Ses/titresim profili</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Accu-Chek SmartGuide sensörünüzdeki veri matrisini tarayın</string>
     <string name="accuchek_setup_title">Accu-Chek Kurulumu</string>
@@ -840,7 +834,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="floatglucoseshort">@string/floatglucose</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="gvi">GVI</string>
     <string name="gvi_excellent">Mükemmel Stabilite</string>
     <string name="gvi_good">İyi Stabilite</string>
@@ -924,7 +917,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="min">Min.</string>
     <string name="min_glucose">Min.</string>
     <string name="newdata">"New data"</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
@@ -1022,12 +1014,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Libre 2 olarak tanıt</string>
     <string name="xdrip_report_as_libre2_desc">AAPS\'in bu sensörle SMB her zaman özelliğine izin vermesini sağlar. Yalnızca ölçümlerine güveniyorsanız açın</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Uyumlu sağlık uygulamaları için glikoz ölçümlerini Health Connect\'e gönder</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -2259,8 +2248,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Hızlı Düşmek</string>
     <string name="alert_rising_fast">Hızla Yükseliyor</string>
-    <string name="broadcast_computed_trend_title">Uygulama eğilimini yayınla</string>
-    <string name="broadcast_computed_trend_desc">Sensör eğilimi yerine uygulama eğilimini kullan</string>
     <string name="dashboard_show_delta_desc">Trend okunun altındaki delta aralığında ölçülen değişiklik</string>
     <string name="dashboard_show_delta_title">Gösterge tablosundaki Delta (Δ)</string>
     <string name="delta_alarm_interval_follow">Δ gibi (%1$d dk)</string>
@@ -3067,17 +3054,47 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="settings_section_sharing">Paylaşım</string>
     <string name="settings_section_backup">Yedekleme ve geri yükleme</string>
     <string name="settings_section_devices">Cihazlar</string>
+    <string name="settings_unit_title">Glikoz birimi</string>
+    <string name="settings_alerts_desc">Düşük, yüksek, hızlı değişim ve sinyal kaybı</string>
+    <string name="settings_alerts_off_desc">Tüm uyarılar kapalı</string>
+    <string name="settings_calibration_title">Kalibrasyon</string>
+    <string name="settings_calibration_desc">Parmak ucu düzeltmeleri · %1$s modu</string>
+    <string name="settings_smoothing_off_desc">Değerler ölçüldüğü gibi gösterilir</string>
+    <string name="settings_prediction_desc">Trend, karbonhidrat ve insüline göre glikoz tahmini</string>
     <string name="settings_dashboard_charts_title">Panel ve grafikler</string>
-    <string name="settings_dashboard_charts_desc">Hedef aralık ve renkler</string>
+    <string name="settings_dashboard_charts_desc">Hedef aralık, renkler ve göstergeler</string>
+    <string name="settings_floating_desc">Diğer uygulamaların üzerinde güncel değer</string>
+    <string name="settings_floating_permission_desc">Diğer uygulamaların üzerinde gösterme izni gerekli</string>
+    <string name="settings_lock_screen_title">Kilit ekranı (AOD)</string>
+    <string name="settings_lock_screen_desc">Kilit ekranında ve Always-on ekranda güncel değer</string>
+    <string name="settings_lock_screen_off_desc">Erişilebilirlik ayarlarından açılır</string>
+    <string name="settings_journal_desc">Öğünler, insülin, aktivite ve notlar</string>
     <string name="settings_phone_apps_title">Bu telefondaki uygulamalar</string>
-    <string name="settings_phone_apps_none">Hiçbiri</string>
+    <string name="settings_phone_apps_none">Hiçbir uygulamaya gönderilmiyor</string>
     <string name="settings_app_name_patched_libre">Yamalı Libre</string>
+    <string name="settings_mirror_desc">Cihazlarınız arasında değer gönderin veya alın</string>
+    <string name="settings_webserver_desc">Bu telefonda Nightscout API</string>
     <string name="settings_sensor_connection_title">Bağlantı ve devir</string>
-    <string name="settings_sensor_connection_desc">Devir ve Bluetooth</string>
-    <string name="settings_mq_account_desc">Hesap ve senkronizasyon</string>
-    <string name="settings_ottai_desc">Hesap ve sensör kurulumu</string>
+    <string name="settings_sensor_connection_desc">Sensör devri, Bluetooth önceliği ve otomatik bağlanma</string>
+    <string name="settings_mq_account_desc">MQ sensörleri için hesap, sunucu ve senkronizasyon</string>
+    <string name="settings_ottai_desc">Hesap erişimi ve sensör kurulumu</string>
+    <string name="settings_export_title">Dışa aktar</string>
+    <string name="settings_import_title">İçe aktar</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+ yayını</string>
+    <string name="settings_xdrip_broadcast_desc">xDrip+ ve AAPS için</string>
+    <string name="settings_patched_libre_title">Yamalı Libre uygulaması yayını</string>
+    <string name="settings_patched_libre_desc">Yamalı Libre uygulamasını okuyan uygulamalar için</string>
+    <string name="settings_glucodata_title">Glucodata yayını</string>
+    <string name="settings_glucodata_desc">GlucoDataHandler için</string>
+    <string name="settings_health_connect_desc">Değerleri sağlık uygulamalarıyla paylaşın</string>
     <string name="settings_broadcast_options">Yayın seçenekleri</string>
+    <string name="settings_app_trend_title">Uygulamanın trendini gönder</string>
+    <string name="settings_app_trend_desc">Sensörün yerine uygulamanın trend okunu kullan</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Yüksek bağlantı önceliği</string>
+    <string name="settings_turbo_desc">Daha hızlı Bluetooth iletişimi, biraz daha fazla pil kullanımı</string>
+    <string name="settings_autoconnect_title">Otomatik bağlanma</string>
+    <string name="settings_autoconnect_desc">Android sensörü arka planda yeniden bağlar</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Ayarlarda ara</string>
     <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>

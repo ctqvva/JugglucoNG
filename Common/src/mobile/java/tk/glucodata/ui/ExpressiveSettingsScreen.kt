@@ -149,7 +149,6 @@ fun ExpressiveSettingsScreen(
     val calibrationEnabled = remember(isRawCalibrationMode, sensorName, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawCalibrationMode, sensorName)
     }
-    val calibrationModeLabel = stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
     val freezeDisplayedValues by CalibrationManager.freezeDisplayedValues.collectAsStateWithLifecycle()
     val sealGraceHours by CalibrationManager.displaySealGraceHours.collectAsStateWithLifecycle()
     val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
@@ -252,7 +251,7 @@ fun ExpressiveSettingsScreen(
         ThemeMode.DARK -> stringResource(R.string.theme_dark)
     }
     val graphSmoothingLabel = if (chartSmoothingMinutes <= 0) {
-        stringResource(R.string.graph_smoothing_none)
+        stringResource(R.string.settings_smoothing_off_desc)
     } else {
         val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(chartSmoothingMinutes)
         buildList {
@@ -384,9 +383,9 @@ fun ExpressiveSettingsScreen(
                     onClick = { showLanguageDialog = true }
                 )
                 SettingsItem(
-                    title = stringResource(R.string.unit),
+                    title = stringResource(R.string.settings_unit_title),
                     subtitle = unit,
-                    icon = Icons.AutoMirrored.Filled.List,
+                    icon = Icons.Default.Straighten,
                     iconTint = generalColor,
                     position = CardPosition.MIDDLE,
                     onClick = { showUnitDialog = true }
@@ -409,7 +408,7 @@ fun ExpressiveSettingsScreen(
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.glucose_alerts_title),
                     subtitle = stringResource(
-                        if (alertsMasterEnabled) R.string.global_active else R.string.global_all_alerts_disabled
+                        if (alertsMasterEnabled) R.string.settings_alerts_desc else R.string.settings_alerts_off_desc
                     ),
                     checked = alertsMasterEnabled,
                     onCheckedChange = { viewModel.setAlertsMasterEnabled(it) },
@@ -419,12 +418,11 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.TOP,
                 )
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.manual_calibration),
-                    subtitle = "$calibrationModeLabel · ${
-                        stringResource(
-                            if (calibrationEnabled) R.string.enabled_status else R.string.disabled_status
-                        )
-                    }",
+                    title = stringResource(R.string.settings_calibration_title),
+                    subtitle = stringResource(
+                        R.string.settings_calibration_desc,
+                        stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
+                    ),
                     checked = calibrationEnabled,
                     onCheckedChange = {
                         CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
@@ -436,25 +434,11 @@ fun ExpressiveSettingsScreen(
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.journal_title),
-                    subtitle = stringResource(
-                        if (journalEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
+                    subtitle = stringResource(R.string.settings_journal_desc),
                     checked = journalEnabled,
                     onCheckedChange = { viewModel.setJournalEnabled(it) },
                     onClick = { navController.navigate("settings/journal") },
-                    icon = Icons.Default.Vaccines,
-                    iconTint = everydayColor,
-                    position = CardPosition.MIDDLE
-                )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.predictive_simulation_title),
-                    subtitle = stringResource(
-                        if (predictiveSimulationEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
-                    checked = predictiveSimulationEnabled,
-                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
-                    onClick = { navController.navigate("settings/predictive-simulation") },
-                    icon = Icons.AutoMirrored.Filled.ShowChart,
+                    icon = Icons.Default.EditNote,
                     iconTint = everydayColor,
                     position = CardPosition.BOTTOM
                 )
@@ -485,25 +469,13 @@ fun ExpressiveSettingsScreen(
                     iconTint = displayColor,
                     position = CardPosition.MIDDLE
                 )
-                // A reading's displayed value is a record, not a derivation —
-                // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
-                // current behaviour so the common question is answered in place;
-                // the body picks how long a value stays revisable, the switch
-                // turns keeping off.
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.freeze_displayed_values),
-                    subtitle = if (freezeDisplayedValues) {
-                        stringResource(
-                            R.string.freeze_displayed_values_after,
-                            pluralStringResource(R.plurals.duration_hours, sealGraceHours, sealGraceHours)
-                        )
-                    } else {
-                        stringResource(R.string.freeze_displayed_values_off)
-                    },
-                    checked = freezeDisplayedValues,
-                    onCheckedChange = { CalibrationManager.setFreezeDisplayedValues(it) },
-                    onClick = { showSealGraceDialog = true },
-                    icon = Icons.Default.Lock,
+                    title = stringResource(R.string.predictive_simulation_title),
+                    subtitle = stringResource(R.string.settings_prediction_desc),
+                    checked = predictiveSimulationEnabled,
+                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
+                    onClick = { navController.navigate("settings/predictive-simulation") },
+                    icon = Icons.AutoMirrored.Filled.ShowChart,
                     iconTint = displayColor,
                     position = CardPosition.MIDDLE
                 )
@@ -517,11 +489,10 @@ fun ExpressiveSettingsScreen(
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.floatglucose),
-                    subtitle = when {
-                        !floatingOverlayAllowed -> stringResource(R.string.floating_permission_required)
-                        floatingOverlayEnabled -> stringResource(R.string.enabled_status)
-                        else -> stringResource(R.string.disabled_status)
-                    },
+                    subtitle = stringResource(
+                        if (floatingOverlayAllowed) R.string.settings_floating_desc
+                        else R.string.settings_floating_permission_desc
+                    ),
                     checked = floatingOverlayEnabled,
                     // The overlay cannot start without the system grant, so the switch
                     // sends you to give it rather than flipping to a state it can't hold.
@@ -543,12 +514,11 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.MIDDLE
                 )
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.lock_screen_aod),
-                    subtitle = if (aodServiceEnabled) {
-                        stringResource(R.string.accessibility_service_enabled)
-                    } else {
-                        stringResource(R.string.open_accessibility_settings)
-                    },
+                    title = stringResource(R.string.settings_lock_screen_title),
+                    subtitle = stringResource(
+                        if (aodServiceEnabled) R.string.settings_lock_screen_desc
+                        else R.string.settings_lock_screen_off_desc
+                    ),
                     checked = aodServiceEnabled,
                     // The lock-screen overlay is an accessibility service: only the system
                     // settings screen can turn it on or off.
@@ -559,46 +529,9 @@ fun ExpressiveSettingsScreen(
                         )
                     },
                     onClick = { navController.navigate("settings/aod-display") },
-                    icon = Icons.Default.Visibility,
+                    icon = Icons.Default.ScreenLockPortrait,
                     iconTint = displayColor,
                     position = CardPosition.BOTTOM
-                )
-            }
-        }
-
-        // === DEVICES ===
-        item(key = "devices_label") { SectionLabel(stringResource(R.string.settings_section_devices)) }
-
-        item(key = "devices_group") {
-            val devicesColor = MaterialTheme.colorScheme.primary
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = stringResource(R.string.watches),
-                    subtitle = stringResource(R.string.settings_watch_desc),
-                    icon = Icons.Default.Devices,
-                    iconTint = devicesColor,
-                    position = CardPosition.TOP,
-                    onClick = { navController.navigate("settings/watch") }
-                )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.insulin_pens_title),
-                    subtitle = stringResource(
-                        if (insulinPensEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
-                    checked = insulinPensEnabled,
-                    onCheckedChange = { tk.glucodata.InsulinPenManager.setEnabled(it) },
-                    onClick = { navController.navigate("settings/insulin-pens") },
-                    icon = Icons.Default.Vaccines,
-                    iconTint = devicesColor,
-                    position = CardPosition.MIDDLE
-                )
-                SettingsItem(
-                    title = stringResource(R.string.meterlist),
-                    subtitle = stringResource(R.string.glucose_meters_desc),
-                    icon = Icons.Default.Bloodtype,
-                    iconTint = devicesColor,
-                    position = CardPosition.BOTTOM,
-                    onClick = { navController.navigate("settings/glucose-meters") }
                 )
             }
         }
@@ -618,10 +551,8 @@ fun ExpressiveSettingsScreen(
                     onClick = { navController.navigate("settings/phone-apps") }
                 )
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.nightscout_config),
-                    subtitle = stringResource(
-                        if (nightscoutActive) R.string.enabled_status else R.string.disabled_status
-                    ),
+                    title = stringResource(R.string.nightscout_settings_title),
+                    subtitle = stringResource(R.string.nightscout_desc),
                     checked = nightscoutActive,
                     onCheckedChange = {
                         setNightscoutActive(context, it)
@@ -656,7 +587,7 @@ fun ExpressiveSettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.mq_account_title),
                         subtitle = stringResource(R.string.settings_mq_account_desc),
-                        icon = Icons.Default.Cloud,
+                        icon = Icons.Default.AccountCircle,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/mq-account") }
@@ -674,7 +605,7 @@ fun ExpressiveSettingsScreen(
                 }
                 SettingsItem(
                     title = stringResource(R.string.mirror),
-                    subtitle = stringResource(R.string.mirror_desc),
+                    subtitle = stringResource(R.string.settings_mirror_desc),
                     icon = Icons.Default.Devices,
                     iconTint = sharingColor,
                     position = CardPosition.MIDDLE,
@@ -682,16 +613,14 @@ fun ExpressiveSettingsScreen(
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.webserver),
-                    subtitle = stringResource(
-                        if (webServerActive) R.string.enabled_status else R.string.disabled_status
-                    ),
+                    subtitle = stringResource(R.string.settings_webserver_desc),
                     checked = webServerActive,
                     onCheckedChange = {
                         Natives.setusexdripwebserver(it)
                         webServerActive = it
                     },
                     onClick = { navController.navigate("settings/webserver") },
-                    icon = Icons.Default.Language,
+                    icon = Icons.Default.Dns,
                     iconTint = sharingColor,
                     position = CardPosition.MIDDLE
                 )
@@ -702,6 +631,41 @@ fun ExpressiveSettingsScreen(
                     iconTint = sharingColor,
                     position = CardPosition.BOTTOM,
                     onClick = { navController.navigate("settings/outbound-api") }
+                )
+            }
+        }
+
+        // === DEVICES ===
+        item(key = "devices_label") { SectionLabel(stringResource(R.string.settings_section_devices)) }
+
+        item(key = "devices_group") {
+            val devicesColor = MaterialTheme.colorScheme.primary
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.watches),
+                    subtitle = stringResource(R.string.settings_watch_desc),
+                    icon = Icons.Default.Watch,
+                    iconTint = devicesColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/watch") }
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.insulin_pens_title),
+                    subtitle = stringResource(R.string.insulin_pens_desc),
+                    checked = insulinPensEnabled,
+                    onCheckedChange = { tk.glucodata.InsulinPenManager.setEnabled(it) },
+                    onClick = { navController.navigate("settings/insulin-pens") },
+                    icon = Icons.Default.Vaccines,
+                    iconTint = devicesColor,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsItem(
+                    title = stringResource(R.string.meterlist),
+                    subtitle = stringResource(R.string.glucose_meters_desc),
+                    icon = Icons.Default.Bloodtype,
+                    iconTint = devicesColor,
+                    position = CardPosition.BOTTOM,
+                    onClick = { navController.navigate("settings/glucose-meters") }
                 )
             }
         }
@@ -721,15 +685,15 @@ fun ExpressiveSettingsScreen(
                     onClick = { showScheduledBackupDialog = true }
                 )
                 SettingsItem(
-                    title = stringResource(R.string.export_data_settings),
+                    title = stringResource(R.string.settings_export_title),
                     subtitle = stringResource(R.string.export_data_settings_desc),
-                    icon = Icons.Default.CloudUpload,
+                    icon = Icons.Default.Upload,
                     iconTint = backupColor,
                     position = CardPosition.MIDDLE,
                     onClick = { showExportDialog = true }
                 )
                 SettingsItem(
-                    title = stringResource(R.string.import_data_settings),
+                    title = stringResource(R.string.settings_import_title),
                     subtitle = stringResource(R.string.import_data_settings_desc),
                     icon = Icons.Default.FolderOpen,
                     iconTint = backupColor,
@@ -766,8 +730,30 @@ fun ExpressiveSettingsScreen(
                     subtitle = stringResource(R.string.settings_sensor_connection_desc),
                     icon = Icons.Default.Bluetooth,
                     iconTint = advancedColor,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/sensor-connection") }
+                )
+                // A reading's displayed value is a record, not a derivation —
+                // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
+                // current behaviour so the common question is answered in place;
+                // the body picks how long a value stays revisable, the switch
+                // turns keeping off.
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.freeze_displayed_values),
+                    subtitle = if (freezeDisplayedValues) {
+                        stringResource(
+                            R.string.freeze_displayed_values_after,
+                            pluralStringResource(R.plurals.duration_hours, sealGraceHours, sealGraceHours)
+                        )
+                    } else {
+                        stringResource(R.string.freeze_displayed_values_off)
+                    },
+                    checked = freezeDisplayedValues,
+                    onCheckedChange = { CalibrationManager.setFreezeDisplayedValues(it) },
+                    onClick = { showSealGraceDialog = true },
+                    icon = Icons.Default.Lock,
+                    iconTint = advancedColor,
+                    position = CardPosition.BOTTOM
                 )
             }
         }

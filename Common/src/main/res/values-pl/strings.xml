@@ -418,7 +418,6 @@
     <string name="notification_chart_title">Pokaż wykres w powiadomieniach</string>
     <string name="notification_chart_desc">Wyświetl wykres glukozy w pasku stanu</string>
     <string name="google_scan_desc">Użyj usług Google Play do skanowania QR</string>
-    <string name="mirror_desc">Udostępnij/Odbieraj dane przez Internet/Sieć domową</string>
     <string name="nightscout_desc">Wysyłanie lub odbieranie odczytów</string>
     <string name="glucose_alerts_title">Alarmy i powiadomienia</string>
     <string name="glucose_range_title">Zakres glukozy</string>
@@ -564,10 +563,6 @@
     <string name="alert_sound">Dźwięk Alarmu</string>
     <string name="vibrate_only">Tylko Wibracja</string>
     <string name="sound_vibrate">Dźwięk i Wibracja</string>
-    <string name="turbo_title">Turbo (Wysoki Priorytet)</string>
-    <string name="turbo_desc">Żąda wysokiego priorytetu połączenia</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Używa pasywnego połączenia w tle</string>
     <string name="graph_smoothing_title">Wygładzanie danych</string>
     <string name="graph_smoothing_desc">Wygładza dane wykresu i, jeśli nie włączono „Wygładzaj tylko wykres”, obliczone wartości glukozy</string>
     <string name="graph_smoothing_none">Wyłączone</string>
@@ -768,7 +763,6 @@
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Profil glosnosci/wibracji</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Zeskanuj matrycę danych na czujniku Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Konfiguracja Accu-Chek</string>
@@ -859,7 +853,6 @@
     <string name="finish_setup">Zakończ</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="gvi">GVI</string>
     <string name="gvi_excellent">Doskonała stabilność</string>
     <string name="gvi_good">Dobra stabilność</string>
@@ -942,7 +935,6 @@
     <string name="min">Min</string>
     <string name="min_glucose">Min</string>
     <string name="newdata">"Nowe dane"</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
@@ -1029,12 +1021,9 @@
     <string name="very_low">Bardzo niski</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Zapisz!</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Identyfikuj jako Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Pozwala AAPS włączyć SMB zawsze dla tego sensora. Włącz tylko, jeśli ufasz jego odczytom</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Wysyłaj odczyty glukozy do Health Connect dla zgodnych aplikacji zdrowotnych</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -2266,8 +2255,6 @@
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Szybki spadek</string>
     <string name="alert_rising_fast">Szybko rośnie</string>
-    <string name="broadcast_computed_trend_title">Wysyłaj trend aplikacji</string>
-    <string name="broadcast_computed_trend_desc">Używaj trendu aplikacji zamiast trendu czujnika</string>
     <string name="dashboard_show_delta_desc">Zmierzona zmiana w przedziale delta, poniżej strzałki trendu</string>
     <string name="dashboard_show_delta_title">Delta (Δ) na desce rozdzielczej</string>
     <string name="delta_alarm_interval_follow">Jak Δ (%1$d min)</string>
@@ -3083,17 +3070,47 @@
     <string name="settings_section_sharing">Udostępnianie</string>
     <string name="settings_section_backup">Kopia zapasowa i przywracanie</string>
     <string name="settings_section_devices">Urządzenia</string>
+    <string name="settings_unit_title">Jednostka glukozy</string>
+    <string name="settings_alerts_desc">Niskie, wysokie, szybkie zmiany i utrata sygnału</string>
+    <string name="settings_alerts_off_desc">Wszystkie alarmy są wyłączone</string>
+    <string name="settings_calibration_title">Kalibracja</string>
+    <string name="settings_calibration_desc">Korekty z pomiaru z palca · tryb %1$s</string>
+    <string name="settings_smoothing_off_desc">Odczyty pokazywane tak, jak zmierzono</string>
+    <string name="settings_prediction_desc">Prognoza glukozy z trendu, węglowodanów i insuliny</string>
     <string name="settings_dashboard_charts_title">Pulpit i wykresy</string>
-    <string name="settings_dashboard_charts_desc">Zakres docelowy i kolory</string>
+    <string name="settings_dashboard_charts_desc">Zakres docelowy, kolory i wskaźniki</string>
+    <string name="settings_floating_desc">Bieżący odczyt nad innymi aplikacjami</string>
+    <string name="settings_floating_permission_desc">Wymaga uprawnienia do wyświetlania nad innymi aplikacjami</string>
+    <string name="settings_lock_screen_title">Ekran blokady (AOD)</string>
+    <string name="settings_lock_screen_desc">Bieżący odczyt na ekranie blokady i Always-on Display</string>
+    <string name="settings_lock_screen_off_desc">Włączane w ustawieniach ułatwień dostępu</string>
+    <string name="settings_journal_desc">Posiłki, insulina, aktywność i notatki</string>
     <string name="settings_phone_apps_title">Aplikacje na tym telefonie</string>
-    <string name="settings_phone_apps_none">Brak</string>
+    <string name="settings_phone_apps_none">Nie wysyła do żadnej aplikacji</string>
     <string name="settings_app_name_patched_libre">Zmodyfikowane Libre</string>
+    <string name="settings_mirror_desc">Wysyłaj lub odbieraj odczyty między swoimi urządzeniami</string>
+    <string name="settings_webserver_desc">API Nightscout na tym telefonie</string>
     <string name="settings_sensor_connection_title">Połączenie i przełączanie</string>
-    <string name="settings_sensor_connection_desc">Przełączanie i Bluetooth</string>
-    <string name="settings_mq_account_desc">Konto i synchronizacja</string>
-    <string name="settings_ottai_desc">Konto i konfiguracja czujnika</string>
+    <string name="settings_sensor_connection_desc">Przełączanie czujnika, priorytet Bluetooth i automatyczne łączenie</string>
+    <string name="settings_mq_account_desc">Konto, serwer i synchronizacja dla czujników MQ</string>
+    <string name="settings_ottai_desc">Dostęp do konta i konfiguracja czujnika</string>
+    <string name="settings_export_title">Eksport</string>
+    <string name="settings_import_title">Import</string>
+    <string name="settings_xdrip_broadcast_title">Broadcast xDrip+</string>
+    <string name="settings_xdrip_broadcast_desc">Dla xDrip+ i AAPS</string>
+    <string name="settings_patched_libre_title">Broadcast zmodyfikowanej aplikacji Libre</string>
+    <string name="settings_patched_libre_desc">Dla aplikacji czytających zmodyfikowaną aplikację Libre</string>
+    <string name="settings_glucodata_title">Broadcast Glucodata</string>
+    <string name="settings_glucodata_desc">Dla GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Udostępniaj odczyty aplikacjom zdrowotnym</string>
     <string name="settings_broadcast_options">Opcje broadcastu</string>
+    <string name="settings_app_trend_title">Wysyłaj trend aplikacji</string>
+    <string name="settings_app_trend_desc">Używaj strzałki trendu aplikacji zamiast czujnika</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Wysoki priorytet połączenia</string>
+    <string name="settings_turbo_desc">Szybsza wymiana Bluetooth kosztem nieco większego zużycia baterii</string>
+    <string name="settings_autoconnect_title">Automatyczne łączenie</string>
+    <string name="settings_autoconnect_desc">Android ponownie łączy czujnik w tle</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Szukaj w ustawieniach</string>
     <string name="settings_search_no_results">Brak ustawień pasujących do „%1$s”</string>

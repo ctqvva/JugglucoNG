@@ -338,7 +338,6 @@
     <string name="notification_chart_title">График в уведомлениях</string>
     <string name="notification_chart_desc">Показать график глюкозы</string>
     <string name="google_scan_desc">Использовать сервисы Google Play для сканирования QR</string>
-    <string name="mirror_desc">Делиться/Получать данные через Интернет/Домашнюю сеть</string>
     <string name="nightscout_desc">Отправка и получение показаний</string>
     <string name="glucose_alerts_title">Оповещения и сигналы</string>
     <string name="glucose_range_title">Диапазон глюкозы</string>
@@ -415,7 +414,6 @@
     <string name="theme_dark">Темная</string>
     <string name="advanced_title">Дополнительно</string>
     <string name="debug_logs">Журналы отладки</string>
-    <string name="nightscout_config">Конфигурация Nightscout</string>
     
     <!-- LibreView Settings -->
     <string name="libreview_config">LibreView</string>
@@ -585,10 +583,6 @@
     <string name="alert_sound">Звук тревоги</string>
     <string name="vibrate_only">Только вибрация</string>
     <string name="sound_vibrate">Звук и вибрация</string>
-    <string name="turbo_title">Турбо (Высокий приоритет)</string>
-    <string name="turbo_desc">Запрашивает высокий приоритет соединения</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Использует пассивное фоновое соединение</string>
     <string name="graph_smoothing_title">Сглаживание данных</string>
     <string name="graph_smoothing_desc">Сглаживает данные графика и, если не включено «Сглаживать только график», вычисленные значения глюкозы</string>
     <string name="graph_smoothing_none">Отключено</string>
@@ -817,7 +811,6 @@
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Профиль громкости/вибрации</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="accuchek_scan_instruction">Отсканируйте матрицу данных на датчике Accu-Chek SmartGuide.</string>
     <string name="accuchek_setup_title">Настройка Accu-Chek</string>
     <string name="afrezza">Afrezza</string>
@@ -899,7 +892,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="filesize">File size</string>
     <string name="finddevices">"Find devices"</string>
     <string name="finish_setup">Готово</string>
-    <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="gvi">GVI</string>
     <string name="gvi_excellent">Отлично</string>
@@ -1034,12 +1026,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="verylowglucose">" Very LOW glucose!"</string>
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="writedown">Write down!</string>
-    <string name="xdrip_compatible_desc">Совместимый с AAPS</string>
     <string name="xdrip_report_as_libre2_title">Представляться как Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Позволяет AAPS включить SMB always с этим датчиком. Включайте, только если доверяете его показаниям</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Отправлять показания глюкозы в Health Connect для совместимых приложений здоровья</string>
-    <string name="xdrip_compatible_title">Трансляция xDrip</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -1432,7 +1421,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wearosinfo">Wearosinfo</string>
     <string name="wipe_sensor_data_desc">Удалите данные датчика с этого устройства.</string>
     <string name="wipe_sensor_data_title">Стереть данные</string>
-    <string name="manual_calibration">Ручная калибровка</string>
 
 
 
@@ -1826,8 +1814,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_use_for_calculation_subtitle">Разрешает подсказки дозы и углеводов</string>
     <string name="notification_settings_title">Настройки уведомлений</string>
     <string name="notification_settings_subtitle">Настройте шторку уведомлений</string>
-    <string name="lock_screen_aod">Экран блокировки (AOD)</string>
-    <string name="aod_settings_title">Настройки AOD</string>
     <string name="aod_show_on_lockscreen">Показывать на экране блокировки</string>
     <string name="aod_show_on_lockscreen_desc">Показывать также, когда экран включён и заблокирован</string>
     <string name="customize_always_on_display">Настройте постоянно включенный экран</string>
@@ -2315,8 +2301,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Быстрое падение</string>
     <string name="alert_rising_fast">Быстрый рост</string>
-    <string name="broadcast_computed_trend_title">Передавать тренд приложения</string>
-    <string name="broadcast_computed_trend_desc">Использовать тренд приложения вместо тренда датчика</string>
     <string name="dashboard_show_delta_desc">Измеренное изменение в интервале дельта, ниже стрелки тренда.</string>
     <string name="dashboard_show_delta_title">Дельта (Δ) на приборной панели</string>
     <string name="delta_alarm_interval_follow">Как Δ (%1$d мин)</string>
@@ -3092,17 +3076,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_section_sharing">Обмен данными</string>
     <string name="settings_section_backup">Резервное копирование и восстановление</string>
     <string name="settings_section_devices">Устройства</string>
+    <string name="settings_unit_title">Единица глюкозы</string>
+    <string name="settings_alerts_desc">Низкий, высокий, быстрые изменения и потеря сигнала</string>
+    <string name="settings_alerts_off_desc">Все оповещения выключены</string>
+    <string name="settings_calibration_title">Калибровка</string>
+    <string name="settings_calibration_desc">Коррекция по глюкометру · режим %1$s</string>
+    <string name="settings_smoothing_off_desc">Значения показываются как измерены</string>
+    <string name="settings_prediction_desc">Прогноз глюкозы по тренду, углеводам и инсулину</string>
     <string name="settings_dashboard_charts_title">Главный экран и графики</string>
-    <string name="settings_dashboard_charts_desc">Целевой диапазон и цвета</string>
+    <string name="settings_dashboard_charts_desc">Целевой диапазон, цвета и показатели</string>
+    <string name="settings_floating_desc">Текущее значение поверх других приложений</string>
+    <string name="settings_floating_permission_desc">Нужно разрешение на показ поверх других приложений</string>
+    <string name="settings_lock_screen_title">Экран блокировки (AOD)</string>
+    <string name="settings_lock_screen_desc">Текущее значение на экране блокировки и Always-on Display</string>
+    <string name="settings_lock_screen_off_desc">Включается в настройках специальных возможностей</string>
+    <string name="settings_journal_desc">Еда, инсулин, активность и заметки</string>
     <string name="settings_phone_apps_title">Приложения на этом телефоне</string>
-    <string name="settings_phone_apps_none">Никакие</string>
+    <string name="settings_phone_apps_none">Ни одно приложение не получает данные</string>
     <string name="settings_app_name_patched_libre">Патченный Libre</string>
+    <string name="settings_mirror_desc">Отправка или приём значений между вашими устройствами</string>
+    <string name="settings_webserver_desc">API Nightscout на этом телефоне</string>
     <string name="settings_sensor_connection_title">Подключение и передача</string>
-    <string name="settings_sensor_connection_desc">Передача и Bluetooth</string>
-    <string name="settings_mq_account_desc">Аккаунт и синхронизация</string>
-    <string name="settings_ottai_desc">Аккаунт и настройка сенсора</string>
+    <string name="settings_sensor_connection_desc">Передача сенсора, приоритет Bluetooth и автоподключение</string>
+    <string name="settings_mq_account_desc">Аккаунт, сервер и синхронизация для сенсоров MQ</string>
+    <string name="settings_ottai_desc">Доступ к аккаунту и настройка сенсора</string>
+    <string name="settings_export_title">Экспорт</string>
+    <string name="settings_import_title">Импорт</string>
+    <string name="settings_xdrip_broadcast_title">Трансляция xDrip+</string>
+    <string name="settings_xdrip_broadcast_desc">Для xDrip+ и AAPS</string>
+    <string name="settings_patched_libre_title">Трансляция патченного приложения Libre</string>
+    <string name="settings_patched_libre_desc">Для приложений, читающих патченное приложение Libre</string>
+    <string name="settings_glucodata_title">Трансляция Glucodata</string>
+    <string name="settings_glucodata_desc">Для GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Делиться значениями с приложениями для здоровья</string>
     <string name="settings_broadcast_options">Параметры трансляции</string>
+    <string name="settings_app_trend_title">Отправлять тренд приложения</string>
+    <string name="settings_app_trend_desc">Использовать стрелку тренда приложения вместо сенсора</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Высокий приоритет подключения</string>
+    <string name="settings_turbo_desc">Более быстрый обмен по Bluetooth ценой небольшого расхода батареи</string>
+    <string name="settings_autoconnect_title">Автоподключение</string>
+    <string name="settings_autoconnect_desc">Android сам переподключает сенсор в фоне</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Поиск по настройкам</string>
     <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>

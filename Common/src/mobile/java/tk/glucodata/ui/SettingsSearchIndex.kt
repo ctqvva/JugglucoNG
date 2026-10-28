@@ -3,9 +3,9 @@ package tk.glucodata.ui
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddAlert
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Bloodtype
@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
@@ -24,12 +26,15 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Vaccines
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Webhook
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -107,9 +112,9 @@ internal object SettingsSearchIndex {
     private val ALERTS = TOP + R.string.glucose_alerts_title
     private val JOURNAL = TOP + R.string.journal_title
     private val DISPLAY = listOf(R.string.settings_section_display)
-    private val DEVICES = listOf(R.string.settings_section_devices)
     private val SHARING = listOf(R.string.settings_section_sharing)
     private val PHONE_APPS = SHARING + R.string.settings_phone_apps_title
+    private val DEVICES = listOf(R.string.settings_section_devices)
     private val BACKUP = listOf(R.string.settings_section_backup)
     private val ADVANCED = listOf(R.string.advanced_title)
     private val CONNECTION = ADVANCED + R.string.settings_sensor_connection_title
@@ -131,12 +136,13 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.theme_title, TOP, Icons.Default.DarkMode, P, action(SettingsSearchAction.THEME),
             keywords = listOf(R.string.theme_light, R.string.theme_dark)),
         SettingsSearchEntry(R.string.languagename, TOP, Icons.Default.Language, P, action(SettingsSearchAction.LANGUAGE)),
-        SettingsSearchEntry(R.string.unit, TOP, Icons.AutoMirrored.Filled.List, P, action(SettingsSearchAction.UNIT),
+        SettingsSearchEntry(R.string.settings_unit_title, TOP, Icons.Default.Straighten, P, action(SettingsSearchAction.UNIT),
             terms = listOf("mg/dL", "mmol/L")),
         SettingsSearchEntry(R.string.app_updates_title, TOP, Icons.Default.SystemUpdate, P, route("settings/app-updates")),
 
         // Everyday (second group, no label)
-        SettingsSearchEntry(R.string.glucose_alerts_title, TOP, Icons.Default.AddAlert, E, route("settings/alerts")),
+        SettingsSearchEntry(R.string.glucose_alerts_title, TOP, Icons.Default.AddAlert, E, route("settings/alerts"),
+            keywords = listOf(R.string.settings_alerts_desc)),
         SettingsSearchEntry(R.string.low_alerts_title, ALERTS, Icons.Default.AddAlert, E, route("settings/alerts"),
             keywords = listOf(R.string.alert_very_low, R.string.alert_forecast_low)),
         SettingsSearchEntry(R.string.high_alerts_title, ALERTS, Icons.Default.AddAlert, E, route("settings/alerts"),
@@ -150,23 +156,18 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.speakglucose, R.string.voice_schedule_title, R.string.voice_chime_title,
                 R.string.override_silent_mode),
             terms = listOf("TTS")),
-        SettingsSearchEntry(R.string.manual_calibration, TOP, Icons.Default.WaterDrop, P, route("settings/calibrations"),
+        SettingsSearchEntry(R.string.settings_calibration_title, TOP, Icons.Default.WaterDrop, P, route("settings/calibrations"),
             keywords = listOf(R.string.calibration_from_journal_title),
             terms = listOf("fingerstick")),
-        SettingsSearchEntry(R.string.journal_title, TOP, Icons.Default.Vaccines, P, route("settings/journal"),
-            keywords = listOf(R.string.journal_show_tab_title,
+        SettingsSearchEntry(R.string.journal_title, TOP, Icons.Default.EditNote, P, route("settings/journal"),
+            keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
                 R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title)),
-        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL, Icons.Default.Vaccines, P,
+        SettingsSearchEntry(R.string.journal_calculations_title, JOURNAL, Icons.Default.EditNote, P,
             route("settings/journal/calculations")),
-        SettingsSearchEntry(R.string.journal_food_library, JOURNAL, Icons.Default.Vaccines, P,
+        SettingsSearchEntry(R.string.journal_food_library, JOURNAL, Icons.Default.EditNote, P,
             route("settings/journal/foods")),
-        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL, Icons.Default.Vaccines, P,
+        SettingsSearchEntry(R.string.journal_insulin_library, JOURNAL, Icons.Default.EditNote, P,
             route("settings/journal/insulin")),
-        SettingsSearchEntry(R.string.predictive_simulation_title, TOP, Icons.AutoMirrored.Filled.ShowChart, P,
-            route("settings/predictive-simulation"),
-            keywords = listOf(R.string.predictive_trend_momentum,
-                R.string.predictive_forecast_horizon, R.string.predictive_notification_chart,
-                R.string.predictive_model_tuning)),
 
         // Display
         SettingsSearchEntry(R.string.settings_dashboard_charts_title, DISPLAY, Icons.Default.Palette, S, route("settings/display-colors"),
@@ -188,8 +189,11 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.graph_smoothing_title, DISPLAY, Icons.AutoMirrored.Filled.TrendingUp, S, route("settings/data-smoothing"),
             keywords = listOf(R.string.data_smoothing_window_title, R.string.data_smoothing_collapse_title,
                 R.string.data_smoothing_scope_title)),
-        SettingsSearchEntry(R.string.freeze_displayed_values, DISPLAY, Icons.Default.Lock, S,
-            action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
+        SettingsSearchEntry(R.string.predictive_simulation_title, DISPLAY, Icons.AutoMirrored.Filled.ShowChart, S,
+            route("settings/predictive-simulation"),
+            keywords = listOf(R.string.settings_prediction_desc, R.string.predictive_trend_momentum,
+                R.string.predictive_forecast_horizon, R.string.predictive_notification_chart,
+                R.string.predictive_model_tuning)),
         SettingsSearchEntry(R.string.notification_settings_title, DISPLAY, Icons.Default.ClearAll, S, route("settings/notification-display"),
             keywords = listOf(R.string.notification_settings_subtitle, R.string.typography)),
         SettingsSearchEntry(R.string.show_trend_arrow, DISPLAY + R.string.notification_settings_title,
@@ -205,42 +209,30 @@ internal object SettingsSearchIndex {
             Icons.Default.ClearAll, S, route("settings/notification-display"),
             keywords = listOf(R.string.notification_show_cob_title), terms = listOf("IOB", "COB")),
         SettingsSearchEntry(R.string.floatglucose, DISPLAY, Icons.Default.PictureInPicture, S, route("settings/floating-display"),
-            keywords = listOf(R.string.dynamic_island_mode, R.string.display_secondary_values),
+            keywords = listOf(R.string.settings_floating_desc, R.string.dynamic_island_mode, R.string.display_secondary_values),
             terms = listOf("overlay")),
-        SettingsSearchEntry(R.string.lock_screen_aod, DISPLAY, Icons.Default.Visibility, S, route("settings/aod-display"),
-            keywords = listOf(R.string.aod_show_on_lockscreen),
+        SettingsSearchEntry(R.string.settings_lock_screen_title, DISPLAY, Icons.Default.ScreenLockPortrait, S, route("settings/aod-display"),
+            keywords = listOf(R.string.settings_lock_screen_desc, R.string.aod_show_on_lockscreen),
             terms = listOf("AOD")),
-
-        // Devices
-        SettingsSearchEntry(R.string.watches, DEVICES, Icons.Default.Devices, P, route("settings/watch"),
-            terms = listOf("Wear OS", "WearOS", "Garmin", "Kerfstok", "Watchdrip", "Gadgetbridge")),
-        SettingsSearchEntry(R.string.wearos_config_title, DEVICES + R.string.watches, Icons.Default.Devices, P,
-            route("settings/watch/wearos-config"), terms = listOf("Wear OS")),
-        SettingsSearchEntry(R.string.garmin_status_title, DEVICES + R.string.watches, Icons.Default.Devices, P,
-            route("settings/watch/garmin-status"), terms = listOf("Kerfstok", "Connect IQ")),
-        SettingsSearchEntry(R.string.insulin_pens_title, DEVICES, Icons.Default.Vaccines, P, route("settings/insulin-pens"),
-            keywords = listOf(R.string.insulin_pens_desc), terms = listOf("NovoPen", "NFC")),
-        SettingsSearchEntry(R.string.meterlist, DEVICES, Icons.Default.Bloodtype, P, route("settings/glucose-meters"),
-            keywords = listOf(R.string.glucose_meters_desc)),
 
         // Sharing
         SettingsSearchEntry(R.string.settings_phone_apps_title, SHARING, Icons.Default.PhoneAndroid, T, route("settings/phone-apps"),
             terms = listOf("xDrip", "AAPS", "AndroidAPS", "GlucoDataHandler", "GDH", "Glucodata", "LibreLink", "broadcast")),
-        SettingsSearchEntry(R.string.xdrip_compatible_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
+        SettingsSearchEntry(R.string.settings_xdrip_broadcast_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), terms = listOf("AAPS", "AndroidAPS")),
-        SettingsSearchEntry(R.string.xdripbroadcast, PHONE_APPS, Icons.Default.PhoneAndroid, T,
+        SettingsSearchEntry(R.string.settings_patched_libre_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), terms = listOf("LibreLink")),
-        SettingsSearchEntry(R.string.aaps_broadcast, PHONE_APPS, Icons.Default.PhoneAndroid, T,
+        SettingsSearchEntry(R.string.settings_glucodata_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), terms = listOf("GlucoDataHandler", "GDH")),
         SettingsSearchEntry(R.string.health_connect_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), condition = SettingsSearchCondition.HEALTH_CONNECT),
         SettingsSearchEntry(R.string.xdrip_report_as_libre2_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
             route("settings/phone-apps"), terms = listOf("SMB", "AAPS"),
             condition = SettingsSearchCondition.LIBRE2_IDENTITY),
-        SettingsSearchEntry(R.string.broadcast_computed_trend_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
-            route("settings/phone-apps"), keywords = listOf(R.string.broadcast_computed_trend_desc),
+        SettingsSearchEntry(R.string.settings_app_trend_title, PHONE_APPS, Icons.Default.PhoneAndroid, T,
+            route("settings/phone-apps"), keywords = listOf(R.string.settings_app_trend_desc),
             condition = SettingsSearchCondition.APP_TREND),
-        SettingsSearchEntry(R.string.nightscout_config, SHARING, Icons.Default.CloudUpload, T, route("settings/nightscout"),
+        SettingsSearchEntry(R.string.nightscout_settings_title, SHARING, Icons.Default.CloudUpload, T, route("settings/nightscout"),
             keywords = listOf(R.string.nightscout_desc, R.string.nightscout_send_treatments,
                 R.string.nightscout_upload_iob, R.string.nightscout_receive_amounts, R.string.nightscout_use_v3_api)),
         SettingsSearchEntry(R.string.libreview_config, SHARING, Icons.Default.Cloud, T, route("settings/libreview"),
@@ -248,24 +240,36 @@ internal object SettingsSearchIndex {
             condition = SettingsSearchCondition.LIBREVIEW),
         SettingsSearchEntry(R.string.dexcom_share_title, SHARING, Icons.Default.CloudUpload, T, route("settings/dexcom-share"),
             keywords = listOf(R.string.dexcom_share_desc), condition = SettingsSearchCondition.DEXCOM_SHARE),
-        SettingsSearchEntry(R.string.mq_account_title, SHARING, Icons.Default.Cloud, T, route("settings/mq-account"),
+        SettingsSearchEntry(R.string.mq_account_title, SHARING, Icons.Default.AccountCircle, T, route("settings/mq-account"),
             keywords = listOf(R.string.settings_mq_account_desc), terms = listOf("Glutec"),
             condition = SettingsSearchCondition.MQ_ACCOUNT),
         SettingsSearchEntry(R.string.ottai_setup_title, SHARING, Icons.Default.Sensors, T, route("settings/ottai"),
             keywords = listOf(R.string.settings_ottai_desc), condition = SettingsSearchCondition.OTTAI),
         SettingsSearchEntry(R.string.mirror, SHARING, Icons.Default.Devices, T, route("settings/mirror"),
-            keywords = listOf(R.string.mirror_desc, R.string.mirror_send_data, R.string.mirror_receive_data),
+            keywords = listOf(R.string.settings_mirror_desc, R.string.mirror_send_data, R.string.mirror_receive_data),
             terms = listOf("clone", "follower", "QR")),
-        SettingsSearchEntry(R.string.webserver, SHARING, Icons.Default.Language, T, route("settings/webserver"),
-            terms = listOf("HTTP", "HTTPS", "17580")),
+        SettingsSearchEntry(R.string.webserver, SHARING, Icons.Default.Dns, T, route("settings/webserver"),
+            keywords = listOf(R.string.settings_webserver_desc), terms = listOf("HTTP", "HTTPS", "17580")),
         SettingsSearchEntry(R.string.outbound_api_title, SHARING, Icons.Default.Webhook, T, route("settings/outbound-api"),
             keywords = listOf(R.string.outbound_api_desc), terms = listOf("Telegram", "Slack", "webhook", "SMS")),
 
+        // Devices
+        SettingsSearchEntry(R.string.watches, DEVICES, Icons.Default.Watch, P, route("settings/watch"),
+            terms = listOf("Wear OS", "WearOS", "Garmin", "Kerfstok", "Watchdrip", "Gadgetbridge")),
+        SettingsSearchEntry(R.string.wearos_config_title, DEVICES + R.string.watches, Icons.Default.Watch, P,
+            route("settings/watch/wearos-config"), terms = listOf("Wear OS")),
+        SettingsSearchEntry(R.string.garmin_status_title, DEVICES + R.string.watches, Icons.Default.Watch, P,
+            route("settings/watch/garmin-status"), terms = listOf("Kerfstok", "Connect IQ")),
+        SettingsSearchEntry(R.string.insulin_pens_title, DEVICES, Icons.Default.Vaccines, P, route("settings/insulin-pens"),
+            keywords = listOf(R.string.insulin_pens_desc), terms = listOf("NovoPen", "NFC")),
+        SettingsSearchEntry(R.string.meterlist, DEVICES, Icons.Default.Bloodtype, P, route("settings/glucose-meters"),
+            keywords = listOf(R.string.glucose_meters_desc)),
+
         // Backup and restore
         SettingsSearchEntry(R.string.scheduled_backup_title, BACKUP, Icons.Default.Backup, S, action(SettingsSearchAction.BACKUPS)),
-        SettingsSearchEntry(R.string.export_data_settings, BACKUP, Icons.Default.CloudUpload, S, action(SettingsSearchAction.EXPORT),
+        SettingsSearchEntry(R.string.settings_export_title, BACKUP, Icons.Default.Upload, S, action(SettingsSearchAction.EXPORT),
             keywords = listOf(R.string.export_data_settings_desc), terms = listOf("CSV")),
-        SettingsSearchEntry(R.string.import_data_settings, BACKUP, Icons.Default.FolderOpen, S, action(SettingsSearchAction.IMPORT),
+        SettingsSearchEntry(R.string.settings_import_title, BACKUP, Icons.Default.FolderOpen, S, action(SettingsSearchAction.IMPORT),
             keywords = listOf(R.string.import_data_settings_desc), terms = listOf("CSV", "restore")),
 
         // Advanced
@@ -277,10 +281,12 @@ internal object SettingsSearchIndex {
             route("settings/sensor-connection"), keywords = listOf(R.string.settings_sensor_connection_desc)),
         SettingsSearchEntry(R.string.sensor_handover_title, CONNECTION, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection")),
-        SettingsSearchEntry(R.string.turbo_title, CONNECTION, Icons.Default.Bluetooth, N,
+        SettingsSearchEntry(R.string.settings_turbo_title, CONNECTION, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection"), terms = listOf("Turbo")),
-        SettingsSearchEntry(R.string.autoconnect_title, CONNECTION, Icons.Default.Bluetooth, N,
+        SettingsSearchEntry(R.string.settings_autoconnect_title, CONNECTION, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection"), terms = listOf("AutoConnect")),
+        SettingsSearchEntry(R.string.freeze_displayed_values, ADVANCED, Icons.Default.Lock, N,
+            action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
 
         // Danger zone: each of these asks for confirmation before it does anything.
         SettingsSearchEntry(R.string.clear_history, DANGER, Icons.Default.History, E, action(SettingsSearchAction.CLEAR_HISTORY)),

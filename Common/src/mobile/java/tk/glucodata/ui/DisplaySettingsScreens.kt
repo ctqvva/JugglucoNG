@@ -710,7 +710,7 @@ fun AodSettingsScreen(navController: NavController) {
 
     SettingsScreenScaffold(
         navController = navController,
-        title = stringResource(R.string.aod_settings_title)
+        title = stringResource(R.string.settings_lock_screen_title)
     ) {
         MasterSwitchCard(
             title = stringResource(R.string.enable_overlay_service),

@@ -79,8 +79,8 @@ fun PhoneAppsSettingsScreen(
             item(key = "apps") {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsSwitchItem(
-                        title = stringResource(R.string.xdrip_compatible_title),
-                        subtitle = stringResource(R.string.xdrip_compatible_desc),
+                        title = stringResource(R.string.settings_xdrip_broadcast_title),
+                        subtitle = stringResource(R.string.settings_xdrip_broadcast_desc),
                         checked = xdripEnabled,
                         icon = Icons.Default.Radio,
                         iconTint = appColor,
@@ -88,8 +88,8 @@ fun PhoneAppsSettingsScreen(
                         onCheckedChange = { viewModel.toggleXDripBroadcast(it) }
                     )
                     SettingsSwitchItem(
-                        title = stringResource(R.string.xdripbroadcast),
-                        subtitle = stringResource(R.string.patchedlibrebroadcast),
+                        title = stringResource(R.string.settings_patched_libre_title),
+                        subtitle = stringResource(R.string.settings_patched_libre_desc),
                         checked = patchedLibreEnabled,
                         icon = Icons.Default.Share,
                         iconTint = appColor,
@@ -97,8 +97,8 @@ fun PhoneAppsSettingsScreen(
                         onCheckedChange = { viewModel.togglePatchedLibreBroadcast(it) }
                     )
                     SettingsSwitchItem(
-                        title = stringResource(R.string.aaps_broadcast),
-                        subtitle = stringResource(R.string.glucodata_subtitle),
+                        title = stringResource(R.string.settings_glucodata_title),
+                        subtitle = stringResource(R.string.settings_glucodata_desc),
                         checked = glucodataBroadcastEnabled,
                         icon = Icons.AutoMirrored.Filled.Send,
                         iconTint = appColor,
@@ -108,7 +108,7 @@ fun PhoneAppsSettingsScreen(
                     if (healthConnectSupported) {
                         SettingsSwitchItem(
                             title = stringResource(R.string.health_connect_title),
-                            subtitle = stringResource(R.string.health_connect_desc),
+                            subtitle = stringResource(R.string.settings_health_connect_desc),
                             checked = healthConnectEnabled,
                             icon = Icons.Default.HealthAndSafety,
                             iconTint = appColor,
@@ -141,8 +141,8 @@ fun PhoneAppsSettingsScreen(
                         }
                         if (showAppTrend) {
                             SettingsSwitchItem(
-                                title = stringResource(R.string.broadcast_computed_trend_title),
-                                subtitle = stringResource(R.string.broadcast_computed_trend_desc),
+                                title = stringResource(R.string.settings_app_trend_title),
+                                subtitle = stringResource(R.string.settings_app_trend_desc),
                                 checked = broadcastComputedTrend,
                                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                                 iconTint = appColor,

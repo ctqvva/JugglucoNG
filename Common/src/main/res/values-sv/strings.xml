@@ -343,7 +343,6 @@
     <string name="notification_chart_title">Visa diagram i meddelande</string>
     <string name="notification_chart_desc">Visa glukosdiagram i statusfältet</string>
     <string name="google_scan_desc">Använd Google Play Services för QR-skanning</string>
-    <string name="mirror_desc">Dela/Ta emot data via Internet/Hemnätverk</string>
     <string name="nightscout_desc">Skicka eller ta emot värden</string>
     <string name="glucose_alerts_title">Varningar och larm</string>
     <string name="glucose_range_title">Glukosintervall</string>
@@ -489,10 +488,6 @@
     <string name="alert_sound">Larm ljud</string>
     <string name="vibrate_only">Endast vibration</string>
     <string name="sound_vibrate">Ljud &amp; Vibration</string>
-    <string name="turbo_title">Turbo (Hög Prioritet)</string>
-    <string name="turbo_desc">Begär hög anslutningsprioritet</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Använder passiv bakgrundsanslutning</string>
     <string name="graph_smoothing_title">Datautjämning</string>
     <string name="graph_smoothing_desc">Jämnar ut diagramdata och, om inte Jämna bara ut diagrammet är aktiverat, beräknade glukosvärden</string>
     <string name="graph_smoothing_none">Avstängd</string>
@@ -693,7 +688,6 @@
     <string name="time_range_summary">%1$s - %2$s</string>
     <string name="volume_vibration_profile">Volym-/vibrationsprofil</string>
     <string name="ICE">ICE</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Skanna datamatrisen på din Accu-Chek SmartGuide-sensor</string>
     <string name="accuchek_setup_title">Accu-Chek inställning</string>
@@ -797,7 +791,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="finish_setup">Avsluta</string>
     <string name="forget_sensor_desc">This will remove the sensor from the list. It may reappear if scanned again.</string>
     <string name="forget_sensor_title">Forget Sensor?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
     <string name="gvi">GVI</string>
@@ -889,7 +882,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="min">Min</string>
     <string name="min_glucose">Min</string>
     <string name="newdata">"New data"</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
     <string name="no_sensor_title">No Sensor Connected</string>
@@ -994,12 +986,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="verylowglucosealarm">Very low glucose alarm</string>
     <string name="wipe_data">Wipe sensor data</string>
     <string name="writedown">Write down!</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Identifiera som Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Låter AAPS tillåta SMB alltid med den här sensorn. Aktivera bara om du litar på dess värden</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Skicka glukosvärden till Health Connect för kompatibla hälsoappar</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="zero">0</string>
 
     <!-- Auto-added formatted strings -->
@@ -2231,8 +2220,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Faller snabbt</string>
     <string name="alert_rising_fast">stiger snabbt</string>
-    <string name="broadcast_computed_trend_title">Sänd appens trend</string>
-    <string name="broadcast_computed_trend_desc">Använd appens trend i stället för sensorns</string>
     <string name="dashboard_show_delta_desc">Uppmätt förändring över deltaintervallet, under trendpilen</string>
     <string name="dashboard_show_delta_title">Delta (Δ) på instrumentbrädan</string>
     <string name="delta_alarm_interval_follow">Som Δ (%1$d min)</string>
@@ -3039,17 +3026,47 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_section_sharing">Delning</string>
     <string name="settings_section_backup">Säkerhetskopiering och återställning</string>
     <string name="settings_section_devices">Enheter</string>
+    <string name="settings_unit_title">Glukosenhet</string>
+    <string name="settings_alerts_desc">Låga, höga, snabba förändringar och signalförlust</string>
+    <string name="settings_alerts_off_desc">Alla varningar är avstängda</string>
+    <string name="settings_calibration_title">Kalibrering</string>
+    <string name="settings_calibration_desc">Korrigering med fingerstick · %1$s-läge</string>
+    <string name="settings_smoothing_off_desc">Värden visas som de mättes</string>
+    <string name="settings_prediction_desc">Glukosprognos från trend, kolhydrater och insulin</string>
     <string name="settings_dashboard_charts_title">Översikt och diagram</string>
-    <string name="settings_dashboard_charts_desc">Målområde och färger</string>
+    <string name="settings_dashboard_charts_desc">Målintervall, färger och visningar</string>
+    <string name="settings_floating_desc">Aktuellt värde ovanpå andra appar</string>
+    <string name="settings_floating_permission_desc">Behöver behörighet att visas ovanpå andra appar</string>
+    <string name="settings_lock_screen_title">Låsskärm (AOD)</string>
+    <string name="settings_lock_screen_desc">Aktuellt värde på låsskärmen och alltid på-skärmen</string>
+    <string name="settings_lock_screen_off_desc">Aktiveras i tillgänglighetsinställningarna</string>
+    <string name="settings_journal_desc">Måltider, insulin, aktivitet och anteckningar</string>
     <string name="settings_phone_apps_title">Appar på den här telefonen</string>
-    <string name="settings_phone_apps_none">Inga</string>
+    <string name="settings_phone_apps_none">Skickar inte till någon app</string>
     <string name="settings_app_name_patched_libre">Patchad Libre</string>
+    <string name="settings_mirror_desc">Skicka eller ta emot värden mellan dina enheter</string>
+    <string name="settings_webserver_desc">Nightscout-API på den här telefonen</string>
     <string name="settings_sensor_connection_title">Anslutning och sensorbyte</string>
-    <string name="settings_sensor_connection_desc">Sensorbyte och Bluetooth</string>
-    <string name="settings_mq_account_desc">Konto och synkronisering</string>
-    <string name="settings_ottai_desc">Konto och sensorinställning</string>
+    <string name="settings_sensor_connection_desc">Sensorbyte, Bluetooth-prioritet och automatisk anslutning</string>
+    <string name="settings_mq_account_desc">Konto, server och synkronisering för MQ-sensorer</string>
+    <string name="settings_ottai_desc">Kontoåtkomst och sensorinställning</string>
+    <string name="settings_export_title">Exportera</string>
+    <string name="settings_import_title">Importera</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+-sändning</string>
+    <string name="settings_xdrip_broadcast_desc">För xDrip+ och AAPS</string>
+    <string name="settings_patched_libre_title">Sändning från patchad Libre-app</string>
+    <string name="settings_patched_libre_desc">För appar som läser den patchade Libre-appen</string>
+    <string name="settings_glucodata_title">Glucodata-sändning</string>
+    <string name="settings_glucodata_desc">För GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Dela värden med hälsoappar</string>
     <string name="settings_broadcast_options">Sändningsalternativ</string>
+    <string name="settings_app_trend_title">Skicka appens trend</string>
+    <string name="settings_app_trend_desc">Använd appens trendpil i stället för sensorns</string>
     <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Hög anslutningsprioritet</string>
+    <string name="settings_turbo_desc">Snabbare Bluetooth-utbyte, till priset av lite batteri</string>
+    <string name="settings_autoconnect_title">Automatisk anslutning</string>
+    <string name="settings_autoconnect_desc">Android återansluter sensorn i bakgrunden</string>
     <!-- Settings search -->
     <string name="settings_search_hint">Sök i inställningar</string>
     <string name="settings_search_no_results">Inga inställningar matchar ”%1$s”</string>
