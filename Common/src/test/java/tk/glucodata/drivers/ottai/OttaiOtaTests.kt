@@ -270,6 +270,7 @@ class OttaiFirmwareControllerTests {
         mode: OttaiFirmwareMode = OttaiFirmwareMode.PREACTIVATION,
         target: String = "V1.8.1",
         revisionBytes: ByteArray? = null,
+        withoutKeys: Boolean = false,
         configure: (FakeIo) -> Unit = {}): Pair<OttaiFirmwareController, FakeIo> {
         val io = FakeIo(image.copy(source = version, target = target))
         io.commandStatus = command
@@ -307,11 +308,94 @@ class OttaiFirmwareControllerTests {
                 else -> error("unexpected characteristic")
             }
         }
-        val controller = OttaiFirmwareController("AABBCCDDEEFF", materials.copy(deviceVersion = version), io, mode) {}
+        val controller = OttaiFirmwareController("AABBCCDDEEFF", materials.copy(deviceVersion = version,
+            keyAHex = if (withoutKeys) "" else materials.keyAHex), io, mode) {}
         controller.start()
         io.connected!!(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
         if (!badSignature && controller.state.stage == OttaiFirmwareStage.AUTHENTICATING) repeat(2) { io.tick(); io.acknowledge() }
         return controller to io
+    }
+
+    private fun finishFreshCloudAuth(io: FakeIo) {
+        io.cloudVerify!!(Result.success(io.cloudProof))
+        repeat(2) { io.tick(); io.acknowledge() }
+        io.tick() // Settle, rediscover, check unactivated state, then judge. Never bind.
+    }
+
+    @Test fun freshOtaChecksAndFlashesBeforeBindingThenUsesLocalAuthForCalibration() {
+        val (controller, io) = normal(withoutKeys = true)
+        assertEquals(OttaiFirmwareStage.CLOUD_AUTHENTICATING, controller.state.stage)
+        assertEquals(1, io.cloudVerifyRequests)
+        assertEquals(0, io.offerRequests)
+        assertNull(io.refresh)
+        assertTrue(io.writes.isEmpty())
+        finishFreshCloudAuth(io)
+        assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
+        assertEquals(listOf(2), io.offerWriteCounts)
+        assertNull(io.refresh)
+        controller.install()
+        while (controller.state.stage == OttaiFirmwareStage.INSTALLING) { io.tick(); io.acknowledge() }
+        assertTrue(io.saved)
+        assertNull(io.refresh)
+        val answer = requireNotNull(io.readAnswer)
+        io.readAnswer = { ch -> if (ch == OttaiConstants.CHAR_SOFTWARE_VERSION) "V1.8.1".toByteArray() else answer(ch) }
+        io.tick()
+        io.connected!!(Result.success(OttaiFirmwareGatt(247, bootloaderOnly = false, hasOta = true)))
+        finishFreshCloudAuth(io)
+        assertEquals(OttaiFirmwareStage.PREPARATION_READY, controller.state.stage)
+        assertTrue(io.reported)
+        assertNull(io.refresh) // Even a verified flash waits for explicit preparation before bindV3.
+        io.fresh = materials.copy(deviceVersion = "V1.8.1", calibrationValueK = 1.0, calibrationValueB = -2.0)
+        controller.prepareOnly()
+        assertNotNull(io.refresh)
+        repeat(2) { io.tick(); io.acknowledge() } // Derive a local key with the newly bound credentials.
+        repeat(2) { io.tick(); io.acknowledge() } // Coefficients, then encrypted calibration.
+        assertEquals(OttaiFirmwareStage.COMPLETE, controller.state.stage)
+        assertTrue(io.cleared)
+        assertEquals(listOf(9, 11), io.writes.filter { it.first == OttaiConstants.CHAR_DESTRUCTIVE }.map { it.second[0].toInt() })
+        assertTrue(io.writes.none { it.first in setOf(OttaiConstants.CHAR_COMMAND, OttaiConstants.CHAR_CURRENT_TIME,
+            OttaiConstants.CHAR_MAX_ACTIVE_TIME) })
+    }
+
+    @Test fun freshNoOfferDoesNotBindAndClosedCloudAuthenticationCannotWriteLater() {
+        val (controller, io) = normal(withoutKeys = true) { it.noOffer = true }
+        finishFreshCloudAuth(io)
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertNull(io.refresh)
+        assertFalse(io.saved)
+        assertEquals(2, io.writes.size)
+
+        val (closed, pending) = normal(withoutKeys = true)
+        closed.close()
+        pending.cloudVerify!!(Result.success(pending.cloudProof))
+        assertTrue(pending.writes.isEmpty())
+        assertEquals(0, pending.offerRequests)
+        assertNull(pending.refresh)
+    }
+
+    @Test fun unboundFreshRecoveryUsesOnlyItsSavedPackageWithoutBindingOrANewOffer() {
+        val (controller, io) = normal(withoutKeys = true) { it.journal = image }
+        finishFreshCloudAuth(io)
+        assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
+        assertTrue(controller.state.recovery)
+        assertEquals(0, io.offerRequests)
+        assertNull(io.refresh)
+        assertSame(image, io.journal)
+    }
+
+    @Test fun rejectedCloudProofOrStartedSensorCannotBecomeAnUnboundFreshInstall() {
+        val (rejected, io) = normal(withoutKeys = true)
+        io.cloudVerify!!(Result.failure(IllegalStateException("ota_request_http=200_biz=AppDevice_AlreadyUsed")))
+        assertEquals(OttaiFirmwareStage.FAILED, rejected.state.stage)
+        assertTrue(io.writes.isEmpty())
+        assertNull(io.refresh)
+        assertEquals(0, io.offerRequests)
+        val (active, started) = normal(command = 3, withoutKeys = true)
+        finishFreshCloudAuth(started)
+        assertEquals("sensor_already_active_or_ended", active.state.errorCode)
+        assertEquals(0, started.offerRequests)
+        assertNull(started.refresh)
+        assertFalse(started.saved)
     }
 
     @Test fun rejectedRevisionIsVisibleWithoutAllowingWritesOrCloudRequests() {

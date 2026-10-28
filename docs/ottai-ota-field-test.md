@@ -2,7 +2,9 @@
 
 This implements an experimental alternative to the official-app capture proposed in
 [PR #727](https://github.com/ctqvva/JugglucoNG/pull/727). No official app is required on
-the test phone. Saved sensor credentials and a signed-in account on the matching backend are required.
+the test phone. A signed-in account on the matching backend is required. Fresh sensors do
+not need saved credentials: their OTA authentication uses the server before any `bindV3`.
+Started sensor tests use saved credentials.
 CN phone, Ottai Global and Syai accounts can run the experiment. Checks and reports use
 that account's backend and issuing identity; firmware is never fetched from another region
 as a fallback. Choose
@@ -13,17 +15,19 @@ OTA experiment. Both require the sensor to be disconnected from managed monitori
 
 PR #739 includes the CN mobile secure-transport dependency from #755. Its test build includes
 both changes: ordinary CN account/device lookup, validation and credential bootstrap use
-the encrypted channel before the separate OTA flow can run. The supplied fresh-CN trace
+the encrypted channel. Fresh OTA can run before credential bootstrap or binding. The supplied fresh-CN trace
 `juggluco-trace-20261029-020202.log` shows why this dependency is required: the old
 `/deviceBind/list` and `/device/validateDeviceByMacV2` routes both return HTTP 403 with
 `NET_SECURITY_PLAINTEXT_ROUTE_FORBIDDEN`. Splitting the reviews must not omit this setup
-dependency from the test build. Signed-in CN behavior still needs verification with it included.
+dependency from the test build. Signed-in CN lookup, authentication and credential persistence
+are confirmed below; a physical firmware transfer and activation remain unverified.
 Both PRs target main because the signed-build controller only accepts that base. The #755
 commit is merged into #739's source branch; reviewing/merging #755 first keeps its review
 separate and removes those changes from #739's remaining diff.
 
 New experiments are available in debug and release builds, on the selected sensor card, for
-signed-in CN phone, Ottai Global and Syai sessions with saved keys and a BLE address.
+signed-in CN phone, Ottai Global and Syai sessions with a BLE address. Fresh mode permits
+missing keys and uses V3 server authentication; Started mode still requires saved keys.
 An existing unfinished journal remains accessible without account
 credentials, so its recovery record can always be discarded. Reopening preselects the saved
 Fresh/Started mode. An unreadable journal or a different BLE address exposes only discard
@@ -52,12 +56,15 @@ update experiment. An existing journal is retained when an unsupported recovery 
 1. Enable Android Bluetooth HCI snoop logging if available. This records **our own** traffic;
    it is diagnostic evidence, not an independent official-protocol reference.
 2. Open Sensors → add Ottai. Sign in to the matching CN, Ottai Global or Syai account, enter/scan the sensor code, and
-   select its actual Bluetooth advertisement. NFC wake may be needed. Let the existing
-   credential fetch/bootstrap finish, then export the credentials JSON for recovery.
+   select its actual Bluetooth advertisement. NFC wake may be needed. Selection can validate
+   or read existing credentials, but cannot bootstrap or bind a sensor. Do not fetch credentials
+   through the normal Connect action first: binding can close the pre-bind OTA window.
 3. **Do not press the normal Connect/activate button yet.** Choose **Check firmware
    (experimental)** below it, then **Fresh sensor**. This stops the setup scanner and opens a separate BLE client,
-   outside the managed-sensor list. It reads software revision `2a28`, checks the sensor's
-   auth signature against the saved keys, authenticates, then reads the command status.
+   outside the managed-sensor list. It reads software revision `2a28`. With saved keys it
+   verifies the sensor signature and authenticates locally. Without keys it submits the
+   sensor's signed challenge to `/cgmAuth/verify` and writes the authenticated server response,
+   without calling `bindV3`. It then reads the command status.
    Only status 0–2 can continue.
 4. The check uses the actual BLE revision in the CN `/ota/upgradeVersion/judge` request.
    If an update is offered it downloads the package and displays the source/target versions,
@@ -72,7 +79,9 @@ update experiment. An existing journal is retained when an unsupported recovery 
      reconnects to the same Bluetooth address, requires the target revision from `2a28`,
      reauthenticates and confirms the sensor is still unactivated. It then waits at
      **Firmware verified**. Choose **Write factory parameters only** and confirm to refresh
-     materials and write parameters. Reopening at the saved target also waits for this action;
+     materials and write parameters. This is the first binding operation for a fresh test.
+     Newly fetched keys establish a local ECDH session before encrypted calibration writes.
+     Reopening at the saved target also waits for this action;
      it does not write factory parameters or re-send a success report automatically.
 6. On **Preparation complete**, close the dialog and use the normal Connect action to
    activate. The existing `maxActive` negotiation still runs there. No firmware-test path
@@ -274,6 +283,15 @@ server-auth write-back with `ota_request_http=200`. That old diagnostic conflate
 business result with an empty/non-JSON response; it does not establish the rejection reason
 or activation-based eligibility. Diagnostics now retain bounded machine business codes and
 distinguish missing JSON, without logging messages, response bodies or authentication material.
+
+`juggluco-trace-20261029-032045.log` identifies the V3 rejection as
+`ota_request_http=200_biz=AppDevice_AlreadyUsed`. The previous setup flow required credentials
+for the OTA entry and could run V3 bootstrap plus `bindV3` on row selection. That ordering
+made a genuinely pre-bind experiment impossible. Fresh OTA now accepts missing keys, performs
+server authentication before the offer/transfer, and postpones binding to explicit preparation.
+Selection and automatic material lookup cannot bind, including the temporary-bind fallback.
+Existing bound sensors retain the local-key OTA path; this change does not reverse the server's
+used classification or prove that unbinding resets it.
 
 Preparation tolerates cloud version metadata that omits the sensor's variant or supplies its
 application profile. A conflicting named build or variant is still rejected, and MAC/auth-key

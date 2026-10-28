@@ -132,12 +132,15 @@ internal class OttaiFirmwareSession private constructor(
             val id = OttaiConstants.canonicalSensorId(sensorId)
             val ble = OttaiConstants.normalizeBleAddress(address) ?: return null
             if (!OttaiConstants.looksLikeMac(id) || !OttaiCloudClient.loadOtaSession(context)) return null
+            if (OttaiRegistry.isV3CredentialBootstrapPending(context, id)) return null
             // A managed owner could reconnect and consume activation intent in parallel.
             if (OttaiRegistry.findRecord(context, id) != null || SensorBluetooth.mygatts().any { callback ->
                     callback is OttaiDriver && callback.matchesManagedSensorId(id)
                 }) return null
             val materials = OttaiRegistry.loadMaterials(context, id)
-            if (materials.authKeys == null) return null
+            // Fresh OTA must precede bindV3. Its server-authenticated BLE handshake does
+            // not require fetching account-bound credentials first.
+            if (materials.authKeys == null && mode != OttaiFirmwareMode.PREACTIVATION) return null
             return OttaiFirmwareSession(context.applicationContext, id, ble, materials, mode, publish).also { session ->
                 session.handler.post { session.controller.start() }
             }

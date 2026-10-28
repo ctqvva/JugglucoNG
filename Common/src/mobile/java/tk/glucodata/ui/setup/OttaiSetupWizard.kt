@@ -164,6 +164,7 @@ private fun fetchOttaiMaterials(
     mac: String,
     deviceVersion: String? = null,
     historicalActiveTimeMs: Long = 0L,
+    allowBinding: Boolean = false,
 ): OttaiMaterialFetch {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return OttaiMaterialFetch(null) }
     OttaiRegistry.loadMaterials(context, canonical).takeIf { it.authKeys != null }
@@ -190,6 +191,8 @@ private fun fetchOttaiMaterials(
         return OttaiCloudClient.toMaterials(context, boundId, resp)?.takeIf { it.authKeys != null }
     }
     fun viaTemporaryBind(): OttaiRegistry.DeviceMaterials? {
+        // Selection/automatic lookup must never consume a fresh sensor's pre-bind OTA window.
+        if (!allowBinding) return null
         // Account-list selections supply the real version. Syai and global Ottai additionally
         // permit recovery of an expired sensor outside the signed-in account; allow their known
         // bind metadata only after validate explicitly returned OutOfProduceTime. Other manually
@@ -274,8 +277,8 @@ private fun ottaiMaterialFailureMessage(
  * the explicit setup action; [activate] arms the irreversible first-use sequence.
  */
 internal fun ottaiFirmwareEntryAvailable(signedIn: Boolean, sessionReady: Boolean,
-    hasMaterials: Boolean, hasAddress: Boolean, pending: Boolean): Boolean =
-    pending || (signedIn && sessionReady && hasMaterials && hasAddress)
+    hasAddress: Boolean, pending: Boolean): Boolean =
+    pending || (signedIn && sessionReady && hasAddress)
 
 internal fun ottaiConnectFailureMessage(context: Context, sensorId: String): String = context.getString(
     if (OttaiFirmwareSession.hasPendingTransfer(context, sensorId)) R.string.ottai_ota_pending
@@ -1091,6 +1094,7 @@ fun OttaiSetupWizard(
                         canonical,
                         selected?.deviceVersion ?: selectedDeviceVersion,
                         selected?.bindTime ?: 0L,
+                        allowBinding = connectAfterCredentialFetch,
                     )
                 }.onFailure { Log.w(tag, "fetch credentials: ${it.message}") }.getOrNull()
             }
@@ -1100,6 +1104,13 @@ fun OttaiSetupWizard(
                 signedIn = signedIn,
             )
             if (route == OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP) {
+                if (!connectAfterCredentialFetch) {
+                    // Row selection may validate/read credentials, but server-auth + bindV3
+                    // belongs to an explicit Connect. Fresh OTA is available before that bind.
+                    selectedDeviceVersion = fetched?.validatedDeviceVersion.orEmpty()
+                    busy = false
+                    return@launch
+                }
                 val explicitBle = OttaiConstants.normalizeBleAddress(
                     selectedBleAddress,
                     allowPlain = false,
@@ -1398,8 +1409,8 @@ fun OttaiSetupWizard(
                 }
             },
             onImport = launchImport,
-            onFirmware = if (ottaiFirmwareEntryAvailable(signedIn,
-                OttaiCloudClient.loadOtaSession(context), hasMaterials,
+            onFirmware = if (!busy && !materialLoading && ottaiFirmwareEntryAvailable(signedIn,
+                OttaiCloudClient.loadOtaSession(context),
                 OttaiConstants.normalizeBleAddress(bleAddress) != null,
                 OttaiFirmwareSession.hasPendingTransfer(context, cloudId))) ({
                 OttaiSetupScanHold.stopPanelScans()

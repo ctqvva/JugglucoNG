@@ -242,31 +242,41 @@ internal class OttaiFirmwareController(
             state = state.copy(target = "", sha256 = "", totalBytes = 0, canPrepareParameters = false, errorCode = "")
             update(OttaiFirmwareStage.CLOUD_AUTHENTICATING)
             io.log("cloud_auth_recheck=begin")
-            read(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME) { time ->
-                require(time.size == 4) { "auth_time" }
-                read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_DEVICE_PARAM) { param ->
-                    require(param.size == 68) { "auth_parameter" }
-                    val keys = requireNotNull(materials.authKeys) { "credentials_missing" }
-                    val index = param[0].toInt() and 255
-                    require(index in keys.indices) { "auth_index" }
-                    read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN) { signature ->
-                        require(OttaiBleAuth.verifyDeviceSign(signature, OttaiCrypto.bytesToHex(keys[index]),
-                            sensorId, param.copyOfRange(4, 36), param.copyOfRange(36, 68), param.copyOfRange(1, 4))) { "sensor_signature" }
-                        io.verifyCloudAuth(param, signature, completion { applyCloudProof(it) })
-                    }
-                }
-            }
+            authenticateWithCloud { requestCloudAuthenticatedOffer() }
         }.onFailure { fail(it.message ?: "cloud_auth") }
     }
 
-    private fun applyCloudProof(proof: OttaiCloudClient.V3AuthMaterial) {
+    private fun authenticateWithCloud(done: () -> Unit) {
+        update(OttaiFirmwareStage.CLOUD_AUTHENTICATING)
+        read(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME) { time ->
+            require(time.size == 4) { "auth_time" }
+            deviceRtcSeconds = OttaiBleAuth.bytesToIntLE(time).toLong() and 0xffffffffL
+            read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_DEVICE_PARAM) { param ->
+                require(param.size == 68) { "auth_parameter" }
+                read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN) { signature ->
+                    require(signature.size == 32) { "sensor_signature" }
+                    materials.authKeys?.let { keys ->
+                        val index = param[0].toInt() and 255
+                        require(index in keys.indices) { "auth_index" }
+                        require(OttaiBleAuth.verifyDeviceSign(signature, OttaiCrypto.bytesToHex(keys[index]),
+                            sensorId, param.copyOfRange(4, 36), param.copyOfRange(36, 68), param.copyOfRange(1, 4))) { "sensor_signature" }
+                    }
+                    // Without keyA, the server validates this sensor's MAC and signed challenge,
+                    // exactly as in the normal V3 bootstrap. Do not bind to obtain local keys.
+                    io.verifyCloudAuth(param, signature, completion { applyCloudProof(it, done) })
+                }
+            }
+        }
+    }
+
+    private fun applyCloudProof(proof: OttaiCloudClient.V3AuthMaterial, done: () -> Unit) {
         require(proof.authHost.matches(Regex("[0-9A-Fa-f]{136}")) &&
             proof.authFlag.matches(Regex("[0-9A-Fa-f]{64}"))) { "cloud_auth_material" }
         write(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_APP_PARAM, OttaiCrypto.hexToBytes(proof.authHost)) {
             write(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN, OttaiCrypto.hexToBytes(proof.authFlag)) {
                 io.log("cloud_auth_recheck=writeback_complete")
                 // Match the normal V3 bootstrap's settling time before its bind.
-                later(2_500L) { requestCloudAuthenticatedOffer() }
+                later(2_500L, done)
             }
         }
     }
@@ -278,7 +288,11 @@ internal class OttaiFirmwareController(
             hasOta = refreshed.hasOta
             update(OttaiFirmwareStage.CHECKING)
             io.log("cloud_auth_recheck=judge")
-            val done = completion<Result<OttaiFirmwareImage?>> { result -> restoreLocalAuthAfterCloudCheck(result) }
+            val done = completion<Result<OttaiFirmwareImage?>> { result ->
+                if (materials.authKeys == null) checkCommandStatus(state.firmware, false, false) {
+                    acceptOffer(state.firmware, result)
+                } else restoreLocalAuthAfterCloudCheck(result)
+            }
             io.prepareImage(state.firmware) { done(Result.success(it)) }
         })
     }
@@ -318,6 +332,13 @@ internal class OttaiFirmwareController(
     }
 
     private fun authenticate(done: () -> Unit) {
+        if (materials.authKeys == null) {
+            require(mode == OttaiFirmwareMode.PREACTIVATION) { "credentials_missing" }
+            sessionKey = ""
+            io.log("fresh_auth=cloud_before_bind")
+            authenticateWithCloud(done)
+            return
+        }
         update(OttaiFirmwareStage.AUTHENTICATING)
         val keys = materials.authKeys ?: throw IllegalArgumentException("credentials_missing")
         read(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME) { time ->
@@ -409,23 +430,39 @@ internal class OttaiFirmwareController(
         io.refreshMaterials(state.firmware, completion { fresh ->
             require(OttaiOtaProtocol.materialsVersionMatches(state.firmware, fresh.deviceVersion) && fresh.authKeys != null) { "materials_version" }
             materials = fresh
-            // Construct and validate BOTH packets before issuing either write.
-            val coefficients = if (minor >= 6) OttaiOtaProtocol.coefficientPacket(fresh.coefficient) else null
-            val calibration = if (minor >= 8) OttaiOtaProtocol.calibrationPacket(fresh.calibrationValueK,
-                fresh.calibrationValueB, sessionKey) else null
-            require(coefficients == null || coefficients.size <= mtu - 3) { "coefficient_mtu" }
-            fun finish() {
-                io.clearRecovery()
-                update(OttaiFirmwareStage.COMPLETE)
-                retire()
-            }
-            fun writeCalibration() {
-                if (calibration == null) finish()
-                else write(OttaiConstants.SERVICE_DESTRUCTIVE, OttaiConstants.CHAR_DESTRUCTIVE, calibration) { finish() }
-            }
-            if (coefficients == null) writeCalibration()
-            else write(OttaiConstants.SERVICE_DESTRUCTIVE, OttaiConstants.CHAR_DESTRUCTIVE, coefficients) { writeCalibration() }
+            if (sessionKey.isEmpty()) {
+                // The cloud owns the pre-bind ECDH key. Establish our own only AFTER the
+                // explicit bind, so V1.8 calibration uses a real local session key.
+                authenticate {
+                    io.rediscover(completion { local ->
+                        require(!local.bootloaderOnly) { "post_auth_services" }
+                        mtu = local.mtu
+                        hasOta = local.hasOta
+                        checkCommandStatus(state.firmware, false, false) { writeFactoryParameters(minor, fresh) }
+                    })
+                }
+            } else writeFactoryParameters(minor, fresh)
         })
+    }
+
+    private fun writeFactoryParameters(minor: Int, fresh: OttaiRegistry.DeviceMaterials) {
+        update(OttaiFirmwareStage.PREPARING)
+        // Construct and validate BOTH packets before issuing either write.
+        val coefficients = if (minor >= 6) OttaiOtaProtocol.coefficientPacket(fresh.coefficient) else null
+        val calibration = if (minor >= 8) OttaiOtaProtocol.calibrationPacket(fresh.calibrationValueK,
+            fresh.calibrationValueB, sessionKey) else null
+        require(coefficients == null || coefficients.size <= mtu - 3) { "coefficient_mtu" }
+        fun finish() {
+            io.clearRecovery()
+            update(OttaiFirmwareStage.COMPLETE)
+            retire()
+        }
+        fun writeCalibration() {
+            if (calibration == null) finish()
+            else write(OttaiConstants.SERVICE_DESTRUCTIVE, OttaiConstants.CHAR_DESTRUCTIVE, calibration) { finish() }
+        }
+        if (coefficients == null) writeCalibration()
+        else write(OttaiConstants.SERVICE_DESTRUCTIVE, OttaiConstants.CHAR_DESTRUCTIVE, coefficients) { writeCalibration() }
     }
 
     private fun read(service: UUID, characteristic: UUID, action: (ByteArray) -> Unit) =
