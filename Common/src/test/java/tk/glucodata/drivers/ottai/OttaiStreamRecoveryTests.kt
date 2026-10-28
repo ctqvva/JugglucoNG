@@ -10,6 +10,7 @@ import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -260,6 +261,59 @@ class OttaiStreamRecoveryTests {
         reading.javaClass.getDeclaredField(name).apply { isAccessible = true }.getLong(reading)
     private fun emittedBoolean(reading: Any, name: String): Boolean =
         reading.javaClass.getDeclaredField(name).apply { isAccessible = true }.getBoolean(reading)
+
+    @Test
+    fun repeatedCounterCappedByALateAnchorKeepsItsTimestampAndPublicationClaim() {
+        val arrival = System.currentTimeMillis()
+        val start = arrival - 101 * 60_000L
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = start))
+        val lateSeedArrival = arrival - 60_000L + 20_000L
+        invoke("seedStreamTimeAnchor", 100, lateSeedArrival, "live", true, lateSeedArrival)
+        val r = reading(101)
+
+        assertEquals(Triple(arrival, true, true), liveEmission(r, arrival))
+        // Both while the anchor is ahead, and after arrival has overtaken it, this is one sample.
+        for (delay in listOf(8_000L, 25_000L, 60_000L, 181_000L)) {
+            assertEquals(Triple(arrival, false, false), liveEmission(r, arrival + delay))
+            assertEquals(arrival, manager.getCurrentSnapshot(Long.MAX_VALUE)?.timeMillis)
+        }
+        assertEquals(start + 20_000L, get("streamStartTimeMs"))
+        assertEquals(Triple(arrival + 240_000L, true, true), liveEmission(reading(105), arrival + 240_000L))
+    }
+
+    @Test
+    fun rejectedCappedReadingDoesNotPinItsTimestamp() {
+        val arrival = System.currentTimeMillis()
+        val start = arrival - 101 * 60_000L
+        set("streamStartTimeMs", start + 20_000L)
+        set("streamStartReliable", true)
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = arrival - 60_000L))
+        val r = reading(101)
+        assertNull(invoke("emitReading", r, true, arrival, listOf(r), 0, false))
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = start))
+        assertEquals(arrival + 8_000L, invoke("resolveSampleTimeMs", r, true, arrival + 8_000L))
+    }
+
+    @Test
+    fun agreeingLowerCounterAndRepeatedCounterCannotCorroborateOrRearmActivation() {
+        set("materials", (get("materials") as OttaiRegistry.DeviceMaterials).copy(activeTimeMs = 0L))
+        val start = System.currentTimeMillis() - 23 * 60_000L
+        invoke("offerConfirmedActiveTime", start, 23)
+        invoke("offerConfirmedActiveTime", start + 60_000L, 22)
+        // Even a much later replay of the same counter is not a different activation candidate.
+        invoke("offerConfirmedActiveTime", start + 180_000L, 23)
+        assertEquals(start, get("pendingConfirmedStartMs"))
+        assertEquals(23, get("pendingConfirmedDataNo"))
+        assertEquals(0L, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+        invoke("offerConfirmedActiveTime", start, 24)
+        assertEquals(start, (get("materials") as OttaiRegistry.DeviceMaterials).activeTimeMs)
+    }
+
+    private fun liveEmission(r: OttaiReading, arrival: Long): Triple<Long, Boolean, Boolean> {
+        val emitted = invoke("emitReading", r, true, arrival, listOf(r), 0, false)!!
+        fun field(name: String) = emitted.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(emitted)
+        return Triple(field("sampleMs") as Long, field("publishCurrent") as Boolean, field("persist") as Boolean)
+    }
 
     private fun reading(n: Int) = OttaiReading(
         OttaiRecord(n, 0, n * 60, 13_411, 33.8, ByteArray(12)), 7.2,
