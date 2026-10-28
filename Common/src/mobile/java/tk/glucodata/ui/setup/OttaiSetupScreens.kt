@@ -28,6 +28,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +91,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -339,6 +343,7 @@ internal fun OttaiSensorCard(
     onConnect: () -> Unit,
     onImport: () -> Unit,
     onSignIn: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val (icon, tint) = when (state) {
         OttaiMaterialState.MISSING -> Icons.Default.Key to MaterialTheme.colorScheme.onSurfaceVariant
@@ -374,6 +379,7 @@ internal fun OttaiSensorCard(
     val getCredentials = !loading && state == OttaiMaterialState.MISSING && !signedIn
 
     OttaiCard(
+        modifier = modifier,
         title = stringResource(if (loading) R.string.ottai_state_fetching else ottaiMaterialStateTitle(state)),
         body = body,
         icon = icon,
@@ -409,16 +415,11 @@ internal fun OttaiSensorCard(
                 }
             }
         } else null,
-        actions = {
+        actions = if (getCredentials || (!loading && canConnect)) {
+            {
             if (getCredentials) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onImport,
-                        enabled = !busy,
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.ContentPadding,
-                    ) { Text(stringResource(R.string.ottai_import_file)) }
+                    OttaiImportButton(onClick = onImport, enabled = !busy)
                     Button(
                         onClick = onSignIn,
                         enabled = !busy,
@@ -427,7 +428,7 @@ internal fun OttaiSensorCard(
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) { Text(stringResource(R.string.ottai_login_button)) }
                 }
-            } else {
+            } else if (!loading && canConnect) {
                 Button(
                     onClick = onConnect,
                     enabled = !busy && !loading && canConnect,
@@ -442,7 +443,8 @@ internal fun OttaiSensorCard(
                     }
                 }
             }
-        },
+            }
+        } else null,
     )
 }
 
@@ -1059,6 +1061,56 @@ internal fun OttaiQrStep(
     }
 }
 
+/** Search, selection and Connect share one scrolling surface. */
+@Composable
+internal fun OttaiSearchList(
+    selectedSensor: (@Composable () -> Unit)?,
+    scrollRequest: Int,
+    focusSelectedSensor: Boolean,
+    deviceCount: Int,
+    header: @Composable () -> Unit,
+    devices: LazyListScope.() -> Unit,
+    idEntry: @Composable () -> Unit,
+    footer: @Composable () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(scrollRequest) {
+        if (scrollRequest > 0) {
+            listState.animateScrollToItem(
+                if (focusSelectedSensor && selectedSensor != null) deviceCount + 2 else 0,
+            )
+        }
+    }
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        item(key = "header") { header() }
+        devices()
+        item(key = "idEntry") { idEntry() }
+        if (selectedSensor != null) {
+            item(key = "selectedSensor") { selectedSensor() }
+        }
+        item(key = "footer") { footer() }
+    }
+}
+
+/** A secondary file action, using the app's normal text-button size. */
+@Composable
+internal fun OttaiImportButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    label: String = stringResource(R.string.ottai_import_file),
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.TextButtonContentPadding,
+    ) {
+        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label)
+    }
+}
+
 /** The sensor ID or box serial typed in, with the button that opens that sensor. */
 @Composable
 internal fun OttaiSensorIdEntry(
@@ -1092,14 +1144,15 @@ internal fun OttaiSensorIdEntry(
             keyboardActions = KeyboardActions(onDone = { enter() }),
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.size(8.dp))
-        Button(
-            onClick = { enter() },
-            enabled = enabled && code != null,
-            modifier = Modifier.fillMaxWidth(),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.ContentPadding,
-        ) { Text(stringResource(R.string.continue_action)) }
+        if (enabled && code != null) {
+            Spacer(Modifier.size(8.dp))
+            Button(
+                onClick = { enter() },
+                modifier = Modifier.fillMaxWidth(),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) { Text(stringResource(R.string.continue_action)) }
+        }
     }
 }
 
@@ -1348,17 +1401,11 @@ internal fun OttaiSavedSensorsStep(
             }
         }
         Spacer(Modifier.size(16.dp))
-        FilledTonalButton(
+        OttaiImportButton(
             onClick = onImport,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.ContentPadding,
-        ) {
-            Icon(Icons.Default.FileDownload, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.ottai_entry_import_title))
-        }
+            label = stringResource(R.string.ottai_entry_import_title),
+        )
 
         SectionLabel(stringResource(R.string.ottai_saved_section_account))
         if (!signedIn) {

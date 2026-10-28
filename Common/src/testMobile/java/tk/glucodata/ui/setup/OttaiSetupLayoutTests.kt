@@ -143,15 +143,63 @@ class OttaiSetupLayoutTests {
                 }
             }
         }
-        compose.onNode(hasSetTextAction()).performTextInput("70D07E2552DB")
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextInput("bad-id")
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextReplacement("70D07E2552DB")
+        compose.onNodeWithText(continueLabel).assertIsEnabled()
         compose.runOnIdle { enabled = false }
         compose.onNodeWithText("70D07E2552DB").assertIsNotEnabled()
-        compose.onNodeWithText(continueLabel).assertIsNotEnabled().performClick()
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
         compose.runOnIdle {
             assertEquals("", selected)
             enabled = true
         }
         compose.onNodeWithText(continueLabel).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals("70D07E2552DB", selected) }
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
     }
+    @Test
+    fun connectAppearsOnlyWhenUsableAndImportStaysSecondary() {
+        var canConnect by mutableStateOf(false)
+        var loading by mutableStateOf(false)
+        var connected = false
+        var importLabel = ""
+        compose.setContent {
+            importLabel = LocalContext.current.getString(R.string.ottai_import_file)
+            MaterialTheme(typography = AppTypography) {
+                androidx.compose.foundation.layout.Column(Modifier.width(320.dp).testTag("card")) {
+                    OttaiSensorCard(
+                        sensorId = "70D07E2552DB",
+                        state = OttaiMaterialState.ACTIVE,
+                        loading = loading,
+                        signedIn = true,
+                        deviceVersion = "",
+                        bindingState = OttaiCloudBindingUiState.HIDDEN,
+                        busy = false,
+                        canConnect = canConnect,
+                        connectLabel = "Connect",
+                        message = "",
+                        messageIsError = false,
+                        onConnect = { connected = true },
+                        onImport = {},
+                        onSignIn = {},
+                    )
+                    OttaiImportButton(onClick = {}, enabled = true)
+                }
+            }
+        }
+        compose.onNodeWithText("Connect").assertDoesNotExist()
+        compose.runOnIdle { canConnect = true; loading = true }
+        compose.onNodeWithText("Connect").assertDoesNotExist()
+        compose.runOnIdle { loading = false }
+        val connect = compose.onNodeWithText("Connect").assertIsEnabled()
+        val connectBounds = connect.fetchSemanticsNode().boundsInRoot
+        val importBounds = compose.onNodeWithText(importLabel).fetchSemanticsNode().boundsInRoot
+        assertTrue("Import must stay narrower than the primary action", importBounds.width < connectBounds.width)
+        capture("primary-and-import")
+        connect.performClick()
+        compose.runOnIdle { assertTrue(connected) }
+    }
+
 }
