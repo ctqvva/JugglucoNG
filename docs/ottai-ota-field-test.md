@@ -11,13 +11,16 @@ OTA experiment. Both require the sensor to be disconnected from managed monitori
 
 ## Regions and verification
 
-PR #739 is stacked on the CN mobile secure-transport fix in #755. Its test build includes
+PR #739 includes the CN mobile secure-transport dependency from #755. Its test build includes
 both changes: ordinary CN account/device lookup, validation and credential bootstrap use
 the encrypted channel before the separate OTA flow can run. The supplied fresh-CN trace
 `juggluco-trace-20261029-020202.log` shows why this dependency is required: the old
 `/deviceBind/list` and `/device/validateDeviceByMacV2` routes both return HTTP 403 with
 `NET_SECURITY_PLAINTEXT_ROUTE_FORBIDDEN`. Splitting the reviews must not omit this setup
 dependency from the test build. Signed-in CN behavior still needs verification with it included.
+Both PRs target main because the signed-build controller only accepts that base. The #755
+commit is merged into #739's source branch; reviewing/merging #755 first keeps its review
+separate and removes those changes from #739's remaining diff.
 
 New experiments are available in debug and release builds, on the selected sensor card, for
 signed-in CN phone, Ottai Global and Syai sessions with saved keys and a BLE address.
@@ -256,7 +259,7 @@ Firmware files, credentials and raw captures must stay outside the repository.
 ## Cloud scope
 
 Ordinary CN login, account lookup, binding and activation use the encrypted migration reviewed
-in the base [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). The #739 test build
+in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). The #739 test build
 includes both branches so setup is available before the OTA experiment. A signed-in CN account
 test with that combined build remains pending. OTA checks, the explicit V3 authentication
 comparison, reports and preparation binds use their own captured client. Global/Syai keep

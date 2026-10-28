@@ -30,10 +30,11 @@ report and user-confirmed preparation
 bind are scoped to this client.
 
 Ordinary CN login, device lists, binding and activation use the secure transport dependency
-in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). PR #739 is stacked on it,
+in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). PR #739 includes that dependency,
 pending signed-in CN validation. The supplied plaintext-route rejection is evidence for that
 fix, but anonymous probes do not prove real account compatibility. No general CN dispatcher
-change needs review in the OTA diff; the combined test build includes it from the base PR.
+change needs duplicate review; the combined test build includes it from #755. Both PRs
+target main to satisfy the signed-build controller; merge #755 first to reduce the OTA diff.
 Main's global/Syai login and serial lookup remain intact.
 
 Successful worker shutdown drains advisory reporting without retaining BLE. Reopening a
@@ -105,7 +106,7 @@ Tests cover exact exchange/GET/POST vectors, sequence and nonce changes, respons
 server signature, plaintext rejection, safe business diagnostics, expiry, close and clock correction.
 Synthetic HTTP tests exercise the OTA client on all three account backends, including the
 preparation bind, authentication and failure handling. The app-wide CN dispatch tests come
-from the base PR, and the combined branch verifies ordinary CN phone account calls use that
+from #755, and the combined branch verifies ordinary CN phone account calls use that
 secure dependency before OTA. They cover the device-list and validation routes rejected in
 the fresh-CN field trace, as well as login and credential-bootstrap calls.
 
@@ -118,7 +119,7 @@ To reproduce the optional anonymous production-code probe, compile these files t
 
 Run `java -cp <probe.jar>:<org.json.jar> tk.glucodata.drivers.ottai.RegionalLoginProbeKt`.
 It performs anonymous requests to the regional API-token endpoints and prints only pass messages.
-It is not part of CI. The CN production probe is provided by the base PR #755.
+It is not part of CI. The CN production probe is provided by dependency PR #755.
 
 The authenticated OTA offer for the user's running sensor, firmware-host download, and physical
 transfer still require the phone test. Anonymous transport success does not establish that the
