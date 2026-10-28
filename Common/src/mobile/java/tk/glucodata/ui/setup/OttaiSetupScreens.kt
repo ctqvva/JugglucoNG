@@ -31,6 +31,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -97,6 +98,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -649,22 +651,34 @@ internal fun OttaiAccountCard(
                 )
                 Spacer(Modifier.size(12.dp))
             }
-            ConnectedButtonGroup(
-                options = OttaiRegion.entries.toList(),
-                selectedOption = region,
-                onOptionSelected = {
-                    if (!form.busy) {
-                        onRegionChange(it)
-                        form.resetSms()
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val options = OttaiRegion.entries.toList()
+                val groups = if (maxWidth < 96.dp * LocalDensity.current.fontScale * options.size) {
+                    options.map { listOf(it) }
+                } else {
+                    listOf(options)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    groups.forEach { group ->
+                        ConnectedButtonGroup(
+                            options = group,
+                            selectedOption = region,
+                            onOptionSelected = {
+                                if (!form.busy) {
+                                    onRegionChange(it)
+                                    form.resetSms()
+                                }
+                            },
+                            label = { r -> Text(stringResource(r.fullLabelRes)) },
+                            labelText = { r -> context.getString(r.fullLabelRes) },
+                            modifier = Modifier.fillMaxWidth(),
+                            // The default unselected container is this card's own colour; one step down
+                            // keeps the unselected buttons visible, as on the sensor card.
+                            unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        )
                     }
-                },
-                label = { r -> Text(stringResource(r.fullLabelRes)) },
-                labelText = { r -> context.getString(r.fullLabelRes) },
-                modifier = Modifier.fillMaxWidth(),
-                // The default unselected container is this card's own colour; one step down
-                // keeps the unselected buttons visible, as on the sensor card.
-                unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            )
+                }
+            }
             Spacer(Modifier.size(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(

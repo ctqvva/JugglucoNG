@@ -40,6 +40,31 @@ class OttaiNfcTests {
     }
 
     @Test
+    fun leavingSetupCaptureReleasesOtherNfcReaders() {
+        OttaiNfc.armForSetup()
+        assertTrue(OttaiNfc.dumpMode)
+        OttaiNfc.disarmSetup()
+        assertFalse(OttaiNfc.dumpMode)
+        // Re-entering China/Syai setup must be able to capture the next wake again.
+        OttaiNfc.armForSetup()
+        assertTrue(OttaiNfc.dumpMode)
+        OttaiNfc.disarmSetup()
+    }
+
+    @Test
+    fun releasingSetupCapturePreservesPendingActivationRetry() {
+        OttaiNfc.armForActivationRetry("6CA04230E260")
+        try {
+            OttaiNfc.disarmSetup()
+            assertTrue(OttaiNfc.dumpMode)
+            assertTrue(OttaiNfc.isActivationRetryArmed("6CA04230E260"))
+        } finally {
+            OttaiNfc.disarmActivationRetry("6CA04230E260")
+        }
+        assertFalse(OttaiNfc.dumpMode)
+    }
+
+    @Test
     fun activationWakeIsDisarmedOnlyByTheMatchingSensor() {
         OttaiNfc.armForActivationRetry("6CA04230E260")
         assertTrue(OttaiNfc.dumpMode)
