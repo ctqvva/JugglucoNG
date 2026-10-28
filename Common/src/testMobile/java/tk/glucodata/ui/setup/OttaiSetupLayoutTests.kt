@@ -241,7 +241,7 @@ class OttaiSetupLayoutTests {
                                 bindingState = OttaiCloudBindingUiState.HIDDEN,
                                 busy = false,
                                 canConnect = selectedId.isNotBlank(),
-                                connectLabel = "Connect and start warmup",
+                                connectLabel = "Connect",
                                 message = "",
                                 messageIsError = false,
                                 onConnect = {}, onImport = {}, onSignIn = {},
@@ -264,17 +264,17 @@ class OttaiSetupLayoutTests {
                 }
             }
         }
-        compose.onNodeWithText("Connect and start warmup").assertDoesNotExist()
+        compose.onNodeWithText("Connect").assertDoesNotExist()
         compose.onNodeWithText(continueLabel).assertDoesNotExist()
         compose.onNodeWithText("Nearby Ottai").performClick()
         compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
         compose.onNode(hasSetTextAction()).assertTextContains("54DCE9C7FB72")
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
-        compose.onNodeWithText("Connect and start warmup").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText("Connect").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithText(continueLabel).assertDoesNotExist()
         capture("single-sensor-card")
         compose.runOnIdle { focusSelected = true; scrollRequest += 1 }
-        compose.onNodeWithText("Connect and start warmup").assertIsDisplayed()
+        compose.onNodeWithText("Connect").assertIsDisplayed()
         compose.runOnIdle { focusSelected = false; scrollRequest += 1 }
         compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
     }

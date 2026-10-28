@@ -1332,12 +1332,7 @@ fun OttaiSetupWizard(
             failedSensorId = cloudBindingFailedId,
             devices = devices,
         )
-        val connectTitleRes = when {
-            needsSerialLookup -> R.string.search
-            materialState == OttaiMaterialState.READY_TO_ACTIVATE -> R.string.ottai_connect_activate
-            materialState == OttaiMaterialState.EXPIRED -> R.string.ottai_connect_expired
-            else -> R.string.ottai_connect_saved
-        }
+        val connectTitleRes = if (needsSerialLookup) R.string.search else R.string.ottai_connect_saved
 
         OttaiSensorCard(
             modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
