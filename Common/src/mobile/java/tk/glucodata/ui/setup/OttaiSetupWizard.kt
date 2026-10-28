@@ -1345,18 +1345,20 @@ fun OttaiSetupWizard(
             onSensorIdChange = { entered ->
                 val code = OttaiConstants.extractSetupCode(entered)
                     ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) } ?: entered
-                cloudId = code
-                sensorEditPending = true
-                bleAddress = if (OttaiConstants.looksLikeMac(code)) OttaiConstants.macWithColons(code) else ""
-                selectedAccountDevice = null
-                selectedDeviceVersion = ""
-                currentMaterials = null
-                lastAutoFetchId = ""
-                cloudBindingCheckingId = ""
-                cloudBindingCheckedId = ""
-                cloudBindingFailedId = ""
-                materialLoading = OttaiConstants.looksLikeMac(code) || OttaiConstants.isBoxSerial(code)
-                showStatus("")
+                if (code != cloudId) {
+                    cloudId = code
+                    sensorEditPending = true
+                    bleAddress = if (OttaiConstants.looksLikeMac(code)) OttaiConstants.macWithColons(code) else ""
+                    selectedAccountDevice = null
+                    selectedDeviceVersion = ""
+                    currentMaterials = null
+                    lastAutoFetchId = ""
+                    cloudBindingCheckingId = ""
+                    cloudBindingCheckedId = ""
+                    cloudBindingFailedId = ""
+                    materialLoading = OttaiConstants.looksLikeMac(code) || OttaiConstants.isBoxSerial(code)
+                    showStatus("")
+                }
             },
             state = materialState,
             loading = materialLoading,
