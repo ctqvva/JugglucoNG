@@ -765,9 +765,10 @@ fun OttaiSetupWizard(
         }
     }
 
-    // Listening is permanent while the search is open: a wake disarms the reader, so it is
-    // re-armed for the next sensor as soon as the result is in.
-    LaunchedEffect(step, nfcWakeListening, nfcWake) {
+    // Listening is permanent while the search is open: every wake disarms the reader, so it is
+    // re-armed after each one. Keyed on the wake counter, not the shown state: a second wake
+    // leaves that at WOKE and would not re-run this.
+    LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey) {
         if (step == OttaiSetupStep.SEARCH && nfcWakeListening) OttaiNfc.armForSetup()
     }
 
@@ -1313,6 +1314,7 @@ fun OttaiSetupWizard(
                     ui = ui,
                     region = region,
                     onRegistered = { onSignedIn(it) },
+                    form = signInForm,
                     scope = scope,
                 )
 

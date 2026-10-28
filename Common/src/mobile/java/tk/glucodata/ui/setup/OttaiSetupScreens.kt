@@ -835,11 +835,14 @@ internal fun OttaiRegisterStep(
     ui: WizardUiMetrics,
     region: OttaiRegion,
     onRegistered: (login: String) -> Unit,
+    // Shared with the sign-in card: one account request at a time, so a sign-in started after
+    // Back cannot race this registration to the stored session.
+    form: OttaiSignInForm,
     scope: CoroutineScope,
 ) {
     val tag = "OttaiRegisterStep"
     val context = LocalContext.current
-    var busy by remember { mutableStateOf(false) }
+    val busy = form.busy
     var status by remember { mutableStateOf("") }
     var statusIsError by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
@@ -873,7 +876,7 @@ internal fun OttaiRegisterStep(
         )
         OutlinedButton(
             onClick = {
-                busy = true
+                form.busy = true
                 status = ""
                 statusIsError = false
                 scope.launch {
@@ -881,7 +884,7 @@ internal fun OttaiRegisterStep(
                         runCatching { OttaiCloudClient.sendMail(email.trim(), "SIGN_UP", webBase) }
                             .onFailure { Log.w(tag, "sendMail: ${it.message}") }.getOrNull()
                     }
-                    busy = false
+                    form.busy = false
                     if (rid.isNullOrBlank()) {
                         statusIsError = true
                         status = context.getString(R.string.ottai_register_fail) +
@@ -928,7 +931,7 @@ internal fun OttaiRegisterStep(
         Column {
             Button(
                 onClick = {
-                    busy = true
+                    form.busy = true
                     status = ""
                     statusIsError = false
                     scope.launch {
@@ -940,7 +943,7 @@ internal fun OttaiRegisterStep(
                                 )?.ok == true
                             }.onFailure { Log.w(tag, "signUp: ${it.message}") }.getOrDefault(false)
                         }
-                        busy = false
+                        form.busy = false
                         if (ok) {
                             OttaiRegistry.saveAccountLogin(context, email.trim())
                             onRegistered(email.trim())
