@@ -3107,6 +3107,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">Instalar esta atualização experimental? Pode inutilizar o sensor permanentemente. A ativação é feita separadamente após verificar a versão e os parâmetros de fábrica.</string>
     <string name="ottai_ota_parameters_confirm">Escrever os coeficientes e a calibração de fábrica suportados? Isto altera a configuração sem atualizar o firmware nem iniciar a vida útil do sensor.</string>
     <string name="ottai_ota_check">Verificar firmware (experimental)</string>
+    <string name="ottai_ota_cloud_recheck">Verificar de novo com autenticação V3 na nuvem</string>
+    <string name="ottai_ota_cloud_authenticating">A autenticar através da sua conta Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Voltar a verificar o firmware com autenticação do sensor pelo servidor. Isto não ativa nem associa o sensor à conta.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Desligue primeiro este sensor da monitorização. Atualizar um sensor iniciado pode apagar leituras, repor a vida útil ou terminar o sensor.</string>

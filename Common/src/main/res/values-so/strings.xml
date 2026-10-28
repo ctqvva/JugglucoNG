@@ -3287,6 +3287,9 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_ota_confirm">Rakib cusboonaysiintan tijaabada ah? Waxay dareemaha si joogto ah u joojin kartaa. Hawlgelintu waxay si gooni ah u dhacdaa ka dib xaqiijinta nooca iyo dejimaha warshadda.</string>
     <string name="ottai_ota_parameters_confirm">Qor isku-dhufayaasha iyo cabbir-habaynta warshadda ee la taageero? Tani waxay beddeshaa dejimaha iyada oo aan firmware la cusboonaysiin ama muddada dareemaha la bilaabin.</string>
     <string name="ottai_ota_check">Hubi firmware-ka (tijaabo)</string>
+    <string name="ottai_ota_cloud_recheck">Mar kale ku hubi xaqiijinta daruurta V3</string>
+    <string name="ottai_ota_cloud_authenticating">Waxaa lagu xaqiijinayaa akoonkaaga Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Mar kale hubi helitaanka firmware-ka adigoo adeegsanaya xaqiijinta dareemaha ee server-ka. Tani ma hawlgelinayso dareemaha mana ku xirayso akoonka.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Marka hore dareemahan ka gooy kormeerka. Cusboonaysiinta dareeme bilaabmay waxay tirtiri kartaa akhrisyada, dib u bilaabi kartaa muddadiisa ama joojin kartaa dareemaha.</string>

@@ -181,16 +181,21 @@ object OttaiCloudClient {
         shaInfo: String,
     ): String {
         val identity = sessionIdentity(profile)
-        return md5Hex(
-            identity.appName +
-                commonHeaderDeviceId(identity, deviceId) +
+        return cgmAuthVerifyIdentitySign(identity.appName, commonHeaderDeviceId(identity, deviceId),
+            timestampMillis, mac, paramStr, shaInfo)
+    }
+
+    /** Sign the exact outgoing identity, including its already-prefixed deviceId header. */
+    private fun cgmAuthVerifyIdentitySign(appName: String, headerDeviceId: String, timestampMillis: Long,
+        mac: String, paramStr: String, shaInfo: String): String = md5Hex(
+            appName +
+                headerDeviceId +
                 mac.uppercase(Locale.ROOT) +
                 paramStr.uppercase(Locale.ROOT) +
                 shaInfo.uppercase(Locale.ROOT) +
                 timestampMillis.toString() +
                 SEED,
         )
-    }
 
     internal fun cgmAuthVerifyRequestBody(
         mac: String,
@@ -1048,11 +1053,12 @@ object OttaiCloudClient {
             require(accountHeaders["Authorization"].orEmpty().isNotBlank())
         }
 
-        private fun request(method: String, path: String, query: Map<String, String> = emptyMap(), body: String? = null): JSONObject {
+        private fun request(method: String, path: String, query: Map<String, String> = emptyMap(), body: String? = null,
+            timestampMillis: Long = now()): JSONObject {
             if (closed) throw OttaiOtaCloudException("cancelled")
             val qs = query.entries.joinToString("&") { "${enc(it.key)}=${enc(it.value)}" }
             val url = apiBase + OttaiConstants.PREFIX + path + if (qs.isEmpty()) "" else "?$qs"
-            val common = accountHeaders + mapOf("timestamp" to now().toString(), "traceId" to UUID.randomUUID().toString())
+            val common = accountHeaders + mapOf("timestamp" to timestampMillis.toString(), "traceId" to UUID.randomUUID().toString())
             val route = OttaiRegionalTransport.route(url, common) ?: throw OttaiOtaCloudException("ota_session")
             val transport = OttaiRegionalTransport(route, common) { verb, target, payload, requestHeaders ->
                 rawRequest(verb, target, payload, requestHeaders, TIMEOUT_MS, openConnection)
@@ -1063,6 +1069,26 @@ object OttaiCloudClient {
 
         fun judgeOta(mac: String, firmware: String): OtaOffer = parseOtaOffer(request("GET",
             OttaiConstants.EP_OTA_JUDGE, mapOf("mac" to mac, "deviceVersion" to firmware, "deviceType" to "cgm")))
+
+        /** Fresh V3 proof for the explicit recheck; never binds or issues activation commands. */
+        fun verifySensor(mac: String, deviceParam: ByteArray, deviceSignature: ByteArray): V3AuthMaterial {
+            val id = OttaiConstants.canonicalSensorId(mac)
+            require(OttaiConstants.looksLikeMac(id) && deviceParam.size == 68 && deviceSignature.size == 32) { "cloud_auth_parameter" }
+            val appName = accountHeaders["appName"].orEmpty()
+            val headerId = accountHeaders["deviceId"].orEmpty()
+            if (appName.isBlank() || headerId.isBlank()) throw OttaiOtaCloudException("ota_session")
+            val timestamp = now()
+            val param = OttaiCrypto.bytesToHex(deviceParam).uppercase(Locale.ROOT)
+            val signature = OttaiCrypto.bytesToHex(deviceSignature).uppercase(Locale.ROOT)
+            val sign = cgmAuthVerifyIdentitySign(appName, headerId, timestamp, id, param, signature)
+            val body = cgmAuthVerifyRequestBody(id, param, signature, sign, timestamp)
+            val response = request("POST", OttaiConstants.EP_CGM_AUTH_VERIFY.removePrefix(OttaiConstants.PREFIX),
+                body = body.toString(), timestampMillis = timestamp)
+            val data = response.optJSONObject("data") ?: response.optJSONObject("result")
+                ?: throw IllegalArgumentException("cloud_auth_material")
+            return V3AuthMaterial(data.optString("auth"), data.optString("shaInfo"),
+                data.optString("kb"), data.optString("cf"))
+        }
 
         fun reportOtaSuccess(mac: String, source: String, target: String) {
             request("POST", OttaiConstants.EP_OTA_REPORT, body = JSONObject().apply {

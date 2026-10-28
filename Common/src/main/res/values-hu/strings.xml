@@ -3177,6 +3177,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_ota_confirm">Telepíti ezt a kísérleti frissítést? Az érzékelő végleg használhatatlanná válhat. Az aktiválás külön, a verzió és a gyári paraméterek ellenőrzése után történik.</string>
     <string name="ottai_ota_parameters_confirm">Kiírja a támogatott gyári együtthatókat és kalibrációt? Ez firmware-frissítés és az élettartam indítása nélkül módosítja a beállításokat.</string>
     <string name="ottai_ota_check">Firmware ellenőrzése (kísérleti)</string>
+    <string name="ottai_ota_cloud_recheck">Újraellenőrzés V3 felhőhitelesítéssel</string>
+    <string name="ottai_ota_cloud_authenticating">Hitelesítés az Ottai-fiókon keresztül…</string>
+    <string name="ottai_ota_cloud_recheck_hint">A firmware elérhetőségének újraellenőrzése szerveres szenzorhitelesítéssel. Ez nem aktiválja és nem köti a fiókhoz a szenzort.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Először válassza le az érzékelőt a megfigyelésről. Egy elindított érzékelő frissítése törölheti a méréseket, visszaállíthatja az élettartamot vagy leállíthatja az érzékelőt.</string>

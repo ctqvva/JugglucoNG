@@ -66,6 +66,7 @@ internal class OttaiFirmwareSession private constructor(
 
     fun install() { handler.post { controller.install() } }
     fun prepareOnly() { handler.post { controller.prepareOnly() } }
+    fun recheckWithCloudAuth() { handler.post { controller.recheckWithCloudAuth() } }
     fun dispose() { handler.post { controller.close() } }
 
     fun discardRecovery(done: (Result<Unit>) -> Unit) {
@@ -327,7 +328,7 @@ internal class OttaiFirmwareSession private constructor(
                             "download_url", "download_filename", "target_version", "not_an_upgrade", "download_status",
                             "download_size", "download_redirects", "redirect", "gbl_size", "gbl_header", "gbl_truncated",
                             "gbl_tag", "gbl_header_duplicate", "gbl_length", "gbl_end", "gbl_crc", "materials_refresh",
-                            "materials_identity", "materials_decrypt", "cancelled")
+                            "materials_identity", "materials_decrypt", "cancelled", "cloud_auth_parameter", "cloud_auth_material")
                         Result.failure(IllegalStateException(if (error is OttaiOtaCloudException) error.diagnostic
                             else error.message?.takeIf { it in safe } ?: "cloud_or_package"))
                     }))
@@ -350,6 +351,11 @@ internal class OttaiFirmwareSession private constructor(
                 OttaiFirmwareImage(version, target, image)
             }
         }, done)
+    }
+
+    override fun verifyCloudAuth(param: ByteArray, signature: ByteArray,
+        done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit) {
+        work({ otaCloud.value.verifySensor(sensorId, param, signature) }, done)
     }
 
     private fun download(url: String): OttaiOtaPackage {

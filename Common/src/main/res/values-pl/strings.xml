@@ -3151,6 +3151,9 @@
     <string name="ottai_ota_confirm">Zainstalować eksperymentalną aktualizację? Może to trwale uszkodzić sensor. Aktywacja nastąpi osobno po sprawdzeniu wersji i parametrów fabrycznych.</string>
     <string name="ottai_ota_parameters_confirm">Zapisać obsługiwane współczynniki i kalibrację fabryczną? Zmieni to konfigurację bez aktualizacji oprogramowania ani rozpoczęcia czasu pracy sensora.</string>
     <string name="ottai_ota_check">Sprawdź oprogramowanie (eksperymentalnie)</string>
+    <string name="ottai_ota_cloud_recheck">Sprawdź ponownie z uwierzytelnianiem V3 w chmurze</string>
+    <string name="ottai_ota_cloud_authenticating">Uwierzytelnianie przez konto Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Sprawdź dostępność firmware z uwierzytelnianiem sensora przez serwer. Nie aktywuje to sensora ani nie wiąże go z kontem.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Najpierw odłącz ten sensor od monitorowania. Aktualizacja uruchomionego sensora może usunąć odczyty, zresetować czas pracy lub zakończyć działanie sensora.</string>

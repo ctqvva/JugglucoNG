@@ -3218,6 +3218,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_ota_confirm">Dieses experimentelle Update installieren? Der Sensor kann dauerhaft ausfallen. Die Aktivierung erfolgt separat nach Prüfung der Version und der Werksparameter.</string>
     <string name="ottai_ota_parameters_confirm">Die von dieser Firmware unterstützten Werkskoeffizienten und Kalibrierungswerte schreiben? Dies ändert die Sensorkonfiguration ohne Firmwareupdate oder Start der Laufzeit.</string>
     <string name="ottai_ota_check">Firmware prüfen (experimentell)</string>
+    <string name="ottai_ota_cloud_recheck">Mit V3-Cloud-Authentifizierung erneut prüfen</string>
+    <string name="ottai_ota_cloud_authenticating">Authentifizierung über dein Ottai-Konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Die Firmware-Verfügbarkeit mit servergestützter Sensorauthentifizierung erneut prüfen. Der Sensor wird dabei weder aktiviert noch mit dem Konto verknüpft.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Diesen Sensor zuerst von der Überwachung trennen. Ein Update eines gestarteten Sensors kann Messwerte löschen, die Laufzeit zurücksetzen oder den Sensor beenden.</string>

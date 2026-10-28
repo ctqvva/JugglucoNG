@@ -5,7 +5,7 @@ import java.security.interfaces.ECPublicKey
 import java.util.UUID
 
 internal enum class OttaiFirmwareStage {
-    CONNECTING, AUTHENTICATING, CHECKING, READY, NO_UPDATE, INSTALLING, RECONNECTING,
+    CONNECTING, AUTHENTICATING, CLOUD_AUTHENTICATING, CHECKING, READY, NO_UPDATE, INSTALLING, RECONNECTING,
     PREPARATION_READY, PREPARING, COMPLETE, FAILED, CLOSED,
 }
 
@@ -32,6 +32,7 @@ internal data class OttaiFirmwareState(
     val after: OttaiFirmwareObservation? = null,
     val canPrepareParameters: Boolean = false,
 ) {
+    val canRecheckWithCloudAuth: Boolean get() = !recovery && stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE)
     val transferring: Boolean get() = stage in setOf(OttaiFirmwareStage.INSTALLING, OttaiFirmwareStage.RECONNECTING, OttaiFirmwareStage.PREPARING) ||
         (acknowledgedBytes > 0 && stage == OttaiFirmwareStage.AUTHENTICATING)
 }
@@ -52,6 +53,7 @@ internal interface OttaiFirmwareIo {
     fun write(service: UUID, characteristic: UUID, value: ByteArray, done: (Result<Unit>) -> Unit)
     fun after(delayMs: Long, action: () -> Unit)
     fun prepareImage(version: String, done: (Result<OttaiFirmwareImage?>) -> Unit)
+    fun verifyCloudAuth(param: ByteArray, signature: ByteArray, done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit)
     fun refreshMaterials(version: String, done: (Result<OttaiRegistry.DeviceMaterials>) -> Unit)
     fun savedImage(): OttaiFirmwareImage?
     fun markTransferStarted(image: OttaiFirmwareImage)
@@ -161,20 +163,21 @@ internal class OttaiFirmwareController(
         }
     }
 
-    private fun checkCommandStatus(version: String, afterInstall: Boolean, resumed: Boolean) {
+    private fun checkCommandStatus(version: String, afterInstall: Boolean, resumed: Boolean,
+        next: () -> Unit = { continueAfterStatus(version, afterInstall, resumed) }) {
         read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
             val status = command.firstOrNull()?.toInt()?.and(255) ?: -1
             if (mode == OttaiFirmwareMode.PREACTIVATION) {
                 require(OttaiConstants.commandNeedsActivation(status)) { "sensor_already_active_or_ended" }
                 state = state.copy(canPrepareParameters = true)
-                continueAfterStatus(version, afterInstall, resumed)
+                next()
             } else {
                 // A reset or ended state AFTER the transfer is an observation, not a failure.
                 require(if (afterInstall) status in 0..4 else status == 3) { "started_sensor_status" }
                 observe(status) { observation ->
                     io.log("observation=${if (afterInstall) "after" else "before"} $observation")
                     state = if (afterInstall) state.copy(after = observation) else state.copy(before = observation)
-                    continueAfterStatus(version, afterInstall, resumed)
+                    next()
                 }
             }
         }
@@ -204,25 +207,95 @@ internal class OttaiFirmwareController(
                 return
             }
             update(OttaiFirmwareStage.CHECKING)
-            val done = completion<Result<OttaiFirmwareImage?>> { result ->
-                if (result.isFailure && state.canPrepareParameters) {
-                    // A firmware download is not a prerequisite for factory provisioning.
-                    update(OttaiFirmwareStage.NO_UPDATE) {
-                        it.copy(errorCode = diagnosticCode(result.exceptionOrNull()?.message ?: "cloud_or_package"))
-                    }
-                    return@completion
-                }
-                val image = result.getOrThrow()
-                packageForInstall = image?.copy(mode = mode, before = state.before)
-                if (image == null) update(OttaiFirmwareStage.NO_UPDATE)
-                else {
-                    require(hasOta && image.source == version && OttaiOtaProtocol.isUpgrade(version, image.target)) { "ota_offer_mismatch" }
-                    update(OttaiFirmwareStage.READY) {
-                        it.copy(target = image.target, totalBytes = image.image.size, sha256 = image.image.sha256)
+            val done = completion<Result<OttaiFirmwareImage?>> { result -> acceptOffer(version, result) }
+            io.prepareImage(version) { done(Result.success(it)) }
+        }
+    }
+
+    private fun acceptOffer(version: String, result: Result<OttaiFirmwareImage?>) {
+        if (result.isFailure && state.canPrepareParameters) {
+            // A firmware download is not a prerequisite for factory provisioning.
+            update(OttaiFirmwareStage.NO_UPDATE) {
+                it.copy(errorCode = diagnosticCode(result.exceptionOrNull()?.message ?: "cloud_or_package"))
+            }
+            return
+        }
+        val image = result.getOrThrow()
+        packageForInstall = image?.copy(mode = mode, before = state.before)
+        if (image == null) update(OttaiFirmwareStage.NO_UPDATE)
+        else {
+            require(hasOta && image.source == version && OttaiOtaProtocol.isUpgrade(version, image.target)) { "ota_offer_mismatch" }
+            update(OttaiFirmwareStage.READY) {
+                it.copy(target = image.target, totalBytes = image.image.size, sha256 = image.image.sha256)
+            }
+        }
+    }
+
+    /** Compare offer eligibility immediately after V3 server authentication, without binding. */
+    fun recheckWithCloudAuth() {
+        if (retired || !state.canRecheckWithCloudAuth) return
+        runCatching {
+            require(io.savedImage() == null) { "recovery_in_progress" }
+            epoch++
+            packageForInstall = null
+            sessionKey = ""
+            state = state.copy(target = "", sha256 = "", totalBytes = 0, canPrepareParameters = false, errorCode = "")
+            update(OttaiFirmwareStage.CLOUD_AUTHENTICATING)
+            io.log("cloud_auth_recheck=begin")
+            read(OttaiConstants.SERVICE_DEVICE_INFO, OttaiConstants.CHAR_CURRENT_TIME) { time ->
+                require(time.size == 4) { "auth_time" }
+                read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_DEVICE_PARAM) { param ->
+                    require(param.size == 68) { "auth_parameter" }
+                    val keys = requireNotNull(materials.authKeys) { "credentials_missing" }
+                    val index = param[0].toInt() and 255
+                    require(index in keys.indices) { "auth_index" }
+                    read(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN) { signature ->
+                        require(OttaiBleAuth.verifyDeviceSign(signature, OttaiCrypto.bytesToHex(keys[index]),
+                            sensorId, param.copyOfRange(4, 36), param.copyOfRange(36, 68), param.copyOfRange(1, 4))) { "sensor_signature" }
+                        io.verifyCloudAuth(param, signature, completion { applyCloudProof(it) })
                     }
                 }
             }
-            io.prepareImage(version) { done(Result.success(it)) }
+        }.onFailure { fail(it.message ?: "cloud_auth") }
+    }
+
+    private fun applyCloudProof(proof: OttaiCloudClient.V3AuthMaterial) {
+        require(proof.authHost.matches(Regex("[0-9A-Fa-f]{136}")) &&
+            proof.authFlag.matches(Regex("[0-9A-Fa-f]{64}"))) { "cloud_auth_material" }
+        write(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_APP_PARAM, OttaiCrypto.hexToBytes(proof.authHost)) {
+            write(OttaiConstants.SERVICE_AUTH, OttaiConstants.CHAR_AUTH_SIGN, OttaiCrypto.hexToBytes(proof.authFlag)) {
+                io.log("cloud_auth_recheck=writeback_complete")
+                // Match the normal V3 bootstrap's settling time before its bind.
+                later(2_500L) { requestCloudAuthenticatedOffer() }
+            }
+        }
+    }
+
+    private fun requestCloudAuthenticatedOffer() {
+        io.rediscover(completion { refreshed ->
+            require(!refreshed.bootloaderOnly) { "post_auth_services" }
+            mtu = refreshed.mtu
+            hasOta = refreshed.hasOta
+            update(OttaiFirmwareStage.CHECKING)
+            io.log("cloud_auth_recheck=judge")
+            val done = completion<Result<OttaiFirmwareImage?>> { result -> restoreLocalAuthAfterCloudCheck(result) }
+            io.prepareImage(state.firmware) { done(Result.success(it)) }
+        })
+    }
+
+    private fun restoreLocalAuthAfterCloudCheck(result: Result<OttaiFirmwareImage?>) {
+        // The server owns the V3 session key. Restore local authentication and recheck state
+        // before enabling install or parameter preparation, including after an empty offer.
+        authenticate {
+            io.rediscover(completion { local ->
+                require(!local.bootloaderOnly) { "post_auth_services" }
+                mtu = local.mtu
+                hasOta = local.hasOta
+                checkCommandStatus(state.firmware, false, false) {
+                    io.log("cloud_auth_recheck=local_auth_restored")
+                    acceptOffer(state.firmware, result)
+                }
+            })
         }
     }
 

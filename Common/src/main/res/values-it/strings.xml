@@ -3096,6 +3096,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">Installare questo aggiornamento sperimentale? Il sensore potrebbe diventare inutilizzabile in modo permanente. L’attivazione avviene separatamente dopo la verifica della versione e dei parametri di fabbrica.</string>
     <string name="ottai_ota_parameters_confirm">Scrivere i coefficienti e la calibrazione di fabbrica supportati? Questo modifica la configurazione senza aggiornare il firmware o avviare la durata del sensore.</string>
     <string name="ottai_ota_check">Controlla firmware (sperimentale)</string>
+    <string name="ottai_ota_cloud_recheck">Ricontrolla con autenticazione cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Autenticazione tramite il tuo account Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Ricontrolla la disponibilità del firmware con l’autenticazione del sensore tramite server. Il sensore non viene attivato né associato all’account.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Scollega prima questo sensore dal monitoraggio. L’aggiornamento di un sensore avviato può cancellare le letture, azzerare la durata o terminare il sensore.</string>

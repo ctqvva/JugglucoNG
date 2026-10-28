@@ -3148,6 +3148,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_ota_confirm">Deze experimentele update installeren? Dit kan de sensor permanent uitschakelen. Activering volgt apart na controle van de versie en fabrieksparameters.</string>
     <string name="ottai_ota_parameters_confirm">De ondersteunde fabriekscoëfficiënten en kalibratie schrijven? Dit wijzigt de configuratie zonder firmwareupdate of het starten van de levensduur.</string>
     <string name="ottai_ota_check">Firmware controleren (experimenteel)</string>
+    <string name="ottai_ota_cloud_recheck">Opnieuw controleren met V3-cloudverificatie</string>
+    <string name="ottai_ota_cloud_authenticating">Verifiëren via je Ottai-account…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Controleer firmware opnieuw met sensorverificatie via de server. Dit activeert de sensor niet en koppelt hem niet aan het account.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Koppel deze sensor eerst los van de bewaking. Een update van een gestarte sensor kan metingen wissen, de levensduur resetten of de sensor beëindigen.</string>

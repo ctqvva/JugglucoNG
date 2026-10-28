@@ -110,6 +110,7 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
     val scope = rememberCoroutineScope()
     OttaiFirmwareStatusDialog(state, OttaiFirmwareSession.hasPendingTransfer(context, sensorId),
         onInstall = { session?.install() }, onPrepare = { session?.prepareOnly() },
+        onCloudRecheck = { session?.recheckWithCloudAuth() },
         onDiscard = { done ->
             val owned = session
             if (owned != null) owned.discardRecovery(done)
@@ -122,13 +123,14 @@ private fun OttaiFirmwareSessionDialog(sensorId: String, address: String, mode: 
 @Composable
 internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boolean,
     onInstall: () -> Unit, onPrepare: () -> Unit,
-    onDiscard: ((Result<Unit>) -> Unit) -> Unit, onDismiss: () -> Unit) {
+    onDiscard: ((Result<Unit>) -> Unit) -> Unit, onDismiss: () -> Unit, onCloudRecheck: () -> Unit = {}) {
     val mode = state.mode
     var confirmInstall by remember { mutableStateOf(false) }
     var confirmParameters by remember { mutableStateOf(false) }
     val stageText = when (state.stage) {
         OttaiFirmwareStage.CONNECTING -> R.string.ottai_ota_connecting
         OttaiFirmwareStage.AUTHENTICATING -> R.string.ottai_ota_authenticating
+        OttaiFirmwareStage.CLOUD_AUTHENTICATING -> R.string.ottai_ota_cloud_authenticating
         OttaiFirmwareStage.CHECKING -> R.string.ottai_ota_checking
         OttaiFirmwareStage.READY -> when {
             state.recovery -> R.string.ottai_ota_recovery
@@ -160,6 +162,7 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                 Text(stringResource(if (mode == OttaiFirmwareMode.STARTED_SENSOR) R.string.ottai_ota_started_mode else R.string.ottai_ota_fresh_mode))
                 if (mode == OttaiFirmwareMode.STARTED_SENSOR) Text(stringResource(R.string.ottai_ota_mode_hint))
                 Text(stringResource(stageText))
+                if (state.canRecheckWithCloudAuth && !pending) Text(stringResource(R.string.ottai_ota_cloud_recheck_hint))
                 state.before?.let { ObservationText(R.string.ottai_ota_before, it) }
                 state.after?.let { ObservationText(R.string.ottai_ota_after, it) }
                 if (state.firmware.isNotEmpty()) Text(stringResource(R.string.ottai_ota_version, state.firmware, state.target.ifEmpty { "—" }))
@@ -178,6 +181,10 @@ internal fun OttaiFirmwareStatusDialog(state: OttaiFirmwareState, pending: Boole
                 if (state.stage == OttaiFirmwareStage.READY) {
                     Button(onClick = { confirmInstall = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_install)) }
+                }
+                if (state.canRecheckWithCloudAuth && !pending) {
+                    OutlinedButton(onClick = onCloudRecheck, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.ottai_ota_cloud_recheck)) }
                 }
                 if (state.canPrepareParameters &&
                     state.stage in setOf(OttaiFirmwareStage.READY, OttaiFirmwareStage.NO_UPDATE, OttaiFirmwareStage.PREPARATION_READY)) {

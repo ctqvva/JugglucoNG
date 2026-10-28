@@ -3112,6 +3112,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">Installer cette mise à jour expérimentale ? Le capteur peut devenir définitivement inutilisable. L’activation se fait séparément après vérification de la version et des paramètres d’usine.</string>
     <string name="ottai_ota_parameters_confirm">Écrire les coefficients et l’étalonnage d’usine pris en charge ? Cela modifie la configuration sans mettre à jour le micrologiciel ni démarrer la durée de vie du capteur.</string>
     <string name="ottai_ota_check">Vérifier le micrologiciel (expérimental)</string>
+    <string name="ottai_ota_cloud_recheck">Revérifier avec l’authentification cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Authentification via votre compte Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Revérifier la disponibilité du firmware avec l’authentification du capteur par le serveur. Cela n’active pas le capteur et ne l’associe pas au compte.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Déconnectez d’abord ce capteur de la surveillance. Sa mise à jour peut effacer les mesures, réinitialiser sa durée de vie ou arrêter le capteur.</string>

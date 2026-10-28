@@ -104,6 +104,21 @@ It cannot isolate the effect of firmware from factory provisioning on early read
 
 ## Test an already-started sensor
 
+If the ordinary check says no update is offered, choose **Recheck with V3 cloud
+authentication** in the same dialog. This comparison is available in release builds too:
+it sends a fresh sensor challenge to `/cgmAuth/verify` using the captured account, writes
+the authenticated server response back over BLE, waits the normal V3 settling interval,
+and requests an offer before replacing that server-authenticated BLE session. It then
+restores local authentication and checks the sensor state before exposing installation.
+It does not call bindV3, activate, or write factory parameters. A package still needs a
+separate Install confirmation. Saved-package recovery is excluded from this new check.
+
+The trace contains `cloud_auth_recheck=begin`, `writeback_complete`, `judge`, and
+`local_auth_restored`, plus the usual offer flags. This tests whether fresh server-mediated
+authentication changes eligibility; it does not assume the backend requires that proof or
+that it will offer firmware. Challenges, signatures and server authentication values are
+not logged. A failure or closing the dialog retires outstanding callbacks.
+
 1. Export its credentials and any history you want to keep. Disconnect it from monitoring
    while retaining local credentials/history. Stop other apps from reconnecting to it. A
    managed record or callback in this test app still prevents the separate BLE session;

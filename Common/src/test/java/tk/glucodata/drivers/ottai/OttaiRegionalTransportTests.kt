@@ -388,6 +388,53 @@ class OttaiRegionalTransportTests {
         }
     }
 
+    @Test fun explicitCloudProofUsesTheCapturedRegionalIdentityAndExactlyTheSignedTimestamp() {
+        for (base in listOf(OttaiConstants.API_BASE, OttaiConstants.API_BASE_GLOBAL, OttaiConstants.API_BASE_SYAI)) {
+            val server = Server(base)
+            val cn = base == OttaiConstants.API_BASE
+            val common = if (cn) OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic") else headers
+            val param = ByteArray(68) { it.toByte() }
+            val signature = ByteArray(32) { (it + 128).toByte() }
+            server.business = JSONObject().put("code", "OK").put("data", JSONObject()
+                .put("auth", "11".repeat(68)).put("shaInfo", "22".repeat(32)).put("cf", "unused"))
+            val client = OttaiCloudClient.OtaClient(base, common, server::connection)
+            try {
+                assertEquals("11".repeat(68), client.verifySensor("001122334455", param, signature).authHost)
+                val actual = server.calls.last()
+                assertEquals("$base/cgm/security/app/server/cgmAuth/verify", actual.url)
+                val body = server.clearBodies.single()
+                val timestamp = actual.headers.getValue("timestamp").toLong()
+                assertEquals(timestamp.toString(), body.getString("timestamp"))
+                assertEquals(OttaiCrypto.bytesToHex(param).uppercase(), body.getString("paramStr"))
+                assertEquals(OttaiCrypto.bytesToHex(signature).uppercase(), body.getString("shaInfo"))
+                val app = common.getValue("appName")
+                val expected = OttaiCloudClient.cgmAuthVerifySign(
+                    if (cn) OttaiRegistry.SessionProfile.CN_PHONE else OttaiRegistry.SessionProfile.WATCH,
+                    common.getValue("deviceId").removePrefix("$app:a:"), timestamp,
+                    "001122334455", body.getString("paramStr"), body.getString("shaInfo"))
+                assertEquals(expected, body.getString("sign"))
+                assertEquals(common["Authorization"], actual.headers["Authorization"])
+                assertFalse(actual.body.orEmpty().contains(body.getString("paramStr")))
+                assertEquals(setOf("mac", "paramStr", "shaInfo", "sign", "timestamp"), body.keys().asSequence().toSet())
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun cloudProofCannotAcceptAPlaintextOrUnauthenticatedResponse() {
+        for (plaintext in listOf(true, false)) {
+            val server = Server()
+            server.plaintextResponse = plaintext
+            server.corruptResponse = !plaintext
+            server.business = JSONObject("""{"code":"OK","data":{"auth":"${"11".repeat(68)}","shaInfo":"${"22".repeat(32)}"}}""")
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection)
+            try {
+                assertThrows(OttaiOtaCloudException::class.java) {
+                    client.verifySensor("001122334455", ByteArray(68), ByteArray(32))
+                }
+            } finally { client.close() }
+        }
+    }
+
     @Test fun regionalOtaCannotAcceptPlaintextOrUnauthenticatedOffers() {
         for (plaintext in listOf(true, false)) {
             val server = Server()

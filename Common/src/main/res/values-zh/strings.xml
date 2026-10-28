@@ -3118,6 +3118,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">安装此实验性更新？这可能永久损坏传感器。验证已安装的版本和出厂参数后，将另行激活。</string>
     <string name="ottai_ota_parameters_confirm">写入此固件支持的出厂系数和校准参数？此操作会更改传感器配置，但不会更新固件或开始计时。</string>
     <string name="ottai_ota_check">检查固件（实验性）</string>
+    <string name="ottai_ota_cloud_recheck">使用 V3 云端认证重新检查</string>
+    <string name="ottai_ota_cloud_authenticating">正在通过您的 Ottai 账号认证…</string>
+    <string name="ottai_ota_cloud_recheck_hint">通过服务器进行传感器认证后重新检查固件更新。此操作不会激活传感器或将其绑定到账号。</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">请先断开此传感器的监测连接。更新已启动的传感器可能会删除读数、重置使用期限或结束传感器运行。</string>

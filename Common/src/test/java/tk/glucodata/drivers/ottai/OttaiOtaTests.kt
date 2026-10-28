@@ -204,6 +204,14 @@ class OttaiFirmwareControllerTests {
         var dataNo = 720
         var optionalUnavailable = false
         var offerFailure: String? = null
+        var noOffer = false
+        var holdOffer = false
+        var pendingOffer: ((Result<OttaiFirmwareImage?>) -> Unit)? = null
+        var cloudVerify: ((Result<OttaiCloudClient.V3AuthMaterial>) -> Unit)? = null
+        var cloudVerifyRequests = 0
+        var cloudParameters: Pair<ByteArray, ByteArray>? = null
+        val cloudProof = OttaiCloudClient.V3AuthMaterial("11".repeat(68), "22".repeat(32), "", "")
+        val offerWriteCounts = mutableListOf<Int>()
         var offerRequests = 0
         val offerVersions = mutableListOf<String>()
         override fun connect(done: (Result<OttaiFirmwareGatt>) -> Unit) { connected = done }
@@ -233,7 +241,14 @@ class OttaiFirmwareControllerTests {
         override fun prepareImage(version: String, done: (Result<OttaiFirmwareImage?>) -> Unit) {
             offerRequests++
             offerVersions += version
-            done(offerFailure?.let { Result.failure(IllegalStateException(it)) } ?: Result.success(image))
+            offerWriteCounts += writes.size
+            if (holdOffer) pendingOffer = done
+            else done(offerFailure?.let { Result.failure(IllegalStateException(it)) } ?: Result.success(if (noOffer) null else image))
+        }
+        override fun verifyCloudAuth(param: ByteArray, signature: ByteArray, done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit) {
+            cloudVerifyRequests++
+            cloudParameters = param.copyOf() to signature.copyOf()
+            cloudVerify = done
         }
         override fun refreshMaterials(version: String, done: (Result<OttaiRegistry.DeviceMaterials>) -> Unit) {
             refresh = done
@@ -264,7 +279,7 @@ class OttaiFirmwareControllerTests {
         val time = byteArrayOf(1, 2, 3)
         var session = ""
         io.onWrite = { ch, value ->
-            if (ch == OttaiConstants.CHAR_AUTH_APP_PARAM) {
+            if (ch == OttaiConstants.CHAR_AUTH_APP_PARAM && !value.contentEquals(OttaiCrypto.hexToBytes(io.cloudProof.authHost))) {
                 session = requireNotNull(OttaiBleAuth.deriveSessionKey(
                     OttaiCrypto.bytesToHex(value.copyOfRange(4, 36)), OttaiCrypto.bytesToHex(value.copyOfRange(36, 68)),
                     device.private as java.security.interfaces.ECPrivateKey))
@@ -612,6 +627,126 @@ class OttaiFirmwareControllerTests {
         assertFalse(controller.state.canPrepareParameters)
         controller.prepareOnly()
         assertNull(io.refresh)
+    }
+
+    private fun finishCloudWriteback(io: FakeIo) {
+        requireNotNull(io.cloudVerify)(Result.success(io.cloudProof))
+        repeat(2) { io.tick(); io.acknowledge() }
+    }
+
+    private fun finishCloudRecheck(io: FakeIo) {
+        finishCloudWriteback(io)
+        io.tick() // The V3 bootstrap's settling delay, then judge while server auth is current.
+        repeat(2) { io.tick(); io.acknowledge() } // Restore local ECDH before publishing the offer.
+    }
+
+    @Test fun cloudRecheckIsExplicitAndCannotInstallUntilLocalAuthenticationIsRestored() {
+        val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR) { it.noOffer = true }
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertEquals(0, io.cloudVerifyRequests)
+        controller.recheckWithCloudAuth()
+        controller.recheckWithCloudAuth() // Repeated UI events cannot overlap handshakes.
+        controller.install()
+        controller.prepareOnly()
+        assertEquals(1, io.cloudVerifyRequests)
+        assertEquals(68, io.cloudParameters!!.first.size)
+        assertEquals(32, io.cloudParameters!!.second.size)
+        assertEquals(OttaiFirmwareStage.CLOUD_AUTHENTICATING, controller.state.stage)
+        assertEquals(2, io.writes.size)
+        io.noOffer = false
+        finishCloudWriteback(io)
+        assertArrayEquals(OttaiCrypto.hexToBytes(io.cloudProof.authHost), io.writes[2].second)
+        assertArrayEquals(OttaiCrypto.hexToBytes(io.cloudProof.authFlag), io.writes[3].second)
+        assertEquals(1, io.offerRequests)
+        io.tick()
+        assertEquals(OttaiFirmwareStage.AUTHENTICATING, controller.state.stage)
+        assertEquals(listOf(2, 4), io.offerWriteCounts) // Judge precedes replacement local auth.
+        controller.install()
+        assertFalse(io.saved)
+        repeat(2) { io.tick(); io.acknowledge() }
+        assertEquals(OttaiFirmwareStage.READY, controller.state.stage)
+        assertEquals(6, io.writes.size)
+        assertNull(io.refresh) // No bind/preparation requests.
+        assertFalse(io.saved)
+        assertTrue(io.logs.contains("cloud_auth_recheck=local_auth_restored"))
+        assertTrue(io.writes.all { it.first in setOf(OttaiConstants.CHAR_AUTH_APP_PARAM, OttaiConstants.CHAR_AUTH_SIGN) })
+    }
+
+    @Test fun emptyCloudRecheckRestoresLocalAuthAndRefreshesTheStartedBaseline() {
+        val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR) { it.noOffer = true }
+        controller.recheckWithCloudAuth()
+        io.dataNo = 999
+        finishCloudRecheck(io)
+        assertEquals(OttaiFirmwareStage.NO_UPDATE, controller.state.stage)
+        assertEquals(999, controller.state.before?.latestDataNo)
+        assertEquals(2, io.offerRequests)
+        assertFalse(io.saved)
+    }
+
+    @Test fun cloudRecheckRejectsMalformedServerMaterialBeforeWritingIt() {
+        val (controller, io) = normal()
+        controller.recheckWithCloudAuth()
+        io.cloudVerify!!(Result.success(io.cloudProof.copy(authHost = "not-hex")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals("cloud_auth_material", controller.state.errorCode)
+        assertEquals(2, io.writes.size)
+        assertEquals(1, io.offerRequests)
+        assertFalse(io.saved)
+    }
+
+    @Test fun cloudRecheckCannotUseARejectedProofOrAMismatchedSensor() {
+        val (controller, io) = normal()
+        controller.recheckWithCloudAuth()
+        io.cloudVerify!!(Result.failure(IllegalStateException("ota_request_biz=Device_Auth_Error")))
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals(2, io.writes.size)
+        assertEquals(1, io.offerRequests)
+
+        val (mismatch, other) = normal()
+        val answer = requireNotNull(other.readAnswer)
+        other.readAnswer = { ch -> if (ch == OttaiConstants.CHAR_AUTH_SIGN) ByteArray(32) else answer(ch) }
+        mismatch.recheckWithCloudAuth()
+        assertEquals("sensor_signature", mismatch.state.errorCode)
+        assertEquals(0, other.cloudVerifyRequests)
+        assertEquals(2, other.writes.size)
+    }
+
+    @Test fun lateCloudProofAndOfferCannotWriteAfterTheSessionIsClosedOrDiscarded() {
+        val (controller, io) = normal()
+        controller.recheckWithCloudAuth()
+        val proof = requireNotNull(io.cloudVerify)
+        controller.close()
+        proof(Result.success(io.cloudProof))
+        assertEquals(2, io.writes.size)
+        assertEquals(1, io.offerRequests)
+
+        val (waiting, held) = normal()
+        waiting.recheckWithCloudAuth()
+        held.holdOffer = true
+        finishCloudWriteback(held)
+        held.tick()
+        assertEquals(OttaiFirmwareStage.CHECKING, waiting.state.stage)
+        assertTrue(waiting.discardRecovery())
+        held.pendingOffer!!(Result.success(held.image))
+        assertEquals(4, held.writes.size)
+        assertEquals(OttaiFirmwareStage.CLOSED, waiting.state.stage)
+        assertFalse(held.saved)
+    }
+
+    @Test fun cloudRecheckDoesNotReplaceRecoveryOrAcceptAChangedSensorState() {
+        val (recovery, saved) = normal { it.journal = image }
+        recovery.recheckWithCloudAuth()
+        assertEquals(0, saved.cloudVerifyRequests)
+        assertEquals(0, saved.offerRequests)
+        assertSame(image, saved.journal)
+
+        val (controller, io) = normal(command = 3, mode = OttaiFirmwareMode.STARTED_SENSOR)
+        controller.recheckWithCloudAuth()
+        io.commandStatus = 4
+        finishCloudRecheck(io)
+        assertEquals(OttaiFirmwareStage.FAILED, controller.state.stage)
+        assertEquals("started_sensor_status", controller.state.errorCode)
+        assertFalse(io.saved)
     }
 
     @Test fun failedParameterWriteLeavesTheRecoveryJournalBlockingActivation() {

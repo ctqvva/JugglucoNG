@@ -25,7 +25,8 @@ was needed. Obfuscated library URLs differ only by case; use a case-sensitive ou
 `OttaiRegionalTransport` with the experiment's captured backend/account headers. Its CN calls
 use the 1.63 identity/version and `cipherUserId`; global/Syai use main's regional compatibility
 version and `webDeviceId`. CN forwarded-IP headers are never added to global/Syai requests.
-Each operation clears its ephemeral keys. OTA check, report and user-confirmed preparation
+Each operation clears its ephemeral keys. OTA check, the explicit V3-authenticated recheck,
+report and user-confirmed preparation
 bind are scoped to this client.
 
 Ordinary CN login, device lists, binding and activation retain main's transport. The broader

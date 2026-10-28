@@ -116,6 +116,64 @@ class OttaiFirmwareRecoveryUiTests {
         compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertDoesNotExist()
     }
 
+    @Test fun noOfferExposesAnExplicitCloudAuthRecheck() = cloudRecheck(1f)
+    @Test fun largeFontCloudAuthRecheckAndCloseRemainVisible() = cloudRecheck(2f)
+
+    private fun cloudRecheck(scale: Float) {
+        RuntimeEnvironment.setFontScale(scale)
+        var checked = 0
+        var closed = 0
+        var stage by mutableStateOf(OttaiFirmwareStage.NO_UPDATE)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = stage, mode = OttaiFirmwareMode.STARTED_SENSOR,
+                    firmware = "E1.2.6(V1.7.SH2616.1),STDRD"), false,
+                    onInstall = { error("No automatic installation") }, onPrepare = { error("No preparation") },
+                    onDiscard = {}, onDismiss = { closed++ }, onCloudRecheck = {
+                        checked++
+                        stage = OttaiFirmwareStage.CLOUD_AUTHENTICATING
+                    })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
+        capture(if (scale == 1f) "cloud-recheck" else "cloud-recheck-large-font")
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).performClick()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_authenticating)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.close)).performClick()
+        compose.runOnIdle { assertEquals(1, checked); assertEquals(1, closed) }
+    }
+
+    @Test fun pendingRecoveryDoesNotExposeANewCloudRecheck() {
+        compose.setContent {
+            MaterialTheme {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY, recovery = true), true,
+                    onInstall = {}, onPrepare = {}, onDiscard = {}, onDismiss = {},
+                    onCloudRecheck = { error("Recovery must use the saved package") })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "ru-w400dp-h800dp-mdpi")
+    fun russianLargeFontFreshActionsRemainVisible() {
+        RuntimeEnvironment.setFontScale(2f)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
+                    canPrepareParameters = true), false, onInstall = {}, onPrepare = {}, onDiscard = {},
+                    onDismiss = {}, onCloudRecheck = {})
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_ota_install)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_cloud_recheck)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_parameters)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
+        capture("cloud-recheck-fresh-russian-large-font")
+    }
+
     @Test fun blockedConnectionExplainsRecoveryAndDiscardReleasesOnlyThatBlock() {
         val id = "AABBCCDDEEFF"
         val file = File(context.filesDir, "ottai-ota/$id.bin.bak")

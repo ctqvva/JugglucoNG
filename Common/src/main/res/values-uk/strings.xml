@@ -3186,6 +3186,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">Установити експериментальне оновлення? Сенсор може назавжди вийти з ладу. Активація виконується окремо після перевірки версії та заводських параметрів.</string>
     <string name="ottai_ota_parameters_confirm">Записати підтримувані заводські коефіцієнти та калібрування? Це змінить налаштування без оновлення прошивки та запуску строку роботи сенсора.</string>
     <string name="ottai_ota_check">Перевірити прошивку (експериментально)</string>
+    <string name="ottai_ota_cloud_recheck">Повторити з хмарною автентифікацією V3</string>
+    <string name="ottai_ota_cloud_authenticating">Автентифікація через обліковий запис Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Повторна перевірка прошивки з автентифікацією датчика через сервер. Датчик не буде активовано або прив’язано до облікового запису.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Спочатку відключіть цей сенсор від моніторингу. Оновлення запущеного сенсора може стерти показання, скинути строк роботи або завершити роботу сенсора.</string>

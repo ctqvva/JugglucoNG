@@ -3133,6 +3133,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_ota_confirm">Bu deneysel güncelleme yüklensin mi? Sensör kalıcı olarak kullanılamaz hâle gelebilir. Sürüm ve fabrika parametreleri doğrulandıktan sonra ayrıca etkinleştirilir.</string>
     <string name="ottai_ota_parameters_confirm">Desteklenen fabrika katsayıları ve kalibrasyon yazılsın mı? Bu işlem ürün yazılımını güncellemeden veya sensör ömrünü başlatmadan yapılandırmayı değiştirir.</string>
     <string name="ottai_ota_check">Ürün yazılımını denetle (deneysel)</string>
+    <string name="ottai_ota_cloud_recheck">V3 bulut kimlik doğrulamasıyla yeniden denetle</string>
+    <string name="ottai_ota_cloud_authenticating">Ottai hesabınız üzerinden kimlik doğrulanıyor…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Sunucu aracılı sensör kimlik doğrulamasıyla bellenim kullanılabilirliğini yeniden denetleyin. Bu işlem sensörü etkinleştirmez veya hesaba bağlamaz.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Önce bu sensörün izleme bağlantısını kesin. Başlatılmış bir sensörü güncellemek okumaları silebilir, ömrünü sıfırlayabilir veya sensörü sonlandırabilir.</string>

@@ -3105,6 +3105,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_confirm">Installera denna experimentella uppdatering? Sensorn kan sluta fungera permanent. Aktivering sker separat efter kontroll av version och fabriksparametrar.</string>
     <string name="ottai_ota_parameters_confirm">Skriva de fabrikskoefficienter och kalibreringsvärden som stöds? Detta ändrar konfigurationen utan firmwareuppdatering eller start av sensorns livslängd.</string>
     <string name="ottai_ota_check">Kontrollera firmware (experimentellt)</string>
+    <string name="ottai_ota_cloud_recheck">Kontrollera igen med V3-molnautentisering</string>
+    <string name="ottai_ota_cloud_authenticating">Autentiserar via ditt Ottai-konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Kontrollera firmware igen med serverbaserad sensorautentisering. Detta aktiverar inte sensorn och kopplar den inte till kontot.</string>
 
     <!-- Started-sensor OTA experiment. -->
     <string name="ottai_ota_mode_hint">Koppla först bort sensorn från övervakningen. Uppdatering av en startad sensor kan radera mätvärden, återställa livslängden eller avsluta sensorn.</string>
