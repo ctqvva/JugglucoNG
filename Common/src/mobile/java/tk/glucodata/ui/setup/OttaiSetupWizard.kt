@@ -772,8 +772,14 @@ fun OttaiSetupWizard(
     // Listening is permanent while the search is open: every wake disarms the reader, so it is
     // re-armed after each one. Keyed on the wake counter, not the shown state: a second wake
     // leaves that at WOKE and would not re-run this.
+    // Once nothing here needs a wake (signed in to Ottai Global, or Global picked), setup must
+    // let go of NFC: a held capture swallows the next Libre or pen tap.
     LaunchedEffect(step, nfcWakeListening, nfcScanRestartKey) {
-        if (step == OttaiSetupStep.SEARCH && nfcWakeListening) OttaiNfc.armForSetup()
+        if (!nfcWakeListening) {
+            OttaiNfc.disarmSetup()
+        } else if (step == OttaiSetupStep.SEARCH) {
+            OttaiNfc.armForSetup()
+        }
     }
 
     // Keep one callback for the whole wizard so a wake from any page also restarts BLE
@@ -1366,9 +1372,6 @@ fun OttaiSetupWizard(
                         enabled = !busy && !materialLoading,
                         onAddressSelected = selectNearby,
                         onScanQr = { step = OttaiSetupStep.QR },
-                        // Typing fields in the header: keep everything in one list, so the
-                        // keyboard opening never moves the form and drops its focus.
-                        pinFooter = signedIn,
                         header = {
                             OttaiAccountCard(
                                 signedIn = signedIn,
@@ -1426,6 +1429,8 @@ fun OttaiSetupWizard(
                                     bottom = ui.spacerMedium,
                                 ),
                             ) {
+                                OttaiSensorIdEntry(onEntered = selectCode)
+                                Spacer(Modifier.size(16.dp))
                                 // Keys, not a sensor: the file stands in for the account, so it
                                 // sits with the saved sensors it adds to, not beside QR.
                                 OutlinedButton(
@@ -1461,7 +1466,6 @@ fun OttaiSetupWizard(
                         scanned?.let(selectCode)
                         scanned != null
                     },
-                    onEntered = selectCode,
                 )
 
                 OttaiSetupStep.SENSOR -> {
@@ -1629,7 +1633,6 @@ private fun OttaiSearchStep(
     enabled: Boolean,
     onAddressSelected: (String) -> Unit,
     onScanQr: () -> Unit,
-    pinFooter: Boolean,
     header: @Composable ColumnScope.() -> Unit,
     nfcHint: (@Composable () -> Unit)?,
     footer: @Composable () -> Unit,
@@ -1791,6 +1794,8 @@ private fun OttaiSearchStep(
     val searchHeader: @Composable ColumnScope.() -> Unit = {
         header()
         Spacer(Modifier.height(ui.spacerMedium))
+        // The wave belongs to the search, so it runs right above it, under the account card.
+        if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         // QR is the other way to find the sensor, so it sits with the search.
         AdaptiveTrailingRow(
             modifier = Modifier.fillMaxWidth().padding(horizontal = ui.horizontalPadding),
@@ -1879,22 +1884,14 @@ private fun OttaiSearchStep(
         }
     }
 
+    // The list scrolls; the footer stays pinned under it. One layout whatever the window does,
+    // so the keyboard opening for the sign-in or ID fields never rebuilds them and drops focus.
     Column(modifier = Modifier.fillMaxSize()) {
-        if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        if (pinFooter) {
-            PinnedOrScrollingList(
-                modifier = Modifier.weight(1f),
-                header = searchHeader,
-                footer = footer,
-                listContent = deviceRows,
-            )
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
-                deviceRows()
-                item(key = "footer") { footer() }
-            }
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
+            deviceRows()
         }
+        footer()
     }
 }
 

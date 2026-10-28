@@ -748,7 +748,10 @@ internal fun OttaiAccountCard(
             if (form.status.isNotBlank()) OttaiCaption(form.status, isError = form.statusIsError)
         },
         actions = {
-            OttaiCardActions {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (region.webBase != null && !region.usesSms) {
                     TextButton(
                         onClick = onRegister,
@@ -757,6 +760,7 @@ internal fun OttaiAccountCard(
                         contentPadding = ButtonDefaults.TextButtonContentPadding,
                     ) { Text(stringResource(R.string.ottai_register_cta)) }
                 }
+                // The card's one real action takes the rest of the row.
                 Button(
                     onClick = signIn,
                     enabled = !busy && if (useSms) {
@@ -764,6 +768,7 @@ internal fun OttaiAccountCard(
                     } else {
                         form.phone.isNotBlank() && form.password.isNotBlank()
                     },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) {
@@ -987,13 +992,7 @@ internal fun OttaiRegisterStep(
 internal fun OttaiQrStep(
     ui: WizardUiMetrics,
     onScanned: (raw: String) -> Boolean,
-    onEntered: (code: String) -> Unit,
 ) {
-    var typed by remember { mutableStateOf("") }
-    val code = OttaiConstants.extractSetupCode(typed)
-        ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
-    val invalid = typed.length >= 12 && code == null
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1029,7 +1028,19 @@ internal fun OttaiQrStep(
             modifier = Modifier.fillMaxWidth().height(240.dp),
             onScanResult = onScanned,
         )
-        Spacer(Modifier.size(24.dp))
+    }
+}
+
+/** The sensor ID or box serial typed in, with the button that opens that sensor. */
+@Composable
+internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit) {
+    var typed by remember { mutableStateOf("") }
+    val code = OttaiConstants.extractSetupCode(typed)
+        ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
+    val invalid = typed.length >= 12 && code == null
+    val enter = { code?.let { typed = ""; onEntered(it) } }
+    // Top-aligned: the error line grows the field downwards, never moves the button.
+    Row(verticalAlignment = Alignment.Top) {
         OutlinedTextField(
             value = typed,
             onValueChange = { typed = it.trim() },
@@ -1045,14 +1056,15 @@ internal fun OttaiQrStep(
                 keyboardType = KeyboardType.Ascii,
                 imeAction = ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(onDone = { code?.let(onEntered) }),
-            modifier = Modifier.fillMaxWidth(),
+            keyboardActions = KeyboardActions(onDone = { enter() }),
+            modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
         Button(
-            onClick = { code?.let(onEntered) },
+            onClick = { enter() },
             enabled = code != null,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            // The text field's own outlined-label inset puts its box 8dp down.
+            modifier = Modifier.padding(top = 8.dp).heightIn(min = 56.dp),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) { Text(stringResource(R.string.continue_action)) }
