@@ -85,6 +85,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.Default.Radio,
                         iconTint = appColor,
                         position = CardPosition.TOP,
+                        searchAnchor = SettingsSearchAnchors.XDRIP,
                         onCheckedChange = { viewModel.toggleXDripBroadcast(it) }
                     )
                     SettingsSwitchItem(
@@ -94,6 +95,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.Default.Share,
                         iconTint = appColor,
                         position = CardPosition.MIDDLE,
+                        searchAnchor = SettingsSearchAnchors.PATCHED_LIBRE,
                         onCheckedChange = { viewModel.togglePatchedLibreBroadcast(it) }
                     )
                     SettingsSwitchItem(
@@ -103,6 +105,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.AutoMirrored.Filled.Send,
                         iconTint = appColor,
                         position = if (healthConnectSupported) CardPosition.MIDDLE else CardPosition.BOTTOM,
+                        searchAnchor = SettingsSearchAnchors.GLUCODATA,
                         onCheckedChange = { viewModel.toggleGlucodataBroadcast(it) }
                     )
                     if (healthConnectSupported) {
@@ -113,6 +116,7 @@ fun PhoneAppsSettingsScreen(
                             icon = Icons.Default.HealthAndSafety,
                             iconTint = appColor,
                             position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.HEALTH_CONNECT,
                             onCheckedChange = { enabled ->
                                 PhoneAppsSettings.setHealthConnectEnabled(context.findActivity(), enabled)
                                 healthConnectEnabled = enabled
@@ -136,6 +140,7 @@ fun PhoneAppsSettingsScreen(
                                 icon = Icons.Default.Badge,
                                 iconTint = appColor,
                                 position = if (showAppTrend) CardPosition.TOP else CardPosition.SINGLE,
+                                searchAnchor = SettingsSearchAnchors.LIBRE2_IDENTITY,
                                 onCheckedChange = { viewModel.setXdripReportAsLibre2(it) }
                             )
                         }
@@ -147,6 +152,7 @@ fun PhoneAppsSettingsScreen(
                                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                                 iconTint = appColor,
                                 position = if (showLibre2Identity) CardPosition.BOTTOM else CardPosition.SINGLE,
+                                searchAnchor = SettingsSearchAnchors.APP_TREND,
                                 onCheckedChange = { viewModel.setBroadcastComputedTrend(it) }
                             )
                         }

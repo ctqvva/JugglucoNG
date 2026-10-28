@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,7 +59,10 @@ import tk.glucodata.GlucoseRangeColors
 import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.*
+import tk.glucodata.ui.SettingsSearchAnchors
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
+import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.CardPosition as SettingsItemPosition
@@ -192,7 +196,17 @@ fun AlertSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // The section headers sit far down a long list; a search result for one pages to it.
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(
+                SettingsSearchAnchors.HIGH_ALERTS, SettingsSearchAnchors.LOW_ALERTS,
+                SettingsSearchAnchors.PREDICTIVE_ALERTS, SettingsSearchAnchors.OTHER_ALERTS
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -285,7 +299,7 @@ fun AlertSettingsScreen(
                 customAlerts.any { it.enabled && it.vibrate }
             if (anythingAudible || quietWindowStateNow.active) {
                 item(key = "quiet-window") {
-                    QuietWindowCard(anySound = anySound)
+                    QuietWindowCard(anySound = anySound, searchAnchor = SettingsSearchAnchors.QUIET_WINDOW)
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -294,7 +308,8 @@ fun AlertSettingsScreen(
             item(key = "high-alerts-header") {
                 SectionHeader(
                     title = stringResource(R.string.high_alerts_title),
-                    icon = Icons.AutoMirrored.Filled.TrendingUp // Using TrendingUp for Highs
+                    icon = Icons.AutoMirrored.Filled.TrendingUp, // Using TrendingUp for Highs
+                    searchAnchor = SettingsSearchAnchors.HIGH_ALERTS
                 )
             }
 
@@ -371,7 +386,8 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 SectionHeader(
                     title = stringResource(R.string.low_alerts_title),
-                    icon = Icons.AutoMirrored.Filled.TrendingDown // Using TrendingDown for Lows
+                    icon = Icons.AutoMirrored.Filled.TrendingDown, // Using TrendingDown for Lows
+                    searchAnchor = SettingsSearchAnchors.LOW_ALERTS
                 )
             }
 
@@ -448,7 +464,8 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 SectionHeader(
                     title = stringResource(R.string.predictive_alerts),
-                    icon = Icons.AutoMirrored.Filled.TrendingDown
+                    icon = Icons.AutoMirrored.Filled.TrendingDown,
+                    searchAnchor = SettingsSearchAnchors.PREDICTIVE_ALERTS
                 )
             }
 
@@ -494,7 +511,8 @@ fun AlertSettingsScreen(
                 Spacer(Modifier.height(16.dp))
                 SectionHeader(
                     title = stringResource(R.string.other_alerts),
-                    icon = Icons.Default.NotificationsActive
+                    icon = Icons.Default.NotificationsActive,
+                    searchAnchor = SettingsSearchAnchors.OTHER_ALERTS
                 )
             }
 
@@ -922,11 +940,13 @@ private fun GroupFootnote(
 @Composable
 private fun SectionHeader(
     title: String,
-    icon: ImageVector
+    icon: ImageVector,
+    searchAnchor: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, RoundedCornerShape(12.dp))
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)

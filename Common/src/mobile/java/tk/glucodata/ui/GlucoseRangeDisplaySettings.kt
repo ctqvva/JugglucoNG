@@ -53,6 +53,7 @@ import tk.glucodata.R
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.ExpandableSettingsCard
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
 
@@ -168,7 +169,13 @@ fun GlucoseRangeDisplaySettings(viewModel: DashboardViewModel) {
             icon = Icons.Default.TrackChanges,
             expanded = glucoseExpanded,
             onExpandedChange = { glucoseExpanded = it },
-            position = CardPosition.BOTTOM
+            position = CardPosition.BOTTOM,
+            // Target range lives inside this card; a search for it opens the card too.
+            modifier = Modifier.settingsSearchAnchor(
+                SettingsSearchAnchors.GLUCOSE_RANGE,
+                cardShape(CardPosition.BOTTOM),
+                onReveal = { glucoseExpanded = true }
+            )
         ) {
             GlucosePalettePresetSelector()
             HorizontalDivider(

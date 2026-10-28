@@ -194,7 +194,8 @@ fun NotificationSettingsScreen(
                 title = stringResource(R.string.show_trend_arrow),
                 checked = showArrow,
                 onCheckedChange = { showArrow = it; save() },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.NOTIFICATION_ARROW
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_large_arrow_title),
@@ -234,7 +235,8 @@ fun NotificationSettingsScreen(
                 subtitle = stringResource(R.string.show_chart_expanded_desc),
                 checked = notificationChartEnabled,
                 onCheckedChange = { viewModel.toggleNotificationChart(it) },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.NOTIFICATION_CHART
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.show_chart_collapsed),
@@ -281,14 +283,16 @@ fun NotificationSettingsScreen(
                 subtitle = stringResource(R.string.notification_show_delta_minutes_desc, deltaIntervalMinutes),
                 checked = showDelta,
                 onCheckedChange = { showDelta = it; save() },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.NOTIFICATION_DELTA
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_show_iob_title),
                 subtitle = stringResource(R.string.notification_show_iob_desc),
                 checked = showIob,
                 onCheckedChange = { showIob = it; save() },
-                position = CardPosition.MIDDLE
+                position = CardPosition.MIDDLE,
+                searchAnchor = SettingsSearchAnchors.NOTIFICATION_IOB
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.notification_show_cob_title),
@@ -366,7 +370,8 @@ fun DisplayAndColorSettingsScreen(
                 subtitle = stringResource(R.string.glucose_range_colors_desc),
                 checked = rangeColorsEnabled,
                 onCheckedChange = { viewModel.setGlucoseValueRangeColorsEnabled(it) },
-                position = CardPosition.TOP
+                position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.RANGE_COLORS
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.glucose_arrow_forecast_title),
@@ -405,6 +410,7 @@ fun DisplayAndColorSettingsScreen(
                 icon = Icons.Default.CropSquare,
                 iconTint = MaterialTheme.colorScheme.primary,
                 position = CardPosition.TOP,
+                searchAnchor = SettingsSearchAnchors.PREVIEW_WINDOW,
                 onClick = { showPreviewWindowDialog = true }
             )
             SettingsSwitchItem(
@@ -412,7 +418,8 @@ fun DisplayAndColorSettingsScreen(
                 subtitle = stringResource(R.string.dashboard_show_delta_desc),
                 checked = dashboardDeltaEnabled,
                 onCheckedChange = { viewModel.setDashboardShowDelta(it) },
-                position = CardPosition.MIDDLE
+                position = CardPosition.MIDDLE,
+                searchAnchor = SettingsSearchAnchors.DASHBOARD_DELTA
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.dashboard_rows_show_delta_title),
@@ -426,7 +433,8 @@ fun DisplayAndColorSettingsScreen(
                 subtitle = stringResource(R.string.dashboard_show_reading_age_desc),
                 checked = dashboardReadingAgeEnabled,
                 onCheckedChange = { viewModel.setDashboardShowReadingAge(it) },
-                position = CardPosition.BOTTOM
+                position = CardPosition.BOTTOM,
+                searchAnchor = SettingsSearchAnchors.READING_AGE
             )
         }
 

@@ -72,6 +72,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         iconTint = handoverColor,
                         position = if (handoverEnabled) CardPosition.TOP else CardPosition.SINGLE,
                         animatePosition = true,
+                        searchAnchor = SettingsSearchAnchors.HANDOVER,
                         onCheckedChange = {
                             SensorConnectionSettings.setHandoverEnabled(context, it)
                             handoverEnabled = it
@@ -109,6 +110,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         icon = Icons.Default.Speed,
                         iconTint = bluetoothColor,
                         position = CardPosition.TOP,
+                        searchAnchor = SettingsSearchAnchors.TURBO,
                         onCheckedChange = { SensorConnectionSettings.highPriority = it; highPriority = it }
                     )
                     SettingsSwitchItem(
@@ -118,6 +120,7 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
                         icon = Icons.Default.Autorenew,
                         iconTint = bluetoothColor,
                         position = CardPosition.BOTTOM,
+                        searchAnchor = SettingsSearchAnchors.AUTOCONNECT,
                         onCheckedChange = { SensorConnectionSettings.autoConnect = it; autoConnect = it }
                     )
                 }

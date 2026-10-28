@@ -67,6 +67,7 @@ import tk.glucodata.R
 import tk.glucodata.alerts.QuietWindow
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
 /**
@@ -89,7 +90,8 @@ fun QuietWindowCard(
     // for vibrate-only to keep, so the choice is hidden and a window cuts the
     // vibration - the only thing it can cut - and that becomes the stored mode.
     anySound: Boolean,
-    position: CardPosition = CardPosition.SINGLE
+    position: CardPosition = CardPosition.SINGLE,
+    searchAnchor: String? = null
 ) {
     val context = LocalContext.current
     val state by QuietWindow.state.collectAsStateWithLifecycle()
@@ -103,7 +105,10 @@ fun QuietWindowCard(
     val accent = if (state.active) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        // A search result for the quiet window opens the card as well as pointing at it.
+        modifier = Modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, cardShape(position), onReveal = { openedByUser = true }),
         shape = cardShape(position),
         color = if (state.active) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer
     ) {
