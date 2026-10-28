@@ -133,9 +133,7 @@ internal class OttaiFirmwareController(
             // Log only this public revision characteristic, bounded and hex encoded so unusual
             // padding/encoding remains visible without inserting control characters into logs.
             io.log("software_revision length=${bytes.size} hex=${OttaiCrypto.bytesToHex(bytes.take(64).toByteArray())}")
-            // Field traces include a NUL-terminated revision followed by nonzero buffer bytes
-            // (Global E1.2.6 ends in 00 47). Only the prefix is the revision, including on reboot.
-            val reported = bytes.toString(Charsets.US_ASCII).substringBefore('\u0000')
+            val reported = OttaiOtaProtocol.revisionText(bytes)
             state = state.copy(firmware = reported.take(64).map { if (it in ' '..'~') it else '?' }.joinToString(""))
             val version = OttaiOtaProtocol.version(reported)
                 ?: throw IllegalArgumentException("firmware_profile")

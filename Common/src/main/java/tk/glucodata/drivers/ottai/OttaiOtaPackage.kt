@@ -59,6 +59,16 @@ internal object OttaiOtaProtocol {
     const val WRITE_DELAY_MS = 60L
     // 2a28 is a vendor string, not a semantic version. The cloud API and journal need it intact.
     // 512 bytes is the BLE attribute limit; only empty/control/non-ASCII values are rejected.
+    /**
+     * The 2a28 value is a C string in a fixed buffer: field logs show
+     * `E1.2.6(V1.7.SH2616.1),STDRD\0G`, i.e. a terminator followed by stale bytes. Keep only
+     * what precedes the first NUL so [version] does not reject the whole revision.
+     */
+    fun revisionText(bytes: ByteArray): String {
+        val end = bytes.indexOf(0).let { if (it < 0) bytes.size else it }
+        return bytes.copyOfRange(0, end).toString(Charsets.US_ASCII)
+    }
+
     fun version(value: String): String? = value.trim { it.isWhitespace() || it == '\u0000' }
         .takeIf { it.length in 1..512 && it.all { ch -> ch in ' '..'~' } }
 
