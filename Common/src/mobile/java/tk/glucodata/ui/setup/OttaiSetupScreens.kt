@@ -88,6 +88,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -748,36 +749,32 @@ internal fun OttaiAccountCard(
             if (form.status.isNotBlank()) OttaiCaption(form.status, isError = form.statusIsError)
         },
         actions = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Button(
+                onClick = signIn,
+                enabled = !busy && if (useSms) {
+                    smsPhone != null && form.code.isNotBlank() && form.requestId.isNotBlank()
+                } else {
+                    form.phone.isNotBlank() && form.password.isNotBlank()
+                },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
             ) {
-                if (region.webBase != null && !region.usesSms) {
-                    TextButton(
-                        onClick = onRegister,
-                        enabled = !busy,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding,
-                    ) { Text(stringResource(R.string.ottai_register_cta)) }
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.ottai_login_button))
                 }
-                // The card's one real action takes the rest of the row.
-                Button(
-                    onClick = signIn,
-                    enabled = !busy && if (useSms) {
-                        smsPhone != null && form.code.isNotBlank() && form.requestId.isNotBlank()
-                    } else {
-                        form.phone.isNotBlank() && form.password.isNotBlank()
-                    },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+            }
+            if (region.webBase != null && !region.usesSms) {
+                Spacer(Modifier.size(8.dp))
+                TextButton(
+                    onClick = onRegister,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.ottai_login_button))
-                    }
-                }
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) { Text(stringResource(R.string.ottai_register_cta)) }
             }
         },
     )
@@ -1033,14 +1030,14 @@ internal fun OttaiQrStep(
 
 /** The sensor ID or box serial typed in, with the button that opens that sensor. */
 @Composable
-internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit) {
-    var typed by remember { mutableStateOf("") }
+internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit, modifier: Modifier = Modifier) {
+    // Saveable: the field lives in the scrolling list and must survive scrolling away.
+    var typed by rememberSaveable { mutableStateOf("") }
     val code = OttaiConstants.extractSetupCode(typed)
         ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
     val invalid = typed.length >= 12 && code == null
     val enter = { code?.let { typed = ""; onEntered(it) } }
-    // Top-aligned: the error line grows the field downwards, never moves the button.
-    Row(verticalAlignment = Alignment.Top) {
+    Column(modifier = modifier) {
         OutlinedTextField(
             value = typed,
             onValueChange = { typed = it.trim() },
@@ -1057,14 +1054,13 @@ internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit) {
                 imeAction = ImeAction.Done,
             ),
             keyboardActions = KeyboardActions(onDone = { enter() }),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.size(16.dp))
         Button(
             onClick = { enter() },
             enabled = code != null,
-            // The text field's own outlined-label inset puts its box 8dp down.
-            modifier = Modifier.padding(top = 8.dp).heightIn(min = 56.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) { Text(stringResource(R.string.continue_action)) }

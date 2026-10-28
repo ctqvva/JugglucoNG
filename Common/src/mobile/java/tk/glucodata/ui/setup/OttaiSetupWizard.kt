@@ -1372,6 +1372,19 @@ fun OttaiSetupWizard(
                         enabled = !busy && !materialLoading,
                         onAddressSelected = selectNearby,
                         onScanQr = { step = OttaiSetupStep.QR },
+                        // Typing the ID is the third way to find the sensor, so it follows the
+                        // list in the scroll, not the keys pinned below.
+                        idEntry = {
+                            OttaiSensorIdEntry(
+                                onEntered = selectCode,
+                                modifier = Modifier.padding(
+                                    start = ui.horizontalPadding,
+                                    end = ui.horizontalPadding,
+                                    top = ui.spacerLarge,
+                                    bottom = ui.spacerMedium,
+                                ),
+                            )
+                        },
                         header = {
                             OttaiAccountCard(
                                 signedIn = signedIn,
@@ -1429,8 +1442,6 @@ fun OttaiSetupWizard(
                                     bottom = ui.spacerMedium,
                                 ),
                             ) {
-                                OttaiSensorIdEntry(onEntered = selectCode)
-                                Spacer(Modifier.size(16.dp))
                                 // Keys, not a sensor: the file stands in for the account, so it
                                 // sits with the saved sensors it adds to, not beside QR.
                                 OutlinedButton(
@@ -1633,6 +1644,7 @@ private fun OttaiSearchStep(
     enabled: Boolean,
     onAddressSelected: (String) -> Unit,
     onScanQr: () -> Unit,
+    idEntry: @Composable () -> Unit,
     header: @Composable ColumnScope.() -> Unit,
     nfcHint: (@Composable () -> Unit)?,
     footer: @Composable () -> Unit,
@@ -1890,6 +1902,7 @@ private fun OttaiSearchStep(
         LazyColumn(modifier = Modifier.weight(1f)) {
             item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
             deviceRows()
+            item(key = "idEntry") { idEntry() }
         }
         footer()
     }
