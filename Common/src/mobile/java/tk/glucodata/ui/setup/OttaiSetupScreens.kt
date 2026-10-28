@@ -66,6 +66,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -534,19 +537,33 @@ internal fun OttaiAccountCard(
     modifier: Modifier = Modifier,
 ) {
     if (signedIn) {
-        OttaiCard(
-            modifier = modifier,
-            title = accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
-            body = stringResource(accountRegion.fullLabelRes),
-            icon = Icons.Default.AccountCircle,
-            trailing = {
-                OutlinedButton(
-                    onClick = onSignOut,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text(stringResource(R.string.ottai_sign_out)) }
-            },
-        )
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        ) {
+            AdaptiveTrailingRow(
+                modifier = Modifier.padding(16.dp),
+                trailingContent = {
+                    OutlinedButton(
+                        onClick = onSignOut,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(stringResource(R.string.ottai_sign_out)) }
+                },
+            ) {
+                Column {
+                    Text(
+                        accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        stringResource(accountRegion.fullLabelRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         return
     }
 
@@ -619,11 +636,11 @@ internal fun OttaiAccountCard(
         }
     }
 
-    OttaiCard(
-        modifier = modifier,
-        title = stringResource(R.string.ottai_account_title),
-        icon = Icons.Default.AccountCircle,
-        details = {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(Modifier.padding(16.dp)) {
             if (message.isNotBlank()) {
                 Text(
                     message,
@@ -636,9 +653,10 @@ internal fun OttaiAccountCard(
                 options = OttaiRegion.entries.toList(),
                 selectedOption = region,
                 onOptionSelected = {
-                    onRegionChange(it)
-                    form.status = ""
-                    form.statusIsError = false
+                    if (!form.busy) {
+                        onRegionChange(it)
+                        form.resetSms()
+                    }
                 },
                 label = { r -> Text(stringResource(r.fullLabelRes)) },
                 labelText = { r -> context.getString(r.fullLabelRes) },
@@ -670,6 +688,7 @@ internal fun OttaiAccountCard(
                                 modifier = Modifier
                                     .heightIn(min = 48.dp)
                                     .clickable(
+                                        enabled = !busy,
                                         role = Role.Button,
                                         onClickLabel = stringResource(R.string.ottai_sms_country_title),
                                         onClick = { showCountryPicker = true },
@@ -747,8 +766,7 @@ internal fun OttaiAccountCard(
                 }
             }
             if (form.status.isNotBlank()) OttaiCaption(form.status, isError = form.statusIsError)
-        },
-        actions = {
+            Spacer(Modifier.size(16.dp))
             Button(
                 onClick = signIn,
                 enabled = !busy && if (useSms) {
@@ -775,8 +793,8 @@ internal fun OttaiAccountCard(
                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) { Text(stringResource(R.string.ottai_register_cta)) }
             }
-        },
-    )
+        }
+    }
 }
 
 /** The app's radio picker dialog (ThemePickerDialog style) for the SMS country code. */
@@ -1029,16 +1047,21 @@ internal fun OttaiQrStep(
 
 /** The sensor ID or box serial typed in, with the button that opens that sensor. */
 @Composable
-internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit, modifier: Modifier = Modifier) {
+internal fun OttaiSensorIdEntry(
+    onEntered: (code: String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     // Saveable: the field lives in the scrolling list and must survive scrolling away.
     var typed by rememberSaveable { mutableStateOf("") }
     val code = OttaiConstants.extractSetupCode(typed)
         ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
     val invalid = typed.length >= 12 && code == null
-    val enter = { code?.let { typed = ""; onEntered(it) } }
+    val enter = { if (enabled) code?.let { typed = ""; onEntered(it) } }
     Column(modifier = modifier) {
         OutlinedTextField(
             value = typed,
+            enabled = enabled,
             onValueChange = { typed = it.trim() },
             label = { Text(stringResource(R.string.ottai_sensor_mac_hint)) },
             supportingText = if (invalid) {
@@ -1058,7 +1081,7 @@ internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit, modifier: Mod
         Spacer(Modifier.size(8.dp))
         Button(
             onClick = { enter() },
-            enabled = code != null,
+            enabled = enabled && code != null,
             modifier = Modifier.fillMaxWidth(),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,

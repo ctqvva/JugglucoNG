@@ -1377,6 +1377,7 @@ fun OttaiSetupWizard(
                         idEntry = {
                             OttaiSensorIdEntry(
                                 onEntered = selectCode,
+                                enabled = !busy && !materialLoading,
                                 modifier = Modifier.padding(
                                     start = ui.horizontalPadding,
                                     end = ui.horizontalPadding,
@@ -1816,6 +1817,7 @@ private fun OttaiSearchStep(
             trailingContent = {
                 TextButton(
                     onClick = onScanQr,
+                    enabled = enabled,
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) {
