@@ -1534,7 +1534,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Juggluco tries to restore MQ session state during setup.</string>
     <string name="mq_bootstrap_button">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_title">Restore vendor session</string>
-    <string name="mq_bootstrap_dialog_desc">Restore vendor session state from Glutec. Enter the sensor QR here if needed; account, sync, and API settings live in MQ / Glutec account.</string>
+    <string name="mq_bootstrap_dialog_desc">Glutec-ээс үйлдвэрлэгчийн сешний төлөвийг сэргээнэ. Шаардлагатай бол мэдрэгчийн QR кодыг энд оруулна уу; бүртгэл, синк болон API тохиргоо MQ / Glutec бүртгэл хэсэгт байна.</string>
     <string name="mq_fetch_calibration_action">Restore vendor session</string>
     <string name="mq_api_url_label">API URL</string>
     <string name="mq_api_url_desc">Defaults to the HTTPS Glutec API. Change this only for a custom server or plain HTTP.</string>

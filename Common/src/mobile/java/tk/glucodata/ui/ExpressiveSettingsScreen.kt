@@ -325,6 +325,7 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchAction.BACKUPS -> showScheduledBackupDialog = true
                 SettingsSearchAction.EXPORT -> showExportDialog = true
                 SettingsSearchAction.IMPORT -> importLauncher.launch(importMimeTypes)
+                SettingsSearchAction.RESTART -> context.findActivity()?.fullRestart()
                 SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
                 SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
                 SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true

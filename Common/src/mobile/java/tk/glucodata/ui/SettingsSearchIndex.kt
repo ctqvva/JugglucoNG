@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sensors
@@ -43,7 +44,7 @@ import tk.glucodata.R
 /** Something on the Settings tab itself that opens a dialog or sheet rather than a screen. */
 internal enum class SettingsSearchAction {
     THEME, LANGUAGE, UNIT, KEEP_DISPLAYED_VALUES, BACKUPS, EXPORT, IMPORT,
-    CLEAR_HISTORY, CLEAR_APP_DATA, FACTORY_RESET,
+    RESTART, CLEAR_HISTORY, CLEAR_APP_DATA, FACTORY_RESET,
 }
 
 internal sealed interface SettingsSearchTarget {
@@ -288,7 +289,9 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.freeze_displayed_values, ADVANCED, Icons.Default.Lock, N,
             action(SettingsSearchAction.KEEP_DISPLAYED_VALUES)),
 
-        // Danger zone: each of these asks for confirmation before it does anything.
+        // Danger zone: restart acts at once, as its row does; the rest ask for confirmation.
+        SettingsSearchEntry(R.string.restart_app, DANGER, Icons.Default.Refresh, E, action(SettingsSearchAction.RESTART),
+            keywords = listOf(R.string.restart_app_desc)),
         SettingsSearchEntry(R.string.clear_history, DANGER, Icons.Default.History, E, action(SettingsSearchAction.CLEAR_HISTORY)),
         SettingsSearchEntry(R.string.clear_app_data, DANGER, Icons.Default.Delete, E, action(SettingsSearchAction.CLEAR_APP_DATA)),
         SettingsSearchEntry(R.string.factory_reset, DANGER, Icons.Default.Warning, E, action(SettingsSearchAction.FACTORY_RESET)),
