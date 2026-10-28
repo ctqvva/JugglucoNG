@@ -149,7 +149,9 @@ import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.journal.LegacyJournalFoodDatabase
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.SheetContentHeightAnimation
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.components.animateSheetContentHeight
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -504,6 +506,7 @@ fun JournalEntrySheet(
         }
     }
 
+    val sheetContentHeight = remember { SheetContentHeightAnimation() }
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -511,13 +514,14 @@ fun JournalEntrySheet(
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         contentKey = draft.type,
+        contentHeight = sheetContentHeight,
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 // The sheet's top edge follows the list's height. Without this a type switch
                 // jumps the whole sheet to its new height in one frame.
-                .animateContentSize(animationSpec = ExpressiveMotion.defaultSpatial())
+                .animateSheetContentHeight(sheetContentHeight, ExpressiveMotion.defaultSpatial())
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
