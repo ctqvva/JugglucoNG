@@ -103,7 +103,7 @@ fun NotificationSettingsScreen(
     var showArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_arrow", true)) }
     var largeArrow by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_large_trend_arrow", false)) }
     var arrowSize by rememberSaveable { mutableFloatStateOf(prefs.getFloat("notification_arrow_size", 1.0f)) }
-    var collapsedChart by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", false)) }
+    var collapsedChart by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_collapsed", true)) }
     var pauseChartScreenOff by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_pause_screen_off", false)) }
     var showTargetRange by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_chart_target_range", true)) }
     var showIob by rememberSaveable { mutableStateOf(prefs.getBoolean("notification_show_iob", false)) }
