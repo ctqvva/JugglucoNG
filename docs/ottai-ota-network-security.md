@@ -31,8 +31,9 @@ bind are scoped to this client.
 
 Ordinary CN login, device lists, binding and activation use the secure transport dependency
 in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). PR #739 includes that dependency,
-pending signed-in CN validation. The supplied plaintext-route rejection is evidence for that
-fix, but anonymous probes do not prove real account compatibility. No general CN dispatcher
+with signed-in account/device lookup, V3 validation, server authentication and credential
+persistence confirmed by `juggluco-trace-20261029-023831.log`. Fresh sign-in and physical
+activation remain unverified. No general CN dispatcher
 change needs duplicate review; the combined test build includes it from #755. Both PRs
 target main to satisfy the signed-build controller; merge #755 first to reduce the OTA diff.
 Main's global/Syai login and serial lookup remain intact.
@@ -72,8 +73,11 @@ All routes below are relative to `https://api.ottai.com/cgm/security/app/server`
 8. A successful response contains `cipherSecretId`, `cipherText`, `cipherMac`, and
    `cipherNonce`. Require the matching secret and authenticate/decrypt before parsing the
    original business response, including the firmware offer. A plaintext success or changed
-   authentication tag cannot authorize installation. Bounded known business codes survive
+   authentication tag cannot authorize installation. Bounded machine business codes survive
    diagnostics; raw messages, tokens, encrypted payloads and signed download URLs do not.
+   HTTP 200 business failures include their code; an empty/non-JSON response has the distinct
+   `ota_request_response_json_http=…` diagnostic. The earlier `ota_request_http=200` alone
+   cannot identify why a V3 recheck failed.
 
 The client corrects an explicit `CLIENT_CLOCK_OFFSET` response once during exchange.
 Expired secrets require a fresh exchange. Application requests are not silently retried on

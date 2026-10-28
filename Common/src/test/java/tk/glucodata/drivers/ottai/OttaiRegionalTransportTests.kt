@@ -247,7 +247,7 @@ class OttaiRegionalTransportTests {
         val server = Server(); server.emptyResponse = true
         val result = server.request("GET", "/deviceBind/getBindDevice")
         assertNull(result.body)
-        assertEquals("ota_request_http=200", result.failure!!.text)
+        assertEquals("ota_request_response_json_http=200", result.failure!!.text)
         assertEquals(200, result.failure.httpStatus)
     }
 
@@ -424,6 +424,23 @@ class OttaiRegionalTransportTests {
                 }
             } finally { client.close() }
         }
+    }
+
+    @Test fun cnCloudProofPreservesAuthenticatedBusinessRejectionWithoutReturningMaterials() {
+        val server = Server(OttaiConstants.API_BASE)
+        server.business = JSONObject().put("code", "Device_Auth_Error")
+            .put("message", "private-token").put("data", JSONObject().put("auth", "private-auth"))
+        val common = OttaiCloudClient.cnPhoneHeaders("n:synthetic-cn", "synthetic-token", 0L, "synthetic")
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE, common, server::connection)
+        try {
+            val error = assertThrows(OttaiOtaCloudException::class.java) {
+                client.verifySensor("001122334455", ByteArray(68), ByteArray(32))
+            }
+            assertEquals("ota_request_http=200_biz=Device_Auth_Error", error.diagnostic)
+            assertEquals("Device_Auth_Error", error.businessCode)
+            assertEquals(2, server.calls.size)
+            assertTrue(server.calls.last().url.endsWith("/cgmAuth/verify"))
+        } finally { client.close() }
     }
 
     @Test fun regionalOtaCannotAcceptPlaintextOrUnauthenticatedOffers() {

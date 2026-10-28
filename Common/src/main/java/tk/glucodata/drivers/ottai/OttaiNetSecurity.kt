@@ -80,7 +80,7 @@ internal class OttaiNetSecurity(
         val encryptedQuery = if (query.isEmpty()) emptyMap() else envelope(JSONObject(query).toString(), "Param")
         val encryptedBody = body?.let { JSONObject(envelope(it, "Body")).toString() }
         val reply = send(method, path, headers, encryptedQuery, encryptedBody)
-        if (reply.json == null) throw OttaiOtaCloudException("ota_request_http=${reply.status}", httpStatus = reply.status)
+        if (reply.json == null) throw OttaiOtaCloudException("ota_request_response_json_http=${reply.status}", httpStatus = reply.status)
         // Gateways can reject a request before decryption (for example an expired account
         // token). Such failures cannot supply materials or authorize a sensor operation.
         if (!successful(reply)) return reply
@@ -158,8 +158,12 @@ internal class OttaiNetSecurity(
         val code = json?.optString("code").orEmpty()
         if (!successful(reply)) {
             val safeCode = code.takeIf { it.matches(Regex("(?:NET_SECURITY_[A-Z_]+|AuthFailed_[A-Za-z_]+|CLIENT_CLOCK_OFFSET)")) }
-            throw OttaiOtaCloudException(safeCode?.let { "${phase}_$it" } ?: "${phase}_http=${reply.status}",
-                code.takeIf { it.matches(Regex("[A-Za-z][A-Za-z0-9_]{0,95}")) }.orEmpty(), reply.status)
+            // Keep other bounded machine codes too: HTTP 200 can carry a V3/business
+            // rejection. Messages and response data can contain credentials and stay private.
+            val businessCode = code.takeIf { it.matches(Regex("(?:[A-Za-z][A-Za-z0-9_]{0,95}|-?[0-9]{1,10})")) }.orEmpty()
+            val diagnostic = safeCode?.let { "${phase}_$it" }
+                ?: "${phase}_http=${reply.status}" + businessCode.takeIf { it.isNotEmpty() }?.let { "_biz=$it" }.orEmpty()
+            throw OttaiOtaCloudException(diagnostic, businessCode, reply.status)
         }
         return requireNotNull(json)
     }

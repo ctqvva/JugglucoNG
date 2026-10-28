@@ -212,7 +212,7 @@ class OttaiCnCloudTransportTests {
         val server = Server(); server.emptyResponse = true
         val result = server.request("GET", "/deviceBind/getBindDevice")
         assertNull(result.body)
-        assertEquals("ota_request_http=200", result.failure!!.text)
+        assertEquals("ota_request_response_json_http=200", result.failure!!.text)
         assertEquals(200, result.failure.httpStatus)
     }
 

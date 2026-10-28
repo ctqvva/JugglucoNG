@@ -260,10 +260,20 @@ Firmware files, credentials and raw captures must stay outside the repository.
 
 Ordinary CN login, account lookup, binding and activation use the encrypted migration reviewed
 in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). The #739 test build
-includes both branches so setup is available before the OTA experiment. A signed-in CN account
-test with that combined build remains pending. OTA checks, the explicit V3 authentication
+includes both branches so setup is available before the OTA experiment. The supplied
+`juggluco-trace-20261029-023831.log` confirms signed-in CN account/device lookup, V3 validation,
+server authentication and `bindV3` credential persistence. Fresh sign-in and physical activation
+remain unverified. OTA checks, the explicit V3 authentication
 comparison, reports and preparation binds use their own captured client. Global/Syai keep
 main's regional transport.
+
+The next trace, `juggluco-trace-20261029-024406.log`, connects after NFC wake and completes
+local BLE authentication twice on `E1.1.4(V1.7.S2530.1),STDRD`. Both initial firmware checks
+return `required=false allowed=false image=false`. Both explicit V3 rechecks fail before
+server-auth write-back with `ota_request_http=200`. That old diagnostic conflates a rejected
+business result with an empty/non-JSON response; it does not establish the rejection reason
+or activation-based eligibility. Diagnostics now retain bounded machine business codes and
+distinguish missing JSON, without logging messages, response bodies or authentication material.
 
 Preparation tolerates cloud version metadata that omits the sensor's variant or supplies its
 application profile. A conflicting named build or variant is still rejected, and MAC/auth-key
