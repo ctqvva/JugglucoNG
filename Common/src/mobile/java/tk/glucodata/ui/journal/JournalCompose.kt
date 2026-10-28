@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -150,6 +151,7 @@ import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -513,21 +515,33 @@ fun JournalEntrySheet(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
+                // The sheet's top edge follows the list's height. Without this a type switch
+                // jumps the whole sheet to its new height in one frame.
+                .animateContentSize(animationSpec = ExpressiveMotion.defaultSpatial())
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "header") {
+            journalSheetItem(key = "header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = draft.type.journalActionLabel(),
-                            style = MaterialTheme.typography.headlineSmallEmphasized
-                        )
+                        AnimatedContent(
+                            targetState = draft.type,
+                            transitionSpec = {
+                                fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                                    .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                            },
+                            label = "journalSheetTitle"
+                        ) { type ->
+                            Text(
+                                text = type.journalActionLabel(),
+                                style = MaterialTheme.typography.headlineSmallEmphasized
+                            )
+                        }
                         existingEntry?.source?.presentation()?.let { source ->
                             // The icon on the row only explains itself for NFC; here the
                             // origin is spelled out.
@@ -569,7 +583,7 @@ fun JournalEntrySheet(
                 }
             }
 
-            item(key = "type_selector") {
+            journalSheetItem(key = "type_selector") {
                 JournalTypeSelector(
                     selectedType = draft.type,
                     onTypeSelected = {
@@ -578,7 +592,7 @@ fun JournalEntrySheet(
                 )
             }
 
-            item(key = "date_time") {
+            journalSheetItem(key = "date_time") {
                 JournalDateTimeCard(
                     date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
                     time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
@@ -590,7 +604,7 @@ fun JournalEntrySheet(
 
             when (draft.type) {
                 JournalEntryType.INSULIN -> {
-                    item(key = "insulin_presets") {
+                    journalSheetItem(key = "insulin_presets") {
                         JournalInsulinPresetSelector(
                             presets = activeInsulinPresets,
                             selectedPresetId = draft.insulinPresetId,
@@ -608,12 +622,12 @@ fun JournalEntrySheet(
                     }
                     draft.insulinPresetId?.let { presetId ->
                         presetsById[presetId]?.let { preset ->
-                            item(key = "insulin_window") {
+                            journalSheetItem(key = "insulin_window") {
                                 JournalInsulinWindowCard(preset = preset)
                             }
                         }
                     }
-                    item(key = "insulin_amount") {
+                    journalSheetItem(key = "insulin_amount") {
                         JournalStepperField(
                             value = draft.amountText,
                             onValueChange = { draft = draft.copy(amountText = it) },
@@ -630,7 +644,7 @@ fun JournalEntrySheet(
                         calculatorProfile != null &&
                         selectedInsulinPreset?.useForCalculation == true
                     ) {
-                        item(key = "insulin_dose_assist") {
+                        journalSheetItem(key = "insulin_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
@@ -645,7 +659,7 @@ fun JournalEntrySheet(
 
                 JournalEntryType.CARBS -> {
                     if (activeFoods.isNotEmpty()) {
-                        item(key = "carbs_foods") {
+                        journalSheetItem(key = "carbs_foods") {
                             JournalFoodLibrarySelector(
                                 foods = activeFoods,
                                 selectedFoodId = draft.foodId,
@@ -667,7 +681,7 @@ fun JournalEntrySheet(
                             )
                         }
                     }
-                    item(key = "carbs_amount") {
+                    journalSheetItem(key = "carbs_amount") {
                         JournalStepperField(
                             value = draft.amountText,
                             onValueChange = { draft = draft.copy(amountText = it) },
@@ -679,7 +693,7 @@ fun JournalEntrySheet(
                             prominent = true
                         )
                     }
-                    item(key = "carbs_meal_shape") {
+                    journalSheetItem(key = "carbs_meal_shape") {
                         JournalMealShapeSelector(
                             durationText = draft.durationText,
                             onShapeSelected = { shape ->
@@ -688,7 +702,7 @@ fun JournalEntrySheet(
                         )
                     }
                     if (foodMacrosEnabled) {
-                        item(key = "carbs_macros") {
+                        journalSheetItem(key = "carbs_macros") {
                             JournalMacroFields(
                                 proteinText = draft.proteinText,
                                 fatText = draft.fatText,
@@ -702,7 +716,7 @@ fun JournalEntrySheet(
                         calculatorProfile != null &&
                         calculationInsulinPresets.isNotEmpty()
                     ) {
-                        item(key = "carbs_dose_assist") {
+                        journalSheetItem(key = "carbs_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
@@ -716,7 +730,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.FINGERSTICK -> {
-                    item(key = "fingerstick_amount") {
+                    journalSheetItem(key = "fingerstick_amount") {
                         JournalStepperField(
                             value = draft.glucoseText,
                             onValueChange = { draft = draft.copy(glucoseText = it) },
@@ -732,7 +746,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.ACTIVITY -> {
-                    item(key = "activity_name") {
+                    journalSheetItem(key = "activity_name") {
                         OutlinedTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
@@ -741,7 +755,7 @@ fun JournalEntrySheet(
                             singleLine = true
                         )
                     }
-                    item(key = "activity_duration") {
+                    journalSheetItem(key = "activity_duration") {
                         JournalStepperField(
                             value = draft.durationText,
                             onValueChange = { draft = draft.copy(durationText = it.filter(Char::isDigit)) },
@@ -753,7 +767,7 @@ fun JournalEntrySheet(
                             keyboardType = KeyboardType.Number
                         )
                     }
-                    item(key = "activity_intensity") {
+                    journalSheetItem(key = "activity_intensity") {
                         JournalIntensitySelector(
                             selectedIntensity = draft.intensity,
                             onIntensitySelected = { draft = draft.copy(intensity = it) }
@@ -762,7 +776,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.NOTE -> {
-                    item(key = "note_title") {
+                    journalSheetItem(key = "note_title") {
                         OutlinedTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
@@ -777,7 +791,7 @@ fun JournalEntrySheet(
                 JournalEntryType.TEMP_BASAL -> Unit
             }
 
-            item(key = "note_field") {
+            journalSheetItem(key = "note_field") {
                 val noteFieldExpanded = draft.type == JournalEntryType.NOTE ||
                         noteFieldFocused ||
                         draft.note.contains('\n')
@@ -816,7 +830,20 @@ fun JournalEntrySheet(
                 )
             }
 
-            item(key = "save_button") {
+            journalSheetItem(key = "save_button") {
+                // Switching type often flips Save between enabled and disabled; fade the fill
+                // instead of letting it blink.
+                val defaultSaveColors = ButtonDefaults.buttonColors()
+                val saveContainerColor by animateColorAsState(
+                    targetValue = if (canSave) defaultSaveColors.containerColor else defaultSaveColors.disabledContainerColor,
+                    animationSpec = ExpressiveMotion.defaultEffects(),
+                    label = "journalSaveContainer"
+                )
+                val saveContentColor by animateColorAsState(
+                    targetValue = if (canSave) defaultSaveColors.contentColor else defaultSaveColors.disabledContentColor,
+                    animationSpec = ExpressiveMotion.defaultEffects(),
+                    label = "journalSaveContent"
+                )
                 Button(
                     onClick = {
                         if (canSave) {
@@ -832,12 +859,27 @@ fun JournalEntrySheet(
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = saveContainerColor,
+                        contentColor = saveContentColor,
+                        disabledContainerColor = saveContainerColor,
+                        disabledContentColor = saveContentColor
+                    ),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(
-                        imageVector = journalTypeIcon(draft.type),
-                        contentDescription = null
-                    )
+                    AnimatedContent(
+                        targetState = draft.type,
+                        transitionSpec = {
+                            fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                                .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                        },
+                        label = "journalSaveIcon"
+                    ) { type ->
+                        Icon(
+                            imageVector = journalTypeIcon(type),
+                            contentDescription = null
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.save))
                 }
@@ -926,6 +968,25 @@ fun JournalEntrySheet(
                 }
             }
         )
+    }
+}
+
+/**
+ * Switching the entry type swaps the middle of the sheet. Rows that stay glide to their new place
+ * on the spatial spring; rows that come or go cross-fade on the effects springs, which never
+ * overshoot.
+ */
+private fun LazyListScope.journalSheetItem(key: String, content: @Composable () -> Unit) {
+    item(key = key) {
+        Box(
+            modifier = Modifier.animateItem(
+                fadeInSpec = ExpressiveMotion.defaultEffects(),
+                placementSpec = ExpressiveMotion.defaultSpatial(),
+                fadeOutSpec = ExpressiveMotion.fastEffects()
+            )
+        ) {
+            content()
+        }
     }
 }
 
