@@ -3150,11 +3150,7 @@ private fun JournalInsulinWindowToggle(
     )
     val onset = formatJournalWindowEndpoint(preset.onsetMinutes)
     val duration = formatJournalWindowEndpoint(preset.durationMinutes)
-    val windowDescription = stringResource(
-        R.string.journal_active_window,
-        stringResource(R.string.minutes_short_format, preset.onsetMinutes),
-        stringResource(R.string.minutes_short_format, preset.durationMinutes)
-    )
+    val windowDescription = journalInsulinWindowDescription(preset)
     val labelStyle = MaterialTheme.typography.labelLarge
 
     Row(
@@ -3210,11 +3206,7 @@ private fun JournalInsulinCurveReveal(
     visible: Boolean,
     showName: Boolean
 ) {
-    val windowDescription = stringResource(
-        R.string.journal_active_window,
-        stringResource(R.string.minutes_short_format, preset.onsetMinutes),
-        stringResource(R.string.minutes_short_format, preset.durationMinutes)
-    )
+    val windowDescription = journalInsulinWindowDescription(preset)
     AnimatedVisibility(
         visible = visible,
         enter = expandVertically(
@@ -3260,6 +3252,17 @@ private fun JournalInsulinCurveReveal(
             }
         }
     }
+}
+
+/** Spoken label for one insulin's window: each pill has its own, so it names the insulin. */
+@Composable
+private fun journalInsulinWindowDescription(preset: JournalInsulinPreset): String {
+    val window = stringResource(
+        R.string.journal_active_window,
+        stringResource(R.string.minutes_short_format, preset.onsetMinutes),
+        stringResource(R.string.minutes_short_format, preset.durationMinutes)
+    )
+    return "${preset.displayName}, $window"
 }
 
 @Composable
