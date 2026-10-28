@@ -1114,6 +1114,11 @@ class OttaiBleManager(
     // A polled buffer can be old. The first accepted advancing notification establishes the
     // sub-minute phase; later reads/replays keep that anchor rather than refreshing their age.
     @Volatile private var streamNotifyPhaseKnown = false
+    // Pin accepted live dates by counter, including arrival-capped dates. A later read or
+    // anchor correction must not rejuvenate the same record. History does not consume a claim.
+    private val acceptedLiveSampleTimes = object : LinkedHashMap<Int, Long>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, Long>?): Boolean = size > 64
+    }
     // First reliable activation start seen this session, held until a second one corroborates it.
     @Volatile private var pendingConfirmedStartMs = 0L
     @Volatile private var pendingConfirmedDataNo = -1
@@ -3097,8 +3102,9 @@ class OttaiBleManager(
             Log.i(TAG, "activation start candidate=${startMs / 1000L} awaiting corroboration")
             return
         }
-        if (dataNo <= pendingConfirmedDataNo) return // a replay is not independent corroboration
+        if (dataNo == pendingConfirmedDataNo) return // a replay is not independent corroboration
         if (kotlin.math.abs(pending - startMs) <= CONFIRMED_START_AGREEMENT_MS) {
+            if (dataNo < pendingConfirmedDataNo) return
             commitConfirmedActiveTime(startMs)
             return
         }
@@ -3384,6 +3390,13 @@ class OttaiBleManager(
             // buckets against Room with the new anchor before latching history complete.
             roomBackfillChecked = false
             historyDiffRetryPending = true
+        }
+        if (live) {
+            // Claim only after the sample passes every rejection gate and notify-phase dating.
+            // Concurrent callbacks for one counter must also share the first accepted date.
+            sampleMs = synchronized(acceptedLiveSampleTimes) {
+                acceptedLiveSampleTimes.getOrPut(r.record.dataNo) { sampleMs }
+            }
         }
         val freshLiveSample = live && isFreshLiveSample(receivedAtMs, sampleMs)
         val currentDecision = currentReadingState.accept(
@@ -3861,6 +3874,10 @@ class OttaiBleManager(
         live: Boolean,
         receivedAtMs: Long,
     ): Long {
+        if (live) {
+            synchronized(acceptedLiveSampleTimes) { acceptedLiveSampleTimes[r.record.dataNo] }
+                ?.let { return it }
+        }
         // History estimates cannot own live dating, even when cloud materials contain a start.
         // Once a live anchor exists, keep it stable across re-reads. Independent counters can
         // still corroborate activation without reseeding/rejuvenating the same polled sample.
@@ -4164,6 +4181,7 @@ class OttaiBleManager(
         streamStartTimeMs = 0L
         streamStartReliable = false
         streamNotifyPhaseKnown = false
+        synchronized(acceptedLiveSampleTimes) { acceptedLiveSampleTimes.clear() }
         pendingConfirmedStartMs = 0L
         pendingConfirmedDataNo = -1
         roomBackfillChecked = false
