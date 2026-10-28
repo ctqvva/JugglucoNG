@@ -76,7 +76,7 @@ internal object SettingsSearchAnchors {
     const val PREDICTIVE_ALERTS = "alerts/predictive"
     const val OTHER_ALERTS = "alerts/other"
     const val QUIET_WINDOW = "alerts/quiet-window"
-    const val GLUCOSE_RANGE = "display-colors/glucose-range"
+    const val TARGET_RANGE = "display-colors/target-range"
     const val RANGE_COLORS = "display-colors/range-colors"
     const val DASHBOARD_DELTA = "display-colors/delta"
     const val READING_AGE = "display-colors/reading-age"
@@ -229,7 +229,7 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.target_range_title,
             DISPLAY + R.string.settings_dashboard_charts_title + R.string.glucose_range_title,
             Icons.Default.TrackChanges, S, route("settings/display-colors"),
-            keywords = listOf(R.string.chart_limits_title), anchor = SettingsSearchAnchors.GLUCOSE_RANGE),
+            keywords = listOf(R.string.chart_limits_title), anchor = SettingsSearchAnchors.TARGET_RANGE),
         SettingsSearchEntry(R.string.glucose_range_colors_title, DISPLAY + R.string.settings_dashboard_charts_title,
             Icons.Default.Palette, S, route("settings/display-colors"),
             keywords = listOf(R.string.glucose_palette_edit_title, R.string.glucose_arrow_forecast_title,

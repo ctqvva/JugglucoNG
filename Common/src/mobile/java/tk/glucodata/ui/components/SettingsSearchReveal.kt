@@ -22,9 +22,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -48,6 +52,9 @@ object SettingsSearchReveal {
         requestedAt = SystemClock.uptimeMillis()
     }
 
+    /** For a container that must open before the anchored row inside it can compose. */
+    fun isPending(anchor: String): Boolean = pendingAnchor() == anchor
+
     internal fun pendingAnchor(): String? =
         pending?.takeIf { SystemClock.uptimeMillis() - requestedAt < LIFETIME_MS }
 
@@ -61,17 +68,19 @@ object SettingsSearchReveal {
 /**
  * Marks the composable as the place search result [anchor] points at. When that result was
  * just opened, the row is brought into view and covered once by a primary state layer that
- * fades in and out, drawn in [shape] so it follows the row's corners. [onReveal] runs first,
- * for a row that has to open before it can be seen (a collapsed card, say).
+ * fades in and out, drawn in [shape] and grown by [outset] so it can frame controls that
+ * sit flush in a card's padding. [onReveal] runs first, for a row that has to open before
+ * it can be seen (a collapsed card, say).
  */
 fun Modifier.settingsSearchAnchor(
     anchor: String?,
     shape: Shape = RectangleShape,
+    outset: Dp = 0.dp,
     onReveal: () -> Unit = {},
 ): Modifier = if (anchor == null) this else composed {
     val requester = remember { BringIntoViewRequester() }
     val layer = remember { Animatable(0f) }
-    var size by remember { mutableStateOf(IntSize.Zero) }
+    val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val color = MaterialTheme.colorScheme.primary
     val inSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val outSpec = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
@@ -82,8 +91,20 @@ fun Modifier.settingsSearchAnchor(
     LaunchedEffect(anchor) {
         if (!SettingsSearchReveal.take(anchor)) return@LaunchedEffect
         currentOnReveal()
-        withFrameNanos { } // the first layout, so there is a size to bring into view
-        requester.bringIntoView(Rect(0f, -margin, size.width.toFloat(), size.height + margin))
+        // A row inside a card that is still opening is clipped by it, and the screen cannot
+        // yet scroll far enough to show it. Keep bringing it in, a frame at a time, until the
+        // whole row shows; give up once it stops gaining (taller than the screen) after the
+        // card's expansion has had time to finish.
+        var lastVisible = -1f
+        for (frame in 0 until RevealMaxFrames) {
+            withFrameNanos { }
+            val placed = coordinates[0]?.takeIf { it.isAttached } ?: continue
+            val height = placed.size.height.toFloat()
+            requester.bringIntoView(Rect(0f, -margin, placed.size.width.toFloat(), height + margin))
+            val visible = placed.boundsInWindow().height
+            if (visible >= height - 0.5f || (frame >= RevealSettleFrames && visible <= lastVisible)) break
+            lastVisible = visible
+        }
         layer.animateTo(1f, inSpec)
         delay(900)
         layer.animateTo(0f, outSpec)
@@ -91,17 +112,25 @@ fun Modifier.settingsSearchAnchor(
 
     this
         .bringIntoViewRequester(requester)
-        .onSizeChanged { size = it }
+        .onGloballyPositioned { coordinates[0] = it }
         .drawWithContent {
             drawContent()
             if (layer.value > 0f) {
-                drawOutline(
-                    outline = shape.createOutline(this.size, layoutDirection, this),
-                    color = color.copy(alpha = RevealLayerAlpha * layer.value),
-                )
+                val grow = outset.toPx()
+                translate(-grow, -grow) {
+                    drawOutline(
+                        outline = shape.createOutline(
+                            Size(size.width + 2 * grow, size.height + 2 * grow), layoutDirection, this
+                        ),
+                        color = color.copy(alpha = RevealLayerAlpha * layer.value),
+                    )
+                }
             }
         }
 }
+
+private const val RevealMaxFrames = 60 // about a second
+private const val RevealSettleFrames = 24 // longer than a card's expand spring
 
 // M3's dragged state layer: stronger than pressed (0.10) so it reads as "here", not as a tap.
 private const val RevealLayerAlpha = 0.16f
