@@ -1380,7 +1380,7 @@ fun OttaiSetupWizard(
                                 modifier = Modifier.padding(
                                     start = ui.horizontalPadding,
                                     end = ui.horizontalPadding,
-                                    top = ui.spacerLarge,
+                                    top = ui.spacerMedium,
                                     bottom = ui.spacerMedium,
                                 ),
                             )
@@ -1896,15 +1896,13 @@ private fun OttaiSearchStep(
         }
     }
 
-    // The list scrolls; the footer stays pinned under it. One layout whatever the window does,
-    // so the keyboard opening for the sign-in or ID fields never rebuilds them and drops focus.
-    Column(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
-            deviceRows()
-            item(key = "idEntry") { idEntry() }
-        }
-        footer()
+    // One scrolling list, nothing pinned: the account card, the search and the ID entry leave no
+    // room for a fixed footer, and one layout means the keyboard never rebuilds the fields.
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
+        deviceRows()
+        item(key = "idEntry") { idEntry() }
+        item(key = "footer") { footer() }
     }
 }
 

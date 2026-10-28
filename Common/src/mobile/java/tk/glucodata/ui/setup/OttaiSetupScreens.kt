@@ -756,7 +756,7 @@ internal fun OttaiAccountCard(
                 } else {
                     form.phone.isNotBlank() && form.password.isNotBlank()
                 },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {
@@ -767,11 +767,10 @@ internal fun OttaiAccountCard(
                 }
             }
             if (region.webBase != null && !region.usesSms) {
-                Spacer(Modifier.size(8.dp))
                 TextButton(
                     onClick = onRegister,
                     enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.TextButtonContentPadding,
                 ) { Text(stringResource(R.string.ottai_register_cta)) }
@@ -1056,11 +1055,11 @@ internal fun OttaiSensorIdEntry(onEntered: (code: String) -> Unit, modifier: Mod
             keyboardActions = KeyboardActions(onDone = { enter() }),
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.size(16.dp))
+        Spacer(Modifier.size(8.dp))
         Button(
             onClick = { enter() },
             enabled = code != null,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) { Text(stringResource(R.string.continue_action)) }
