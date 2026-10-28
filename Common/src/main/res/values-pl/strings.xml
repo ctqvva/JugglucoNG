@@ -2723,6 +2723,7 @@
     <string name="insulin_pen_full_read">Następnym razem odczytaj cały dziennik</string>
     <string name="insulin_pen_full_read_armed">Gotowe — przyłóż wstrzykiwacz do telefonu</string>
     <string name="insulin_pen_full_read_desc">Wstrzykiwacz przechowuje dawki z wielu miesięcy i wymaga kilku sekund stabilnego kontaktu. Pozwala sięgnąć dalej niż ostatni import.</string>
+    <string name="insulin_pen_full_read_off">Włącz „Odczytuj wstrzykiwacze”, aby odczytać wstrzykiwacz.</string>
     <string name="insulin_pen_read_cut_short">Wstrzykiwacz został odsunięty za wcześnie. Trzymaj go przy telefonie, aż zawibruje.</string>
     <string name="insulin_pen_background_title">Importuj w tle</string>
     <string name="insulin_pen_background_desc">Dodaje nowe dawki bez pytania, gdy aplikacja jest zamknięta</string>

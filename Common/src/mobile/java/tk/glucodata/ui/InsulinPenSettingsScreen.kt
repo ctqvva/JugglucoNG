@@ -204,6 +204,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
         PenDetailSheet(
             pen = pen,
             presets = selectableInsulins,
+            readingEnabled = enabled,
             onDismiss = { editingSerial = null },
             onSelected = { preset ->
                 InsulinPenManager.setInsulin(pen.serial, preset.id, preset.displayName)
@@ -332,6 +333,7 @@ private fun PenCaption(
 private fun PenDetailSheet(
     pen: InsulinPen,
     presets: List<JournalInsulinPreset>,
+    readingEnabled: Boolean,
     onDismiss: () -> Unit,
     onSelected: (JournalInsulinPreset) -> Unit,
     onArmFullRead: () -> Unit,
@@ -375,17 +377,20 @@ private fun PenDetailSheet(
                 }
             }
 
+            // A tag is dropped unread while reading is off, so "Ready" would be a promise the
+            // next tap cannot keep. The insulin, the cleanup and Forget do not need a read.
+            val fullReadArmed = pen.fullReadArmed && readingEnabled
             Spacer(Modifier.size(24.dp))
             OutlinedButton(
                 onClick = onArmFullRead,
-                enabled = !pen.fullReadArmed,
+                enabled = readingEnabled && !fullReadArmed,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(
                     stringResource(
-                        if (pen.fullReadArmed) {
+                        if (fullReadArmed) {
                             R.string.insulin_pen_full_read_armed
                         } else {
                             R.string.insulin_pen_full_read
@@ -394,7 +399,9 @@ private fun PenDetailSheet(
                 )
             }
             Text(
-                stringResource(R.string.insulin_pen_full_read_desc),
+                stringResource(
+                    if (readingEnabled) R.string.insulin_pen_full_read_desc else R.string.insulin_pen_full_read_off
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),

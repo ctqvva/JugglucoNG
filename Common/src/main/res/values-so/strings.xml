@@ -2878,6 +2878,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_full_read">Marka xigta akhri xusuusta oo dhan</string>
     <string name="insulin_pen_full_read_armed">Diyaar — qalinka taabsii taleefanka</string>
     <string name="insulin_pen_full_read_desc">Qalinku wuxuu hayaa qiyaaso bilo ah, akhrintooda dhammaystiran waxay u baahan tahay dhowr ilbiriqsi oo taabasho degan ah. Isticmaal si aad uga gudubto wixii ugu dambeeyay ee la soo geliyay.</string>
+    <string name="insulin_pen_full_read_off">Si aad u akhriso qalin, shid “Akhri qalimaanta insuliinta”.</string>
     <string name="insulin_pen_read_cut_short">Qalinka ayaa goor hore laga fogeeyay. Ku hay taleefanka ilaa uu gariiro.</string>
     <string name="insulin_pen_background_title">Gudaha ka soo dejiso</string>
     <string name="insulin_pen_background_desc">Wuxuu ku daraa qiyaasaha cusub iyada oo aan la weydiin marka appku xiran yahay</string>

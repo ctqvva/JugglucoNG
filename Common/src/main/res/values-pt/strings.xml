@@ -2688,6 +2688,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read">Ler todo o histórico da próxima vez</string>
     <string name="insulin_pen_full_read_armed">Pronto — encoste a caneta ao telemóvel</string>
     <string name="insulin_pen_full_read_desc">Uma caneta guarda meses de doses e precisa de alguns segundos de contacto estável. Serve para recuar mais do que a última importação.</string>
+    <string name="insulin_pen_full_read_off">Ative «Ler canetas de insulina» para ler uma caneta.</string>
     <string name="insulin_pen_read_cut_short">A caneta afastou-se cedo demais. Mantenha-a no telemóvel até vibrar.</string>
     <string name="insulin_pen_background_title">Importar em segundo plano</string>
     <string name="insulin_pen_background_desc">Adiciona novas doses sem perguntar quando a aplicação está fechada</string>

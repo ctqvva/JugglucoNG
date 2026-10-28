@@ -2771,6 +2771,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="insulin_pen_full_read">Teljes napló kiolvasása legközelebb</string>
     <string name="insulin_pen_full_read_armed">Kész — tartsa a tollat a telefonhoz</string>
     <string name="insulin_pen_full_read_desc">A toll több hónapnyi adagot tárol, és a kiolvasáshoz több másodpercig folyamatosan a telefonhoz kell tartani. Ezzel az utolsó importálásnál régebbi adagok is kiolvashatók.</string>
+    <string name="insulin_pen_full_read_off">Toll kiolvasásához kapcsolja be az „Inzulintollak kiolvasása” beállítást.</string>
     <string name="insulin_pen_read_cut_short">A toll túl hamar eltávolodott. Tartsa a telefonhoz, amíg az rezegni nem kezd.</string>
     <string name="insulin_pen_background_title">Importálás a háttérben</string>
     <string name="insulin_pen_background_desc">Megerősítés nélkül felveszi az új adagokat, amikor az alkalmazás zárva van</string>
