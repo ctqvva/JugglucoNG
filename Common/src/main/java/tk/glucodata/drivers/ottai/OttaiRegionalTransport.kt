@@ -12,7 +12,7 @@ internal class OttaiRegionalTransport(
     private val send: (String, String, String?, Map<String, String>) -> OttaiNetSecurity.Reply,
 ) {
     private val identity = if (route.web) UUID.randomUUID().toString() else headers.getValue("deviceId")
-    private val common = headers + mapOf(
+    private val common = if (route.cn) headers + mapOf("versionName" to "1.63.0", "versionCode" to "264122") else headers + mapOf(
         // Current official Syai web client's secure-API compatibility version. Older values
         // leave cipher parameters undecoded, even when key exchange itself succeeds.
         "versionCode" to "10000000",
@@ -28,7 +28,7 @@ internal class OttaiRegionalTransport(
                 common + cipherHeaders + if (body == null) emptyMap() else
                     mapOf("Content-Type" to "application/json;charset=UTF-8"))
         },
-        identityHeader = "webDeviceId",
+        identityHeader = if (route.cn) "cipherUserId" else "webDeviceId",
         randomNonceId = route.web,
     )
 
@@ -43,14 +43,17 @@ internal class OttaiRegionalTransport(
         val path: String,
         val query: Map<String, String>,
         val web: Boolean,
+        val cn: Boolean = false,
     )
 
     companion object {
-        fun route(url: String): Route? {
+        fun route(url: String, headers: Map<String, String> = emptyMap()): Route? {
             val uri = URI(url)
             if (uri.scheme != "https" || uri.port != -1 || uri.userInfo != null || uri.fragment != null) return null
             val web = uri.host == "www.syai.com" && uri.path.startsWith("/api/cgm/web/")
-            val mobile = uri.host in setOf("api.syai.com", "seas.ottai.com") &&
+            val cn = uri.host == "api.ottai.com" && headers["appName"] == "ottai" &&
+                headers["packageName"] == "com.ottai.tag"
+            val mobile = (cn || uri.host in setOf("api.syai.com", "seas.ottai.com")) &&
                 uri.path.startsWith(OttaiConstants.PREFIX + "/")
             if (!web && !mobile) return null
             val origin = "https://${uri.host}"
@@ -63,7 +66,7 @@ internal class OttaiRegionalTransport(
                 URLDecoder.decode(it.substringBefore('='), "UTF-8") to
                     URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
             }.orEmpty()
-            return Route(secureBase, exchangeUrl, path, query, web)
+            return Route(secureBase, exchangeUrl, path, query, web, cn)
         }
 
         private fun enc(value: String) = URLEncoder.encode(value, "UTF-8")

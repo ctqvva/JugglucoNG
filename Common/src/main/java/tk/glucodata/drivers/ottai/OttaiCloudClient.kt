@@ -1376,7 +1376,7 @@ object OttaiCloudClient {
     ): CloudRequestResult {
         var legacyConnection: HttpURLConnection? = null
         return try {
-            val route = OttaiRegionalTransport.route(url)
+            val route = OttaiRegionalTransport.route(url, headers)
             val reply = if (route != null) {
                 val transport = OttaiRegionalTransport(route, headers) { verb, target, payload, common ->
                     rawRequest(verb, target, payload, common, timeoutMs, openConnection)
