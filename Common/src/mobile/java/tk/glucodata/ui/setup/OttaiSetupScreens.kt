@@ -481,258 +481,272 @@ private fun OttaiUnbindButton(enabled: Boolean, onClick: () -> Unit) {
 // ---- Account ----
 
 /**
- * The account page: who is signed in and to which backend, or the sign-in form. Signed out, this
- * is where setup opens, because no new sensor works without the account; saved sensors stay one
- * row away for the offline route. China signs in by SMS; Ottai Global and Syai by email/username
- * and password. On success the wizard moves on to the sensor search.
+ * What the sign-in form holds. The wizard owns it, not the card: the card sits in the search list,
+ * which may drop and recreate it (scrolled away, or re-laid out when the keyboard opens), and a
+ * request in flight must still find its own state when it returns.
+ */
+internal class OttaiSignInForm {
+    var busy by mutableStateOf(false)
+    var status by mutableStateOf("")
+    var statusIsError by mutableStateOf(false)
+    var phone by mutableStateOf("")
+    var smsCountry by mutableStateOf(OttaiSmsCountry.MAINLAND_CHINA)
+    var code by mutableStateOf("")
+    var requestId by mutableStateOf("")
+    var password by mutableStateOf("")
+
+    fun resetSms() {
+        requestId = ""
+        code = ""
+        status = ""
+        statusIsError = false
+    }
+}
+
+/**
+ * The account, at the top of setup because no new sensor works without it: who is signed in and
+ * to which backend, with Sign out, or the sign-in form itself. China signs in by SMS; Ottai Global
+ * and Syai by email/username and password.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun OttaiAccountStep(
-    ui: WizardUiMetrics,
+internal fun OttaiAccountCard(
     signedIn: Boolean,
     accountLogin: String,
     accountRegion: OttaiRegion,
     region: OttaiRegion,
     onRegionChange: (OttaiRegion) -> Unit,
     message: String,
+    form: OttaiSignInForm,
     onSignedIn: (login: String) -> Unit,
     onSignOut: () -> Unit,
     onRegister: () -> Unit,
-    savedSummary: String,
-    onOpenSaved: () -> Unit,
-    // The wizard's scope, not this page's: leaving the page mid-request must not cancel the
-    // coroutine after the cloud call has already stored a session, or onSignedIn never runs.
+    // The wizard's scope, not this card's: leaving mid-request must not cancel the coroutine
+    // after the cloud call has already stored a session, or onSignedIn never runs.
     scope: CoroutineScope,
+    modifier: Modifier = Modifier,
 ) {
-    val tag = "OttaiAccountStep"
-    val context = LocalContext.current
-    var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("") }
-    var statusIsError by remember { mutableStateOf(false) }
-    var phone by remember { mutableStateOf("") }
-    var smsCountry by remember { mutableStateOf(OttaiSmsCountry.MAINLAND_CHINA) }
-    var showCountryPicker by remember { mutableStateOf(false) }
-    var code by remember { mutableStateOf("") }
-    var requestId by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    val resetSms = {
-        requestId = ""
-        code = ""
-        status = ""
-        statusIsError = false
+    if (signedIn) {
+        OttaiCard(
+            modifier = modifier,
+            title = accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
+            body = stringResource(accountRegion.fullLabelRes),
+            icon = Icons.Default.AccountCircle,
+            actions = {
+                OttaiCardActions {
+                    OutlinedButton(
+                        onClick = onSignOut,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(stringResource(R.string.ottai_sign_out)) }
+                }
+            },
+        )
+        return
     }
 
+    val tag = "OttaiAccountCard"
+    val context = LocalContext.current
+    var showCountryPicker by remember { mutableStateOf(false) }
     if (showCountryPicker) {
         OttaiSmsCountryDialog(
-            current = smsCountry,
+            current = form.smsCountry,
             onSelect = { country ->
                 showCountryPicker = false
-                if (country != smsCountry) {
-                    smsCountry = country
-                    phone = ""
-                    resetSms()
+                if (country != form.smsCountry) {
+                    form.smsCountry = country
+                    form.phone = ""
+                    form.resetSms()
                 }
             },
             onDismiss = { showCountryPicker = false },
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = ui.horizontalPadding)
-            .padding(top = 8.dp, bottom = 32.dp),
-    ) {
-        if (signedIn) {
-            OttaiCard(
-                title = accountLogin.ifBlank { stringResource(R.string.ottai_already_signed_in) },
-                body = stringResource(accountRegion.fullLabelRes),
-                icon = Icons.Default.AccountCircle,
-                actions = {
-                    OttaiCardActions {
-                        OutlinedButton(
-                            onClick = onSignOut,
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) { Text(stringResource(R.string.ottai_sign_out)) }
-                    }
-                },
-            )
-            OttaiCaption(stringResource(R.string.ottai_account_signed_in_note))
-            return@Column
-        }
-
-        if (message.isNotBlank()) OttaiCaption(message, isError = true)
-
-        SectionLabel(stringResource(R.string.ottai_account_app_question))
-        ConnectedButtonGroup(
-            options = OttaiRegion.entries.toList(),
-            selectedOption = region,
-            onOptionSelected = {
-                onRegionChange(it)
-                status = ""
-                statusIsError = false
-            },
-            label = { r -> Text(stringResource(r.fullLabelRes)) },
-            labelText = { r -> context.getString(r.fullLabelRes) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.size(24.dp))
-
-        val useSms = region.usesSms
-        val smsPhone = phone.takeIf { useSms }?.let { normalizeOttaiPhone(it, smsCountry) }
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { value ->
-                    val next = if (useSms) {
-                        value.filter(Char::isDigit).take(smsCountry.subscriberDigits)
+    val busy = form.busy
+    val useSms = region.usesSms
+    val smsPhone = form.phone.takeIf { useSms }?.let { normalizeOttaiPhone(it, form.smsCountry) }
+    val signIn: () -> Unit = signIn@{
+        if (busy) return@signIn
+        form.busy = true
+        form.status = ""
+        form.statusIsError = false
+        scope.launch {
+            val login = if (useSms) form.smsCountry.prefix + smsPhone.orEmpty() else form.phone.trim()
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (useSms) {
+                        OttaiCloudClient.smsLogin(
+                            context,
+                            smsPhone.orEmpty(),
+                            form.code,
+                            form.requestId,
+                            form.smsCountry.phoneCode,
+                        )?.ok == true
                     } else {
-                        value.trim()
-                    }
-                    if (next != phone && useSms) resetSms()
-                    phone = next
-                },
-                label = {
-                    Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint))
-                },
-                isError = useSms && phone.isNotBlank() && smsPhone == null,
-                leadingIcon = if (useSms) {
-                    {
-                        Row(
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .clickable(
-                                    role = Role.Button,
-                                    onClickLabel = stringResource(R.string.ottai_sms_country_title),
-                                    onClick = { showCountryPicker = true },
-                                )
-                                .padding(start = 16.dp, end = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(smsCountry.prefix)
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                            )
+                        val id = form.phone.trim()
+                        val webBase = region.webBase
+                        val result = if (webBase != null && id.contains('@')) {
+                            OttaiCloudClient.mailLogin(context, id, form.password, webBase)
+                        } else {
+                            OttaiCloudClient.passwordLogin(context, id, form.password, region.base)
                         }
+                        result?.ok == true
                     }
-                } else null,
-                singleLine = true,
-                enabled = !busy,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = if (useSms) KeyboardType.Phone else KeyboardType.Email,
-                ),
+                }.onFailure { Log.w(tag, "login: ${it.message}") }.getOrDefault(false)
+            }
+            form.busy = false
+            if (ok) {
+                OttaiRegistry.saveAccountLogin(context, login)
+                form.password = ""
+                form.code = ""
+                onSignedIn(login)
+            } else {
+                form.statusIsError = true
+                form.status = context.getString(R.string.ottai_login_fail) +
+                    OttaiCloudClient.lastError.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty() +
+                    if (useSms) {
+                        context.getString(R.string.ottai_login_request_suffix, form.requestId.takeLast(6))
+                    } else {
+                        ""
+                    }
+            }
+        }
+    }
+
+    OttaiCard(
+        modifier = modifier,
+        title = stringResource(R.string.ottai_account_title),
+        icon = Icons.Default.AccountCircle,
+        details = {
+            if (message.isNotBlank()) {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Spacer(Modifier.size(12.dp))
+            }
+            ConnectedButtonGroup(
+                options = OttaiRegion.entries.toList(),
+                selectedOption = region,
+                onOptionSelected = {
+                    onRegionChange(it)
+                    form.status = ""
+                    form.statusIsError = false
+                },
+                label = { r -> Text(stringResource(r.fullLabelRes)) },
+                labelText = { r -> context.getString(r.fullLabelRes) },
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            if (useSms) {
-                OutlinedButton(
-                    onClick = {
-                        val normalizedPhone = smsPhone ?: return@OutlinedButton
-                        busy = true
-                        status = ""
-                        statusIsError = false
-                        scope.launch {
-                            val rid = withContext(Dispatchers.IO) {
-                                runCatching {
-                                    OttaiCloudClient.requestSmsCode(context, normalizedPhone, smsCountry.phoneCode)
-                                }.onFailure { Log.w(tag, "smsCode: ${it.message}") }.getOrNull()
-                            }
-                            busy = false
-                            if (rid.isNullOrBlank()) {
-                                statusIsError = true
-                                status = context.getString(R.string.ottai_login_fail) +
-                                    OttaiCloudClient.lastError.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
-                            } else {
-                                requestId = rid
-                                code = ""
-                                status = context.getString(R.string.ottai_code_sent, rid.takeLast(6))
+            Spacer(Modifier.size(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = form.phone,
+                    onValueChange = { value ->
+                        val next = if (useSms) {
+                            value.filter(Char::isDigit).take(form.smsCountry.subscriberDigits)
+                        } else {
+                            value.trim()
+                        }
+                        if (next != form.phone && useSms) form.resetSms()
+                        form.phone = next
+                    },
+                    label = {
+                        Text(stringResource(if (useSms) R.string.ottai_phone_hint else R.string.ottai_account_hint))
+                    },
+                    isError = useSms && form.phone.isNotBlank() && smsPhone == null,
+                    leadingIcon = if (useSms) {
+                        {
+                            Row(
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = stringResource(R.string.ottai_sms_country_title),
+                                        onClick = { showCountryPicker = true },
+                                    )
+                                    .padding(start = 16.dp, end = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(form.smsCountry.prefix)
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             }
                         }
-                    },
-                    enabled = !busy && smsPhone != null,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text(stringResource(R.string.ottai_send_code)) }
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it.trim() },
-                    label = { Text(stringResource(R.string.ottai_code_hint)) },
-                    singleLine = true,
-                    enabled = !busy && requestId.isNotBlank(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(R.string.ottai_password_hint)) },
+                    } else null,
                     singleLine = true,
                     enabled = !busy,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (useSms) KeyboardType.Phone else KeyboardType.Email,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
 
-            Button(
-                onClick = {
-                    busy = true
-                    status = ""
-                    statusIsError = false
-                    scope.launch {
-                        val login = if (useSms) smsCountry.prefix + smsPhone.orEmpty() else phone.trim()
-                        val ok = withContext(Dispatchers.IO) {
-                            runCatching {
-                                if (useSms) {
-                                    OttaiCloudClient.smsLogin(
-                                        context,
-                                        smsPhone.orEmpty(),
-                                        code,
-                                        requestId,
-                                        smsCountry.phoneCode,
-                                    )?.ok == true
-                                } else {
-                                    val id = phone.trim()
-                                    val webBase = region.webBase
-                                    val result = if (webBase != null && id.contains('@')) {
-                                        OttaiCloudClient.mailLogin(context, id, password, webBase)
-                                    } else {
-                                        OttaiCloudClient.passwordLogin(context, id, password, region.base)
-                                    }
-                                    result?.ok == true
+                if (useSms) {
+                    OutlinedButton(
+                        onClick = {
+                            val normalizedPhone = smsPhone ?: return@OutlinedButton
+                            form.busy = true
+                            form.status = ""
+                            form.statusIsError = false
+                            scope.launch {
+                                val rid = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        OttaiCloudClient.requestSmsCode(context, normalizedPhone, form.smsCountry.phoneCode)
+                                    }.onFailure { Log.w(tag, "smsCode: ${it.message}") }.getOrNull()
                                 }
-                            }.onFailure { Log.w(tag, "login: ${it.message}") }.getOrDefault(false)
-                        }
-                        busy = false
-                        if (ok) {
-                            OttaiRegistry.saveAccountLogin(context, login)
-                            password = ""
-                            code = ""
-                            onSignedIn(login)
-                        } else {
-                            statusIsError = true
-                            status = context.getString(R.string.ottai_login_fail) +
-                                OttaiCloudClient.lastError.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty() +
-                                if (useSms) {
-                                    context.getString(R.string.ottai_login_request_suffix, requestId.takeLast(6))
+                                form.busy = false
+                                if (rid.isNullOrBlank()) {
+                                    form.statusIsError = true
+                                    form.status = context.getString(R.string.ottai_login_fail) +
+                                        OttaiCloudClient.lastError.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
                                 } else {
-                                    ""
+                                    form.requestId = rid
+                                    form.code = ""
+                                    form.status = context.getString(R.string.ottai_code_sent, rid.takeLast(6))
                                 }
-                        }
-                    }
-                },
-                enabled = !busy && if (useSms) {
-                    smsPhone != null && code.isNotBlank() && requestId.isNotBlank()
+                            }
+                        },
+                        enabled = !busy && smsPhone != null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) { Text(stringResource(R.string.ottai_send_code)) }
+                    OutlinedTextField(
+                        value = form.code,
+                        onValueChange = { form.code = it.trim() },
+                        label = { Text(stringResource(R.string.ottai_code_hint)) },
+                        singleLine = true,
+                        enabled = !busy && form.requestId.isNotBlank(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 } else {
-                    phone.isNotBlank() && password.isNotBlank()
+                    OutlinedTextField(
+                        value = form.password,
+                        onValueChange = { form.password = it },
+                        label = { Text(stringResource(R.string.ottai_password_hint)) },
+                        singleLine = true,
+                        enabled = !busy,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            if (form.status.isNotBlank()) OttaiCaption(form.status, isError = form.statusIsError)
+        },
+        actions = {
+            Button(
+                onClick = signIn,
+                enabled = !busy && if (useSms) {
+                    smsPhone != null && form.code.isNotBlank() && form.requestId.isNotBlank()
+                } else {
+                    form.phone.isNotBlank() && form.password.isNotBlank()
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 shapes = ButtonDefaults.shapes(),
@@ -744,30 +758,18 @@ internal fun OttaiAccountStep(
                     Text(stringResource(R.string.ottai_login_button))
                 }
             }
-        }
-        if (status.isNotBlank()) OttaiCaption(status, isError = statusIsError)
-
-        if (region.webBase != null && !region.usesSms) {
-            Spacer(Modifier.size(8.dp))
-            TextButton(
-                onClick = onRegister,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.TextButtonContentPadding,
-            ) { Text(stringResource(R.string.ottai_register_cta)) }
-        }
-
-        Spacer(Modifier.size(24.dp))
-        SettingsItem(
-            title = stringResource(R.string.ottai_saved_sensors_title),
-            subtitle = savedSummary,
-            icon = Icons.Default.Key,
-            iconTint = MaterialTheme.colorScheme.secondary,
-            position = CardPosition.SINGLE,
-            onClick = if (!busy) onOpenSaved else null,
-        )
-    }
+            if (region.webBase != null && !region.usesSms) {
+                Spacer(Modifier.size(8.dp))
+                TextButton(
+                    onClick = onRegister,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) { Text(stringResource(R.string.ottai_register_cta)) }
+            }
+        },
+    )
 }
 
 /** The app's radio picker dialog (ThemePickerDialog style) for the SMS country code. */

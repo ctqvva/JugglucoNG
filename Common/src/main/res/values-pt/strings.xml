@@ -2498,10 +2498,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Não foi possível iniciar a ligação. Tente de novo.</string>
     <string name="ottai_offline_hint">Também pode importar um ficheiro de credenciais em Sensores guardados.</string>
     <string name="ottai_already_binding_hint">A sua conta ainda tem outro sensor associado. Desassocie-o em Sensores guardados e tente de novo.</string>
-    <string name="ottai_account_app_question">De que app é a sua conta?</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Os sensores guardados continuam a funcionar se terminar a sessão.</string>
     <string name="ottai_sms_country_title">Indicativo do país</string>
     <string name="ottai_sms_country_cn">China continental</string>
     <string name="ottai_sms_country_hk">Hong Kong</string>

@@ -21,6 +21,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material.icons.filled.FileDownload
+import tk.glucodata.ui.components.AdaptiveButtonRow
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CardDefaults
@@ -30,7 +34,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -43,7 +46,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.Delete
@@ -97,12 +99,12 @@ import tk.glucodata.ui.util.rememberBleScanner
 import java.util.UUID
 
 /**
- * Signed out, setup opens on ACCOUNT: no new sensor works without the account. Signed in, it opens
- * on SEARCH, the nearby list. Picking a sensor anywhere (the list, QR, Saved sensors, an imported
- * file) opens SENSOR, the one page with Connect; the separate unbind action only releases the
- * cloud binding. Nothing connects until Connect.
+ * Setup opens on SEARCH: the account (sign-in form or who is signed in) on top, then the nearby
+ * list. Picking a sensor anywhere (the list, QR, Saved sensors, an imported file) opens SENSOR,
+ * the one page with Connect; the separate unbind action only releases the cloud binding. Nothing
+ * connects until Connect.
  */
-internal enum class OttaiSetupStep { SEARCH, SENSOR, QR, ACCOUNT, SAVED_SENSORS, REGISTER, CONNECTING, SUCCESS }
+internal enum class OttaiSetupStep { SEARCH, SENSOR, QR, SAVED_SENSORS, REGISTER, CONNECTING, SUCCESS }
 
 /**
  * Cloud account region. CN is the original phone+SMS app (api.ottai.com); Global (Ottai
@@ -499,13 +501,12 @@ fun OttaiSetupWizard(
             OttaiRegistry.loadGlucoseSecretKey(context).isNotBlank()
     }
     var signedIn by remember { mutableStateOf(alreadySignedIn) }
-    var step by remember {
-        mutableStateOf(if (alreadySignedIn) OttaiSetupStep.SEARCH else OttaiSetupStep.ACCOUNT)
-    }
-    // Where Back from the sensor page goes, and where the account page came from (null: it is
-    // the page setup opened on).
+    var step by remember { mutableStateOf(OttaiSetupStep.SEARCH) }
+    // Where Back from the sensor page goes, and the page that sent the user up to sign in (it is
+    // reopened once they have).
     var sensorReturn by remember { mutableStateOf(OttaiSetupStep.SEARCH) }
-    var accountReturn by remember { mutableStateOf<OttaiSetupStep?>(null) }
+    var signInReturn by remember { mutableStateOf<OttaiSetupStep?>(null) }
+    val signInForm = remember { OttaiSignInForm() }
 
     // The backend of the stored session.
     val accountApiBase = remember(signedIn) { OttaiRegistry.loadApiBase(context) }
@@ -577,10 +578,6 @@ fun OttaiSetupWizard(
         cloudBindingFailedId = ""
         accountMessage = context.getString(R.string.ottai_session_invalid)
         showStatus(context.getString(R.string.ottai_session_invalid), error = true)
-        if (step == OttaiSetupStep.SEARCH) {
-            accountReturn = null
-            step = OttaiSetupStep.ACCOUNT
-        }
     }
 
     val refreshAccountDevices: (String) -> Unit = refreshAccountDevices@{ sensorId ->
@@ -631,7 +628,7 @@ fun OttaiSetupWizard(
     }
     // Refresh the locally-saved list whenever we land on a page that shows it (e.g. after import).
     LaunchedEffect(step, savedRefresh) {
-        if (step in setOf(OttaiSetupStep.SEARCH, OttaiSetupStep.ACCOUNT, OttaiSetupStep.SAVED_SENSORS)) {
+        if (step == OttaiSetupStep.SEARCH || step == OttaiSetupStep.SAVED_SENSORS) {
             savedSensors = withContext(Dispatchers.IO) { loadOttaiSavedSensors(context) }
         }
     }
@@ -801,22 +798,17 @@ fun OttaiSetupWizard(
         }
     }
 
-    val home = if (signedIn) OttaiSetupStep.SEARCH else OttaiSetupStep.ACCOUNT
     // The sensor page returns to the list it was opened from; QR returns past itself.
     fun openSensor() {
         if (step != OttaiSetupStep.SENSOR) {
-            sensorReturn = if (step == OttaiSetupStep.QR || step == OttaiSetupStep.ACCOUNT) home else step
+            sensorReturn = if (step == OttaiSetupStep.QR) OttaiSetupStep.SEARCH else step
         }
         step = OttaiSetupStep.SENSOR
     }
-    fun openAccount() {
-        accountReturn = step
-        step = OttaiSetupStep.ACCOUNT
-    }
-    // Back to the page setup opened on; signed out that is sign-in, and it is the root again.
-    fun goHome() {
-        if (home == OttaiSetupStep.ACCOUNT) accountReturn = null
-        step = home
+    // Sign-in lives at the top of the search; the page that asked for it comes back after.
+    fun openSignIn() {
+        signInReturn = step.takeIf { it != OttaiSetupStep.SEARCH }
+        step = OttaiSetupStep.SEARCH
     }
 
     // Save one sensor's decrypted materials to a file (portable to any device).
@@ -1272,17 +1264,13 @@ fun OttaiSetupWizard(
         openSensor()
     }
 
-    // The page setup opened on, where Back leaves setup.
-    val atRoot = step == OttaiSetupStep.SEARCH || (step == OttaiSetupStep.ACCOUNT && accountReturn == null)
+    val atRoot = step == OttaiSetupStep.SEARCH
     val goBack: () -> Unit = {
         when (step) {
             OttaiSetupStep.SEARCH -> onDismiss()
-            OttaiSetupStep.ACCOUNT -> accountReturn?.let { step = it } ?: onDismiss()
-            OttaiSetupStep.REGISTER -> step = OttaiSetupStep.ACCOUNT
-            // The search needs the account; signed out in the meantime, Back goes to sign-in.
-            OttaiSetupStep.SENSOR -> if (sensorReturn == OttaiSetupStep.SEARCH) goHome() else step = sensorReturn
+            OttaiSetupStep.SENSOR -> step = sensorReturn
             OttaiSetupStep.CONNECTING, OttaiSetupStep.SUCCESS -> step = OttaiSetupStep.SENSOR
-            OttaiSetupStep.QR, OttaiSetupStep.SAVED_SENSORS -> goHome()
+            OttaiSetupStep.QR, OttaiSetupStep.SAVED_SENSORS, OttaiSetupStep.REGISTER -> step = OttaiSetupStep.SEARCH
         }
     }
     BackHandler(onBack = goBack)
@@ -1295,10 +1283,10 @@ fun OttaiSetupWizard(
         showStatus("")
         // The request outlives its page; only a user still waiting on it is moved on, back to
         // the page that sent them to sign in, or to the search.
-        if (step == OttaiSetupStep.ACCOUNT || step == OttaiSetupStep.REGISTER) {
-            step = accountReturn ?: OttaiSetupStep.SEARCH
-            accountReturn = null
+        if (step == OttaiSetupStep.SEARCH || step == OttaiSetupStep.REGISTER) {
+            step = signInReturn ?: OttaiSetupStep.SEARCH
         }
+        signInReturn = null
     }
 
     Scaffold(
@@ -1307,7 +1295,6 @@ fun OttaiSetupWizard(
             AppTopBar(
                 title = stringResource(
                     when {
-                        step == OttaiSetupStep.ACCOUNT && !atRoot -> R.string.ottai_account_title
                         step == OttaiSetupStep.SAVED_SENSORS -> R.string.ottai_saved_sensors_title
                         step == OttaiSetupStep.REGISTER -> R.string.ottai_register_title
                         else -> R.string.ottai_setup_title
@@ -1322,32 +1309,6 @@ fun OttaiSetupWizard(
     ) { padding ->
         AnimatedContent(targetState = step, modifier = Modifier.padding(padding), label = "OttaiWizard") { s ->
             when (s) {
-                OttaiSetupStep.ACCOUNT -> OttaiAccountStep(
-                    ui = ui,
-                    signedIn = signedIn,
-                    accountLogin = accountLogin,
-                    accountRegion = accountRegion,
-                    region = region,
-                    onRegionChange = { region = it },
-                    message = accountMessage,
-                    onSignedIn = { onSignedIn(it) },
-                    onSignOut = {
-                        scope.launch {
-                            withContext(Dispatchers.IO) { OttaiCloudClient.logout(context) }
-                            signedIn = false
-                            devices = null
-                            accountMessage = ""
-                            showStatus("")
-                            // Signed out, this page is setup's first page again.
-                            accountReturn = null
-                        }
-                    },
-                    onRegister = { step = OttaiSetupStep.REGISTER },
-                    savedSummary = ottaiSavedSensorsSummary(savedSensors.size),
-                    onOpenSaved = { step = OttaiSetupStep.SAVED_SENSORS },
-                    scope = scope,
-                )
-
                 OttaiSetupStep.REGISTER -> OttaiRegisterStep(
                     ui = ui,
                     region = region,
@@ -1377,7 +1338,7 @@ fun OttaiSetupWizard(
                     onUnbind = { pendingCloudUnbind = it },
                     onImport = launchImport,
                     onRefreshAccount = { refreshAccountDevices(cloudId) },
-                    onSignIn = { openAccount() },
+                    onSignIn = { openSignIn() },
                 )
 
                 OttaiSetupStep.SEARCH -> {
@@ -1398,7 +1359,36 @@ fun OttaiSetupWizard(
                         restartKey = nfcScanRestartKey,
                         enabled = !busy && !materialLoading,
                         onAddressSelected = selectNearby,
+                        // Typing fields in the header: keep everything in one list, so the
+                        // keyboard opening never moves the form and drops its focus.
+                        pinFooter = signedIn,
                         header = {
+                            OttaiAccountCard(
+                                signedIn = signedIn,
+                                accountLogin = accountLogin,
+                                accountRegion = accountRegion,
+                                region = region,
+                                onRegionChange = { region = it },
+                                message = accountMessage,
+                                form = signInForm,
+                                onSignedIn = { onSignedIn(it) },
+                                onSignOut = {
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) { OttaiCloudClient.logout(context) }
+                                        signedIn = false
+                                        devices = null
+                                        accountMessage = ""
+                                        showStatus("")
+                                    }
+                                },
+                                onRegister = { step = OttaiSetupStep.REGISTER },
+                                scope = scope,
+                                modifier = Modifier.padding(
+                                    start = ui.horizontalPadding,
+                                    end = ui.horizontalPadding,
+                                    top = 8.dp,
+                                ),
+                            )
                             unusedBindings.forEach { binding ->
                                 OttaiUnusedBindingCard(
                                     sensorId = OttaiConstants.canonicalSensorId(binding.mac),
@@ -1429,37 +1419,38 @@ fun OttaiSetupWizard(
                                     bottom = ui.spacerMedium,
                                 ),
                             ) {
-                                OutlinedButton(
-                                    onClick = { step = OttaiSetupStep.QR },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                                    shapes = ButtonDefaults.shapes(),
-                                    contentPadding = ButtonDefaults.ContentPadding,
-                                ) {
-                                    Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.scan_qr_button))
+                                AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(
+                                        onClick = { step = OttaiSetupStep.QR },
+                                        modifier = Modifier.heightIn(min = 56.dp),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding,
+                                    ) {
+                                        Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.scan_qr_button))
+                                    }
+                                    OutlinedButton(
+                                        onClick = launchImport,
+                                        enabled = !busy,
+                                        modifier = Modifier.heightIn(min = 56.dp),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding,
+                                    ) {
+                                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.ottai_import_file))
+                                    }
                                 }
                                 Spacer(Modifier.size(16.dp))
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    SettingsItem(
-                                        title = stringResource(R.string.ottai_account_title),
-                                        subtitle = listOf(accountLogin, stringResource(accountRegion.fullLabelRes))
-                                            .filter { it.isNotBlank() }
-                                            .joinToString(" · "),
-                                        icon = Icons.Default.AccountCircle,
-                                        iconTint = MaterialTheme.colorScheme.primary,
-                                        position = CardPosition.TOP,
-                                        onClick = if (!busy) ({ openAccount() }) else null,
-                                    )
-                                    SettingsItem(
-                                        title = stringResource(R.string.ottai_saved_sensors_title),
-                                        subtitle = ottaiSavedSensorsSummary(savedSensors.size),
-                                        icon = Icons.Default.Key,
-                                        iconTint = MaterialTheme.colorScheme.secondary,
-                                        position = CardPosition.BOTTOM,
-                                        onClick = if (!busy) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
-                                    )
-                                }
+                                SettingsItem(
+                                    title = stringResource(R.string.ottai_saved_sensors_title),
+                                    subtitle = ottaiSavedSensorsSummary(savedSensors.size),
+                                    icon = Icons.Default.Key,
+                                    iconTint = MaterialTheme.colorScheme.secondary,
+                                    position = CardPosition.SINGLE,
+                                    onClick = if (!busy) ({ step = OttaiSetupStep.SAVED_SENSORS }) else null,
+                                )
                             }
                         },
                     )
@@ -1536,7 +1527,7 @@ fun OttaiSetupWizard(
                                 }
                             },
                             onImport = launchImport,
-                            onSignIn = { openAccount() },
+                            onSignIn = { openSignIn() },
                         )
                     }
                 }
@@ -1640,6 +1631,7 @@ private fun OttaiSearchStep(
     restartKey: Int,
     enabled: Boolean,
     onAddressSelected: (String) -> Unit,
+    pinFooter: Boolean,
     header: @Composable ColumnScope.() -> Unit,
     nfcHint: (@Composable () -> Unit)?,
     footer: @Composable () -> Unit,
@@ -1799,86 +1791,98 @@ private fun OttaiSearchStep(
         )
     val scanBlocked = !scanPermissionGranted || !bluetoothEnabled || scanError != null
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        PinnedOrScrollingList(
-            modifier = Modifier.weight(1f),
-            header = {
-                header()
-                Spacer(Modifier.height(ui.spacerMedium))
-                ScanFilterHeader(
-                    title = stringResource(R.string.ottai_searching_sensors),
-                    showAllDevices = showAllDevices,
-                    onToggleFilter = { showAllDevices = !showAllDevices },
-                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
-                )
-                nfcHint?.invoke()
-                if (scanBlocked) {
+    val searchHeader: @Composable ColumnScope.() -> Unit = {
+        header()
+        Spacer(Modifier.height(ui.spacerMedium))
+        ScanFilterHeader(
+            title = stringResource(R.string.ottai_searching_sensors),
+            showAllDevices = showAllDevices,
+            onToggleFilter = { showAllDevices = !showAllDevices },
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+        )
+        nfcHint?.invoke()
+        if (scanBlocked) {
+            Spacer(Modifier.height(ui.spacerMedium))
+            Card(
+                modifier = Modifier
+                    .padding(horizontal = ui.horizontalPadding)
+                    .fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val messageRes = when {
+                        !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
+                        !scanPermissionGranted -> R.string.turn_on_location_permission
+                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
+                        else -> R.string.nobluetooth
+                    }
+                    Text(
+                        text = stringResource(messageRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Spacer(Modifier.height(ui.spacerMedium))
-                    Card(
-                        modifier = Modifier
-                            .padding(horizontal = ui.horizontalPadding)
-                            .fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    val buttonRes = when {
+                        !scanPermissionGranted -> R.string.permission
+                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
+                        else -> R.string.search_bluetooth
+                    }
+                    Button(
+                        onClick = {
+                            when {
+                                !scanPermissionGranted -> requestScanPermission()
+                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
+                                    enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                                }
+                                else -> {
+                                    scanError = null
+                                    scanPermissionGranted = hasBleScanPermissions(context)
+                                    bluetoothEnabled = scanner.isBluetoothEnabled()
+                                    scanRetryKey += 1
+                                }
+                            }
+                        },
+                        modifier = Modifier.heightIn(min = ui.buttonHeight),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            val messageRes = when {
-                                !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
-                                !scanPermissionGranted -> R.string.turn_on_location_permission
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
-                                else -> R.string.nobluetooth
-                            }
-                            Text(
-                                text = stringResource(messageRes),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(Modifier.height(ui.spacerMedium))
-                            val buttonRes = when {
-                                !scanPermissionGranted -> R.string.permission
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
-                                else -> R.string.search_bluetooth
-                            }
-                            Button(
-                                onClick = {
-                                    when {
-                                        !scanPermissionGranted -> requestScanPermission()
-                                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
-                                            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                                        }
-                                        else -> {
-                                            scanError = null
-                                            scanPermissionGranted = hasBleScanPermissions(context)
-                                            bluetoothEnabled = scanner.isBluetoothEnabled()
-                                            scanRetryKey += 1
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.heightIn(min = ui.buttonHeight),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding,
-                            ) {
-                                Text(stringResource(buttonRes))
-                            }
-                        }
+                        Text(stringResource(buttonRes))
                     }
                 }
-            },
-            footer = footer,
-        ) {
-            items(devices, key = { it.candidate.address }) { stats ->
-                val device = stats.candidate
-                val supporting = listOfNotNull(
-                    device.address,
-                    stringResource(R.string.ottai_rssi_dbm, stats.bestRssi),
-                    stringResource(R.string.ottai_ble_scan_weak).takeIf { !stats.isStableOfficialCandidate },
-                ).joinToString(" · ")
-                ListItem(
-                    headlineContent = { Text(device.displayName.ifBlank { stringResource(R.string.unknown) }) },
-                    supportingContent = { Text(supporting) },
-                    leadingContent = { Icon(Icons.Default.Bluetooth, null) },
-                    modifier = Modifier.clickable(enabled = enabled) { onAddressSelected(device.address) },
-                )
-                HorizontalDivider()
+            }
+        }
+    }
+    val deviceRows: LazyListScope.() -> Unit = {
+        items(devices, key = { it.candidate.address }) { stats ->
+            val device = stats.candidate
+            val supporting = listOfNotNull(
+                device.address,
+                stringResource(R.string.ottai_rssi_dbm, stats.bestRssi),
+                stringResource(R.string.ottai_ble_scan_weak).takeIf { !stats.isStableOfficialCandidate },
+            ).joinToString(" · ")
+            ListItem(
+                headlineContent = { Text(device.displayName.ifBlank { stringResource(R.string.unknown) }) },
+                supportingContent = { Text(supporting) },
+                leadingContent = { Icon(Icons.Default.Bluetooth, null) },
+                modifier = Modifier.clickable(enabled = enabled) { onAddressSelected(device.address) },
+            )
+            HorizontalDivider()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (scanActive) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (pinFooter) {
+            PinnedOrScrollingList(
+                modifier = Modifier.weight(1f),
+                header = searchHeader,
+                footer = footer,
+                listContent = deviceRows,
+            )
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                item(key = "header") { Column(Modifier.fillMaxWidth(), content = searchHeader) }
+                deviceRows()
+                item(key = "footer") { footer() }
             }
         }
     }

@@ -2525,10 +2525,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_connect_failed">Bağlantı başlatılamadı. Tekrar deneyin.</string>
     <string name="ottai_offline_hint">Kayıtlı sensörler altında bir kimlik bilgisi dosyası da içe aktarabilirsiniz.</string>
     <string name="ottai_already_binding_hint">Hesabınıza hâlâ başka bir sensör bağlı. Kayıtlı sensörler altında bağını kaldırın, sonra tekrar deneyin.</string>
-    <string name="ottai_account_app_question">Hesabınız hangi uygulamadan?</string>
     <string name="ottai_region_cn_full">Ottai Çin</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Oturumu kapatsanız da kayıtlı sensörler çalışmaya devam eder.</string>
     <string name="ottai_sms_country_title">Ülke kodu</string>
     <string name="ottai_sms_country_cn">Çin Anakarası</string>
     <string name="ottai_sms_country_hk">Hong Kong</string>

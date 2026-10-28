@@ -1093,10 +1093,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
-    <string name="ottai_account_app_question">Melyik alkalmazásból származik a fiókja?</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">A mentett szenzorok kijelentkezés után is működnek.</string>
     <string name="ottai_sms_country_title">Országhívószám</string>
     <string name="ottai_sms_country_cn">Kínai szárazföld</string>
     <string name="ottai_sms_country_hk">Hongkong</string>

@@ -2540,10 +2540,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
     <string name="ottai_offline_hint">Je kunt ook een bestand met inloggegevens importeren onder Opgeslagen sensoren.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
-    <string name="ottai_account_app_question">Uit welke app komt je account?</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Opgeslagen sensoren blijven werken als je je afmeldt.</string>
     <string name="ottai_sms_country_title">Landcode</string>
     <string name="ottai_sms_country_cn">Vasteland China</string>
     <string name="ottai_sms_country_hk">Hongkong</string>

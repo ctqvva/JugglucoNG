@@ -2604,10 +2604,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_offline_hint">Мөн «Хадгалсан мэдрэгчүүд» хэсэгт түлхүүрийн файл импортлох боломжтой.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
-    <string name="ottai_account_app_question">Таны бүртгэл аль аппынх вэ?</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Гарсан ч хадгалсан мэдрэгчүүд ажилласаар байна.</string>
     <string name="ottai_sms_country_title">Улсын код</string>
     <string name="ottai_sms_country_cn">Эх газрын Хятад</string>
     <string name="ottai_sms_country_hk">Хонконг</string>

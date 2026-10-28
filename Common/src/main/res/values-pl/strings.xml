@@ -2531,10 +2531,8 @@
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
-    <string name="ottai_account_app_question">Z której aplikacji pochodzi Twoje konto?</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Zapisane sensory działają dalej po wylogowaniu.</string>
     <string name="ottai_sms_country_title">Kod kraju</string>
     <string name="ottai_sms_country_cn">Chiny kontynentalne</string>
     <string name="ottai_sms_country_hk">Hongkong</string>

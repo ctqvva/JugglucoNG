@@ -2503,10 +2503,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
-    <string name="ottai_account_app_question">De quelle application vient votre compte ?</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Les capteurs enregistrés continuent de fonctionner si vous vous déconnectez.</string>
     <string name="ottai_sms_country_title">Indicatif du pays</string>
     <string name="ottai_sms_country_cn">Chine continentale</string>
     <string name="ottai_sms_country_hk">Hong Kong</string>

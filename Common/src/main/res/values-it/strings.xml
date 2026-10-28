@@ -2487,10 +2487,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
-    <string name="ottai_account_app_question">Da quale app proviene il tuo account?</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">I sensori salvati continuano a funzionare anche se esci.</string>
     <string name="ottai_sms_country_title">Prefisso internazionale</string>
     <string name="ottai_sms_country_cn">Cina continentale</string>
     <string name="ottai_sms_country_hk">Hong Kong</string>

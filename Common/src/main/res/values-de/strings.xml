@@ -2610,10 +2610,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
-    <string name="ottai_account_app_question">Aus welcher App stammt dein Konto?</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Gespeicherte Sensoren funktionieren auch nach dem Abmelden weiter.</string>
     <string name="ottai_sms_country_title">Ländervorwahl</string>
     <string name="ottai_sms_country_cn">Festlandchina</string>
     <string name="ottai_sms_country_hk">Hongkong</string>

@@ -2688,10 +2688,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
     <string name="ottai_offline_hint">Waxaad sidoo kale ka soo gelin kartaa fayl aqoonsi Dareemayaal la keydiyey.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
-    <string name="ottai_account_app_question">Akoonkaagu waa abkee?</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
-    <string name="ottai_account_signed_in_note">Dareemayaasha la keydiyey way sii shaqeynayaan haddii aad ka baxdo.</string>
     <string name="ottai_sms_country_title">Koodhka dalka</string>
     <string name="ottai_sms_country_cn">Shiinaha dhexe</string>
     <string name="ottai_sms_country_hk">Hong Kong</string>
