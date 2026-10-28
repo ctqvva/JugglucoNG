@@ -3,6 +3,7 @@ package tk.glucodata.ui.setup
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -159,6 +160,7 @@ class OttaiSetupLayoutTests {
         compose.runOnIdle { assertEquals("70D07E2552DB", selected) }
         compose.onNodeWithText(continueLabel).assertDoesNotExist()
     }
+
     @Test
     fun connectAppearsOnlyWhenUsableAndImportStaysSecondary() {
         var canConnect by mutableStateOf(false)
@@ -200,6 +202,63 @@ class OttaiSetupLayoutTests {
         capture("primary-and-import")
         connect.performClick()
         compose.runOnIdle { assertTrue(connected) }
+    }
+
+    @Test
+    fun choosingNearbySensorKeepsSearchAndConnectOnTheSamePage() {
+        var selected by mutableStateOf(false)
+        var scrollRequest by mutableIntStateOf(0)
+        var focusSelected by mutableStateOf(false)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                androidx.compose.material3.Surface(Modifier.width(320.dp).height(640.dp).testTag("card")) {
+                    val sensor: (@Composable () -> Unit)? = if (!selected) null else {
+                        {
+                            OttaiSensorCard(
+                                sensorId = "54DCE9C7FB72",
+                                state = OttaiMaterialState.READY_TO_ACTIVATE,
+                                loading = false,
+                                signedIn = true,
+                                deviceVersion = "V1.5.S2428.1",
+                                bindingState = OttaiCloudBindingUiState.HIDDEN,
+                                busy = false,
+                                canConnect = true,
+                                connectLabel = "Connect and start warmup",
+                                message = "",
+                                messageIsError = false,
+                                onConnect = {}, onImport = {}, onSignIn = {},
+                            )
+                        }
+                    }
+                    OttaiSearchList(
+                        selectedSensor = sensor,
+                        scrollRequest = scrollRequest,
+                        focusSelectedSensor = focusSelected,
+                        deviceCount = 1,
+                        header = { androidx.compose.material3.Text("Searching for sensors…") },
+                        devices = {
+                            item {
+                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                    androidx.compose.material3.Text("Nearby Ottai")
+                                }
+                            }
+                        },
+                        idEntry = { OttaiSensorIdEntry(onEntered = {}) },
+                        footer = { OttaiImportButton(onClick = {}, enabled = true) },
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Connect and start warmup").assertDoesNotExist()
+        capture("inline-search-empty")
+        compose.onNodeWithText("Nearby Ottai").performClick()
+        compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
+        compose.onNodeWithText("Connect and start warmup").assertIsDisplayed().assertIsEnabled()
+        capture("inline-search-selection")
+        compose.runOnIdle { focusSelected = true; scrollRequest += 1 }
+        compose.onNodeWithText("Connect and start warmup").assertIsDisplayed()
+        compose.runOnIdle { focusSelected = false; scrollRequest += 1 }
+        compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
     }
 
 }

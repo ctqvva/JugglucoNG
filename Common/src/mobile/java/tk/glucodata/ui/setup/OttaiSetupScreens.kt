@@ -417,32 +417,34 @@ internal fun OttaiSensorCard(
         } else null,
         actions = if (getCredentials || (!loading && canConnect)) {
             {
-            if (getCredentials) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OttaiImportButton(onClick = onImport, enabled = !busy)
+                if (getCredentials) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OttaiImportButton(onClick = onImport, enabled = !busy)
+                        Button(
+                            onClick = onSignIn,
+                            enabled = !busy,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) { Text(stringResource(R.string.ottai_login_button)) }
+                    }
+                } else if (!loading && canConnect) {
                     Button(
-                        onClick = onSignIn,
-                        enabled = !busy,
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        onClick = onConnect,
+                        enabled = !busy && !loading && canConnect,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
-                    ) { Text(stringResource(R.string.ottai_login_button)) }
-                }
-            } else if (!loading && canConnect) {
-                Button(
-                    onClick = onConnect,
-                    enabled = !busy && !loading && canConnect,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(connectLabel)
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(connectLabel)
+                        }
                     }
                 }
-            }
             }
         } else null,
     )
@@ -1111,7 +1113,7 @@ internal fun OttaiImportButton(
     }
 }
 
-/** The sensor ID or box serial typed in, with the button that opens that sensor. */
+/** The sensor ID or box serial typed in, with Continue only once the code is usable. */
 @Composable
 internal fun OttaiSensorIdEntry(
     onEntered: (code: String) -> Unit,

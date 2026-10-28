@@ -1624,9 +1624,8 @@ private object OttaiSetupScanHold {
 
 /**
  * The search, laid out like every other sensor search here (AiDex, MQ, Anytime): the wavy bar
- * while the radio listens, "Searching for sensors…" with the all-devices filter, then the list.
- * It keeps scanning while the page is open; [header] and [nfcHint] sit above the list and
- * [footer] is pinned under it.
+ * while the radio listens, "Searching for sensors…" with QR scanning, then nearby devices.
+ * Account, search, ID entry, the selected sensor and secondary actions share one scrolling list.
  */
 @Composable
 private fun OttaiSearchStep(
