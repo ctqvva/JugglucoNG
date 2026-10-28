@@ -2763,11 +2763,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pens_desc">NovoPen-Dosen über NFC</string>
     <string name="insulin_pens_enable_title">Insulinpens auslesen</string>
     <string name="insulin_pens_enable_desc">Halten Sie einen NFC-Pen an das Telefon, um seine Dosen zu übernehmen</string>
-    <string name="insulin_pens_how_title">So lesen Sie einen Pen aus</string>
     <string name="insulin_pens_how_desc">Drücken Sie die Dosiertaste, bis das Display des Pens leuchtet, und halten Sie das Display an die Oberkante des Telefons, bis es vibriert.</string>
     <string name="insulin_pens_paired">Ihre Pens</string>
     <string name="insulin_pens_none">Noch keine Pens</string>
-    <string name="insulin_pens_none_desc">Halten Sie einen Pen an das Telefon, dann erscheint er hier.</string>
     <string name="insulin_pen_name">Pen %1$s</string>
     <string name="insulin_pen_insulin_unset">Kein Insulin gewählt</string>
     <string name="insulin_pen_dose_count">%1$d Dosen übernommen</string>
@@ -2801,8 +2799,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="insulin_pen_full_read_desc">Ein Pen speichert Monate an Dosen und braucht mehrere Sekunden ruhigen Kontakt. Damit gehen Sie weiter zurück als bis zum letzten Import.</string>
     <string name="insulin_pen_read_cut_short">Der Pen war zu kurz am Telefon. Halten Sie ihn dran, bis es vibriert.</string>
     <string name="insulin_pen_background_title">Im Hintergrund importieren</string>
-    <string name="insulin_pen_background_desc">Ist die App nicht geöffnet, werden die neuen Dosen eines an das Telefon gehaltenen Pens ohne Rückfrage ins Tagebuch übernommen.</string>
-    <string name="insulin_pen_background_desc_more">Entlüftungsstöße werden übersprungen. Der Bildschirm muss an und das Telefon entsperrt sein — bei ausgeschaltetem Bildschirm liest Android kein NFC. Jede kontaktlose Karte am Telefon weckt den Leser kurz, und andere Karten-Apps fragen womöglich, welche App verwendet werden soll.</string>
+    <string name="insulin_pen_background_desc">Übernimmt neue Dosen ohne Rückfrage, wenn die App geschlossen ist</string>
+    <string name="insulin_pen_background_desc_more">Entlüftungsstöße werden übersprungen, und das Telefon muss entsperrt sein. Jede kontaktlose Karte am Telefon weckt den Leser kurz, und andere Karten-Apps fragen womöglich, welche App verwendet werden soll.</string>
+    <string name="insulin_pen_notification_duration">Benachrichtigung nach dem Import: %1$s</string>
     <string name="insulin_pen_import_channel">Pen-Importe</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d Dosis ins Tagebuch übernommen</item>

@@ -2927,11 +2927,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">NovoPen doses over NFC</string>
     <string name="insulin_pens_enable_title">Read insulin pens</string>
     <string name="insulin_pens_enable_desc">Hold an NFC pen against the phone to add its doses</string>
-    <string name="insulin_pens_how_title">How to read a pen</string>
     <string name="insulin_pens_how_desc">Press the pen\'s dose button so the display lights up, then hold the display against the top of the phone until it vibrates.</string>
     <string name="insulin_pens_paired">Your pens</string>
     <string name="insulin_pens_none">No pens yet</string>
-    <string name="insulin_pens_none_desc">Hold a pen against the phone and it appears here.</string>
     <string name="insulin_pen_name">Pen %1$s</string>
     <string name="insulin_pen_insulin_unset">No insulin chosen</string>
     <string name="insulin_pen_dose_count">%1$d doses added</string>
@@ -2965,8 +2963,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">A pen keeps months of doses and takes several seconds of steady contact to read out. Use this to go back further than the last import.</string>
     <string name="insulin_pen_read_cut_short">The pen moved away too soon. Hold it against the phone until it vibrates.</string>
     <string name="insulin_pen_background_title">Import in the background</string>
-    <string name="insulin_pen_background_desc">When the app is not open, a pen held to the phone has its new doses added to the journal without asking.</string>
-    <string name="insulin_pen_background_desc_more">Air shots are skipped. The screen has to be on and the phone unlocked — Android does not read NFC with the screen off. Any contactless card held to the phone wakes the reader for a moment, and other card apps may ask which app to use.</string>
+    <string name="insulin_pen_background_desc">Adds new doses without asking while the app is closed</string>
+    <string name="insulin_pen_background_desc_more">Air shots are left out, and the phone has to be unlocked. Any contactless card held to the phone wakes the reader briefly, and other card apps may ask which app to use.</string>
+    <string name="insulin_pen_notification_duration">Notification after import: %1$s</string>
     <string name="insulin_pen_import_channel">Pen imports</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dose added to the journal</item>

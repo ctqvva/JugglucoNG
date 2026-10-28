@@ -2689,11 +2689,9 @@
     <string name="insulin_pens_desc">Dawki NovoPen przez NFC</string>
     <string name="insulin_pens_enable_title">Odczytuj wstrzykiwacze</string>
     <string name="insulin_pens_enable_desc">Przyłóż wstrzykiwacz NFC do telefonu, aby dodać jego dawki</string>
-    <string name="insulin_pens_how_title">Jak odczytać wstrzykiwacz</string>
     <string name="insulin_pens_how_desc">Naciśnij przycisk dawki, aż wyświetlacz wstrzykiwacza się zaświeci, a następnie przyłóż go do górnej części telefonu, aż telefon zawibruje.</string>
     <string name="insulin_pens_paired">Twoje wstrzykiwacze</string>
     <string name="insulin_pens_none">Brak wstrzykiwaczy</string>
-    <string name="insulin_pens_none_desc">Przyłóż wstrzykiwacz do telefonu, a pojawi się tutaj.</string>
     <string name="insulin_pen_name">Wstrzykiwacz %1$s</string>
     <string name="insulin_pen_insulin_unset">Nie wybrano insuliny</string>
     <string name="insulin_pen_dose_count">dodane dawki: %1$d</string>
@@ -2727,8 +2725,9 @@
     <string name="insulin_pen_full_read_desc">Wstrzykiwacz przechowuje dawki z wielu miesięcy i wymaga kilku sekund stabilnego kontaktu. Pozwala sięgnąć dalej niż ostatni import.</string>
     <string name="insulin_pen_read_cut_short">Wstrzykiwacz został odsunięty za wcześnie. Trzymaj go przy telefonie, aż zawibruje.</string>
     <string name="insulin_pen_background_title">Importuj w tle</string>
-    <string name="insulin_pen_background_desc">Gdy aplikacja nie jest otwarta, nowe dawki pena przyłożonego do telefonu są dodawane do dziennika bez pytania.</string>
-    <string name="insulin_pen_background_desc_more">Odpowietrzenia są pomijane. Ekran musi być włączony, a telefon odblokowany — Android nie czyta NFC przy wyłączonym ekranie. Każda karta zbliżeniowa przyłożona do telefonu na chwilę budzi czytnik, a inne aplikacje kart mogą zapytać, której aplikacji użyć.</string>
+    <string name="insulin_pen_background_desc">Dodaje nowe dawki bez pytania, gdy aplikacja jest zamknięta</string>
+    <string name="insulin_pen_background_desc_more">Odpowietrzenia są pomijane, a telefon musi być odblokowany. Każda karta zbliżeniowa przyłożona do telefonu na chwilę budzi czytnik, a inne aplikacje kart mogą zapytać, której aplikacji użyć.</string>
+    <string name="insulin_pen_notification_duration">Powiadomienie po imporcie: %1$s</string>
     <string name="insulin_pen_import_channel">Importy z pena</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dawka dodana do dziennika</item>

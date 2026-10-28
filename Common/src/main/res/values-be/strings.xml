@@ -2719,11 +2719,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Дозы NovoPen праз NFC</string>
     <string name="insulin_pens_enable_title">Счытваць інсулінавыя ручкі</string>
     <string name="insulin_pens_enable_desc">Паднясіце NFC-ручку да тэлефона, каб дадаць яе дозы</string>
-    <string name="insulin_pens_how_title">Як счытаць ручку</string>
     <string name="insulin_pens_how_desc">Націсніце кнопку дозы, каб экран ручкі загарэўся, і трымайце гэты экран каля верхняй часткі тэлефона, пакуль ён не завібруе.</string>
     <string name="insulin_pens_paired">Вашы ручкі</string>
     <string name="insulin_pens_none">Ручак пакуль няма</string>
-    <string name="insulin_pens_none_desc">Паднясіце ручку да тэлефона — яна з\'явіцца тут.</string>
     <string name="insulin_pen_name">Ручка %1$s</string>
     <string name="insulin_pen_insulin_unset">Інсулін не выбраны</string>
     <string name="insulin_pen_dose_count">дададзена доз: %1$d</string>
@@ -2757,8 +2755,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">Ручка захоўвае дозы за некалькі месяцаў, і поўнае счытванне займае некалькі секунд без адрыву. Так можна ўзяць даныя старэйшыя за апошні імпарт.</string>
     <string name="insulin_pen_read_cut_short">Ручку прыбралі занадта рана. Трымайце яе каля тэлефона, пакуль ён не завібруе.</string>
     <string name="insulin_pen_background_title">Імпарт у фоне</string>
-    <string name="insulin_pen_background_desc">Калі праграма не адкрыта, новыя дозы ручкі, прыкладзенай да тэлефона, дадаюцца ў журнал без пытанняў.</string>
-    <string name="insulin_pen_background_desc_more">Прапускі паветра прапускаюцца. Экран павінен быць уключаны, а тэлефон разблакіраваны — Android не чытае NFC пры выключаным экране. Любая бескантактная картка, прыкладзеная да тэлефона, на імгненне абуджае счытвальнік, а іншыя праграмы для картак могуць спытаць, якую праграму выкарыстоўваць.</string>
+    <string name="insulin_pen_background_desc">Дадае новыя дозы без пытанняў, калі праграма закрыта</string>
+    <string name="insulin_pen_background_desc_more">Прапускі паветра прапускаюцца, а тэлефон павінен быць разблакіраваны. Любая бескантактная картка, прыкладзеная да тэлефона, на імгненне абуджае счытвальнік, а іншыя праграмы для картак могуць спытаць, якую праграму выкарыстоўваць.</string>
+    <string name="insulin_pen_notification_duration">Апавяшчэнне пасля імпарту: %1$s</string>
     <string name="insulin_pen_import_channel">Імпарт з ручкі</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d доза дададзена ў журнал</item>

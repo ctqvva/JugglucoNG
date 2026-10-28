@@ -2737,11 +2737,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="insulin_pens_desc">NovoPen-adagok NFC-n keresztül</string>
     <string name="insulin_pens_enable_title">Inzulintollak kiolvasása</string>
     <string name="insulin_pens_enable_desc">Az adagok hozzáadásához tartson egy NFC-s tollat a telefonhoz</string>
-    <string name="insulin_pens_how_title">A toll kiolvasása</string>
     <string name="insulin_pens_how_desc">Nyomja meg a toll ‘adagoló\' gombját, hogy a kijelző felvillanjon, majd tartsa a kijelzőt a telefon felső részéhez, amíg az rezegni nem kezd.</string>
     <string name="insulin_pens_paired">Saját tollak</string>
     <string name="insulin_pens_none">Még nincs toll</string>
-    <string name="insulin_pens_none_desc">Tartson egy tollat a telefonhoz, és az megjelenik itt.</string>
     <string name="insulin_pen_name">%1$s toll</string>
     <string name="insulin_pen_insulin_unset">Nincs kiválasztott inzulin</string>
     <string name="insulin_pen_dose_count">%1$d adag hozzáadva</string>
@@ -2775,8 +2773,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="insulin_pen_full_read_desc">A toll több hónapnyi adagot tárol, és a kiolvasáshoz több másodpercig folyamatosan a telefonhoz kell tartani. Ezzel az utolsó importálásnál régebbi adagok is kiolvashatók.</string>
     <string name="insulin_pen_read_cut_short">A toll túl hamar eltávolodott. Tartsa a telefonhoz, amíg az rezegni nem kezd.</string>
     <string name="insulin_pen_background_title">Importálás a háttérben</string>
-    <string name="insulin_pen_background_desc">Ha az alkalmazás nincs megnyitva, a telefonhoz tartott toll új adagjai megerősítés nélkül bekerülnek a naplóba.</string>
-    <string name="insulin_pen_background_desc_more">A légtelenítő adagok kimaradnak. A képernyőnek bekapcsolva, a telefonnak feloldva kell lennie — az Android kikapcsolt képernyőnél nem olvas NFC-t. Bármilyen, a telefonhoz tartott érintésmentes kártya rövid időre felébreszti az olvasót, és más kártyaalkalmazások rákérdezhetnek, melyik alkalmazást használja.</string>
+    <string name="insulin_pen_background_desc">Megerősítés nélkül felveszi az új adagokat, amikor az alkalmazás zárva van</string>
+    <string name="insulin_pen_background_desc_more">A légtelenítő adagok kimaradnak, és a telefonnak feloldva kell lennie. Bármilyen, a telefonhoz tartott érintésmentes kártya rövid időre felébreszti az olvasót, és más kártyaalkalmazások rákérdezhetnek, melyik alkalmazást használja.</string>
+    <string name="insulin_pen_notification_duration">Értesítés importálás után: %1$s</string>
     <string name="insulin_pen_import_channel">Tolladatok importálása</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d adag hozzáadva a naplóhoz</item>

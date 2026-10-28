@@ -2643,11 +2643,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Dosi NovoPen via NFC</string>
     <string name="insulin_pens_enable_title">Leggi le penne per insulina</string>
     <string name="insulin_pens_enable_desc">Avvicina una penna NFC al telefono per aggiungere le sue dosi</string>
-    <string name="insulin_pens_how_title">Come leggere una penna</string>
     <string name="insulin_pens_how_desc">Premi il pulsante della dose finché il display della penna si accende, poi tieni il display contro la parte alta del telefono finché non vibra.</string>
     <string name="insulin_pens_paired">Le tue penne</string>
     <string name="insulin_pens_none">Nessuna penna</string>
-    <string name="insulin_pens_none_desc">Avvicina una penna al telefono e comparirà qui.</string>
     <string name="insulin_pen_name">Penna %1$s</string>
     <string name="insulin_pen_insulin_unset">Nessuna insulina scelta</string>
     <string name="insulin_pen_dose_count">%1$d dosi aggiunte</string>
@@ -2681,8 +2679,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">Una penna conserva mesi di dosi e richiede alcuni secondi di contatto stabile. Serve per andare più indietro dell\'ultima importazione.</string>
     <string name="insulin_pen_read_cut_short">La penna si è allontanata troppo presto. Tienila sul telefono finché non vibra.</string>
     <string name="insulin_pen_background_title">Importa in background</string>
-    <string name="insulin_pen_background_desc">Quando l’app non è aperta, le nuove dosi di una penna avvicinata al telefono vengono aggiunte al diario senza chiedere.</string>
-    <string name="insulin_pen_background_desc_more">Gli spurghi vengono saltati. Lo schermo deve essere acceso e il telefono sbloccato — Android non legge l’NFC a schermo spento. Qualsiasi carta contactless avvicinata al telefono risveglia per un attimo il lettore, e altre app per carte potrebbero chiedere quale app usare.</string>
+    <string name="insulin_pen_background_desc">Aggiunge le nuove dosi senza chiedere quando l’app è chiusa</string>
+    <string name="insulin_pen_background_desc_more">Gli spurghi vengono saltati e il telefono deve essere sbloccato. Qualsiasi carta contactless avvicinata al telefono risveglia per un attimo il lettore, e altre app per carte potrebbero chiedere quale app usare.</string>
+    <string name="insulin_pen_notification_duration">Notifica dopo l’importazione: %1$s</string>
     <string name="insulin_pen_import_channel">Importazioni penna</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dose aggiunta al diario</item>

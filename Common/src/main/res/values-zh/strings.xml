@@ -2668,11 +2668,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">通过 NFC 读取 NovoPen 剂量</string>
     <string name="insulin_pens_enable_title">读取胰岛素笔</string>
     <string name="insulin_pens_enable_desc">将 NFC 胰岛素笔贴近手机即可添加其剂量</string>
-    <string name="insulin_pens_how_title">如何读取胰岛素笔</string>
     <string name="insulin_pens_how_desc">按下剂量按钮点亮笔上的显示屏，然后把显示屏贴在手机顶部，直到手机振动。</string>
     <string name="insulin_pens_paired">你的胰岛素笔</string>
     <string name="insulin_pens_none">暂无胰岛素笔</string>
-    <string name="insulin_pens_none_desc">把笔贴近手机，它就会出现在这里。</string>
     <string name="insulin_pen_name">笔 %1$s</string>
     <string name="insulin_pen_insulin_unset">未选择胰岛素</string>
     <string name="insulin_pen_dose_count">已添加 %1$d 次剂量</string>
@@ -2706,8 +2704,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_full_read_desc">胰岛素笔会保存数月的剂量，完整读取需要数秒的稳定贴合。用这个可以取回上次导入之前的记录。</string>
     <string name="insulin_pen_read_cut_short">笔移开得太早了。请贴住手机直到它振动。</string>
     <string name="insulin_pen_background_title">在后台导入</string>
-    <string name="insulin_pen_background_desc">应用未打开时，贴近手机的胰岛素笔会将新剂量直接添加到日志，不再询问。</string>
-    <string name="insulin_pen_background_desc_more">排气剂量会被跳过。屏幕必须亮起且手机已解锁——熄屏时 Android 不读取 NFC。任何贴近手机的非接触卡都会短暂唤醒读取器，其他卡片应用可能会询问使用哪个应用。</string>
+    <string name="insulin_pen_background_desc">应用关闭时直接添加新剂量，不再询问</string>
+    <string name="insulin_pen_background_desc_more">排气剂量会被跳过，且手机须已解锁。任何贴近手机的非接触卡都会短暂唤醒读取器，其他卡片应用可能会询问使用哪个应用。</string>
+    <string name="insulin_pen_notification_duration">导入后通知：%1$s</string>
     <string name="insulin_pen_import_channel">胰岛素笔导入</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">已将 %d 个剂量添加到日志</item>
