@@ -143,6 +143,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.unit.toSize
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.layout.positionOnScreen
@@ -1041,6 +1044,9 @@ fun InteractiveGlucoseChart(
     // read only while drawing, so a picker that changes height costs a redraw, not a
     // recomposition.
     val pickerOverhangPx = remember { mutableFloatStateOf(0f) }
+    // Where the active-insulin chip sits over the plot, so the axis labels it would half
+    // cover can stand aside. Same split as above: written on placement, read in draw.
+    val activeInsulinChipBounds = remember { mutableStateOf(Rect.Zero) }
     val axisLabelBackgroundColor = androidx.compose.ui.graphics.lerp(
         MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
         MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
@@ -2700,6 +2706,9 @@ fun InteractiveGlucoseChart(
                 val contentHeight = (size.height - chartUnderlayBottomPx - previewWindowReservedPx).coerceAtLeast(1f)
                 val bottomAxisHeight = 32.dp.toPx()
                 val chartHeight = (contentHeight - bottomAxisHeight - chartPlotBottomGapPx).coerceAtLeast(1f)
+                // Axis text starts on the line the corner chips start on: 16 dp in the card,
+                // and the cards' own edge once the chart runs full-bleed.
+                val axisLabelStartPx = androidx.compose.ui.util.lerp(16.dp.toPx(), backdropContentInset.toPx(), backdropAlpha)
                 if (labelCache.size > 200) labelCache.clear()
 
                 // Viewport Logic (STABLE)
@@ -2862,8 +2871,14 @@ fun InteractiveGlucoseChart(
                             yVal += yStep.toInt()
                             continue
                         }
+                        // A label the insulin chip would cut through is left out whole.
+                        val chipBounds = activeInsulinChipBounds.value
+                        if (!chipBounds.isEmpty && y - labelClearance / 2f < chipBounds.bottom && y + labelClearance / 2f > chipBounds.top) {
+                            yVal += yStep.toInt()
+                            continue
+                        }
                         val centeredY = y + (axisLabelBounds.height() / 2f)
-                        val labelPadding = 16f * density
+                        val labelPadding = axisLabelStartPx
                         val textWidth = axisTextPaint.measureText(labelText)
                         val backgroundPadH = 8f * density
                         val backgroundPadV = 3f * density
@@ -3370,7 +3385,7 @@ fun InteractiveGlucoseChart(
                             // Text - Vertically centered with guide line, 4dp left padding
                             axisTextPaint.getTextBounds(label, 0, label.length, indicatorLabelBounds)
                             val centeredY = y + (indicatorLabelBounds.height() / 2f)
-                            val indicatorPadding = 16f * density
+                            val indicatorPadding = axisLabelStartPx
                             val textWidth = axisTextPaint.measureText(label)
 
                             drawContext.canvas.nativeCanvas.drawText(
@@ -4307,6 +4322,9 @@ fun InteractiveGlucoseChart(
                     label = "activeInsulinCorner"
                 )
                 val activeInsulinShape = RoundedCornerShape(activeInsulinCorner)
+                DisposableEffect(Unit) {
+                    onDispose { activeInsulinChipBounds.value = Rect.Zero }
+                }
                 // Collapsed stays under half the chart so it never reaches the date chip;
                 // expanded is allowed a little more room but still stops short of it.
                 val activeInsulinMaxWidth = maxWidth * if (isActiveInsulinExpanded) {
@@ -4324,6 +4342,9 @@ fun InteractiveGlucoseChart(
                             top = androidx.compose.ui.unit.lerp(16.dp, 0.dp, backdropAlpha)
                         )
                         .widthIn(max = activeInsulinMaxWidth)
+                        .onPlaced { coordinates ->
+                            activeInsulinChipBounds.value = Rect(coordinates.positionInParent(), coordinates.size.toSize())
+                        }
                         .zIndex(1.6f)
                         .clip(activeInsulinShape)
                         .clickable(enabled = summary != null || activeCarbsGrams != null) { isActiveInsulinExpanded = !isActiveInsulinExpanded },
