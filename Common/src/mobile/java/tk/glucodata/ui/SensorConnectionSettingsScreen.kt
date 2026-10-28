@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -28,6 +29,7 @@ import tk.glucodata.R
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
@@ -55,7 +57,14 @@ fun SensorConnectionSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // With large text the Bluetooth group can start below the built rows.
+        RevealSettingsSearchAnchor(
+            listState,
+            setOf(SettingsSearchAnchors.HANDOVER, SettingsSearchAnchors.TURBO, SettingsSearchAnchors.AUTOCONNECT)
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),

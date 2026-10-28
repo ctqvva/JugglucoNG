@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -30,6 +31,7 @@ import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.util.findActivity
@@ -70,7 +72,20 @@ fun PhoneAppsSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // With large text the options group can start below the built rows; only page for
+        // the options this screen currently shows, as search does.
+        RevealSettingsSearchAnchor(
+            listState,
+            setOfNotNull(
+                SettingsSearchAnchors.XDRIP, SettingsSearchAnchors.PATCHED_LIBRE, SettingsSearchAnchors.GLUCODATA,
+                SettingsSearchAnchors.HEALTH_CONNECT.takeIf { healthConnectSupported },
+                SettingsSearchAnchors.LIBRE2_IDENTITY.takeIf { showLibre2Identity },
+                SettingsSearchAnchors.APP_TREND.takeIf { showAppTrend },
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
