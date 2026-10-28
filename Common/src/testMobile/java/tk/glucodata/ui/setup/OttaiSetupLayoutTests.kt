@@ -133,32 +133,25 @@ class OttaiSetupLayoutTests {
     }
 
     @Test
-    fun pendingSensorRequestDisablesIdEntryUntilItCompletes() {
+    fun pendingSensorRequestDisablesTheSingleControlledIdField() {
         var enabled by mutableStateOf(true)
-        var selected = ""
+        var selected by mutableStateOf("")
         var continueLabel = ""
         compose.setContent {
             continueLabel = LocalContext.current.getString(R.string.continue_action)
             MaterialTheme {
                 Box(Modifier.width(320.dp)) {
-                    OttaiSensorIdEntry(onEntered = { selected = it }, enabled = enabled)
+                    OttaiSensorIdEntry(value = selected, onValueChange = { selected = it }, enabled = enabled)
                 }
             }
         }
-        compose.onNodeWithText(continueLabel).assertDoesNotExist()
-        compose.onNode(hasSetTextAction()).performTextInput("bad-id")
-        compose.onNodeWithText(continueLabel).assertDoesNotExist()
-        compose.onNode(hasSetTextAction()).performTextReplacement("70D07E2552DB")
-        compose.onNodeWithText(continueLabel).assertIsEnabled()
-        compose.runOnIdle { enabled = false }
+        compose.onNode(hasSetTextAction()).performTextInput("70D07E2552DB")
+        compose.runOnIdle { assertEquals("70D07E2552DB", selected); enabled = false }
         compose.onNodeWithText("70D07E2552DB").assertIsNotEnabled()
         compose.onNodeWithText(continueLabel).assertDoesNotExist()
-        compose.runOnIdle {
-            assertEquals("", selected)
-            enabled = true
-        }
-        compose.onNodeWithText(continueLabel).assertIsEnabled().performClick()
-        compose.runOnIdle { assertEquals("70D07E2552DB", selected) }
+        compose.runOnIdle { enabled = true; selected = "54DCE9C7FB72" }
+        compose.onNode(hasSetTextAction()).assertTextContains("54DCE9C7FB72")
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
         compose.onNodeWithText(continueLabel).assertDoesNotExist()
     }
 
@@ -170,11 +163,13 @@ class OttaiSetupLayoutTests {
         var imported = false
         var exported = false
         var importLabel = ""
+        var replaceLabel = ""
         var exportLabel = ""
         var statusTitle = ""
         compose.setContent {
-            importLabel = LocalContext.current.getString(R.string.ottai_import_file)
-            exportLabel = LocalContext.current.getString(R.string.ottai_export)
+            importLabel = LocalContext.current.getString(R.string.ottai_credentials_import)
+            replaceLabel = LocalContext.current.getString(R.string.ottai_credentials_replace)
+            exportLabel = LocalContext.current.getString(R.string.export)
             statusTitle = LocalContext.current.getString(R.string.ottai_state_active)
             MaterialTheme(typography = AppTypography) {
                 androidx.compose.foundation.layout.Column(Modifier.width(320.dp).testTag("card")) {
@@ -194,6 +189,7 @@ class OttaiSetupLayoutTests {
                         onImport = { imported = true },
                         onSignIn = {},
                         onExport = { exported = true },
+                        onSensorIdChange = {},
                     )
                 }
             }
@@ -206,7 +202,7 @@ class OttaiSetupLayoutTests {
         compose.onNodeWithText(exportLabel).assertDoesNotExist()
         compose.runOnIdle { loading = false }
         val connect = compose.onNodeWithText("Connect").assertIsEnabled()
-        val importAction = compose.onNodeWithText(importLabel).assertIsEnabled()
+        val importAction = compose.onNodeWithText(replaceLabel).assertIsEnabled()
         val exportAction = compose.onNodeWithText(exportLabel).assertIsEnabled()
         val importBounds = importAction.fetchSemanticsNode().boundsInRoot
         val exportBounds = exportAction.fetchSemanticsNode().boundsInRoot
@@ -224,58 +220,59 @@ class OttaiSetupLayoutTests {
     }
 
     @Test
-    fun choosingNearbySensorKeepsSearchAndConnectOnTheSamePage() {
-        var selected by mutableStateOf(false)
+    fun choosingNearbySensorUpdatesTheFieldInsideTheSameSensorCard() {
+        var selectedId by mutableStateOf("")
         var scrollRequest by mutableIntStateOf(0)
         var focusSelected by mutableStateOf(false)
+        var continueLabel = ""
         compose.setContent {
+            continueLabel = LocalContext.current.getString(R.string.continue_action)
             MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
                 androidx.compose.material3.Surface(Modifier.width(320.dp).height(640.dp).testTag("card")) {
-                    val sensor: (@Composable () -> Unit)? = if (!selected) null else {
-                        {
+                    OttaiSearchList(
+                        selectedSensor = {
                             OttaiSensorCard(
-                                sensorId = "54DCE9C7FB72",
+                                sensorId = selectedId,
+                                onSensorIdChange = { selectedId = it },
                                 state = OttaiMaterialState.READY_TO_ACTIVATE,
                                 loading = false,
                                 signedIn = true,
-                                deviceVersion = "V1.5.S2428.1",
+                                deviceVersion = if (selectedId.isBlank()) "" else "V1.5.S2428.1",
                                 bindingState = OttaiCloudBindingUiState.HIDDEN,
                                 busy = false,
-                                canConnect = true,
+                                canConnect = selectedId.isNotBlank(),
                                 connectLabel = "Connect and start warmup",
                                 message = "",
                                 messageIsError = false,
-                                onConnect = {}, onImport = {}, onSignIn = {}, onExport = {},
+                                onConnect = {}, onImport = {}, onSignIn = {},
+                                onExport = if (selectedId.isBlank()) null else ({}),
                             )
-                        }
-                    }
-                    OttaiSearchList(
-                        selectedSensor = sensor,
+                        },
                         scrollRequest = scrollRequest,
                         focusSelectedSensor = focusSelected,
                         deviceCount = 1,
                         header = { androidx.compose.material3.Text("Searching for sensors…") },
                         devices = {
                             item {
-                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                androidx.compose.material3.TextButton(onClick = { selectedId = "54DCE9C7FB72" }) {
                                     androidx.compose.material3.Text("Nearby Ottai")
                                 }
                             }
                         },
-                        idEntry = { OttaiSensorIdEntry(onEntered = {}) },
-                        footer = {
-                            if (!selected) OttaiImportButton(onClick = {}, enabled = true)
-                        },
+                        footer = {},
                     )
                 }
             }
         }
         compose.onNodeWithText("Connect and start warmup").assertDoesNotExist()
-        capture("inline-search-empty")
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
         compose.onNodeWithText("Nearby Ottai").performClick()
         compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).assertTextContains("54DCE9C7FB72")
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
         compose.onNodeWithText("Connect and start warmup").assertIsDisplayed().assertIsEnabled()
-        capture("inline-search-selection")
+        compose.onNodeWithText(continueLabel).assertDoesNotExist()
+        capture("single-sensor-card")
         compose.runOnIdle { focusSelected = true; scrollRequest += 1 }
         compose.onNodeWithText("Connect and start warmup").assertIsDisplayed()
         compose.runOnIdle { focusSelected = false; scrollRequest += 1 }

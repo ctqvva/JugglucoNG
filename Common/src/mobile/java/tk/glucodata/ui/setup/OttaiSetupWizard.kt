@@ -521,6 +521,7 @@ fun OttaiSetupWizard(
     var accountMessage by remember { mutableStateOf("") }
 
     var cloudId by remember { mutableStateOf("") }
+    var sensorEditPending by remember { mutableStateOf(false) }
     var selectedDeviceVersion by remember { mutableStateOf("") }
     var selectedAccountDevice by remember { mutableStateOf<OttaiCloudClient.DeviceSummary?>(null) }
     var bleAddress by remember { mutableStateOf("") }
@@ -659,6 +660,11 @@ fun OttaiSetupWizard(
 
     LaunchedEffect(cloudId, signedIn, savedRefresh, materialRefresh) {
         val canonical = OttaiConstants.canonicalSensorId(cloudId)
+        if (sensorEditPending) {
+            // Wait for the complete pasted/typed code before making cloud requests.
+            if (OttaiConstants.looksLikeMac(canonical) || OttaiConstants.isBoxSerial(canonical)) delay(400L)
+            sensorEditPending = false
+        }
         if (OttaiConstants.isBoxSerial(canonical)) {
             currentMaterials = null
             if (signedIn && lastAutoFetchId != canonical) {
@@ -810,6 +816,7 @@ fun OttaiSetupWizard(
     }
 
     fun openSensor() {
+        sensorEditPending = false
         focusSelectedSensor = true
         searchScrollRequest += 1
         step = OttaiSetupStep.SEARCH
@@ -1301,71 +1308,85 @@ fun OttaiSetupWizard(
         signInReturn = null
     }
 
-    val selectedSensor: (@Composable () -> Unit)? = if (cloudId.isBlank()) null else {
-        {
-            // A start we recovered over BLE on a previous session (persisted, and carried in
-            // exported JSON) lets us recognise an already-activated sensor even when the
-            // cloud/imported materials carry no activeTime — so the button reads "reconnect",
-            // not "start warmup".
-            val canonicalSensorId = OttaiConstants.canonicalSensorId(cloudId).takeIf { it.isNotBlank() }
-            val recoveredStartMs = canonicalSensorId
-                ?.let { OttaiRegistry.loadProvisionalActiveTime(context, it) } ?: 0L
-            val activatedLifetimeMs = canonicalSensorId
-                ?.let { OttaiRegistry.loadAcceptedMaxActive(context, it) } ?: 0L
-            val materialState = ottaiMaterialState(currentMaterials, recoveredStartMs, activatedLifetimeMs)
-            val hasSensorCode = OttaiConstants.looksLikeMac(cloudId)
-            // A box serial is looked up on the account; Connect retries the lookup.
-            val needsSerialLookup = OttaiConstants.isBoxSerial(cloudId)
-            val hasMaterials = currentMaterials?.authKeys != null
-            val canConnect = (hasSensorCode && (signedIn || hasMaterials)) || (needsSerialLookup && signedIn)
-            val cloudBindingState = ottaiCloudBindingUiState(
-                signedIn = signedIn,
-                selectedSensorId = cloudId,
-                checkingSensorId = cloudBindingCheckingId,
-                checkedSensorId = cloudBindingCheckedId,
-                failedSensorId = cloudBindingFailedId,
-                devices = devices,
-            )
-            val connectTitleRes = when {
-                needsSerialLookup -> R.string.search
-                materialState == OttaiMaterialState.READY_TO_ACTIVATE -> R.string.ottai_connect_activate
-                materialState == OttaiMaterialState.EXPIRED -> R.string.ottai_connect_expired
-                else -> R.string.ottai_connect_saved
-            }
-
-            OttaiSensorCard(
-                modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
-                sensorId = canonicalSensorId.orEmpty(),
-                state = materialState,
-                loading = materialLoading,
-                signedIn = signedIn,
-                deviceVersion = currentMaterials?.deviceVersion?.takeIf { it.isNotBlank() }
-                    ?: selectedDeviceVersion,
-                bindingState = cloudBindingState,
-                busy = busy,
-                canConnect = canConnect,
-                connectLabel = stringResource(connectTitleRes),
-                message = status,
-                messageIsError = statusIsError,
-                onConnect = {
-                    if (needsSerialLookup) {
-                        lastAutoFetchId = ""
-                        materialRefresh += 1
-                    } else {
-                        startConnect(cloudId, bleAddress, true)
-                    }
-                },
-                onImport = launchImport,
-                onSignIn = { openSignIn() },
-                onExport = if (hasMaterials && hasSensorCode) {
-                    {
-                        val id = canonicalSensorId.orEmpty()
-                        exportTargetId = id
-                        exportLauncher.launch("ottai_${id}.json")
-                    }
-                } else null,
-            )
+    val selectedSensor: @Composable () -> Unit = {
+        // A start we recovered over BLE on a previous session (persisted, and carried in
+        // exported JSON) lets us recognise an already-activated sensor even when the
+        // cloud/imported materials carry no activeTime — so the button reads "reconnect",
+        // not "start warmup".
+        val canonicalSensorId = OttaiConstants.canonicalSensorId(cloudId).takeIf { it.isNotBlank() }
+        val recoveredStartMs = canonicalSensorId
+            ?.let { OttaiRegistry.loadProvisionalActiveTime(context, it) } ?: 0L
+        val activatedLifetimeMs = canonicalSensorId
+            ?.let { OttaiRegistry.loadAcceptedMaxActive(context, it) } ?: 0L
+        val materialState = ottaiMaterialState(currentMaterials, recoveredStartMs, activatedLifetimeMs)
+        val hasSensorCode = OttaiConstants.looksLikeMac(cloudId)
+        // A box serial is looked up on the account; Connect retries the lookup.
+        val needsSerialLookup = OttaiConstants.isBoxSerial(cloudId)
+        val hasMaterials = currentMaterials?.authKeys != null
+        val canConnect = (hasSensorCode && (signedIn || hasMaterials)) || (needsSerialLookup && signedIn)
+        val cloudBindingState = ottaiCloudBindingUiState(
+            signedIn = signedIn,
+            selectedSensorId = cloudId,
+            checkingSensorId = cloudBindingCheckingId,
+            checkedSensorId = cloudBindingCheckedId,
+            failedSensorId = cloudBindingFailedId,
+            devices = devices,
+        )
+        val connectTitleRes = when {
+            needsSerialLookup -> R.string.search
+            materialState == OttaiMaterialState.READY_TO_ACTIVATE -> R.string.ottai_connect_activate
+            materialState == OttaiMaterialState.EXPIRED -> R.string.ottai_connect_expired
+            else -> R.string.ottai_connect_saved
         }
+
+        OttaiSensorCard(
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
+            sensorId = cloudId,
+            onSensorIdChange = { entered ->
+                val code = OttaiConstants.extractSetupCode(entered)
+                    ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) } ?: entered
+                cloudId = code
+                sensorEditPending = true
+                bleAddress = if (OttaiConstants.looksLikeMac(code)) OttaiConstants.macWithColons(code) else ""
+                selectedAccountDevice = null
+                selectedDeviceVersion = ""
+                currentMaterials = null
+                lastAutoFetchId = ""
+                cloudBindingCheckingId = ""
+                cloudBindingCheckedId = ""
+                cloudBindingFailedId = ""
+                materialLoading = OttaiConstants.looksLikeMac(code) || OttaiConstants.isBoxSerial(code)
+                showStatus("")
+            },
+            state = materialState,
+            loading = materialLoading,
+            signedIn = signedIn,
+            deviceVersion = currentMaterials?.deviceVersion?.takeIf { it.isNotBlank() }
+                ?: selectedDeviceVersion,
+            bindingState = cloudBindingState,
+            busy = busy,
+            canConnect = canConnect,
+            connectLabel = stringResource(connectTitleRes),
+            message = status,
+            messageIsError = statusIsError,
+            onConnect = {
+                if (needsSerialLookup) {
+                    lastAutoFetchId = ""
+                    materialRefresh += 1
+                } else {
+                    startConnect(cloudId, bleAddress, true)
+                }
+            },
+            onImport = launchImport,
+            onSignIn = { openSignIn() },
+            onExport = if (hasMaterials && hasSensorCode) {
+                {
+                    val id = canonicalSensorId.orEmpty()
+                    exportTargetId = id
+                    exportLauncher.launch("ottai_${id}.json")
+                }
+            } else null,
+        )
     }
 
     Scaffold(
@@ -1443,20 +1464,6 @@ fun OttaiSetupWizard(
                         focusSelectedSensor = focusSelectedSensor,
                         onAddressSelected = selectNearby,
                         onScanQr = { step = OttaiSetupStep.QR },
-                        // Typing the ID is the third way to find the sensor, so it follows the
-                        // list in the scroll, not the keys pinned below.
-                        idEntry = {
-                            OttaiSensorIdEntry(
-                                onEntered = selectCode,
-                                enabled = !busy && !materialLoading,
-                                modifier = Modifier.padding(
-                                    start = ui.horizontalPadding,
-                                    end = ui.horizontalPadding,
-                                    top = ui.spacerMedium,
-                                    bottom = ui.spacerMedium,
-                                ),
-                            )
-                        },
                         header = {
                             OttaiAccountCard(
                                 signedIn = signedIn,
@@ -1514,10 +1521,6 @@ fun OttaiSetupWizard(
                                     bottom = ui.spacerMedium,
                                 ),
                             ) {
-                                if (cloudId.isBlank()) {
-                                    OttaiImportButton(onClick = launchImport, enabled = !busy)
-                                    Spacer(Modifier.size(16.dp))
-                                }
                                 SettingsItem(
                                     title = stringResource(R.string.ottai_saved_sensors_title),
                                     subtitle = ottaiSavedSensorsSummary(savedSensors.size),
@@ -1644,7 +1647,6 @@ private fun OttaiSearchStep(
     focusSelectedSensor: Boolean,
     onAddressSelected: (String) -> Unit,
     onScanQr: () -> Unit,
-    idEntry: @Composable () -> Unit,
     header: @Composable ColumnScope.() -> Unit,
     nfcHint: (@Composable () -> Unit)?,
     footer: @Composable () -> Unit,
@@ -1904,7 +1906,6 @@ private fun OttaiSearchStep(
         deviceCount = devices.size,
         header = { Column(Modifier.fillMaxWidth(), content = searchHeader) },
         devices = deviceRows,
-        idEntry = idEntry,
         footer = footer,
     )
 }

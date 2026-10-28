@@ -344,11 +344,13 @@ internal fun OttaiSensorCard(
     onImport: () -> Unit,
     onSignIn: () -> Unit,
     onExport: (() -> Unit)? = null,
+    onSensorIdChange: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Keep only status text that explains what the user needs to do.
+    val hasSelection = OttaiConstants.looksLikeMac(sensorId) || OttaiConstants.isBoxSerial(sensorId)
     val body = when {
-        loading -> null
+        !hasSelection || loading -> null
         state == OttaiMaterialState.MISSING && signedIn -> stringResource(R.string.ottai_state_missing_signed_in)
         state == OttaiMaterialState.MISSING -> stringResource(R.string.ottai_state_missing_signed_out)
         state == OttaiMaterialState.PARTIAL -> stringResource(R.string.ottai_state_partial_body)
@@ -362,13 +364,13 @@ internal fun OttaiSensorCard(
         else -> null
     }
     val meta = listOfNotNull(
-        sensorId.takeIf { it.isNotBlank() },
+        sensorId.takeIf { it.isNotBlank() && onSensorIdChange == null },
         deviceVersion.takeIf { !loading && it.isNotBlank() }
             ?.let { stringResource(R.string.ottai_device_version_label, it) },
         bindingText,
     ).joinToString(" · ")
     val bindingFailed = bindingState == OttaiCloudBindingUiState.ERROR
-    val getCredentials = !loading && state == OttaiMaterialState.MISSING && !signedIn
+    val getCredentials = hasSelection && !loading && state == OttaiMaterialState.MISSING && !signedIn
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -378,6 +380,9 @@ internal fun OttaiSensorCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (onSensorIdChange != null) {
+                OttaiSensorIdEntry(value = sensorId, onValueChange = onSensorIdChange, enabled = !busy)
+            }
             if (meta.isNotEmpty()) {
                 Text(
                     meta,
@@ -436,19 +441,33 @@ internal fun OttaiSensorCard(
             }
             AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
                 if (!loading && onExport != null) {
-                    OutlinedButton(
+                    Button(
                         onClick = onExport,
                         enabled = !busy,
-                        modifier = Modifier.heightIn(min = 48.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
-                        Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.FileUpload, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.ottai_export))
+                        Text(stringResource(R.string.export))
                     }
+                    OutlinedButton(
+                        onClick = onImport,
+                        enabled = !busy,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.ottai_credentials_replace))
+                    }
+                } else {
+                    OttaiImportButton(
+                        onClick = onImport,
+                        enabled = !busy,
+                        label = stringResource(R.string.ottai_credentials_import),
+                    )
                 }
-                OttaiImportButton(onClick = onImport, enabled = !busy)
             }
         }
     }
@@ -1076,21 +1095,19 @@ internal fun OttaiSearchList(
     deviceCount: Int,
     header: @Composable () -> Unit,
     devices: LazyListScope.() -> Unit,
-    idEntry: @Composable () -> Unit,
     footer: @Composable () -> Unit,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(scrollRequest) {
         if (scrollRequest > 0) {
             listState.animateScrollToItem(
-                if (focusSelectedSensor && selectedSensor != null) deviceCount + 2 else 0,
+                if (focusSelectedSensor && selectedSensor != null) deviceCount + 1 else 0,
             )
         }
     }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item(key = "header") { header() }
         devices()
-        item(key = "idEntry") { idEntry() }
         if (selectedSensor != null) {
             item(key = "selectedSensor") { selectedSensor() }
         }
@@ -1119,49 +1136,35 @@ internal fun OttaiImportButton(
     }
 }
 
-/** The sensor ID or box serial typed in, with Continue only once the code is usable. */
+/** The one controlled ID field shared by manual entry and every sensor picker. */
 @Composable
 internal fun OttaiSensorIdEntry(
-    onEntered: (code: String) -> Unit,
+    value: String,
+    onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    // Saveable: the field lives in the scrolling list and must survive scrolling away.
-    var typed by rememberSaveable { mutableStateOf("") }
-    val code = OttaiConstants.extractSetupCode(typed)
+    val code = OttaiConstants.extractSetupCode(value)
         ?.takeIf { OttaiConstants.looksLikeMac(it) || OttaiConstants.isBoxSerial(it) }
-    val invalid = typed.length >= 12 && code == null
-    val enter = { if (enabled) code?.let { typed = ""; onEntered(it) } }
-    Column(modifier = modifier) {
-        OutlinedTextField(
-            value = typed,
-            enabled = enabled,
-            onValueChange = { typed = it.trim() },
-            label = { Text(stringResource(R.string.ottai_sensor_mac_hint)) },
-            supportingText = if (invalid) {
-                { Text(stringResource(R.string.ottai_sensor_id_supporting)) }
-            } else null,
-            isError = invalid,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
-                autoCorrectEnabled = false,
-                keyboardType = KeyboardType.Ascii,
-                imeAction = ImeAction.Done,
-            ),
-            keyboardActions = KeyboardActions(onDone = { enter() }),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (enabled && code != null) {
-            Spacer(Modifier.size(8.dp))
-            Button(
-                onClick = { enter() },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
-            ) { Text(stringResource(R.string.continue_action)) }
-        }
-    }
+    val invalid = value.length >= 12 && code == null
+    OutlinedTextField(
+        value = value,
+        enabled = enabled,
+        onValueChange = { onValueChange(it.trim()) },
+        label = { Text(stringResource(R.string.ottai_sensor_mac_hint)) },
+        supportingText = if (invalid) {
+            { Text(stringResource(R.string.ottai_sensor_id_supporting)) }
+        } else null,
+        isError = invalid,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Characters,
+            autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Ascii,
+            imeAction = ImeAction.Done,
+        ),
+        modifier = modifier.fillMaxWidth(),
+    )
 }
 
 /**
