@@ -73,6 +73,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import tk.glucodata.ui.components.AdaptiveTrailingRow
+import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -342,10 +343,10 @@ internal fun OttaiSensorCard(
     onConnect: () -> Unit,
     onImport: () -> Unit,
     onSignIn: () -> Unit,
+    onExport: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    // Only the states that leave a question open get a sentence; the rest are said by the title
-    // and the button.
+    // Keep only status text that explains what the user needs to do.
     val body = when {
         loading -> null
         state == OttaiMaterialState.MISSING && signedIn -> stringResource(R.string.ottai_state_missing_signed_in)
@@ -411,7 +412,6 @@ internal fun OttaiSensorCard(
                 )
             }
             if (getCredentials) {
-                OttaiImportButton(onClick = onImport, enabled = !busy)
                 Button(
                     onClick = onSignIn,
                     enabled = !busy,
@@ -432,6 +432,24 @@ internal fun OttaiSensorCard(
                     } else {
                         Text(connectLabel)
                     }
+                }
+            }
+            if (!loading) {
+                AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    if (onExport != null) {
+                        OutlinedButton(
+                            onClick = onExport,
+                            enabled = !busy,
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) {
+                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.ottai_export))
+                        }
+                    }
+                    OttaiImportButton(onClick = onImport, enabled = !busy)
                 }
             }
         }

@@ -163,14 +163,18 @@ class OttaiSetupLayoutTests {
     }
 
     @Test
-    fun connectAppearsOnlyWhenUsableAndImportMatchesItsSize() {
+    fun connectAppearsOnlyWhenUsableAndCredentialActionsStayAvailable() {
         var canConnect by mutableStateOf(false)
         var loading by mutableStateOf(false)
         var connected = false
+        var imported = false
+        var exported = false
         var importLabel = ""
+        var exportLabel = ""
         var statusTitle = ""
         compose.setContent {
             importLabel = LocalContext.current.getString(R.string.ottai_import_file)
+            exportLabel = LocalContext.current.getString(R.string.ottai_export)
             statusTitle = LocalContext.current.getString(R.string.ottai_state_active)
             MaterialTheme(typography = AppTypography) {
                 androidx.compose.foundation.layout.Column(Modifier.width(320.dp).testTag("card")) {
@@ -187,10 +191,10 @@ class OttaiSetupLayoutTests {
                         message = "",
                         messageIsError = false,
                         onConnect = { connected = true },
-                        onImport = {},
+                        onImport = { imported = true },
                         onSignIn = {},
+                        onExport = { exported = true },
                     )
-                    OttaiImportButton(onClick = {}, enabled = true, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
@@ -200,13 +204,21 @@ class OttaiSetupLayoutTests {
         compose.onNodeWithText("Connect").assertDoesNotExist()
         compose.runOnIdle { loading = false }
         val connect = compose.onNodeWithText("Connect").assertIsEnabled()
-        val connectBounds = connect.fetchSemanticsNode().boundsInRoot
-        val importBounds = compose.onNodeWithText(importLabel).fetchSemanticsNode().boundsInRoot
-        assertEquals("Import and Connect must have equal width", connectBounds.width, importBounds.width, 1f)
-        assertEquals("Import and Connect must have equal height", connectBounds.height, importBounds.height, 1f)
-        capture("primary-and-import")
+        val importAction = compose.onNodeWithText(importLabel).assertIsEnabled()
+        val exportAction = compose.onNodeWithText(exportLabel).assertIsEnabled()
+        val importBounds = importAction.fetchSemanticsNode().boundsInRoot
+        val exportBounds = exportAction.fetchSemanticsNode().boundsInRoot
+        assertEquals("Import and Export must have equal width", exportBounds.width, importBounds.width, 1f)
+        assertEquals("Import and Export must have equal height", exportBounds.height, importBounds.height, 1f)
+        capture("selected-sensor-credentials")
+        importAction.performClick()
+        exportAction.performClick()
         connect.performClick()
-        compose.runOnIdle { assertTrue(connected) }
+        compose.runOnIdle {
+            assertTrue(connected)
+            assertTrue(imported)
+            assertTrue(exported)
+        }
     }
 
     @Test
@@ -231,7 +243,7 @@ class OttaiSetupLayoutTests {
                                 connectLabel = "Connect and start warmup",
                                 message = "",
                                 messageIsError = false,
-                                onConnect = {}, onImport = {}, onSignIn = {},
+                                onConnect = {}, onImport = {}, onSignIn = {}, onExport = {},
                             )
                         }
                     }
@@ -250,7 +262,7 @@ class OttaiSetupLayoutTests {
                         },
                         idEntry = { OttaiSensorIdEntry(onEntered = {}) },
                         footer = {
-                            OttaiImportButton(onClick = {}, enabled = true, modifier = Modifier.padding(horizontal = 16.dp))
+                            if (!selected) OttaiImportButton(onClick = {}, enabled = true)
                         },
                     )
                 }
@@ -266,6 +278,23 @@ class OttaiSetupLayoutTests {
         compose.onNodeWithText("Connect and start warmup").assertIsDisplayed()
         compose.runOnIdle { focusSelected = false; scrollRequest += 1 }
         compose.onNodeWithText("Searching for sensors…").assertIsDisplayed()
+    }
+
+    @Test
+    fun pageImportUsesTheAvailableWidthWithoutAnExtraInset() {
+        var label = ""
+        compose.setContent {
+            label = LocalContext.current.getString(R.string.ottai_import_file)
+            MaterialTheme {
+                Box(Modifier.width(320.dp).testTag("page")) {
+                    OttaiImportButton(onClick = {}, enabled = true)
+                }
+            }
+        }
+        val page = compose.onNodeWithTag("page").fetchSemanticsNode().boundsInRoot
+        val action = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot
+        assertEquals(page.left, action.left, 1f)
+        assertEquals(page.right, action.right, 1f)
     }
 
 }
