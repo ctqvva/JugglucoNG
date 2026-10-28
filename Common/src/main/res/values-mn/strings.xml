@@ -210,14 +210,9 @@
     <string name="wifi">Wi-Fi</string>
     <string name="heartrate">Зүрхний цохилт</string>
     <string name="xdripbroadcast">Libre (засварласан апп)</string>
-    <string name="aaps_broadcast">Glucodata</string>
-    <string name="glucodata_subtitle">GlucoDataHandler (GDH)</string>
-    <string name="xdrip_compatible_title">xDrip broadcast</string>
-    <string name="xdrip_compatible_desc">AAPS compatible</string>
     <string name="xdrip_report_as_libre2_title">Libre 2 гэж танилцуулах</string>
     <string name="xdrip_report_as_libre2_desc">AAPS-д энэ мэдрэгчтэй SMB always ашиглахыг зөвшөөрнө. Уншилтад нь итгэж байвал л асаана уу</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Тохирох эрүүл мэндийн аппуудад зориулж глюкозын хэмжилтийг Health Connect руу илгээх</string>
     <string name="sensorpermission">Мэдрэгчийн зөвшөөрөл</string>
     <string name="sensorpermissionmessage">needed to display heart rate. Set it in Device Settings, Apps, Permissions, Juggluco</string>
     <string name="floatglucose">Хөвөгч глюкоз</string>
@@ -494,7 +489,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_chart_title">Мэдэгдлийн график</string>
     <string name="notification_chart_desc">Мэдэгдлийн мөрөнд глюкозын графикийг харуулах</string>
     <string name="google_scan_desc">QR скан хийхэд Google Play үйлчилгээг ашиглах</string>
-    <string name="mirror_desc">Датаг интернет/локал сүлжээгээр хуваалцах/хүлээн авах</string>
     <string name="nightscout_desc">Хэмжилт илгээх эсвэл хүлээн авах</string>
     <string name="glucose_alerts_title">Дохио ба сэрүүлэг</string>
     <string name="glucose_range_title">Глюкозын хүрээ</string>
@@ -599,7 +593,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="theme_dark">Харанхуй</string>
     <string name="advanced_title">Нарийвчилсан</string>
     <string name="debug_logs">Дебаг логууд</string>
-    <string name="nightscout_config">Nightscout тохиргоо</string>
     <!-- LibreView Settings -->
     <string name="libreview_config">LibreView</string>
     <string name="libreview_desc">Abbott LibreView-тэй синк хийх</string>
@@ -729,9 +722,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="delete_sensor_desc">Энэ нь мэдрэгчийг болон түүний бүх өгөгдлийг устгана. Үүнийг буцаах боломжгүй.</string>
     <string name="delete_confirm">Устгах</string>
     <string name="general_settings">Ерөнхий тохиргоо</string>
-    <string name="notifications">Анхааруулга болон мэдэгдлүүд</string>
     <!-- Expressive Settings Strings -->
-    <string name="data_management">Өгөгдлийн удирдлага</string>
     <string name="export_data">Өгөгдөл экспортлох</string>
     <string name="export_compression">Шахалт</string>
     <string name="export_compression_none">JSON</string>
@@ -805,10 +796,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="factory_reset_confirm">Үйлдвэрийн тохиргоонд буцаах уу?</string>
     <string name="clean_history_confirm">Түүхийг цэвэрлэх үү?</string>
     <string name="clean_data_confirm">Апп-ийн өгөгдлийг цэвэрлэх үү?</string>
-    <string name="turbo_title">Турбо (өндөр ач холбогдолтой)</string>
-    <string name="turbo_desc">Холболтын өндөр ач холбогдол хүсэх</string>
-    <string name="autoconnect_title">Автоматаар холбогдох</string>
-    <string name="autoconnect_desc">Идэвхгүй арын холболтыг ашиглана</string>
     <string name="graph_smoothing_title">Өгөгдлийг жигдлэх</string>
     <string name="graph_smoothing_desc">График өгөгдлийг жигдлэх ба хэрэв \'Зөвхөн графикийг жигдлэх\' идэвхжөөгүй бол глюкозын утгуудыг мөн жигдлэх</string>
     <string name="graph_smoothing_none">Идэвхгүй</string>
@@ -1424,7 +1411,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="wearosinfo">Wearosinfo</string>
     <string name="wipe_sensor_data_desc">Delete sensor data from this device.</string>
     <string name="wipe_sensor_data_title">Wipe sensor data</string>
-    <string name="manual_calibration">Manual calibarion</string>
     <!-- Report localization -->
     <string name="report_generated_page">Generated %1$s · Page %2$d</string>
     <string name="report_patient_information">Patient information</string>
@@ -1548,11 +1534,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mq_fetch_calibration_on_add_desc">If a QR code or saved Glutec credentials are available, Juggluco tries to restore MQ session state during setup.</string>
     <string name="mq_bootstrap_button">Restore vendor session</string>
     <string name="mq_bootstrap_dialog_title">Restore vendor session</string>
-    <string name="mq_bootstrap_dialog_desc">Restore vendor session state from Glutec. Enter the sensor QR here if needed; account, sync, and API settings live in MQ / Glutec Account.</string>
+    <string name="mq_bootstrap_dialog_desc">Glutec-ээс үйлдвэрлэгчийн сешний төлөвийг сэргээнэ. Шаардлагатай бол мэдрэгчийн QR кодыг энд оруулна уу; бүртгэл, синк болон API тохиргоо MQ / Glutec бүртгэл хэсэгт байна.</string>
     <string name="mq_fetch_calibration_action">Restore vendor session</string>
     <string name="mq_api_url_label">API URL</string>
     <string name="mq_api_url_desc">Defaults to the HTTPS Glutec API. Change this only for a custom server or plain HTTP.</string>
-    <string name="mq_account_title">MQ / Glutec Account</string>
+    <string name="mq_account_title">MQ / Glutec бүртгэл</string>
     <string name="mq_account_desc">Shared across MQ sensors. Used for vendor restore, optional Glutec sync, and SMS account actions.</string>
     <string name="mq_account_linked_desc">Manage the shared MQ / Glutec account, API URL, and optional sync used by MQ sensors.</string>
     <string name="mq_account_sign_in_action">Sign in</string>
@@ -1815,8 +1801,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="journal_preset_ultra_long_basal">Ultra long basal</string>
     <string name="notification_settings_title">Notification settings</string>
     <string name="notification_settings_subtitle">Customize notification shade</string>
-    <string name="lock_screen_aod">Lock screen (AOD)</string>
-    <string name="aod_settings_title">AOD settings</string>
     <string name="aod_show_on_lockscreen">Түгжээтэй дэлгэцэд харуулах</string>
     <string name="aod_show_on_lockscreen_desc">Дэлгэц асаалттай бөгөөд түгжээтэй үед бас харуулах</string>
     <string name="customize_always_on_display">Customize always-on display</string>
@@ -1844,7 +1828,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="alignment_left">Left</string>
     <string name="alignment_center">Center</string>
     <string name="alignment_right">Right</string>
-    <string name="cgm_readiness_title">CGM readiness</string>
+    <string name="cgm_readiness_title">Системийн шалгалт</string>
     <string name="cgm_readiness_dashboard_title">CGM тохиргоонд анхаарал хэрэгтэй</string>
     <string name="cgm_readiness_settings_desc">Check Bluetooth, alarms, battery, notifications, and background behavior</string>
     <string name="cgm_readiness_ready_title">System ready</string>
@@ -2224,7 +2208,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="data_smoothing_causal_title">Одоогийн утгын Калманы шүүлтүүр</string>
     <string name="data_smoothing_causal_desc">Хамгийн сүүлийн уншилтыг зөвхөн өмнөх уншилтуудаар (түвшин ба чиг хандлага) тооцоолдог тул одоо харагдах болон илгээгдэх утга түүхэд хадгалагдах утгатай ижил байна. Графикийн түүх болон Nightscout дундажлалтын цонхыг ашиглана</string>
     <string name="status_invalid_glucose_from_sensor">Сенсороос ирсэн глюкозын утга буруу</string>
-    <string name="ottai_settings_desc">Холбогдсон Ottai мэдрэгчийн Ottai дансны хандалт, хадгалсан материал болон тохиргоог удирдана.</string>
     <string name="ottai_saved_credentials_title">Хадгалсан нэвтрэх мэдээлэл</string>
     <string name="ottai_state_not_activated">Идэвхжүүлэхэд бэлэн</string>
     <string name="ottai_status_activating_days">Идэвхжүүлж байна: %1$d өдөр (%2$d/%3$d)</string>
@@ -2322,8 +2305,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Хурдан унах</string>
     <string name="alert_rising_fast">Хурдан өсөх</string>
-    <string name="broadcast_computed_trend_title">Аппын трендийг дамжуулах</string>
-    <string name="broadcast_computed_trend_desc">Мэдрэгчийн оронд аппын трендийг ашиглах</string>
     <string name="dashboard_show_delta_desc">Тренд сумны доор дельта интервал дээрх хэмжсэн өөрчлөлт</string>
     <string name="dashboard_show_delta_title">Хяналтын самбар дээрх Delta (Δ).</string>
     <string name="delta_alarm_interval_follow">Δ-тэй адил (%1$d мин)</string>
@@ -2409,8 +2390,6 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="notification_chart_pause_screen_off">Дэлгэц унтарсан үед графикийг түр зогсоох</string>
     <string name="notification_chart_pause_screen_off_summary">Дэлгэц асахад графикийг дахин зурна. График түр зуур харагдахгүй байж болно.</string>
     <string name="notification_status_line_section">Төлөвийн мөр</string>
-    <string name="display_colors_title">Дэлгэц</string>
-    <string name="display_colors_desc">Өнгө, хяналтын самбарын утга болон график</string>
     <string name="display_readouts_section">Хяналтын самбарын утга</string>
     <!-- Debug log screen -->
     <string name="debug_howto_title">Алдааг хэрхэн мэдээлэх вэ</string>
@@ -3151,4 +3130,54 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stream_history_mode">Дамжуулалт+Түүх</string>
     <string name="history_stream_mode">Түүх+Дамжуулалт</string>
     <string name="libre_history_mode_caption">Түүх нь мэдрэгчийн өөрийн утга бөгөөд 15 минут тутам хадгалагдаж, дамжуулалтаас ойролцоогоор 16 минутаар хоцордог. Тухайн минутын түүх ирэх хүртэл дамжуулалт түүнийг орлоно.</string>
+    <!-- Settings tab -->
+    <string name="settings_section_display">Дэлгэц</string>
+    <string name="settings_section_sharing">Хуваалцах</string>
+    <string name="settings_section_backup">Нөөцлөх ба сэргээх</string>
+    <string name="settings_section_devices">Төхөөрөмжүүд</string>
+    <string name="settings_unit_title">Глюкозын нэгж</string>
+    <string name="settings_alerts_desc">Бага, өндөр, хурдан өөрчлөлт ба дохио алдагдах</string>
+    <string name="settings_alerts_off_desc">Бүх сэрэмжлүүлэг унтраалттай</string>
+    <string name="settings_calibration_title">Каллибраци</string>
+    <string name="settings_calibration_desc">Хурууны цусны засвар · %1$s горим</string>
+    <string name="settings_smoothing_off_desc">Утгыг хэмжсэнээр нь харуулна</string>
+    <string name="settings_prediction_desc">Чиг хандлага, нүүрс ус, инсулинаар глюкозыг таамаглах</string>
+    <string name="settings_dashboard_charts_title">Хяналтын самбар ба график</string>
+    <string name="settings_dashboard_charts_desc">Зорилтот хүрээ, өнгө ба үзүүлэлт</string>
+    <string name="settings_floating_desc">Одоогийн утга бусад аппын дээр</string>
+    <string name="settings_floating_permission_desc">Бусад аппын дээр харуулах зөвшөөрөл шаардлагатай</string>
+    <string name="settings_lock_screen_title">Түгжээтэй дэлгэц (AOD)</string>
+    <string name="settings_lock_screen_desc">Одоогийн утга түгжээтэй болон байнга асдаг дэлгэц дээр</string>
+    <string name="settings_lock_screen_off_desc">Хүртээмжийн тохиргоонд асаана</string>
+    <string name="settings_journal_desc">Хоол, инсулин, идэвхжил ба тэмдэглэл</string>
+    <string name="settings_phone_apps_title">Энэ утсан дээрх аппууд</string>
+    <string name="settings_phone_apps_none">Ямар ч апп руу илгээхгүй байна</string>
+    <string name="settings_app_name_patched_libre">Засварласан Libre</string>
+    <string name="settings_mirror_desc">Төхөөрөмжүүдийн хооронд утга илгээх эсвэл хүлээн авах</string>
+    <string name="settings_webserver_desc">Энэ утсан дээрх Nightscout API</string>
+    <string name="settings_sensor_connection_title">Холболт ба шилжүүлэлт</string>
+    <string name="settings_sensor_connection_desc">Мэдрэгч шилжүүлэх, Bluetooth тэргүүлэх эрх ба автомат холболт</string>
+    <string name="settings_mq_account_desc">MQ мэдрэгчийн бүртгэл, сервер ба синк</string>
+    <string name="settings_ottai_desc">Бүртгэлийн хандалт ба мэдрэгчийн тохиргоо</string>
+    <string name="settings_export_title">Экспорт</string>
+    <string name="settings_import_title">Импорт</string>
+    <string name="settings_xdrip_broadcast_title">xDrip+ broadcast</string>
+    <string name="settings_xdrip_broadcast_desc">xDrip+ ба AAPS-д</string>
+    <string name="settings_patched_libre_title">Засварласан Libre аппын broadcast</string>
+    <string name="settings_patched_libre_desc">Засварласан Libre аппыг уншдаг аппуудад</string>
+    <string name="settings_glucodata_title">Glucodata broadcast</string>
+    <string name="settings_glucodata_desc">GlucoDataHandler-д</string>
+    <string name="settings_health_connect_desc">Утгыг эрүүл мэндийн аппуудтай хуваалцах</string>
+    <string name="settings_broadcast_options">Broadcast тохиргоо</string>
+    <string name="settings_app_trend_title">Аппын чиг хандлагыг илгээх</string>
+    <string name="settings_app_trend_desc">Мэдрэгчийнхийн оронд аппын чиг хандлагын сумыг ашиглах</string>
+    <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Өндөр холболтын тэргүүлэх эрх</string>
+    <string name="settings_turbo_desc">Илүү хурдан Bluetooth солилцоо, батерей бага зэрэг илүү зарцуулна</string>
+    <string name="settings_autoconnect_title">Автомат холболт</string>
+    <string name="settings_autoconnect_desc">Android мэдрэгчийг арын горимд дахин холбоно</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Тохиргооноос хайх</string>
+    <string name="settings_search_no_results">“%1$s”-тэй тохирох тохиргоо алга</string>
+    <string name="settings_search_clear">Хайлтыг арилгах</string>
 </resources>

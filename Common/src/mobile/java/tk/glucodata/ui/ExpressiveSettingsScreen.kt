@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -43,6 +44,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
@@ -70,10 +73,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.BuildConfig
 import tk.glucodata.DataSmoothing
-import tk.glucodata.HealthConnection
-import tk.glucodata.MainActivity
 import tk.glucodata.Natives
-import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
@@ -92,13 +92,13 @@ import kotlin.math.roundToInt
 import java.util.Locale
 
 /**
- * M3 Expressive Settings Screen
+ * The Settings tab. Rows in one group are joined into a single card stack
+ * ([CardPosition] TOP / MIDDLE / BOTTOM, 2dp apart); groups are separated by a
+ * [SectionLabel].
  *
- * Cards in the same section are connected with:
- * - First card: rounded top corners only
- * - Middle cards: no corners (squared)
- * - Last card: rounded bottom corners only
- * - 2dp gap between cards in a group
+ * Each row answers its own question in its subtitle: the current value where there is
+ * one, otherwise what the screen behind it holds. Rows with a switch don't repeat
+ * "on"/"off" there; the switch already says it.
  */
 @Composable
 fun ExpressiveSettingsScreen(
@@ -135,8 +135,6 @@ fun ExpressiveSettingsScreen(
     // States
     val unit by viewModel.unit.collectAsStateWithLifecycle()
     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit)
-    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
-    val notificationChartEnabled by viewModel.notificationChartEnabled.collectAsStateWithLifecycle()
     val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
     val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsStateWithLifecycle()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
@@ -144,7 +142,6 @@ fun ExpressiveSettingsScreen(
     val journalEnabled by viewModel.journalEnabled.collectAsStateWithLifecycle()
     val predictiveSimulationEnabled by viewModel.predictiveSimulationEnabled.collectAsStateWithLifecycle()
     val alertsMasterEnabled by viewModel.alertsMasterEnabled.collectAsStateWithLifecycle()
-    var healthConnectEnabled by rememberSaveable { mutableStateOf(Natives.gethealthConnect()) }
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val sensorName by viewModel.sensorName.collectAsStateWithLifecycle()
     val isRawCalibrationMode = viewMode == 1 || viewMode == 3
@@ -152,7 +149,13 @@ fun ExpressiveSettingsScreen(
     val calibrationEnabled = remember(isRawCalibrationMode, sensorName, calibrationRevision) {
         CalibrationManager.isEnabledForMode(isRawCalibrationMode, sensorName)
     }
-    val calibrationModeLabel = if (isRawCalibrationMode) "Raw" else "Auto"
+    val freezeDisplayedValues by CalibrationManager.freezeDisplayedValues.collectAsStateWithLifecycle()
+    val sealGraceHours by CalibrationManager.displaySealGraceHours.collectAsStateWithLifecycle()
+    val patchedLibreEnabled by viewModel.patchedLibreBroadcastEnabled.collectAsStateWithLifecycle()
+    val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
+    val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
+    val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
+    val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
 
     // Rows that carry a master switch read the same state their own screen reads. The
     // system-granted ones can change while this screen is in the background, so they are
@@ -165,6 +168,8 @@ fun ExpressiveSettingsScreen(
     val insulinPensEnabled by tk.glucodata.InsulinPenManager.enabled.collectAsStateWithLifecycle()
     var webServerActive by remember { mutableStateOf(Natives.getusexdripwebserver()) }
     var nightscoutActive by remember { mutableStateOf(isNightscoutActive(context)) }
+    var healthConnectEnabled by remember { mutableStateOf(PhoneAppsSettings.healthConnectEnabled()) }
+    var otherTrendConsumer by remember { mutableStateOf(PhoneAppsSettings.hasOtherTrendConsumer()) }
 
     // Auto-refresh data when screen becomes active (e.g. returning from Alerts screen)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -176,18 +181,13 @@ fun ExpressiveSettingsScreen(
                 aodServiceEnabled = isAodAccessibilityEnabled(context)
                 webServerActive = Natives.getusexdripwebserver()
                 nightscoutActive = isNightscoutActive(context)
+                healthConnectEnabled = PhoneAppsSettings.healthConnectEnabled()
+                otherTrendConsumer = PhoneAppsSettings.hasOtherTrendConsumer()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    val hasLowAlarm by viewModel.hasLowAlarm.collectAsStateWithLifecycle()
-    val lowAlarmValue by viewModel.lowAlarmThreshold.collectAsStateWithLifecycle()
-    val lowAlarmSoundMode by viewModel.lowAlarmSoundMode.collectAsStateWithLifecycle()
-    val hasHighAlarm by viewModel.hasHighAlarm.collectAsStateWithLifecycle()
-    val highAlarmValue by viewModel.highAlarmThreshold.collectAsStateWithLifecycle()
-    val highAlarmSoundMode by viewModel.highAlarmSoundMode.collectAsStateWithLifecycle()
 
     // Dialog states
     var showUnitDialog by remember { mutableStateOf(false) }
@@ -196,9 +196,9 @@ fun ExpressiveSettingsScreen(
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showFactoryResetDialog by remember { mutableStateOf(false) }
-    var isClearing by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showScheduledBackupDialog by remember { mutableStateOf(false) }
+    var showSealGraceDialog by remember { mutableStateOf(false) }
     var scheduledBackupConfig by remember {
         mutableStateOf(ScheduledBackupSettings.load(context))
     }
@@ -208,26 +208,39 @@ fun ExpressiveSettingsScreen(
     var pendingSettingsImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingExportPackageImportUri by remember { mutableStateOf<Uri?>(null) }
 
-
-
-    // Advanced settings
-    var turbo by remember { mutableStateOf(Natives.getpriority()) }
-    var autoConnect by remember { mutableStateOf(Natives.getAndroid13()) }
-    val handoverPrefs = remember {
-        context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+    // Search. The query survives a trip into a result's screen, so Back lands on the
+    // same results and the next one is a tap away.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searching = searchQuery.isNotBlank()
+    val focusManager = LocalFocusManager.current
+    val searchLocales = LocalConfiguration.current.locales
+    val showLibre2Identity = PhoneAppsSettings.showsLibre2Identity(xdripEnabled, xdripReportAsLibre2)
+    val showAppTrend = PhoneAppsSettings.showsAppTrend(
+        xdripEnabled, patchedLibreEnabled, glucodataBroadcastEnabled, broadcastComputedTrend, otherTrendConsumer
+    )
+    val searchCandidates = remember(
+        context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
+        showLibre2Identity, showAppTrend
+    ) {
+        SettingsSearchIndex.resolve(context) { condition ->
+            when (condition) {
+                SettingsSearchCondition.LIBREVIEW -> showLibreView
+                SettingsSearchCondition.DEXCOM_SHARE -> showDexcomShare
+                SettingsSearchCondition.MQ_ACCOUNT -> showMqAccount
+                SettingsSearchCondition.OTTAI -> showOttaiSettings
+                SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
+                SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
+                SettingsSearchCondition.APP_TREND -> showAppTrend
+            }
+        }
     }
-    var sensorHandoverEnabled by remember {
-        mutableStateOf(handoverPrefs.getBoolean(SensorHandoverRuntime.PREF_ENABLED, false))
+    val searchResults = remember(searchQuery, searchCandidates) {
+        SettingsSearchMatcher.search(searchQuery, searchCandidates)
     }
-    var sensorHandoverAction by remember {
-        mutableStateOf(
-            handoverPrefs.getInt(
-                SensorHandoverRuntime.PREF_OLD_ACTION,
-                SensorHandoverRuntime.OLD_ACTION_DEACTIVATE
-            )
-        )
+    BackHandler(enabled = searching) {
+        searchQuery = ""
+        focusManager.clearFocus()
     }
-    var showSensorHandoverActionDialog by remember { mutableStateOf(false) }
 
     val currentLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
     val currentLangName = currentLocale.displayLanguage.replaceFirstChar { it.uppercase() }
@@ -238,7 +251,7 @@ fun ExpressiveSettingsScreen(
         ThemeMode.DARK -> stringResource(R.string.theme_dark)
     }
     val graphSmoothingLabel = if (chartSmoothingMinutes <= 0) {
-        stringResource(R.string.graph_smoothing_none)
+        stringResource(R.string.settings_smoothing_off_desc)
     } else {
         val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(chartSmoothingMinutes)
         buildList {
@@ -258,6 +271,68 @@ fun ExpressiveSettingsScreen(
             }
         }.joinToString(" · ")
     }
+    // Names of the apps on this phone that currently receive readings, so the row
+    // answers "who gets my glucose?" without opening it.
+    val phoneAppsLabel = buildList {
+        if (xdripEnabled) add(stringResource(R.string.settings_app_name_xdrip))
+        if (patchedLibreEnabled) add(stringResource(R.string.settings_app_name_patched_libre))
+        if (glucodataBroadcastEnabled) add(stringResource(R.string.settings_app_name_glucodata))
+        if (healthConnectEnabled) {
+            add(stringResource(R.string.health_connect_title))
+        }
+    }.joinToString(" · ").ifEmpty { stringResource(R.string.settings_phone_apps_none) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                scope.launch {
+                    when (tk.glucodata.data.ExportPackageExporter.detectImportFileType(context, uri)) {
+                        tk.glucodata.data.ExportPackageExporter.ImportFileType.SETTINGS -> {
+                            withContext(Dispatchers.Main) { pendingSettingsImportUri = uri }
+                        }
+                        tk.glucodata.data.ExportPackageExporter.ImportFileType.EXPORT_PACKAGE -> {
+                            withContext(Dispatchers.Main) { pendingExportPackageImportUri = uri }
+                        }
+                        tk.glucodata.data.ExportPackageExporter.ImportFileType.OTHER -> {
+                            val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
+                            withContext(Dispatchers.Main) {
+                                val msg = if (result.success)
+                                    context.getString(R.string.imported_readings_count, result.successCount)
+                                else
+                                    context.getString(
+                                        R.string.import_failed_with_error,
+                                        result.errorMessage ?: context.getString(R.string.unknown_error)
+                                    )
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    fun openSearchResult(entry: SettingsSearchEntry) {
+        focusManager.clearFocus()
+        when (val target = entry.target) {
+            is SettingsSearchTarget.Route -> navController.navigate(target.route)
+            is SettingsSearchTarget.Action -> when (target.action) {
+                SettingsSearchAction.THEME -> showThemeDialog = true
+                SettingsSearchAction.LANGUAGE -> showLanguageDialog = true
+                SettingsSearchAction.UNIT -> showUnitDialog = true
+                SettingsSearchAction.KEEP_DISPLAYED_VALUES -> showSealGraceDialog = true
+                SettingsSearchAction.BACKUPS -> showScheduledBackupDialog = true
+                SettingsSearchAction.EXPORT -> showExportDialog = true
+                SettingsSearchAction.IMPORT -> importLauncher.launch(importMimeTypes)
+                SettingsSearchAction.RESTART -> context.findActivity()?.fullRestart()
+                SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
+                SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
+                SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -268,6 +343,27 @@ fun ExpressiveSettingsScreen(
             TabScreenHeader(title = stringResource(R.string.settings))
         }
 
+        item(key = "search") {
+            SettingsSearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
+        // While there is a query the results replace the groups below.
+        if (searching) {
+            item(key = "search_results") {
+                SettingsSearchResults(
+                    query = searchQuery,
+                    results = searchResults,
+                    onOpen = { openSearchResult(it) }
+                )
+            }
+            return@LazyColumn
+        }
+
+        // === GENERAL === (no label)
         item(key = "general_group") {
             val generalColor = MaterialTheme.colorScheme.primary
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -279,109 +375,41 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.TOP,
                     onClick = { showThemeDialog = true }
                 )
-
                 SettingsItem(
                     title = stringResource(R.string.languagename),
                     subtitle = currentLangName,
                     icon = Icons.Default.Language,
                     iconTint = generalColor,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.MIDDLE,
                     onClick = { showLanguageDialog = true }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.settings_unit_title),
+                    subtitle = unit,
+                    icon = Icons.Default.Straighten,
+                    iconTint = generalColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { showUnitDialog = true }
+                )
+                AppUpdatesSettingsItem(
+                    iconTint = generalColor,
+                    position = CardPosition.BOTTOM,
+                    onOpen = { navController.navigate("settings/app-updates") }
                 )
             }
         }
 
-        item(key = "general_glucose_group") {
-            val glucoseColor = MaterialTheme.colorScheme.primary
+        // === EVERYDAY === (no label)
+        item(key = "everyday_group") {
+            val everydayColor = MaterialTheme.colorScheme.primary
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.padding(top = 8.dp)
             ) {
-                SettingsItem(
-                    title = stringResource(R.string.unit),
-                    subtitle = unit,
-                    icon = Icons.AutoMirrored.Filled.List,
-                    iconTint = glucoseColor,
-                    position = CardPosition.TOP,
-                    onClick = { showUnitDialog = true }
-                )
-
-                SettingsItem(
-                    title = stringResource(R.string.display_colors_title),
-                    subtitle = stringResource(R.string.display_colors_desc),
-                    icon = Icons.Default.Palette,
-                    iconTint = glucoseColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/display-colors") }
-                )
-
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.manual_calibration),
-                    subtitle = "$calibrationModeLabel · ${
-                        stringResource(
-                            if (calibrationEnabled) R.string.enabled_status else R.string.disabled_status
-                        )
-                    }",
-                    checked = calibrationEnabled,
-                    onCheckedChange = {
-                        CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
-                    },
-                    onClick = { navController.navigate("settings/calibrations") },
-                    icon = Icons.Default.WaterDrop,
-                    iconTint = glucoseColor,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.graph_smoothing_title),
-                    subtitle = graphSmoothingLabel,
-                    checked = chartSmoothingMinutes > 0,
-                    onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
-                    onClick = { navController.navigate("settings/data-smoothing") },
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    iconTint = glucoseColor,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.journal_title),
-                    subtitle = stringResource(
-                        if (journalEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
-                    checked = journalEnabled,
-                    onCheckedChange = { viewModel.setJournalEnabled(it) },
-                    onClick = { navController.navigate("settings/journal") },
-                    icon = Icons.Default.Vaccines,
-                    iconTint = glucoseColor,
-                    position = CardPosition.MIDDLE
-                )
-
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.predictive_simulation_title),
-                    subtitle = stringResource(
-                        if (predictiveSimulationEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
-                    checked = predictiveSimulationEnabled,
-                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
-                    onClick = { navController.navigate("settings/predictive-simulation") },
-                    icon = Icons.AutoMirrored.Filled.ShowChart,
-                    iconTint = glucoseColor,
-                    position = CardPosition.BOTTOM
-                )
-            }
-        }
-
-        // === NOTIFICATIONS ===
-        item(key = "notif_label") { SectionLabel(stringResource(R.string.notifications)) }
-
-        item(key = "notif_group") {
-            // Theme: Secondary (Accent)
-            val notifColor = MaterialTheme.colorScheme.secondary
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.glucose_alerts_title),
                     subtitle = stringResource(
-                        if (alertsMasterEnabled) R.string.global_active else R.string.global_all_alerts_disabled
+                        if (alertsMasterEnabled) R.string.settings_alerts_desc else R.string.settings_alerts_off_desc
                     ),
                     checked = alertsMasterEnabled,
                     onCheckedChange = { viewModel.setAlertsMasterEnabled(it) },
@@ -390,22 +418,82 @@ fun ExpressiveSettingsScreen(
                     iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.TOP,
                 )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.settings_calibration_title),
+                    subtitle = stringResource(
+                        R.string.settings_calibration_desc,
+                        stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
+                    ),
+                    checked = calibrationEnabled,
+                    onCheckedChange = {
+                        CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
+                    },
+                    onClick = { navController.navigate("settings/calibrations") },
+                    icon = Icons.Default.WaterDrop,
+                    iconTint = everydayColor,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.journal_title),
+                    subtitle = stringResource(R.string.settings_journal_desc),
+                    checked = journalEnabled,
+                    onCheckedChange = { viewModel.setJournalEnabled(it) },
+                    onClick = { navController.navigate("settings/journal") },
+                    icon = Icons.Default.EditNote,
+                    iconTint = everydayColor,
+                    position = CardPosition.BOTTOM
+                )
+            }
+        }
 
+        // === DISPLAY ===
+        item(key = "display_label") { SectionLabel(stringResource(R.string.settings_section_display)) }
+
+        item(key = "display_group") {
+            val displayColor = MaterialTheme.colorScheme.secondary
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.settings_dashboard_charts_title),
+                    subtitle = stringResource(R.string.settings_dashboard_charts_desc),
+                    icon = Icons.Default.Palette,
+                    iconTint = displayColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/display-colors") }
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.graph_smoothing_title),
+                    subtitle = graphSmoothingLabel,
+                    checked = chartSmoothingMinutes > 0,
+                    onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
+                    onClick = { navController.navigate("settings/data-smoothing") },
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    iconTint = displayColor,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.predictive_simulation_title),
+                    subtitle = stringResource(R.string.settings_prediction_desc),
+                    checked = predictiveSimulationEnabled,
+                    onCheckedChange = { viewModel.setPredictiveSimulationEnabled(it) },
+                    onClick = { navController.navigate("settings/predictive-simulation") },
+                    icon = Icons.AutoMirrored.Filled.ShowChart,
+                    iconTint = displayColor,
+                    position = CardPosition.MIDDLE
+                )
                 SettingsItem(
                     title = stringResource(R.string.notification_settings_title),
                     subtitle = stringResource(R.string.notification_settings_subtitle),
                     icon = Icons.Default.ClearAll,
-                    iconTint = notifColor,
+                    iconTint = displayColor,
                     position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/notification-display") }
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.floatglucose),
-                    subtitle = when {
-                        !floatingOverlayAllowed -> stringResource(R.string.floating_permission_required)
-                        floatingOverlayEnabled -> stringResource(R.string.enabled_status)
-                        else -> stringResource(R.string.disabled_status)
-                    },
+                    subtitle = stringResource(
+                        if (floatingOverlayAllowed) R.string.settings_floating_desc
+                        else R.string.settings_floating_permission_desc
+                    ),
                     checked = floatingOverlayEnabled,
                     // The overlay cannot start without the system grant, so the switch
                     // sends you to give it rather than flipping to a state it can't hold.
@@ -423,16 +511,15 @@ fun ExpressiveSettingsScreen(
                     },
                     onClick = { navController.navigate("settings/floating-display") },
                     icon = Icons.Default.PictureInPicture,
-                    iconTint = notifColor,
+                    iconTint = displayColor,
                     position = CardPosition.MIDDLE
                 )
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.lock_screen_aod),
-                    subtitle = if (aodServiceEnabled) {
-                        stringResource(R.string.accessibility_service_enabled)
-                    } else {
-                        stringResource(R.string.open_accessibility_settings)
-                    },
+                    title = stringResource(R.string.settings_lock_screen_title),
+                    subtitle = stringResource(
+                        if (aodServiceEnabled) R.string.settings_lock_screen_desc
+                        else R.string.settings_lock_screen_off_desc
+                    ),
                     checked = aodServiceEnabled,
                     // The lock-screen overlay is an accessibility service: only the system
                     // settings screen can turn it on or off.
@@ -443,142 +530,30 @@ fun ExpressiveSettingsScreen(
                         )
                     },
                     onClick = { navController.navigate("settings/aod-display") },
-                    icon = Icons.Default.Visibility,
-                    iconTint = notifColor,
+                    icon = Icons.Default.ScreenLockPortrait,
+                    iconTint = displayColor,
                     position = CardPosition.BOTTOM
                 )
             }
         }
-        // === ALERTS ===
 
-        item(key = "alerts_group") {
+        // === SHARING === apps on this phone first, then the network
+        item(key = "sharing_label") { SectionLabel(stringResource(R.string.settings_section_sharing)) }
+
+        item(key = "sharing_group") {
+            val sharingColor = MaterialTheme.colorScheme.tertiary
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-            }
-        }
-        // === EXCHANGES ===
-        item(key = "exchange_label") { SectionLabel(stringResource(R.string.exchanges)) }
-
-        item(key = "exchange_group") {
-            // Theme: Tertiary (Apps/Services)
-            val exchangeColor = MaterialTheme.colorScheme.tertiary
-            val xdripEnabled by viewModel.xDripBroadcastEnabled.collectAsStateWithLifecycle()
-            val glucodataBroadcastEnabled by viewModel.glucodataBroadcastEnabled.collectAsStateWithLifecycle()
-            val broadcastComputedTrend by viewModel.broadcastComputedTrend.collectAsStateWithLifecycle()
-            val xdripReportAsLibre2 by viewModel.xdripReportAsLibre2.collectAsStateWithLifecycle()
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.xdripbroadcast),
-                    subtitle = stringResource(R.string.patchedlibrebroadcast),
-                    checked = patchedLibreEnabled,
-                    icon = Icons.Default.Share, 
-                    iconTint = exchangeColor,
+                SettingsItem(
+                    title = stringResource(R.string.settings_phone_apps_title),
+                    subtitle = phoneAppsLabel,
+                    icon = Icons.Default.PhoneAndroid,
+                    iconTint = sharingColor,
                     position = CardPosition.TOP,
-                    onCheckedChange = { viewModel.togglePatchedLibreBroadcast(it) }
+                    onClick = { navController.navigate("settings/phone-apps") }
                 )
-                SettingsSwitchItem(
-                    title = stringResource(R.string.xdrip_compatible_title),
-                    subtitle = stringResource(R.string.xdrip_compatible_desc),
-                    checked = xdripEnabled,
-                    icon = Icons.Default.Radio, 
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onCheckedChange = { viewModel.toggleXDripBroadcast(it) }
-                )
-                // Only the xDrip-style broadcast carries the source name. Stay visible while
-                // enabled, so turning the broadcast off does not strand the claim out of reach.
-                if (xdripEnabled || xdripReportAsLibre2) {
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.xdrip_report_as_libre2_title),
-                        subtitle = stringResource(R.string.xdrip_report_as_libre2_desc),
-                        checked = xdripReportAsLibre2,
-                        icon = Icons.Default.Badge,
-                        iconTint = exchangeColor,
-                        position = CardPosition.MIDDLE,
-                        onCheckedChange = { viewModel.setXdripReportAsLibre2(it) }
-                    )
-                }
-                SettingsSwitchItem(
-                    title = stringResource(R.string.aaps_broadcast),
-                    subtitle = stringResource(R.string.glucodata_subtitle),
-                    checked = glucodataBroadcastEnabled,
-                    icon = Icons.AutoMirrored.Filled.Send,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onCheckedChange = { viewModel.toggleGlucodataBroadcast(it) }
-                )
-                // The computed trend only ever reaches an ExchangeGlucosePayload consumer, so the
-                // row is noise until one of them is on. Stay visible while the setting itself is
-                // enabled, otherwise turning the last consumer off would strand it out of reach.
-                val anyExchangeConsumer = patchedLibreEnabled || xdripEnabled || glucodataBroadcastEnabled ||
-                        OutboundApiSettings.isEnabled() ||
-                        Natives.getgadgetbridge() ||
-                        Natives.getwatchdrip()
-                if (anyExchangeConsumer || broadcastComputedTrend) {
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.broadcast_computed_trend_title),
-                        subtitle = stringResource(R.string.broadcast_computed_trend_desc),
-                        checked = broadcastComputedTrend,
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        iconTint = exchangeColor,
-                        position = CardPosition.MIDDLE,
-                        onCheckedChange = { viewModel.setBroadcastComputedTrend(it) }
-                    )
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    SettingsSwitchItem(
-                        title = stringResource(R.string.health_connect_title),
-                        subtitle = stringResource(R.string.health_connect_desc),
-                        checked = healthConnectEnabled,
-                        icon = Icons.Default.HealthAndSafety,
-                        iconTint = exchangeColor,
-                        position = CardPosition.MIDDLE,
-                        onCheckedChange = { enabled ->
-                            Natives.sethealthConnect(enabled)
-                            healthConnectEnabled = enabled
-                            if (enabled) {
-                                MainActivity.tryHealth = 5
-                                (context.findActivity() as? MainActivity)?.let(HealthConnection::init)
-                            } else {
-                                MainActivity.tryHealth = 0
-                                HealthConnection.stop()
-                            }
-                        }
-                    )
-                }
-                SettingsItem(
-                    title = stringResource(R.string.outbound_api_title),
-                    subtitle = stringResource(R.string.outbound_api_desc),
-                    icon = Icons.Default.CloudUpload,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/outbound-api") }
-                )
-                if (showDexcomShare) {
-                    SettingsItem(
-                        title = stringResource(R.string.dexcom_share_title),
-                        subtitle = stringResource(R.string.dexcom_share_desc),
-                        icon = Icons.Default.CloudUpload,
-                        iconTint = exchangeColor,
-                        position = CardPosition.MIDDLE,
-                        onClick = { navController.navigate("settings/dexcom-share") }
-                    )
-                }
-                SettingsItem(
-                    title = stringResource(R.string.mirror),
-                    subtitle = stringResource(R.string.mirror_desc),
-                    icon = Icons.Default.Devices,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/mirror") }
-                )
-                // Edit 67b: Determine if LibreView is visible to adjust card positions
                 SettingsNavSwitchItem(
-                    title = stringResource(R.string.nightscout_config),
-                    subtitle = stringResource(
-                        if (nightscoutActive) R.string.enabled_status else R.string.disabled_status
-                    ),
+                    title = stringResource(R.string.nightscout_settings_title),
+                    subtitle = stringResource(R.string.nightscout_desc),
                     checked = nightscoutActive,
                     onCheckedChange = {
                         setNightscoutActive(context, it)
@@ -586,7 +561,7 @@ fun ExpressiveSettingsScreen(
                     },
                     onClick = { navController.navigate("settings/nightscout") },
                     icon = Icons.Default.CloudUpload,
-                    iconTint = exchangeColor,
+                    iconTint = sharingColor,
                     position = CardPosition.MIDDLE
                 )
                 if (showLibreView) {
@@ -594,17 +569,27 @@ fun ExpressiveSettingsScreen(
                         title = stringResource(R.string.libreview_config),
                         subtitle = stringResource(R.string.libreview_desc),
                         icon = Icons.Default.Cloud,
-                        iconTint = exchangeColor,
+                        iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/libreview") }
+                    )
+                }
+                if (showDexcomShare) {
+                    SettingsItem(
+                        title = stringResource(R.string.dexcom_share_title),
+                        subtitle = stringResource(R.string.dexcom_share_desc),
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = sharingColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/dexcom-share") }
                     )
                 }
                 if (showMqAccount) {
                     SettingsItem(
                         title = stringResource(R.string.mq_account_title),
-                        subtitle = stringResource(R.string.mq_account_linked_desc),
-                        icon = Icons.Default.Cloud,
-                        iconTint = exchangeColor,
+                        subtitle = stringResource(R.string.settings_mq_account_desc),
+                        icon = Icons.Default.AccountCircle,
+                        iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/mq-account") }
                     )
@@ -612,220 +597,148 @@ fun ExpressiveSettingsScreen(
                 if (showOttaiSettings) {
                     SettingsItem(
                         title = stringResource(R.string.ottai_setup_title),
-                        subtitle = stringResource(R.string.ottai_settings_desc),
+                        subtitle = stringResource(R.string.settings_ottai_desc),
                         icon = Icons.Default.Sensors,
-                        iconTint = exchangeColor,
+                        iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/ottai") }
                     )
                 }
                 SettingsItem(
-                    title = stringResource(R.string.meterlist),
-                    subtitle = stringResource(R.string.glucose_meters_desc),
-                    icon = Icons.Default.Bloodtype,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/glucose-meters") }
-                )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.insulin_pens_title),
-                    subtitle = stringResource(
-                        if (insulinPensEnabled) R.string.enabled_status else R.string.disabled_status
-                    ),
-                    checked = insulinPensEnabled,
-                    onCheckedChange = { tk.glucodata.InsulinPenManager.setEnabled(it) },
-                    onClick = { navController.navigate("settings/insulin-pens") },
-                    icon = Icons.Default.Vaccines,
-                    iconTint = exchangeColor,
-                    position = CardPosition.MIDDLE
-                )
-                SettingsItem(
-                    title = stringResource(R.string.watches),
-                    subtitle = "WearOS, Watchdrip, GadgetBridge, Kerfstok",
+                    title = stringResource(R.string.mirror),
+                    subtitle = stringResource(R.string.settings_mirror_desc),
                     icon = Icons.Default.Devices,
-                    iconTint = exchangeColor,
+                    iconTint = sharingColor,
                     position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/watch") }
+                    onClick = { navController.navigate("settings/mirror") }
                 )
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.webserver),
-                    subtitle = stringResource(
-                        if (webServerActive) R.string.enabled_status else R.string.disabled_status
-                    ),
+                    subtitle = stringResource(R.string.settings_webserver_desc),
                     checked = webServerActive,
                     onCheckedChange = {
                         Natives.setusexdripwebserver(it)
                         webServerActive = it
                     },
                     onClick = { navController.navigate("settings/webserver") },
-                    icon = Icons.Default.Language,
-                    iconTint = exchangeColor,
-                    position = CardPosition.BOTTOM
-                )
-            }
-        }
-        // === ADVANCED ===
-        item(key = "adv_label") { SectionLabel(stringResource(R.string.advanced_title)) }
-
-        item(key = "adv_group") {
-            // Theme: OnSurfaceVariant (Technical/Neutral)
-            val advColor = MaterialTheme.colorScheme.onSurfaceVariant
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.turbo_title),
-                    subtitle = stringResource(R.string.turbo_desc),
-                    checked = turbo,
-                    icon = Icons.Default.Speed,
-                    iconTint = advColor,
-                    position = CardPosition.TOP,
-                    onCheckedChange = { Natives.setpriority(it); turbo = it }
-                )
-                SettingsSwitchItem(
-                    title = stringResource(R.string.autoconnect_title),
-                    subtitle = stringResource(R.string.autoconnect_desc),
-                    checked = autoConnect,
-                    icon = Icons.Default.Autorenew,
-                    iconTint = advColor,
-                    position = CardPosition.MIDDLE,
-                    onCheckedChange = { SensorBluetooth.setAutoconnect(it); autoConnect = it }
-                )
-                SettingsSwitchItem(
-                    title = stringResource(R.string.sensor_handover_title),
-                    subtitle = stringResource(R.string.sensor_handover_desc),
-                    checked = sensorHandoverEnabled,
-                    icon = Icons.Default.SwapHoriz,
-                    iconTint = advColor,
-                    position = CardPosition.MIDDLE,
-                    onCheckedChange = {
-                        handoverPrefs.edit().putBoolean(SensorHandoverRuntime.PREF_ENABLED, it).apply()
-                        sensorHandoverEnabled = it
-                    }
-                )
-                if (sensorHandoverEnabled) {
-                    SettingsItem(
-                        title = stringResource(R.string.sensor_handover_old_action_title),
-                        subtitle = if (sensorHandoverAction == SensorHandoverRuntime.OLD_ACTION_REMOVE) {
-                            stringResource(R.string.sensor_handover_action_remove)
-                        } else {
-                            stringResource(R.string.sensor_handover_action_deactivate)
-                        },
-                        icon = Icons.Default.DeleteSweep,
-                        iconTint = advColor,
-                        position = CardPosition.MIDDLE,
-                        onClick = { showSensorHandoverActionDialog = true }
-                    )
-                }
-                SettingsItem(
-                    title = stringResource(R.string.cgm_readiness_title),
-                    subtitle = stringResource(R.string.cgm_readiness_settings_desc),
-                    icon = Icons.Default.Security,
-                    iconTint = advColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { navController.navigate("settings/cgm-readiness") }
+                    icon = Icons.Default.Dns,
+                    iconTint = sharingColor,
+                    position = CardPosition.MIDDLE
                 )
                 SettingsItem(
-                    title = stringResource(R.string.debug_logs),
-                    subtitle = stringResource(R.string.debug_logs_desc),
-                    icon = Icons.Default.BugReport,
-                    iconTint = advColor,
+                    title = stringResource(R.string.outbound_api_title),
+                    subtitle = stringResource(R.string.outbound_api_desc),
+                    icon = Icons.Default.Webhook,
+                    iconTint = sharingColor,
                     position = CardPosition.BOTTOM,
-                    onClick = { navController.navigate("settings/debug") }
+                    onClick = { navController.navigate("settings/outbound-api") }
                 )
             }
         }
 
-        // === DATA MANAGEMENT ===
-        item(key = "data_label") { SectionLabel(stringResource(R.string.data_management)) }
+        // === DEVICES ===
+        item(key = "devices_label") { SectionLabel(stringResource(R.string.settings_section_devices)) }
 
-        item(key = "data_group") {
-            // Theme: Secondary (Files match notifications/system)
-            val dataColor = MaterialTheme.colorScheme.secondary
-            val importLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocument(),
-                onResult = { uri ->
-                    if (uri != null) {
-                        scope.launch {
-                            when (tk.glucodata.data.ExportPackageExporter.detectImportFileType(context, uri)) {
-                                tk.glucodata.data.ExportPackageExporter.ImportFileType.SETTINGS -> {
-                                    withContext(Dispatchers.Main) { pendingSettingsImportUri = uri }
-                                }
-                                tk.glucodata.data.ExportPackageExporter.ImportFileType.EXPORT_PACKAGE -> {
-                                    withContext(Dispatchers.Main) { pendingExportPackageImportUri = uri }
-                                }
-                                tk.glucodata.data.ExportPackageExporter.ImportFileType.OTHER -> {
-                                    val result = tk.glucodata.data.HistoryExporter.importFromCsv(context, uri)
-                                    withContext(Dispatchers.Main) {
-                                        val msg = if (result.success)
-                                            context.getString(R.string.imported_readings_count, result.successCount)
-                                        else
-                                            context.getString(
-                                                R.string.import_failed_with_error,
-                                                result.errorMessage ?: context.getString(R.string.unknown_error)
-                                            )
-                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            )
+        item(key = "devices_group") {
+            val devicesColor = MaterialTheme.colorScheme.primary
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                AppUpdatesSettingsItem(
-                    iconTint = dataColor,
+                SettingsItem(
+                    title = stringResource(R.string.watches),
+                    subtitle = stringResource(R.string.settings_watch_desc),
+                    icon = Icons.Default.Watch,
+                    iconTint = devicesColor,
                     position = CardPosition.TOP,
-                    onOpen = { navController.navigate("settings/app-updates") }
+                    onClick = { navController.navigate("settings/watch") }
                 )
+                SettingsNavSwitchItem(
+                    title = stringResource(R.string.insulin_pens_title),
+                    subtitle = stringResource(R.string.insulin_pens_desc),
+                    checked = insulinPensEnabled,
+                    onCheckedChange = { tk.glucodata.InsulinPenManager.setEnabled(it) },
+                    onClick = { navController.navigate("settings/insulin-pens") },
+                    icon = Icons.Default.Vaccines,
+                    iconTint = devicesColor,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsItem(
+                    title = stringResource(R.string.meterlist),
+                    subtitle = stringResource(R.string.glucose_meters_desc),
+                    icon = Icons.Default.Bloodtype,
+                    iconTint = devicesColor,
+                    position = CardPosition.BOTTOM,
+                    onClick = { navController.navigate("settings/glucose-meters") }
+                )
+            }
+        }
 
+        // === BACKUP AND RESTORE ===
+        item(key = "backup_label") { SectionLabel(stringResource(R.string.settings_section_backup)) }
+
+        item(key = "backup_group") {
+            val backupColor = MaterialTheme.colorScheme.secondary
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = stringResource(R.string.scheduled_backup_title),
                     subtitle = scheduledBackupSummary(scheduledBackupConfig),
                     icon = Icons.Default.Backup,
-                    iconTint = dataColor,
-                    position = CardPosition.MIDDLE,
+                    iconTint = backupColor,
+                    position = CardPosition.TOP,
                     onClick = { showScheduledBackupDialog = true }
                 )
-
                 SettingsItem(
-                    title = stringResource(R.string.export_data_settings),
+                    title = stringResource(R.string.settings_export_title),
                     subtitle = stringResource(R.string.export_data_settings_desc),
-                    icon = androidx.compose.material.icons.Icons.Default.CloudUpload,
-                    iconTint = dataColor,
+                    icon = Icons.Default.Upload,
+                    iconTint = backupColor,
                     position = CardPosition.MIDDLE,
                     onClick = { showExportDialog = true }
                 )
-
                 SettingsItem(
-                    title = stringResource(R.string.import_data_settings),
+                    title = stringResource(R.string.settings_import_title),
                     subtitle = stringResource(R.string.import_data_settings_desc),
                     icon = Icons.Default.FolderOpen,
-                    iconTint = dataColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = { 
-                        importLauncher.launch(
-                            arrayOf(
-                                "application/json",
-                                "application/gzip",
-                                "application/zstd",
-                                "text/*",
-                                "text/csv",
-                                "text/tab-separated-values",
-                                "*/*"
-                            )
-                        )
-                    }
+                    iconTint = backupColor,
+                    position = CardPosition.BOTTOM,
+                    onClick = { importLauncher.launch(importMimeTypes) }
                 )
+            }
+        }
 
+        // === ADVANCED ===
+        item(key = "advanced_label") { SectionLabel(stringResource(R.string.advanced_title)) }
+
+        item(key = "advanced_group") {
+            val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.debug_logs),
+                    subtitle = stringResource(R.string.debug_logs_desc),
+                    icon = Icons.Default.BugReport,
+                    iconTint = advancedColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/debug") }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.cgm_readiness_title),
+                    subtitle = stringResource(R.string.cgm_readiness_settings_desc),
+                    icon = Icons.Default.Security,
+                    iconTint = advancedColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { navController.navigate("settings/cgm-readiness") }
+                )
+                SettingsItem(
+                    title = stringResource(R.string.settings_sensor_connection_title),
+                    subtitle = stringResource(R.string.settings_sensor_connection_desc),
+                    icon = Icons.Default.Bluetooth,
+                    iconTint = advancedColor,
+                    position = CardPosition.MIDDLE,
+                    onClick = { navController.navigate("settings/sensor-connection") }
+                )
                 // A reading's displayed value is a record, not a derivation —
                 // see tk.glucodata.data.ReadingDisplay. Its subtitle carries the
                 // current behaviour so the common question is answered in place;
                 // the body picks how long a value stays revisable, the switch
                 // turns keeping off.
-                val freezeDisplayedValues by tk.glucodata.data.calibration.CalibrationManager
-                    .freezeDisplayedValues.collectAsStateWithLifecycle()
-                val sealGraceHours by tk.glucodata.data.calibration.CalibrationManager
-                    .displaySealGraceHours.collectAsStateWithLifecycle()
-                var showSealGraceDialog by remember { mutableStateOf(false) }
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.freeze_displayed_values),
                     subtitle = if (freezeDisplayedValues) {
@@ -837,25 +750,12 @@ fun ExpressiveSettingsScreen(
                         stringResource(R.string.freeze_displayed_values_off)
                     },
                     checked = freezeDisplayedValues,
-                    onCheckedChange = {
-                        tk.glucodata.data.calibration.CalibrationManager
-                            .setFreezeDisplayedValues(it)
-                    },
+                    onCheckedChange = { CalibrationManager.setFreezeDisplayedValues(it) },
                     onClick = { showSealGraceDialog = true },
                     icon = Icons.Default.Lock,
-                    iconTint = dataColor,
+                    iconTint = advancedColor,
                     position = CardPosition.BOTTOM
                 )
-                if (showSealGraceDialog) {
-                    SealGraceDialog(
-                        currentHours = sealGraceHours,
-                        onSave = { hours ->
-                            tk.glucodata.data.calibration.CalibrationManager.setDisplaySealGraceHours(hours)
-                            showSealGraceDialog = false
-                        },
-                        onDismiss = { showSealGraceDialog = false }
-                    )
-                }
             }
         }
 
@@ -864,7 +764,6 @@ fun ExpressiveSettingsScreen(
 
         item(key = "danger_group") {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                // Restart App (Low Severity)
                 DangerItem(
                     title = stringResource(R.string.restart_app),
                     subtitle = stringResource(R.string.restart_app_desc),
@@ -922,21 +821,22 @@ fun ExpressiveSettingsScreen(
     }
 
     // Dialogs
+    if (showSealGraceDialog) {
+        SealGraceDialog(
+            currentHours = sealGraceHours,
+            onSave = { hours ->
+                CalibrationManager.setDisplaySealGraceHours(hours)
+                showSealGraceDialog = false
+            },
+            onDismiss = { showSealGraceDialog = false }
+        )
+    }
     if (showUnitDialog) UnitPickerDialog(isMmol, { 
         viewModel.setUnit(it)
         showUnitDialog = false
         context.findActivity()?.hardRestart() 
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
-    if (showSensorHandoverActionDialog) SensorHandoverActionPickerDialog(
-        currentAction = sensorHandoverAction,
-        onSelect = {
-            handoverPrefs.edit().putInt(SensorHandoverRuntime.PREF_OLD_ACTION, it).apply()
-            sensorHandoverAction = it
-            showSensorHandoverActionDialog = false
-        },
-        onDismiss = { showSensorHandoverActionDialog = false }
-    )
     if (showLanguageDialog) LanguagePickerDialog { showLanguageDialog = false }
     if (showClearHistoryDialog) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
     if (showClearDataDialog) ConfirmActionDialog(
@@ -1399,7 +1299,7 @@ private fun ThemePickerDialog(current: ThemeMode, onSelect: (ThemeMode) -> Unit,
 }
 
 @Composable
-private fun SensorHandoverActionPickerDialog(
+internal fun SensorHandoverActionPickerDialog(
     currentAction: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit
@@ -1635,3 +1535,14 @@ private fun hasActiveDexcomSensor(): Boolean = runCatching {
             SensorSourceResolver.SENSOR_KIND_DEXCOM
     }
 }.getOrDefault(false)
+
+/** What Import offers in the file picker: JugglucoNG exports and history CSV/TSV files. */
+private val importMimeTypes = arrayOf(
+    "application/json",
+    "application/gzip",
+    "application/zstd",
+    "text/*",
+    "text/csv",
+    "text/tab-separated-values",
+    "*/*"
+)

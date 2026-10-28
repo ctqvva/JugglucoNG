@@ -217,7 +217,6 @@
     <string name="notification_chart_title">Mostra grafico nella notifica</string>
     <string name="notification_chart_desc">Visualizza il grafico del glucosio nella barra di stato</string>
     <string name="google_scan_desc">Usa Google Play Services per la scansione QR</string>
-    <string name="mirror_desc">Condividi/Ricevi dati via Internet/Rete domestica</string>
     <string name="nightscout_desc">Inviare o ricevere valori</string>
     <string name="glucose_alerts_title">Avvisi e allarmi</string>
     <string name="glucose_range_title">Intervallo glicemico</string>
@@ -362,10 +361,6 @@
     <string name="alert_sound">Suono Avviso</string>
     <string name="vibrate_only">Solo Vibrazione</string>
     <string name="sound_vibrate">Suono &amp; Vibrazione</string>
-    <string name="turbo_title">Turbo (Alta Priorità)</string>
-    <string name="turbo_desc">Richiede alta priorità connessione</string>
-    <string name="autoconnect_title">Android (AutoConnect)</string>
-    <string name="autoconnect_desc">Usa connessione passiva in background</string>
     <string name="graph_smoothing_title">Smussamento dati</string>
     <string name="graph_smoothing_desc">Smussa i dati del grafico e, a meno che non sia attivo « Smussa solo il grafico », i valori di glucosio risolti</string>
     <string name="graph_smoothing_none">Disattivato</string>
@@ -392,7 +387,6 @@
     <string name="preview_window_always">Sempre</string>
     <string name="preview_window_never">Mai</string>
     <string name="debug_logs_desc">Vedi trace.log e logcat</string>
-    <string name="data_management">Gestione Dati</string>
     <string name="export_data">Esporta Cronologia</string>
     <string name="export_data_desc">Salva letture in CSV/Testo</string>
     <string name="export_settings">Esporta impostazioni</string>
@@ -568,7 +562,6 @@
     <string name="volume_vibration_profile">Profilo volume/vibrazione</string>
     <string name="ICE">ICE</string>
     <string name="USE_ALARM">Alarm is alarm</string>
-    <string name="aaps_broadcast">Glucodata</string>
     <string name="about_text">GPL-3.0 • Fork of Juggluco</string>
     <string name="accuchek_scan_instruction">Scansiona la matrice dei dati sul sensore Accu-Chek SmartGuide</string>
     <string name="accuchek_setup_title">Configurazione Accu-Chek</string>
@@ -709,7 +702,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="getaccountid">Get Account ID</string>
     <string name="getaccountidmessage">The Account ID is needed to use Libre3 sensors that are activated with Abbotts Libre3 app with this Libreview account.</string>
     <string name="getaccountidquestion">Get Account ID from Libreview?</string>
-    <string name="glucodata_subtitle">Glucodata</string>
     <string name="glulisine">Insulin Glulisine/Apidra</string>
     <string name="googlescan">Google scan</string>
     <string name="gvi">GVI</string>
@@ -791,7 +783,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="max">Massimo</string>
     <string name="max_glucose">Massimo</string>
     <string name="median">Mediano</string>
-    <string name="meterlist">"Glucose Meters"</string>
+    <string name="meterlist">Glucometri</string>
     <string name="glucose_meters_desc">Collega glucometri Bluetooth</string>
     <string name="glucose_meters_journal_desc">Le misurazioni vengono salvate come glicemie nel diario e possono essere inviate a Nightscout.</string>
     <string name="satellite_meter_title">Glucometro Satellite (Сателлит+)</string>
@@ -816,7 +808,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="newdata">"New data"</string>
     <string name="newport">"new port ="</string>
     <string name="newsecret">"new api_secret: "</string>
-    <string name="nightscout_config">Nightscout Config</string>
     <string name="no_data_available">No data available</string>
     <string name="no_ringtone_picker_found">No Ringtone Picker found</string>
     <string name="no_sensor_description">Connect a continuous glucose monitor to start tracking your glucose levels.</string>
@@ -830,7 +821,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>
     <string name="notfound">Not found</string>
     <string name="nothing"></string>
-    <string name="notifications">Avvisi e notifiche</string>
     <string name="notsynced">Not synced</string>
     <string name="novalue">No value</string>
     <string name="off">Off</string>
@@ -985,12 +975,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="withoutsaving">Leave without saving?</string>
     <string name="writedown">Write down!</string>
     <string name="wrongformat">"Wrong format "</string>
-    <string name="xdrip_compatible_desc">Local broadcast</string>
     <string name="xdrip_report_as_libre2_title">Identifica come Libre 2</string>
     <string name="xdrip_report_as_libre2_desc">Consente ad AAPS di abilitare SMB sempre con questo sensore. Attiva solo se ti fidi delle sue letture</string>
     <string name="health_connect_title">Health Connect</string>
-    <string name="health_connect_desc">Invia le letture della glicemia a Health Connect per le app di salute compatibili</string>
-    <string name="xdrip_compatible_title">xDrip-compatible</string>
     <string name="xdripbroadcast">xDrip broadcast</string>
     <string name="zero">0</string>
 
@@ -1805,7 +1792,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_left">Sinistra</string>
     <string name="alignment_center">Centro</string>
     <string name="alignment_right">Destra</string>
-    <string name="cgm_readiness_title">Prontezza CGM</string>
+    <string name="cgm_readiness_title">Controllo del sistema</string>
     <string name="cgm_readiness_dashboard_title">La configurazione CGM richiede attenzione</string>
     <string name="cgm_readiness_settings_desc">Controlla Bluetooth, allarmi, batteria, notifiche e attività in background</string>
     <string name="cgm_readiness_ready_title">Sistema pronto</string>
@@ -2172,7 +2159,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_sign_out">Esci</string>
     <string name="ottai_verify_code_hint">Codice di verifica</string>
     <string name="wrongcode">Codice QR errato</string>
-    <string name="ottai_settings_desc">Gestisci accesso all’account Ottai, materiali salvati e configurazione del sensore Ottai connesso.</string>
     <string name="ottai_saved_credentials_title">Credenziali salvate</string>
     <string name="ottai_state_not_activated">Pronto per l’attivazione</string>
     <string name="ottai_status_activating_days">Attivazione: %1$d giorni (%2$d/%3$d)</string>
@@ -2191,8 +2177,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <!-- PR feature translations: trend, alerts, palette, and expiry. -->
     <string name="alert_falling_fast">Caduta veloce</string>
     <string name="alert_rising_fast">In rapida crescita</string>
-    <string name="broadcast_computed_trend_title">Trasmetti trend app</string>
-    <string name="broadcast_computed_trend_desc">Usa il trend dell\'app invece di quello del sensore</string>
     <string name="dashboard_show_delta_desc">Variazione misurata nell\'intervallo delta, sotto la freccia di tendenza</string>
     <string name="dashboard_show_delta_title">Delta (Δ) sul cruscotto</string>
     <string name="delta_alarm_interval_follow">Come Δ (%1$d min)</string>
@@ -2292,8 +2276,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="notification_chart_pause_screen_off">Sospendi il grafico a schermo spento</string>
     <string name="notification_chart_pause_screen_off_summary">Il grafico viene ridisegnato quando lo schermo si accende. Potrebbe restare nascosto per un istante.</string>
     <string name="notification_status_line_section">Riga di stato</string>
-    <string name="display_colors_title">Schermo</string>
-    <string name="display_colors_desc">Colori, valori della dashboard e grafici</string>
     <string name="display_readouts_section">Letture della dashboard</string>
     <!-- Debug log screen -->
     <string name="debug_howto_title">Come segnalare un bug</string>
@@ -3041,4 +3023,54 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stream_history_mode">Flusso+Cronologia</string>
     <string name="history_stream_mode">Cronologia+Flusso</string>
     <string name="libre_history_mode_caption">La cronologia è il valore proprio del sensore, salvato ogni 15 minuti e circa 16 minuti dietro il flusso. Finché la cronologia di un minuto non arriva, la sostituisce il flusso.</string>
+    <!-- Settings tab -->
+    <string name="settings_section_display">Visualizzazione</string>
+    <string name="settings_section_sharing">Condivisione</string>
+    <string name="settings_section_backup">Backup e ripristino</string>
+    <string name="settings_section_devices">Dispositivi</string>
+    <string name="settings_unit_title">Unità del glucosio</string>
+    <string name="settings_alerts_desc">Ipo, iper, variazioni rapide e perdita del segnale</string>
+    <string name="settings_alerts_off_desc">Tutti gli avvisi sono disattivati</string>
+    <string name="settings_calibration_title">Calibrazione</string>
+    <string name="settings_calibration_desc">Correzioni con glicemia capillare · modalità %1$s</string>
+    <string name="settings_smoothing_off_desc">Valori mostrati come misurati</string>
+    <string name="settings_prediction_desc">Previsione del glucosio da trend, carboidrati e insulina</string>
+    <string name="settings_dashboard_charts_title">Dashboard e grafici</string>
+    <string name="settings_dashboard_charts_desc">Intervallo obiettivo, colori e indicatori</string>
+    <string name="settings_floating_desc">Valore attuale sopra le altre app</string>
+    <string name="settings_floating_permission_desc">Serve il permesso di apparire sopra le altre app</string>
+    <string name="settings_lock_screen_title">Schermata di blocco (AOD)</string>
+    <string name="settings_lock_screen_desc">Valore attuale sulla schermata di blocco e sul display always-on</string>
+    <string name="settings_lock_screen_off_desc">Si attiva nelle impostazioni di Accessibilità</string>
+    <string name="settings_journal_desc">Pasti, insulina, attività e note</string>
+    <string name="settings_phone_apps_title">App su questo telefono</string>
+    <string name="settings_phone_apps_none">Nessuna app riceve i valori</string>
+    <string name="settings_app_name_patched_libre">Libre modificata</string>
+    <string name="settings_mirror_desc">Invia o ricevi i valori tra i tuoi dispositivi</string>
+    <string name="settings_webserver_desc">API Nightscout su questo telefono</string>
+    <string name="settings_sensor_connection_title">Connessione e passaggio</string>
+    <string name="settings_sensor_connection_desc">Passaggio del sensore, priorità Bluetooth e connessione automatica</string>
+    <string name="settings_mq_account_desc">Account, server e sincronizzazione per i sensori MQ</string>
+    <string name="settings_ottai_desc">Accesso all’account e configurazione del sensore</string>
+    <string name="settings_export_title">Esporta</string>
+    <string name="settings_import_title">Importa</string>
+    <string name="settings_xdrip_broadcast_title">Broadcast xDrip+</string>
+    <string name="settings_xdrip_broadcast_desc">Per xDrip+ e AAPS</string>
+    <string name="settings_patched_libre_title">Broadcast dell’app Libre modificata</string>
+    <string name="settings_patched_libre_desc">Per le app che leggono l’app Libre modificata</string>
+    <string name="settings_glucodata_title">Broadcast Glucodata</string>
+    <string name="settings_glucodata_desc">Per GlucoDataHandler</string>
+    <string name="settings_health_connect_desc">Condividi i valori con le app di salute</string>
+    <string name="settings_broadcast_options">Opzioni di broadcast</string>
+    <string name="settings_app_trend_title">Invia il trend dell’app</string>
+    <string name="settings_app_trend_desc">Usa la freccia di tendenza dell’app invece di quella del sensore</string>
+    <string name="settings_bluetooth_section">Bluetooth</string>
+    <string name="settings_turbo_title">Priorità di connessione alta</string>
+    <string name="settings_turbo_desc">Scambi Bluetooth più rapidi, con un po’ più di consumo</string>
+    <string name="settings_autoconnect_title">Connessione automatica</string>
+    <string name="settings_autoconnect_desc">Android ricollega il sensore in background</string>
+    <!-- Settings search -->
+    <string name="settings_search_hint">Cerca nelle impostazioni</string>
+    <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
+    <string name="settings_search_clear">Cancella ricerca</string>
 </resources>
