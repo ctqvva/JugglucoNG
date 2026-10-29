@@ -4269,7 +4269,7 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
-        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
+        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", true);
         final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
         showChart &= renderCharts;
         showChartCollapsed &= renderCharts;

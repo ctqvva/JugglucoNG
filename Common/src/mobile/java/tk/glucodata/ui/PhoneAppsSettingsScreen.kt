@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -31,6 +32,7 @@ import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.util.findActivity
@@ -72,7 +74,21 @@ fun PhoneAppsSettingsScreen(
             )
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // With large text the options group can start below the built rows; only page for
+        // the options this screen currently shows, as search does.
+        RevealSettingsSearchAnchor(
+            listState,
+            setOfNotNull(
+                SettingsSearchAnchors.XDRIP, SettingsSearchAnchors.XDRIP_FOLLOWER,
+                SettingsSearchAnchors.PATCHED_LIBRE, SettingsSearchAnchors.GLUCODATA,
+                SettingsSearchAnchors.HEALTH_CONNECT.takeIf { healthConnectSupported },
+                SettingsSearchAnchors.LIBRE2_IDENTITY.takeIf { showLibre2Identity },
+                SettingsSearchAnchors.APP_TREND.takeIf { showAppTrend },
+            )
+        )
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -87,6 +103,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.Default.Radio,
                         iconTint = appColor,
                         position = CardPosition.TOP,
+                        searchAnchor = SettingsSearchAnchors.XDRIP,
                         onCheckedChange = { viewModel.toggleXDripBroadcast(it) }
                     )
                     SettingsSwitchItem(
@@ -96,6 +113,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.Default.Sync,
                         iconTint = appColor,
                         position = CardPosition.MIDDLE,
+                        searchAnchor = SettingsSearchAnchors.XDRIP_FOLLOWER,
                         onCheckedChange = { viewModel.setXdripFollowerEnabled(it) }
                     )
                     SettingsSwitchItem(
@@ -105,6 +123,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.Default.Share,
                         iconTint = appColor,
                         position = CardPosition.MIDDLE,
+                        searchAnchor = SettingsSearchAnchors.PATCHED_LIBRE,
                         onCheckedChange = { viewModel.togglePatchedLibreBroadcast(it) }
                     )
                     SettingsSwitchItem(
@@ -114,6 +133,7 @@ fun PhoneAppsSettingsScreen(
                         icon = Icons.AutoMirrored.Filled.Send,
                         iconTint = appColor,
                         position = if (healthConnectSupported) CardPosition.MIDDLE else CardPosition.BOTTOM,
+                        searchAnchor = SettingsSearchAnchors.GLUCODATA,
                         onCheckedChange = { viewModel.toggleGlucodataBroadcast(it) }
                     )
                     if (healthConnectSupported) {
@@ -124,6 +144,7 @@ fun PhoneAppsSettingsScreen(
                             icon = Icons.Default.HealthAndSafety,
                             iconTint = appColor,
                             position = CardPosition.BOTTOM,
+                            searchAnchor = SettingsSearchAnchors.HEALTH_CONNECT,
                             onCheckedChange = { enabled ->
                                 PhoneAppsSettings.setHealthConnectEnabled(context.findActivity(), enabled)
                                 healthConnectEnabled = enabled
@@ -147,6 +168,7 @@ fun PhoneAppsSettingsScreen(
                                 icon = Icons.Default.Badge,
                                 iconTint = appColor,
                                 position = if (showAppTrend) CardPosition.TOP else CardPosition.SINGLE,
+                                searchAnchor = SettingsSearchAnchors.LIBRE2_IDENTITY,
                                 onCheckedChange = { viewModel.setXdripReportAsLibre2(it) }
                             )
                         }
@@ -158,6 +180,7 @@ fun PhoneAppsSettingsScreen(
                                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                                 iconTint = appColor,
                                 position = if (showLibre2Identity) CardPosition.BOTTOM else CardPosition.SINGLE,
+                                searchAnchor = SettingsSearchAnchors.APP_TREND,
                                 onCheckedChange = { viewModel.setBroadcastComputedTrend(it) }
                             )
                         }

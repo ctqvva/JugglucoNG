@@ -8,7 +8,7 @@ package tk.glucodata.data.journal
  * source figure, study dose, population and extraction limits for each model.
  */
 object JournalInsulinCurveCatalogue {
-    const val MODEL_VERSION = 2
+    const val MODEL_VERSION = 3
 
     enum class DoseAxis {
         FIXED,
@@ -276,24 +276,30 @@ object JournalInsulinCurveCatalogue {
         }
     }
 
+    // The label's "first measurable effect" (~20/17/16 min) is not where the
+    // plotted GIR leaves baseline: Figure 2 rises from ~5 min and is near half
+    // of peak by 20 min, so onset is taken from the trace itself.
     private fun fiaspVariants() = listOf(
         Variant(0.1f, curve(
-            0 to 0f, 20 to 0f, 30 to 0.34f, 60 to 0.79f, 90 to 0.99f,
+            0 to 0f, 5 to 0.02f, 10 to 0.12f, 15 to 0.36f, 20 to 0.46f,
+            30 to 0.55f, 40 to 0.77f, 45 to 0.84f, 60 to 0.83f, 90 to 0.99f,
             91 to 1f, 120 to 0.93f, 150 to 0.78f, 180 to 0.55f, 210 to 0.28f,
             240 to 0.18f, 270 to 0.09f, 300 to 0.02f, 360 to 0f
-        ), onsetMinutes = 20),
+        )),
         Variant(0.2f, curve(
-            0 to 0f, 17 to 0f, 30 to 0.35f, 60 to 0.66f, 90 to 0.94f,
+            0 to 0f, 5 to 0.02f, 10 to 0.08f, 15 to 0.25f, 20 to 0.45f,
+            30 to 0.59f, 45 to 0.65f, 60 to 0.83f, 90 to 0.94f,
             122 to 1f, 150 to 0.93f, 180 to 0.74f, 210 to 0.54f,
             240 to 0.36f, 270 to 0.22f, 300 to 0.14f, 330 to 0.08f,
             360 to 0.04f, 420 to 0f
-        ), onsetMinutes = 17),
+        )),
         Variant(0.4f, curve(
-            0 to 0f, 16 to 0f, 30 to 0.35f, 60 to 0.70f, 90 to 0.94f,
+            0 to 0f, 5 to 0.01f, 10 to 0.06f, 15 to 0.20f, 20 to 0.43f,
+            30 to 0.58f, 45 to 0.74f, 60 to 0.85f, 90 to 0.94f,
             133 to 1f, 180 to 0.91f, 210 to 0.82f, 240 to 0.64f,
             270 to 0.51f, 300 to 0.35f, 330 to 0.25f, 360 to 0.16f,
             390 to 0.08f, 420 to 0f
-        ), onsetMinutes = 16)
+        ))
     )
 
     private fun lyumjevVariants() = listOf(

@@ -48,6 +48,7 @@ fun ExpandableSettingsCard(
     onExpandedChange: (Boolean) -> Unit,
     position: CardPosition,
     iconTint: Color? = null,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val tint = iconTint ?: MaterialTheme.colorScheme.primary
@@ -57,7 +58,7 @@ fun ExpandableSettingsCard(
     )
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = cardShape(position),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -255,12 +256,16 @@ fun SettingsItem(
     animatePosition: Boolean = false,
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle? = null,
+    searchAnchor: String? = null,
 ) {
+    val shape = if (animatePosition) animatedCardShape(position) else cardShape(position)
     Surface(
         onClick = onClick ?: {},
         enabled = onClick != null,
-        modifier = modifier.fillMaxWidth(),
-        shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
+        modifier = modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(searchAnchor, shape),
+        shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh // restored color
     ) {
         AdaptiveTrailingRow(
@@ -320,6 +325,7 @@ fun SettingsNavSwitchItem(
     animatePosition: Boolean = false,
     switchEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    searchAnchor: String? = null,
 ) {
     SettingsItem(
         title = title,
@@ -330,6 +336,7 @@ fun SettingsNavSwitchItem(
         position = position,
         animatePosition = animatePosition,
         modifier = modifier,
+        searchAnchor = searchAnchor,
         trailingContent = {
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
@@ -364,6 +371,7 @@ fun SettingsSwitchItem(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle? = null,
+    searchAnchor: String? = null,
 ) {
     SettingsItem(
         title = title,
@@ -377,6 +385,7 @@ fun SettingsSwitchItem(
         },
         modifier = modifier,
         subtitleStyle = subtitleStyle,
+        searchAnchor = searchAnchor,
         trailingContent = {
             StyledSwitch(
                 checked = checked,

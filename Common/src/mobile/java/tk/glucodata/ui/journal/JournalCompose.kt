@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,11 +42,11 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -95,7 +94,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -126,7 +124,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import java.text.DateFormat
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -152,8 +149,11 @@ import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.journal.LegacyJournalFoodDatabase
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.SheetContentHeightAnimation
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.components.animateSheetContentHeight
 import tk.glucodata.ui.util.ConnectedButtonGroup
+import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.GlucoseFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -506,6 +506,7 @@ fun JournalEntrySheet(
         }
     }
 
+    val sheetContentHeight = remember { SheetContentHeightAnimation() }
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -513,25 +514,38 @@ fun JournalEntrySheet(
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         contentKey = draft.type,
+        contentHeight = sheetContentHeight,
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
+                // The sheet's top edge follows the list's height. Without this a type switch
+                // jumps the whole sheet to its new height in one frame.
+                .animateSheetContentHeight(sheetContentHeight, ExpressiveMotion.defaultSpatial())
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "header") {
+            journalSheetItem(key = "header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = draft.type.journalActionLabel(),
-                            style = MaterialTheme.typography.headlineSmallEmphasized
-                        )
+                        AnimatedContent(
+                            targetState = draft.type,
+                            transitionSpec = {
+                                fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                                    .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                            },
+                            label = "journalSheetTitle"
+                        ) { type ->
+                            Text(
+                                text = type.journalActionLabel(),
+                                style = MaterialTheme.typography.headlineSmallEmphasized
+                            )
+                        }
                         existingEntry?.source?.presentation()?.let { source ->
                             // The icon on the row only explains itself for NFC; here the
                             // origin is spelled out.
@@ -573,7 +587,7 @@ fun JournalEntrySheet(
                 }
             }
 
-            item(key = "type_selector") {
+            journalSheetItem(key = "type_selector") {
                 JournalTypeSelector(
                     selectedType = draft.type,
                     onTypeSelected = {
@@ -582,7 +596,7 @@ fun JournalEntrySheet(
                 )
             }
 
-            item(key = "date_time") {
+            journalSheetItem(key = "date_time") {
                 JournalDateTimeCard(
                     date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(draft.timestamp)),
                     time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(draft.timestamp)),
@@ -594,7 +608,7 @@ fun JournalEntrySheet(
 
             when (draft.type) {
                 JournalEntryType.INSULIN -> {
-                    item(key = "insulin_presets") {
+                    journalSheetItem(key = "insulin_presets") {
                         JournalInsulinPresetSelector(
                             presets = activeInsulinPresets,
                             selectedPresetId = draft.insulinPresetId,
@@ -610,14 +624,14 @@ fun JournalEntrySheet(
                             }
                         )
                     }
-                    // An archived preset has no pill to hang its window under, so an entry
-                    // that still uses one keeps the window as its own row.
-                    selectedInsulinPreset?.takeIf { it.isArchived }?.let { preset ->
-                        item(key = "insulin_window") {
-                            JournalInsulinWindow(preset = preset)
+                    draft.insulinPresetId?.let { presetId ->
+                        presetsById[presetId]?.let { preset ->
+                            journalSheetItem(key = "insulin_window") {
+                                JournalInsulinWindowCard(preset = preset)
+                            }
                         }
                     }
-                    item(key = "insulin_amount") {
+                    journalSheetItem(key = "insulin_amount") {
                         JournalStepperField(
                             value = draft.amountText,
                             onValueChange = { draft = draft.copy(amountText = it) },
@@ -634,7 +648,7 @@ fun JournalEntrySheet(
                         calculatorProfile != null &&
                         selectedInsulinPreset?.useForCalculation == true
                     ) {
-                        item(key = "insulin_dose_assist") {
+                        journalSheetItem(key = "insulin_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
@@ -649,7 +663,7 @@ fun JournalEntrySheet(
 
                 JournalEntryType.CARBS -> {
                     if (activeFoods.isNotEmpty()) {
-                        item(key = "carbs_foods") {
+                        journalSheetItem(key = "carbs_foods") {
                             JournalFoodLibrarySelector(
                                 foods = activeFoods,
                                 selectedFoodId = draft.foodId,
@@ -671,7 +685,7 @@ fun JournalEntrySheet(
                             )
                         }
                     }
-                    item(key = "carbs_amount") {
+                    journalSheetItem(key = "carbs_amount") {
                         JournalStepperField(
                             value = draft.amountText,
                             onValueChange = { draft = draft.copy(amountText = it) },
@@ -683,7 +697,7 @@ fun JournalEntrySheet(
                             prominent = true
                         )
                     }
-                    item(key = "carbs_meal_shape") {
+                    journalSheetItem(key = "carbs_meal_shape") {
                         JournalMealShapeSelector(
                             durationText = draft.durationText,
                             onShapeSelected = { shape ->
@@ -692,7 +706,7 @@ fun JournalEntrySheet(
                         )
                     }
                     if (foodMacrosEnabled) {
-                        item(key = "carbs_macros") {
+                        journalSheetItem(key = "carbs_macros") {
                             JournalMacroFields(
                                 proteinText = draft.proteinText,
                                 fatText = draft.fatText,
@@ -706,7 +720,7 @@ fun JournalEntrySheet(
                         calculatorProfile != null &&
                         calculationInsulinPresets.isNotEmpty()
                     ) {
-                        item(key = "carbs_dose_assist") {
+                        journalSheetItem(key = "carbs_dose_assist") {
                             JournalDoseAssistCard(
                                 draft = draft,
                                 profile = calculatorProfile,
@@ -720,7 +734,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.FINGERSTICK -> {
-                    item(key = "fingerstick_amount") {
+                    journalSheetItem(key = "fingerstick_amount") {
                         JournalStepperField(
                             value = draft.glucoseText,
                             onValueChange = { draft = draft.copy(glucoseText = it) },
@@ -736,7 +750,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.ACTIVITY -> {
-                    item(key = "activity_name") {
+                    journalSheetItem(key = "activity_name") {
                         OutlinedTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
@@ -745,7 +759,7 @@ fun JournalEntrySheet(
                             singleLine = true
                         )
                     }
-                    item(key = "activity_duration") {
+                    journalSheetItem(key = "activity_duration") {
                         JournalStepperField(
                             value = draft.durationText,
                             onValueChange = { draft = draft.copy(durationText = it.filter(Char::isDigit)) },
@@ -757,7 +771,7 @@ fun JournalEntrySheet(
                             keyboardType = KeyboardType.Number
                         )
                     }
-                    item(key = "activity_intensity") {
+                    journalSheetItem(key = "activity_intensity") {
                         JournalIntensitySelector(
                             selectedIntensity = draft.intensity,
                             onIntensitySelected = { draft = draft.copy(intensity = it) }
@@ -766,7 +780,7 @@ fun JournalEntrySheet(
                 }
 
                 JournalEntryType.NOTE -> {
-                    item(key = "note_title") {
+                    journalSheetItem(key = "note_title") {
                         OutlinedTextField(
                             value = draft.title,
                             onValueChange = { draft = draft.copy(title = it) },
@@ -781,7 +795,7 @@ fun JournalEntrySheet(
                 JournalEntryType.TEMP_BASAL -> Unit
             }
 
-            item(key = "note_field") {
+            journalSheetItem(key = "note_field") {
                 val noteFieldExpanded = draft.type == JournalEntryType.NOTE ||
                         noteFieldFocused ||
                         draft.note.contains('\n')
@@ -820,7 +834,20 @@ fun JournalEntrySheet(
                 )
             }
 
-            item(key = "save_button") {
+            journalSheetItem(key = "save_button") {
+                // Switching type often flips Save between enabled and disabled; fade the fill
+                // instead of letting it blink.
+                val defaultSaveColors = ButtonDefaults.buttonColors()
+                val saveContainerColor by animateColorAsState(
+                    targetValue = if (canSave) defaultSaveColors.containerColor else defaultSaveColors.disabledContainerColor,
+                    animationSpec = ExpressiveMotion.defaultEffects(),
+                    label = "journalSaveContainer"
+                )
+                val saveContentColor by animateColorAsState(
+                    targetValue = if (canSave) defaultSaveColors.contentColor else defaultSaveColors.disabledContentColor,
+                    animationSpec = ExpressiveMotion.defaultEffects(),
+                    label = "journalSaveContent"
+                )
                 Button(
                     onClick = {
                         if (canSave) {
@@ -836,12 +863,27 @@ fun JournalEntrySheet(
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
                     shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(16.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = saveContainerColor,
+                        contentColor = saveContentColor,
+                        disabledContainerColor = saveContainerColor,
+                        disabledContentColor = saveContentColor
+                    ),
                     contentPadding = ButtonDefaults.ContentPadding
                 ) {
-                    Icon(
-                        imageVector = journalTypeIcon(draft.type),
-                        contentDescription = null
-                    )
+                    AnimatedContent(
+                        targetState = draft.type,
+                        transitionSpec = {
+                            fadeIn(animationSpec = ExpressiveMotion.defaultEffects())
+                                .togetherWith(fadeOut(animationSpec = ExpressiveMotion.fastEffects()))
+                        },
+                        label = "journalSaveIcon"
+                    ) { type ->
+                        Icon(
+                            imageVector = journalTypeIcon(type),
+                            contentDescription = null
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.save))
                 }
@@ -930,6 +972,25 @@ fun JournalEntrySheet(
                 }
             }
         )
+    }
+}
+
+/**
+ * Switching the entry type swaps the middle of the sheet. Rows that stay glide to their new place
+ * on the spatial spring; rows that come or go cross-fade on the effects springs, which never
+ * overshoot.
+ */
+private fun LazyListScope.journalSheetItem(key: String, content: @Composable () -> Unit) {
+    item(key = key) {
+        Box(
+            modifier = Modifier.animateItem(
+                fadeInSpec = ExpressiveMotion.defaultEffects(),
+                placementSpec = ExpressiveMotion.defaultSpatial(),
+                fadeOutSpec = ExpressiveMotion.fastEffects()
+            )
+        ) {
+            content()
+        }
     }
 }
 
@@ -2554,83 +2615,34 @@ private fun JournalInsulinPresetSelector(
     selectedPresetId: Long?,
     onPresetSelected: (JournalInsulinPreset) -> Unit
 ) {
-    // Each pill carries its own active window; its ⓘ opens that insulin's curve whether or
-    // not the pill is selected, and both curves can be open at once to compare them.
-    var openCurveIds by remember { mutableStateOf(emptySet<Long>()) }
-    val toggleCurve: (Long) -> Unit = { id ->
-        openCurveIds = if (id in openCurveIds) openCurveIds - id else openCurveIds + id
-    }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        if (presets.size == 2) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                presets.forEach { preset ->
-                    JournalPresetPillWithWindow(
-                        modifier = Modifier.weight(1f),
-                        preset = preset,
-                        selected = selectedPresetId == preset.id,
-                        curveOpen = preset.id in openCurveIds,
-                        onClick = { onPresetSelected(preset) },
-                        onToggleCurve = { toggleCurve(preset.id) }
-                    )
-                }
-            }
-        } else {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                presets.forEach { preset ->
-                    JournalPresetPillWithWindow(
-                        modifier = Modifier.width(IntrinsicSize.Max),
-                        preset = preset,
-                        selected = selectedPresetId == preset.id,
-                        curveOpen = preset.id in openCurveIds,
-                        onClick = { onPresetSelected(preset) },
-                        onToggleCurve = { toggleCurve(preset.id) }
-                    )
-                }
-            }
-        }
-        presets.forEach { preset ->
-            key(preset.id) {
-                JournalInsulinCurveReveal(
+    if (presets.size == 2) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { preset ->
+                JournalPresetPill(
+                    modifier = Modifier.weight(1f),
                     preset = preset,
-                    visible = preset.id in openCurveIds,
-                    showName = presets.size > 1
+                    selected = selectedPresetId == preset.id,
+                    onClick = { onPresetSelected(preset) }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun JournalPresetPillWithWindow(
-    modifier: Modifier,
-    preset: JournalInsulinPreset,
-    selected: Boolean,
-    curveOpen: Boolean,
-    onClick: () -> Unit,
-    onToggleCurve: () -> Unit
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        JournalPresetPill(
+    } else {
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            preset = preset,
-            selected = selected,
-            onClick = onClick
-        )
-        JournalInsulinWindowToggle(
-            preset = preset,
-            open = curveOpen,
-            onToggle = onToggleCurve
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { preset ->
+                JournalPresetPill(
+                    preset = preset,
+                    selected = selectedPresetId == preset.id,
+                    onClick = { onPresetSelected(preset) }
+                )
+            }
+        }
     }
 }
 
@@ -3109,160 +3121,115 @@ private fun JournalDateTimeSegment(
 }
 
 @Composable
-private fun JournalInsulinWindow(
+private fun JournalInsulinWindowCard(
     preset: JournalInsulinPreset
 ) {
-    var open by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        JournalInsulinWindowToggle(
-            preset = preset,
-            open = open,
-            onToggle = { open = !open }
-        )
-        JournalInsulinCurveReveal(preset = preset, visible = open, showName = false)
-    }
-}
-
-/**
- * The onset–duration line under an insulin pill. Its text starts where the pill's name does
- * (12 padding + 20 glyph + 8 gap on both), so the pair reads as one column.
- */
-@Composable
-private fun JournalInsulinWindowToggle(
-    preset: JournalInsulinPreset,
-    open: Boolean,
-    onToggle: () -> Unit
-) {
-    val accent = Color(preset.accentColor)
-    val containerColor by animateColorAsState(
-        targetValue = if (open) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f)
-        },
-        animationSpec = tween(durationMillis = 180),
-        label = "journalInsulinWindowContainer"
-    )
-    val infoTint by animateColorAsState(
-        targetValue = if (open) accent else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(durationMillis = 180),
-        label = "journalInsulinWindowInfo"
+    var expanded by remember { mutableStateOf(false) }
+    val accent by animateColorAsState(
+        targetValue = Color(preset.accentColor),
+        animationSpec = tween(durationMillis = 220),
+        label = "journalInsulinWindowAccent"
     )
     val onset = formatJournalWindowEndpoint(preset.onsetMinutes)
     val duration = formatJournalWindowEndpoint(preset.durationMinutes)
-    val windowDescription = journalInsulinWindowDescription(preset)
-    val labelStyle = MaterialTheme.typography.labelLarge
-
-    Row(
-        modifier = Modifier
-            // The compact visual row keeps the sheet dense; Compose expands its pointer hit
-            // area to the platform minimum within the surrounding gap.
-            .height(32.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(containerColor)
-            .semantics(mergeDescendants = true) {
-                this.contentDescription = windowDescription
-                role = Role.Button
-            }
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Schedule,
-            contentDescription = null,
-            tint = accent,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        // Two pills share the width; "21 min – 330 min" can be a few dp wider than half a
-        // narrow phone, so the label gives up a little size rather than its tail.
-        Text(
-            text = "$onset – $duration",
-            style = labelStyle,
-            autoSize = TextAutoSize.StepBased(
-                minFontSize = 11.sp,
-                maxFontSize = labelStyle.fontSize,
-                stepSize = 0.25.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.weight(1f, fill = false)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = null,
-            tint = infoTint,
-            modifier = Modifier.size(16.dp)
-        )
-    }
-}
-
-@Composable
-private fun JournalInsulinCurveReveal(
-    preset: JournalInsulinPreset,
-    visible: Boolean,
-    showName: Boolean
-) {
-    val windowDescription = journalInsulinWindowDescription(preset)
-    AnimatedVisibility(
-        visible = visible,
-        enter = expandVertically(
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
-            expandFrom = Alignment.Top
-        ) + fadeIn(animationSpec = tween(durationMillis = 220)),
-        exit = shrinkVertically(
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
-            shrinkTowards = Alignment.Top
-        ) + fadeOut(animationSpec = tween(durationMillis = 140))
-    ) {
-        // The gap lives inside the reveal so a closed curve takes no space at all.
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                if (showName) {
-                    Text(
-                        text = preset.displayName,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color(preset.accentColor),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                JournalInsulinActivityCurve(
-                    points = preset.curvePoints,
-                    durationMinutes = preset.durationMinutes,
-                    color = Color(preset.accentColor),
-                    contentDescription = windowDescription
-                )
-            }
-        }
-    }
-}
-
-/** Spoken label for one insulin's window: each pill has its own, so it names the insulin. */
-@Composable
-private fun journalInsulinWindowDescription(preset: JournalInsulinPreset): String {
-    val window = stringResource(
+    val summary = "$onset – $duration"
+    val windowDescription = stringResource(
         R.string.journal_active_window,
         stringResource(R.string.minutes_short_format, preset.onsetMinutes),
         stringResource(R.string.minutes_short_format, preset.durationMinutes)
     )
-    return "${preset.displayName}, $window"
+
+    Surface(
+        modifier = Modifier
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            .then(
+                if (expanded) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
+            ),
+        color = if (expanded) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            Color.Transparent
+        },
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .then(
+                        if (expanded) {
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        } else {
+                            // The compact visual row keeps the sheet dense; Compose expands its
+                            // pointer hit area to the platform minimum within the surrounding gap.
+                            Modifier.height(32.dp)
+                        }
+                    )
+                    .semantics(mergeDescendants = true) {
+                        this.contentDescription = windowDescription
+                        role = Role.Button
+                    }
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                AnimatedContent(
+                    targetState = summary,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(durationMillis = 220))
+                            .togetherWith(fadeOut(animationSpec = tween(durationMillis = 120)))
+                    },
+                    label = "journalInsulinWindowSummary"
+                ) { value ->
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            if (expanded) {
+                AnimatedContent(
+                    targetState = preset,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(durationMillis = 220))
+                            .togetherWith(fadeOut(animationSpec = tween(durationMillis = 140)))
+                    },
+                    contentKey = { it.id },
+                    label = "journalInsulinWindowChart"
+                ) { visiblePreset ->
+                    JournalInsulinActivityCurve(
+                        points = visiblePreset.curvePoints,
+                        durationMinutes = visiblePreset.durationMinutes,
+                        color = Color(visiblePreset.accentColor),
+                        contentDescription = windowDescription,
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

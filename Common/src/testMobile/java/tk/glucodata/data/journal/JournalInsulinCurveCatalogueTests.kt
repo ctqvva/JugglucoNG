@@ -152,7 +152,9 @@ class JournalInsulinCurveCatalogueTests {
 
     @Test
     fun sourceTimingAnchorsMatchTheOfficialPharmacodynamicLabels() {
-        assertEquals(20, JournalInsulinCurveCatalogue.referenceOnsetMinutes(JournalBuiltInCurveProfile.FIASP))
+        // Figure 2 GIR leaves baseline ~5 min after injection (#754), not at the
+        // label's ~20 min "first measurable effect".
+        assertEquals(5, JournalInsulinCurveCatalogue.referenceOnsetMinutes(JournalBuiltInCurveProfile.FIASP))
         assertEquals(
             91,
             JournalInsulinCurveCatalogue.referenceCurve(JournalBuiltInCurveProfile.FIASP)

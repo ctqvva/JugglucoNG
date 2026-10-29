@@ -344,6 +344,16 @@ object ICanHealthConstants {
     }
 
     /**
+     * The serial printed on the box, for the sensor list. DIS only carries its first eight
+     * characters, padded with a vendor tail (`84F01FF13594A` -> `84F01FF100070000`), so the
+     * sensor id cannot show it. The onboarding serial is stored whole only when it is a short
+     * form of at least 12 characters; anything shorter is just the DIS prefix.
+     */
+    @JvmStatic
+    fun boxSerialForDisplay(onboardingDeviceSn: String?): String? =
+        normalizeOnboardingDeviceSn(onboardingDeviceSn).takeIf { it.length >= 12 }
+
+    /**
      * True when [advertisedName] carries a serial token that belongs to a different sensor than
      * [onboardingDeviceSn]. Only a token that is actually present is judged: names without one
      * (`CGM`, `Sinocare CGM`) stay eligible, because the name check is deliberately broad so

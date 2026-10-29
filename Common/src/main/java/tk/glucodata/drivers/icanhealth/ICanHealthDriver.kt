@@ -1,5 +1,6 @@
 package tk.glucodata.drivers.icanhealth
 
+import tk.glucodata.Applic
 import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
@@ -68,7 +69,8 @@ interface ICanHealthDriver : ManagedBluetoothSensorDriver {
         }
         return ManagedSensorUiSnapshot(
             serial = sensorSerial,
-            displayName = runCatching { callback.mygetDeviceName() }.getOrDefault(sensorSerial),
+            displayName = runCatching { ICanHealthRegistry.boxSerialFor(Applic.app, sensorSerial) }.getOrNull()
+                ?: runCatching { callback.mygetDeviceName() }.getOrDefault(sensorSerial),
             deviceAddress = callback.mActiveDeviceAddress ?: "Unknown",
             uiFamily = ManagedSensorUiFamily.ICAN,
             connectionStatus = passiveConnectionStatus,

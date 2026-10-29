@@ -318,7 +318,10 @@ fun ExpressiveSettingsScreen(
     fun openSearchResult(entry: SettingsSearchEntry) {
         focusManager.clearFocus()
         when (val target = entry.target) {
-            is SettingsSearchTarget.Route -> navController.navigate(target.route)
+            is SettingsSearchTarget.Route -> {
+                SettingsSearchReveal.request(entry.anchor)
+                navController.navigate(target.route)
+            }
             is SettingsSearchTarget.Action -> when (target.action) {
                 SettingsSearchAction.THEME -> showThemeDialog = true
                 SettingsSearchAction.LANGUAGE -> showLanguageDialog = true

@@ -15,6 +15,7 @@ class JournalRepository {
     private companion object {
         const val PREFS_NAME = "tk.glucodata_preferences"
         const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v6"
+        const val DEFAULT_PRESETS_CURVE_MODEL_KEY = "journal_default_presets_curve_model"
         const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v2"
         const val SENDER_ONLY_NOTES_SWEPT_KEY = "journal_aaps_sender_only_notes_swept_v1"
         const val DELETE_CHUNK = 500
@@ -58,7 +59,11 @@ class JournalRepository {
     }
 
     suspend fun ensureDefaultInsulinPresets() {
-        if (prefs.getBoolean(DEFAULT_PRESETS_SEEDED_KEY, false)) return
+        // A curve model bump must reach already-seeded installs too, or their
+        // built-in presets keep the old curve while new doses resolve the new one.
+        if (prefs.getBoolean(DEFAULT_PRESETS_SEEDED_KEY, false) &&
+            prefs.getInt(DEFAULT_PRESETS_CURVE_MODEL_KEY, 0) >= JournalInsulinCurveCatalogue.MODEL_VERSION
+        ) return
         database.withTransaction {
             val existing = dao.getInsulinPresets()
             if (existing.isEmpty()) {
@@ -66,7 +71,10 @@ class JournalRepository {
             } else {
                 dao.insertInsulinPresets(mergeBuiltInPresets(existing))
             }
-            prefs.edit().putBoolean(DEFAULT_PRESETS_SEEDED_KEY, true).apply()
+            prefs.edit()
+                .putBoolean(DEFAULT_PRESETS_SEEDED_KEY, true)
+                .putInt(DEFAULT_PRESETS_CURVE_MODEL_KEY, JournalInsulinCurveCatalogue.MODEL_VERSION)
+                .apply()
         }
     }
 

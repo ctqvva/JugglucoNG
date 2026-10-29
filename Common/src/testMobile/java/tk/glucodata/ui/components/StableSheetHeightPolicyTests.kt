@@ -109,6 +109,51 @@ class StableSheetHeightPolicyTests {
     }
 
     @Test
+    fun heightAnimationFrameDoesNotLockShorterLayout() {
+        val policy = StableSheetHeightPolicy()
+
+        // First frame after switching from a viewport-tall layout: still shown at full height.
+        policy.onMeasured(
+            measuredHeight = 1000,
+            maxHeight = 1000,
+            hasBoundedHeight = true,
+            isImeVisible = false,
+            isContentHeightSettled = false,
+        )
+        assertFalse(policy.isViewportHeightLocked)
+
+        policy.onMeasured(
+            measuredHeight = 720,
+            maxHeight = 1000,
+            hasBoundedHeight = true,
+            isImeVisible = false,
+        )
+        assertFalse(policy.isViewportHeightLocked)
+        assertEquals(0, policy.minimumHeight(maxHeight = 1000, hasBoundedHeight = true))
+    }
+
+    @Test
+    fun heightAnimationLocksOnceItSettlesAtViewportHeight() {
+        val policy = StableSheetHeightPolicy()
+
+        policy.onMeasured(
+            measuredHeight = 900,
+            maxHeight = 1000,
+            hasBoundedHeight = true,
+            isImeVisible = false,
+            isContentHeightSettled = false,
+        )
+        policy.onMeasured(
+            measuredHeight = 1000,
+            maxHeight = 1000,
+            hasBoundedHeight = true,
+            isImeVisible = false,
+        )
+
+        assertTrue(policy.isViewportHeightLocked)
+    }
+
+    @Test
     fun unboundedMeasurementDoesNotLockOrInventAHeight() {
         val policy = StableSheetHeightPolicy()
 
