@@ -5,7 +5,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -1173,7 +1172,7 @@ private fun HeroTrendWithDelta(
  * available width while preserving the peer chip's padding and touch target.
  */
 @Composable
-private fun DashboardHeroSensorPair(
+internal fun DashboardHeroSensorPair(
     primaryText: String,
     primaryStyle: TextStyle,
     primaryColor: Color,
@@ -1189,7 +1188,10 @@ private fun DashboardHeroSensorPair(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    var availableWidthPx by remember { mutableStateOf(0) }
+    // The portrait header asks for intrinsic height. A regular Box supports that query;
+    // BoxWithConstraints uses subcomposition and throws before the dashboard can render.
+    Box(Modifier.fillMaxWidth().onSizeChanged { availableWidthPx = it.width }) {
         val primaryTrendWidthPx = maxOf(
             with(density) { 32.dp.roundToPx() },
             primaryDeltaText?.let {
@@ -1207,8 +1209,12 @@ private fun DashboardHeroSensorPair(
         }
         val valuesWidthPx = textMeasurer.measure(primaryText, style = primaryStyle, maxLines = 1).size.width +
             textMeasurer.measure(peer.primaryStr, style = peerStyle, maxLines = 1).size.width
-        val valueScale = ((constraints.maxWidth - fixedWidthPx).coerceAtLeast(0).toFloat() /
-            valuesWidthPx.coerceAtLeast(1)).coerceIn(0.1f, 1f)
+        val valueScale = if (availableWidthPx > 0) {
+            ((availableWidthPx - fixedWidthPx).coerceAtLeast(0).toFloat() /
+                valuesWidthPx.coerceAtLeast(1)).coerceIn(0.1f, 1f)
+        } else {
+            1f
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
