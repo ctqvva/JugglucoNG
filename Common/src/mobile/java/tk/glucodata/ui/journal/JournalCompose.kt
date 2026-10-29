@@ -3180,6 +3180,7 @@ private fun JournalInsulinWindowCard(
                     JournalInsulinWindowHeader(
                         preset = preset,
                         showing = openPreset?.id == preset.id,
+                        expanded = expanded,
                         modifier = if (paired) Modifier.weight(1f) else Modifier,
                         onClick = {
                             openPresetId = if (openPreset?.id == preset.id) null else preset.id
@@ -3214,6 +3215,7 @@ private fun JournalInsulinWindowCard(
 private fun JournalInsulinWindowHeader(
     preset: JournalInsulinPreset,
     showing: Boolean,
+    expanded: Boolean,
     modifier: Modifier,
     onClick: () -> Unit
 ) {
@@ -3221,6 +3223,16 @@ private fun JournalInsulinWindowHeader(
         targetValue = Color(preset.accentColor),
         animationSpec = tween(durationMillis = 220),
         label = "journalInsulinWindowAccent"
+    )
+    // Compact under the pills, full 48dp header once the card is open; the spring grows it
+    // with the card instead of snapping.
+    val height by animateDpAsState(
+        targetValue = if (expanded) 48.dp else 32.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "journalInsulinWindowHeaderHeight"
     )
     val containerColor by animateColorAsState(
         targetValue = Color(preset.accentColor).copy(alpha = if (showing) 0.16f else 0f),
@@ -3239,11 +3251,10 @@ private fun JournalInsulinWindowHeader(
     val summaryStyle = MaterialTheme.typography.labelLarge
 
     Row(
-        // Same compact height open or closed, so the label never shifts and the target never
-        // changes; Compose expands the pointer hit area to the platform minimum. The 16dp
-        // corners match the card's, so the open header reads as its tab.
+        // Compose expands the compact row's pointer hit area to the platform minimum. The
+        // 16dp corners match the card's, so the open header reads as its tab.
         modifier = modifier
-            .height(32.dp)
+            .height(height)
             .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
             .semantics(mergeDescendants = true) {
