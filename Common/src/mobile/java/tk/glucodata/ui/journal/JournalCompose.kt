@@ -118,6 +118,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -3146,6 +3147,13 @@ private fun JournalInsulinWindowCard(
         else -> presets.firstOrNull { it.id == openPresetId }
     }
     val expanded = openPreset != null
+    val cardColor by animateColorAsState(
+        targetValue = MaterialTheme.colorScheme.surfaceContainerHigh.copy(
+            alpha = if (expanded) 1f else 0f
+        ),
+        animationSpec = tween(durationMillis = 180),
+        label = "journalInsulinWindowCard"
+    )
 
     Surface(
         modifier = Modifier
@@ -3158,28 +3166,22 @@ private fun JournalInsulinWindowCard(
             .then(
                 if (expanded || paired) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
             ),
-        color = if (expanded) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            Color.Transparent
-        },
+        color = cardColor,
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
+            // 4dp inset + the headers' 8dp padding puts each range where its pill's name
+            // starts (12 + 20 + 8 = 40), for both halves of the 8dp-split pill row.
             Row(
-                modifier = if (expanded || paired) Modifier.fillMaxWidth() else Modifier,
+                modifier = (if (expanded || paired) Modifier.fillMaxWidth() else Modifier)
+                    .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 presets.forEach { preset ->
                     JournalInsulinWindowHeader(
                         preset = preset,
-                        expanded = expanded,
-                        showing = paired && openPreset?.id == preset.id,
-                        modifier = when {
-                            paired -> Modifier.weight(1f)
-                            expanded -> Modifier.fillMaxWidth()
-                            else -> Modifier
-                        },
+                        showing = openPreset?.id == preset.id,
+                        modifier = if (paired) Modifier.weight(1f) else Modifier,
                         onClick = {
                             openPresetId = if (openPreset?.id == preset.id) null else preset.id
                         }
@@ -3212,7 +3214,6 @@ private fun JournalInsulinWindowCard(
 @Composable
 private fun JournalInsulinWindowHeader(
     preset: JournalInsulinPreset,
-    expanded: Boolean,
     showing: Boolean,
     modifier: Modifier,
     onClick: () -> Unit
@@ -3221,6 +3222,11 @@ private fun JournalInsulinWindowHeader(
         targetValue = Color(preset.accentColor),
         animationSpec = tween(durationMillis = 220),
         label = "journalInsulinWindowAccent"
+    )
+    val containerColor by animateColorAsState(
+        targetValue = Color(preset.accentColor).copy(alpha = if (showing) 0.16f else 0f),
+        animationSpec = tween(durationMillis = 180),
+        label = "journalInsulinWindowHeader"
     )
     val infoTint by animateColorAsState(
         targetValue = if (showing) accent else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3234,23 +3240,19 @@ private fun JournalInsulinWindowHeader(
     val summaryStyle = MaterialTheme.typography.labelLarge
 
     Row(
+        // Same height open or closed, so the label never shifts and the target never
+        // changes; 12dp corners are concentric with the card's 16dp at a 4dp inset.
         modifier = modifier
-            .then(
-                if (expanded) {
-                    Modifier.height(48.dp)
-                } else {
-                    // The compact visual row keeps the sheet dense; Compose expands its
-                    // pointer hit area to the platform minimum within the surrounding gap.
-                    Modifier.height(32.dp)
-                }
-            )
-            .clip(RoundedCornerShape(16.dp))
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
             .semantics(mergeDescendants = true) {
                 this.contentDescription = windowDescription
                 role = Role.Button
+                selected = showing
             }
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
