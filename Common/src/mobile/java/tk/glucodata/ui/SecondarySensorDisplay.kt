@@ -74,3 +74,25 @@ object SecondarySensorDisplay {
             .filterNot { SensorIdentity.matches(it, primarySensorId) }
     }
 }
+
+/** Keep the outgoing main available as a peer while the selected-peer resolver catches up. */
+@androidx.compose.runtime.Composable
+internal fun rememberHeroPeerReadings(
+    primary: PeerCurrentReading?,
+    peers: List<PeerCurrentReading>,
+    isMmol: Boolean
+): List<PeerCurrentReading> {
+    val previous = androidx.compose.runtime.remember(isMmol) { linkedMapOf<String, PeerCurrentReading>() }
+    val candidates = peers + previous.values.filter { cached ->
+        peers.none { tk.glucodata.SensorIdentity.matches(it.sensorId, cached.sensorId) }
+    }
+    androidx.compose.runtime.SideEffect {
+        (peers + listOfNotNull(primary)).forEach { reading ->
+            previous.keys.filter { tk.glucodata.SensorIdentity.matches(it, reading.sensorId) }
+                .forEach { previous.remove(it) }
+            previous[reading.sensorId] = reading
+        }
+        while (previous.size > 16) previous.remove(previous.keys.first())
+    }
+    return candidates
+}

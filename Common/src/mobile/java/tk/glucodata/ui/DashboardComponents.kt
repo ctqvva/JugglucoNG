@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -426,20 +427,27 @@ fun DashboardCombinedHeader(
     // The newest point's credible interval, when the active estimator reports
     // one. Rendered as a quiet second line under the value rather than a badge:
     // it is context for the number above it, not a separate fact.
-    val currentRangeText = remember(history, latestPoint, isMmol, viewMode) {
-        if (viewMode == 1 || viewMode == 3) {
-            null
-        } else {
-            (history.lastOrNull() ?: latestPoint)?.uncertainty
-                ?.takeIf { it.isUsable }
-                ?.let { uncertainty ->
-                    "${tk.glucodata.ui.util.GlucoseFormatter.format(uncertainty.lower, isMmol)}" +
-                        "–${tk.glucodata.ui.util.GlucoseFormatter.format(uncertainty.upper, isMmol)}"
-                }
+    val currentRangeText = remember(history, latestPoint, sensorName, resolvedCurrentSnapshot, isMmol, viewMode, isFreshData) {
+        heroUncertaintyText(
+            history, latestPoint, sensorName, resolvedCurrentSnapshot?.sensorId,
+            resolvedCurrentSnapshot?.timeMillis ?: latestPoint?.timestamp ?: 0L,
+            viewMode, isMmol, isFreshData
+        )
+    }
+    val observedMain = dvs?.takeIf {
+        val owner = resolvedCurrentSnapshot?.sensorId ?: latestPoint?.sensorSerial
+        owner != null && tk.glucodata.SensorIdentity.matches(owner, sensorName)
+    }?.let { values ->
+        primaryReadingMillis?.let { at ->
+            PeerCurrentReading(sensorName, values.primaryStr, values.secondaryStr,
+                resolvedCurrentSnapshot?.rate ?: currentRate, at)
         }
     }
-    val selectedPeerReadings = peerReadings.filter { peer ->
-        activeSensors.any { tk.glucodata.SensorIdentity.matches(it, peer.sensorId) }
+    val heroPeerReadings = rememberHeroPeerReadings(observedMain, peerReadings, isMmol)
+    val selectedPeerReadings = heroPeerReadings.filter { peer ->
+        !tk.glucodata.SensorIdentity.matches(peer.sensorId, sensorName) &&
+            activeSensors.any { tk.glucodata.SensorIdentity.matches(it, peer.sensorId) } &&
+            DisplayDataState.resolve(true, peer.timeMillis, 0L).isFresh
     }
     val secondaryPeer = SecondarySensorDisplay.peerForHero(dvs, sensorName, selectedPeerReadings)
     val remainingPeers = selectedPeerReadings.filterNot { it == secondaryPeer }
@@ -689,7 +697,7 @@ fun DashboardCombinedHeader(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .heightIn(min = heroContentMinHeight)
+                            .height(heroContentMinHeight)
                             .padding(
                                 start = resolvedStartPadding,
                                 end = resolvedEndPadding,
@@ -699,6 +707,8 @@ fun DashboardCombinedHeader(
                         verticalArrangement = Arrangement.Center
                     ) {
                         DashboardHeroSensorPair(
+                            primarySensorId = sensorName,
+                            contentHeight = heroContentMinHeight - resolvedVerticalPadding * 2,
                             primaryText = primaryText,
                             primaryStyle = primaryValueStyle,
                             primarySecondaryText = listOfNotNull(secondaryText, tertiaryText).joinToString(" · ").ifEmpty { null },
@@ -1169,10 +1179,19 @@ private fun HeroTrendWithDelta(
     }
 }
 
-/**
- * Keep each sensor's value beside its own arrow. Fit the two values to the
- * available width while preserving the peer chip's padding and touch target.
- */
+private data class HeroSensorPairFrame(
+    val sensorId: String,
+    val primary: String,
+    val secondary: String?,
+    val range: String?,
+    val trend: tk.glucodata.logic.TrendEngine.TrendResult,
+    val delta: String?,
+    val primaryColor: Color,
+    val arrowColor: Color,
+    val peer: PeerCurrentReading
+)
+
+/** Fit both sensor groups into the single-reading card footprint, including its range. */
 @Composable
 internal fun DashboardHeroSensorPair(
     primaryText: String,
@@ -1188,97 +1207,101 @@ internal fun DashboardHeroSensorPair(
     peerStyle: TextStyle,
     selectedSensorIds: List<String>,
     contentColor: Color,
-    onPeerClick: (String) -> Unit
+    onPeerClick: (String) -> Unit,
+    primarySensorId: String = "main",
+    contentHeight: Dp = 72.dp
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     var availableWidthPx by remember { mutableStateOf(0) }
-    // The portrait header asks for intrinsic height. A regular Box supports that query;
-    // BoxWithConstraints uses subcomposition and throws before the dashboard can render.
-    Box(Modifier.fillMaxWidth().onSizeChanged { availableWidthPx = it.width }) {
-        val primaryTrendWidthPx = maxOf(
-            with(density) { 32.dp.roundToPx() },
-            primaryDeltaText?.let {
-                textMeasurer.measure(
-                    it,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    maxLines = 1
-                ).size.width
-            } ?: 0
-        )
-        // Measure each sensor as a column: extra lanes add height, not another
-        // full reading's width. Only the two sensor groups share the available width.
-        val fixedWidthPx = primaryTrendWidthPx + with(density) {
-            (8.dp + 8.dp + 16.dp + 4.dp + 24.dp + 4.dp).roundToPx()
-        }
-        fun textWidth(text: String?, style: TextStyle) = text?.let {
+    val frame = HeroSensorPairFrame(primarySensorId, primaryText, primarySecondaryText, primaryRangeText,
+        primaryTrend, primaryDeltaText, primaryColor, primaryArrowColor, peer)
+    // A regular, bounded layout supports the portrait header's intrinsic query.
+    // Sensor changes animate one immutable frame, including its own uncertainty.
+    androidx.compose.animation.AnimatedContent(
+        targetState = frame,
+        contentKey = { it.sensorId },
+        modifier = Modifier.fillMaxWidth().height(contentHeight).onSizeChanged { availableWidthPx = it.width },
+        transitionSpec = {
+            (fadeIn(tween(220)) + androidx.compose.animation.slideInHorizontally(tween(220)) { it / 8 })
+                .togetherWith(fadeOut(tween(140)) + androidx.compose.animation.slideOutHorizontally(tween(220)) { -it / 8 })
+                .using(androidx.compose.animation.SizeTransform(clip = true))
+        },
+        label = "HeroSensorSelection"
+    ) { shown ->
+        val rangeStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+        fun width(text: String?, style: TextStyle) = text?.let {
             textMeasurer.measure(it, style = style, maxLines = 1).size.width
         } ?: 0
-        val valuesWidthPx = maxOf(
-            textWidth(primaryText, primaryStyle),
-            textWidth(primarySecondaryText, primarySecondaryStyle)
-        ) + maxOf(
-            textWidth(peer.primaryStr, peerStyle),
-            textWidth(peer.secondaryStr, peerStyle.scaleForHero(0.72f))
+        fun height(text: String, style: TextStyle) = textMeasurer.measure(text, style = style, maxLines = 1).size.height
+        val support = shown.secondary?.let { " · $it" }
+        val peerSupport = shown.peer.secondaryStr?.let { " · $it" }
+        val peerSupportStyle = peerStyle.scaleForHero(0.72f)
+        val valueWidth = width(shown.primary, primaryStyle) + width(support, primarySecondaryStyle) +
+            width(shown.peer.primaryStr, peerStyle) + width(peerSupport, peerSupportStyle)
+        val deltaWidth = width(shown.delta, MaterialTheme.typography.bodySmall)
+        val chromeWidth = with(density) { (32.dp + 24.dp + 8.dp + 8.dp + 4.dp).toPx() }
+        val insets = with(density) { 16.dp.toPx() }
+        val rangeHeight = shown.range?.let { height(it, rangeStyle) + with(density) { 4.dp.roundToPx() } } ?: 0
+        val availableHeight = with(density) { contentHeight.toPx() } - rangeHeight
+        val widthScale = if (availableWidthPx > 0) {
+            ((availableWidthPx - insets - deltaWidth).coerceAtLeast(0f) / (valueWidth + chromeWidth).coerceAtLeast(1f))
+        } else 1f
+        val heightScale = minOf(
+            availableHeight / height(shown.primary, primaryStyle).coerceAtLeast(1),
+            (availableHeight - with(density) { 8.dp.toPx() }) / height(shown.peer.primaryStr, peerStyle).coerceAtLeast(1)
         )
-        val valueScale = if (availableWidthPx > 0) {
-            ((availableWidthPx - fixedWidthPx).coerceAtLeast(0).toFloat() /
-                valuesWidthPx.coerceAtLeast(1)).coerceIn(0.1f, 1f)
-        } else {
-            1f
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                DashboardHeroPrimaryText(
-                    value = primaryText,
-                    style = primaryStyle.scaleForHero(valueScale),
-                    color = primaryColor
-                )
-                primarySecondaryText?.let { secondary ->
-                    Text(
-                        text = secondary,
-                        style = primarySecondaryStyle.scaleForHero(valueScale),
-                        color = contentColor.copy(alpha = 0.72f),
-                        maxLines = 1,
-                        softWrap = false
-                    )
+        val scale = minOf(widthScale, heightScale, 1f).coerceAtLeast(0.1f)
+        val identityColors = remember(selectedSensorIds) { tk.glucodata.SensorVisuals.distinctColorArgbMap(selectedSensorIds) }
+        val identityColor = Color(identityColors.entries.firstOrNull {
+            tk.glucodata.SensorIdentity.matches(it.key, shown.peer.sensorId)
+        }?.value ?: tk.glucodata.SensorVisuals.colorArgb(shown.peer.sensorId))
+        val peerColor = lerpColor(contentColor, identityColor, tk.glucodata.SensorVisuals.PEER_TEXT_BLEND)
+        val peerTrend = tk.glucodata.logic.TrendEngine.TrendResult(
+            tk.glucodata.logic.TrendEngine.TrendState.Unknown,
+            shown.peer.rate.takeIf { it.isFinite() } ?: 0f, 0f, 1f)
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+            Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    DashboardHeroPrimaryText(shown.primary, primaryStyle.scaleForHero(scale), shown.primaryColor)
+                    support?.let {
+                        Text(it, style = primarySecondaryStyle.scaleForHero(scale), color = contentColor.copy(alpha = 0.72f), maxLines = 1, softWrap = false)
+                    }
                 }
-                primaryRangeText?.let { range ->
-                    Text(
-                        text = range,
-                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                        color = primaryColor.copy(alpha = 0.55f),
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                // Optical scaling follows the reading cluster; padding and the touch target stay fixed.
+                Spacer(Modifier.width(8.dp * scale))
+                HeroTrendWithDelta(shown.trend, shown.arrowColor, shown.delta, contentColor, 32.dp * scale)
+                Spacer(Modifier.width(8.dp * scale))
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).background(identityColor.copy(alpha = 0.14f))
+                        .clickable(role = Role.Button) { onPeerClick(shown.peer.sensorId) }
+                        .semantics { contentDescription = shown.peer.sensorId }
+                        .heightIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    androidx.compose.animation.AnimatedContent(targetState = shown.peer.primaryStr,
+                        transitionSpec = { (fadeIn(tween(180)) + androidx.compose.animation.slideInVertically { -it / 3 })
+                            .togetherWith(fadeOut(tween(120)) + androidx.compose.animation.slideOutVertically { it / 3 }) },
+                        label = "HeroPeerValue") { value ->
+                        Text(value, style = peerStyle.scaleForHero(scale), color = peerColor, maxLines = 1, softWrap = false)
+                    }
+                    peerSupport?.let {
+                        Text(it, style = peerSupportStyle.scaleForHero(scale), color = peerColor.copy(alpha = 0.72f), maxLines = 1, softWrap = false)
+                    }
+                    Spacer(Modifier.width(4.dp * scale))
+                    tk.glucodata.ui.components.TrendIndicator(peerTrend, Modifier.size(24.dp * scale), peerColor)
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            Box(Modifier.width(with(density) { primaryTrendWidthPx.toDp() })) {
-                HeroTrendWithDelta(
-                    trendResult = primaryTrend,
-                    arrowColor = primaryArrowColor,
-                    deltaText = primaryDeltaText,
-                    contentColor = contentColor,
-                    iconSize = 32.dp
-                )
+            androidx.compose.animation.AnimatedContent(
+                targetState = shown.range,
+                transitionSpec = { fadeIn(tween(180)).togetherWith(fadeOut(tween(120))) },
+                label = "HeroUncertainty"
+            ) { range ->
+                range?.let {
+                    Text(it, style = rangeStyle, color = shown.primaryColor.copy(alpha = 0.55f),
+                        modifier = Modifier.padding(top = 4.dp, start = 4.dp), maxLines = 1, softWrap = false)
+                }
             }
-            Spacer(Modifier.width(8.dp))
-            DashboardHeroPeerStrip(
-                peerReadings = listOf(peer),
-                selectedSensorIds = selectedSensorIds,
-                contentColor = contentColor,
-                onPeerClick = onPeerClick,
-                valueStyle = peerStyle.scaleForHero(valueScale),
-                stackSecondary = true,
-                iconSize = 24.dp,
-                minChipHeight = 48.dp
-            )
         }
     }
 }
