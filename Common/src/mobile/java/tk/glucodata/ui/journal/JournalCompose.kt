@@ -3170,11 +3170,10 @@ private fun JournalInsulinWindowCard(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
-            // 4dp inset + the headers' 8dp padding puts each range where its pill's name
-            // starts (12 + 20 + 8 = 40), for both halves of the 8dp-split pill row.
+            // The headers' 12dp padding puts each range where its pill's name starts
+            // (12 + 20 + 8 = 40), for both halves of the 8dp-split pill row.
             Row(
-                modifier = (if (expanded || paired) Modifier.fillMaxWidth() else Modifier)
-                    .padding(4.dp),
+                modifier = if (expanded || paired) Modifier.fillMaxWidth() else Modifier,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 presets.forEach { preset ->
@@ -3240,11 +3239,12 @@ private fun JournalInsulinWindowHeader(
     val summaryStyle = MaterialTheme.typography.labelLarge
 
     Row(
-        // Same height open or closed, so the label never shifts and the target never
-        // changes; 12dp corners are concentric with the card's 16dp at a 4dp inset.
+        // Same compact height open or closed, so the label never shifts and the target never
+        // changes; Compose expands the pointer hit area to the platform minimum. The 16dp
+        // corners match the card's, so the open header reads as its tab.
         modifier = modifier
-            .height(40.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(32.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
             .semantics(mergeDescendants = true) {
                 this.contentDescription = windowDescription
@@ -3252,7 +3252,7 @@ private fun JournalInsulinWindowHeader(
                 selected = showing
             }
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
