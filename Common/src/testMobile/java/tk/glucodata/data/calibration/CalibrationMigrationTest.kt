@@ -1,6 +1,7 @@
 package tk.glucodata.data.calibration
 
 import androidx.room.testing.MigrationTestHelper
+import androidx.room.Room
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -65,6 +66,39 @@ class CalibrationMigrationTest {
             assertEquals(1, cursor.count)
         }
         migrated.close()
+    }
+
+    @Test
+    fun recoveryBuildReopensAnExistingV6DatabaseWithoutLosingUnitProvenance() {
+        helper.createDatabase(DB_NAME, 6).use { db ->
+            db.execSQL(
+                "INSERT INTO calibrations " +
+                    "(id, timestamp, sensorId, sensorValue, sensorValueRaw, userValue, isEnabled, " +
+                    "isRawMode, journalEntryId, sensorValueStock, valueUnit) " +
+                    "VALUES (42, 1000, 'S-1', 5.5, 5.4, 6.0, 1, 0, 7, 5.6, 1)"
+            )
+        }
+        // Reinstalling a build that understands v6 reopens the existing file; no downgrade or
+        // destructive fallback is needed after an older v5 build failed to open it.
+        val room = Room.databaseBuilder(
+            InstrumentationRegistry.getInstrumentation().targetContext,
+            CalibrationDatabase::class.java,
+            DB_NAME
+        ).addMigrations(*CalibrationDatabase.ALL_MIGRATIONS).allowMainThreadQueries().build()
+        try {
+            val db = room.openHelper.writableDatabase
+            assertEquals(6, db.version)
+            db.query("SELECT sensorId, userValue, valueUnit, journalEntryId FROM calibrations WHERE id = 42").use { row ->
+                assertTrue(row.moveToFirst())
+                assertEquals("S-1", row.getString(0))
+                assertEquals(6.0, row.getDouble(1), 0.001)
+                assertEquals(1, row.getInt(2))
+                assertEquals(7L, row.getLong(3))
+                assertEquals(1, row.count)
+            }
+        } finally {
+            room.close()
+        }
     }
 
     private companion object {
