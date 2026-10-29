@@ -41,6 +41,17 @@ class SecondarySensorDisplayTests {
     }
 
     @Test
+    fun heroKeepsPeerAlongsideMainRawAndCalibrationLanes() {
+        val peer = peer("peer")
+        for (mode in 0..3) {
+            val calibrated = DisplayValueResolver.resolve(112f, 138f, mode, false, calibratedValue = 120f)
+            assertSame(peer, SecondarySensorDisplay.peerForHero(calibrated, "main", listOf(peer), now, timeout))
+        }
+        assertNull(SecondarySensorDisplay.peerForHero(main, "main", listOf(peer.copy(timeMillis = 0L)), now, timeout))
+        assertNull(SecondarySensorDisplay.peerForHero(null, "main", listOf(peer), now, timeout))
+    }
+
+    @Test
     fun singleLaneViewAndMissingRawLaneAllowFallback() {
         val peers = listOf(peer("peer"))
         for (mode in 0..3) {

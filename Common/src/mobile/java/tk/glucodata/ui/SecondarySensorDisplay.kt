@@ -27,9 +27,21 @@ object SecondarySensorDisplay {
         freshnessWindowMillis: Long = Notify.glucosetimeout
     ): PeerCurrentReading? {
         if (primary == null || !primary.secondaryStr.isNullOrBlank() ||
-            !primary.tertiaryStr.isNullOrBlank() || primarySensorId.isNullOrBlank()) {
+            !primary.tertiaryStr.isNullOrBlank()) {
             return null
         }
+        return peerForHero(primary, primarySensorId, peers, nowMillis, freshnessWindowMillis)
+    }
+
+    /** Hero groups keep raw/calibration lanes inside their sensor, alongside the peer. */
+    fun peerForHero(
+        primary: DisplayValues?,
+        primarySensorId: String?,
+        peers: List<PeerCurrentReading>,
+        nowMillis: Long = System.currentTimeMillis(),
+        freshnessWindowMillis: Long = Notify.glucosetimeout
+    ): PeerCurrentReading? {
+        if (primary == null || primarySensorId.isNullOrBlank()) return null
         return peers.firstOrNull { peer ->
             !SensorIdentity.matches(peer.sensorId, primarySensorId) &&
                 peer.primaryStr.isNotBlank() && peer.primaryStr != "--" &&
