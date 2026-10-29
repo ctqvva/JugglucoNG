@@ -3160,7 +3160,8 @@ private fun JournalInsulinWindowCard(
             .animateContentSize(
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    // Collapsing is a dismissal; it settles a touch quicker than opening.
+                    stiffness = if (expanded) Spring.StiffnessMediumLow else Spring.StiffnessMedium
                 )
             )
             .then(
@@ -3203,7 +3204,8 @@ private fun JournalInsulinWindowCard(
                         durationMinutes = visiblePreset.durationMinutes,
                         color = Color(visiblePreset.accentColor),
                         contentDescription = journalInsulinWindowDescription(visiblePreset),
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                        // Keeps the chart off the header tabs.
+                        modifier = Modifier.padding(12.dp)
                     )
                 }
             }
@@ -3230,7 +3232,7 @@ private fun JournalInsulinWindowHeader(
         targetValue = if (expanded) 48.dp else 32.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
+            stiffness = if (expanded) Spring.StiffnessMediumLow else Spring.StiffnessMedium
         ),
         label = "journalInsulinWindowHeaderHeight"
     )
