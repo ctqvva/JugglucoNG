@@ -2659,9 +2659,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Doses NovoPen via NFC</string>
     <string name="insulin_pens_enable_title">Lire les stylos à insuline</string>
     <string name="insulin_pens_enable_desc">Approchez un stylo NFC du téléphone pour ajouter ses doses</string>
+    <string name="insulin_pens_how_title">Comment lire un stylo</string>
     <string name="insulin_pens_how_desc">Appuyez sur le bouton de dose pour allumer l\'écran du stylo, puis maintenez cet écran contre le haut du téléphone jusqu\'à ce qu\'il vibre.</string>
     <string name="insulin_pens_paired">Vos stylos</string>
     <string name="insulin_pens_none">Aucun stylo</string>
+    <string name="insulin_pens_none_desc">Approchez un stylo du téléphone et il apparaîtra ici.</string>
     <string name="insulin_pen_name">Stylo %1$s</string>
     <string name="insulin_pen_insulin_unset">Aucune insuline choisie</string>
     <string name="insulin_pen_dose_count">%1$d doses ajoutées</string>
@@ -2698,7 +2700,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_background_title">Importer en arrière-plan</string>
     <string name="insulin_pen_background_desc">Ajoute les nouvelles doses sans confirmation quand l’application est fermée</string>
     <string name="insulin_pen_background_desc_more">Les purges sont ignorées, et le téléphone doit être déverrouillé. Toute carte sans contact approchée du téléphone réveille un instant le lecteur, et d’autres applications de cartes peuvent demander laquelle utiliser.</string>
-    <string name="insulin_pen_notification_duration">Notification après l’import : %1$s</string>
+    <string name="insulin_pen_notification_duration">Notification après l’import</string>
     <string name="insulin_pen_import_channel">Imports de stylo</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dose ajoutée au journal</item>

@@ -2844,9 +2844,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pens_desc">Qiyaasaha NovoPen ee NFC</string>
     <string name="insulin_pens_enable_title">Akhri qalimaanta insuliinta</string>
     <string name="insulin_pens_enable_desc">Qalinka NFC-ga taabsii taleefanka si qiyaasihiisa loogu daro</string>
+    <string name="insulin_pens_how_title">Sida loo akhriyo qalinka</string>
     <string name="insulin_pens_how_desc">Riix badhanka qiyaasta ilaa shaashadda qalinka ay iftiimiso, kadibna ku hay shaashadda qaybta sare ee taleefanka ilaa uu gariiro.</string>
     <string name="insulin_pens_paired">Qalimaankaaga</string>
     <string name="insulin_pens_none">Weli qalin ma jiro</string>
+    <string name="insulin_pens_none_desc">Qalin taabsii taleefanka, halkanna wuu ka soo muuqan doonaa.</string>
     <string name="insulin_pen_name">Qalin %1$s</string>
     <string name="insulin_pen_insulin_unset">Insuliin lama dooran</string>
     <string name="insulin_pen_dose_count">%1$d qiyaas ayaa lagu daray</string>
@@ -2883,7 +2885,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="insulin_pen_background_title">Gudaha ka soo dejiso</string>
     <string name="insulin_pen_background_desc">Wuxuu ku daraa qiyaasaha cusub iyada oo aan la weydiin marka appku xiran yahay</string>
     <string name="insulin_pen_background_desc_more">Hawo-bixinta waa la boodaa, taleefankuna waa inuu furan yahay. Kaar kasta oo aan taabasho lahayn oo la dhigo taleefanka wuxuu in yar toosiyaa akhristaha, appyada kale ee kaararkuna waxay weydiin karaan appka la isticmaalayo.</string>
-    <string name="insulin_pen_notification_duration">Ogeysiiska kadib soo dejinta: %1$s</string>
+    <string name="insulin_pen_notification_duration">Ogeysiiska kadib soo dejinta</string>
     <string name="insulin_pen_import_channel">Soo dejinta qalinka</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d qiyaas ayaa lagu daray xusuus-qorka</item>

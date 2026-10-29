@@ -2681,9 +2681,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pens_desc">NFC ile NovoPen dozları</string>
     <string name="insulin_pens_enable_title">İnsülin kalemlerini oku</string>
     <string name="insulin_pens_enable_desc">Dozlarını eklemek için NFC kalemini telefona yaklaştırın</string>
+    <string name="insulin_pens_how_title">Kalem nasıl okunur</string>
     <string name="insulin_pens_how_desc">Kalemin ekranı yanana kadar doz düğmesine basın, sonra ekranı telefon titreyene kadar telefonun üst kısmına tutun.</string>
     <string name="insulin_pens_paired">Kalemleriniz</string>
     <string name="insulin_pens_none">Henüz kalem yok</string>
+    <string name="insulin_pens_none_desc">Bir kalemi telefona yaklaştırın, burada görünecek.</string>
     <string name="insulin_pen_name">Kalem %1$s</string>
     <string name="insulin_pen_insulin_unset">İnsülin seçilmedi</string>
     <string name="insulin_pen_dose_count">%1$d doz eklendi</string>
@@ -2720,7 +2722,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="insulin_pen_background_title">Arka planda içe aktar</string>
     <string name="insulin_pen_background_desc">Uygulama kapalıyken yeni dozları sormadan ekler</string>
     <string name="insulin_pen_background_desc_more">Hava atışları atlanır ve telefonun kilidi açık olmalıdır. Telefona tutulan herhangi bir temassız kart okuyucuyu bir an uyandırır ve diğer kart uygulamaları hangi uygulamanın kullanılacağını sorabilir.</string>
-    <string name="insulin_pen_notification_duration">İçe aktarma sonrası bildirim: %1$s</string>
+    <string name="insulin_pen_notification_duration">İçe aktarma sonrası bildirim</string>
     <string name="insulin_pen_import_channel">Kalem içe aktarımları</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d doz günlüğe eklendi</item>

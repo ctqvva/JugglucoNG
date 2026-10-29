@@ -2653,9 +2653,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">NovoPen-doser via NFC</string>
     <string name="insulin_pens_enable_title">Läs av insulinpennor</string>
     <string name="insulin_pens_enable_desc">Håll en NFC-penna mot telefonen för att lägga till dess doser</string>
+    <string name="insulin_pens_how_title">Så läser du av en penna</string>
     <string name="insulin_pens_how_desc">Tryck på dosknappen så att pennans display tänds och håll displayen mot telefonens övre del tills den vibrerar.</string>
     <string name="insulin_pens_paired">Dina pennor</string>
     <string name="insulin_pens_none">Inga pennor än</string>
+    <string name="insulin_pens_none_desc">Håll en penna mot telefonen så dyker den upp här.</string>
     <string name="insulin_pen_name">Penna %1$s</string>
     <string name="insulin_pen_insulin_unset">Inget insulin valt</string>
     <string name="insulin_pen_dose_count">%1$d doser tillagda</string>
@@ -2692,7 +2694,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_background_title">Importera i bakgrunden</string>
     <string name="insulin_pen_background_desc">Lägger till nya doser utan att fråga när appen är stängd</string>
     <string name="insulin_pen_background_desc_more">Luftningar hoppas över, och telefonen måste vara upplåst. Alla kontaktlösa kort som hålls mot telefonen väcker läsaren ett ögonblick, och andra kortappar kan fråga vilken app som ska användas.</string>
-    <string name="insulin_pen_notification_duration">Avisering efter import: %1$s</string>
+    <string name="insulin_pen_notification_duration">Avisering efter import</string>
     <string name="insulin_pen_import_channel">Pennimporter</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dos tillagd i dagboken</item>

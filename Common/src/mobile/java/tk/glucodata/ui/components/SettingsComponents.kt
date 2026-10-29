@@ -581,7 +581,6 @@ fun SettingsSlider(
     onValueChange: (Float) -> Unit,
     range: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
-    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -591,7 +590,6 @@ fun SettingsSlider(
             onValueChange = onValueChange,
             valueRange = range,
             steps = steps,
-            enabled = enabled,
             colors = SliderDefaults.colors(
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent

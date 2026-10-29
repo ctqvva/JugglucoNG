@@ -2654,9 +2654,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Doses da NovoPen por NFC</string>
     <string name="insulin_pens_enable_title">Ler canetas de insulina</string>
     <string name="insulin_pens_enable_desc">Encoste uma caneta NFC ao telemóvel para adicionar as suas doses</string>
+    <string name="insulin_pens_how_title">Como ler uma caneta</string>
     <string name="insulin_pens_how_desc">Prima o botão de dose até o visor da caneta acender e encoste esse visor à parte de cima do telemóvel até vibrar.</string>
     <string name="insulin_pens_paired">As suas canetas</string>
     <string name="insulin_pens_none">Ainda sem canetas</string>
+    <string name="insulin_pens_none_desc">Encoste uma caneta ao telemóvel e ela aparece aqui.</string>
     <string name="insulin_pen_name">Caneta %1$s</string>
     <string name="insulin_pen_insulin_unset">Nenhuma insulina escolhida</string>
     <string name="insulin_pen_dose_count">%1$d doses adicionadas</string>
@@ -2693,7 +2695,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_background_title">Importar em segundo plano</string>
     <string name="insulin_pen_background_desc">Adiciona novas doses sem perguntar quando a aplicação está fechada</string>
     <string name="insulin_pen_background_desc_more">As purgas são ignoradas e o telefone tem de estar desbloqueado. Qualquer cartão sem contacto encostado ao telefone acorda o leitor por um instante, e outras aplicações de cartões podem perguntar qual usar.</string>
-    <string name="insulin_pen_notification_duration">Notificação após importar: %1$s</string>
+    <string name="insulin_pen_notification_duration">Notificação após importar</string>
     <string name="insulin_pen_import_channel">Importações da caneta</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dose adicionada ao diário</item>

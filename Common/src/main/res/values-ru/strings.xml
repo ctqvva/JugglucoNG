@@ -2718,9 +2718,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Дозы NovoPen по NFC</string>
     <string name="insulin_pens_enable_title">Считывать инсулиновые ручки</string>
     <string name="insulin_pens_enable_desc">Поднесите NFC-ручку к телефону, чтобы добавить её дозы</string>
+    <string name="insulin_pens_how_title">Как считать ручку</string>
     <string name="insulin_pens_how_desc">Нажмите кнопку дозы, чтобы экран ручки загорелся, и держите этот экран у верхней части телефона, пока он не завибрирует.</string>
     <string name="insulin_pens_paired">Ваши ручки</string>
     <string name="insulin_pens_none">Ручек пока нет</string>
+    <string name="insulin_pens_none_desc">Поднесите ручку к телефону — она появится здесь.</string>
     <string name="insulin_pen_name">Ручка %1$s</string>
     <string name="insulin_pen_insulin_unset">Инсулин не выбран</string>
     <string name="insulin_pen_dose_count">добавлено доз: %1$d</string>
@@ -2757,7 +2759,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_background_title">Импорт в фоне</string>
     <string name="insulin_pen_background_desc">Добавляет новые дозы без вопросов, когда приложение закрыто</string>
     <string name="insulin_pen_background_desc_more">Продувки пропускаются, а телефон должен быть разблокирован. Любая бесконтактная карта, приложенная к телефону, на мгновение будит считыватель, а другие приложения для карт могут спросить, какое приложение использовать.</string>
-    <string name="insulin_pen_notification_duration">Уведомление после импорта: %1$s</string>
+    <string name="insulin_pen_notification_duration">Уведомление после импорта</string>
     <string name="insulin_pen_import_channel">Импорт с ручки</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d доза добавлена в журнал</item>

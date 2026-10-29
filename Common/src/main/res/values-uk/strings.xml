@@ -2724,9 +2724,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pens_desc">Дози NovoPen через NFC</string>
     <string name="insulin_pens_enable_title">Зчитувати інсулінові ручки</string>
     <string name="insulin_pens_enable_desc">Піднесіть NFC-ручку до телефона, щоб додати її дози</string>
+    <string name="insulin_pens_how_title">Як зчитати ручку</string>
     <string name="insulin_pens_how_desc">Натисніть кнопку дози, щоб екран ручки засвітився, і тримайте цей екран біля верхньої частини телефона, доки він не завібрує.</string>
     <string name="insulin_pens_paired">Ваші ручки</string>
     <string name="insulin_pens_none">Ручок поки немає</string>
+    <string name="insulin_pens_none_desc">Піднесіть ручку до телефона — вона з\'явиться тут.</string>
     <string name="insulin_pen_name">Ручка %1$s</string>
     <string name="insulin_pen_insulin_unset">Інсулін не вибрано</string>
     <string name="insulin_pen_dose_count">додано доз: %1$d</string>
@@ -2763,7 +2765,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="insulin_pen_background_title">Імпорт у фоні</string>
     <string name="insulin_pen_background_desc">Додає нові дози без запитань, коли застосунок закрито</string>
     <string name="insulin_pen_background_desc_more">Продувки пропускаються, а телефон має бути розблокований. Будь-яка безконтактна картка, прикладена до телефона, на мить будить зчитувач, а інші застосунки для карток можуть запитати, який застосунок використати.</string>
-    <string name="insulin_pen_notification_duration">Сповіщення після імпорту: %1$s</string>
+    <string name="insulin_pen_notification_duration">Сповіщення після імпорту</string>
     <string name="insulin_pen_import_channel">Імпорт з ручки</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d дозу додано до журналу</item>

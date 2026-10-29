@@ -2696,9 +2696,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pens_desc">NovoPen-doses via NFC</string>
     <string name="insulin_pens_enable_title">Insulinepennen uitlezen</string>
     <string name="insulin_pens_enable_desc">Houd een NFC-pen tegen de telefoon om de doses toe te voegen</string>
+    <string name="insulin_pens_how_title">Een pen uitlezen</string>
     <string name="insulin_pens_how_desc">Druk op de doseerknop zodat het scherm van de pen oplicht en houd dat scherm tegen de bovenkant van de telefoon tot deze trilt.</string>
     <string name="insulin_pens_paired">Jouw pennen</string>
     <string name="insulin_pens_none">Nog geen pennen</string>
+    <string name="insulin_pens_none_desc">Houd een pen tegen de telefoon en hij verschijnt hier.</string>
     <string name="insulin_pen_name">Pen %1$s</string>
     <string name="insulin_pen_insulin_unset">Geen insuline gekozen</string>
     <string name="insulin_pen_dose_count">%1$d doses toegevoegd</string>
@@ -2735,7 +2737,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="insulin_pen_background_title">Op de achtergrond importeren</string>
     <string name="insulin_pen_background_desc">Voegt nieuwe doses zonder vragen toe als de app gesloten is</string>
     <string name="insulin_pen_background_desc_more">Ontluchtingen worden overgeslagen en de telefoon moet ontgrendeld zijn. Elke contactloze kaart tegen de telefoon wekt de lezer even, en andere kaart-apps kunnen vragen welke app te gebruiken.</string>
-    <string name="insulin_pen_notification_duration">Melding na import: %1$s</string>
+    <string name="insulin_pen_notification_duration">Melding na import</string>
     <string name="insulin_pen_import_channel">Pen-imports</string>
     <plurals name="insulin_pen_imported_count">
         <item quantity="one">%d dosis aan het dagboek toegevoegd</item>

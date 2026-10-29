@@ -42,6 +42,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -60,8 +68,7 @@ import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
-import tk.glucodata.ui.components.SettingsControlsCard
-import tk.glucodata.ui.components.SettingsSlider
+import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.SettingsSwitchItem
@@ -130,8 +137,6 @@ fun InsulinPenSettingsScreen(navController: NavController) {
             // turning it on would offer. The notification only follows an unattended read,
             // so its slider waits on the background switch as well.
             item("pen_background") {
-                val notificationIndex =
-                    PenImportNotificationPolicy.sliderIndexForDuration(importNotificationDurationMinutes)
                 Column(
                     modifier = Modifier.padding(top = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -146,26 +151,61 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         position = CardPosition.TOP,
                         enabled = enabled,
                     )
-                    SettingsControlsCard(position = CardPosition.BOTTOM) {
-                        SettingsSlider(
-                            title = stringResource(
-                                R.string.insulin_pen_notification_duration,
-                                penImportNotificationDurationLabel(importNotificationDurationMinutes),
+                    var notificationDurationIndex by remember(importNotificationDurationMinutes) {
+                        mutableFloatStateOf(
+                            PenImportNotificationPolicy.sliderIndexForDuration(
+                                importNotificationDurationMinutes,
                             ),
-                            value = notificationIndex,
-                            onValueChange = { index ->
-                                val minutes = PenImportNotificationPolicy.durationMinutesForSliderIndex(index)
-                                if (minutes != importNotificationDurationMinutes) {
-                                    InsulinPenManager.setImportNotificationDurationMinutes(minutes)
-                                }
-                            },
-                            range = 0f..PenImportNotificationPolicy.durationOptionsMinutes.lastIndex.toFloat(),
-                            steps = PenImportNotificationPolicy.durationOptionsMinutes.size - 2,
-                            enabled = enabled && backgroundImportEnabled,
                         )
+                    }
+                    val pendingDurationMinutes =
+                        PenImportNotificationPolicy.durationMinutesForSliderIndex(notificationDurationIndex)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = cardShape(CardPosition.BOTTOM),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(R.string.insulin_pen_notification_duration),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    penImportNotificationDurationLabel(pendingDurationMinutes),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Slider(
+                                value = notificationDurationIndex,
+                                onValueChange = { value ->
+                                    notificationDurationIndex = value.roundToInt().toFloat()
+                                },
+                                onValueChangeFinished = {
+                                    InsulinPenManager.setImportNotificationDurationMinutes(
+                                        PenImportNotificationPolicy.durationMinutesForSliderIndex(
+                                            notificationDurationIndex,
+                                        ),
+                                    )
+                                },
+                                valueRange = 0f..PenImportNotificationPolicy.durationOptionsMinutes.lastIndex.toFloat(),
+                                steps = PenImportNotificationPolicy.durationOptionsMinutes.size - 2,
+                                enabled = enabled && backgroundImportEnabled,
+                            )
+                        }
                     }
                     PenCaption(stringResource(R.string.insulin_pen_background_desc_more))
                 }
+            }
+
+            item("pen_how") {
+                Spacer(Modifier.size(24.dp))
+                HowToScanCard()
             }
 
             item("pen_list_label") {
@@ -173,12 +213,12 @@ fun InsulinPenSettingsScreen(navController: NavController) {
             }
 
             if (pens.isEmpty()) {
-                // The how-to is the empty state: it is the one thing to do next.
                 item("pen_list_empty") {
                     SettingsItem(
                         title = stringResource(R.string.insulin_pens_none),
-                        subtitle = stringResource(R.string.insulin_pens_how_desc),
+                        subtitle = stringResource(R.string.insulin_pens_none_desc),
                         icon = Icons.Default.Vaccines,
+                        iconTint = MaterialTheme.colorScheme.secondary,
                     )
                 }
             } else {
@@ -192,9 +232,6 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         onClick = { editingSerial = pen.serial },
                         modifier = Modifier.padding(top = if (index == 0) 0.dp else 2.dp),
                     )
-                }
-                item("pen_how") {
-                    PenCaption(stringResource(R.string.insulin_pens_how_desc))
                 }
             }
         }
@@ -323,6 +360,44 @@ private fun PenCaption(
         color = color,
         modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp),
     )
+}
+
+@Composable
+private fun HowToScanCard() {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Icon(
+                    Icons.Default.Nfc,
+                    contentDescription = null,
+                    modifier = Modifier.padding(16.dp).size(28.dp),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.insulin_pens_how_title),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                )
+                Text(
+                    stringResource(R.string.insulin_pens_how_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
 }
 
 /**
