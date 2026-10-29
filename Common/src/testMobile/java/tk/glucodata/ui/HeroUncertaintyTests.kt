@@ -12,6 +12,21 @@ class HeroUncertaintyTests {
                       mode: Int = 0, fresh: Boolean = true) =
         heroUncertaintyText(history, history.lastOrNull(), sensor, snapshot, time, mode, true, fresh)
 
+    @Test fun disabledDisplayDoesNotReadHistoryOrShowStoredIntervals() {
+        val inaccessibleHistory = object : AbstractList<GlucosePoint>() {
+            override val size: Int get() = error("Disabled UI must not scan history")
+            override fun get(index: Int): GlucosePoint = error("Disabled UI must not scan history")
+        }
+        assertNull(heroUncertaintyText(inaccessibleHistory, point("main"), "main", "main", time, 0, true, true, enabled = false))
+    }
+    @Test fun currentReadingDoesNotWalkTheWholeHistoryToFindItsRange() {
+        val inaccessibleHistory = object : AbstractList<GlucosePoint>() {
+            override val size: Int get() = error("Current point is already resolved")
+            override fun get(index: Int): GlucosePoint = error("Current point is already resolved")
+        }
+        assertNotNull(heroUncertaintyText(inaccessibleHistory, point("main"), "main", "main", time, 0, true, true))
+    }
+
     @Test fun switchingBeforeNewHistoryArrivesCannotReusePreviousSensorsRange() {
         assertNotNull(range(listOf(point("main"))))
         assertNull(range(listOf(point("main")), sensor = "peer"))

@@ -41,6 +41,35 @@ class NotificationUncertaintyRibbonTests {
         assertTrue(Color.alpha(bitmap.getPixel(224, 80)) > 0)
     }
 
+    @Test fun reusableComposePathsPreserveSensorBoundariesMissingIntervalsAndNextSeries() {
+        val workspace = tk.glucodata.ui.GlucoseUncertaintyRibbon.Paths()
+        fun render(points: List<ChartPointModel>): Bitmap {
+            val bitmap = Bitmap.createBitmap(320, 160, Bitmap.Config.ARGB_8888)
+            androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+                androidx.compose.ui.unit.Density(1f), androidx.compose.ui.unit.LayoutDirection.Ltr,
+                androidx.compose.ui.graphics.Canvas(bitmap.asImageBitmap()),
+                androidx.compose.ui.geometry.Size(320f, 160f),
+            ) {
+                with(tk.glucodata.ui.GlucoseUncertaintyRibbon) {
+                    drawUncertaintyRibbon(points, 0, points.size, 0L, 320f / 600_000f,
+                        160f, 0f, 16f, GlucoseChartGap.THRESHOLD_MS, androidx.compose.ui.graphics.Color.White, workspace)
+                }
+            }
+            return bitmap
+        }
+        val points = (1..7).map { minute -> ChartPointModel(minute * 60_000L, 6f,
+            if (minute <= 2) "SIBI:A" else "SIBI:B",
+            uncertainty = if (minute == 5) null else GlucoseUncertainty(4f, 8f)) }
+        val first = render(points)
+        assertTrue(Color.alpha(first.getPixel(48, 80)) > 0)
+        assertEquals("sensor boundary is not bridged", 0, Color.alpha(first.getPixel(80, 80)))
+        assertEquals("missing interval is not bridged", 0, Color.alpha(first.getPixel(160, 80)))
+        assertTrue(Color.alpha(first.getPixel(208, 80)) > 0)
+        val next = render((8..9).map { minute -> ChartPointModel(minute * 60_000L, 6f, "SIBI:C", uncertainty = GlucoseUncertainty(4f, 8f)) })
+        assertEquals("previous series leaves no path behind", 0, Color.alpha(next.getPixel(208, 80)))
+        assertTrue(Color.alpha(next.getPixel(272, 80)) > 0)
+    }
+
     @Test fun renderedForecastKeepsBothEdgesOfTheSensorRibbonAtTheJoin() {
         val bitmap = Bitmap.createBitmap(480, 240, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

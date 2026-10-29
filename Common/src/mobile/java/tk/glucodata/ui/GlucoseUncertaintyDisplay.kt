@@ -1,16 +1,12 @@
 package tk.glucodata.ui
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import tk.glucodata.Applic
 
-/**
- * Whether the uncertainty ribbon is drawn on the chart.
- *
- * Display only. The estimator still computes and stores its credible interval
- * when this is off, so the value details and tooltip keep working, turning it
- * back on needs no history rebuild, and nothing about the estimate changes —
- * this is a preference about the chart, not about the model.
- */
+/** Dashboard uncertainty visibility. Stored estimator intervals are unaffected by this preference. */
 object GlucoseUncertaintyDisplay {
 
     private const val PREF_NAME = "tk.glucodata_preferences"
@@ -28,6 +24,26 @@ object GlucoseUncertaintyDisplay {
 
     fun setRibbonEnabled(context: Context, enabled: Boolean) {
         runCatching { prefs(context).edit().putBoolean(PREF_RIBBON, enabled).apply() }
-        tk.glucodata.UiRefreshBus.requestDataRefresh()
+        tk.glucodata.UiRefreshBus.requestStatusRefresh()
     }
+}
+
+/** Observe the display preference directly, without rebuilding sensor history to redraw it. */
+@Composable
+internal fun rememberUncertaintyRibbonEnabled(): Boolean {
+    val context = LocalContext.current.applicationContext
+    val prefs = remember(context) {
+        context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+    }
+    val key = tk.glucodata.chart.UncertaintyBands.PREFERENCE_KEY
+    var enabled by remember(prefs) { mutableStateOf(prefs.getBoolean(key, true)) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
+            if (changedKey == key || changedKey == null) enabled = prefs.getBoolean(key, true)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        enabled = prefs.getBoolean(key, true)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    return enabled
 }

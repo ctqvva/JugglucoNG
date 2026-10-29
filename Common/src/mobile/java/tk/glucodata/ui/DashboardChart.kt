@@ -1233,10 +1233,18 @@ fun InteractiveGlucoseChart(
     // The ribbon is a display preference, and it is also gated on the data
     // actually carrying intervals: after switching away from Adaptive V2 the
     // stored bands are cleared, so a chart holding a stale list must not keep
-    // drawing them. Re-read on every refresh rather than remembered once,
-    // because the setting lives in the sensor sheet, not here.
-    val uncertaintyRibbonEnabled = GlucoseUncertaintyDisplay.isRibbonEnabled()
+    // drawing them. Observe the preference directly so a display-only toggle
+    // does not need a data refresh to update the chart and its details.
+    val uncertaintyRibbonEnabled = rememberUncertaintyRibbonEnabled()
 
+    val uncertaintyRibbonPaths = remember { GlucoseUncertaintyRibbon.Paths() }
+    val uncertaintyRuns = remember(chartModel, uncertaintyRibbonEnabled) {
+        if (!uncertaintyRibbonEnabled) emptyList() else chartModel.series.flatMap { series ->
+            (series.runs + series.secondaryLanes
+                .filter { it.kind == tk.glucodata.chart.ChartLaneKind.AUTO }.flatMap { it.runs })
+                .map { run -> series to run }
+        }
+    }
     val reusablePath = remember { Path() }
     val reusableDemotedPath = remember { Path() }
     val reusablePeerPath = remember { Path() }
@@ -2975,22 +2983,19 @@ fun InteractiveGlucoseChart(
                 // Sensor intervals belong to Auto, including a secondary Auto
                 // lane in Raw+Auto. The model has already shifted their bounds.
                 if (uncertaintyRibbonEnabled) {
-                    chartModel.series.forEach { series ->
+                    uncertaintyRuns.forEach { (series, run) ->
                         val color = if (series.isPrimary) primaryColor else Color(series.colorArgb)
-                        val runs = series.runs + series.secondaryLanes
-                            .filter { it.kind == tk.glucodata.chart.ChartLaneKind.AUTO }.flatMap { it.runs }
-                        runs.forEach { run ->
-                            val from = (run.points.firstIndexAtOrAfter(viewportStart) - 1).coerceAtLeast(0)
-                            val to = (run.points.firstIndexAfter(viewportEnd) + 1).coerceAtMost(run.points.size)
-                            with(GlucoseUncertaintyRibbon) {
-                                drawUncertaintyRibbon(
-                                    renderData = run.points, startIndex = from, endIndex = to,
-                                    viewportStartMs = viewportStart, timeScale = dataWidth / animDur,
-                                    chartHeight = chartHeight, yMin = cYMin,
-                                    yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
-                                    gapThresholdMs = ChartGap.THRESHOLD_MS, color = color,
-                                )
-                            }
+                        val from = (run.points.firstIndexAtOrAfter(viewportStart) - 1).coerceAtLeast(0)
+                        val to = (run.points.firstIndexAfter(viewportEnd) + 1).coerceAtMost(run.points.size)
+                        with(GlucoseUncertaintyRibbon) {
+                            drawUncertaintyRibbon(
+                                renderData = run.points, startIndex = from, endIndex = to,
+                                viewportStartMs = viewportStart, timeScale = dataWidth / animDur,
+                                chartHeight = chartHeight, yMin = cYMin,
+                                yScale = if (cYRange < 0.001f) 0f else chartHeight / cYRange,
+                                gapThresholdMs = ChartGap.THRESHOLD_MS, color = color,
+                                paths = uncertaintyRibbonPaths,
+                            )
                         }
                     }
                 }

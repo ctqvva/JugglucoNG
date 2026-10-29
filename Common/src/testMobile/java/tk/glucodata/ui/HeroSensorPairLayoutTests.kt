@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -83,7 +84,7 @@ class HeroSensorPairLayoutTests {
         }
         compose.onNodeWithText(primary).assertIsDisplayed()
         compose.onNodeWithText(peer).assertIsDisplayed()
-        val output = File("build/outputs/layout-regressions/hero-${width}-${fontScale}-${secondary != null}-${peerSecondary != null}.png")
+        val output = File("build/outputs/layout-regressions/hero-${width}-${fontScale}-${secondary != null}-${peerSecondary != null}-${range != null}.png")
         output.parentFile?.mkdirs()
         output.outputStream().use {
             compose.onNodeWithTag("header").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -98,7 +99,7 @@ class HeroSensorPairLayoutTests {
                     action(results)
                     val layout = results.single()
                     // Paragraph dimensions are floats; Text rounds its size to integer px.
-                    assertTrue("$value height fits", layout.multiParagraph.height <= layout.size.height + 1f)
+                    assertTrue("$value height fits: paragraph=${layout.multiParagraph.height}, box=${layout.size.height}", layout.multiParagraph.height <= layout.size.height + 1f)
                     assertTrue("$value width fits", layout.getLineRight(0) <= layout.size.width + 1f)
                     if (value == primary) {
                         assertTrue("main remains a hero reading", layout.layoutInput.style.fontSize.value * fontScale >= 24f)
@@ -108,10 +109,64 @@ class HeroSensorPairLayoutTests {
                     }
                 }
         }
+        if (range != null) {
+            val rangeBounds = compose.onNodeWithText(range).fetchSemanticsNode().boundsInRoot
+            val headerBounds = compose.onNodeWithTag("header").fetchSemanticsNode().boundsInRoot
+            assertTrue("range belongs just beneath the main reading", rangeBounds.top >= mainBounds.bottom)
+            assertEquals("range aligns with the main reading", mainBounds.left, rangeBounds.left, 1f)
+            assertTrue("range has breathing room below", headerBounds.bottom - rangeBounds.bottom >= 16f)
+        }
         val chipBounds = compose.onNodeWithContentDescription("peer").fetchSemanticsNode().boundsInRoot
         assertTrue("peer retains a 48dp touch target", chipBounds.height >= 48f)
         compose.onNodeWithContentDescription("peer").performClick()
         compose.runOnIdle { assertEquals("peer", selected) }
+    }
+
+    @Test fun ribbonToggleHidesRangeImmediatelyEvenDuringAnUnfinishedSensorSwap() {
+        var context: android.content.Context? = null
+        var switched by mutableStateOf(false)
+        compose.setContent {
+            context = LocalContext.current
+            val enabled = rememberUncertaintyRibbonEnabled()
+            MaterialTheme(typography = AppTypography) {
+                Box(Modifier.width(220.dp).testTag("header")) {
+                    DashboardHeroSensorPair(
+                        primaryText = if (switched) "8.3" else "6.7",
+                        primarySensorId = if (switched) "peer" else "main",
+                        primaryStyle = MaterialTheme.typography.displayMedium,
+                        primarySecondaryStyle = MaterialTheme.typography.headlineSmall,
+                        primaryColor = MaterialTheme.colorScheme.onSurface,
+                        // Stored intervals deliberately remain in the data after the toggle.
+                        primaryRangeText = "5.1–8.3",
+                        primaryTrend = TrendEngine.TrendResult(TrendEngine.TrendState.Flat, 0f, 0f, 1f),
+                        primaryArrowColor = MaterialTheme.colorScheme.onSurface,
+                        primaryDeltaText = null,
+                        peer = PeerCurrentReading(if (switched) "main" else "peer", if (switched) "6.7" else "8.3", null, 0f, 1L),
+                        peerStyle = MaterialTheme.typography.headlineSmall,
+                        selectedSensorIds = listOf("main", "peer"),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        onPeerClick = {}, uncertaintyEnabled = enabled
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("5.1–8.3").assertExists()
+        val height = compose.onNodeWithTag("header").fetchSemanticsNode().boundsInRoot.height
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { switched = true }
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(64)
+        compose.runOnIdle { GlucoseUncertaintyDisplay.setRibbonEnabled(requireNotNull(context), false) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        compose.onNodeWithText("5.1–8.3").assertDoesNotExist()
+        assertEquals(height, compose.onNodeWithTag("header").fetchSemanticsNode().boundsInRoot.height, 0f)
+        compose.mainClock.advanceTimeBy(400)
+        compose.runOnIdle { GlucoseUncertaintyDisplay.setRibbonEnabled(requireNotNull(context), true) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        compose.onNodeWithText("5.1–8.3").assertExists()
     }
 
     @Test fun outgoingMainRemainsAvailableWhilePeerResolutionCatchesUp() {

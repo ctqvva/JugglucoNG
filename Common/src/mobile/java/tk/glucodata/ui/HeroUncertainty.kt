@@ -12,14 +12,18 @@ internal fun heroUncertaintyText(
     readingMillis: Long,
     viewMode: Int,
     isMmol: Boolean,
-    isFresh: Boolean
+    isFresh: Boolean,
+    enabled: Boolean = true
 ): String? {
-    if (!isFresh || viewMode == 1 || viewMode == 3 || sensorId.isBlank()) return null
+    if (!enabled || !isFresh || viewMode == 1 || viewMode == 3 || sensorId.isBlank()) return null
     if (snapshotSensorId != null && !SensorIdentity.matches(snapshotSensorId, sensorId)) return null
-    val point = (history.asSequence() + listOfNotNull(latestPoint).asSequence())
-        .filter { !it.sensorSerial.isNullOrBlank() && SensorIdentity.matches(it.sensorSerial, sensorId) }
-        .filter { kotlin.math.abs(it.timestamp - readingMillis) <= 60_000L }
-        .maxByOrNull { it.timestamp } ?: return null
+    fun belongsToReading(point: GlucosePoint): Boolean =
+        kotlin.math.abs(point.timestamp - readingMillis) <= 60_000L &&
+            !point.sensorSerial.isNullOrBlank() && SensorIdentity.matches(point.sensorSerial, sensorId)
+    // The current point is already resolved by the caller. Avoid walking days of
+    // history on the main thread for the normal live-reading path.
+    val point = latestPoint?.takeIf(::belongsToReading) ?: history.asSequence()
+        .filter(::belongsToReading).maxByOrNull { it.timestamp } ?: return null
     val range = point.uncertainty?.takeIf { it.isUsable } ?: return null
     return "${GlucoseFormatter.format(range.lower, isMmol)}–${GlucoseFormatter.format(range.upper, isMmol)}"
 }
