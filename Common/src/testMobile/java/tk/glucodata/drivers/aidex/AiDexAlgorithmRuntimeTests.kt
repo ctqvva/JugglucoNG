@@ -40,6 +40,8 @@ import tk.glucodata.data.HistoryDatabase
 import tk.glucodata.data.HistoryReading
 import tk.glucodata.data.AiDexHistoryImport
 import tk.glucodata.data.calibration.MobileCalibrationProvider
+import tk.glucodata.ui.ChildFriendlyMode
+import tk.glucodata.ui.ChildFriendlyProtection
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -672,6 +674,8 @@ class AiDexAlgorithmRuntimeTests {
         SettingsExporter.importSharedPreferences(Applic.app, legacySettings)
 
         assertTrue(preferences.getBoolean("child_friendly_mode", false))
+        assertTrue(ChildFriendlyMode.settings(Applic.app).hideCalibration)
+        assertTrue(ChildFriendlyMode.settings(Applic.app).hideDataClearing)
 
         legacySettings.getJSONObject("tk.glucodata_preferences").getJSONObject("values").put(
             "child_friendly_mode",
@@ -680,6 +684,24 @@ class AiDexAlgorithmRuntimeTests {
         SettingsExporter.importSharedPreferences(Applic.app, legacySettings)
 
         assertTrue(preferences.getBoolean("child_friendly_mode", false))
+
+        ChildFriendlyMode.setProtection(
+            Applic.app,
+            ChildFriendlyProtection.CALIBRATION,
+            false,
+        )
+        SettingsExporter.importSharedPreferences(Applic.app, legacySettings)
+
+        val restored = ChildFriendlyMode.settings(Applic.app)
+        assertTrue(restored.enabled)
+        assertFalse(restored.hideCalibration)
+        assertTrue(restored.hideSensorReset)
+
+        ChildFriendlyMode.setEnabled(Applic.app, false)
+        assertFalse(ChildFriendlyMode.settings(Applic.app).enabled)
+        ChildFriendlyMode.setEnabled(Applic.app, true)
+        assertTrue(ChildFriendlyMode.settings(Applic.app).hideCalibration)
+        assertTrue(ChildFriendlyMode.settings(Applic.app).hideDataClearing)
     }
 
     private fun packageSettings(preferences: JSONObject) = JSONObject()

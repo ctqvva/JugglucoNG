@@ -2,7 +2,7 @@
     <string name="language">it</string>
     <string name="languagename">Lingua</string>
     <string name="child_friendly_mode_title">Modalità a misura di bambino</string>
-    <string name="child_friendly_mode_desc">Nasconde la calibrazione, il ripristino del sensore, gli algoritmi avanzati del sensore, lo smussamento e le opzioni per cancellare i dati.</string>
+    <string name="child_friendly_mode_desc">Scegli quali controlli nascondere ai bambini.</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">OK</string>

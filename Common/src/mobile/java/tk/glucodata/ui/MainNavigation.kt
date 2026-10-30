@@ -144,6 +144,7 @@ private fun HistoryRoute(
     onTriggerCalibration: (CalibrationSheetState) -> Unit,
 //    initialShowReadingRows: Boolean = true
 ) {
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
     // The merged cross-sensor timeline — the previous sensor's calibrated
     // readings, imports and older device data stay visible across a sensor
     // swap — loaded around the chart's viewport plus the live tail. The chart
@@ -233,8 +234,10 @@ private fun HistoryRoute(
                 )
             )
         },
-        onDeleteReading = { point ->
-            dashboardViewModel.deleteHistoryReading(point, sensorName)
+        onDeleteReading = if (!childFriendlyModeSettings.hideDataClearing) {
+            { point -> dashboardViewModel.deleteHistoryReading(point, sensorName) }
+        } else {
+            null
         },
         onJournalEntryClick = { entry ->
             lastJournalType = entry.type
@@ -699,9 +702,9 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
 
     val navigationTapCatcher = remember { NavigationTapCatcher() }
     val context = LocalContext.current
-    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
     val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
-        if (!childFriendlyModeEnabled) calibrationSheetState = state
+        if (!childFriendlyModeSettings.hideCalibration) calibrationSheetState = state
     }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -709,19 +712,21 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // Handle back button to exit app when on start destination
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    LaunchedEffect(childFriendlyModeEnabled, currentRoute) {
-        if (childFriendlyModeEnabled) {
+    LaunchedEffect(childFriendlyModeSettings, currentRoute) {
+        if (childFriendlyModeSettings.hideCalibration) {
             calibrationSheetState = CalibrationSheetState.Hidden
             if (currentRoute != null && currentRoute in setOf(
                     "calibrations",
                     "settings/calibrations",
                     "calibrations/model-table",
                     "settings/calibrations/model-table",
-                    "settings/data-smoothing",
                 )
             ) {
                 navController.popBackStack()
             }
+        }
+        if (childFriendlyModeSettings.hideSmoothing && currentRoute == "settings/data-smoothing") {
+            navController.popBackStack()
         }
     }
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
@@ -1007,6 +1012,7 @@ private fun NavGraphBuilder.appDestinations(
         )
     }
     composable("settings") { ExpressiveSettingsScreen(navController, themeMode, onThemeChanged, dashboardViewModel) }
+    composable("settings/child-friendly-mode") { ChildFriendlyModeSettingsScreen(navController) }
     composable("settings/nightscout") { NightscoutSettingsScreen(navController) }
     composable("settings/libreview") { LibreViewSettingsScreen(navController) }
     composable("settings/mq-account") { MQAccountSettingsScreen(navController) }

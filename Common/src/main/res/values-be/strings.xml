@@ -2,7 +2,7 @@
     <string name="language">be</string>
     <string name="languagename">мова</string>
     <string name="child_friendly_mode_title">Рэжым для дзяцей</string>
-    <string name="child_friendly_mode_desc">Хавае каліброўку, скід датчыка, дадатковыя алгарытмы датчыка, згладжванне і параметры выдалення даных.</string>
+    <string name="child_friendly_mode_desc">Выберыце элементы кіравання, якія трэба схаваць ад дзяцей.</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">OK</string>

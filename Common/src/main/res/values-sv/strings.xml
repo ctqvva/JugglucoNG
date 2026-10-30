@@ -2,7 +2,7 @@
   <string name="language">sv</string>
   <string name="languagename">Språk</string>
   <string name="child_friendly_mode_title">Barnvänligt läge</string>
-  <string name="child_friendly_mode_desc">Döljer kalibrering, återställning av sensorn, avancerade sensoralgoritmer, utjämning och alternativ för att radera data.</string>
+  <string name="child_friendly_mode_desc">Välj vilka kontroller som ska döljas för barn.</string>
   <string name="app_name">JugglucoNG</string>
   <string name="ok">OK</string>
   <string name="cancel">Avbryt</string>

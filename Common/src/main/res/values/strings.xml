@@ -880,7 +880,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     
     <string name="danger_zone">Danger zone</string>
     <string name="child_friendly_mode_title">Child-friendly mode</string>
-    <string name="child_friendly_mode_desc">Hide calibration, sensor reset, advanced sensor algorithms, smoothing, and data-clearing options.</string>
+    <string name="child_friendly_mode_desc">Choose which controls to hide from children.</string>
     <string name="clear_history">Clear history</string>
     <string name="clear_history_desc_long">Remove all glucose readings. Cannot be undone.</string>
     <string name="clear_history_desc_short">Remove all glucose readings from database</string>

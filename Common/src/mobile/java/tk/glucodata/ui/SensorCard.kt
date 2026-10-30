@@ -405,7 +405,10 @@ fun SensorCard(
     onNavigateToMqAccount: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
+    val hideCalibration = childFriendlyModeSettings.hideCalibration
+    val hideSensorReset = childFriendlyModeSettings.hideSensorReset
+    val hideAdvancedSensor = childFriendlyModeSettings.hideAdvancedSensor
     var showTerminateDialog by remember { mutableStateOf(false) }
     var unbindAiDexChecked by remember(sensor.serial, sensor.isVendorPaired) {
         mutableStateOf(sensor.isVendorPaired)
@@ -542,7 +545,7 @@ fun SensorCard(
     // disconnectSensor (soft). The old soft-disconnect left zombie "is finished" entries —
     // bond/keys preserved, prefs not cleaned, sensor reappeared. terminateSensor calls
     // forgetVendor() + removeAiDexFromPrefs() + finishSensor() + sensorEnded() = full cleanup.
-    if (showAnytimeCredentialBackupDialog && !childFriendlyModeEnabled) {
+    if (showAnytimeCredentialBackupDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showAnytimeCredentialBackupDialog = false },
             title = { Text(stringResource(R.string.anytime_credentials_backup)) },
@@ -603,7 +606,7 @@ fun SensorCard(
         )
     }
 
-    if (showTerminateDialog && !childFriendlyModeEnabled) {
+    if (showTerminateDialog && !hideSensorReset) {
         if (sensor.isAidex) {
             AlertDialog(
                 onDismissRequest = {
@@ -754,7 +757,7 @@ fun SensorCard(
         }
     }
 
-    if (showReconnectDialog && !childFriendlyModeEnabled) {
+    if (showReconnectDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = {
                 showReconnectDialog = false
@@ -796,7 +799,7 @@ fun SensorCard(
 
     // Edit 62d: Forget/Disconnect dialog — for AiDex, this is the destructive "Disconnect" path
     // that wipes vendor keys, disconnects, and removes from list.
-    if (showForgetDialog && !childFriendlyModeEnabled) {
+    if (showForgetDialog && !hideSensorReset) {
         if (sensor.isAidex) {
             AlertDialog(
                 onDismissRequest = { showForgetDialog = false },
@@ -834,7 +837,7 @@ fun SensorCard(
         }
     }
 
-    if (showDexcomSlotDialog && !childFriendlyModeEnabled) {
+    if (showDexcomSlotDialog && !hideSensorReset) {
         tk.glucodata.ui.setup.DexcomBluetoothSlotDialog(
             currentSlot = sensor.dexcomBluetoothSlot,
             onDismiss = { showDexcomSlotDialog = false },
@@ -845,7 +848,7 @@ fun SensorCard(
         )
     }
 
-    if (showResetDialog && !childFriendlyModeEnabled) {
+    if (showResetDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = {
@@ -888,7 +891,7 @@ fun SensorCard(
         )
     }
 
-    if (showAnytimeClearCalibrationDialog && !childFriendlyModeEnabled) {
+    if (showAnytimeClearCalibrationDialog && !hideCalibration) {
         AlertDialog(
             onDismissRequest = { showAnytimeClearCalibrationDialog = false },
             title = { Text(stringResource(R.string.clear_calibrations_title)) },
@@ -911,7 +914,7 @@ fun SensorCard(
     // Edit 79: showClearDialog AlertDialog removed — restart algorithm now lives
     // inside the Sibionics Calibration bottom sheet as a destructive action card.
 
-    if (showUnifiedResetDialog && !childFriendlyModeEnabled) {
+    if (showUnifiedResetDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { 
                 showUnifiedResetDialog = false
@@ -960,7 +963,7 @@ fun SensorCard(
         )
     }
 
-    if (showWipeDialog && !childFriendlyModeEnabled) {
+    if (showWipeDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showWipeDialog = false },
             title = { Text(stringResource(R.string.wipe_sensor_data_title)) },
@@ -986,7 +989,7 @@ fun SensorCard(
 
     // Edit 78: AiDex Reset & Bias Correction bottom sheet — replaces old AlertDialog.
     // Matches the destructive-action-sheet pattern from DashboardClearOptionsBottomSheet.
-    if (showAiDexClearDialog && !childFriendlyModeEnabled) {
+    if (showAiDexClearDialog && !hideSensorReset) {
         @OptIn(ExperimentalMaterial3Api::class)
         StableModalBottomSheet(
             onDismissRequest = { showAiDexClearDialog = false },
@@ -1139,14 +1142,14 @@ fun SensorCard(
         )
     }
 
-    if (showAiDexAlgorithmSheet && sensor.isAidex && sensor.viewMode != 1 && !childFriendlyModeEnabled) {
+    if (showAiDexAlgorithmSheet && sensor.isAidex && sensor.viewMode != 1 && !hideAdvancedSensor) {
         AiDexAlgorithmSheet(sensor.serial, sensor.customCalIndex,
             onSelect = { viewModel.setAiDexAlgorithmMode(sensor.serial, it) },
             onDismiss = { showAiDexAlgorithmSheet = false })
     }
 
     // Independent, immediately applied sensor-algorithm features.
-    if (showSibionicsCalSheet && sensor.isSibionics && sensor.viewMode != 1 && !childFriendlyModeEnabled) {
+    if (showSibionicsCalSheet && sensor.isSibionics && sensor.viewMode != 1 && !hideAdvancedSensor) {
         @OptIn(ExperimentalMaterial3Api::class)
         StableModalBottomSheet(
             onDismissRequest = { showSibionicsCalSheet = false },
@@ -1328,19 +1331,19 @@ fun SensorCard(
                 // interval, so the ribbon control only exists when it is
                 // selected. The two switches then form one visual group.
                 val showsUncertainty = algorithmFeatures and 14 == 8
-                SettingsSwitchItem(
-                    title = stringResource(R.string.calibration),
-                    subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
-                    subtitleStyle = MaterialTheme.typography.bodySmall,
-                    checked = algorithmFeatures and 1 != 0,
-                    onCheckedChange = ::setCalibration,
-                    icon = Icons.Default.Science,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
-                    // Its bottom edge has to travel from a lone card to the head
-                    // of a pair while the ribbon row is still opening below it.
-                    animatePosition = true,
-                )
+                if (!hideCalibration) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.calibration),
+                        subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
+                        subtitleStyle = MaterialTheme.typography.bodySmall,
+                        checked = algorithmFeatures and 1 != 0,
+                        onCheckedChange = ::setCalibration,
+                        icon = Icons.Default.Science,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = if (showsUncertainty) CardPosition.TOP else CardPosition.SINGLE,
+                        animatePosition = true,
+                    )
+                }
 
                 var ribbonEnabled by remember {
                     mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context))
@@ -1406,7 +1409,7 @@ fun SensorCard(
         }
     }
 
-    if (showSensorCalibrateDialog && !childFriendlyModeEnabled) {
+    if (showSensorCalibrateDialog && !hideCalibration) {
         AlertDialog(
             onDismissRequest = {
                 showSensorCalibrateDialog = false
@@ -1487,7 +1490,7 @@ fun SensorCard(
         )
     }
 
-    if (showMqRestoreSheet && !childFriendlyModeEnabled) {
+    if (showMqRestoreSheet && !hideCalibration) {
         @OptIn(ExperimentalMaterial3Api::class)
         StableModalBottomSheet(
             onDismissRequest = { showMqRestoreSheet = false },
@@ -1569,7 +1572,7 @@ fun SensorCard(
         }
     }
 
-    if (showMqCalibrationSheet && !childFriendlyModeEnabled) {
+    if (showMqCalibrationSheet && !hideCalibration) {
         @OptIn(ExperimentalMaterial3Api::class)
         StableModalBottomSheet(
             onDismissRequest = {
@@ -1664,7 +1667,7 @@ fun SensorCard(
         }
     }
 
-    if (showAiDexKeyBackupDialog && !childFriendlyModeEnabled) {
+    if (showAiDexKeyBackupDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showAiDexKeyBackupDialog = false },
             title = { Text(stringResource(R.string.aidex_pairing_key_backup)) },
@@ -1714,7 +1717,7 @@ fun SensorCard(
         )
     }
 
-    if (showAiDexKeyDeleteConfirm && !childFriendlyModeEnabled) {
+    if (showAiDexKeyDeleteConfirm && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showAiDexKeyDeleteConfirm = false },
             title = { Text(stringResource(R.string.aidex_pairing_key_delete)) },
@@ -1745,7 +1748,7 @@ fun SensorCard(
         )
     }
 
-    if (showAiDexUnpairDialog && !childFriendlyModeEnabled) {
+    if (showAiDexUnpairDialog && !hideSensorReset) {
         AlertDialog(
             onDismissRequest = { showAiDexUnpairDialog = false },
             title = { Text(stringResource(R.string.unpair_sensor_title)) },
@@ -2018,7 +2021,7 @@ fun SensorCard(
                                 FilledIconButton(
                                     onClick = {
                                         if (isLocallyEnabled) {
-                                            if (!childFriendlyModeEnabled) {
+                                            if (!hideSensorReset) {
                                                 android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
                                                 viewModel.disconnectSensor(sensor.serial)
                                             }
@@ -2027,6 +2030,7 @@ fun SensorCard(
                                             viewModel.reconnectSensor(sensor.serial, false)
                                         }
                                     },
+                                    enabled = !isLocallyEnabled || !hideSensorReset,
                                     modifier = Modifier.size(48.dp),
                                     shapes = IconButtonDefaults.shapes(),
                                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -2428,7 +2432,7 @@ fun SensorCard(
             // Libre 1/2 export their two lanes as Stream (Auto) and the sensor's own
             // 15-minute History (Raw), so the same four modes switch between them.
             val isLibreStreamHistory = sensor.hasLibreHistoryLane
-            if (!(childFriendlyModeEnabled && sensor.isSibionics) &&
+            if (!hideAdvancedSensor &&
                 (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory)
             ) {
                 Text(
@@ -2480,7 +2484,7 @@ fun SensorCard(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Both managed algorithms replace the Auto lane; pure Raw hides this entry.
-                if ((sensor.isSibionics || sensor.isAidex) && sensor.viewMode != 1 && !childFriendlyModeEnabled) {
+                if ((sensor.isSibionics || sensor.isAidex) && sensor.viewMode != 1 && !hideAdvancedSensor) {
                     val calibrationEnabled = sensor.customCalIndex and 1 != 0
                     val baseAlgorithm = if (sensor.isAidex) stringResource(
                         if (sensor.customCalIndex and 8 != 0) R.string.sibionics_adaptive_v2 else R.string.aidex_stock_calibration
@@ -2493,7 +2497,9 @@ fun SensorCard(
                             else -> R.string.sibionics_stock_algorithm_desc
                         }
                     )
-                    val calSubtitle = if (calibrationEnabled) {
+                    val calSubtitle = if (hideCalibration) {
+                        baseAlgorithm
+                    } else if (calibrationEnabled) {
                         "$baseAlgorithm • ${stringResource(R.string.calibration)}"
                     } else baseAlgorithm
                     Surface(
@@ -2547,7 +2553,7 @@ fun SensorCard(
             if (sensor.isAidex) {
 
                 // Full-width Calibrate button — disabled when vendor BLE is not connected
-                if (!childFriendlyModeEnabled) {
+                if (!hideCalibration) {
                     val canCalibrate = sensor.isVendorConnected
                     FilledTonalButton(
                         onClick = { showSensorCalibrateDialog = true },
@@ -2579,7 +2585,7 @@ fun SensorCard(
                     }
                 }
                 // Calibration history — show previous calibrations from the sensor
-                if (!childFriendlyModeEnabled && sensor.vendorCalibrations.isNotEmpty()) {
+                if (!hideCalibration && sensor.vendorCalibrations.isNotEmpty()) {
                     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
                     val calDateFormat = java.text.SimpleDateFormat("dd MMM HH:mm", java.util.Locale.getDefault())
                     val calCount = sensor.vendorCalibrations.size
@@ -2706,7 +2712,7 @@ fun SensorCard(
                     // bias correction is active so the user knows something is going on.
                     // Firmware 1.8.3+ refuses the reset; the button stays only while a bias
                     // correction is running, so it can still be switched off.
-                    if (!childFriendlyModeEnabled && (sensor.supportsHardwareReset || sensor.resetCompensationActive)) FilledTonalButton(
+                    if (!hideSensorReset && (sensor.supportsHardwareReset || sensor.resetCompensationActive)) FilledTonalButton(
                         onClick = { showAiDexClearDialog = true },
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (sensor.resetCompensationActive)
@@ -2738,7 +2744,7 @@ fun SensorCard(
                         tk.glucodata.drivers.aidex.native.protocol.AiDexPairKeyVault
                             .exportPayload(context, sensor.serial) != null
                     }
-                    if (!childFriendlyModeEnabled) {
+                    if (!hideSensorReset) {
                         AiDexPairSplitButton(
                             paired = sensor.isVendorPaired,
                             keyHeld = hasExportablePairKey,
@@ -2763,7 +2769,7 @@ fun SensorCard(
             }
 
             // Row 1: Unified Reset Button (Sibionics only - full width, styled like "Previous calibrations")
-            if (sensor.isSibionics && !childFriendlyModeEnabled) {
+            if (sensor.isSibionics && !hideSensorReset) {
                 FilledTonalButton(
                     onClick = { showUnifiedResetDialog = true },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -2783,7 +2789,7 @@ fun SensorCard(
                     Text(stringResource(R.string.reset_sensor))
                 }
 
-                if (sensor.isSibionics2) {
+                if (sensor.isSibionics2 && !hideSensorReset) {
                     val isAutoResetEnabled = sensor.autoResetDays in 1..22
                     var daysValue by remember(sensor.serial, sensor.autoResetDays) {
                         mutableIntStateOf(sensor.autoResetDays.takeIf { it in 1..22 } ?: 22)
@@ -2892,7 +2898,7 @@ fun SensorCard(
                 }
             }
 
-            if (sensor.isMq && !childFriendlyModeEnabled) {
+            if (sensor.isMq && !hideCalibration) {
                 FilledTonalButton(
                     onClick = { showMqRestoreSheet = true },
                     modifier = Modifier
@@ -2935,7 +2941,7 @@ fun SensorCard(
                 }
             }
 
-            if (sensor.isMedtrum && sensor.supportsManualCalibration && !childFriendlyModeEnabled) {
+            if (sensor.isMedtrum && sensor.supportsManualCalibration && !hideCalibration) {
                 FilledTonalButton(
                     onClick = { showSensorCalibrateDialog = true },
                     enabled = sensor.isVendorConnected,
@@ -2969,7 +2975,7 @@ fun SensorCard(
                 }
             }
 
-            if (sensor.isAnytime && sensor.supportsManualCalibration && !childFriendlyModeEnabled) {
+            if (sensor.isAnytime && sensor.supportsManualCalibration && !hideCalibration) {
                 val warmupComplete = AnytimeCalibrationPolicy.canAcceptManualCalibration(sensor.sensorAgeHours)
                 val canCalibrate = sensor.isVendorConnected && warmupComplete
                 FilledTonalButton(
@@ -3137,7 +3143,7 @@ fun SensorCard(
                     }
                 }
 
-                if (sensor.supportsClearCalibration && !childFriendlyModeEnabled) {
+                if (sensor.supportsClearCalibration && !hideCalibration) {
                     FilledTonalButton(
                         onClick = { showAnytimeClearCalibrationDialog = true },
                         modifier = Modifier
@@ -3175,7 +3181,7 @@ fun SensorCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (!childFriendlyModeEnabled) FilledTonalButton(
+                    if (!hideSensorReset) FilledTonalButton(
                         onClick = { showResetDialog = true },
                         enabled = sensor.isVendorConnected && sensor.supportsHardwareReset,
                         modifier = Modifier
@@ -3225,7 +3231,7 @@ fun SensorCard(
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
                     }
-                    if (!childFriendlyModeEnabled) FilledTonalButton(
+                    if (!hideSensorReset) FilledTonalButton(
                         onClick = { showAnytimeCredentialBackupDialog = true },
                         enabled = hasExportableCredentials,
                         modifier = Modifier
@@ -3253,7 +3259,7 @@ fun SensorCard(
                 }
             }
 
-            if (!childFriendlyModeEnabled && !sensor.isAnytime && !sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
+            if (!hideSensorReset && !sensor.isAnytime && !sensor.isAidex && !sensor.isSibionics && sensor.supportsHardwareReset) {
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
                     enabled = sensor.isVendorConnected,
@@ -3281,7 +3287,7 @@ fun SensorCard(
 
             // The slot is this phone's own pairing; a Clone record or a sensor the watch
             // is reading has none here to move.
-            if (!childFriendlyModeEnabled && sensor.dexcomBluetoothSlot != 0 && !sensor.isCloneSource &&
+            if (!hideSensorReset && sensor.dexcomBluetoothSlot != 0 && !sensor.isCloneSource &&
                 sensor.handoffUiState == tk.glucodata.SensorHandoffUiState.NONE
             ) {
                 FilledTonalButton(
@@ -3316,7 +3322,7 @@ fun SensorCard(
             // Reconnect and Disconnect drive this device's own radio, which a Clone
             // record does not have: the sensor is on the sending phone. Offering them
             // here only invites two phones onto one transmitter.
-            if (!sensor.isCloneSource && !childFriendlyModeEnabled) {
+            if (!sensor.isCloneSource && !hideSensorReset) {
                 // Edit 63b: All sensors get the same 2-button row: Reconnect | Disconnect.
                 // AiDex-specific behavior is handled in the dialogs (terminate dialog routes
                 // AiDex through disconnectSensor instead of terminateSensor).

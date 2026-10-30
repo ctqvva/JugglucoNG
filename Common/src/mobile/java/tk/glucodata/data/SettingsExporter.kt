@@ -277,9 +277,22 @@ object SettingsExporter {
         val aidexName = "AiDexNativePrefs"
         val mainPreferencesName = "tk.glucodata_preferences"
         val childFriendlyModeKey = "child_friendly_mode"
-        val preserveChildFriendlyMode = context
-            .getSharedPreferences(mainPreferencesName, Context.MODE_PRIVATE)
-            .getBoolean(childFriendlyModeKey, false)
+        val mainPreferences = context.getSharedPreferences(mainPreferencesName, Context.MODE_PRIVATE)
+        val preservedChildFriendlyPreferences: Map<String, Boolean> = if (
+            mainPreferences.getBoolean(childFriendlyModeKey, false)
+        ) {
+            mainPreferences.all
+                .mapNotNull { (key, value) ->
+                    if (key == childFriendlyModeKey || key.startsWith("${childFriendlyModeKey}_")) {
+                        (value as? Boolean)?.let { key to it }
+                    } else {
+                        null
+                    }
+                }
+                .toMap()
+        } else {
+            emptyMap()
+        }
         fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
             key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
         // Settings change requests, not the provenance of retained glucose.
@@ -291,8 +304,10 @@ object SettingsExporter {
                 // by a writer during import; don't restore an earlier snapshot.
                 prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
             } else editor.clear()
-            if (name == mainPreferencesName && preserveChildFriendlyMode) {
-                editor.putBoolean(childFriendlyModeKey, true)
+            if (name == mainPreferencesName && preservedChildFriendlyPreferences.isNotEmpty()) {
+                preservedChildFriendlyPreferences.forEach { (key, value) ->
+                    editor.putBoolean(key, value)
+                }
             }
             return editor
         }
@@ -311,8 +326,9 @@ object SettingsExporter {
 
             values.keySet().sorted().forEach valueLoop@ { key ->
                 if (name == aidexName && historyKey(key)) return@valueLoop
-                if (name == mainPreferencesName && preserveChildFriendlyMode &&
-                    key == childFriendlyModeKey
+                if (name == mainPreferencesName &&
+                    preservedChildFriendlyPreferences.isNotEmpty() &&
+                    (key == childFriendlyModeKey || key.startsWith("${childFriendlyModeKey}_"))
                 ) return@valueLoop
                 putPreferenceValue(editor, key, values.getJSONObject(key))
                 if (name == aidexName && key.startsWith("algorithmMode_")) {

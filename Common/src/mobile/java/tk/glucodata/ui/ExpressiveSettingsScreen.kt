@@ -110,7 +110,8 @@ fun ExpressiveSettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
+    val childFriendlyModeEnabled = childFriendlyModeSettings.enabled
     val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsStateWithLifecycle()
     val showMqAccount = remember(context, sensorStatusRevision) {
         tk.glucodata.drivers.mq.MQRegistry.persistedRecords(context).isNotEmpty()
@@ -221,7 +222,7 @@ fun ExpressiveSettingsScreen(
     )
     val searchCandidates = remember(
         context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
-        showLibre2Identity, showAppTrend, childFriendlyModeEnabled
+        showLibre2Identity, showAppTrend, childFriendlyModeSettings
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
@@ -232,7 +233,12 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
                 SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
                 SettingsSearchCondition.APP_TREND -> showAppTrend
-                SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF -> !childFriendlyModeEnabled
+                SettingsSearchCondition.CALIBRATION_CONTROLS_VISIBLE ->
+                    !childFriendlyModeSettings.hideCalibration
+                SettingsSearchCondition.SMOOTHING_CONTROLS_VISIBLE ->
+                    !childFriendlyModeSettings.hideSmoothing
+                SettingsSearchCondition.DATA_CLEARING_CONTROLS_VISIBLE ->
+                    !childFriendlyModeSettings.hideDataClearing
             }
         }
     }
@@ -397,11 +403,12 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.MIDDLE,
                     onClick = { showUnitDialog = true }
                 )
-                SettingsSwitchItem(
+                SettingsNavSwitchItem(
                     title = stringResource(R.string.child_friendly_mode_title),
                     subtitle = stringResource(R.string.child_friendly_mode_desc),
                     checked = childFriendlyModeEnabled,
                     onCheckedChange = { ChildFriendlyMode.setEnabled(context, it) },
+                    onClick = { navController.navigate("settings/child-friendly-mode") },
                     icon = Icons.Default.Security,
                     iconTint = generalColor,
                     position = CardPosition.MIDDLE,
@@ -434,7 +441,7 @@ fun ExpressiveSettingsScreen(
                     iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.TOP,
                 )
-                if (!childFriendlyModeEnabled) {
+                if (!childFriendlyModeSettings.hideCalibration) {
                     SettingsNavSwitchItem(
                         title = stringResource(R.string.settings_calibration_title),
                         subtitle = stringResource(
@@ -478,7 +485,7 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.TOP,
                     onClick = { navController.navigate("settings/display-colors") }
                 )
-                if (!childFriendlyModeEnabled) {
+                if (!childFriendlyModeSettings.hideSmoothing) {
                     SettingsNavSwitchItem(
                         title = stringResource(R.string.graph_smoothing_title),
                         subtitle = graphSmoothingLabel,
@@ -780,7 +787,7 @@ fun ExpressiveSettingsScreen(
         }
 
         // === DANGER ===
-        if (!childFriendlyModeEnabled) {
+        if (!childFriendlyModeSettings.hideDataClearing) {
             item(key = "danger_label") { SectionLabel(stringResource(R.string.danger_zone), isError = true) }
         }
 
@@ -790,11 +797,15 @@ fun ExpressiveSettingsScreen(
                     title = stringResource(R.string.restart_app),
                     subtitle = stringResource(R.string.restart_app_desc),
                     icon = Icons.Filled.Refresh,
-                    position = if (childFriendlyModeEnabled) CardPosition.SINGLE else CardPosition.TOP,
+                    position = if (childFriendlyModeSettings.hideDataClearing) {
+                        CardPosition.SINGLE
+                    } else {
+                        CardPosition.TOP
+                    },
                     severity = DangerSeverity.LOW,
                     onClick = { context.findActivity()?.fullRestart() }
                 )
-                if (!childFriendlyModeEnabled) {
+                if (!childFriendlyModeSettings.hideDataClearing) {
                     DangerItem(
                         title = stringResource(R.string.clear_history),
                         subtitle = stringResource(R.string.clear_history_desc_short),
@@ -862,8 +873,8 @@ fun ExpressiveSettingsScreen(
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
     if (showLanguageDialog) LanguagePickerDialog { showLanguageDialog = false }
-    if (showClearHistoryDialog && !childFriendlyModeEnabled) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
-    if (showClearDataDialog && !childFriendlyModeEnabled) ConfirmActionDialog(
+    if (showClearHistoryDialog && !childFriendlyModeSettings.hideDataClearing) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
+    if (showClearDataDialog && !childFriendlyModeSettings.hideDataClearing) ConfirmActionDialog(
         stringResource(R.string.clean_data_confirm), 
         stringResource(R.string.clear_app_data_desc), 
         Icons.Filled.Delete, 
@@ -878,7 +889,7 @@ fun ExpressiveSettingsScreen(
         { showClearDataDialog = false }, 
         isDestructive = true
     )
-    if (showFactoryResetDialog && !childFriendlyModeEnabled) ConfirmActionDialog(
+    if (showFactoryResetDialog && !childFriendlyModeSettings.hideDataClearing) ConfirmActionDialog(
         stringResource(R.string.factory_reset_confirm), 
         stringResource(R.string.factory_reset_alert), 
         Icons.Filled.Warning, 

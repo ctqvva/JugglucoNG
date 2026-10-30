@@ -296,7 +296,7 @@ fun DashboardScreen(
     // push the whole dashboard down by one gap whenever there is no update to announce.
     val appUpdateBannerVisible = rememberAppUpdateBannerVisible()
     val context = LocalContext.current
-    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
     val dashboardPrefs = remember(context) {
@@ -1407,7 +1407,7 @@ fun DashboardScreen(
                     is CalibrationSheetState.Edit -> state.entity.isRawMode
                     CalibrationSheetState.Hidden -> false
                 }
-                if (!childFriendlyModeEnabled &&
+                if (!childFriendlyModeSettings.hideCalibration &&
                     tk.glucodata.data.calibration.CalibrationManager.isEnabledForMode(targetRawMode, targetSensorId)
                 ) {
                     onTriggerCalibration(state)
@@ -1663,8 +1663,10 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                onDeleteReading = if (!childFriendlyModeSettings.hideDataClearing) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 modifier = Modifier
                             )
@@ -2138,8 +2140,10 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                onDeleteReading = if (!childFriendlyModeSettings.hideDataClearing) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 onBaselineHeightMeasured = if (index == 0) {
                                     { measuredReadingBaselineHeightPx = it }
@@ -2153,7 +2157,7 @@ fun DashboardScreen(
                     }
                 }
 
-                if (!childFriendlyModeEnabled) {
+                if (!childFriendlyModeSettings.hideCalibration) {
                     // Calibrations Card
                     item {
                         Box(modifier = Modifier.padding(horizontal = contentHorizontalPadding)) {

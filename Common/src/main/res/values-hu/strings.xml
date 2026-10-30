@@ -2,7 +2,7 @@
     <string name="language">hu</string>
     <string name="languagename">Magyar</string>
     <string name="child_friendly_mode_title">Gyerekbarát mód</string>
-    <string name="child_friendly_mode_desc">Elrejti a kalibrálást, az érzékelő visszaállítását, a speciális érzékelőalgoritmusokat, a simítást és az adattörlési lehetőségeket.</string>
+    <string name="child_friendly_mode_desc">Válassza ki, mely vezérlőelemeket szeretné elrejteni a gyermekek elől.</string>
     <string name="app_name">JugglucoNG</string>
     <string name="ok">OK</string>
     <string name="cancel">Mégse</string>
