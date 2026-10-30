@@ -620,7 +620,7 @@ private fun DestinationEditor(
         },
         visualTransformation = if (isGlucifer && !showSecret) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = {
-            if (isGlucifer) IconButton(onClick = { onShowSecretChange(!showSecret) }) {
+            if (isGlucifer) IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
                 Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = null)
             }
         },
@@ -1607,7 +1607,7 @@ private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChan
         if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
         else pendingUrl = url
     })
-    Button(onClick = scan, modifier = Modifier.fillMaxWidth()) {
+    Button(onClick = scan, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
         Icon(
             imageVector = Icons.Filled.QrCodeScanner,
             contentDescription = null,
@@ -1622,7 +1622,7 @@ private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChan
         AlertDialog(onDismissRequest = { pendingUrl = null },
             title = { Text(stringResource(R.string.glucifer_title)) },
             text = { Text(stringResource(R.string.glucifer_qr_confirm, GluciferSetup.hostLabel(url))) },
-            confirmButton = { TextButton(onClick = { onChange(destination.copy(url = url)); pendingUrl = null }) { Text(stringResource(R.string.confirm)) } },
-            dismissButton = { TextButton(onClick = { pendingUrl = null }) { Text(stringResource(R.string.cancel)) } })
+            confirmButton = { TextButton(onClick = { onChange(destination.copy(url = url)); pendingUrl = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.confirm)) } },
+            dismissButton = { TextButton(onClick = { pendingUrl = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) } })
     }
 }

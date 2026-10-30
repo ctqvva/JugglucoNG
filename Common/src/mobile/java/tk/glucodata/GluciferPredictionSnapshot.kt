@@ -1,7 +1,6 @@
 package tk.glucodata
 
 import android.content.Context
-import androidx.annotation.Keep
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -19,7 +18,6 @@ import java.util.Locale
 import kotlin.math.round
 
 /** Export the dashboard's curves as display data, never as measured glucose. */
-@Keep
 object GluciferPredictionSnapshot {
     @JvmStatic
     fun snapshotJson(context: Context, sensorId: String?, glucoseTime: Long): String = runBlocking(Dispatchers.IO) {

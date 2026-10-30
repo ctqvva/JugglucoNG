@@ -83,12 +83,6 @@
     public final float getVelocity();
 }
 
-# GluciferSender resolves the mobile-only journal exporter by name.
--keepnames class tk.glucodata.OutboundApiJournalSnapshot
--keepclassmembers class tk.glucodata.OutboundApiJournalSnapshot {
-    public static java.lang.String gluciferJournalJson(int,boolean,long);
-}
-
 #-keep class tk.glucodata.watchface.WatchFaceService
 #-keep class tk.glucodata.watchface.WatchFaceService.editor.WatchFaceConfigActivity
 
@@ -119,6 +113,3 @@
 
 # Looked up by name from native code (g.cpp isManagedDirectStreamSensorId); R8 would otherwise rename it.
 -keep class tk.glucodata.SensorIdentity { public static boolean usesNativeDirectStreamShell(java.lang.String); }
-
-# Keep the optional Glucifer prediction bridge called from the shared sender.
--keep class tk.glucodata.GluciferPredictionSnapshot { *; }
