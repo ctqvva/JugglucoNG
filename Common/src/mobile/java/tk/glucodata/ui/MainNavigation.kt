@@ -697,17 +697,33 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
     // Hoisted Calibration Sheet State
     var calibrationSheetState by remember { mutableStateOf<CalibrationSheetState>(CalibrationSheetState.Hidden) }
 
-    val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
-        calibrationSheetState = state
-    }
     val navigationTapCatcher = remember { NavigationTapCatcher() }
     val context = LocalContext.current
+    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
+    val onTriggerCalibration: (CalibrationSheetState) -> Unit = { state ->
+        if (!childFriendlyModeEnabled) calibrationSheetState = state
+    }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // Handle back button to exit app when on start destination
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
+    LaunchedEffect(childFriendlyModeEnabled, currentRoute) {
+        if (childFriendlyModeEnabled) {
+            calibrationSheetState = CalibrationSheetState.Hidden
+            if (currentRoute != null && currentRoute in setOf(
+                    "calibrations",
+                    "settings/calibrations",
+                    "calibrations/model-table",
+                    "settings/calibrations/model-table",
+                    "settings/data-smoothing",
+                )
+            ) {
+                navController.popBackStack()
+            }
+        }
+    }
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalNavigationTabEnabled by dashboardViewModel.journalNavigationTabEnabled.collectAsStateWithLifecycle()
     val showJournalNav = journalEnabled && journalNavigationTabEnabled

@@ -1,6 +1,8 @@
 <resources>
     <string name="language">nl</string>
     <string name="languagename">Taal</string>
+    <string name="child_friendly_mode_title">Kindvriendelijke modus</string>
+    <string name="child_friendly_mode_desc">Verbergt kalibratie, sensorreset, geavanceerde sensoralgoritmen, afvlakking en opties om gegevens te wissen.</string>
 
     <string name="app_name">JugglucoNG</string>
 

@@ -107,7 +107,8 @@ internal enum class SettingsSearchTone { PRIMARY, SECONDARY, TERTIARY, NEUTRAL, 
  * a result never opens a screen that lacks it.
  */
 internal enum class SettingsSearchCondition {
-    LIBREVIEW, DEXCOM_SHARE, MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND
+    LIBREVIEW, DEXCOM_SHARE, MQ_ACCOUNT, OTTAI, HEALTH_CONNECT, LIBRE2_IDENTITY, APP_TREND,
+    CHILD_FRIENDLY_MODE_OFF
 }
 
 /**
@@ -214,7 +215,7 @@ internal object SettingsSearchIndex {
             terms = listOf("TTS")),
         SettingsSearchEntry(R.string.settings_calibration_title, TOP, Icons.Default.WaterDrop, P, route("settings/calibrations"),
             keywords = listOf(R.string.calibration_from_journal_title),
-            terms = listOf("fingerstick")),
+            terms = listOf("fingerstick"), condition = SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF),
         SettingsSearchEntry(R.string.journal_title, TOP, Icons.Default.EditNote, P, route("settings/journal"),
             keywords = listOf(R.string.settings_journal_desc, R.string.journal_show_tab_title,
                 R.string.journal_dashboard_quickadd_title, R.string.journal_aaps_import_title,
@@ -250,7 +251,7 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.graph_smoothing_title, DISPLAY, Icons.AutoMirrored.Filled.TrendingUp, S, route("settings/data-smoothing"),
             keywords = listOf(R.string.data_smoothing_window_title, R.string.data_smoothing_collapse_title,
                 R.string.data_smoothing_scope_title, R.string.data_smoothing_target_sent_title,
-                R.string.data_smoothing_causal_title)),
+                R.string.data_smoothing_causal_title), condition = SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF),
         SettingsSearchEntry(R.string.predictive_simulation_title, DISPLAY, Icons.AutoMirrored.Filled.ShowChart, S,
             route("settings/predictive-simulation"),
             keywords = listOf(R.string.settings_prediction_desc, R.string.predictive_trend_momentum,
@@ -368,8 +369,11 @@ internal object SettingsSearchIndex {
         // Danger zone: restart acts at once, as its row does; the rest ask for confirmation.
         SettingsSearchEntry(R.string.restart_app, DANGER, Icons.Default.Refresh, E, action(SettingsSearchAction.RESTART),
             keywords = listOf(R.string.restart_app_desc)),
-        SettingsSearchEntry(R.string.clear_history, DANGER, Icons.Default.History, E, action(SettingsSearchAction.CLEAR_HISTORY)),
-        SettingsSearchEntry(R.string.clear_app_data, DANGER, Icons.Default.Delete, E, action(SettingsSearchAction.CLEAR_APP_DATA)),
-        SettingsSearchEntry(R.string.factory_reset, DANGER, Icons.Default.Warning, E, action(SettingsSearchAction.FACTORY_RESET)),
+        SettingsSearchEntry(R.string.clear_history, DANGER, Icons.Default.History, E, action(SettingsSearchAction.CLEAR_HISTORY),
+            condition = SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF),
+        SettingsSearchEntry(R.string.clear_app_data, DANGER, Icons.Default.Delete, E, action(SettingsSearchAction.CLEAR_APP_DATA),
+            condition = SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF),
+        SettingsSearchEntry(R.string.factory_reset, DANGER, Icons.Default.Warning, E, action(SettingsSearchAction.FACTORY_RESET),
+            condition = SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF),
     )
 }

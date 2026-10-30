@@ -3,6 +3,8 @@
     <string name="language">pt</string>
 
     <string name="languagename">Linguagem</string>
+    <string name="child_friendly_mode_title">Modo adequado para crianças</string>
+    <string name="child_friendly_mode_desc">Oculta a calibração, a redefinição do sensor, os algoritmos avançados do sensor, a suavização e as opções para apagar dados.</string>
 <string name="app_name">JugglucoNG</string>
 
 <string name="ok">OK</string>

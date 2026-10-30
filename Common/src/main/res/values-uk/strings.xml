@@ -1,6 +1,8 @@
 <resources>
     <string name="language">uk</string>
     <string name="languagename">Мова</string>
+    <string name="child_friendly_mode_title">Дитячий режим</string>
+    <string name="child_friendly_mode_desc">Приховує калібрування, скидання сенсора, розширені алгоритми сенсора, згладжування та параметри очищення даних.</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">OK</string>

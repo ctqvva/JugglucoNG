@@ -110,6 +110,7 @@ fun ExpressiveSettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val childFriendlyModeEnabled = rememberChildFriendlyModeEnabled()
     val sensorStatusRevision by tk.glucodata.UiRefreshBus.revision.collectAsStateWithLifecycle()
     val showMqAccount = remember(context, sensorStatusRevision) {
         tk.glucodata.drivers.mq.MQRegistry.persistedRecords(context).isNotEmpty()
@@ -220,7 +221,7 @@ fun ExpressiveSettingsScreen(
     )
     val searchCandidates = remember(
         context, searchLocales, showLibreView, showDexcomShare, showMqAccount, showOttaiSettings,
-        showLibre2Identity, showAppTrend
+        showLibre2Identity, showAppTrend, childFriendlyModeEnabled
     ) {
         SettingsSearchIndex.resolve(context) { condition ->
             when (condition) {
@@ -231,6 +232,7 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchCondition.HEALTH_CONNECT -> PhoneAppsSettings.healthConnectSupported
                 SettingsSearchCondition.LIBRE2_IDENTITY -> showLibre2Identity
                 SettingsSearchCondition.APP_TREND -> showAppTrend
+                SettingsSearchCondition.CHILD_FRIENDLY_MODE_OFF -> !childFriendlyModeEnabled
             }
         }
     }
@@ -391,6 +393,15 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.MIDDLE,
                     onClick = { showUnitDialog = true }
                 )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.child_friendly_mode_title),
+                    subtitle = stringResource(R.string.child_friendly_mode_desc),
+                    checked = childFriendlyModeEnabled,
+                    onCheckedChange = { ChildFriendlyMode.setEnabled(context, it) },
+                    icon = Icons.Default.Security,
+                    iconTint = generalColor,
+                    position = CardPosition.MIDDLE,
+                )
                 AppUpdatesSettingsItem(
                     iconTint = generalColor,
                     position = CardPosition.BOTTOM,
@@ -418,21 +429,23 @@ fun ExpressiveSettingsScreen(
                     iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.TOP,
                 )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.settings_calibration_title),
-                    subtitle = stringResource(
-                        R.string.settings_calibration_desc,
-                        stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
-                    ),
-                    checked = calibrationEnabled,
-                    onCheckedChange = {
-                        CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
-                    },
-                    onClick = { navController.navigate("settings/calibrations") },
-                    icon = Icons.Default.WaterDrop,
-                    iconTint = everydayColor,
-                    position = CardPosition.MIDDLE
-                )
+                if (!childFriendlyModeEnabled) {
+                    SettingsNavSwitchItem(
+                        title = stringResource(R.string.settings_calibration_title),
+                        subtitle = stringResource(
+                            R.string.settings_calibration_desc,
+                            stringResource(if (isRawCalibrationMode) R.string.raw else R.string.auto)
+                        ),
+                        checked = calibrationEnabled,
+                        onCheckedChange = {
+                            CalibrationManager.setEnabledForMode(isRawCalibrationMode, it, sensorName)
+                        },
+                        onClick = { navController.navigate("settings/calibrations") },
+                        icon = Icons.Default.WaterDrop,
+                        iconTint = everydayColor,
+                        position = CardPosition.MIDDLE
+                    )
+                }
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.journal_title),
                     subtitle = stringResource(R.string.settings_journal_desc),
@@ -460,16 +473,18 @@ fun ExpressiveSettingsScreen(
                     position = CardPosition.TOP,
                     onClick = { navController.navigate("settings/display-colors") }
                 )
-                SettingsNavSwitchItem(
-                    title = stringResource(R.string.graph_smoothing_title),
-                    subtitle = graphSmoothingLabel,
-                    checked = chartSmoothingMinutes > 0,
-                    onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
-                    onClick = { navController.navigate("settings/data-smoothing") },
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    iconTint = displayColor,
-                    position = CardPosition.MIDDLE
-                )
+                if (!childFriendlyModeEnabled) {
+                    SettingsNavSwitchItem(
+                        title = stringResource(R.string.graph_smoothing_title),
+                        subtitle = graphSmoothingLabel,
+                        checked = chartSmoothingMinutes > 0,
+                        onCheckedChange = { viewModel.setDataSmoothingEnabled(it) },
+                        onClick = { navController.navigate("settings/data-smoothing") },
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                        iconTint = displayColor,
+                        position = CardPosition.MIDDLE
+                    )
+                }
                 SettingsNavSwitchItem(
                     title = stringResource(R.string.predictive_simulation_title),
                     subtitle = stringResource(R.string.settings_prediction_desc),
@@ -760,7 +775,9 @@ fun ExpressiveSettingsScreen(
         }
 
         // === DANGER ===
-        item(key = "danger_label") { SectionLabel(stringResource(R.string.danger_zone), isError = true) }
+        if (!childFriendlyModeEnabled) {
+            item(key = "danger_label") { SectionLabel(stringResource(R.string.danger_zone), isError = true) }
+        }
 
         item(key = "danger_group") {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -768,34 +785,36 @@ fun ExpressiveSettingsScreen(
                     title = stringResource(R.string.restart_app),
                     subtitle = stringResource(R.string.restart_app_desc),
                     icon = Icons.Filled.Refresh,
-                    position = CardPosition.TOP,
+                    position = if (childFriendlyModeEnabled) CardPosition.SINGLE else CardPosition.TOP,
                     severity = DangerSeverity.LOW,
                     onClick = { context.findActivity()?.fullRestart() }
                 )
-                DangerItem(
-                    title = stringResource(R.string.clear_history),
-                    subtitle = stringResource(R.string.clear_history_desc_short),
-                    icon = Icons.Filled.History,
-                    position = CardPosition.MIDDLE,
-                    severity = DangerSeverity.LOW,
-                    onClick = { showClearHistoryDialog = true }
-                )
-                DangerItem(
-                    title = stringResource(R.string.clear_app_data),
-                    subtitle = stringResource(R.string.clear_app_data_desc),
-                    icon = Icons.Filled.Delete,
-                    position = CardPosition.MIDDLE,
-                    severity = DangerSeverity.MEDIUM,
-                    onClick = { showClearDataDialog = true }
-                )
-                DangerItem(
-                    title = stringResource(R.string.factory_reset),
-                    subtitle = stringResource(R.string.factory_reset_desc),
-                    icon = Icons.Filled.Warning,
-                    position = CardPosition.BOTTOM,
-                    severity = DangerSeverity.HIGH,
-                    onClick = { showFactoryResetDialog = true }
-                )
+                if (!childFriendlyModeEnabled) {
+                    DangerItem(
+                        title = stringResource(R.string.clear_history),
+                        subtitle = stringResource(R.string.clear_history_desc_short),
+                        icon = Icons.Filled.History,
+                        position = CardPosition.MIDDLE,
+                        severity = DangerSeverity.LOW,
+                        onClick = { showClearHistoryDialog = true }
+                    )
+                    DangerItem(
+                        title = stringResource(R.string.clear_app_data),
+                        subtitle = stringResource(R.string.clear_app_data_desc),
+                        icon = Icons.Filled.Delete,
+                        position = CardPosition.MIDDLE,
+                        severity = DangerSeverity.MEDIUM,
+                        onClick = { showClearDataDialog = true }
+                    )
+                    DangerItem(
+                        title = stringResource(R.string.factory_reset),
+                        subtitle = stringResource(R.string.factory_reset_desc),
+                        icon = Icons.Filled.Warning,
+                        position = CardPosition.BOTTOM,
+                        severity = DangerSeverity.HIGH,
+                        onClick = { showFactoryResetDialog = true }
+                    )
+                }
             }
         }
 
@@ -838,8 +857,8 @@ fun ExpressiveSettingsScreen(
     }, { showUnitDialog = false })
     if (showThemeDialog) ThemePickerDialog(themeMode, { onThemeChanged(it); showThemeDialog = false }, { showThemeDialog = false })
     if (showLanguageDialog) LanguagePickerDialog { showLanguageDialog = false }
-    if (showClearHistoryDialog) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
-    if (showClearDataDialog) ConfirmActionDialog(
+    if (showClearHistoryDialog && !childFriendlyModeEnabled) ConfirmActionDialog(stringResource(R.string.clean_history_confirm), stringResource(R.string.clear_history_desc_long), Icons.Filled.History, { scope.launch { tk.glucodata.data.DataManagement.clearHistory() }; showClearHistoryDialog = false }, { showClearHistoryDialog = false })
+    if (showClearDataDialog && !childFriendlyModeEnabled) ConfirmActionDialog(
         stringResource(R.string.clean_data_confirm), 
         stringResource(R.string.clear_app_data_desc), 
         Icons.Filled.Delete, 
@@ -854,7 +873,7 @@ fun ExpressiveSettingsScreen(
         { showClearDataDialog = false }, 
         isDestructive = true
     )
-    if (showFactoryResetDialog) ConfirmActionDialog(
+    if (showFactoryResetDialog && !childFriendlyModeEnabled) ConfirmActionDialog(
         stringResource(R.string.factory_reset_confirm), 
         stringResource(R.string.factory_reset_alert), 
         Icons.Filled.Warning, 

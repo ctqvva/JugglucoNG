@@ -1,6 +1,8 @@
 <resources>
     <string name="language">so</string>
     <string name="languagename">Luuqad</string>
+    <string name="child_friendly_mode_title">Habka carruurta u fudud</string>
+    <string name="child_friendly_mode_desc">Wuxuu qariyaa kalibreynta, dib-u-dejinta dareemaha, algorithms-ka dareemaha ee horumarsan, simidda xogta iyo xulashooyinka tirtirka xogta.</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">OK</string>

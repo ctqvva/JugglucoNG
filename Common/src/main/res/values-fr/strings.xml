@@ -1,6 +1,8 @@
 <resources>
     <string name="language">fr</string>
     <string name="languagename">Langue</string>
+    <string name="child_friendly_mode_title">Mode adapté aux enfants</string>
+    <string name="child_friendly_mode_desc">Masque l’étalonnage, la réinitialisation du capteur, les algorithmes avancés du capteur, le lissage et les options d’effacement des données.</string>
 <string name="app_name">JugglucoNG</string>
 
 <string name="ok">OK</string>

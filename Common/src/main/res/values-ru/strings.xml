@@ -126,6 +126,8 @@
     <string name="kerfstok_missing_title">Kerfstok не установлен на часах</string>
     <string name="language">ru</string>
     <string name="languagename">Язык</string>
+    <string name="child_friendly_mode_title">Детский режим</string>
+    <string name="child_friendly_mode_desc">Скрывает калибровку, сброс датчика, расширенные алгоритмы датчика, сглаживание и параметры очистки данных.</string>
     <string name="last_failure">Ошибка</string>
     <string name="last_scan">Последний скан</string>
     <string name="last_success">Успешно</string>
