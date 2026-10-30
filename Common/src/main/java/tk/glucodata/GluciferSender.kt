@@ -212,9 +212,7 @@ object GluciferSender {
         }
         if ("predictions" in selected && reading != null) {
             values["predictions"] = runCatching {
-                val type = Class.forName("tk.glucodata.GluciferPredictionSnapshot")
-                val json = type.getMethod("snapshotJson", Context::class.java, String::class.java, Long::class.javaPrimitiveType)
-                    .invoke(null, context, reading.sensorId, reading.timeMillis) as String
+                val json = GluciferSnapshotAccess.predictionJson(context, reading.sensorId, reading.timeMillis)
                 org.json.JSONArray(json)
             }.getOrNull()
         }
@@ -379,9 +377,8 @@ object GluciferSender {
         val now = System.currentTimeMillis()
         val current = if (destination.gluciferJournal) {
             // Journal exists in the mobile source set only. Failure must not look like an empty journal.
-            val type = Class.forName("tk.glucodata.OutboundApiJournalSnapshot")
-            val method = type.getMethod("gluciferJournalJson", Integer.TYPE, java.lang.Boolean.TYPE, java.lang.Long.TYPE)
-            val entries = org.json.JSONArray(method.invoke(null, destination.gluciferJournalDays, destination.gluciferJournalNotes, now).toString())
+            val entries = org.json.JSONArray(GluciferSnapshotAccess.journalJson(
+                destination.gluciferJournalDays, destination.gluciferJournalNotes, now))
             (0 until entries.length()).map { entries.getJSONObject(it) }
         } else emptyList()
         val payload = GluciferJournal.next(saved, destination.id, current, destination.gluciferJournal,
