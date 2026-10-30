@@ -787,9 +787,8 @@ fun ExpressiveSettingsScreen(
         }
 
         // === DANGER ===
-        if (!childFriendlyModeSettings.hideDataClearing) {
-            item(key = "danger_label") { SectionLabel(stringResource(R.string.danger_zone), isError = true) }
-        }
+        item(key = "danger_label") { SectionLabel(stringResource(R.string.danger_zone), isError = true) }
+        
 
         item(key = "danger_group") {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
