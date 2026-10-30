@@ -2018,8 +2018,10 @@ fun SensorCard(
                                 FilledIconButton(
                                     onClick = {
                                         if (isLocallyEnabled) {
-                                            android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
-                                            viewModel.disconnectSensor(sensor.serial)
+                                            if (!childFriendlyModeEnabled) {
+                                                android.util.Log.d("SensorCard", "Pause button clicked for: ${sensor.serial}")
+                                                viewModel.disconnectSensor(sensor.serial)
+                                            }
                                         } else {
                                             android.util.Log.d("SensorCard", "Play button clicked for: ${sensor.serial}")
                                             viewModel.reconnectSensor(sensor.serial, false)
@@ -2426,7 +2428,9 @@ fun SensorCard(
             // Libre 1/2 export their two lanes as Stream (Auto) and the sensor's own
             // 15-minute History (Raw), so the same four modes switch between them.
             val isLibreStreamHistory = sensor.hasLibreHistoryLane
-            if (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory) {
+            if (!(childFriendlyModeEnabled && sensor.isSibionics) &&
+                (sensor.isSibionics || sensor.supportsDisplayModes || isLibreStreamHistory)
+            ) {
                 Text(
                     stringResource(R.string.data_mode),
                     style = MaterialTheme.typography.titleMedium,
@@ -2575,7 +2579,7 @@ fun SensorCard(
                     }
                 }
                 // Calibration history — show previous calibrations from the sensor
-                if (sensor.vendorCalibrations.isNotEmpty()) {
+                if (!childFriendlyModeEnabled && sensor.vendorCalibrations.isNotEmpty()) {
                     val isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmolApp()
                     val calDateFormat = java.text.SimpleDateFormat("dd MMM HH:mm", java.util.Locale.getDefault())
                     val calCount = sensor.vendorCalibrations.size

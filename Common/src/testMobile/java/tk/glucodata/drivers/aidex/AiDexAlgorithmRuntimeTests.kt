@@ -661,6 +661,27 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(140f, room[last.key]!!, 0f)
     }
 
+    @Test fun olderSettingsImportPreservesChildFriendlyMode() {
+        val preferences = Applic.app.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE)
+        preferences.edit().putBoolean("child_friendly_mode", true).commit()
+        val legacySettings = JSONObject().put(
+            "tk.glucodata_preferences",
+            JSONObject().put("values", JSONObject())
+        )
+
+        SettingsExporter.importSharedPreferences(Applic.app, legacySettings)
+
+        assertTrue(preferences.getBoolean("child_friendly_mode", false))
+
+        legacySettings.getJSONObject("tk.glucodata_preferences").getJSONObject("values").put(
+            "child_friendly_mode",
+            JSONObject().put("type", "boolean").put("value", false)
+        )
+        SettingsExporter.importSharedPreferences(Applic.app, legacySettings)
+
+        assertTrue(preferences.getBoolean("child_friendly_mode", false))
+    }
+
     private fun packageSettings(preferences: JSONObject) = JSONObject()
         .put("schema", SettingsExporter.SCHEMA).put("schemaVersion", 1)
         .put("sharedPreferences", preferences).put("nativeSettingsFiles", JSONObject())

@@ -331,6 +331,10 @@ fun ExpressiveSettingsScreen(
                 SettingsSearchAction.CLEAR_HISTORY -> showClearHistoryDialog = true
                 SettingsSearchAction.CLEAR_APP_DATA -> showClearDataDialog = true
                 SettingsSearchAction.FACTORY_RESET -> showFactoryResetDialog = true
+                SettingsSearchAction.CHILD_FRIENDLY_MODE -> {
+                    SettingsSearchReveal.request(entry.anchor)
+                    searchQuery = ""
+                }
             }
         }
     }
@@ -401,6 +405,7 @@ fun ExpressiveSettingsScreen(
                     icon = Icons.Default.Security,
                     iconTint = generalColor,
                     position = CardPosition.MIDDLE,
+                    searchAnchor = SettingsSearchAnchors.CHILD_FRIENDLY_MODE,
                 )
                 AppUpdatesSettingsItem(
                     iconTint = generalColor,
@@ -913,6 +918,7 @@ fun ExpressiveSettingsScreen(
                 scope.launch {
                     val result = tk.glucodata.data.SettingsExporter.importFromJson(context, uri)
                     withContext(Dispatchers.Main) {
+                        ChildFriendlyMode.refresh()
                         if (result.isSuccess) {
                             Toast.makeText(
                                 context,
@@ -947,6 +953,7 @@ fun ExpressiveSettingsScreen(
                 scope.launch {
                     val result = tk.glucodata.data.ExportPackageExporter.importFromJson(context, uri)
                     withContext(Dispatchers.Main) {
+                        ChildFriendlyMode.refresh()
                         if (result.isSuccess) {
                             val summary = result.getOrThrow()
                             Toast.makeText(

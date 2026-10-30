@@ -60,7 +60,7 @@ import tk.glucodata.R
 /** Something on the Settings tab itself that opens a dialog or sheet rather than a screen. */
 internal enum class SettingsSearchAction {
     THEME, LANGUAGE, UNIT, KEEP_DISPLAYED_VALUES, BACKUPS, EXPORT, IMPORT,
-    RESTART, CLEAR_HISTORY, CLEAR_APP_DATA, FACTORY_RESET,
+    RESTART, CLEAR_HISTORY, CLEAR_APP_DATA, FACTORY_RESET, CHILD_FRIENDLY_MODE,
 }
 
 internal sealed interface SettingsSearchTarget {
@@ -97,6 +97,7 @@ internal object SettingsSearchAnchors {
     const val HANDOVER = "connection/handover"
     const val TURBO = "connection/turbo"
     const val AUTOCONNECT = "connection/autoconnect"
+    const val CHILD_FRIENDLY_MODE = "settings/child-friendly-mode"
 }
 
 /** Icon-tile role, matching the group colour the row wears on the Settings tab. */
@@ -190,6 +191,11 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.languagename, TOP, Icons.Default.Language, P, action(SettingsSearchAction.LANGUAGE)),
         SettingsSearchEntry(R.string.settings_unit_title, TOP, Icons.Default.Straighten, P, action(SettingsSearchAction.UNIT),
             terms = listOf("mg/dL", "mmol/L")),
+        SettingsSearchEntry(R.string.child_friendly_mode_title, TOP, Icons.Default.Security, P,
+            action(SettingsSearchAction.CHILD_FRIENDLY_MODE),
+            keywords = listOf(R.string.child_friendly_mode_desc),
+            terms = listOf("kids", "kid-proof", "childproof", "child mode"),
+            anchor = SettingsSearchAnchors.CHILD_FRIENDLY_MODE),
         SettingsSearchEntry(R.string.app_updates_title, TOP, Icons.Default.SystemUpdate, P, route("settings/app-updates")),
 
         // Everyday (second group, no label)

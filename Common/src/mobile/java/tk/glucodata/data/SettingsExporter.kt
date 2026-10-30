@@ -275,6 +275,11 @@ object SettingsExporter {
         exportedPreferences: JSONObject,
     ): Pair<Int, Int> {
         val aidexName = "AiDexNativePrefs"
+        val mainPreferencesName = "tk.glucodata_preferences"
+        val childFriendlyModeKey = "child_friendly_mode"
+        val preserveChildFriendlyMode = context
+            .getSharedPreferences(mainPreferencesName, Context.MODE_PRIVATE)
+            .getBoolean(childFriendlyModeKey, false)
         fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
             key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
         // Settings change requests, not the provenance of retained glucose.
@@ -286,6 +291,9 @@ object SettingsExporter {
                 // by a writer during import; don't restore an earlier snapshot.
                 prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
             } else editor.clear()
+            if (name == mainPreferencesName && preserveChildFriendlyMode) {
+                editor.putBoolean(childFriendlyModeKey, true)
+            }
             return editor
         }
         val importedNames = exportedPreferences.keySet()
@@ -303,6 +311,9 @@ object SettingsExporter {
 
             values.keySet().sorted().forEach valueLoop@ { key ->
                 if (name == aidexName && historyKey(key)) return@valueLoop
+                if (name == mainPreferencesName && preserveChildFriendlyMode &&
+                    key == childFriendlyModeKey
+                ) return@valueLoop
                 putPreferenceValue(editor, key, values.getJSONObject(key))
                 if (name == aidexName && key.startsWith("algorithmMode_")) {
                     // An imported request cannot claim that local history has
