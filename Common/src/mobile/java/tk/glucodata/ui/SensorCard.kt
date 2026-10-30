@@ -2343,7 +2343,10 @@ fun SensorCard(
                             DataRow(stringResource(R.string.model), sensor.vendorModel)
                         }
                         if (sensor.sensorDetailTelemetry.isNotBlank()) {
-                            DataRow(stringResource(R.string.anytime_sensor_telemetry), sensor.sensorDetailTelemetry)
+                            DataRow(
+                                stringResource(if (sensor.isIcan) R.string.ican_calibration_marker else R.string.anytime_sensor_telemetry),
+                                sensor.sensorDetailTelemetry
+                            )
                         }
                         if (sensor.vendorFirmware.isNotEmpty()) {
                             val firmwareText = if (sensor.vendorFirmware.startsWith("v", ignoreCase = true)) {

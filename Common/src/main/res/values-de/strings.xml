@@ -3208,4 +3208,5 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
     <string name="settings_search_clear">Suche löschen</string>
+    <string name="ican_calibration_marker">Kalibrierung (F6)</string>
 </resources>

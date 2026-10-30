@@ -3280,4 +3280,5 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="settings_search_hint">Raadi dejinta</string>
     <string name="settings_search_no_results">Ma jiro dejin u dhiganta “%1$s”</string>
     <string name="settings_search_clear">Tirtir raadinta</string>
+    <string name="ican_calibration_marker">Qalabayn (F6)</string>
 </resources>

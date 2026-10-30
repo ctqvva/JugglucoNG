@@ -3108,4 +3108,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_no_results">没有与“%1$s”匹配的设置</string>
     <string name="settings_search_clear">清除搜索</string>
+    <string name="ican_calibration_marker">校准 (F6)</string>
 </resources>

@@ -3176,4 +3176,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Пошук у налаштуваннях</string>
     <string name="settings_search_no_results">Немає налаштувань, що відповідають «%1$s»</string>
     <string name="settings_search_clear">Очистити пошук</string>
+    <string name="ican_calibration_marker">Калібрування (F6)</string>
 </resources>

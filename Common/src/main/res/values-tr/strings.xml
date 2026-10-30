@@ -3123,4 +3123,5 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="settings_search_hint">Ayarlarda ara</string>
     <string name="settings_search_no_results">“%1$s” ile eşleşen ayar yok</string>
     <string name="settings_search_clear">Aramayı temizle</string>
+    <string name="ican_calibration_marker">Kalibrasyon (F6)</string>
 </resources>

@@ -3164,4 +3164,5 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="settings_search_hint">Keresés a beállításokban</string>
     <string name="settings_search_no_results">Nincs a(z) „%1$s” keresésnek megfelelő beállítás</string>
     <string name="settings_search_clear">Keresés törlése</string>
+    <string name="ican_calibration_marker">Kalibráció (F6)</string>
 </resources>

@@ -751,6 +751,45 @@ object ICanHealthConstants {
         }
     }
 
+    /**
+     * The sensor-info marker is the calibration scale the sensor holds, times 1000 (`0xFFFF` =
+     * nothing installed). Shown read-only so users can compare it with a meter.
+     */
+    @JvmStatic
+    fun formatCalibrationMarker(marker: Int?): String = when {
+        marker == null -> ""
+        marker == 0xFFFF -> "F6 0xFFFF"
+        else -> "F6 0x%04X (%d), x13 %.3f".format(java.util.Locale.US, marker, marker, marker / 1000f)
+    }
+
+    /** How long a stored address may go without a reading before the advertised name may replace it. */
+    const val STALE_ADDRESS_REBIND_MS = 10 * 60_000L
+
+    /**
+     * A stored address only matches that exact radio address. If the box now advertises under
+     * another one (replaced box, address change) the sensor is never found again. Rebind only
+     * when the advertised name is exactly this sensor's id and nothing has been received for
+     * [STALE_ADDRESS_REBIND_MS], so an unrelated device can never take the slot.
+     */
+    @JvmStatic
+    fun shouldRebindStaleAddress(
+        knownAddress: String?,
+        candidateAddress: String?,
+        advertisedName: String?,
+        sensorIds: List<String?>,
+        lastActivityMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (knownAddress.isNullOrBlank() || candidateAddress.isNullOrBlank()) return false
+        if (knownAddress.equals(candidateAddress, ignoreCase = true)) return false
+        val name = canonicalSensorId(advertisedName)
+        if (name.isEmpty()) return false
+        if (sensorIds.none { id -> canonicalSensorId(id).let { it.isNotEmpty() && it.equals(name, ignoreCase = true) } }) {
+            return false
+        }
+        return nowMs - lastActivityMs >= STALE_ADDRESS_REBIND_MS
+    }
+
     @JvmStatic
     fun canonicalSensorId(sensorId: String?): String {
         val trimmed = sensorId?.trim().orEmpty()

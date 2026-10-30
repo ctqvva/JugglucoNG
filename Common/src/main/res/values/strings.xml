@@ -3357,4 +3357,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_no_results">No settings match “%1$s”</string>
     <string name="settings_search_clear">Clear search</string>
+    <string name="ican_calibration_marker">Calibration (F6)</string>
 </resources>

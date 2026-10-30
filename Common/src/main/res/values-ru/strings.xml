@@ -3147,4 +3147,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Поиск по настройкам</string>
     <string name="settings_search_no_results">Нет настроек, подходящих под «%1$s»</string>
     <string name="settings_search_clear">Очистить поиск</string>
+    <string name="ican_calibration_marker">Калибровка (F6)</string>
 </resources>

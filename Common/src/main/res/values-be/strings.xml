@@ -3171,4 +3171,5 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Пошук у наладах</string>
     <string name="settings_search_no_results">Няма налад, падобных да «%1$s»</string>
     <string name="settings_search_clear">Ачысціць пошук</string>
+    <string name="ican_calibration_marker">Каліброўка (F6)</string>
 </resources>

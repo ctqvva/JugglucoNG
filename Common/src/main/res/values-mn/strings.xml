@@ -3196,4 +3196,5 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="settings_search_hint">Тохиргооноос хайх</string>
     <string name="settings_search_no_results">“%1$s”-тэй тохирох тохиргоо алга</string>
     <string name="settings_search_clear">Хайлтыг арилгах</string>
+    <string name="ican_calibration_marker">Каллибраци (F6)</string>
 </resources>
