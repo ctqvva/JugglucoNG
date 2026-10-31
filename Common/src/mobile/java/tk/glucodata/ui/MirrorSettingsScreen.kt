@@ -218,31 +218,39 @@ private fun MirrorQrDialog(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(
-                            R.string.clone_qr_instruction,
-                            stringResource(R.string.clone_sync_title),
-                            stringResource(R.string.scan_qr_button),
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    QRCodeImage(
-                        content,
-                        bitmapSize,
-                        Modifier
-                            .size(qrSize)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White)
-                    )
+                    // In short windows the code keeps its scannable minimum and the body scrolls; Close stays pinned.
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(
+                                R.string.clone_qr_instruction,
+                                stringResource(R.string.clone_sync_title),
+                                stringResource(R.string.scan_qr_button),
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        QRCodeImage(
+                            content,
+                            bitmapSize,
+                            Modifier
+                                .size(qrSize)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White)
+                        )
+                    }
                     Spacer(Modifier.height(16.dp))
                     TextButton(
                         onClick = onDismiss,
