@@ -8,13 +8,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The build-time values the iCan Health cloud channel sends with every request.
- *
- * The vendor rejects a request whose headers do not match the official app's, so a typo in any
- * of these is not a cosmetic bug: it turns every call into a rejected one. These tests pin the
- * values against the contract recovered from the RU app v01.16.01.02.
- */
 class ICanHealthCloudConstantsTests {
 
     @Test
@@ -78,9 +71,5 @@ class ICanHealthCloudConstantsTests {
         val alphabet = ICanHealthCloudConstants.GET_RANDOM_STRING_ALPHABET
         assertEquals("ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678", alphabet)
         assertEquals(alphabet.length, alphabet.toSet().size)
-        assertTrue(alphabet.all { it.isLetterOrDigit() })
-        assertTrue(alphabet.any { it.isUpperCase() })
-        assertTrue(alphabet.any { it.isLowerCase() })
-        assertTrue(alphabet.any { it.isDigit() })
     }
 }
