@@ -3266,4 +3266,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Отправлять запуск сенсора</string>
     <string name="nightscout_upload_sensor_start_desc">Отправлять событие Sensor Start для каждого сенсора (возраст, тип и серийный номер)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Дополнительные данные</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">История глюкозы</string>
+    <string name="glucifer_delivery_title">Отправка</string>
+    <string name="glucifer_live_short">Отправлять изменения сразу</string>
+    <string name="glucifer_spacing_summary">Не менее %1$s между запросами</string>
+    <string name="glucifer_fallback_short">Проверка при отсутствии обновлений</string>
+    <string name="glucifer_spacing_short">Интервал фоновых запросов</string>
+    <string name="glucifer_help_intro">Отправляйте глюкозу, выбранные данные и состояния оповещений в свой Home Assistant.</string>
+    <string name="glucifer_help_install">1. В Home Assistant добавьте pannal/glucifer-ha в HACS как пользовательскую интеграцию. Установите её, перезапустите Home Assistant и добавьте Glucifer HA в разделе «Устройства и службы».</string>
+    <string name="glucifer_help_pair">2. Откройте настройки интеграции. Отсканируйте её QR-код здесь или вставьте полный URL подключения. Не передавайте этот URL другим.</string>
+    <string name="glucifer_help_test">3. Включите это назначение и отправьте тестовое сообщение. Проверьте значение в Home Assistant. Изменения сохраняются автоматически.</string>
+    <string name="glucifer_setup_guide">Открыть руководство</string>
 </resources>

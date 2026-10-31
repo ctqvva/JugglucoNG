@@ -3290,4 +3290,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Адпраўляць запуск сенсара</string>
     <string name="nightscout_upload_sensor_start_desc">Адпраўляць падзею Sensor Start для кожнага сенсара (узрост, тып і серыйны нумар)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Дадатковыя даныя</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Гісторыя глюкозы</string>
+    <string name="glucifer_delivery_title">Адпраўка</string>
+    <string name="glucifer_live_short">Адпраўляць змены адразу</string>
+    <string name="glucifer_spacing_summary">Не менш за %1$s паміж запытамі</string>
+    <string name="glucifer_fallback_short">Праверка пры адсутнасці абнаўленняў</string>
+    <string name="glucifer_spacing_short">Інтэрвал фонавых запытаў</string>
+    <string name="glucifer_help_intro">Адпраўляйце глюкозу, выбраныя даныя і станы апавяшчэнняў у свой Home Assistant.</string>
+    <string name="glucifer_help_install">1. У Home Assistant дадайце pannal/glucifer-ha у HACS як карыстальніцкую інтэграцыю. Усталюйце яе, перазапусціце Home Assistant і дадайце Glucifer HA у раздзеле «Прылады і службы».</string>
+    <string name="glucifer_help_pair">2. Адкрыйце налады інтэграцыі. Адсканіруйце яе QR-код тут або ўстаўце поўны URL падключэння. Не перадавайце гэты URL іншым.</string>
+    <string name="glucifer_help_test">3. Уключыце гэта прызначэнне і адпраўце тэставае паведамленне. Праверце значэнне ў Home Assistant. Змены захоўваюцца аўтаматычна.</string>
+    <string name="glucifer_setup_guide">Адкрыць кіраўніцтва</string>
 </resources>

@@ -3234,4 +3234,19 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensör başlangıcını gönder</string>
     <string name="nightscout_upload_sensor_start_desc">Her sensör için Sensor Start olayı gönder (yaş, tür ve seri numarası)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Ek veriler</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Glikoz geçmişi</string>
+    <string name="glucifer_delivery_title">Gönderim</string>
+    <string name="glucifer_live_short">Değişiklikleri hemen gönder</string>
+    <string name="glucifer_spacing_summary">İstekler arasında en az %1$s</string>
+    <string name="glucifer_fallback_short">Hareketsizlik kontrolü</string>
+    <string name="glucifer_spacing_short">Arka plan istek aralığı</string>
+    <string name="glucifer_help_intro">Glikozu, seçilen verileri ve uyarı durumlarını kendi Home Assistant sisteminize gönderin.</string>
+    <string name="glucifer_help_install">1. Home Assistant içinde pannal/glucifer-ha deposunu HACS’a özel entegrasyon olarak ekleyin. Kurun, yeniden başlatın ve Cihazlar ve hizmetler bölümünden Glucifer HA’yı ekleyin.</string>
+    <string name="glucifer_help_pair">2. Entegrasyonun yapılandırmasını açın. QR kodunu burada tarayın veya tam bağlantı URL’sini yapıştırın. Bu URL’yi gizli tutun.</string>
+    <string name="glucifer_help_test">3. Bu hedefi etkinleştirin ve test mesajı gönderin. Home Assistant içindeki değeri kontrol edin. Değişiklikler otomatik kaydedilir.</string>
+    <string name="glucifer_setup_guide">Kurulum kılavuzunu aç</string>
 </resources>

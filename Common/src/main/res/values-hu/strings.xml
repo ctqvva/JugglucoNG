@@ -3239,4 +3239,19 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     </plurals>
     <string name="nightscout_upload_sensor_start">Szenzorindítás küldése</string>
     <string name="nightscout_upload_sensor_start_desc">Sensor Start esemény küldése szenzoronként (életkor, típus és sorozatszám)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">További adatok</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Glükózelőzmények</string>
+    <string name="glucifer_delivery_title">Küldés</string>
+    <string name="glucifer_live_short">Változások azonnali küldése</string>
+    <string name="glucifer_spacing_summary">Legalább %1$s a kérések között</string>
+    <string name="glucifer_fallback_short">Ellenőrzés inaktivitás után</string>
+    <string name="glucifer_spacing_short">Háttérkérések időköze</string>
+    <string name="glucifer_help_intro">Glükóz, kiválasztott adatok és riasztási állapotok küldése a saját Home Assistant rendszerébe.</string>
+    <string name="glucifer_help_install">1. A Home Assistant rendszerben adja hozzá a pannal/glucifer-ha tárolót a HACS-hoz egyéni integrációként. Telepítse, indítsa újra, majd adja hozzá a Glucifer HA-t az Eszközök és szolgáltatások alatt.</string>
+    <string name="glucifer_help_pair">2. Nyissa meg az integráció beállításait. Olvassa be itt a QR-kódját, vagy illessze be a teljes kapcsolati URL-t. Tartsa titokban ezt az URL-t.</string>
+    <string name="glucifer_help_test">3. Kapcsolja be ezt a célt, és küldjön tesztüzenetet. Ellenőrizze az értéket a Home Assistant rendszerben. A módosítások automatikusan mentődnek.</string>
+    <string name="glucifer_setup_guide">Beállítási útmutató megnyitása</string>
 </resources>

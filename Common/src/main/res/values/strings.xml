@@ -3468,4 +3468,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">Included %d planned journal entry</item>
         <item quantity="other">Included %d planned journal entries</item>
     </plurals>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Additional data</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Glucose history</string>
+    <string name="glucifer_delivery_title">Delivery</string>
+    <string name="glucifer_live_short">Send live changes immediately</string>
+    <string name="glucifer_spacing_summary">At least %1$s between requests</string>
+    <string name="glucifer_fallback_short">Inactivity check</string>
+    <string name="glucifer_spacing_short">Background request spacing</string>
+    <string name="glucifer_help_intro">Send glucose, selected fields and alert states to your Home Assistant.</string>
+    <string name="glucifer_help_install">1. In Home Assistant, add pannal/glucifer-ha to HACS as a custom integration. Install it, restart, then add Glucifer HA under Devices &amp; services.</string>
+    <string name="glucifer_help_pair">2. Open the integration’s Configure page. Scan its QR code here, or paste the full connection URL. Keep this URL private.</string>
+    <string name="glucifer_help_test">3. Enable this destination and send a test message. Check the value in Home Assistant. Changes save automatically.</string>
+    <string name="glucifer_setup_guide">Open setup guide</string>
 </resources>

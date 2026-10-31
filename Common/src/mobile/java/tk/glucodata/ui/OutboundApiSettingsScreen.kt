@@ -48,7 +48,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -83,6 +82,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -232,13 +232,6 @@ fun OutboundApiSettingsScreen(navController: NavController) {
             AppTopBar(
                 title = stringResource(R.string.outbound_api_settings_title),
                 onNavigateBack = { navController.popBackStack() },
-                actions = {
-                    if (config.destinations.any { it.isGlucifer() }) {
-                        TextButton(onClick = { navController.popBackStack() }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                            Text(stringResource(R.string.glucifer_done))
-                        }
-                    }
-                },
             )
         }
     ) { padding ->
@@ -499,7 +492,7 @@ private fun DestinationIcon(preset: String, enabled: Boolean) {
 }
 
 @Composable
-private fun DestinationEditor(
+internal fun DestinationEditor(
     destination: OutboundApiSettings.Destination,
     showSecret: Boolean,
     onShowSecretChange: (Boolean) -> Unit,
@@ -527,7 +520,8 @@ private fun DestinationEditor(
         )
     }
 
-    SettingsSubsectionTitle(stringResource(R.string.outbound_api_connection))
+    if (isGlucifer) GluciferConnectionHeading()
+    else SettingsSubsectionTitle(stringResource(R.string.outbound_api_connection))
     OutlinedTextField(
         value = destination.name,
         onValueChange = { onChange(destination.copy(name = it)) },
@@ -620,8 +614,13 @@ private fun DestinationEditor(
         },
         visualTransformation = if (isGlucifer && !showSecret) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = {
-            if (isGlucifer) IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
-                Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = null)
+            if (isGlucifer) {
+                val label = stringResource(if (showSecret) R.string.hide_password else R.string.show_password)
+                IconButtonTooltip(label) {
+                    IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = label)
+                    }
+                }
             }
         },
         leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
@@ -633,7 +632,7 @@ private fun DestinationEditor(
 
     if (isGlucifer) {
         GluciferQrSetup(destination, onChange)
-        GluciferFields(destination, onChange)
+        GluciferOptions(destination, onChange)
         return
     }
 
@@ -967,7 +966,7 @@ internal fun ToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
+    AdaptiveTrailingRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (subtitle.isNullOrBlank()) 64.dp else 88.dp)
@@ -977,13 +976,13 @@ internal fun ToggleRow(
                 onValueChange = onCheckedChange
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        spacing = 16.dp,
+        trailingContent = { StyledSwitch(checked = checked, onCheckedChange = null) }
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(hyphens = Hyphens.Auto),
                 color = MaterialTheme.colorScheme.onSurface
             )
             if (!subtitle.isNullOrBlank()) {
@@ -994,10 +993,6 @@ internal fun ToggleRow(
                 )
             }
         }
-        StyledSwitch(
-            checked = checked,
-            onCheckedChange = null
-        )
     }
 }
 
@@ -1493,112 +1488,6 @@ private val templateTokens = listOf(
 )
 
 @Composable
-private fun GluciferFields(
-    destination: OutboundApiSettings.Destination,
-    onChange: (OutboundApiSettings.Destination) -> Unit
-) {
-    Text(stringResource(R.string.glucifer_saved_help), style = MaterialTheme.typography.bodyMedium)
-    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferLiveBypass, role = Role.Switch) {
-        onChange(destination.copy(gluciferLiveBypass = it))
-    }) {
-        Text(stringResource(R.string.glucifer_live_bypass), modifier = Modifier.weight(1f))
-        StyledSwitch(checked = destination.gluciferLiveBypass, onCheckedChange = null)
-    }
-    Text(stringResource(R.string.glucifer_live_bypass_help), style = MaterialTheme.typography.bodySmall)
-    SettingsSubsectionTitle(stringResource(R.string.glucifer_fallback_interval))
-    Text(stringResource(R.string.glucifer_fallback_help), style = MaterialTheme.typography.bodySmall)
-    GluciferIntervalChoices(destination.gluciferFallbackSeconds) {
-        onChange(destination.copy(gluciferFallbackSeconds = it))
-    }
-    SettingsSubsectionTitle(stringResource(if (destination.gluciferLiveBypass)
-        R.string.glucifer_min_interval else R.string.glucifer_all_spacing_title))
-    Text(stringResource(if (destination.gluciferLiveBypass)
-        R.string.glucifer_background_spacing_help else R.string.glucifer_all_spacing_help),
-        style = MaterialTheme.typography.bodySmall)
-    GluciferIntervalChoices(destination.gluciferMinIntervalSeconds) {
-        onChange(destination.copy(gluciferMinIntervalSeconds = it))
-    }
-    Text(stringResource(R.string.glucifer_glucose_required), style = MaterialTheme.typography.bodyMedium)
-    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferHistory, role = Role.Switch) {
-        onChange(destination.copy(gluciferHistory = it))
-    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.glucifer_history), modifier = Modifier.weight(1f))
-        StyledSwitch(checked = destination.gluciferHistory, onCheckedChange = null)
-    }
-    Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournal, role = Role.Switch) {
-        onChange(destination.copy(gluciferJournal = it))
-    }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.glucifer_journal), modifier = Modifier.weight(1f))
-        StyledSwitch(checked = destination.gluciferJournal, onCheckedChange = null)
-    }
-    Text(stringResource(R.string.glucifer_journal_help), style = MaterialTheme.typography.bodySmall)
-    if (destination.gluciferJournal) {
-        SettingsSubsectionTitle(stringResource(R.string.glucifer_journal_days))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(1, 3, 7, 14, 30, 60, 90).forEach { days ->
-                FilterChip(selected = destination.gluciferJournalDays == days,
-                    onClick = { onChange(destination.copy(gluciferJournalDays = days)) },
-                    label = { Text(stringResource(R.string.glucifer_days, days)) })
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth().toggleable(value = destination.gluciferJournalNotes, role = Role.Switch) {
-            onChange(destination.copy(gluciferJournalNotes = it))
-        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.glucifer_journal_notes), modifier = Modifier.weight(1f))
-            StyledSwitch(checked = destination.gluciferJournalNotes, onCheckedChange = null)
-        }
-    }
-    val fields = listOf(
-        "predictions" to R.string.wear_prediction_title,
-        "trend" to R.string.stats_trend,
-        "delta_mgdl" to R.string.glucifer_delta,
-        "rate_mgdl_min" to R.string.glucifer_rate,
-        "raw_mgdl" to R.string.glucifer_raw,
-        "auto_mgdl" to R.string.glucifer_auto,
-        "iob_u" to R.string.notification_show_iob_title,
-        "eiob_u" to R.string.journal_eiob_display_title,
-        "cob_g" to R.string.notification_show_cob_title,
-        "battery_percent" to R.string.glucifer_phone_battery,
-        "sensor_id" to R.string.glucifer_sensor_id,
-        "sensor_generation" to R.string.glucifer_sensor_generation,
-        "sensor_started_ms" to R.string.sensor_started,
-        "sensor_expires_ms" to R.string.sensor_expected_end,
-        "sensor_warmup" to R.string.glucifer_warmup
-    ) + tk.glucodata.alerts.AlertType.entries.mapNotNull { type ->
-        val key = type.name.lowercase(Locale.ROOT)
-        if (key in tk.glucodata.GluciferPayload.alerts) "alert:$key" to type.nameResId else null
-    }
-    fields.forEach { (key, label) ->
-        val enabled = key in destination.gluciferFields
-        Row(
-            modifier = Modifier.fillMaxWidth().toggleable(value = enabled, role = Role.Switch) {
-                onChange(destination.copy(gluciferFields =
-                    if (it) destination.gluciferFields + key else destination.gluciferFields - key))
-            }.padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(stringResource(label), modifier = Modifier.weight(1f))
-            StyledSwitch(checked = enabled, onCheckedChange = null)
-        }
-    }
-}
-
-
-@Composable
-private fun GluciferIntervalChoices(value: Int, onChange: (Int) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        tk.glucodata.GluciferSendLimiter.intervals.forEach { seconds ->
-            FilterChip(selected = value == seconds, onClick = { onChange(seconds) },
-                label = { Text(when {
-                    seconds >= 3600 -> stringResource(R.string.glucifer_hours, seconds / 3600)
-                    seconds >= 60 -> stringResource(R.string.glucifer_minutes, seconds / 60)
-                    else -> stringResource(R.string.glucifer_seconds, seconds)
-                }) })
-        }
-    }
-}
-
-@Composable
 private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChange: (OutboundApiSettings.Destination) -> Unit) {
     val context = LocalContext.current
     var pendingUrl by remember(destination.id) { mutableStateOf<String?>(null) }
@@ -1607,7 +1496,7 @@ private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChan
         if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
         else pendingUrl = url
     })
-    Button(onClick = scan, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
+    Button(onClick = scan, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shapes = ButtonDefaults.shapes()) {
         Icon(
             imageVector = Icons.Filled.QrCodeScanner,
             contentDescription = null,

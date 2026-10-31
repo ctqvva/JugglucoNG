@@ -3307,4 +3307,19 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     </plurals>
     <string name="nightscout_upload_sensor_start">Мэдрэгч эхэлснийг илгээх</string>
     <string name="nightscout_upload_sensor_start_desc">Мэдрэгч бүрийн Sensor Start үйл явдлыг илгээх (нас, төрөл, серийн дугаар)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Нэмэлт өгөгдөл</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Глюкозын түүх</string>
+    <string name="glucifer_delivery_title">Илгээх</string>
+    <string name="glucifer_live_short">Өөрчлөлтийг шууд илгээх</string>
+    <string name="glucifer_spacing_summary">Хүсэлт хооронд дор хаяж %1$s</string>
+    <string name="glucifer_fallback_short">Шинэчлэлтгүй үед шалгах</string>
+    <string name="glucifer_spacing_short">Далд хүсэлтийн зай</string>
+    <string name="glucifer_help_intro">Глюкоз, сонгосон өгөгдөл болон дохиоллын төлөвийг өөрийн Home Assistant руу илгээнэ.</string>
+    <string name="glucifer_help_install">1. Home Assistant дотор pannal/glucifer-ha-г HACS-д тусгай интеграци болгон нэмнэ. Суулгаад дахин эхлүүлж, Төхөөрөмж ба үйлчилгээ хэсэгт Glucifer HA-г нэмнэ.</string>
+    <string name="glucifer_help_pair">2. Интеграцийн тохиргоог нээнэ. QR кодыг энд уншуулах эсвэл холболтын бүтэн URL-г оруулна. Энэ URL-г нууцална уу.</string>
+    <string name="glucifer_help_test">3. Энэ хүлээн авагчийг идэвхжүүлж, туршилтын мессеж илгээнэ. Home Assistant дээр утгыг шалгана. Өөрчлөлт автоматаар хадгалагдана.</string>
+    <string name="glucifer_setup_guide">Тохируулах заавар нээх</string>
 </resources>

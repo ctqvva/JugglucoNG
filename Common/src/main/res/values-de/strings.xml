@@ -3319,4 +3319,19 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensorstart senden</string>
     <string name="nightscout_upload_sensor_start_desc">Für jeden Sensor ein Sensor-Start-Ereignis senden (Alter, Typ und Seriennummer)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Zusätzliche Daten</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Glukoseverlauf</string>
+    <string name="glucifer_delivery_title">Übertragung</string>
+    <string name="glucifer_live_short">Änderungen sofort senden</string>
+    <string name="glucifer_spacing_summary">Mindestens %1$s zwischen Anfragen</string>
+    <string name="glucifer_fallback_short">Prüfung bei Inaktivität</string>
+    <string name="glucifer_spacing_short">Abstand zwischen Hintergrundanfragen</string>
+    <string name="glucifer_help_intro">Sende Glukose, ausgewählte Daten und Alarmzustände an deinen Home Assistant.</string>
+    <string name="glucifer_help_install">1. Füge pannal/glucifer-ha in Home Assistant als benutzerdefinierte Integration zu HACS hinzu. Installiere sie, starte neu und füge Glucifer HA unter Geräte &amp; Dienste hinzu.</string>
+    <string name="glucifer_help_pair">2. Öffne die Konfiguration der Integration. Scanne hier den QR-Code oder füge die vollständige Verbindungs-URL ein. Halte diese URL geheim.</string>
+    <string name="glucifer_help_test">3. Aktiviere dieses Ziel und sende eine Testnachricht. Prüfe den Wert in Home Assistant. Änderungen werden automatisch gespeichert.</string>
+    <string name="glucifer_setup_guide">Einrichtungsanleitung öffnen</string>
 </resources>

@@ -3260,4 +3260,19 @@
     </plurals>
     <string name="nightscout_upload_sensor_start">Wysyłaj rozpoczęcie sensora</string>
     <string name="nightscout_upload_sensor_start_desc">Wysyłaj zdarzenie Sensor Start dla każdego sensora (wiek, typ i numer seryjny)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Dodatkowe dane</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Historia glukozy</string>
+    <string name="glucifer_delivery_title">Wysyłanie</string>
+    <string name="glucifer_live_short">Wysyłaj zmiany natychmiast</string>
+    <string name="glucifer_spacing_summary">Co najmniej %1$s między żądaniami</string>
+    <string name="glucifer_fallback_short">Sprawdzanie po bezczynności</string>
+    <string name="glucifer_spacing_short">Odstęp między żądaniami w tle</string>
+    <string name="glucifer_help_intro">Wysyłaj glukozę, wybrane dane i stany alarmów do swojego Home Assistant.</string>
+    <string name="glucifer_help_install">1. W Home Assistant dodaj pannal/glucifer-ha do HACS jako integrację niestandardową. Zainstaluj ją, uruchom ponownie i dodaj Glucifer HA w sekcji Urządzenia i usługi.</string>
+    <string name="glucifer_help_pair">2. Otwórz konfigurację integracji. Zeskanuj tutaj jej kod QR lub wklej pełny URL połączenia. Nie udostępniaj tego adresu.</string>
+    <string name="glucifer_help_test">3. Włącz ten cel i wyślij wiadomość testową. Sprawdź wartość w Home Assistant. Zmiany zapisują się automatycznie.</string>
+    <string name="glucifer_setup_guide">Otwórz instrukcję konfiguracji</string>
 </resources>

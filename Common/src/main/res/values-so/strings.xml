@@ -3391,4 +3391,19 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     </plurals>
     <string name="nightscout_upload_sensor_start">Dir bilowga dareemaha</string>
     <string name="nightscout_upload_sensor_start_desc">Dir dhacdada Sensor Start ee dareeme kasta (daʼda, nooca iyo lambarka taxanaha)</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">Xog dheeraad ah</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">Taariikhda gulukoosta</string>
+    <string name="glucifer_delivery_title">Dirista</string>
+    <string name="glucifer_live_short">Isbeddellada isla markiiba dir</string>
+    <string name="glucifer_spacing_summary">Ugu yaraan %1$s u dhexeeya codsiyada</string>
+    <string name="glucifer_fallback_short">Hubin ka dib firfircooni la’aan</string>
+    <string name="glucifer_spacing_short">Kala fogaanta codsiyada gadaasha</string>
+    <string name="glucifer_help_intro">U dir gulukoosta, xogta la doortay iyo xaaladaha digniinaha Home Assistant-kaaga.</string>
+    <string name="glucifer_help_install">1. Home Assistant gudaheeda, ku dar pannal/glucifer-ha HACS sida isdhexgal gaar ah. Ku rakib, dib u bilow, ka dibna ku dar Glucifer HA qaybta Qalabka iyo adeegyada.</string>
+    <string name="glucifer_help_pair">2. Fur dejinta isdhexgalka. Halkan ku sawir koodhka QR ama ku dheji URL-ka isku xirka oo buuxa. URL-kan sir ka dhig.</string>
+    <string name="glucifer_help_test">3. Daar bartilmaameedkan oo dir farriin tijaabo ah. Ka hubi qiimaha Home Assistant. Isbeddellada si toos ah ayaa loo kaydiyaa.</string>
+    <string name="glucifer_setup_guide">Fur hagaha dejinta</string>
 </resources>

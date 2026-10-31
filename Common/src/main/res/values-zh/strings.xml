@@ -3215,4 +3215,19 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">发送传感器启动事件</string>
     <string name="nightscout_upload_sensor_start_desc">为每个传感器发送 Sensor Start 事件（使用时长、类型和序列号）</string>
+
+    <!-- Glucifer setup and compact destination controls. -->
+    <string name="glucifer_data_title">附加数据</string>
+    <string name="glucifer_selection_summary">%1$d / %2$d</string>
+    <string name="glucifer_history_title">葡萄糖历史</string>
+    <string name="glucifer_delivery_title">发送</string>
+    <string name="glucifer_live_short">立即发送变化</string>
+    <string name="glucifer_spacing_summary">请求间隔至少 %1$s</string>
+    <string name="glucifer_fallback_short">无更新时检查</string>
+    <string name="glucifer_spacing_short">后台请求间隔</string>
+    <string name="glucifer_help_intro">将葡萄糖、所选数据及警报状态发送到您的 Home Assistant。</string>
+    <string name="glucifer_help_install">1. 在 Home Assistant 中，将 pannal/glucifer-ha 作为自定义集成添加到 HACS。安装并重启后，在“设备与服务”中添加 Glucifer HA。</string>
+    <string name="glucifer_help_pair">2. 打开集成的配置页面。在此扫描二维码，或粘贴完整的连接 URL。请勿泄露此 URL。</string>
+    <string name="glucifer_help_test">3. 启用此目标并发送测试消息。在 Home Assistant 中检查数值。更改会自动保存。</string>
+    <string name="glucifer_setup_guide">打开设置指南</string>
 </resources>
