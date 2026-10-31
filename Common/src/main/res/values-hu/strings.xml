@@ -2973,11 +2973,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_custom_server">Egyéni kiszolgáló</string>
     <string name="clone_qr_instruction">A másik telefonon nyissa meg: %1$s, és koppintson erre: %2$s.</string>
     <string name="clone_connect_title">Másik telefon csatlakoztatása</string>
-    <string name="clone_connect_body">Koppintson a(z) %1$s gombra a szenzoros telefonon, majd a(z) %2$s gombra a másik telefonon.</string>
-    <string name="clone_show_code">Kód megjelenítése</string>
     <string name="clone_scan_code">Kód beolvasása</string>
-    <string name="clone_nearby_sharing">%1$s értékeket oszt meg</string>
-    <string name="clone_nearby_sharing_body">Ezen a Wi-Fi-n található. Nem kell kód.</string>
     <string name="clone_get_readings">Értékek fogadása</string>
     <string name="clone_code_any_network">Bármely hálózat</string>
     <string name="clone_code_wifi_only">Csak ez a Wi-Fi</string>
@@ -2985,6 +2981,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_pairing_announced">Ezen a Wi-Fi-n is látható mint %1$s</string>
     <string name="clone_pairing_connected">Csatlakoztatva</string>
     <string name="clone_add_manually_desc">Adja meg saját maga a címet és a beállításokat</string>
+    <string name="clone_send_readings">Értékek küldése</string>
+    <string name="clone_on_this_wifi">Ezen a Wi-Fi-n</string>
+    <string name="clone_nearby_empty">Itt jelennek meg az ezen a Wi-Fi-n értékeket küldő telefonok</string>
+    <string name="clone_sharing_readings">Értékeket küld</string>
     <string name="clone_network_summary">Kiszolgálók és helyi felderítés</string>
     <string name="clone_background_desc">Nagyobb akkumulátorfogyasztás</string>
     <string name="watch_transport_section">Átvitel</string>

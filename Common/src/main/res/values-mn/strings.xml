@@ -3000,11 +3000,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_custom_server">Өөрийн сервер</string>
     <string name="clone_qr_instruction">Нөгөө утсан дээр %1$s-г нээж, %2$s дээр дарна уу.</string>
     <string name="clone_connect_title">Өөр утас холбох</string>
-    <string name="clone_connect_body">Мэдрэгчтэй утсан дээр %1$s, дараа нь нөгөө утсан дээр %2$s дарна уу.</string>
-    <string name="clone_show_code">Код харуулах</string>
     <string name="clone_scan_code">Код уншуулах</string>
-    <string name="clone_nearby_sharing">%1$s заалт хуваалцаж байна</string>
-    <string name="clone_nearby_sharing_body">Энэ Wi-Fi дээр олдсон. Код шаардлагагүй.</string>
     <string name="clone_get_readings">Заалт авах</string>
     <string name="clone_code_any_network">Ямар ч сүлжээ</string>
     <string name="clone_code_wifi_only">Зөвхөн энэ Wi-Fi</string>
@@ -3012,6 +3008,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_pairing_announced">Энэ Wi-Fi дээр %1$s нэрээр бас харагдана</string>
     <string name="clone_pairing_connected">Холбогдсон</string>
     <string name="clone_add_manually_desc">Хаяг, тохиргоогоо өөрөө оруулах</string>
+    <string name="clone_send_readings">Заалт илгээх</string>
+    <string name="clone_on_this_wifi">Энэ Wi-Fi дээр</string>
+    <string name="clone_nearby_empty">Энэ Wi-Fi дээр заалт илгээж буй утаснууд энд харагдана</string>
+    <string name="clone_sharing_readings">Заалт илгээж байна</string>
     <string name="clone_network_summary">Серверүүд ба дотоод хайлт</string>
     <string name="clone_background_desc">Батарейн зарцуулалт нэмэгдэнэ</string>
     <string name="journal_chart_marker_count">×%1$d</string>

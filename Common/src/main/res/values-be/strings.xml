@@ -2971,11 +2971,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_custom_server">Уласны сервер</string>
     <string name="clone_qr_instruction">На іншым тэлефоне адкрыйце %1$s і націсніце %2$s.</string>
     <string name="clone_connect_title">Падключыць іншы тэлефон</string>
-    <string name="clone_connect_body">Націсніце «%1$s» на тэлефоне з сэнсарам, потым «%2$s» на іншым тэлефоне.</string>
-    <string name="clone_show_code">Паказаць код</string>
     <string name="clone_scan_code">Сканаваць код</string>
-    <string name="clone_nearby_sharing">%1$s адпраўляе паказанні</string>
-    <string name="clone_nearby_sharing_body">Знойдзены ў гэтай сетцы Wi-Fi. Код не патрэбны.</string>
     <string name="clone_get_readings">Атрымліваць паказанні</string>
     <string name="clone_code_any_network">Любая сетка</string>
     <string name="clone_code_wifi_only">Толькі гэта сетка Wi-Fi</string>
@@ -2983,6 +2979,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_announced">Таксама бачны ў гэтай сетцы Wi-Fi як %1$s</string>
     <string name="clone_pairing_connected">Падключана</string>
     <string name="clone_add_manually_desc">Увесці адрас і параметры ўручную</string>
+    <string name="clone_send_readings">Адпраўляць паказанні</string>
+    <string name="clone_on_this_wifi">У гэтай сетцы Wi-Fi</string>
+    <string name="clone_nearby_empty">Тут з’явяцца тэлефоны, якія адпраўляюць паказанні ў гэтай сетцы Wi-Fi</string>
+    <string name="clone_sharing_readings">Адпраўляе паказанні</string>
     <string name="clone_network_summary">Серверы і лакальны пошук</string>
     <string name="clone_background_desc">Павялічвае расход батарэі</string>
     <string name="journal_chart_marker_count">×%1$d</string>

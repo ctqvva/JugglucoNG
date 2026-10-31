@@ -2899,11 +2899,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_custom_server">Egen server</string>
     <string name="clone_qr_instruction">Öppna %1$s på den andra telefonen och tryck på %2$s.</string>
     <string name="clone_connect_title">Anslut en annan telefon</string>
-    <string name="clone_connect_body">Tryck på %1$s på telefonen med sensorn och sedan på %2$s på den andra telefonen.</string>
-    <string name="clone_show_code">Visa kod</string>
     <string name="clone_scan_code">Skanna kod</string>
-    <string name="clone_nearby_sharing">%1$s delar värden</string>
-    <string name="clone_nearby_sharing_body">Hittad på det här wifi-nätverket. Ingen kod behövs.</string>
     <string name="clone_get_readings">Ta emot värden</string>
     <string name="clone_code_any_network">Alla nätverk</string>
     <string name="clone_code_wifi_only">Bara det här wifi-nätverket</string>
@@ -2911,6 +2907,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_announced">Syns även på det här wifi-nätverket som %1$s</string>
     <string name="clone_pairing_connected">Ansluten</string>
     <string name="clone_add_manually_desc">Ange adress och alternativ själv</string>
+    <string name="clone_send_readings">Skicka värden</string>
+    <string name="clone_on_this_wifi">På det här wifi-nätverket</string>
+    <string name="clone_nearby_empty">Telefoner som skickar värden på det här wifi-nätverket visas här</string>
+    <string name="clone_sharing_readings">Skickar värden</string>
     <string name="clone_network_summary">Servrar och lokal sökning</string>
     <string name="clone_background_desc">Ökar batteriförbrukningen</string>
     <string name="journal_chart_marker_count">×%1$d</string>

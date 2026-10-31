@@ -3012,11 +3012,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_custom_server">Eigener Server</string>
     <string name="clone_qr_instruction">Öffnen Sie auf dem anderen Telefon %1$s und tippen Sie auf %2$s.</string>
     <string name="clone_connect_title">Weiteres Telefon verbinden</string>
-    <string name="clone_connect_body">Tippen Sie auf dem Telefon mit dem Sensor auf %1$s und dann auf dem anderen Telefon auf %2$s.</string>
-    <string name="clone_show_code">Code anzeigen</string>
     <string name="clone_scan_code">Code scannen</string>
-    <string name="clone_nearby_sharing">%1$s teilt Werte</string>
-    <string name="clone_nearby_sharing_body">In diesem WLAN gefunden. Kein Code nötig.</string>
     <string name="clone_get_readings">Werte empfangen</string>
     <string name="clone_code_any_network">Jedes Netz</string>
     <string name="clone_code_wifi_only">Nur dieses WLAN</string>
@@ -3024,6 +3020,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_pairing_announced">Auch in diesem WLAN sichtbar als %1$s</string>
     <string name="clone_pairing_connected">Verbunden</string>
     <string name="clone_add_manually_desc">Adresse und Optionen selbst eingeben</string>
+    <string name="clone_send_readings">Werte senden</string>
+    <string name="clone_on_this_wifi">In diesem WLAN</string>
+    <string name="clone_nearby_empty">Telefone, die in diesem WLAN Werte senden, erscheinen hier</string>
+    <string name="clone_sharing_readings">Sendet Werte</string>
     <string name="clone_network_summary">Server und lokale Suche</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
     <string name="journal_chart_marker_count">×%1$d</string>

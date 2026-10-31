@@ -2941,11 +2941,7 @@
     <string name="clone_custom_server">Własny serwer</string>
     <string name="clone_qr_instruction">Na drugim telefonie otwórz %1$s i dotknij %2$s.</string>
     <string name="clone_connect_title">Połącz inny telefon</string>
-    <string name="clone_connect_body">Dotknij %1$s na telefonie z sensorem, a potem %2$s na drugim telefonie.</string>
-    <string name="clone_show_code">Pokaż kod</string>
     <string name="clone_scan_code">Skanuj kod</string>
-    <string name="clone_nearby_sharing">%1$s udostępnia odczyty</string>
-    <string name="clone_nearby_sharing_body">Znaleziono w tej sieci Wi-Fi. Kod nie jest potrzebny.</string>
     <string name="clone_get_readings">Odbieraj odczyty</string>
     <string name="clone_code_any_network">Dowolna sieć</string>
     <string name="clone_code_wifi_only">Tylko ta sieć Wi-Fi</string>
@@ -2953,6 +2949,10 @@
     <string name="clone_pairing_announced">Widoczny też w tej sieci Wi-Fi jako %1$s</string>
     <string name="clone_pairing_connected">Połączono</string>
     <string name="clone_add_manually_desc">Wpisz adres i opcje samodzielnie</string>
+    <string name="clone_send_readings">Wysyłaj odczyty</string>
+    <string name="clone_on_this_wifi">W tej sieci Wi-Fi</string>
+    <string name="clone_nearby_empty">Tu pojawią się telefony wysyłające odczyty w tej sieci Wi-Fi</string>
+    <string name="clone_sharing_readings">Wysyła odczyty</string>
     <string name="clone_network_summary">Serwery i wyszukiwanie lokalne</string>
     <string name="clone_background_desc">Zwiększa zużycie baterii</string>
     <string name="journal_chart_marker_count">×%1$d</string>

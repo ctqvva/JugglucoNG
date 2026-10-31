@@ -2942,11 +2942,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_custom_server">Eigen server</string>
     <string name="clone_qr_instruction">Open op de andere telefoon %1$s en tik op %2$s.</string>
     <string name="clone_connect_title">Andere telefoon koppelen</string>
-    <string name="clone_connect_body">Tik op %1$s op de telefoon met de sensor en daarna op %2$s op de andere telefoon.</string>
-    <string name="clone_show_code">Code tonen</string>
     <string name="clone_scan_code">Code scannen</string>
-    <string name="clone_nearby_sharing">%1$s deelt waarden</string>
-    <string name="clone_nearby_sharing_body">Gevonden op deze wifi. Geen code nodig.</string>
     <string name="clone_get_readings">Waarden ontvangen</string>
     <string name="clone_code_any_network">Elk netwerk</string>
     <string name="clone_code_wifi_only">Alleen deze wifi</string>
@@ -2954,6 +2950,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_pairing_announced">Ook zichtbaar op deze wifi als %1$s</string>
     <string name="clone_pairing_connected">Verbonden</string>
     <string name="clone_add_manually_desc">Voer zelf het adres en de opties in</string>
+    <string name="clone_send_readings">Waarden sturen</string>
+    <string name="clone_on_this_wifi">Op deze wifi</string>
+    <string name="clone_nearby_empty">Telefoons die op deze wifi waarden sturen, verschijnen hier</string>
+    <string name="clone_sharing_readings">Stuurt waarden</string>
     <string name="clone_network_summary">Servers en lokaal zoeken</string>
     <string name="clone_background_desc">Verbruikt meer batterij</string>
     <string name="journal_chart_marker_count">×%1$d</string>

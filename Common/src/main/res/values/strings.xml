@@ -3188,11 +3188,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_custom_server">Custom server</string>
     <string name="clone_qr_instruction">On the other phone, open %1$s and tap %2$s.</string>
     <string name="clone_connect_title">Connect another phone</string>
-    <string name="clone_connect_body">Tap %1$s on the phone with the sensor, then %2$s on the other phone.</string>
-    <string name="clone_show_code">Show code</string>
     <string name="clone_scan_code">Scan code</string>
-    <string name="clone_nearby_sharing">%1$s is sharing readings</string>
-    <string name="clone_nearby_sharing_body">Found on this Wi-Fi. No code needed.</string>
     <string name="clone_get_readings">Get readings</string>
     <string name="clone_code_any_network">Any network</string>
     <string name="clone_code_wifi_only">This Wi-Fi only</string>
@@ -3200,6 +3196,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_announced">Also visible on this Wi-Fi as %1$s</string>
     <string name="clone_pairing_connected">Connected</string>
     <string name="clone_add_manually_desc">Enter the address and options yourself</string>
+    <string name="clone_send_readings">Send readings</string>
+    <string name="clone_on_this_wifi">On this Wi-Fi</string>
+    <string name="clone_nearby_empty">Phones sending readings on this Wi-Fi appear here</string>
+    <string name="clone_sharing_readings">Sending readings</string>
     <string name="clone_network_summary">Servers and local discovery</string>
     <string name="clone_background_desc">Uses more battery</string>
     <string name="journal_chart_marker_count">×%1$d</string>

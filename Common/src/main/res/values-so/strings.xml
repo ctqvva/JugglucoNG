@@ -3084,11 +3084,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_custom_server">Adeege gaar ah</string>
     <string name="clone_qr_instruction">Taleefanka kale, fur %1$s oo taabo %2$s.</string>
     <string name="clone_connect_title">Ku xir taleefan kale</string>
-    <string name="clone_connect_body">Ku taabo %1$s taleefanka dareemaha leh, kadibna %2$s taleefanka kale.</string>
-    <string name="clone_show_code">Muuji koodhka</string>
     <string name="clone_scan_code">Iskaan koodhka</string>
-    <string name="clone_nearby_sharing">%1$s wuxuu wadaagayaa akhrisyo</string>
-    <string name="clone_nearby_sharing_body">Waxaa laga helay Wi-Fi-gan. Koodh looma baahna.</string>
     <string name="clone_get_readings">Hel akhrisyada</string>
     <string name="clone_code_any_network">Shabakad kasta</string>
     <string name="clone_code_wifi_only">Wi-Fi-gan oo keliya</string>
@@ -3096,6 +3092,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_pairing_announced">Sidoo kale waxaa lagu arkaa Wi-Fi-gan sida %1$s</string>
     <string name="clone_pairing_connected">Waa la xiray</string>
     <string name="clone_add_manually_desc">Adiga geli cinwaanka iyo xulashooyinka</string>
+    <string name="clone_send_readings">Dir akhrisyada</string>
+    <string name="clone_on_this_wifi">Wi-Fi-gan</string>
+    <string name="clone_nearby_empty">Taleefannada akhrisyada ku diraya Wi-Fi-gan halkan ayay ka muuqdaan</string>
+    <string name="clone_sharing_readings">Wuxuu dirayaa akhrisyo</string>
     <string name="clone_network_summary">Adeegayaal iyo raadinta gudaha</string>
     <string name="clone_background_desc">Waxay isticmaashaa batari badan</string>
     <string name="journal_chart_marker_count">×%1$d</string>

@@ -191,161 +191,6 @@ fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     }
 }
 
-private enum class ClonePairingStatus { WAITING, WAITING_ANNOUNCED, CONNECTED }
-
-/**
- * A connection's QR code. Opened from "Show code" it is the whole pairing step: a choice of
- * network, the code, and whether the other phone has joined.
- */
-@Composable
-private fun MirrorQrDialog(
-    title: String,
-    content: String,
-    onDismiss: () -> Unit,
-    kind: QuickPairKind? = null,
-    onKindChange: (QuickPairKind) -> Unit = {},
-    status: ClonePairingStatus? = null,
-    deviceName: String = "",
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // The encoder draws the code's own white quiet zone, so only the dialog padding (24) is reserved.
-            val qrSize = minOf(maxWidth - 48.dp, maxHeight - 240.dp, 480.dp)
-                .coerceAtLeast(200.dp)
-            val bitmapSize = with(LocalDensity.current) { qrSize.roundToPx() }
-            Surface(
-                modifier = Modifier.width(qrSize + 48.dp),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // In short windows the code keeps its scannable minimum and the body scrolls; Close stays pinned.
-                    Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            title,
-                            style = MaterialTheme.typography.headlineSmall,
-                            textAlign = TextAlign.Center,
-                        )
-                        // Once the other phone has joined, the code has done its job; showing it
-                        // longer only invites a second phone to scan a code already in use.
-                        AnimatedVisibility(visible = status != ClonePairingStatus.CONNECTED) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    stringResource(
-                                        R.string.clone_qr_instruction,
-                                        stringResource(R.string.clone_sync_title),
-                                        stringResource(R.string.clone_scan_code),
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                )
-                                if (kind != null) {
-                                    Spacer(Modifier.height(16.dp))
-                                    val anyNetwork = stringResource(R.string.clone_code_any_network)
-                                    val wifiOnly = stringResource(R.string.clone_code_wifi_only)
-                                    val kindLabel = { option: QuickPairKind ->
-                                        if (option == QuickPairKind.HYBRID) anyNetwork else wifiOnly
-                                    }
-                                    ConnectedButtonGroup(
-                                        options = listOf(QuickPairKind.HYBRID, QuickPairKind.LOCAL),
-                                        selectedOption = kind,
-                                        onOptionSelected = onKindChange,
-                                        labelText = kindLabel,
-                                        label = { option -> Text(kindLabel(option)) },
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                }
-                                Spacer(Modifier.height(if (kind != null) 16.dp else 24.dp))
-                                QRCodeImage(
-                                    content,
-                                    bitmapSize,
-                                    Modifier
-                                        .size(qrSize)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White)
-                                )
-                            }
-                        }
-                        if (status != null) {
-                            Spacer(Modifier.height(if (status == ClonePairingStatus.CONNECTED) 24.dp else 16.dp))
-                            ClonePairingStatusLine(status, deviceName)
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.End),
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding
-                    ) {
-                        Text(
-                            stringResource(
-                                if (status == ClonePairingStatus.CONNECTED) R.string.clone_history_done else R.string.close
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ClonePairingStatusLine(status: ClonePairingStatus, deviceName: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (status == ClonePairingStatus.CONNECTED) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = StatusPalette.success(),
-                modifier = Modifier.size(32.dp),
-            )
-        } else {
-            LoadingIndicator(modifier = Modifier.size(32.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text(
-                stringResource(
-                    if (status == ClonePairingStatus.CONNECTED) R.string.clone_pairing_connected
-                    else R.string.clone_pairing_waiting
-                ),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            if (status == ClonePairingStatus.WAITING_ANNOUNCED) {
-                Text(
-                    stringResource(R.string.clone_pairing_announced, deviceName),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
 fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
     val receptionWasEnabled = tk.glucodata.CloneSensorRegistry.isReceptionEnabled()
     var previousTurnConfig: HybridQrTurnConfig? = null
@@ -570,6 +415,7 @@ fun MirrorSettingsScreen(navController: NavController) {
     // "Show code": this phone is announced on the Wi-Fi only while the window is open.
     val mdnsManager = remember { MDnsManager(context) }
     val deviceName = android.os.Build.MODEL ?: "Device"
+    var pairMode by remember { mutableStateOf<ClonePairMode?>(null) }
     var pairing by remember { mutableStateOf<ClonePairingSession?>(null) }
     var pairingConnected by remember { mutableStateOf(false) }
     var discoveredMirrors by remember { mutableStateOf(emptyList<DiscoveredMirror>()) }
@@ -631,6 +477,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         val index = sender.index
         if (index < 0) {
             pairing = null
+            pairMode = null
             Toast.makeText(context, context.getString(R.string.mirror_error_with_code, index), Toast.LENGTH_SHORT).show()
             return
         }
@@ -765,26 +612,6 @@ fun MirrorSettingsScreen(navController: NavController) {
         )
     }
 
-    pairing?.let { session ->
-        MirrorQrDialog(
-            title = stringResource(R.string.clone_connect_title),
-            content = session.json,
-            onDismiss = {
-                stopAnnouncing()
-                pairing = null
-                triggerRefresh++
-            },
-            kind = session.kind,
-            onKindChange = { kind -> if (kind != session.kind) startPairing(kind) },
-            status = when {
-                pairingConnected -> ClonePairingStatus.CONNECTED
-                session.announced -> ClonePairingStatus.WAITING_ANNOUNCED
-                else -> ClonePairingStatus.WAITING
-            },
-            deviceName = deviceName,
-        )
-    }
-
     // ── Content ──────────────────────────────────────────────────────────
 
     val cloneConnections = mirrors.filterNot { it.isWearOs }
@@ -796,6 +623,9 @@ fun MirrorSettingsScreen(navController: NavController) {
         hasConnections = cloneConnections.isNotEmpty(),
         listsConnections = mirrors.isNotEmpty(),
         backgroundLiveness = backgroundLivenessEnabled,
+        pairMode = pairMode,
+        send = pairing?.let { CloneSendState(it.kind, it.json, it.announced, pairingConnected) },
+        deviceName = deviceName,
         nearbyDevices = discoveredMirrors.filter { device ->
             device.mirrorJson.isNotEmpty() && mirrorJsonIceLabel(device.mirrorJson) !in followedIceLabels
         },
@@ -832,9 +662,18 @@ fun MirrorSettingsScreen(navController: NavController) {
                 cloneTransitionDesired = enabled
             }
         },
-        onShowCode = { startPairing(QuickPairKind.HYBRID) },
+        onPairMode = { mode ->
+            pairMode = mode
+            if (mode == ClonePairMode.SEND) {
+                if (pairing == null) startPairing(QuickPairKind.HYBRID)
+            } else {
+                stopAnnouncing()
+                pairing = null
+            }
+        },
+        onSendKind = { kind -> startPairing(kind) },
         onScan = { launchScanner() },
-        onGetReadings = { device ->
+        onConnectNearby = { device ->
             if (mirrorQrContainsTurnConfig(device.mirrorJson)) pendingNearby = device else getReadings(device)
         },
         onBackgroundChanged = { enabled ->
@@ -939,21 +778,10 @@ fun MirrorConnectionCard(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var expanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var qrContent by remember { mutableStateOf<String?>(null) }
     var cardTestState by remember { mutableStateOf(ConnTestState.IDLE) }
     val displayLabel = mirrorConnectionDisplayLabel(mirror.label)
-    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
-    LaunchedEffect(expanded) { if (!expanded) cardTestState = ConnTestState.IDLE }
-
-    if (qrContent != null) {
-        MirrorQrDialog(
-            title = displayLabel ?: context.getString(R.string.connection_number, mirror.index),
-            content = qrContent!!,
-            onDismiss = { qrContent = null }
-        )
-    }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -975,131 +803,117 @@ fun MirrorConnectionCard(
     }
 
     val active = !mirror.isDeactivated
-    val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(CardPosition.SINGLE),
         color = if (active) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Column {
-            // Same geometry as a settings row, so the title sits on the 68dp line of the rows above.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .heightIn(min = 72.dp)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconTile(
-                    icon = when {
-                        mirror.isWearOs -> Icons.Filled.Watch
-                        mirror.isIce -> Icons.Filled.Cloud
-                        else -> Icons.Filled.Wifi
-                    },
-                    tint = tint,
-                    containerColor = IconTileDefaults.toggleContainerColor(tint, active),
-                )
-                Spacer(Modifier.width(IconTileDefaults.Gap))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        displayLabel?.takeIf { it.isNotEmpty() } ?: mirror.names?.firstOrNull() ?: context.getString(R.string.connection_number, mirror.index),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val sub = if (mirror.isDeactivated) {
-                        stringResource(R.string.deactivated)
-                    } else if (mirror.isIce) {
-                        stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
-                    } else if (!mirror.port.isNullOrEmpty()) {
-                        ":${mirror.port}"
-                    } else {
-                        null
-                    }
-                    if (sub != null) Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.graphicsLayer { rotationZ = chevronRotation })
+        // Everything a connection can do is on the card: no expanding, no hidden actions.
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                displayLabel?.takeIf { it.isNotEmpty() } ?: mirror.names?.firstOrNull() ?: context.getString(R.string.connection_number, mirror.index),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            val sub = if (mirror.isDeactivated) {
+                stringResource(R.string.deactivated)
+            } else if (mirror.isIce) {
+                stringResource(CloneTransportPresentation.statusTextRes(mirror.cloneTransport))
+            } else if (!mirror.port.isNullOrEmpty()) {
+                ":${mirror.port}"
+            } else {
+                null
             }
-
-            AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                Column(
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (active) {
-                        if (mirror.isIce) CloneConnectionDiagnostics(mirror)
-                        if (mirror.status.isNotBlank()) CloneNativeStatus(mirror.status)
-                    }
-                    if (mirror.canSendHistory) {
-                        FilledTonalButton(
-                            onClick = onSendHistory,
-                            enabled = controlsEnabled,
-                            modifier = Modifier.fillMaxWidth(),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding,
-                        ) {
-                            Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.clone_history_recovery))
-                        }
-                    }
-                    // FlowRow: five labelled actions wrap instead of clipping at large font scales.
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+            if (sub != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(16.dp))
+            // History recovery is the one task here; the rest are routine controls, so they stay
+            // visible as icon buttons and the row still fits at large text sizes.
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (mirror.canSendHistory) {
+                    FilledTonalButton(
+                        onClick = onSendHistory,
+                        enabled = controlsEnabled,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
+                        Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.clone_history_recovery), maxLines = 1)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CloneCardAction(
+                        label = stringResource(R.string.qr_code),
+                        icon = Icons.Outlined.QrCode,
+                        selected = qrContent != null,
+                        onClick = { qrContent = if (qrContent == null) Natives.getbackJson(mirror.index) else null },
+                    )
+                    val testHost = mirror.names?.firstOrNull()?.takeIf { it.isNotBlank() }
+                    if (testHost != null) {
                         CloneCardAction(
-                            label = stringResource(R.string.qr_code),
-                            icon = Icons.Outlined.QrCode,
-                            onClick = { qrContent = Natives.getbackJson(mirror.index) },
-                        )
-                        val testHost = mirror.names?.firstOrNull()?.takeIf { it.isNotBlank() }
-                        if (testHost != null) {
-                            CloneCardAction(
-                                label = stringResource(R.string.test),
-                                icon = when (cardTestState) {
-                                    ConnTestState.SUCCESS -> Icons.Filled.CheckCircle
-                                    ConnTestState.FAILURE -> Icons.Filled.ErrorOutline
-                                    else -> Icons.Filled.NetworkCheck
-                                },
-                                busy = cardTestState == ConnTestState.TESTING,
-                                enabled = cardTestState != ConnTestState.TESTING,
-                                color = when (cardTestState) {
-                                    ConnTestState.SUCCESS -> StatusPalette.success()
-                                    ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
-                                    else -> null
-                                },
-                                onClick = {
-                                    cardTestState = ConnTestState.TESTING
-                                    scope.launch {
-                                        val portInt = mirror.port?.toIntOrNull() ?: 8795
-                                        cardTestState = if (testJugglucoConnection(testHost, portInt))
-                                            ConnTestState.SUCCESS else ConnTestState.FAILURE
-                                    }
-                                },
-                            )
-                        }
-                        CloneCardAction(
-                            label = stringResource(R.string.edit),
-                            icon = Icons.Filled.Edit,
-                            enabled = controlsEnabled,
-                            onClick = onEdit,
-                        )
-                        CloneCardAction(
-                            label = stringResource(if (mirror.isDeactivated) R.string.enable else R.string.disable),
-                            icon = if (mirror.isDeactivated) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            enabled = controlsEnabled,
-                            onClick = onToggle,
-                        )
-                        CloneCardAction(
-                            label = stringResource(R.string.delete),
-                            icon = Icons.Filled.Delete,
-                            enabled = controlsEnabled,
-                            color = MaterialTheme.colorScheme.error,
-                            onClick = { showDeleteConfirm = true },
+                            label = stringResource(R.string.test),
+                            icon = when (cardTestState) {
+                                ConnTestState.SUCCESS -> Icons.Filled.CheckCircle
+                                ConnTestState.FAILURE -> Icons.Filled.ErrorOutline
+                                else -> Icons.Filled.NetworkCheck
+                            },
+                            busy = cardTestState == ConnTestState.TESTING,
+                            enabled = cardTestState != ConnTestState.TESTING,
+                            color = when (cardTestState) {
+                                ConnTestState.SUCCESS -> StatusPalette.success()
+                                ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
+                                else -> null
+                            },
+                            onClick = {
+                                cardTestState = ConnTestState.TESTING
+                                scope.launch {
+                                    val portInt = mirror.port?.toIntOrNull() ?: 8795
+                                    cardTestState = if (testJugglucoConnection(testHost, portInt))
+                                        ConnTestState.SUCCESS else ConnTestState.FAILURE
+                                }
+                            },
                         )
                     }
+                    CloneCardAction(
+                        label = stringResource(R.string.edit),
+                        icon = Icons.Filled.Edit,
+                        enabled = controlsEnabled,
+                        onClick = onEdit,
+                    )
+                    CloneCardAction(
+                        label = stringResource(if (mirror.isDeactivated) R.string.enable else R.string.disable),
+                        icon = if (mirror.isDeactivated) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        enabled = controlsEnabled,
+                        onClick = onToggle,
+                    )
+                    CloneCardAction(
+                        label = stringResource(R.string.delete),
+                        icon = Icons.Filled.Delete,
+                        enabled = controlsEnabled,
+                        color = MaterialTheme.colorScheme.error,
+                        onClick = { showDeleteConfirm = true },
+                    )
+                }
+            }
+            AnimatedVisibility(visible = qrContent != null) {
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+                    val qrSize = minOf(maxWidth, 320.dp)
+                    QRCodeImage(
+                        qrContent.orEmpty(),
+                        with(LocalDensity.current) { qrSize.roundToPx() },
+                        Modifier
+                            .size(qrSize)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White),
+                    )
                 }
             }
         }
@@ -1114,24 +928,35 @@ private fun CloneCardAction(
     enabled: Boolean = true,
     busy: Boolean = false,
     color: Color? = null,
+    selected: Boolean = false,
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        colors = if (color != null) ButtonDefaults.outlinedButtonColors(contentColor = color)
-        else ButtonDefaults.outlinedButtonColors(),
-        border = if (color != null && enabled) BorderStroke(1.dp, color.copy(alpha = 0.5f))
-        else ButtonDefaults.outlinedButtonBorder(enabled),
-        shapes = ButtonDefaults.shapes(),
-        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-    ) {
-        if (busy) {
-            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-        } else {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+    IconButtonTooltip(label) {
+        val content: @Composable () -> Unit = {
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp))
+            }
         }
-        Spacer(Modifier.width(8.dp))
-        Text(label, maxLines = 1)
+        if (selected) {
+            FilledTonalIconButton(
+                onClick = onClick,
+                enabled = enabled,
+                shapes = IconButtonDefaults.shapes(),
+                content = content,
+            )
+        } else {
+            OutlinedIconButton(
+                onClick = onClick,
+                enabled = enabled,
+                colors = if (color != null) IconButtonDefaults.outlinedIconButtonColors(contentColor = color)
+                else IconButtonDefaults.outlinedIconButtonColors(),
+                border = if (color != null && enabled) BorderStroke(1.dp, color.copy(alpha = 0.5f))
+                else IconButtonDefaults.outlinedIconButtonBorder(enabled),
+                shapes = IconButtonDefaults.shapes(),
+                content = content,
+            )
+        }
     }
 }
 
@@ -1397,6 +1222,22 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
+
+            // Troubleshooting detail lives with the connection's settings, not on the screen's cards.
+            val statusMirror = remember(pos) { if (isNew) null else getMirrorsList().getOrNull(pos) }
+            if (statusMirror != null && !statusMirror.isDeactivated &&
+                (statusMirror.isIce || statusMirror.status.isNotBlank())
+            ) {
+                SectionLabel(stringResource(R.string.status), topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (statusMirror.isIce) CloneConnectionDiagnostics(statusMirror)
+                    if (statusMirror.status.isNotBlank()) CloneNativeStatus(statusMirror.status)
+                }
+                Spacer(Modifier.height(24.dp))
+            }
 
             // Connection Type
             SectionLabel(stringResource(R.string.mirror_connection_type), topPadding = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))

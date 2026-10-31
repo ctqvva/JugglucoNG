@@ -2970,11 +2970,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_custom_server">Свой сервер</string>
     <string name="clone_qr_instruction">На другом телефоне откройте %1$s и нажмите %2$s.</string>
     <string name="clone_connect_title">Подключить другой телефон</string>
-    <string name="clone_connect_body">Нажмите «%1$s» на телефоне с сенсором, затем «%2$s» на другом телефоне.</string>
-    <string name="clone_show_code">Показать код</string>
     <string name="clone_scan_code">Сканировать код</string>
-    <string name="clone_nearby_sharing">%1$s передаёт показания</string>
-    <string name="clone_nearby_sharing_body">Найден в этой сети Wi-Fi. Код не нужен.</string>
     <string name="clone_get_readings">Получать показания</string>
     <string name="clone_code_any_network">Любая сеть</string>
     <string name="clone_code_wifi_only">Только эта сеть Wi-Fi</string>
@@ -2982,6 +2978,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_announced">Также виден в этой сети Wi-Fi как %1$s</string>
     <string name="clone_pairing_connected">Подключено</string>
     <string name="clone_add_manually_desc">Ввести адрес и параметры вручную</string>
+    <string name="clone_send_readings">Отправлять показания</string>
+    <string name="clone_on_this_wifi">В этой сети Wi-Fi</string>
+    <string name="clone_nearby_empty">Здесь появятся телефоны, отправляющие показания в этой сети Wi-Fi</string>
+    <string name="clone_sharing_readings">Отправляет показания</string>
     <string name="clone_network_summary">Серверы и локальный поиск</string>
     <string name="clone_background_desc">Повышает расход батареи</string>
     <string name="journal_chart_marker_count">×%1$d</string>

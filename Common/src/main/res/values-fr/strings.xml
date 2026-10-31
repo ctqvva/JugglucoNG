@@ -2905,11 +2905,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_custom_server">Serveur personnalisé</string>
     <string name="clone_qr_instruction">Sur l’autre téléphone, ouvrez %1$s et appuyez sur %2$s.</string>
     <string name="clone_connect_title">Connecter un autre téléphone</string>
-    <string name="clone_connect_body">Appuyez sur %1$s sur le téléphone avec le capteur, puis sur %2$s sur l’autre téléphone.</string>
-    <string name="clone_show_code">Afficher le code</string>
     <string name="clone_scan_code">Scanner le code</string>
-    <string name="clone_nearby_sharing">%1$s partage ses valeurs</string>
-    <string name="clone_nearby_sharing_body">Trouvé sur ce Wi-Fi. Aucun code nécessaire.</string>
     <string name="clone_get_readings">Recevoir les valeurs</string>
     <string name="clone_code_any_network">Tout réseau</string>
     <string name="clone_code_wifi_only">Ce Wi-Fi uniquement</string>
@@ -2917,6 +2913,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_pairing_announced">Également visible sur ce Wi-Fi comme %1$s</string>
     <string name="clone_pairing_connected">Connecté</string>
     <string name="clone_add_manually_desc">Saisir vous-même l’adresse et les options</string>
+    <string name="clone_send_readings">Envoyer les valeurs</string>
+    <string name="clone_on_this_wifi">Sur ce Wi-Fi</string>
+    <string name="clone_nearby_empty">Les téléphones qui envoient des valeurs sur ce Wi-Fi apparaissent ici</string>
+    <string name="clone_sharing_readings">Envoie des valeurs</string>
     <string name="clone_network_summary">Serveurs et recherche locale</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
     <string name="journal_chart_marker_count">×%1$d</string>

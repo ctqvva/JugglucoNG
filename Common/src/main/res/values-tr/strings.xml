@@ -2927,11 +2927,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_custom_server">Özel sunucu</string>
     <string name="clone_qr_instruction">Diğer telefonda %1$s ekranını açın ve %2$s öğesine dokunun.</string>
     <string name="clone_connect_title">Başka bir telefon bağla</string>
-    <string name="clone_connect_body">Sensörlü telefonda %1$s öğesine, ardından diğer telefonda %2$s öğesine dokunun.</string>
-    <string name="clone_show_code">Kodu göster</string>
     <string name="clone_scan_code">Kodu tara</string>
-    <string name="clone_nearby_sharing">%1$s değerleri paylaşıyor</string>
-    <string name="clone_nearby_sharing_body">Bu Wi-Fi ağında bulundu. Kod gerekmez.</string>
     <string name="clone_get_readings">Değerleri al</string>
     <string name="clone_code_any_network">Her ağ</string>
     <string name="clone_code_wifi_only">Yalnızca bu Wi-Fi</string>
@@ -2939,6 +2935,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_pairing_announced">Bu Wi-Fi ağında %1$s olarak da görünür</string>
     <string name="clone_pairing_connected">Bağlandı</string>
     <string name="clone_add_manually_desc">Adresi ve seçenekleri kendiniz girin</string>
+    <string name="clone_send_readings">Değerleri gönder</string>
+    <string name="clone_on_this_wifi">Bu Wi-Fi ağında</string>
+    <string name="clone_nearby_empty">Bu Wi-Fi ağında değer gönderen telefonlar burada görünür</string>
+    <string name="clone_sharing_readings">Değer gönderiyor</string>
     <string name="clone_network_summary">Sunucular ve yerel keşif</string>
     <string name="clone_background_desc">Pil tüketimini artırır</string>
     <string name="journal_chart_marker_count">×%1$d</string>
