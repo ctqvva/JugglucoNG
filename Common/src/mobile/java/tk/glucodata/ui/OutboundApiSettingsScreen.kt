@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Sms
@@ -81,9 +83,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -95,6 +102,8 @@ import tk.glucodata.OutboundApi
 import tk.glucodata.OutboundApiInsulinTokens
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
+import tk.glucodata.GluciferSetup
+import tk.glucodata.ui.setup.rememberUnifiedQrScanLauncher
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.sms.SmsWatchdog
 import tk.glucodata.ui.components.AppTopBar
@@ -116,6 +125,15 @@ fun OutboundApiSettingsScreen(navController: NavController) {
     var showSecretForId by rememberSaveable { mutableStateOf<String?>(null) }
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<OutboundApiSettings.Destination?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(context, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(1000)
+                config = OutboundApiSettings.load(context)
+            }
+        }
+    }
 
     fun save(next: OutboundApiSettings.Config) {
         val normalized = next.copy(enabled = true)
@@ -475,7 +493,7 @@ private fun DestinationIcon(preset: String, enabled: Boolean) {
 }
 
 @Composable
-private fun DestinationEditor(
+internal fun DestinationEditor(
     destination: OutboundApiSettings.Destination,
     showSecret: Boolean,
     onShowSecretChange: (Boolean) -> Unit,
@@ -483,6 +501,7 @@ private fun DestinationEditor(
     onChangePreset: (String) -> Unit
 ) {
     val preset = destination.normalizedPreset()
+    val isGlucifer = destination.isGlucifer()
     val isCustom = preset == OutboundApiSettings.PRESET_CUSTOM_JSON
     val isVk = preset == OutboundApiSettings.PRESET_GLUCO_WATCH_VK ||
         preset == OutboundApiSettings.PRESET_VK_MESSAGES
@@ -502,7 +521,8 @@ private fun DestinationEditor(
         )
     }
 
-    SettingsSubsectionTitle(stringResource(R.string.outbound_api_connection))
+    if (isGlucifer) GluciferConnectionHeading()
+    else SettingsSubsectionTitle(stringResource(R.string.outbound_api_connection))
     OutlinedTextField(
         value = destination.name,
         onValueChange = { onChange(destination.copy(name = it)) },
@@ -593,12 +613,29 @@ private fun DestinationEditor(
                 Text(stringResource(R.string.outbound_api_url_template_help))
             }
         },
+        visualTransformation = if (isGlucifer && !showSecret) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = {
+            if (isGlucifer) {
+                val label = stringResource(if (showSecret) R.string.hide_password else R.string.show_password)
+                IconButtonTooltip(label) {
+                    IconButton(onClick = { onShowSecretChange(!showSecret) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(if (showSecret) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, contentDescription = label)
+                    }
+                }
+            }
+        },
         leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Uri,
             imeAction = ImeAction.Next
         )
     )
+
+    if (isGlucifer) {
+        GluciferQrSetup(destination, onChange)
+        GluciferOptions(destination, onChange)
+        return
+    }
 
     OutlinedTextField(
         value = destination.headers,
@@ -829,88 +866,90 @@ private fun TriggerEditorSheet(
     }
 }
 
+/** The nested control surface used by API destinations, including Telegram and Glucifer. */
 @Composable
-private fun BubbleRefreshSection(
+internal fun ApiDestinationControlPanel(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), content = content)
+    }
+}
+
+@Composable
+internal fun BubbleRefreshSection(
     destination: OutboundApiSettings.Destination,
     onChange: (OutboundApiSettings.Destination) -> Unit
 ) {
     SettingsSubsectionTitle(stringResource(R.string.outbound_api_bubble_title))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(CardPosition.SINGLE, radius = 18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-        ) {
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_refresh_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_refresh_desc),
-                checked = destination.refreshInPlaceEnabled,
-                onCheckedChange = { checked ->
-                    onChange(destination.copy(refreshInPlaceEnabled = checked))
-                }
+    ApiDestinationControlPanel {
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_refresh_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_refresh_desc),
+            checked = destination.refreshInPlaceEnabled,
+            onCheckedChange = { checked ->
+                onChange(destination.copy(refreshInPlaceEnabled = checked))
+            }
+        )
+        if (destination.refreshInPlaceEnabled) {
+            ControlDivider()
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_refresh_window),
+                value = destination.refreshWindowMinutes,
+                range = 1..60,
+                onChange = { onChange(destination.copy(refreshWindowMinutes = it)) }
             )
-            if (destination.refreshInPlaceEnabled) {
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_refresh_window),
-                    value = destination.refreshWindowMinutes,
-                    range = 1..60,
-                    onChange = { onChange(destination.copy(refreshWindowMinutes = it)) }
+        }
+        ControlDivider()
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_suppress_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_suppress_desc),
+            checked = destination.suppressDeltaBelowMgdl > 0,
+            onCheckedChange = { checked ->
+                onChange(
+                    destination.copy(
+                        suppressDeltaBelowMgdl = if (checked) {
+                            OutboundApiSettings.DEFAULT_SUPPRESS_DELTA_BELOW_MGDL
+                        } else 0
+                    )
                 )
             }
+        )
+        ControlDivider()
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_stale_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_stale_desc),
+            checked = destination.staleEnabled,
+            onCheckedChange = { checked ->
+                onChange(destination.copy(staleEnabled = checked))
+            }
+        )
+        if (destination.staleEnabled) {
             ControlDivider()
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_suppress_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_suppress_desc),
-                checked = destination.suppressDeltaBelowMgdl > 0,
-                onCheckedChange = { checked ->
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_stale_threshold),
+                value = destination.staleThresholdMinutes,
+                range = 1..120,
+                onChange = { stale ->
+                    val missed = if (destination.missedThresholdMinutes <= stale) stale + 1
+                    else destination.missedThresholdMinutes
                     onChange(
                         destination.copy(
-                            suppressDeltaBelowMgdl = if (checked) {
-                                OutboundApiSettings.DEFAULT_SUPPRESS_DELTA_BELOW_MGDL
-                            } else 0
+                            staleThresholdMinutes = stale,
+                            missedThresholdMinutes = missed
                         )
                     )
                 }
             )
             ControlDivider()
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_stale_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_stale_desc),
-                checked = destination.staleEnabled,
-                onCheckedChange = { checked ->
-                    onChange(destination.copy(staleEnabled = checked))
-                }
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_missed_threshold),
+                value = destination.missedThresholdMinutes,
+                range = (destination.staleThresholdMinutes + 1)..240,
+                onChange = { onChange(destination.copy(missedThresholdMinutes = it)) }
             )
-            if (destination.staleEnabled) {
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_stale_threshold),
-                    value = destination.staleThresholdMinutes,
-                    range = 1..120,
-                    onChange = { stale ->
-                        val missed = if (destination.missedThresholdMinutes <= stale) stale + 1
-                        else destination.missedThresholdMinutes
-                        onChange(
-                            destination.copy(
-                                staleThresholdMinutes = stale,
-                                missedThresholdMinutes = missed
-                            )
-                        )
-                    }
-                )
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_missed_threshold),
-                    value = destination.missedThresholdMinutes,
-                    range = (destination.staleThresholdMinutes + 1)..240,
-                    onChange = { onChange(destination.copy(missedThresholdMinutes = it)) }
-                )
-            }
         }
     }
 }
@@ -930,7 +969,7 @@ internal fun ToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
+    AdaptiveTrailingRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (subtitle.isNullOrBlank()) 64.dp else 88.dp)
@@ -940,13 +979,13 @@ internal fun ToggleRow(
                 onValueChange = onCheckedChange
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        spacing = 16.dp,
+        trailingContent = { StyledSwitch(checked = checked, onCheckedChange = null) }
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(hyphens = Hyphens.Auto),
                 color = MaterialTheme.colorScheme.onSurface
             )
             if (!subtitle.isNullOrBlank()) {
@@ -957,10 +996,6 @@ internal fun ToggleRow(
                 )
             }
         }
-        StyledSwitch(
-            checked = checked,
-            onCheckedChange = null
-        )
     }
 }
 
@@ -1310,6 +1345,12 @@ private data class PresetSpec(
 private fun destinationPresetSpecs(): List<PresetSpec> =
     listOf(
         PresetSpec(
+            id = OutboundApiSettings.PRESET_GLUCIFER,
+            titleRes = R.string.glucifer_title,
+            descriptionRes = R.string.glucifer_description,
+            icon = Icons.Filled.CloudUpload
+        ),
+        PresetSpec(
             id = OutboundApiSettings.PRESET_CUSTOM_JSON,
             titleRes = R.string.outbound_api_preset_custom_json,
             descriptionRes = R.string.outbound_api_preset_custom_json_desc,
@@ -1343,6 +1384,7 @@ private fun destinationPresetSpecs(): List<PresetSpec> =
 
 private fun presetTitle(preset: String): Int =
     when (preset) {
+        OutboundApiSettings.PRESET_GLUCIFER -> R.string.glucifer_title
         OutboundApiSettings.PRESET_TELEGRAM_BOT -> R.string.outbound_api_preset_telegram
         OutboundApiSettings.PRESET_GLUCO_WATCH_VK -> R.string.outbound_api_preset_gluco_watch_vk
         OutboundApiSettings.PRESET_VK_MESSAGES -> R.string.outbound_api_preset_vk
@@ -1447,3 +1489,32 @@ private val templateTokens = listOf(
     "{status_emoji}",
     "{temp}"
 )
+
+@Composable
+private fun GluciferQrSetup(destination: OutboundApiSettings.Destination, onChange: (OutboundApiSettings.Destination) -> Unit) {
+    val context = LocalContext.current
+    var pendingUrl by remember(destination.id) { mutableStateOf<String?>(null) }
+    val scan = rememberUnifiedQrScanLauncher(requestCode = 0x4748, title = stringResource(R.string.scan_qr_button), onScanResult = { text ->
+        val url = GluciferSetup.parseQr(text)
+        if (url == null) Toast.makeText(context, R.string.glucifer_qr_invalid, Toast.LENGTH_SHORT).show()
+        else pendingUrl = url
+    })
+    Button(onClick = scan, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shapes = ButtonDefaults.shapes()) {
+        Icon(
+            imageVector = Icons.Filled.QrCodeScanner,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = stringResource(R.string.scan_qr_button),
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+    pendingUrl?.let { url ->
+        AlertDialog(onDismissRequest = { pendingUrl = null },
+            title = { Text(stringResource(R.string.glucifer_title)) },
+            text = { Text(stringResource(R.string.glucifer_qr_confirm, GluciferSetup.hostLabel(url))) },
+            confirmButton = { TextButton(onClick = { onChange(destination.copy(url = url)); pendingUrl = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.confirm)) } },
+            dismissButton = { TextButton(onClick = { pendingUrl = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) { Text(stringResource(R.string.cancel)) } })
+    }
+}
