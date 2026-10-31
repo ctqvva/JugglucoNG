@@ -150,15 +150,17 @@ class OttaiLiveFreshnessTests {
     private fun measuredAtMs(dataNo: Int) = trueStartMs + dataNo * 60_000L
 
     @Test
-    fun arrivalBoundDatesTheRecordAtItsArrivalMinute() {
+    fun arrivalBoundPreservesTheSecondsWithinTheMinute() {
         val receivedAtMs = measuredAtMs(100) + 3_000L
         val start = OttaiBleManager.arrivalBoundStartMs(100, receivedAtMs)
 
-        assertEquals(0L, start % 60_000L)
-        assertEquals((receivedAtMs / 60_000L) * 60_000L, start + 100 * 60_000L)
+        assertEquals(48_000L, start % 60_000L)
+        assertEquals(receivedAtMs, start + 100 * 60_000L)
     }
 
     private val trueStartMinuteMs = 1_785_605_640_000L
+    private val promptStartMs = trueStartMs + 1_000L
+    private val lateStartMs = trueStartMs + 20_000L
 
     /**
      * One sensor's live path as the manager runs it: dated from the stream start, published
@@ -198,20 +200,19 @@ class OttaiLiveFreshnessTests {
     private fun overshotStream() = liveSeeded(10, measuredAtMs(10) + 20_000L)
 
     /**
-     * The +15 s report: the frame the anchor came from reached the phone 20 s late, after the
-     * minute had turned, so the floored anchor sits a record past the start and every promptly
-     * delivered record would be dated 15 s after it arrived.
+     * A seed frame arrived 20 seconds late. Two prompt accepted frames correct that delay,
+     * preserving the seconds within the minute rather than rounding the sample down.
      */
     @Test
-    fun twoPromptFramesCorrectAnAnchorFlooredFromALateOne() {
+    fun twoPromptFramesCorrectAnAnchorFromALateOne() {
         val stream = overshotStream()
-        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(lateStartMs, stream.startMs)
 
-        assertEquals(measuredAtMs(11) - 45_000L, stream.frame(11, measuredAtMs(11) + 1_000L))
-        assertEquals("one frame is not enough", trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(measuredAtMs(11) + 1_000L, stream.frame(11, measuredAtMs(11) + 1_000L))
+        assertEquals("one frame is not enough", lateStartMs, stream.startMs)
         stream.prompt(12..30, ::measuredAtMs)
 
-        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(promptStartMs, stream.startMs)
         assertEquals(0, stream.unpublished)
         assertEquals(0, stream.stale)
     }
@@ -229,7 +230,7 @@ class OttaiLiveFreshnessTests {
         stream.frame(16, measuredAtMs(12) + 1_000L, accepted = false)
         stream.prompt(13..30, ::measuredAtMs)
 
-        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(promptStartMs, stream.startMs)
         assertEquals(0, stream.unpublished)
         assertEquals(0, stream.stale)
     }
@@ -246,7 +247,7 @@ class OttaiLiveFreshnessTests {
         stream.frame(16, measuredAtMs(12) + 1_000L)
         stream.prompt(17..40, ::measuredAtMs)
 
-        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(promptStartMs, stream.startMs)
         assertEquals(0, stream.stale)
     }
 
@@ -262,7 +263,7 @@ class OttaiLiveFreshnessTests {
         stream.prompt(5..10, ::measuredAtMs)
         stream.frame(12, measuredAtMs(11) + 1_000L)
         stream.frame(13, measuredAtMs(12) + 1_000L)
-        assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
+        assertEquals(promptStartMs - 60_000L, stream.startMs)
 
         stream.prompt(13..20, ::measuredAtMs)
         assertEquals(1, stream.unpublished)
@@ -270,7 +271,7 @@ class OttaiLiveFreshnessTests {
         stream.frame(24, measuredAtMs(22) + 1_000L)
         stream.prompt(23..40, ::measuredAtMs)
 
-        assertEquals(trueStartMinuteMs - 60_000L, stream.startMs)
+        assertEquals(promptStartMs - 60_000L, stream.startMs)
         assertEquals(2, stream.unpublished)
         assertEquals(0, stream.stale)
     }
@@ -291,7 +292,7 @@ class OttaiLiveFreshnessTests {
         stream.prompt(5..10, ::measuredAtMs)
         val lagMs = measuredAtMs(10) + 1_000L - OttaiBleManager.anchoredLiveSampleMs(seedMs, 10, measuredAtMs(10) + 1_000L)
         assertEquals(166_000L, lagMs)
-        assertEquals(seedMs - 60_000L, OttaiBleManager.arrivalBoundStartMs(14, measuredAtMs(11) + 1_000L))
+        assertEquals(seedMs - 14_000L, OttaiBleManager.arrivalBoundStartMs(14, measuredAtMs(11) + 1_000L))
 
         stream.frame(14, measuredAtMs(11) + 1_000L)
         stream.frame(15, measuredAtMs(12) + 1_000L)
@@ -341,10 +342,10 @@ class OttaiLiveFreshnessTests {
         val stream = overshotStream()
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(21, measuredAtMs(21) + 1_000L)
-        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(lateStartMs, stream.startMs)
 
         stream.frame(22, measuredAtMs(22) + 1_000L)
-        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(promptStartMs, stream.startMs)
     }
 
     /** The two frames must be consecutive: an accepted frame dated on time drops the candidate. */
@@ -354,7 +355,7 @@ class OttaiLiveFreshnessTests {
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(12, measuredAtMs(12) + 20_000L)
         stream.frame(13, measuredAtMs(13) + 1_000L)
-        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(lateStartMs, stream.startMs)
     }
 
     /** A replay of the same record is not a second, independent observation. */
@@ -363,7 +364,7 @@ class OttaiLiveFreshnessTests {
         val stream = overshotStream()
         stream.frame(11, measuredAtMs(11) + 1_000L)
         stream.frame(11, measuredAtMs(11) + 2_000L)
-        assertEquals(trueStartMinuteMs + 60_000L, stream.startMs)
+        assertEquals(lateStartMs, stream.startMs)
     }
 
     /** A counter one ahead paired with a genuine frame: the genuine, later start wins. */
@@ -372,7 +373,7 @@ class OttaiLiveFreshnessTests {
         val stream = overshotStream()
         stream.frame(12, measuredAtMs(11) + 1_000L)
         stream.frame(13, measuredAtMs(13) + 1_000L)
-        assertEquals(trueStartMinuteMs, stream.startMs)
+        assertEquals(promptStartMs, stream.startMs)
     }
 
     /** Reseeding the anchor drops a candidate taken against the old one. */
@@ -389,8 +390,8 @@ class OttaiLiveFreshnessTests {
     fun monitorTimeMayLagArrivalButNotLeadIt() {
         val receivedAtMs = 1_785_605_688_000L
         assertTrue(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs - 100_000L, receivedAtMs))
-        // Ahead of arrival, but inside the same minute: floored, it still dates no later than arrival.
-        assertTrue(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 5_000L, receivedAtMs))
+        // Even inside the same minute, a future monitor time must be rejected.
+        assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 5_000L, receivedAtMs))
         // The case the old two-sided check let through: floored into the next minute.
         assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 15_000L, receivedAtMs))
         assertFalse(OttaiBleManager.isUsableLiveMonitorTime(receivedAtMs + 100_000L, receivedAtMs))

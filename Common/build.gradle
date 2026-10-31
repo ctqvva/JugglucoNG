@@ -112,7 +112,7 @@ android {
         externalNativeBuild {
             cmake {
                 version = "$CMAKEVERSION"
-                // Explicit relay-only input; ignored local headers/account tokens stay excluded.
+                // Explicit private build inputs; ignored owner-local headers stay excluded.
                 if (project.hasProperty('requireProductionSigning')) {
                     if (!project.hasProperty('distributionTurnDirectory') ||
                             !file("${project.property('distributionTurnDirectory')}/distribution-turn.hpp").isFile()) {

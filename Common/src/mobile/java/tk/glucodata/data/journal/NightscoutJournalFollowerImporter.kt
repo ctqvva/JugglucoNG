@@ -3,6 +3,7 @@ package tk.glucodata.data.journal
 import androidx.annotation.Keep
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import tk.glucodata.Applic
@@ -14,12 +15,33 @@ import tk.glucodata.data.HistoryDatabase
 object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
     private const val LOG_ID = "NightscoutJournalFollowerImporter"
 
+    /**
+     * Held while a follower posts its own entries to the server it reads. An import landing
+     * between a document's POST and the row being marked as uploaded would not yet know the
+     * document is ours, and would add it again as a Nightscout row.
+     *
+     * The import does not wait for it: it runs on the follower's poll, and a send held up by a
+     * slow server would hold up the next reading and its alerts with it. A batch skipped here
+     * is fetched again by the next poll.
+     */
+    internal val followerSendLock = Mutex()
+
     @Keep
-    override fun importTreatments(sensorId: String, treatmentsJson: String): Int = runBlocking {
-        withContext(Dispatchers.IO) {
-            runCatching { importInternal(sensorId, treatmentsJson) }
-                .onFailure { Log.e(LOG_ID, "importTreatments failed: ${Log.stackline(it)}") }
-                .getOrDefault(0)
+    override fun importTreatments(sensorId: String, treatmentsJson: String): Int {
+        if (!followerSendLock.tryLock()) {
+            Log.i(LOG_ID, "Nightscout journal sync deferred: own entries are being sent")
+            return 0
+        }
+        try {
+            return runBlocking {
+                withContext(Dispatchers.IO) {
+                    runCatching { importInternal(sensorId, treatmentsJson) }
+                        .onFailure { Log.e(LOG_ID, "importTreatments failed: ${Log.stackline(it)}") }
+                        .getOrDefault(0)
+                }
+            }
+        } finally {
+            followerSendLock.unlock()
         }
     }
 

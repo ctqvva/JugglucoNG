@@ -581,7 +581,10 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             else String.format(Locale.getDefault(), "%.0f", glvalue)
         }
 
-        val displayRate = DisplayTrendSource.resolveArrowRate(overlayChartPoints, resolvedDisplay, viewMode, isMmol)
+        // The chart keeps every reading; the arrow ends at the one shown.
+        val displayRate = DisplayTrendSource.resolveArrowRate(
+            DisplayTrendSource.endingAtShown(overlayChartPoints, resolvedDisplay), resolvedDisplay, viewMode, isMmol
+        )
 
         val glucoseColor = NotificationChartDrawer.getGlucoseColor(this, glvalue, isMmol)
         val peerCurrents = NotificationMultiSensorSource.peerCurrents(

@@ -49,6 +49,8 @@ import tk.glucodata.data.prediction.DoseTarget
 import tk.glucodata.data.prediction.PredictionModelProfile
 import tk.glucodata.data.prediction.PredictionModelProfileStore
 import tk.glucodata.data.prediction.StateDoseHintCalculator
+import tk.glucodata.ui.PeerCurrentReading
+import tk.glucodata.ui.SecondarySensorDisplay
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.inDisplayUnit
 import tk.glucodata.data.journal.JournalRepository
@@ -152,15 +154,6 @@ class DashboardViewModel(
             val EMPTY = PeerRawHistory(emptyList(), emptyList(), emptyList())
         }
     }
-
-    /** Latest displayable reading of a peer (non-primary) selected sensor. */
-    data class PeerCurrentReading(
-        val sensorId: String,
-        val primaryStr: String,
-        val secondaryStr: String?,
-        val rate: Float,
-        val timeMillis: Long
-    )
 
     private companion object {
         const val TARGET_RANGE_DEFAULTS_MIGRATION_KEY = "target_range_defaults_v2"
@@ -278,6 +271,9 @@ class DashboardViewModel(
 
     private val _glucodataBroadcastEnabled = MutableStateFlow(false)
     val glucodataBroadcastEnabled = _glucodataBroadcastEnabled.asStateFlow()
+
+    private val _xdripFollowerEnabled = MutableStateFlow(false)
+    val xdripFollowerEnabled = _xdripFollowerEnabled.asStateFlow()
 
     private val _broadcastComputedTrend = MutableStateFlow(false)
     val broadcastComputedTrend = _broadcastComputedTrend.asStateFlow()
@@ -421,14 +417,8 @@ class DashboardViewModel(
     private val _chartSmoothingMinutes = MutableStateFlow(0)
     val chartSmoothingMinutes = _chartSmoothingMinutes.asStateFlow()
 
-    private val _dataSmoothingGraphOnly = MutableStateFlow(true)
-    val dataSmoothingGraphOnly = _dataSmoothingGraphOnly.asStateFlow()
-
-    private val _dataSmoothingCollapseChunks = MutableStateFlow(false)
-    val dataSmoothingCollapseChunks = _dataSmoothingCollapseChunks.asStateFlow()
-
-    private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
-    val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
+    private val _dataSmoothingTargets = MutableStateFlow(DataSmoothing.Targets.ALL)
+    val dataSmoothingTargets = _dataSmoothingTargets.asStateFlow()
 
     private val _dataSmoothingCausal = MutableStateFlow(false)
     val dataSmoothingCausal = _dataSmoothingCausal.asStateFlow()
@@ -528,6 +518,12 @@ class DashboardViewModel(
 
     private val _predictionTrendMomentumEnabled = MutableStateFlow(true)
     val predictionTrendMomentumEnabled = _predictionTrendMomentumEnabled.asStateFlow()
+
+    private val _predictionAnalysisEnabled = MutableStateFlow(false)
+    val predictionAnalysisEnabled = _predictionAnalysisEnabled.asStateFlow()
+
+    private val _predictionAdaptiveEnabled = MutableStateFlow(false)
+    val predictionAdaptiveEnabled = _predictionAdaptiveEnabled.asStateFlow()
 
     private val _predictionCarbRatioGramsPerUnit = MutableStateFlow(PREDICTION_CARB_RATIO_DEFAULT)
     val predictionCarbRatioGramsPerUnit = _predictionCarbRatioGramsPerUnit.asStateFlow()
@@ -860,9 +856,7 @@ class DashboardViewModel(
         migrateTargetRangeDefaultsIfNeeded(prefs, isMmol)
         _notificationChartEnabled.value = prefs.getBoolean("notification_chart_enabled", true)
         _chartSmoothingMinutes.value = DataSmoothing.getMinutes(context)
-        _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
-        _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
-        _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
+        _dataSmoothingTargets.value = DataSmoothing.targets(context)
         _dataSmoothingCausal.value = DataSmoothing.useCausalFilter(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
@@ -904,6 +898,10 @@ class DashboardViewModel(
         _predictiveSimulationNotificationChartEnabled.value = prefs.getBoolean(PREDICTION_NOTIFICATION_CHART_KEY, true)
         _predictionTrendMomentumEnabled.value =
             tk.glucodata.settings.SettingsRegistry.PREDICTION_TREND_MOMENTUM.readBool(prefs)
+        _predictionAnalysisEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_ANALYSIS.readBool(prefs)
+        _predictionAdaptiveEnabled.value =
+            tk.glucodata.settings.SettingsRegistry.PREDICTION_ADAPTIVE.readBool(prefs)
         _predictionCarbRatioGramsPerUnit.value =
             tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_RATIO.readFloatClamped(prefs)
         _predictionInsulinSensitivityMgDlPerUnit.value =
@@ -935,6 +933,7 @@ class DashboardViewModel(
         _xDripBroadcastEnabled.value = Natives.getxbroadcast()
         _patchedLibreBroadcastEnabled.value = Natives.getlibrelinkused()
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
+        _xdripFollowerEnabled.value = tk.glucodata.XdripFollowerSend.isEnabled(context)
         _broadcastComputedTrend.value = prefs.getBoolean(tk.glucodata.BroadcastTrendRate.PREF_KEY, false)
         _xdripReportAsLibre2.value = prefs.getBoolean(tk.glucodata.XdripReportAsLibre2.PREF_KEY, false)
 
@@ -1485,23 +1484,7 @@ class DashboardViewModel(
             return
         }
         _peerCurrentReadings.value = withContext(Dispatchers.IO) {
-            peerSensors.mapNotNull { sensorId ->
-                runCatching {
-                    CurrentDisplaySource.resolveCurrent(
-                        Notify.glucosetimeout,
-                        sensorId,
-                        tk.glucodata.DisplayTrendSource.TREND_WINDOW_MS
-                    )
-                }.getOrNull()?.let { snapshot ->
-                    PeerCurrentReading(
-                        sensorId = sensorId,
-                        primaryStr = snapshot.primaryStr,
-                        secondaryStr = snapshot.secondaryStr,
-                        rate = snapshot.rate,
-                        timeMillis = snapshot.timeMillis
-                    )
-                }
-            }
+            SecondarySensorDisplay.resolvePeers(peerSensors)
         }
     }
 
@@ -1744,6 +1727,11 @@ class DashboardViewModel(
         _glucodataBroadcastEnabled.value = Natives.getJugglucobroadcast()
     }
 
+    fun setXdripFollowerEnabled(enabled: Boolean) {
+        tk.glucodata.XdripFollowerSend.setEnabled(tk.glucodata.Applic.app, enabled)
+        _xdripFollowerEnabled.value = enabled
+    }
+
     fun toggleNotificationChart(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
@@ -1769,32 +1757,10 @@ class DashboardViewModel(
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
-    fun setDataSmoothingGraphOnly(enabled: Boolean) {
+    fun setDataSmoothingTargets(targets: DataSmoothing.Targets) {
         val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setSmoothOnlyExchangeOutputs(context, false)
-            _dataSmoothingExchangeOnly.value = false
-        }
-        DataSmoothing.setGraphOnly(context, enabled)
-        _dataSmoothingGraphOnly.value = enabled
-        refreshCurrentDisplayAfterSmoothingChange()
-    }
-
-    fun setDataSmoothingCollapseChunks(enabled: Boolean) {
-        val context = tk.glucodata.Applic.app
-        DataSmoothing.setCollapseChunks(context, enabled)
-        _dataSmoothingCollapseChunks.value = enabled
-        refreshCurrentDisplayAfterSmoothingChange()
-    }
-
-    fun setDataSmoothingExchangeOnly(enabled: Boolean) {
-        val context = tk.glucodata.Applic.app
-        if (enabled) {
-            DataSmoothing.setGraphOnly(context, false)
-            _dataSmoothingGraphOnly.value = false
-        }
-        DataSmoothing.setSmoothOnlyExchangeOutputs(context, enabled)
-        _dataSmoothingExchangeOnly.value = enabled
+        DataSmoothing.setTargets(context, targets)
+        _dataSmoothingTargets.value = targets
         refreshCurrentDisplayAfterSmoothingChange()
     }
 
@@ -2054,6 +2020,22 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean("dashboard_prediction_trend_momentum_enabled", enabled).apply()
         _predictionTrendMomentumEnabled.value = enabled
+        refreshNotificationPredictionSurfaces(context)
+    }
+
+    fun setPredictionAnalysisEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences(tk.glucodata.settings.SettingsRegistry.FILE, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.settings.KEY_PREDICTION_ANALYSIS, enabled).apply()
+        _predictionAnalysisEnabled.value = enabled
+    }
+
+    fun setPredictionAdaptiveEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences(tk.glucodata.settings.SettingsRegistry.FILE, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(tk.glucodata.settings.KEY_PREDICTION_ADAPTIVE, enabled).apply()
+        _predictionAdaptiveEnabled.value = enabled
+        if (enabled) tk.glucodata.data.prediction.analysis.AdaptivePredictionStore.requestRefresh(context)
         refreshNotificationPredictionSurfaces(context)
     }
 

@@ -203,10 +203,20 @@ class CloneReceptionSafetyTests {
         assertTrue(https.contains("deadline.pollMilliseconds()"))
         assertTrue(https.contains("cancelled->load(std::memory_order_acquire)"))
         assertTrue(https.contains("elapsedRealtimeMilliseconds()"))
+        val attemptWait = ice.substring(
+            ice.indexOf("static bool waitForAttempt"),
+            ice.indexOf("static RendezvousAttemptResult stoppedAttempt"),
+        )
+
         assertTrue(ice.contains(".timeoutMilliseconds=10000"))
-        assertTrue(ice.contains("waitForCurrentAgent(con,agent,5)"))
+        assertTrue(ice.contains(".superseded=attempt?attempt->superseded:nullptr"))
+        assertTrue(https.contains("superseded->load(std::memory_order_acquire)"))
+        assertTrue(ice.contains("waitForAttempt(con,agent,attempt,5)"))
         assertTrue(retryWait.contains("std::min<int64_t>(remaining,250)"))
         assertTrue(!retryWait.contains("sleep(1)"))
+        assertTrue(attemptWait.contains("std::min<int64_t>(remaining,250)"))
+        assertTrue(attemptWait.contains("!attempt.isSuperseded()"))
+        assertTrue(!attemptWait.contains("sleep(1)"))
         assertTrue(connection.contains("cancelRendezvous();"))
     }
 
@@ -325,18 +335,32 @@ class CloneReceptionSafetyTests {
         val ice = source("Common/src/main/cpp/net/ICE/ICE.cpp")
             .replace(Regex("\\s+"), " ")
         val waitForDescription = ice.substring(
-            ice.indexOf("static bool waitonDescription"),
-            ice.indexOf("static bool putDescription"),
+            ice.indexOf("static RendezvousAttemptResult waitonDescription"),
+            ice.indexOf("static bool prepareLocalDescription"),
         )
         val putDescription = ice.substring(
-            ice.indexOf("static bool putDescription"),
+            ice.indexOf("static RendezvousAttemptResult putDescription"),
+            ice.indexOf("static bool exchangeDescriptions"),
+        )
+        val exchange = ice.substring(
+            ice.indexOf("static bool exchangeDescriptions"),
             ice.indexOf("bool initAgent"),
         )
 
+        // Only the LAN source may abandon a rendezvous request; a remote
+        // description fetched through rendezvous must not skip the answer.
         assertTrue(waitForDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
-        assertFalse(waitForDescription.contains("if(con->remoteDescriptionSet.load())"))
+        assertFalse(waitForDescription.contains("if(con->remoteDescriptionSet.load()) { con->beginRendezvous()"))
         assertTrue(putDescription.contains("if(con->remoteDescriptionWasLocal.load())"))
-        assertFalse(putDescription.contains("if(con->remoteDescriptionSet.load())"))
+        assertFalse(putDescription.contains("if(con->remoteDescriptionSet.load()) { con->beginRendezvous()"))
+        // The answer upload never looks at remoteDescriptionSet before its PUT;
+        // the flag only settles side 0 when another server's answer won.
+        assertFalse(putDescription.substringBefore("putRequest(").contains("remoteDescriptionSet"))
+        assertTrue(putDescription.indexOf("remoteDescriptionSet") >
+            putDescription.indexOf("if(side!=givefirst|| applyRemoteDescription("))
+        // The attempt that fetched the offer goes on to upload this side's answer.
+        val afterOffer = exchange.substringAfter("if(offer!=RendezvousAttemptResult::Won) return offer;")
+        assertTrue(afterOffer.indexOf("prepareLocalDescription(") in 0 until afterOffer.indexOf("putDescription("))
     }
 
     @Test

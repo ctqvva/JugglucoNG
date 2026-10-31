@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.SystemClock;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +72,41 @@ public class Libre2GattCallback extends SuperGattCallback {
 				var future = Applic.scheduler.schedule(task, delay, TimeUnit.MILLISECONDS);
 				return () -> future.cancel(false);
 			}, this::retryAfterDisconnect);
+	// The sensor sends a complete packet every minute. A link that stays CONNECTED without one
+	// gets the same fresh-GATT recovery as a reported disconnect, instead of waiting for the
+	// loss-of-signal alarm. Fragments, RSSI and handshake callbacks do not count.
+	// The scheduler does not run in deep sleep; that alarm remains the backstop there.
+	private static final long STREAM_SILENCE_MILLIS = 150_000L;
+	private final GattConnectDeadline<BluetoothGatt> streamDeadline = new GattConnectDeadline<>(
+			this, (task, delay) -> {
+				var future = Applic.scheduler.schedule(task, delay, TimeUnit.MILLISECONDS);
+				return () -> future.cancel(false);
+			}, this::streamSilent);
+	private long linkConnectedAt = -1L, lastPacketAt = -1L;
+	private int linkPackets;
+
+	private void streamPacketReceived() {
+		lastPacketAt = SystemClock.elapsedRealtime();
+		++linkPackets;
+		streamDeadline.arm(mBluetoothGatt, STREAM_SILENCE_MILLIS);
+	}
+
+	private synchronized void streamSilent(BluetoothGatt gatt) {
+		if (gatt != mBluetoothGatt || disconnectingGatt != null || stop) return;
+		Log.i(LOG_ID, SerialNumber + " no complete packet for " + STREAM_SILENCE_MILLIS / 1000 + "s, reconnecting");
+		noteLossOfSignal(System.currentTimeMillis());
+		requestDisconnect(gatt, 0L);
+	}
+
+	// One line per link, also in the trace log, so it shows how long links last and whether the stream went quiet first.
+	private void logLinkEnd(String why) {
+		if (linkConnectedAt < 0L) return;
+		final long now = SystemClock.elapsedRealtime();
+		Log.i(LOG_ID, SerialNumber + " link ended (" + why + ") after " + (now - linkConnectedAt) / 1000
+				+ "s, packets=" + linkPackets + ", last packet "
+				+ (lastPacketAt < 0L ? "never" : (now - lastPacketAt) / 1000 + "s ago"));
+		linkConnectedAt = -1L;
+	}
 
 	@Override
 	protected boolean useAutoConnect() {
@@ -95,6 +131,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 
 	private void resetConnectionState() {
 		endBLEHandler();
+		streamDeadline.cancel();
 		connected = false;
 		conphase = 0;
 		pack1 = pack2 = false;
@@ -108,6 +145,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 		final long delay = reconnectDelayMillis;
 		cancelDisconnectDeadline();
 		resetConnectionState();
+		logLinkEnd("closed");
 		// Retire the reference before close(), so late callbacks cannot affect its replacement.
 		closeGattTransport();
 		connectDevice(delay);
@@ -120,6 +158,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 		if (disconnectingGatt == gatt) return;
 		disconnectingGatt = gatt;
 		endBLEHandler();
+		streamDeadline.cancel();
 		// Android can omit DISCONNECTED. Repeated recovery requests must not extend this wait.
 		disconnectDeadline.arm(gatt, 2_000L);
 		try {
@@ -164,6 +203,7 @@ public class Libre2GattCallback extends SuperGattCallback {
 		if (pause) {
 			cancelDisconnectDeadline();
 			endBLEHandler();
+			streamDeadline.cancel();
 		}
 		super.setPause(pause);
 	}
@@ -261,6 +301,11 @@ private boolean connected=false;
 			}
 			if (newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS) {
 				connected = true;
+				linkConnectedAt = SystemClock.elapsedRealtime();
+				lastPacketAt = -1L;
+				linkPackets = 0;
+				// Also bounds a handshake that stalls after CONNECTED.
+				streamDeadline.arm(bluetoothGatt, STREAM_SILENCE_MILLIS);
 				constatchange[0] = tim;
 				setpriority(bluetoothGatt);
 				if (!bluetoothGatt.discoverServices()) {
@@ -272,6 +317,7 @@ private boolean connected=false;
 				setConStatus(status);
 				constatchange[1] = tim;
 				if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+					logLinkEnd("status=" + status);
 					// Keep the existing Libre 2 notification/authentication recovery policy.
 					if (status == 19 && justenablednotification) {
 						Natives.resetbluetooth(dataptr);
@@ -507,6 +553,7 @@ private	void oldonCharacteristicChanged(byte[] value) {
 			break;
 			case 8: {
 				if (pack1 && pack2) {
+					streamPacketReceived();
 					final var wakeLock=Natives.hasRootcheck()?getwakelock():null;
 					if(wakeLock!=null) {
 						wakeLock.setReferenceCounted(false);

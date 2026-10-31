@@ -20,7 +20,11 @@ import java.nio.charset.StandardCharsets
  *                             u8 curveCount,
  *                             curveCount × { u16 minute, f32 activity } },
  *              u16 presetCount,
- *              presetCount × { i64 id, f32 units, u8 nameLen, nameLen × utf8 }
+ *              presetCount × { i64 id, f32 units, u8 nameLen, nameLen × utf8 },
+ *              [appended, optional] u16 identityCount,
+ *              identityCount × { u8 len, len × utf8 },
+ *              [appended, optional, only after a complete identity block]
+ *              u16 absorptionCount, absorptionCount × u16 absorptionMinutes (0 = absent)
  *
  *     command: u8 version, u8 command, i64 timestampMs, i64 id, u8 type,
  *              f32 amount, i64 presetId
@@ -38,6 +42,9 @@ object WearJournalSync {
      * prediction stable when a preset or body weight changes after a dose.
      */
     const val VERSION = 3
+    // Not bumped for the absorption section: it is appended after the identity block and read only
+    // by a build that knows it, and a bump would make every watch that predates it refuse the whole
+    // journal (`version > VERSION`) -- the two APKs are updated separately.
     private const val MIN_VERSION = 1
 
     /**
@@ -58,6 +65,13 @@ object WearJournalSync {
     const val TYPE_FINGERSTICK = 2
     const val TYPE_ACTIVITY = 3
     const val TYPE_NOTE = 4
+
+    /**
+     * Most entries the phone serves in one payload (newest first, any type). A payload at this
+     * size may have dropped older entries, so the watch cannot trust totals from it; see
+     * `WearJournalIob.isPossiblyTruncated`.
+     */
+    const val SERVED_ENTRY_CAP = 60
 
     private const val HISTORY_MS = 24L * 60L * 60L * 1000L
     private const val PREFS = "wear_journal_cache"
@@ -80,6 +94,12 @@ object WearJournalSync {
          * re-sending an add needs this to recognise its own entry instead of adding a second one.
          */
         val entryIdentity: String = "",
+        /**
+         * Minutes over which the phone's COB absorbs this carb entry, already resolved by the phone
+         * (its explicit duration, else grams / the absorption rate at that instant, clamped). Null
+         * when absent: not a carb entry, a phone that predates the field, or a pending watch entry.
+         */
+        val absorptionMinutes: Int? = null,
         /** True while the entry is only on the watch, waiting to be confirmed by a serve. */
         val pending: Boolean = false,
     ) {
@@ -89,6 +109,7 @@ object WearJournalSync {
             return timestampMs == other.timestampMs && id == other.id && type == other.type &&
                 amount == other.amount && title == other.title && presetId == other.presetId &&
                 entryIdentity == other.entryIdentity && pending == other.pending &&
+                absorptionMinutes == other.absorptionMinutes &&
                 curveMinutes.contentEquals(other.curveMinutes) &&
                 curveActivity.contentEquals(other.curveActivity)
         }
@@ -629,9 +650,17 @@ object WearJournalSync {
         // payload order, so a build that predates it stops reading before it and the entries it
         // already has are unaffected.
         val identityBlockStart = buffer.position()
-        val identities = readServedIdentities(buffer, entries.size)
+        val identityBlock = readServedIdentities(buffer, entries.size)
+        val identities = identityBlock.identities
+        // The absorption minutes follow the identity block, so they are only located when that block
+        // was read to its end; after a block this build stopped reading early the position is
+        // somewhere inside it, and guessing would turn identity bytes into minutes.
+        val absorption = if (identityBlock.complete) readAbsorptionMinutes(buffer, entries.size) else emptyList()
         val withIdentity = entries.mapIndexed { index, entry ->
-            entry.copy(entryIdentity = identities.getOrElse(index) { "" })
+            entry.copy(
+                entryIdentity = identities.getOrElse(index) { "" },
+                absorptionMinutes = absorption.getOrNull(index)?.takeIf { it > 0 },
+            )
         }
         return Journal(
             enabled,
@@ -641,24 +670,48 @@ object WearJournalSync {
         )
     }
 
-    /** The appended `[u16 count][u8 length][utf-8]` identities, empty for an older payload. */
-    private fun readServedIdentities(buffer: ByteBuffer, entryCount: Int): List<String> {
-        if (buffer.remaining() < 2) return emptyList()
+    private class IdentityBlock(val identities: List<String>, val complete: Boolean)
+
+    /**
+     * The appended `[u16 count][u8 length][utf-8]` identities, empty for an older payload.
+     * [IdentityBlock.complete] is true only when the block was consumed to its declared end.
+     */
+    private fun readServedIdentities(buffer: ByteBuffer, entryCount: Int): IdentityBlock {
+        if (buffer.remaining() < 2) return IdentityBlock(emptyList(), complete = false)
         val count = buffer.short.toInt() and 0xFFFF
-        if (count > entryCount) return emptyList()
+        if (count > entryCount) return IdentityBlock(emptyList(), complete = false)
         val identities = ArrayList<String>(count)
         repeat(count) {
             // Length 0 is a phone-originated entry, which has no identity of its own -- not a
             // malformed field. And one field this build will not take must not throw away the
             // identities read before it, so each check ends the block instead of throwing it.
-            if (buffer.remaining() < 1) return identities
+            if (buffer.remaining() < 1) return IdentityBlock(identities, complete = false)
             val length = buffer.get().toInt() and 0xFF
-            if (length > MAX_IDENTITY_BYTES || buffer.remaining() < length) return identities
+            if (length > MAX_IDENTITY_BYTES || buffer.remaining() < length) {
+                return IdentityBlock(identities, complete = false)
+            }
             val identity = ByteArray(length).also { buffer.get(it) }.toString(StandardCharsets.UTF_8)
-            if (identity.any { it.isISOControl() }) return identities
+            if (identity.any { it.isISOControl() }) return IdentityBlock(identities, complete = false)
             identities.add(identity)
         }
-        return identities
+        return IdentityBlock(identities, complete = true)
+    }
+
+    /**
+     * The appended `[u16 count][u16 minutes × count]`, one per served entry in payload order, 0 =
+     * absent. A count that does not match the entries is ignored; a cut-off tail yields the minutes
+     * read so far. Never throws, and never costs an entry.
+     */
+    private fun readAbsorptionMinutes(buffer: ByteBuffer, entryCount: Int): List<Int> {
+        if (buffer.remaining() < 2) return emptyList()
+        val count = buffer.short.toInt() and 0xFFFF
+        if (count != entryCount) return emptyList()
+        val minutes = ArrayList<Int>(count)
+        repeat(count) {
+            if (buffer.remaining() < 2) return minutes
+            minutes.add(buffer.short.toInt() and 0xFFFF)
+        }
+        return minutes
     }
 
     /** Decodes a watch command; phone side. Returns null when malformed. */

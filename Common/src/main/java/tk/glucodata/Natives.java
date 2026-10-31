@@ -1690,7 +1690,8 @@ public class Natives {
                                                      boolean useTurnForStun,
                                                      boolean verifyRendezvousCertificate,
                                                      boolean useLocalDiscovery,
-                                                     boolean preferIPv4);
+                                                     boolean preferIPv4,
+                                                     boolean allowFallbackServers);
 
         public static native int TurnServerNR();
 

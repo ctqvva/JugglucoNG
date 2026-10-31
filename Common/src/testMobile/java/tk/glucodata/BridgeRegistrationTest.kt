@@ -27,6 +27,7 @@ class BridgeRegistrationTest {
         assertTrue("ComposeHostAccess", tk.glucodata.ui.ComposeHostAccess.isRegistered())
         assertTrue("JournalSnapshotAccess", JournalSnapshotAccess.isRegistered())
         assertTrue("NotificationPredictionAccess", NotificationPredictionAccess.isRegistered())
+        assertTrue("PredictionAnalysisAccess", PredictionAnalysisAccess.isRegistered())
         assertTrue("GlucoseUncertaintyAccess", GlucoseUncertaintyAccess.isRegistered())
         assertTrue("CalibrationProfileAccess", CalibrationProfileAccess.isRegistered())
         assertTrue("CalibrationAccess", CalibrationAccess.isRegistered())

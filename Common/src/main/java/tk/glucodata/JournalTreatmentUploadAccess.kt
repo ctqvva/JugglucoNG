@@ -38,4 +38,10 @@ object JournalTreatmentUploadAccess {
         runCatching { bridge?.uploadAll(useV3) }
             .onFailure { Log.stack(TAG, "uploadAll failed", it) }
             .getOrNull() ?: true
+
+    @JvmStatic
+    fun sendAsFollower() {
+        runCatching { bridge?.sendAsFollower() }
+            .onFailure { Log.stack(TAG, "sendAsFollower failed", it) }
+    }
 }

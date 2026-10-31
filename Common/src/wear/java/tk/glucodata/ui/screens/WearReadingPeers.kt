@@ -30,9 +30,9 @@ internal fun readingPeers(
 ): Map<Long, List<WearReadingPeer>> {
     val result = rows.associate { it.timestamp to mutableListOf<WearReadingPeer>() }
     peers.forEach { peer ->
-        val byMinute = peer.points.associateBy { it.timestamp / 60_000L }
+        val byMinute = peer.readings.associateBy { it.timestamp / 60_000L }
         val matches = rows.mapNotNull { byMinute[it.timestamp / 60_000L] }
-        val velocities = rowVelocities(peer.points, matches, peer.isRawMode, isMmol)
+        val velocities = rowVelocities(peer.readings, matches, peer.isRawMode, isMmol)
         rows.forEach { row ->
             byMinute[row.timestamp / 60_000L]?.let { point ->
                 result.getValue(row.timestamp).add(WearReadingPeer(peer, point, velocities[point.timestamp] ?: 0f))

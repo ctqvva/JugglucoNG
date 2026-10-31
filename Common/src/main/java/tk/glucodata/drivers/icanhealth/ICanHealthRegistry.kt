@@ -83,6 +83,15 @@ object ICanHealthRegistry {
     }
 
     @JvmStatic
+    fun boxSerialFor(context: Context?, sensorId: String?): String? {
+        if (context == null) return null
+        val record = findRecord(context, sensorId) ?: return null
+        return ICanHealthConstants.boxSerialForDisplay(
+            prefs(context).getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}${record.sensorId}", null)
+        )
+    }
+
+    @JvmStatic
     fun resolveCanonicalSensorId(context: Context?, sensorId: String?): String? {
         return findRecord(context, sensorId)?.sensorId
     }

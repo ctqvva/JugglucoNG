@@ -92,32 +92,9 @@ internal class OttaiCurrentReadingState(initialPublishedHighWaterMs: Long = 0L) 
 }
 
 /**
- * Lowers a confirmed stream start that dates live records after they arrive.
- *
- * Every anchor is floored to its frame's arrival minute, so it overshoots the true start by up
- * to one record whenever that frame crossed a minute boundary in transit: a sensor whose records
- * land at :45 is then dated :00 of the next minute, 15 s ahead, for the rest of the session. A
- * prompt record's arrival bound (OttaiBleManager.arrivalBoundStartMs) is the correction.
- *
- * Fed ACCEPTED live frames only, and guarded three ways because the continuity gate checks
- * glucose, not counters, so a frame whose dataNo runs ahead with a plausible value is accepted:
- *  - two consecutive accepted frames, with increasing counters and arrivals no more than
- *    [MAX_PENDING_AGE_MS] apart, must imply the same start; any accepted frame the anchor did not
- *    date ahead of arrival drops the candidate;
- *  - the start may fall at most one record below the anchor it was seeded at, in total. That is
- *    the most flooring can overshoot by;
- *  - nor so far that the live frame the anchor was seeded from, or any accepted live frame
- *    since, would be dated more than [MAX_CORRECTED_LAG_MS] before it arrived. The anchor may
- *    already lag — a monitor time is accepted up to two minutes behind arrival, and flooring
- *    adds up to one more — and a record on top of that would leave every later reading stale
- *    and unpublished. The seed frame's lag is how far the anchor dated it behind its own
- *    arrival, which does not depend on its counter, so a corrupt pair cannot vouch for itself.
- *    An anchor seeded from anything but a live arrival (history, activeTime) has no such
- *    measure and is never corrected; its records are still dated no later than arrival;
- *  - nothing is persisted. The next session seeds a fresh anchor and corrects it again.
- *
- * A false correction that fits these bounds still dates the genuine frames a record early, so
- * the one after a corrupt frame can share its minute and miss publication once.
+ * Corrects an anchor seeded by a delayed live read after two accepted frames arrive earlier
+ * than it predicts. The correction is bounded to one record, cannot push observed frames past
+ * the freshness window, and never trusts repeated counters or a history-only seed.
  */
 internal class OttaiArrivalStartCorrection {
     companion object {
@@ -426,19 +403,18 @@ class OttaiBleManager(
                 abs(receivedAtMs - sampleMs) <= CURRENT_SAMPLE_FRESH_MS + CURRENT_SAMPLE_FLOOR_GRACE_MS
 
         /**
-         * The latest stream start a live record allows: the one that dates it at its arrival
-         * minute. A record cannot be measured after it arrives, so any later anchor puts this
-         * record — and every later record dated from that anchor — in the future.
+         * The latest stream start a live record allows dates it at arrival. A record cannot
+         * be measured after it arrives, so a later anchor dates it and later records in the future.
          */
         internal fun arrivalBoundStartMs(dataNo: Int, receivedAtMs: Long): Long =
-            (receivedAtMs / RECORD_INTERVAL_MS - dataNo) * RECORD_INTERVAL_MS
+            receivedAtMs - dataNo.toLong() * RECORD_INTERVAL_MS
 
         /**
-         * A live record's time from a confirmed stream start, never later than its arrival
-         * minute: an anchor that would date it after it arrived is wrong, and so is that date.
+         * A live record's time from a confirmed stream start, capped at arrival so a late
+         * anchor cannot date it in the future.
          */
         internal fun anchoredLiveSampleMs(startMs: Long, dataNo: Int, receivedAtMs: Long): Long =
-            minOf(startMs + dataNo.toLong() * RECORD_INTERVAL_MS, (receivedAtMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS)
+            minOf(startMs + dataNo.toLong() * RECORD_INTERVAL_MS, receivedAtMs)
 
         /**
          * Whether a live record's monitor time (activeTime + runtime) may anchor the stream. It
@@ -449,7 +425,7 @@ class OttaiBleManager(
          */
         internal fun isUsableLiveMonitorTime(monitorMs: Long, receivedAtMs: Long): Boolean =
             monitorMs > 0L &&
-                (monitorMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS <= receivedAtMs &&
+                monitorMs <= receivedAtMs &&
                 receivedAtMs - monitorMs <= CURRENT_SAMPLE_FRESH_MS
 
         /**
@@ -1085,7 +1061,7 @@ class OttaiBleManager(
         }
     }
 
-    @Volatile private var historyDiffRetryPending = false
+    @Volatile private var historyDiffRetryPending = true
     private val historyHolesLock = Any()
     private val historyHoles = mutableListOf<HistoryHole>()
     // Set while we re-run service discovery AFTER auth (the sensor exposes a Service
@@ -1137,8 +1113,17 @@ class OttaiBleManager(
     // resolveSampleTimeMs() returns early on any non-zero anchor, the reliable live anchor (and
     // so commitConfirmedActiveTime) could never run for the rest of the session.
     @Volatile private var streamStartReliable = false
+    // A polled buffer can be old. The first accepted advancing notification establishes the
+    // sub-minute phase; later reads/replays keep that anchor rather than refreshing their age.
+    @Volatile private var streamNotifyPhaseKnown = false
+    // Pin accepted live dates by counter, including arrival-capped dates. A later read or
+    // anchor correction must not rejuvenate the same record. History does not consume a claim.
+    private val acceptedLiveSampleTimes = object : LinkedHashMap<Int, Long>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, Long>?): Boolean = size > 64
+    }
     // First reliable activation start seen this session, held until a second one corroborates it.
     @Volatile private var pendingConfirmedStartMs = 0L
+    @Volatile private var pendingConfirmedDataNo = -1
     // Corrects a stream start that dates live records after they arrive; fed accepted frames only.
     private val arrivalStartCorrection = OttaiArrivalStartCorrection()
     @Volatile private var lastBleActivityAtMs = 0L
@@ -1919,6 +1904,9 @@ class OttaiBleManager(
                 notifyEnableIndex = 0
                 discoveryStarted = false
                 roomBackfillChecked = false
+                // A decoded counter does not prove that its glucose was stored. Audit Room once
+                // per connection, including after a restart with a persisted lastDataNo.
+                historyDiffRetryPending = true
                 clearPendingHistoryRange()
                 // CGM links drop quickly at default (balanced) params; request a fast
                 // interval so auth/activation completes before the sensor drops idle.
@@ -3101,7 +3089,7 @@ class OttaiBleManager(
      * agree: they are computed as (wall clock - dataNo * interval) from independent reads, so a
      * genuine pair lands within a record or two while a corrupt dataNo lands far away.
      */
-    private fun offerConfirmedActiveTime(startMs: Long) {
+    private fun offerConfirmedActiveTime(startMs: Long, dataNo: Int) {
         if (startMs <= 0L || materials.activeTimeMs > 0L) return
         val now = System.currentTimeMillis()
         // Physically impossible starts are rejected outright rather than corroborated.
@@ -3112,16 +3100,20 @@ class OttaiBleManager(
         val pending = pendingConfirmedStartMs
         if (pending <= 0L) {
             pendingConfirmedStartMs = startMs
+            pendingConfirmedDataNo = dataNo
             Log.i(TAG, "activation start candidate=${startMs / 1000L} awaiting corroboration")
             return
         }
+        if (dataNo == pendingConfirmedDataNo) return // a replay is not independent corroboration
         if (kotlin.math.abs(pending - startMs) <= CONFIRMED_START_AGREEMENT_MS) {
+            if (dataNo < pendingConfirmedDataNo) return
             commitConfirmedActiveTime(startMs)
             return
         }
         Log.w(TAG, "activation start candidates disagree: ${pending / 1000L} vs ${startMs / 1000L}; " +
             "re-arming corroboration")
         pendingConfirmedStartMs = startMs
+        pendingConfirmedDataNo = dataNo
     }
 
     private fun commitConfirmedActiveTime(startMs: Long) {
@@ -3278,7 +3270,7 @@ class OttaiBleManager(
                 Log.w(TAG, "no method — skipping emit (raw only) dataNo=${r.record.dataNo}")
                 continue
             }
-            emitReading(r, live, receivedAtMs, plausible, index)?.let(emittedReadings::add)
+            emitReading(r, live, receivedAtMs, plausible, index, liveNotify = live && source == "notify")?.let(emittedReadings::add)
         }
         if (emittedReadings.isNotEmpty()) {
             storeDecodedReadings(emittedReadings, live)
@@ -3360,6 +3352,7 @@ class OttaiBleManager(
         receivedAtMs: Long,
         batch: List<OttaiReading>,
         batchIndex: Int,
+        liveNotify: Boolean = false,
     ): EmittedReading? {
         // adjustGlucose is mmol/L; convert to mg/dL for Room storage.
         val mmol = r.adjustGlucose.toFloat()
@@ -3373,7 +3366,7 @@ class OttaiBleManager(
         }
         repairAheadLastDataNoIfNeeded(r.record.dataNo, live)
         val advancesDataNo = r.record.dataNo > lastDataNo
-        val sampleMs = resolveSampleTimeMs(r, live, receivedAtMs)
+        var sampleMs = resolveSampleTimeMs(r, live, receivedAtMs)
         if (sampleMs <= 0L) {
             Log.w(TAG, "no active-time anchor — skipping emit dataNo=${r.record.dataNo}")
             return null
@@ -3389,6 +3382,27 @@ class OttaiBleManager(
         continuityRejectReason(r, mmol, sampleMs, live, batch, batchIndex)?.let { reason ->
             noteContinuityRejection(r.record.dataNo, sampleMs)
             return rejectReading(r, mmol, live, reason)
+        }
+        val notifyStartMs = arrivalBoundStartMs(r.record.dataNo, receivedAtMs)
+        if (liveNotify && advancesDataNo && !streamNotifyPhaseKnown &&
+            notifyStartMs / RECORD_INTERVAL_MS == streamStartTimeMs / RECORD_INTERVAL_MS
+        ) {
+            // Only change seconds within the established start minute. A larger correction
+            // still requires the two-frame bounded check; a corrupt counter cannot bypass it.
+            // Repeated polled buffers must never become "just now" because they were read again.
+            sampleMs = seedStreamTimeAnchor(r.record.dataNo, receivedAtMs, "live-notify", reliable = true, receivedAtMs)
+            streamNotifyPhaseKnown = true
+            // Previously stored rows may have used the poll's phase. Reconcile the minute
+            // buckets against Room with the new anchor before latching history complete.
+            roomBackfillChecked = false
+            historyDiffRetryPending = true
+        }
+        if (live) {
+            // Claim only after the sample passes every rejection gate and notify-phase dating.
+            // Concurrent callbacks for one counter must also share the first accepted date.
+            sampleMs = synchronized(acceptedLiveSampleTimes) {
+                acceptedLiveSampleTimes.getOrPut(r.record.dataNo) { sampleMs }
+            }
         }
         val freshLiveSample = live && isFreshLiveSample(receivedAtMs, sampleMs)
         val currentDecision = currentReadingState.accept(
@@ -3866,18 +3880,17 @@ class OttaiBleManager(
         live: Boolean,
         receivedAtMs: Long,
     ): Long {
-        // Take the shortcut once the start is CONFIRMED, or for a history record, which cannot
-        // produce a wall-clock-corroborated anchor of its own.
-        //
-        // Deliberately NOT keyed on streamStartReliable: offerConfirmedActiveTime() needs a
-        // SECOND reliable anchor to corroborate the first, and seedStreamTimeAnchor() below is
-        // the only place one is offered. Short-circuiting as soon as a reliable anchor existed
-        // made that gate unreachable for the life of the driver, so the confirmed start was never
-        // written — and with materials.activeTimeMs stuck at 0 the dataNo ceiling never gained a
-        // bound at all, for exactly the vendor-activated sensors it was rewritten to protect.
-        // While the start is reliable-but-unconfirmed, live records must keep flowing through the
-        // anchor path; an unreliable anchor is still overridden by them, as before.
-        if (streamStartTimeMs > 0L && (materials.activeTimeMs > 0L || !live)) {
+        if (live) {
+            synchronized(acceptedLiveSampleTimes) { acceptedLiveSampleTimes[r.record.dataNo] }
+                ?.let { return it }
+        }
+        // History estimates cannot own live dating, even when cloud materials contain a start.
+        // Once a live anchor exists, keep it stable across re-reads. Independent counters can
+        // still corroborate activation without reseeding/rejuvenating the same polled sample.
+        if (streamStartTimeMs > 0L && (!live || streamStartReliable)) {
+            if (live && materials.activeTimeMs <= 0L) {
+                offerConfirmedActiveTime(arrivalBoundStartMs(r.record.dataNo, receivedAtMs), r.record.dataNo)
+            }
             val anchoredMs = streamStartTimeMs + r.record.dataNo.toLong() * RECORD_INTERVAL_MS
             if (live && receivedAtMs > 0L && anchoredMs > receivedAtMs) {
                 // Dating only: this frame may still be rejected, so the anchor itself is left to
@@ -3951,7 +3964,7 @@ class OttaiBleManager(
         receivedAtMs: Long = 0L,
     ): Long {
         if (dataNo < 0 || sampleHintMs <= 0L) return sampleHintMs
-        val sampleMs = floorToRecordMinute(sampleHintMs)
+        val sampleMs = sampleHintMs
         val start = sampleMs - dataNo.toLong() * RECORD_INTERVAL_MS
         if (start > 0L) {
             val old = streamStartTimeMs
@@ -3970,17 +3983,14 @@ class OttaiBleManager(
             if (old == 0L || kotlin.math.abs(old - start) > RECORD_INTERVAL_MS) {
                 Log.i(TAG, "stream time anchor dataNo=$dataNo start=${start / 1000L} sample=${sampleMs / 1000L} source=$reason reliable=$reliable")
             }
-            // A live-dataNo-derived start is the true activation. Persist it as the authoritative
+            // A live-dataNo-derived start estimates activation. Persist it as the authoritative
             // activeTime so the setup wizard / exported JSON recognise an already-activated sensor
             // (instead of offering "start warmup") on the next add or import.
-            if (reliable) offerConfirmedActiveTime(start)
+            if (reliable) offerConfirmedActiveTime(start, dataNo)
             if (effectiveActiveTimeMs() <= 0L) ensureNativePresenceShell("stream-anchor-$reason")
         }
         return sampleMs
     }
-
-    private fun floorToRecordMinute(timestampMs: Long): Long =
-        (timestampMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS
 
     /**
      * A shell created without a capacity floor is sized for the 15-day rating, and an Ottai
@@ -4180,13 +4190,25 @@ class OttaiBleManager(
         activationCommandSentAtMs = now
         activationCommandAcknowledged = true
         resetActivationNegotiation(preserveStagedLifetime = true)
+        // The sensor has accepted a new activation. A cloud start from a previous attempt
+        // cannot date this stream or its warmup/backfill (the Oct 29 trace was 76 minutes old).
+        materials = materials.copy(activeTimeMs = 0L)
+        provisionalActiveTimeMs = now
+        streamStartTimeMs = 0L
+        streamStartReliable = false
+        streamNotifyPhaseKnown = false
+        synchronized(acceptedLiveSampleTimes) { acceptedLiveSampleTimes.clear() }
+        pendingConfirmedStartMs = 0L
+        pendingConfirmedDataNo = -1
+        roomBackfillChecked = false
+        historyDiffRetryPending = true
+        clearPendingHistoryRange()
         val id = SerialNumber.orEmpty()
         val ctx = Applic.app
         if (ctx != null && id.isNotBlank()) {
             OttaiRegistry.setActivationAttempted(ctx, id, true)
-            if (materials.activeTimeMs <= 0L) {
-                setProvisionalActiveTime(now, "activation-command")
-            }
+            OttaiRegistry.saveActiveTimeMs(ctx, id, 0L)
+            OttaiRegistry.saveProvisionalActiveTime(ctx, id, now)
         }
         Log.i(TAG, "activation command sent; sensor accepted activation writes")
         // Confirm the activation took, and issue nothing else. Android allows one outstanding
@@ -4395,7 +4417,8 @@ class OttaiBleManager(
         SerialNumber ?: return
         // Nothing to fetch yet on a sensor we have only just started. Come back when it is old
         // enough to have history rather than spending the bounded attempts on empty live reads.
-        val sensorAgeMs = warmupAnchorMs().takeIf { it > 0L }?.let { System.currentTimeMillis() - it } ?: -1L
+        val activationMs = activationCommandSentAtMs.takeIf { it > 0L } ?: warmupAnchorMs()
+        val sensorAgeMs = activationMs.takeIf { it > 0L }?.let { System.currentTimeMillis() - it } ?: -1L
         if (sensorAgeMs in 0 until INITIAL_HISTORY_MIN_SENSOR_AGE_MS) {
             val waitMs = INITIAL_HISTORY_MIN_SENSOR_AGE_MS - sensorAgeMs
             Log.i(TAG, "initial history backfill deferred ${waitMs / 1000L}s — sensor is ${sensorAgeMs / 1000L}s old")
@@ -4482,7 +4505,7 @@ class OttaiBleManager(
         val endMs = (System.currentTimeMillis() + RECORD_INTERVAL_MS).coerceAtLeast(startMs)
         val existing = HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
             id,
-            (startMs - RECORD_INTERVAL_MS / 2L).coerceAtLeast(0L),
+            (startMs / RECORD_INTERVAL_MS) * RECORD_INTERVAL_MS,
             endMs,
         )
         if (existing == null) {
@@ -4496,15 +4519,16 @@ class OttaiBleManager(
         }
         historyDiffRetryPending = false
         if (existing.isEmpty()) {
-            return BackfillOutcome(
-                issued = requestHistoryRange("room-backfill", 0, liveDataNo)
-                    .also { if (it) roomBackfillChecked = true },
-                diffOwnsRecovery = true,
-            )
+            val issued = requestHistoryRange("room-backfill", 0, liveDataNo)
+            roomBackfillChecked = issued
+            historyDiffRetryPending = !issued
+            return BackfillOutcome(issued = issued, diffOwnsRecovery = true)
         }
         val present = BooleanArray(liveDataNo)
         for (timestamp in existing) {
-            val dataNo = ((timestamp - startMs + RECORD_INTERVAL_MS / 2L) / RECORD_INTERVAL_MS).toInt()
+            // Room replaces readings by wall-clock minute bucket. Older builds stored :00;
+            // new live dates retain seconds, and both still cover the same stored minute.
+            val dataNo = (timestamp / RECORD_INTERVAL_MS - startMs / RECORD_INTERVAL_MS).toInt()
             if (dataNo in present.indices) present[dataNo] = true
         }
         val gaps = missingRanges(present)
@@ -4520,7 +4544,12 @@ class OttaiBleManager(
         val head = gaps.last()
         for (gap in gaps.dropLast(1)) addHistoryHole(gap.start, gap.endExclusive)
         val issued = requestHistoryRange("room-backfill", head.start, head.endExclusive - head.start)
-        if (issued) roomBackfillChecked = true else scheduleHoleRetry()
+        if (issued) {
+            roomBackfillChecked = true
+        } else {
+            historyDiffRetryPending = true
+            scheduleHoleRetry()
+        }
         Log.i(
             TAG,
             "history diff live=$liveDataNo stored=${existing.size} gaps=${gaps.size} " +

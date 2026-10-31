@@ -4,6 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.annotation.Keep
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import tk.glucodata.Applic
@@ -18,6 +20,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -270,13 +273,61 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         return false
     }
 
+    /**
+     * One pass at a time, whichever side asked. Two at once would both read the same pending
+     * rows and post each of them twice.
+     */
+    private val passLock = Mutex()
+
     @Keep
     override fun uploadAll(useV3: Boolean): Boolean = runBlocking {
         try {
-            uploadInternal(useV3)
+            passLock.withLock {
+                uploadInternal(useV3, Natives.getpostTreatments(), getReceiveTreatments())
+            }
         } catch (th: Throwable) {
             Log.e(LOG_ID, "uploadAll failed: ${Log.stackline(th)}")
             false
+        }
+    }
+
+    private val followerExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "NightscoutFollowerTreatments").apply { isDaemon = true }
+    }
+    private val followerPassQueued = AtomicBoolean(false)
+
+    /**
+     * A follower's send pass. Follow mode runs no native uploader, so this has its own thread;
+     * a failure is retried by the next follower poll, and [sendBackoff] still keeps a refused
+     * entry from being knocked on every time. Send only: the follower already reads the
+     * server's treatments on every poll, and reading them a second time here would be waste.
+     */
+    @Keep
+    override fun sendAsFollower() {
+        if (!followerPassQueued.compareAndSet(false, true)) return
+        followerExecutor.execute {
+            followerPassQueued.set(false)
+            try {
+                runBlocking { passLock.withLock { sendAsFollowerLocked() } }
+            } catch (th: Throwable) {
+                Log.e(LOG_ID, "sendAsFollower failed: ${Log.stackline(th)}")
+            }
+        }
+    }
+
+    private suspend fun sendAsFollowerLocked() {
+        if (!tk.glucodata.NightscoutUploadWake.followerSendsTreatments()) return
+        val config = NightscoutFollowerRegistry.loadConfig(Applic.app)
+        // The v3 write path authenticates with the uploader's URL and secret. The settings
+        // screen keeps them the same as the follower's; if something else changed one, do not
+        // post this phone's entries to a server it is not following.
+        val uploaderSecret = Natives.getnightuploadsecret().orEmpty().trim()
+        if (!sameServer(Natives.getnightuploadurl(), config.url) || uploaderSecret != config.secret.trim()) {
+            Log.e(LOG_ID, "follower send skipped: uploader server settings differ from the followed server")
+            return
+        }
+        NightscoutJournalFollowerImporter.followerSendLock.withLock {
+            uploadInternal(config.useV3, sendEnabled = true, receiveEnabled = false)
         }
     }
 
@@ -309,9 +360,17 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
             .apply()
     }
 
-    private suspend fun uploadInternal(useV3: Boolean): Boolean {
-        val sendEnabled = Natives.getpostTreatments()
-        val receiveEnabled = getReceiveTreatments()
+    /** The native side drops an "/api/..." tail the follower keeps; neither cares about case. */
+    internal fun sameServer(uploaderUrl: String?, followedUrl: String?): Boolean {
+        fun key(url: String?) = NightscoutFollowerRegistry.normalizeUrl(url)
+            .substringBefore("/api/")
+            .trimEnd('/')
+            .lowercase(Locale.US)
+        val uploader = key(uploaderUrl)
+        return uploader.isNotEmpty() && uploader == key(followedUrl)
+    }
+
+    private suspend fun uploadInternal(useV3: Boolean, sendEnabled: Boolean, receiveEnabled: Boolean): Boolean {
         val sendLongInsulin = getSendLongInsulin()
         if (!sendEnabled && !receiveEnabled) return true
         val baseUrl = Natives.getnightuploadurl()?.takeIf { it.isNotBlank() } ?: return true

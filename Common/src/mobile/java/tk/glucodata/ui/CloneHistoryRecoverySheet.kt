@@ -2,35 +2,40 @@
 
 package tk.glucodata.ui
 
-import androidx.compose.material3.LinearWavyProgressIndicator
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import android.text.format.Formatter
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,8 +46,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -60,8 +72,12 @@ import tk.glucodata.CloneRecoveryStaging
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.data.CloneOutgoingRecoveryAccess
+import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
+import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
+import tk.glucodata.ui.util.ConnectedButtonGroup
 
 private const val RECOVERY_STATUS_POLL_MILLIS = 750L
 
@@ -162,7 +178,7 @@ internal fun CloneHistoryRecoverySheet(
     if (showFullHistoryConfirmation) {
         AlertDialog(
             onDismissRequest = { showFullHistoryConfirmation = false },
-            icon = { Icon(Icons.Filled.History, contentDescription = null) },
+            icon = { Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_title else R.string.clone_history_full_confirm_title)) },
             text = { Text(stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_confirm_message else R.string.clone_history_full_confirm_message)) },
             confirmButton = {
@@ -171,9 +187,18 @@ internal fun CloneHistoryRecoverySheet(
                         showFullHistoryConfirmation = false
                         startSelectedRecovery()
                     },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding
-                ) { Text(stringResource(R.string.clone_history_send_action)) }
+                ) {
+                    Text(stringResource(
+                        if (selection.recoverFromReceiver) R.string.clone_history_replace_and_recover
+                        else R.string.clone_history_replace_and_send
+                    ))
+                }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showFullHistoryConfirmation = false }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
@@ -210,7 +235,7 @@ internal fun CloneHistoryRecoverySheet(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
             val outgoing = status?.outgoing
             when {
@@ -234,7 +259,7 @@ internal fun CloneHistoryRecoverySheet(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(24.dp))
                     Button(
                         onClick = {
                             if (selection.mode == CloneRecoveryMode.FULL_HISTORY) {
@@ -244,16 +269,23 @@ internal fun CloneHistoryRecoverySheet(
                             }
                         },
                         enabled = !actionRunning,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.ContentPadding,
                     ) {
                         if (actionRunning) {
                             CircularProgressIndicator(
-                                modifier = Modifier.padding(end = 8.dp).size(18.dp),
+                                modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
                             )
+                        } else {
+                            Icon(
+                                imageVector = if (selection.recoverFromReceiver) Icons.Filled.Download else Icons.Filled.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.clone_history_send_action))
                     }
                 }
@@ -319,60 +351,73 @@ private fun CloneHistoryRecoveryOptions(
     enabled: Boolean,
     onSelectionChange: (CloneHistoryRecoverySelection) -> Unit,
 ) {
-    for (pull in listOf(false, true)) {
-        if (!pull || pullSupported) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = selection.recoverFromReceiver == pull, enabled = enabled,
-                    onClick = { onSelectionChange(selection.copy(recoverFromReceiver = pull)) })
-                Text(stringResource(if (pull) R.string.clone_history_direction_pull else R.string.clone_history_direction_send))
-            }
-        }
+    // A receiver that can't send history back leaves one direction: no choice to show.
+    if (pullSupported) {
+        val sendLabel = stringResource(R.string.clone_history_direction_send)
+        val pullLabel = stringResource(R.string.clone_history_direction_pull)
+        ConnectedButtonGroup(
+            options = listOf(false, true),
+            selectedOption = selection.recoverFromReceiver,
+            onOptionSelected = { pull ->
+                if (enabled) onSelectionChange(selection.copy(recoverFromReceiver = pull))
+            },
+            label = {},
+            labelText = { pull -> if (pull) pullLabel else sendLabel },
+            modifier = Modifier.fillMaxWidth(),
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
-    Spacer(Modifier.height(12.dp))
-    Text(
+    SectionLabel(
         text = stringResource(R.string.clone_history_mode),
-        style = MaterialTheme.typography.titleMedium,
+        topPadding = if (pullSupported) 24.dp else 0.dp,
     )
-    Spacer(Modifier.height(8.dp))
-    CloneHistoryModeOption(
-        selected = selection.mode == CloneRecoveryMode.ONLY_MISSING,
-        title = stringResource(R.string.clone_history_only_missing),
-        subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_missing_desc else R.string.clone_history_only_missing_desc),
-        enabled = enabled,
-        onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.ONLY_MISSING)) },
-    )
-    Spacer(Modifier.height(8.dp))
-    CloneHistoryModeOption(
-        selected = selection.mode == CloneRecoveryMode.FULL_HISTORY,
-        title = stringResource(R.string.clone_history_full),
-        subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_full_desc else R.string.clone_history_full_desc),
-        enabled = enabled,
-        onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.FULL_HISTORY)) },
-    )
-    Spacer(Modifier.height(20.dp))
-    Text(
-        text = stringResource(R.string.clone_history_data),
-        style = MaterialTheme.typography.titleMedium,
-    )
-    CloneHistoryCategoryRow(
-        checked = true,
-        enabled = false,
-        title = stringResource(R.string.clone_history_glucose),
-        subtitle = stringResource(R.string.clone_history_glucose_required),
-        onCheckedChange = {},
-    )
-    CloneHistoryCategoryRow(
-        checked = selection.includeJournal && journalSupported,
-        enabled = enabled && journalSupported,
-        title = stringResource(R.string.clone_history_journal),
-        subtitle = stringResource(
-            if (journalSupported) R.string.clone_history_journal_optional
-            else R.string.clone_history_journal_unsupported
-        ),
-        onCheckedChange = { include ->
-            onSelectionChange(selection.copy(includeJournal = include))
-        },
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        CloneHistoryModeOption(
+            selected = selection.mode == CloneRecoveryMode.ONLY_MISSING,
+            title = stringResource(R.string.clone_history_only_missing),
+            subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_missing_desc else R.string.clone_history_only_missing_desc),
+            icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+            position = CardPosition.TOP,
+            enabled = enabled,
+            onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.ONLY_MISSING)) },
+        )
+        CloneHistoryModeOption(
+            selected = selection.mode == CloneRecoveryMode.FULL_HISTORY,
+            title = stringResource(R.string.clone_history_full),
+            subtitle = stringResource(if (selection.recoverFromReceiver) R.string.clone_history_pull_full_desc else R.string.clone_history_full_desc),
+            icon = Icons.Filled.Restore,
+            position = CardPosition.BOTTOM,
+            enabled = enabled,
+            onClick = { onSelectionChange(selection.copy(mode = CloneRecoveryMode.FULL_HISTORY)) },
+        )
+    }
+    SectionLabel(text = stringResource(R.string.clone_history_data))
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        CloneHistoryCategoryRow(
+            checked = true,
+            enabled = false,
+            title = stringResource(R.string.clone_history_glucose),
+            subtitle = stringResource(R.string.clone_history_glucose_required),
+            icon = Icons.AutoMirrored.Filled.ShowChart,
+            position = CardPosition.TOP,
+            onCheckedChange = {},
+        )
+        CloneHistoryCategoryRow(
+            checked = selection.includeJournal && journalSupported,
+            enabled = enabled && journalSupported,
+            title = stringResource(R.string.clone_history_journal),
+            subtitle = stringResource(
+                if (journalSupported) R.string.clone_history_journal_optional
+                else R.string.clone_history_journal_unsupported
+            ),
+            icon = Icons.Filled.EditNote,
+            position = CardPosition.BOTTOM,
+            onCheckedChange = { include ->
+                onSelectionChange(selection.copy(includeJournal = include))
+            },
+        )
+    }
 }
 
 @Composable
@@ -380,30 +425,26 @@ private fun CloneHistoryModeOption(
     selected: Boolean,
     title: String,
     subtitle: String,
+    icon: ImageVector,
+    position: CardPosition,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RadioButton(selected = selected, onClick = onClick, enabled = enabled)
-            Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconTint = MaterialTheme.colorScheme.primary,
+        position = position,
+        onClick = onClick.takeIf { enabled },
+        modifier = Modifier.semantics {
+            role = Role.RadioButton
+            this.selected = selected
+        },
+        trailingContent = {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+        },
+    )
 }
 
 @Composable
@@ -412,24 +453,25 @@ private fun CloneHistoryCategoryRow(
     enabled: Boolean,
     title: String,
     subtitle: String,
+    icon: ImageVector,
+    position: CardPosition,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled) {
-            onCheckedChange(!checked)
-        }.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-        Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconTint = MaterialTheme.colorScheme.secondary,
+        position = position,
+        onClick = { onCheckedChange(!checked) }.takeIf { enabled },
+        modifier = Modifier.semantics {
+            role = Role.Checkbox
+            toggleableState = ToggleableState(checked)
+        },
+        trailingContent = {
+            Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+        },
+    )
 }
 
 @Composable
@@ -478,24 +520,31 @@ private fun CloneHistoryRecoveryProgress(
             color = MaterialTheme.colorScheme.error,
         )
     }
-    Spacer(Modifier.height(20.dp))
-    HorizontalDivider()
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(24.dp))
     when (state.phase) {
         CloneOutgoingPhase.COMPLETED -> Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(onClick = onStartAnother, enabled = !actionRunning, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) {
-                Text(stringResource(R.string.clone_history_start_another))
-            }
-            Button(onClick = onDone, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.clone_history_done)) }
+            OutlinedButton(
+                onClick = onStartAnother,
+                enabled = !actionRunning,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) { Text(stringResource(R.string.clone_history_start_another)) }
+            Button(
+                onClick = onDone,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
+                contentPadding = ButtonDefaults.ContentPadding,
+            ) { Text(stringResource(R.string.clone_history_done)) }
         }
         CloneOutgoingPhase.CANCELLED,
         CloneOutgoingPhase.FAILED -> Button(
             onClick = onStartAnother,
             enabled = !actionRunning,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             shapes = ButtonDefaults.shapes(),
             contentPadding = ButtonDefaults.ContentPadding,
         ) { Text(stringResource(R.string.clone_history_try_again)) }
@@ -513,7 +562,7 @@ private fun CloneHistoryRecoveryProgress(
                 OutlinedButton(
                     onClick = onCancel,
                     enabled = !actionRunning,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
                 ) { Text(stringResource(R.string.clone_history_cancel_transfer)) }

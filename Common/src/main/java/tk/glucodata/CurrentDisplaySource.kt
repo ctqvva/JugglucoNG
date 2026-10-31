@@ -325,52 +325,68 @@ object CurrentDisplaySource {
         mgdlPerUnit: Float = 1f
     ): List<GlucosePoint> {
         val pointsWithCurrent = mergeLivePoint(recentPoints, current, historyStart, viewMode, preferIncomingSample)
-        // Chunk collapsing is presentation thinning. A known incoming sample
-        // must remain available at its own timestamp for live publication.
-        val collapse = collapseChunks && !preferIncomingSample
-        return when {
+        val smoothed = when {
             !smoothAllData -> pointsWithCurrent
             causal -> DataSmoothing.smoothNativePointsCausal(
                 pointsWithCurrent,
                 smoothingMinutes,
-                collapse,
+                false,
                 mgdlPerUnit,
                 nowMillis
             )
             else -> DataSmoothing.smoothNativePoints(
                 pointsWithCurrent,
                 smoothingMinutes,
-                collapse,
+                0,
                 nowMillis
             )
+        }
+        // Chunk collapsing is presentation thinning, smoothed or not. A known incoming
+        // sample must remain available at its own timestamp for live publication.
+        val collapseMinutes = if (collapseChunks && !preferIncomingSample) {
+            DataSmoothing.collapseIntervalMinutes(smoothingMinutes)
+        } else {
+            0
+        }
+        return if (collapseMinutes > 0) {
+            DataSmoothing.collapsePointsForDisplay(smoothed, collapseMinutes, nowMillis)
+        } else {
+            smoothed
         }
     }
 
     private fun localSmoothingMode(): SmoothingMode {
-        val smoothingMinutes = DataSmoothing.getMinutes(Applic.app)
-        val smoothAllData = DataSmoothing.shouldSmoothLocalData(Applic.app)
-        return SmoothingMode(
-            smoothAllData = smoothAllData,
-            smoothingMinutes = smoothingMinutes,
-            collapseChunks = smoothAllData && DataSmoothing.collapseChunks(Applic.app),
-            causal = DataSmoothing.useCausalFilter(Applic.app)
+        val context = Applic.app
+        return localSmoothingMode(
+            smoothingMinutes = DataSmoothing.getMinutes(context),
+            targets = DataSmoothing.targets(context),
+            causal = DataSmoothing.useCausalFilter(context)
         )
     }
+
+    internal fun localSmoothingMode(
+        smoothingMinutes: Int,
+        targets: DataSmoothing.Targets,
+        causal: Boolean = false
+    ): SmoothingMode = SmoothingMode(
+        smoothAllData = DataSmoothing.localSmoothingMinutes(smoothingMinutes, targets) > 0,
+        smoothingMinutes = smoothingMinutes,
+        collapseChunks = DataSmoothing.localCollapseMinutes(smoothingMinutes, targets) > 0,
+        causal = causal
+    )
 
     private fun exchangeSmoothingMode(): SmoothingMode {
         val context = Applic.app
         return exchangeSmoothingMode(
             smoothingMinutes = DataSmoothing.getMinutes(context),
-            graphOnly = DataSmoothing.isGraphOnly(context),
-            exchangeOutputsOnly = DataSmoothing.smoothOnlyExchangeOutputs(context),
-            collapseChunks = DataSmoothing.collapseChunks(context),
+            targets = DataSmoothing.targets(context),
             causal = DataSmoothing.useCausalFilter(context)
         )
     }
 
     /**
      * An exchange snapshot is smoothed per the exchange settings but never collapsed: it is the
-     * newest reading under its own timestamp. "Collapse into chunks" is applied as a rate limit
+     * newest reading under its own timestamp. "Fewer readings" is applied as a rate limit
      * on the way out ([DataSmoothing.exchangeThrottleIntervalMinutes]), not by resolving the
      * snapshot at the last point of a completed chunk. Every exchange destination — including the
      * xDrip/xInfuus loop feed — shares this one mode; there is no separate loop-feed variant.
@@ -381,10 +397,18 @@ object CurrentDisplaySource {
         exchangeOutputsOnly: Boolean,
         collapseChunks: Boolean,
         causal: Boolean = false
+    ): SmoothingMode = exchangeSmoothingMode(
+        smoothingMinutes,
+        DataSmoothing.legacyTargets(graphOnly, exchangeOutputsOnly, collapseChunks),
+        causal
+    )
+
+    internal fun exchangeSmoothingMode(
+        smoothingMinutes: Int,
+        targets: DataSmoothing.Targets,
+        causal: Boolean = false
     ): SmoothingMode = SmoothingMode(
-        smoothAllData = DataSmoothing.shouldSmoothExchangeOutputs(
-            smoothingMinutes, graphOnly, exchangeOutputsOnly, collapseChunks
-        ),
+        smoothAllData = DataSmoothing.exchangeSmoothingMinutes(smoothingMinutes, targets) > 0,
         smoothingMinutes = smoothingMinutes,
         collapseChunks = false,
         causal = causal

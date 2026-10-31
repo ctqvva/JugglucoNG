@@ -182,6 +182,11 @@ if(true) {
       default:
    }
 
+   // Saved Clone hosts start below, before Notify restores Java formatting.
+   // Their Room profile callbacks must see the persisted unit immediately:
+   // legacy calibration rows are labelled on their first background load.
+   Applic.unit = Natives.getunit();
+
    if(doLog) {
           var build=new StringBuilder();
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

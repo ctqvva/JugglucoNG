@@ -52,7 +52,7 @@ public final class SensorSourceResolver {
         final String own = switch (sensorKind) {
             case SENSOR_KIND_LIBRE3 -> "Libre3";
             case SENSOR_KIND_DEXCOM -> "G7";
-            case SENSOR_KIND_SIBIONICS -> "GS1Sb";
+            case SENSOR_KIND_SIBIONICS -> "Sibionics";
             case SENSOR_KIND_ACCUCHEK -> "AccuChek";
             case SENSOR_KIND_AIDEX -> "AidexX";
             case SENSOR_KIND_OTTAI -> "Ottai";
@@ -170,7 +170,7 @@ public final class SensorSourceResolver {
     private static String sourceForKind(int sensorKind) {
         return switch (sensorKind) {
             case SENSOR_KIND_LIBRE3 -> "Libre3";
-            case SENSOR_KIND_SIBIONICS -> "GS1Sb";
+            case SENSOR_KIND_SIBIONICS -> "Sibionics";
             case SENSOR_KIND_ACCUCHEK -> "AccuChek";
             case SENSOR_KIND_CARESENS_AIR -> "CareSensAir";
             case SENSOR_KIND_AIDEX -> "AiDex";

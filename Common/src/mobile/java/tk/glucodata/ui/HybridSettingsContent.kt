@@ -53,6 +53,7 @@ internal data class HybridDraft(
     val useLocalDiscovery: Boolean,
     val useTurnForStun: Boolean,
     val preferIPv4: Boolean,
+    val allowFallbackServers: Boolean,
 ) {
     val turnPortValue: Int? get() = turnPort.toIntOrNull()?.takeIf { it in 1..65535 }
     val rendezvousPortValue: Int? get() = rendezvousPort.toIntOrNull()?.takeIf { it in 1..65535 }
@@ -79,6 +80,7 @@ internal data class HybridDraft(
         useLocalDiscovery = useLocalDiscovery,
         useTurnForStun = useTurnForStun && turnEndpoint != null,
         preferIPv4 = preferIPv4,
+        allowFallbackServers = allowFallbackServers,
     )
 
     /** Whether this draft names a different TURN server than [saved]. */
@@ -97,7 +99,8 @@ internal data class HybridDraft(
     fun switchesChanged(saved: HybridDraft): Boolean =
         useLocalDiscovery != saved.useLocalDiscovery ||
             useTurnForStun != saved.useTurnForStun ||
-            preferIPv4 != saved.preferIPv4
+            preferIPv4 != saved.preferIPv4 ||
+            allowFallbackServers != saved.allowFallbackServers
 
     val turnValid: Boolean
         get() = !customTurn || (turnHost.isNotBlank() && turnHostValid && turnPortValue != null && turnUserValid && turnPasswordValid)
@@ -118,6 +121,7 @@ internal data class HybridDraft(
             useLocalDiscovery = config.useLocalDiscovery,
             useTurnForStun = config.useTurnForStun,
             preferIPv4 = config.preferIPv4,
+            allowFallbackServers = config.allowFallbackServers,
         )
     }
 }
@@ -168,6 +172,7 @@ internal fun HybridSettingsContent(
                 accent = accent,
             )
             Spacer(Modifier.height(2.dp))
+            val anyCustom = draft.customTurn || draft.customRendezvous
             RendezvousServerSetting(
                 draft = draft,
                 saved = saved,
@@ -175,7 +180,28 @@ internal fun HybridSettingsContent(
                 showApply = liveConnection && draft.rendezvousValid && draft.rendezvousChanged(saved),
                 onApply = onApplyRendezvous,
                 accent = accent,
+                lastInGroup = !anyCustom,
             )
+            // Only means something next to a server of the user's own: without
+            // one, the app's servers are all there is.
+            AnimatedVisibility(
+                visible = anyCustom,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column {
+                    Spacer(Modifier.height(2.dp))
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.clone_allow_fallback_servers),
+                        subtitle = stringResource(R.string.clone_allow_fallback_servers_desc),
+                        icon = Icons.Default.AltRoute,
+                        iconTint = accent,
+                        checked = draft.allowFallbackServers,
+                        onCheckedChange = { onDraftChange(draft.copy(allowFallbackServers = it)) },
+                        position = CardPosition.BOTTOM,
+                    )
+                }
+            }
 
             SectionLabel(stringResource(R.string.clone_connection_options))
             SettingsSwitchItem(
@@ -262,6 +288,7 @@ private fun ColumnScope.RendezvousServerSetting(
     showApply: Boolean,
     onApply: () -> Unit,
     accent: androidx.compose.ui.graphics.Color,
+    lastInGroup: Boolean,
 ) {
     DisclosingSwitchCard(
         title = stringResource(R.string.use_custom_rendezvous_server),
@@ -271,7 +298,7 @@ private fun ColumnScope.RendezvousServerSetting(
         iconTint = accent,
         checked = draft.customRendezvous,
         onCheckedChange = { onDraftChange(draft.copy(customRendezvous = it)) },
-        position = if (draft.customRendezvous) CardPosition.MIDDLE else CardPosition.BOTTOM,
+        position = if (lastInGroup) CardPosition.BOTTOM else CardPosition.MIDDLE,
     ) {
         DraftTextField(
             value = draft.rendezvousHost,
@@ -304,7 +331,8 @@ private fun ColumnScope.RendezvousServerSetting(
                 iconTint = if (verify) accent else MaterialTheme.colorScheme.error,
                 checked = verify,
                 onCheckedChange = { onDraftChange(draft.copy(verifyRendezvousCertificate = it)) },
-                position = CardPosition.BOTTOM,
+                // The fallback row always follows while a custom server is set.
+                position = CardPosition.MIDDLE,
             )
         }
     }

@@ -149,7 +149,7 @@ fun MainScreen(
     // One pass over the shared history gives every row its own arrow, instead of
     // each row walking the snapshot again on the main thread.
     val velocities = remember(storeSnapshot, recent, isMmol) {
-        rowVelocities(storeSnapshot.points, recent, storeSnapshot.isRawMode, isMmol)
+        rowVelocities(storeSnapshot.readings, recent, storeSnapshot.isRawMode, isMmol)
     }
     val rowPeers = remember(storeSnapshot, recent, isMmol) {
         readingPeers(recent, storeSnapshot.peers, isMmol)
@@ -603,7 +603,7 @@ internal fun peerReadings(
     isMmol: Boolean,
     now: Long,
 ): List<PeerReading> = peers.mapNotNull { peer ->
-    val newest = peer.points.lastOrNull() ?: return@mapNotNull null
+    val newest = peer.readings.lastOrNull() ?: return@mapNotNull null
     if (now - newest.timestamp >= tk.glucodata.Notify.glucosetimeout) return@mapNotNull null
     val dvs = tk.glucodata.ui.DisplayValueResolver.resolve(
         autoValue = newest.value,
@@ -611,7 +611,7 @@ internal fun peerReadings(
         viewMode = peer.viewMode,
         isMmol = isMmol,
     )
-    val velocity = rowVelocities(peer.points, listOf(newest), peer.isRawMode, isMmol)[newest.timestamp] ?: 0f
+    val velocity = rowVelocities(peer.readings, listOf(newest), peer.isRawMode, isMmol)[newest.timestamp] ?: 0f
     PeerReading(peer.sensorId, dvs.primaryStr, dvs.secondaryStr, velocity, peer.colorArgb)
 }
 

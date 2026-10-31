@@ -10,7 +10,7 @@ public class SensorSourceResolverTests {
     public void resolvesKnownFallbackKindsWithoutSnapshot() {
         assertEquals("Libre2", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_LIBRE2));
         assertEquals("Libre3", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_LIBRE3));
-        assertEquals("GS1Sb", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_SIBIONICS));
+        assertEquals("Sibionics", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_SIBIONICS));
         assertEquals("AccuChek", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_ACCUCHEK));
         assertEquals("G7", SensorSourceResolver.resolveSourceInfo(null, SensorSourceResolver.SENSOR_KIND_DEXCOM));
     }
@@ -26,7 +26,7 @@ public class SensorSourceResolverTests {
         assertEquals("Libre2", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_LIBRE2, false));
         assertEquals("Libre3", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_LIBRE3, false));
         assertEquals("G7", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_DEXCOM, false));
-        assertEquals("GS1Sb", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_SIBIONICS, false));
+        assertEquals("Sibionics", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_SIBIONICS, false));
         assertEquals("AccuChek", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_ACCUCHEK, false));
         assertEquals("AidexX", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_AIDEX, false));
         assertEquals("Ottai", SensorSourceResolver.xdripSourceInfoForKind(SensorSourceResolver.SENSOR_KIND_OTTAI, false));

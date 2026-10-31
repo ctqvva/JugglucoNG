@@ -100,7 +100,7 @@ class SuperGattCallback {
     public void onCharacteristicChanged(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
     boolean discover(BluetoothGatt g){payloadCalls++;return true;}
     void tryer(Runnable r){r.run();}void enableIndication(BluetoothGatt g,BluetoothGattCharacteristic c){}
-    void askbackfill(){}void write(int which,byte[] value){lastWrite=value;}
+    void askbackfill(){}void syncBackfillToRoom(){}void write(int which,byte[] value){lastWrite=value;}
     void cmd(BluetoothGatt g,int num){}
     void enableGattDescriptor(BluetoothGatt g,BluetoothGattCharacteristic c,byte[] value){}
     void getcert(byte[] v){payloadCalls++;}void handleGlucoseResult(long res,long time){

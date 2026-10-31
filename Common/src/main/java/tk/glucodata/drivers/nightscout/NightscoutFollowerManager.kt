@@ -531,6 +531,12 @@ class NightscoutFollowerManager(
                 onEnrichFailure = { error -> Log.w(TAG, "Nightscout enrichment ignored: ${error.message}") },
             )
             if (outcome == NightscoutFollowerRefreshSequence.Outcome.SUPERSEDED) return
+            // The poll is the follower's only heartbeat, so it is also what retries a journal
+            // send that failed and picks up entries written while the app was not running.
+            // Queued, not run here: a slow write must not hold up the next reading.
+            if (tk.glucodata.NightscoutUploadWake.followerSendsTreatments()) {
+                tk.glucodata.JournalTreatmentUploadAccess.sendAsFollower()
+            }
             // Any completed refresh ends the previous failure episode, even when the server
             // legitimately has no readings yet. The next failure should get the prompt first
             // retry and a fresh diagnostic instead of inheriting stale backoff state.

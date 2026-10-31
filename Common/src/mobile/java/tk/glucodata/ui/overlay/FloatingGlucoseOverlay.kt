@@ -1,5 +1,12 @@
 package tk.glucodata.ui.overlay
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import android.view.MotionEvent
 import android.content.Intent
 import android.graphics.Typeface // Added for Google Sans
@@ -41,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.theme.MainFontFile
@@ -55,6 +64,9 @@ import tk.glucodata.Natives
 import tk.glucodata.Notify
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.MultiSensorSelection
+import tk.glucodata.ui.PeerCurrentReading
+import tk.glucodata.ui.SecondarySensorDisplay
 
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 @Composable
@@ -91,20 +103,41 @@ fun FloatingGlucoseOverlay(
     val refreshRevision by UiRefreshBus.revision.collectAsState(initial = 0L)
     
     // Derived Data
-    val glucosePoint = history.lastOrNull()
-    val currentSensorId = SensorIdentity.resolveMainSensor()
-    val currentSnapshot = remember(refreshRevision, currentSensorId, glucosePoint?.timestamp, history.size) {
-        CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, currentSensorId)
+    val requestedSensorId = SensorIdentity.resolveMainSensor()
+    val selectionRevision by MultiSensorSelection.revision.collectAsState()
+    val readings by rememberOverlayReadings(
+        requestedSensorId, showSecondary, Triple(refreshRevision, selectionRevision, history),
+    ) { sensorId, includePeer ->
+        withContext(Dispatchers.IO) {
+            val snapshot = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, sensorId)
+            val resolvedSensorId = snapshot?.sensorId ?: sensorId
+            val peers = if (includePeer && snapshot?.secondaryStr.isNullOrBlank()) {
+                SecondarySensorDisplay.resolvePeers(SecondarySensorDisplay.selectedPeers(resolvedSensorId))
+            } else emptyList()
+            OverlayReadings(resolvedSensorId, snapshot, peers)
+        }
+    }
+    // Retain the previous complete frame until the next main/peer pair is resolved.
+    val currentSensorId = readings.sensorId
+    val currentSnapshot = readings.snapshot
+    val peerReadings = readings.peers
+    val sensorHistory = remember(history, currentSensorId) {
+        history.filter { currentSensorId != null && SensorIdentity.matches(it.sensorSerial, currentSensorId) }
+    }
+    val glucosePoint = sensorHistory.lastOrNull() ?: currentSnapshot?.let {
+        GlucosePoint(it.autoValue, "", it.timeMillis, it.rawValue, it.rate, it.sensorId)
     }
 
     // The overlay only recomposes on new data, so once readings stop nothing would
     // ever notice the last one aging out. Re-read the clock until it crosses the
     // same timeout the widget and dashboard use, then show the no-data state.
     val latestReadingMillis = maxOf(currentSnapshot?.timeMillis ?: 0L, glucosePoint?.timestamp ?: 0L)
-    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis) {
+    val freshnessNow by produceState(System.currentTimeMillis(), latestReadingMillis, peerReadings) {
         while (true) {
             value = System.currentTimeMillis()
-            val wait = nextOverlayFreshnessCheckDelay(latestReadingMillis, value) ?: break
+            // A peer can expire before the main reading, without another sensor update.
+            val wait = (listOf(latestReadingMillis) + peerReadings.map { it.timeMillis })
+                .mapNotNull { nextOverlayFreshnessCheckDelay(it, value) }.minOrNull() ?: break
             delay(wait)
         }
     }
@@ -130,15 +163,15 @@ fun FloatingGlucoseOverlay(
     // Same estimator, window and raw/smoothed choice as every other arrow; the
     // overlay used to omit useRaw, so in raw view modes it regressed over the
     // smoothed series and tilted differently from the hero it floats next to.
-    val trendResult = remember(history, viewMode, unitInt) {
-        if (history.isNotEmpty()) {
+    val trendResult = remember(sensorHistory, viewMode, unitInt, currentSnapshot) {
+        if (sensorHistory.isNotEmpty()) {
             TrendEngine.calculateTrend(
-                history,
+                sensorHistory,
                 useRaw = (viewMode == 1 || viewMode == 3),
                 isMmol = (unitInt == 1)
             )
         } else {
-            TrendEngine.TrendResult(TrendEngine.TrendState.Unknown, 0f, 0f, 0f, 0f)
+            TrendEngine.TrendResult(TrendEngine.TrendState.Unknown, currentSnapshot?.rate ?: 0f, 0f, 0f, 0f)
         }
     }
     
@@ -224,24 +257,19 @@ fun FloatingGlucoseOverlay(
         else -> 400
     }
     
-    val fontFamily = if (fontSource == "APP") {
-        try {
-            FontFamily(
-                Font(
-                    MainFontFile,
-                    variationSettings = FontVariation.Settings(FontVariation.weight(weightVal))
-                )
-            )
-        } catch (th: Throwable) {
-            android.util.Log.w("FloatingGlucoseOverlay", "Variable font fallback activated", th)
-            FontFamily(Font(MainFontFile))
-        }
-    } else {
-        remember(weightVal) {
-             val familyName = if (weightVal >= 500) "google-sans-medium" else "google-sans"
-             try {
-                 FontFamily(Typeface.create(familyName, Typeface.NORMAL))
-             } catch (e: Exception) { FontFamily.SansSerif }
+    val fontFamily = remember(fontSource, weightVal) {
+        if (fontSource == "APP") {
+            try {
+                FontFamily(Font(MainFontFile,
+                    variationSettings = FontVariation.Settings(FontVariation.weight(weightVal))))
+            } catch (th: Throwable) {
+                android.util.Log.w("FloatingGlucoseOverlay", "Variable font fallback activated", th)
+                FontFamily(Font(MainFontFile))
+            }
+        } else {
+            val familyName = if (weightVal >= 500) "google-sans-medium" else "google-sans"
+            try { FontFamily(Typeface.create(familyName, Typeface.NORMAL)) }
+            catch (e: Exception) { FontFamily.SansSerif }
         }
     }
     val fontWeight = FontWeight(weightVal)
@@ -279,6 +307,9 @@ fun FloatingGlucoseOverlay(
                 } else null
                 getDisplayValues(point, viewMode, unit, calibratedValue)
             }
+            val secondaryText = dvs.secondaryStr ?: SecondarySensorDisplay.fallback(
+                dvs, currentSensorId, peerReadings, freshnessNow
+            )?.primaryStr
 
             if (isDynamicIsland && isVerticalIsland) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -293,10 +324,10 @@ fun FloatingGlucoseOverlay(
                         useOutline = useSubtleOutline,
                         textAlign = TextAlign.Center
                     )
-                    if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
+                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
                         Spacer(Modifier.height(sideSecondarySpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = secondaryText,
                             fontSize = sideSecondaryFontSize,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
@@ -321,10 +352,10 @@ fun FloatingGlucoseOverlay(
                         useOutline = useSubtleOutline,
                         textAlign = TextAlign.End
                     )
-                    if (showSecondary && !dvs.secondaryStr.isNullOrEmpty()) {
+                    if (showSecondary && !secondaryText.isNullOrEmpty()) {
                         Spacer(Modifier.width(inlineSpacing))
                         FloatingStyledText(
-                            text = dvs.secondaryStr!!,
+                            text = secondaryText,
                             fontSize = fontSize * 0.7f,
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
@@ -488,7 +519,7 @@ fun FloatingGlucoseOverlay(
 }
 
 @Composable
-private fun FloatingStyledText(
+internal fun FloatingStyledText(
     text: String, 
     fontSize: Float, 
     fontFamily: FontFamily, 
@@ -499,44 +530,54 @@ private fun FloatingStyledText(
     useOutline: Boolean,
     textAlign: TextAlign = TextAlign.Start
 ) {
-    if (useOutline) {
-        Box {
-            Text(
-                text = text,
-                color = outlineColor,
-                fontSize = fontSize.sp,
-                fontFamily = fontFamily,
-                fontWeight = fontWeight,
-                textAlign = textAlign,
-                style = TextStyle.Default.copy(
-                    drawStyle = Stroke(
-                        miter = 10f,
-                        width = 2.6f,
-                        join = StrokeJoin.Round
+    AnimatedContent(
+        targetState = text,
+        transitionSpec = {
+            (fadeIn(tween(200)) + slideInVertically(tween(220)) { -it / 3 })
+                .togetherWith(fadeOut(tween(140)) + slideOutVertically(tween(220)) { it / 3 })
+        },
+        label = "FloatingReadingValue"
+    ) { shownText ->
+        if (useOutline) {
+            Box {
+                Text(
+                    text = shownText,
+                    color = outlineColor,
+                    fontSize = fontSize.sp,
+                    fontFamily = fontFamily,
+                    fontWeight = fontWeight,
+                    textAlign = textAlign,
+                    style = TextStyle.Default.copy(
+                        drawStyle = Stroke(
+                            miter = 10f,
+                            width = 2.6f,
+                            join = StrokeJoin.Round
+                        )
                     )
                 )
-            )
+                Text(
+                    text = shownText,
+                    color = textColor,
+                    fontSize = fontSize.sp,
+                    fontFamily = fontFamily,
+                    fontWeight = fontWeight,
+                    textAlign = textAlign
+                )
+            }
+        } else {
             Text(
-                text = text,
+                text = shownText,
                 color = textColor,
                 fontSize = fontSize.sp,
                 fontFamily = fontFamily,
                 fontWeight = fontWeight,
-                textAlign = textAlign
+                textAlign = textAlign,
+                style = TextStyle(shadow = shadow)
             )
         }
-    } else {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = fontSize.sp,
-            fontFamily = fontFamily,
-            fontWeight = fontWeight,
-            textAlign = textAlign,
-            style = TextStyle(shadow = shadow)
-        )
     }
 }
+
 
 
 

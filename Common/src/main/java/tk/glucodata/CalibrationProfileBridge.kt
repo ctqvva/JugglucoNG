@@ -12,6 +12,12 @@ package tk.glucodata
  * by name from `javacurve.cpp`); it delegates here instead of reflecting.
  */
 interface CalibrationProfileBridge {
+    /** Capture legacy units before a preference change; refresh display rows afterward. */
+    fun onDisplayUnitChanged() {}
+
+    /** Sensors with a manual profile, including an empty profile after deletion. */
+    fun mirrorProfileSensorIds(): Array<String>
+
     /** JSON profile for [sensorId], or null when it cannot be produced. */
     fun exportProfileForSensorAsJson(sensorId: String): String?
 

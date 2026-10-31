@@ -1361,16 +1361,17 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
     /**
      * Get history for a specific sensor (suspend, Raw mg/dL).
      */
-    suspend fun getHistoryForSensor(serial: String, startTime: Long): List<GlucosePoint> {
+    suspend fun getHistoryForSensor(serial: String, startTime: Long, endTime: Long = Long.MAX_VALUE): List<GlucosePoint> {
         val serials = resolveQuerySensorSerials(serial)
         if (serials.isEmpty()) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val readings = dao.getReadingsSinceForSensors(serials, startTime)
+                val readings = dao.getReadingsBetweenForSensors(serials, startTime, endTime)
                 mapReadings(
                     mergeQueryReadings(readings, serial),
-                    uncertaintyFor(serials, startTime),
-                    displayRecordsFor(startTime)
+                    runCatching { uncertaintyDao.getBetween((startTime / 60_000L) * 60_000L, endTime)
+                        .filter { it.sensorSerial in serials }.indexed() }.getOrDefault(emptyMap()),
+                    displayRecordsFor(startTime, endTime)
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting history for sensor $serial", e)
@@ -1807,11 +1808,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * two-sensor store fall back to live derivation for every minute the other
      * sensor owned.
      */
-    private suspend fun displayRecordsFor(startTime: Long): Map<Long, ReadingDisplay> {
+    private suspend fun displayRecordsFor(startTime: Long, endTime: Long = Long.MAX_VALUE): Map<Long, ReadingDisplay> {
         if (!runCatching { CalibrationManager.shouldFreezeDisplayedValues() }.getOrDefault(false)) {
             return emptyMap()
         }
-        return runCatching { displayDao.getAllSince(startTime).indexedDisplay() }
+        return runCatching { displayDao.getBetween(startTime, endTime).indexedDisplay() }
             .getOrDefault(emptyMap())
     }
 

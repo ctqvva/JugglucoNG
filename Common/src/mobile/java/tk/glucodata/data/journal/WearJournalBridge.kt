@@ -9,6 +9,8 @@ import tk.glucodata.JournalBridge
 import tk.glucodata.Log
 import tk.glucodata.NotificationHistorySource
 import tk.glucodata.WearJournalSync
+import tk.glucodata.data.prediction.PredictionModelProfile
+import tk.glucodata.data.prediction.PredictionModelProfileStore
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
@@ -26,10 +28,12 @@ object WearJournalBridge : JournalBridge {
     private const val PREFS_NAME = "tk.glucodata_preferences"
     private const val JOURNAL_ENABLED_KEY = "dashboard_journal_enabled"
 
-    /** Keeps a watch payload inside a single Data Layer message. */
-    private const val MAX_ENTRIES = 60
+    /** Keeps a watch payload inside a single Data Layer message; shared with the watch's truncation check. */
+    private const val MAX_ENTRIES = WearJournalSync.SERVED_ENTRY_CAP
     private const val MAX_TITLE_BYTES = 40
     private const val MAX_CURVE_POINTS = 24
+
+    private const val MAX_ABSORPTION_MINUTES = 0xFFFF
 
     private fun prefs() = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -145,12 +149,42 @@ object WearJournalBridge : JournalBridge {
 
     /**
      * The preset's curve, capped so one payload stays inside a single Data
-     * Layer message. A preset that does not count toward IOB contributes no
-     * curve, which is how the phone's own model treats it.
+     * Layer message (see [thinCurve]: a longer curve keeps its true end). A
+     * preset that does not count toward IOB contributes no curve, which is how
+     * the phone's own model treats it.
      */
     private fun curvePointsOf(preset: JournalInsulinPreset): List<JournalCurvePoint> {
         if (preset.isArchived || !preset.countsTowardIob) return emptyList()
-        return preset.curvePoints.take(MAX_CURVE_POINTS)
+        return thinCurve(preset.curvePoints, MAX_CURVE_POINTS)
+    }
+
+    /**
+     * At most [cap] points, always including the first and the last: the watch's IOB maths takes
+     * the last received point as the end of the curve, so truncating would end it early. Interior
+     * points are picked evenly by index (deterministic). A curve within the cap is returned as is.
+     */
+    internal fun thinCurve(points: List<JournalCurvePoint>, cap: Int): List<JournalCurvePoint> {
+        if (points.size <= cap) return points
+        if (cap < 2) return points.take(cap)
+        val last = points.size - 1
+        return List(cap) { i -> points[Math.round(i.toDouble() * last / (cap - 1)).toInt()] }
+    }
+
+    /**
+     * The curve the watch counts for [entry]. A dose whose preset is present and does not count
+     * toward IOB sends none even if it has a snapshot, as the phone drops it
+     * (`JournalIobCalculator.toDose`). Residual (#500): a non-counting preset that is also
+     * archived is absent from the presets (`serveEntries` filters archived), so its snapshot is
+     * still sent and the watch counts that dose.
+     */
+    private fun resolveCurve(
+        entry: JournalEntry,
+        presetsById: Map<Long, JournalInsulinPreset>
+    ): List<JournalCurvePoint> {
+        val preset = entry.insulinPresetId?.let(presetsById::get)
+        if (preset != null && !preset.countsTowardIob) return emptyList()
+        val snapshot = thinCurve(parseJournalCurve(entry.insulinCurveJsonSnapshot), MAX_CURVE_POINTS)
+        return if (snapshot.size >= 2) snapshot else preset?.let(::curvePointsOf).orEmpty()
     }
 
     // internal so the IOB agreement test can encode through the real bridge rather than a
@@ -159,23 +193,18 @@ object WearJournalBridge : JournalBridge {
     internal fun encode(
         entries: List<JournalEntry>,
         presets: List<JournalInsulinPreset>,
+        carbAbsorptionGramsPerHourAt: (timestampMillis: Long) -> Float = phoneCarbAbsorptionRate(),
     ): ByteArray {
         val presetsById = presets.associateBy { it.id }
         val encodedEntries = entries.map { entry ->
             val title = entry.title.toByteArray(StandardCharsets.UTF_8).let {
                 if (it.size <= MAX_TITLE_BYTES) it else it.copyOf(MAX_TITLE_BYTES)
             }
-            val snapshot = parseJournalCurve(entry.insulinCurveJsonSnapshot)
-                .take(MAX_CURVE_POINTS)
-            val fallback = entry.insulinPresetId
-                ?.let(presetsById::get)
-                ?.let(::curvePointsOf)
-                .orEmpty()
             EncodedEntry(
                 entry = entry,
                 title = title,
                 wireType = wireTypeOf(entry.type),
-                curve = if (snapshot.size >= 2) snapshot else fallback
+                curve = resolveCurve(entry, presetsById)
             )
         }
         val encodedPresets = presets.map { preset ->
@@ -194,12 +223,16 @@ object WearJournalBridge : JournalBridge {
                 ?: ByteArray(0)
             raw
         }
+        // Appended after the identities, read only by a build that knows it: the minutes the phone's
+        // own COB absorbs each carb entry over, so the watch needs no rate of its own.
+        val absorption = encodedEntries.map { absorptionMinutesFor(it.entry, carbAbsorptionGramsPerHourAt) }
         val size = 1 + 1 + 2 +
             encodedEntries.sumOf { 8 + 8 + 1 + 4 + 1 + it.title.size + 8 + 1 + it.curve.size * 6 } +
             2 + encodedPresets.sumOf {
                 8 + 4 + 1 + it.second.size + 1 + curvePointsOf(it.first).size * 6
             } +
-            2 + identities.sumOf { 1 + it.size }
+            2 + identities.sumOf { 1 + it.size } +
+            2 + absorption.size * 2
         val buffer = ByteBuffer.allocate(size)
         buffer.put(WearJournalSync.VERSION.toByte())
         buffer.put(1)
@@ -237,7 +270,43 @@ object WearJournalBridge : JournalBridge {
             buffer.put(identity.size.toByte())
             buffer.put(identity)
         }
+        buffer.putShort(absorption.size.toShort())
+        absorption.forEach { buffer.putShort(it.toShort()) }
         return buffer.array()
+    }
+
+    /**
+     * The minutes `JournalIobMath.activeCarbsGrams` would absorb [entry] over at this instant, or 0
+     * (absent) for anything it does not count as carbs. Same rule as the phone's COB: an explicit
+     * duration wins (the maths floors it at one minute), otherwise grams / the rate at the entry's
+     * own timestamp, clamped to 30..360. Pure, and it never throws on a hostile value.
+     */
+    internal fun absorptionMinutesFor(
+        entry: JournalEntry,
+        rateAt: (timestampMillis: Long) -> Float,
+    ): Int {
+        if (entry.type != JournalEntryType.CARBS) return 0
+        val grams = entry.amount?.takeIf { it.isFinite() && it > 0f } ?: return 0
+        entry.durationMinutes?.let { return it.coerceIn(1, MAX_ABSORPTION_MINUTES) }
+        val resolved = (grams / rateAt(entry.timestamp) * 60f).coerceIn(30f, 360f)
+        // NaN survives coerceIn; it has no honest minutes, so it is absent rather than a guess.
+        return if (resolved.isNaN()) 0 else Math.round(resolved)
+    }
+
+    /**
+     * The phone's absorption rate by time of day, the same source `OutboundApiJournalSnapshot`
+     * feeds its COB from. The profile is read once per encode, and only if a carb needs it.
+     */
+    private fun phoneCarbAbsorptionRate(): (Long) -> Float {
+        val profile: PredictionModelProfile? by lazy {
+            runCatching {
+                PredictionModelProfileStore.load(requireNotNull(prefs()) { "no application context" })
+            }.onFailure { Log.stack(LOG_ID, "absorption profile", it) }.getOrNull()
+        }
+        return { timestamp ->
+            profile?.parametersAt(timestamp)?.carbAbsorptionGramsPerHour
+                ?: PredictionModelProfile.DEFAULT_CARB_ABSORPTION_GRAMS_PER_HOUR
+        }
     }
 
     private data class EncodedEntry(

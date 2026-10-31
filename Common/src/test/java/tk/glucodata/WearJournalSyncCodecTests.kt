@@ -322,13 +322,17 @@ class WearJournalSyncCodecTests {
     private fun journalPayload(
         identities: List<String>? = null,
         identityCountOverride: Int? = null,
+        durations: List<Int>? = null,
+        durationCountOverride: Int? = null,
+        dropLastBytes: Int = 0,
     ): ByteArray {
         val tail = identities?.map { it.toByteArray(Charsets.UTF_8) }
         // per entry: timestamp 8, id 8, type 1, amount 4, title length 1 + title, preset id 8,
         // curve count 1 + points
         val perEntry = 8 + 8 + 1 + 4 + 1 + 0 + 8 + 1
-        val size = 1 + 1 + 2 + perEntry * 2 + 2 + (if (tail != null) 2 + tail.sumOf { 1 + it.size } else 0)
-        return ByteBuffer.allocate(size)
+        val size = 1 + 1 + 2 + perEntry * 2 + 2 + (if (tail != null) 2 + tail.sumOf { 1 + it.size } else 0) +
+            (if (durations != null) 2 + durations.size * 2 else 0)
+        val full = ByteBuffer.allocate(size)
             .put(WearJournalSync.VERSION.toByte())
             .put(1)
             .putShort(2)
@@ -355,7 +359,74 @@ class WearJournalSyncCodecTests {
                         put(it)
                     }
                 }
+                if (durations != null) {
+                    putShort((durationCountOverride ?: durations.size).toShort())
+                    durations.forEach { putShort(it.toShort()) }
+                }
             }
             .array()
+        return full.copyOf(full.size - dropLastBytes)
+    }
+
+    // The entries in journalPayload are, in payload order: carbs at 4_321, insulin at 9_999.
+    private fun absorptionAt(journal: WearJournalSync.Journal, timestampMs: Long) =
+        journal.entries.first { it.timestampMs == timestampMs }.absorptionMinutes
+
+    @Test
+    fun aCarbEntryCarriesItsAbsorptionMinutes() {
+        val journal = WearJournalSync.decode(
+            journalPayload(identities = listOf("", ""), durations = listOf(90, 0)),
+        )
+        assertEquals(90, absorptionAt(journal, 4_321L))
+        // 0 is "absent", not a zero-minute absorption.
+        assertNull(absorptionAt(journal, 9_999L))
+    }
+
+    @Test
+    fun aPayloadFromTheBuildBeforeCarriesNoAbsorptionMinutes() {
+        // The shape the previous encoder sent: identities, nothing after them. Same version byte.
+        val journal = WearJournalSync.decode(journalPayload(identities = listOf("wear:a:1", "")))
+        assertEquals(2, journal.entries.size)
+        assertTrue(journal.entries.all { it.absorptionMinutes == null })
+        assertEquals("wear:a:1", journal.entries.first { it.timestampMs == 4_321L }.entryIdentity)
+    }
+
+    @Test
+    fun aV3PayloadWithNoIdentitiesEitherCarriesNoAbsorptionMinutes() {
+        val journal = WearJournalSync.decode(journalPayload(identities = null))
+        assertTrue(journal.entries.all { it.absorptionMinutes == null })
+    }
+
+    @Test
+    fun aTruncatedAbsorptionSectionKeepsEveryEntryAndIdentity() {
+        for (cut in 1..6) {
+            val journal = WearJournalSync.decode(
+                journalPayload(identities = listOf("wear:a:1", "x"), durations = listOf(90, 45), dropLastBytes = cut),
+            )
+            assertEquals("cut=$cut", 2, journal.entries.size)
+            assertEquals("cut=$cut", "wear:a:1", journal.entries.first { it.timestampMs == 4_321L }.entryIdentity)
+            assertEquals("cut=$cut", "x", journal.entries.first { it.timestampMs == 9_999L }.entryIdentity)
+        }
+    }
+
+    @Test
+    fun anImpossibleAbsorptionCountIsIgnored() {
+        val journal = WearJournalSync.decode(
+            journalPayload(identities = listOf("", ""), durations = listOf(90, 45), durationCountOverride = 9_999),
+        )
+        assertEquals(2, journal.entries.size)
+        assertTrue(journal.entries.all { it.absorptionMinutes == null })
+    }
+
+    @Test
+    fun aMalformedIdentityBlockDoesNotMakeTheAbsorptionSectionBeMisread() {
+        // An identity too long for this build ends that block early; whatever follows is then not
+        // where the absorption section starts, so it must not be read as one.
+        val tooLong = "w".repeat(WearJournalSync.MAX_IDENTITY_BYTES + 1)
+        val journal = WearJournalSync.decode(
+            journalPayload(identities = listOf(tooLong, ""), durations = listOf(90, 45)),
+        )
+        assertEquals(2, journal.entries.size)
+        assertTrue(journal.entries.all { it.absorptionMinutes == null })
     }
 }

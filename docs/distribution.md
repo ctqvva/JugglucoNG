@@ -70,42 +70,86 @@ job or artifacts.
 
 ### Bundled Clone TURN fallback
 
-Set `CLONE_TURN_SERVERS_JSON` in `production-signing` to an array with 1–2 entries
-(this libjuice fork attempts at most two relays):
+`CLONE_TURN_SERVERS_JSON` remains the required legacy fallback input in the
+protected `production-signing` environment. Existing two-entry secrets keep
+working. To deploy a larger pool, set the optional `CLONE_TURN_POOL_JSON` secret;
+new builds prefer it, while older build controllers keep using the legacy input.
+The pool accepts 1–16 entries and tries two per ICE agent. For example:
 
 ```json
 [
-  {"host":"turn.example.org","port":3478,"username":"app-relay-user","password":"app-relay-password"}
+  {"host":"relay-a.example.org","port":3478,"username":"relay-user","password":"relay-password","transport":"udp","provider":"provider-a","region":"global"},
+  {"host":"relay-b.example.org","port":443,"username":"relay-user","password":"relay-password","transport":"tls","provider":"provider-b","region":"europe"}
 ]
 ```
 
-Supply **relay allocation credentials only**. Do not supply a Twilio account SID,
-account auth token, coturn shared HMAC secret, signing key, or expiring credentials
-that will stop working after the APK ships. Relay credentials bundled in an APK
-are extractable: use a dedicated account with quotas/revocation and permission
-to redistribute its credentials. This restores a static default service; it does
-not implement an online temporary-credential issuer or HTTPS transport. Port 443
-still means UDP for this client, not TURN/TLS.
+`transport` is `udp` (the default), `tcp`, or `tls`. `provider` and `region` are
+optional short identifiers used to diversify the two active choices. Global
+provider endpoints can route to their nearest region; explicit regional hosts
+must actually accept the supplied account's credentials. A list of hostnames
+alone is not usable TURN redundancy. Avoid depending on a trial's quota as the
+only provider.
 
-For local canonical builds, read the same JSON from a private file into
-`JUGGLUCO_TURN_SERVERS` without printing it. In Actions, both trusted-main builds
-(including release/nightly) and approved PR builds receive the protected secret.
-Ordinary CI uses synthetic credentials and needs no secret. `build-dist.sh`
-generates a private temporary header under ignored `build/private`, removes it
-on exit, and checks the actual APK libraries before staging. Generated headers,
-native intermediate objects and configuration must not be uploaded as artifacts;
-the credentials themselves are intentionally present in APKs.
+The app keeps a custom TURN server in the pool alongside the bundled backups.
+It prefers transport/provider diversity, retains the current pair through
+rendezvous-only retries, and rotates through every entry after failed ICE
+attempts. Successful connections retain their pair for the next reconnect.
+The native library still uses at most two allocations per agent. TCP and TLS
+use a generation-owned loopback adapter; libjuice retains TURN authentication,
+permissions and allocation handling. TLS always validates the chain and hostname,
+independently of the custom rendezvous certificate setting.
+The stream adapter rejects TURN redirects that would change its transport;
+another pool entry can recover without silently dropping TLS.
 
-`python3 tools/test-clone-turn.py` exercises real authentication, allocation and
-bidirectional delivery against a local relay using the production header path.
-It withholds all direct remote candidates, blocks discovered direct UDP paths
-with a test-only socket shim, and includes a rejected relay alongside a working
-one. A negative control rejects both relays and requires no delivery. This
-checks transport behavior without public services. It does
-not prove the configured public relays are reachable or accept their credentials;
-verify those separately, and test real phones across different networks before
-calling the release regression resolved. User-supplied TURN still overrides the
-bundled list.
+For local canonical builds, set `JUGGLUCO_TURN_SERVERS` or the preferred
+`JUGGLUCO_TURN_POOL` from a private file without printing it. Both trusted-main
+builds and approved PR builds receive the protected secrets. Ordinary CI uses
+synthetic credentials. `build-dist.sh` generates private headers under ignored
+`build/private`, removes them on exit, and checks the APK libraries before staging.
+Generated headers, native intermediate objects and configuration must not be
+uploaded as artifacts. Relay credentials are intentionally present in APKs.
+
+Optional Twilio support uses `CLONE_TWILIO_ACCOUNT_JSON` in the same protected
+environment, passed locally as `JUGGLUCO_TWILIO_ACCOUNT`:
+
+```json
+{"sid":"AC<32 hexadecimal digits>","auth_token":"replace-with-account-token"}
+```
+
+This optional input generates a separate private header. It keeps the account
+values out of Git, **but embeds the account authentication in the APK**; GitHub
+Secrets do not prevent extraction from an installed app. Enable it only for an
+account whose owner authorizes that distribution. No credential-issuing server
+operated by the app maintainer is required. The app fetches short-lived TURN
+credentials over verified HTTPS in the background, refreshes before expiry,
+backs off on failures, and never offers expired credentials. A failed token API
+or revoked account leaves the independent static relay pool available. On a cold
+start the static relays work immediately; Twilio joins a subsequent ICE attempt
+once its token is ready, without interrupting a held rendezvous request.
+Twilio adds global UDP/TCP/TLS endpoints and TLS backups pinned to Frankfurt,
+Dublin, Ashburn, Umatilla, Singapore, Tokyo, Mumbai, Sydney and São Paulo, using
+the [documented NTS region names and TLS ports](https://www.twilio.com/docs/stun-turn/regions).
+The [global endpoint selects a low-latency region](https://www.twilio.com/docs/stun-turn/api#global-low-latency-gll-and-region-pinning).
+
+`python3 tools/test-clone-turn.py --streams` tests authenticated allocation and
+bidirectional delivery over UDP, TCP and TLS with direct peer UDP blocked, one
+rejected relay, and an all-rejected negative control. It also exercises provider
+rotation, stale generations, token expiry and nonblocking refresh.
+The TLS case delays its handshake to exercise queued request retransmissions,
+and a separate TLS case blocks external UDP on both peers.
+Run `python3 tools/test-turn-stream.py` for fragmented/coalesced frames, TLS trust /
+hostname rejection, and cancellation during a held TLS handshake.
+`python3 tools/test-context-https.py` checks complete HTTP replies across TLS
+records, length/chunked/close framing, and bounded cancellation/truncation.
+HTTPS signaling/token replies allow up to 32 KiB of headers/trailers and 1 MiB
+of body; incomplete replies fail without exposing partial data as success.
+
+For a bounded live provider test, supply a private `JUGGLUCO_TURN_LIVE_JSON` array
+using the same relay-entry schema, then run `python3 tools/test-clone-turn.py --live`.
+The diagnostic passes credentials through standard input, not command arguments,
+and requires selected relay routes plus bidirectional delivery. It does not replace
+a real two-phone test across different networks or a long-running Android sleep /
+network-switch test.
 
 All callers of `signed-build.yml` must retain `secrets: inherit`: GitHub currently
 resolves the reusable job's environment secrets as empty without explicit secret

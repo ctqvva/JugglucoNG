@@ -47,14 +47,37 @@ object GlucoseSmoothing {
         gapThresholdMs: Long = GlucoseChartGap.THRESHOLD_MS,
     ): List<T> {
         if (smoothingMinutes <= 0 || points.size < MIN_POINTS) return points
-        val halfWindowMs = (smoothingMinutes * 60_000L) / 2L
-        if (halfWindowMs <= 0L) return points
+        return smooth(
+            points, smoothingMinutes,
+            if (collapseIntoChunks) DataSmoothing.collapseIntervalMinutes(smoothingMinutes) else 0,
+            timestamp, value, rawValue, sensorSerial, withValues, nowMillis, gapThresholdMs
+        )
+    }
 
-        val collapsedInterval = DataSmoothing.collapseIntervalMinutes(smoothingMinutes)
+    /**
+     * As above with the two steps apart: [smoothingMinutes] 0 leaves the values as measured,
+     * [collapseMinutes] 0 keeps every reading, and either works without the other.
+     */
+    fun <T> smooth(
+        points: List<T>,
+        smoothingMinutes: Int,
+        collapseMinutes: Int,
+        timestamp: (T) -> Long,
+        value: (T) -> Float,
+        rawValue: (T) -> Float,
+        sensorSerial: (T) -> String? = { null },
+        withValues: (T, Float, Float) -> T,
+        nowMillis: Long = System.currentTimeMillis(),
+        gapThresholdMs: Long = GlucoseChartGap.THRESHOLD_MS,
+    ): List<T> {
+        val halfWindowMs = (smoothingMinutes.coerceAtLeast(0) * 60_000L) / 2L
+        if (collapseMinutes <= 0 && (halfWindowMs <= 0L || points.size < MIN_POINTS)) return points
+        if (points.isEmpty()) return points
+
         val result = ArrayList<T>(points.size)
 
         splitSegments(points, timestamp, sensorSerial, gapThresholdMs).forEach { segment ->
-            val smoothed = if (segment.size < MIN_POINTS) {
+            val smoothed = if (halfWindowMs <= 0L || segment.size < MIN_POINTS) {
                 segment
             } else {
                 val autoLane = smoothLane(segment, halfWindowMs, timestamp, value)
@@ -63,8 +86,8 @@ object GlucoseSmoothing {
                     withValues(point, autoLane[index], rawLane[index])
                 }
             }
-            if (collapseIntoChunks) {
-                result.addAll(collapse(smoothed, collapsedInterval, timestamp, value, rawValue, nowMillis))
+            if (collapseMinutes > 0) {
+                result.addAll(collapse(smoothed, collapseMinutes, timestamp, value, rawValue, nowMillis))
             } else {
                 result.addAll(smoothed)
             }

@@ -46,4 +46,12 @@ class WearReadingPeersTests {
         assertTrue(readingPeers(rows, emptyList(), false).getValue(120_000L).isEmpty())
         assertTrue(readingPeers(rows, listOf(peer("empty")), false).getValue(120_000L).isEmpty())
     }
+
+    @Test fun rowsMatchTheReadingHistoryNotTheChartOne() {
+        val chart = GlucosePoint(120_000L, 140f)
+        val reading = GlucosePoint(120_000L, 150f)
+        val series = WearGlucoseStore.PeerSeries("peer", listOf(chart), 0, 0, readings = listOf(reading))
+        val match = readingPeers(listOf(GlucosePoint(120_000L, 110f)), listOf(series), false).getValue(120_000L).single()
+        assertSame(reading, match.point)
+    }
 }

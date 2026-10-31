@@ -1896,10 +1896,11 @@ public class NotificationChartDrawer {
         long startTime = now - duration;
 
         int smoothingMinutes = DataSmoothing.graphSmoothingMinutes(context);
+        int collapseMinutes = DataSmoothing.graphCollapseMinutes(context);
         List<GlucosePoint> renderSource = DataSmoothing.smoothNativePoints(
                 data,
                 smoothingMinutes,
-                smoothingMinutes > 0 && DataSmoothing.collapseChunks(context)
+                collapseMinutes
         );
 
         // Filter data to visible range
@@ -1928,7 +1929,7 @@ public class NotificationChartDrawer {
                 List<GlucosePoint> renderPeer = DataSmoothing.smoothNativePoints(
                         series.points,
                         smoothingMinutes,
-                        smoothingMinutes > 0 && DataSmoothing.collapseChunks(context));
+                        collapseMinutes);
                 ArrayList<GlucosePoint> visiblePeerPoints = new ArrayList<>();
                 if (renderPeer != null) {
                     for (GlucosePoint p : renderPeer) {

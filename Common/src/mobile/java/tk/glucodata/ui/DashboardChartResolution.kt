@@ -21,6 +21,7 @@ internal class ChartResolution(
     val renderData: List<GlucosePoint>,
     val peerChartSeries: List<PeerSensorChartSeries>,
     val chartModel: tk.glucodata.chart.HistoryChartModel,
+    val inputs: ChartResolutionInputs? = null,
 )
 
 /**
@@ -32,7 +33,7 @@ internal class ChartResolutionInputs(
     val safeData: List<GlucosePoint>,
     val multiSensorDisplay: MultiSensorDisplayData,
     val graphSmoothingMinutes: Int,
-    val collapseSmoothedData: Boolean,
+    val graphCollapseMinutes: Int,
     val mainSensorOwnership: tk.glucodata.chart.MainSensorOwnership,
     val calibrationRevision: Long,
     val viewMode: Int,
@@ -41,11 +42,16 @@ internal class ChartResolutionInputs(
     val primarySerial: String?,
     val primaryColorArgb: Int,
 ) {
+    /** Old primary + new peers (or the reverse) can briefly name the same sensor twice. */
+    fun isCoherent(): Boolean = primarySerial == null || multiSensorDisplay.series.none {
+        tk.glucodata.SensorIdentity.matches(it.sensorId, primarySerial)
+    }
+
     fun sameAs(other: ChartResolutionInputs): Boolean =
         safeData === other.safeData &&
             multiSensorDisplay === other.multiSensorDisplay &&
             graphSmoothingMinutes == other.graphSmoothingMinutes &&
-            collapseSmoothedData == other.collapseSmoothedData &&
+            graphCollapseMinutes == other.graphCollapseMinutes &&
             mainSensorOwnership === other.mainSensorOwnership &&
             calibrationRevision == other.calibrationRevision &&
             viewMode == other.viewMode &&
@@ -109,18 +115,21 @@ internal fun rememberChartResolution(
     // replace the resolution during composition without writing a state that
     // this same composition has already read; the async path bumps
     // [asyncRevision] to be recomposed.
-    val holder = remember { ChartResolutionHolder(inputs, cachedOrResolve(inputs, resolve)) }
+    val holder = remember {
+        ChartResolutionHolder(inputs, if (inputs.isCoherent()) cachedOrResolve(inputs, resolve)
+            else ChartResolution(emptyList(), emptyList(), tk.glucodata.chart.HistoryChartModel.EMPTY))
+    }
     var asyncRevision by remember { mutableStateOf(0) }
     // The first frame *with data* is the one that matters, and it is still
     // resolved in composition: a chart that composed empty — the history
     // screen waiting for a range to load — draws its first readings in the
     // frame they arrive, not a resolution later.
-    if (!inputs.sameAs(holder.resolvedFor) && holder.resolution.renderData.isEmpty() && inputs.safeData.isNotEmpty()) {
+    if (inputs.isCoherent() && !inputs.sameAs(holder.resolvedFor) && holder.resolution.renderData.isEmpty() && inputs.safeData.isNotEmpty()) {
         holder.resolution = cachedOrResolve(inputs, resolve)
         holder.resolvedFor = inputs
     }
     LaunchedEffect(inputs) {
-        if (inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
+        if (!inputs.isCoherent() || inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
         val resolution = recentChartResolutions.get(inputs)
             ?: withContext(Dispatchers.Default) { resolve(inputs) }
         recentChartResolutions.put(inputs, resolution)

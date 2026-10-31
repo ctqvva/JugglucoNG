@@ -70,7 +70,8 @@ internal fun SettingsSearchField(
 
 /**
  * Search results as one card stack of ordinary settings rows: the title is the setting,
- * the subtitle is where it lives. Tapping one opens the screen or dialog that holds it.
+ * the subtitle is where it lives. Tapping one opens the screen or dialog that holds it;
+ * for a setting inside a screen, that screen scrolls to its row and marks it.
  */
 @Composable
 internal fun SettingsSearchResults(

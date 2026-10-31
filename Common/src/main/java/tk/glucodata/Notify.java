@@ -4185,7 +4185,8 @@ public class Notify {
         // The canonical trend list: derived from the same rows before the chart's own
         // augmentation, so the arrow regresses over byte-identical points with the
         // dashboard hero and the computed-trend broadcast.
-        java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(chartPoints, resolvedDisplay,
+        java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(
+                DisplayTrendSource.endingAtShown(chartPoints, resolvedDisplay), resolvedDisplay,
                 activeSensorSerial);
 
         BatteryTrace.bump(
@@ -4269,7 +4270,7 @@ public class Notify {
         boolean iobCobRiskColored = prefs.getBoolean("notification_iob_cob_risk_colored", false);
         boolean arrowForecastColored = prefs.getBoolean("glucose_arrow_forecast_colors_enabled", false);
         boolean showChart = prefs.getBoolean("notification_chart_enabled", true);
-        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", false);
+        boolean showChartCollapsed = prefs.getBoolean("notification_chart_collapsed", true);
         final boolean renderCharts = canRenderNotificationCharts(showChart || showChartCollapsed);
         showChart &= renderCharts;
         showChartCollapsed &= renderCharts;
@@ -4640,7 +4641,8 @@ public class Notify {
         }
 
         // Same canonical trend list as the update path, the dashboard hero and the broadcast.
-        java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(chartPoints, current,
+        java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(
+                DisplayTrendSource.endingAtShown(chartPoints, current), current,
                 activeSensorSerial);
 
         // Identify ViewMode for Startup

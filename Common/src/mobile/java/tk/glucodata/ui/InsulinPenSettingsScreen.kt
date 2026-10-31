@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,18 +22,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,19 +37,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import tk.glucodata.ui.components.AppTopBar
-import tk.glucodata.ui.components.cardShape
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -70,13 +68,13 @@ import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.StableModalBottomSheet
 import tk.glucodata.ui.components.SettingsSwitchItem
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
-import kotlin.math.roundToInt
 
 @Composable
 fun InsulinPenSettingsScreen(navController: NavController) {
@@ -112,29 +110,46 @@ fun InsulinPenSettingsScreen(navController: NavController) {
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             item("pen_master") {
-                MasterSwitchCard(
-                    title = stringResource(R.string.insulin_pens_enable_title),
-                    subtitle = stringResource(R.string.insulin_pens_enable_desc),
-                    checked = enabled,
-                    onCheckedChange = InsulinPenManager::setEnabled,
-                    icon = Icons.Default.Vaccines,
-                )
+                Column {
+                    MasterSwitchCard(
+                        title = stringResource(R.string.insulin_pens_enable_title),
+                        subtitle = stringResource(R.string.insulin_pens_enable_desc),
+                        checked = enabled,
+                        onCheckedChange = InsulinPenManager::setEnabled,
+                        icon = Icons.Default.Vaccines,
+                    )
+                    // Doses become journal entries, so with the journal switched off a scan
+                    // would land somewhere the reader never looks. Say so rather than
+                    // silently working.
+                    if (enabled && !journalEnabled) {
+                        PenCaption(
+                            stringResource(R.string.insulin_pens_journal_off),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
 
-            if (enabled) {
-                item("pen_background") {
-                    Spacer(Modifier.size(16.dp))
+            // Stays on screen with reading switched off, greyed out, so the page shows what
+            // turning it on would offer. The notification only follows an unattended read,
+            // so its slider waits on the background switch as well.
+            item("pen_background") {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     SettingsSwitchItem(
                         title = stringResource(R.string.insulin_pen_background_title),
                         subtitle = stringResource(R.string.insulin_pen_background_desc),
                         checked = backgroundImportEnabled,
                         onCheckedChange = { InsulinPenManager.setBackgroundImportEnabled(context, it) },
                         icon = Icons.Default.Nfc,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         position = CardPosition.TOP,
+                        enabled = enabled,
                     )
                     var notificationDurationIndex by remember(importNotificationDurationMinutes) {
                         mutableFloatStateOf(
@@ -147,7 +162,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                         PenImportNotificationPolicy.durationMinutesForSliderIndex(notificationDurationIndex)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = cardShape(CardPosition.MIDDLE),
+                        shape = cardShape(CardPosition.BOTTOM),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -156,7 +171,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    stringResource(R.string.alert_delivery_notification),
+                                    stringResource(R.string.insulin_pen_notification_duration),
                                     style = MaterialTheme.typography.bodyLarge,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -180,86 +195,43 @@ fun InsulinPenSettingsScreen(navController: NavController) {
                                 },
                                 valueRange = 0f..PenImportNotificationPolicy.durationOptionsMinutes.lastIndex.toFloat(),
                                 steps = PenImportNotificationPolicy.durationOptionsMinutes.size - 2,
+                                enabled = enabled && backgroundImportEnabled,
                             )
                         }
                     }
-                    // What the mode cannot do is worth a paragraph, not a row: folded away
-                    // behind "show more" so the switch stays the size of a switch.
-                    var showBackgroundDetails by rememberSaveable { mutableStateOf(false) }
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = cardShape(CardPosition.BOTTOM),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ) {
-                        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
-                            AnimatedVisibility(visible = showBackgroundDetails) {
-                                Text(
-                                    stringResource(R.string.insulin_pen_background_desc_more),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
-                                )
-                            }
-                            TextButton(
-                                onClick = { showBackgroundDetails = !showBackgroundDetails },
-                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                                shapes = ButtonDefaults.shapes(),
-                            ) {
-                                Text(
-                                    stringResource(
-                                        if (showBackgroundDetails) R.string.show_less else R.string.show_more
-                                    )
-                                )
-                            }
-                        }
-                    }
+                    PenCaption(stringResource(R.string.insulin_pen_background_desc_more))
                 }
             }
 
-            // Doses become journal entries, so with the journal switched off a scan would
-            // land somewhere the reader never looks. Say so rather than silently working.
-            if (enabled && !journalEnabled) {
-                item("pen_journal_off") {
-                    Text(
-                        stringResource(R.string.insulin_pens_journal_off),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            item("pen_how") {
+                Spacer(Modifier.size(24.dp))
+                HowToScanCard()
+            }
+
+            item("pen_list_label") {
+                SectionLabel(stringResource(R.string.insulin_pens_paired))
+            }
+
+            if (pens.isEmpty()) {
+                item("pen_list_empty") {
+                    SettingsItem(
+                        title = stringResource(R.string.insulin_pens_none),
+                        subtitle = stringResource(R.string.insulin_pens_none_desc),
+                        icon = Icons.Default.Vaccines,
+                        iconTint = MaterialTheme.colorScheme.secondary,
                     )
                 }
-            }
-
-            if (enabled) {
-                item("pen_how") {
-                    Spacer(Modifier.size(16.dp))
-                    HowToScanCard()
-                }
-
-                item("pen_list_label") {
-                    Spacer(Modifier.size(16.dp))
-                    SectionLabel(stringResource(R.string.insulin_pens_paired))
-                }
-
-                if (pens.isEmpty()) {
-                    item("pen_list_empty") {
-                        SettingsItem(
-                            title = stringResource(R.string.insulin_pens_none),
-                            subtitle = stringResource(R.string.insulin_pens_none_desc),
-                            icon = Icons.Default.Vaccines,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                } else {
-                    itemsIndexed(pens, key = { _, pen -> pen.serial }) { index, pen ->
-                        SettingsItem(
-                            title = stringResource(R.string.insulin_pen_name, pen.serial),
-                            subtitle = penRowSubtitle(pen),
-                            icon = Icons.Default.Vaccines,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            position = cardPositionFor(index, pens.size),
-                            onClick = { editingSerial = pen.serial },
-                        )
-                    }
+            } else {
+                itemsIndexed(pens, key = { _, pen -> pen.serial }) { index, pen ->
+                    SettingsItem(
+                        title = stringResource(R.string.insulin_pen_name, pen.serial),
+                        subtitle = penRowSubtitle(pen),
+                        icon = Icons.Default.Vaccines,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = cardPositionFor(index, pens.size),
+                        onClick = { editingSerial = pen.serial },
+                        modifier = Modifier.padding(top = if (index == 0) 0.dp else 2.dp),
+                    )
                 }
             }
         }
@@ -269,6 +241,7 @@ fun InsulinPenSettingsScreen(navController: NavController) {
         PenDetailSheet(
             pen = pen,
             presets = selectableInsulins,
+            readingEnabled = enabled,
             onDismiss = { editingSerial = null },
             onSelected = { preset ->
                 InsulinPenManager.setInsulin(pen.serial, preset.id, preset.displayName)
@@ -375,6 +348,20 @@ private fun penImportNotificationDurationLabel(minutes: Int): String = when {
     else -> stringResource(R.string.stats_duration_hours_minutes, minutes / 60, minutes % 60)
 }
 
+/** A note under a group, at the rows' text inset of the card edge, as the journal settings set theirs. */
+@Composable
+private fun PenCaption(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = color,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp),
+    )
+}
+
 @Composable
 private fun HowToScanCard() {
     Surface(
@@ -421,6 +408,7 @@ private fun HowToScanCard() {
 private fun PenDetailSheet(
     pen: InsulinPen,
     presets: List<JournalInsulinPreset>,
+    readingEnabled: Boolean,
     onDismiss: () -> Unit,
     onSelected: (JournalInsulinPreset) -> Unit,
     onArmFullRead: () -> Unit,
@@ -464,17 +452,20 @@ private fun PenDetailSheet(
                 }
             }
 
+            // A tag is dropped unread while reading is off, so "Ready" would be a promise the
+            // next tap cannot keep. The insulin, the cleanup and Forget do not need a read.
+            val fullReadArmed = pen.fullReadArmed && readingEnabled
             Spacer(Modifier.size(24.dp))
             OutlinedButton(
                 onClick = onArmFullRead,
-                enabled = !pen.fullReadArmed,
+                enabled = readingEnabled && !fullReadArmed,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
             ) {
                 Text(
                     stringResource(
-                        if (pen.fullReadArmed) {
+                        if (fullReadArmed) {
                             R.string.insulin_pen_full_read_armed
                         } else {
                             R.string.insulin_pen_full_read
@@ -483,7 +474,9 @@ private fun PenDetailSheet(
                 )
             }
             Text(
-                stringResource(R.string.insulin_pen_full_read_desc),
+                stringResource(
+                    if (readingEnabled) R.string.insulin_pen_full_read_desc else R.string.insulin_pen_full_read_off
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),

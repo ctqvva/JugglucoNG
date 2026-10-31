@@ -338,4 +338,63 @@ class DataSmoothingTests {
         assertEquals(105f, collapsed[2].value, 1e-6f)
         assertEquals(0f, collapsed[2].rawValue, 1e-6f)
     }
+
+    @Test
+    fun everyTargetCombinationIsReachableAndEachTargetAnswersOnlyForItself() {
+        for (bits in 0..DataSmoothing.Targets.MAX_BITS) {
+            val targets = DataSmoothing.Targets.fromBits(bits)
+            assertEquals(bits, targets.toBits())
+            assertEquals(if (targets.chart) 5 else 0, DataSmoothing.graphSmoothingMinutes(5, targets))
+            assertEquals(if (targets.current) 5 else 0, DataSmoothing.localSmoothingMinutes(5, targets))
+            assertEquals(if (targets.sent) 5 else 0, DataSmoothing.exchangeSmoothingMinutes(5, targets))
+            assertEquals(if (targets.fewerChart) 5 else 0, DataSmoothing.graphCollapseMinutes(5, targets))
+            assertEquals(if (targets.fewerCurrent) 5 else 0, DataSmoothing.localCollapseMinutes(5, targets))
+            assertEquals(if (targets.fewerSent) 5 else 0, DataSmoothing.exchangeThrottleIntervalMinutes(5, targets))
+            assertEquals(0, DataSmoothing.exchangeSmoothingMinutes(0, targets))
+            assertEquals(0, DataSmoothing.exchangeThrottleIntervalMinutes(0, targets))
+        }
+    }
+
+    @Test
+    fun fewerReadingsCanThinSentReadingsAloneWhileTheAppKeepsEveryOne() {
+        val targets = DataSmoothing.Targets(chart = true, current = true, sent = true, fewerSent = true)
+        assertEquals(3, DataSmoothing.exchangeThrottleIntervalMinutes(3, targets))
+        assertEquals(0, DataSmoothing.graphCollapseMinutes(3, targets))
+        assertEquals(0, DataSmoothing.localCollapseMinutes(3, targets))
+        assertEquals(3, DataSmoothing.graphSmoothingMinutes(3, targets))
+        // Thinned without being smoothed, and capped like the smoothed case.
+        val rawSent = DataSmoothing.Targets(chart = true, current = true, sent = false, fewerSent = true)
+        assertEquals(0, DataSmoothing.exchangeSmoothingMinutes(10, rawSent))
+        assertEquals(5, DataSmoothing.exchangeThrottleIntervalMinutes(10, rawSent))
+    }
+
+    @Test
+    fun fewerReadingsWithoutSmoothingKeepsTheMeasuredValues() {
+        val points = (0..9).map { minute -> GlucosePoint(minute * 60_000L, (100 + minute * minute).toFloat(), 0f) }
+        val thinned = DataSmoothing.smoothNativePoints(points, 0, 5, nowMillis = 60L * 60_000L)
+        assertEquals(listOf(4L * 60_000L, 9L * 60_000L), thinned.map { it.timestamp })
+        assertEquals(listOf(116f, 181f), thinned.map { it.value })
+    }
+
+    @Test
+    fun legacySettingsMigrateToTheTargetsTheyUsedToMean() {
+        fun legacy(graphOnly: Boolean, exchangeOnly: Boolean, collapse: Boolean = false) =
+            DataSmoothing.legacyTargets(graphOnly, exchangeOnly, collapse)
+        assertEquals(DataSmoothing.Targets.ALL, legacy(graphOnly = false, exchangeOnly = false))
+        assertEquals(
+            DataSmoothing.Targets(true, true, true, fewerChart = true, fewerCurrent = true, fewerSent = true),
+            legacy(graphOnly = false, exchangeOnly = false, collapse = true)
+        )
+        assertEquals(DataSmoothing.Targets(true, false, false), legacy(graphOnly = true, exchangeOnly = false))
+        assertEquals(
+            DataSmoothing.Targets(true, false, true, fewerChart = true, fewerSent = true),
+            legacy(graphOnly = true, exchangeOnly = false, collapse = true)
+        )
+        assertEquals(DataSmoothing.Targets(false, false, true), legacy(graphOnly = false, exchangeOnly = true))
+        assertEquals(DataSmoothing.Targets(false, false, true), legacy(graphOnly = true, exchangeOnly = true))
+        assertEquals(
+            DataSmoothing.Targets(false, false, true, fewerSent = true),
+            legacy(graphOnly = false, exchangeOnly = true, collapse = true)
+        )
+    }
 }

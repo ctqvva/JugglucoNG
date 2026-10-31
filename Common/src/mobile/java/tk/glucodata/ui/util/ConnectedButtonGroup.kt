@@ -63,6 +63,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
  *
  * @param itemHeight Default 40.dp, the M3 small button height
  * @param spacing Default 2.dp, [ButtonGroupDefaults.ConnectedSpaceBetween]
+ * @param enabled False greys every option out and ignores taps, as when a master switch is off
  */
 @Composable
 fun <T> ConnectedButtonGroup(
@@ -85,6 +86,7 @@ fun <T> ConnectedButtonGroup(
     selectedContainerColorFor: ((T) -> Color)? = null,
     selectedContentColorFor: ((T) -> Color)? = null,
     iconTint: ((T, Boolean) -> Color)? = null,
+    enabled: Boolean = true,
 ) {
     // Each label's own height, measured unclipped. The buttons' intrinsic height can't tell this:
     // it never reports less than the 40dp minimum or the 48dp touch target, which hides a label
@@ -107,19 +109,21 @@ fun <T> ConnectedButtonGroup(
         options.forEachIndexed { index, option ->
             val isSelected = if (multiSelect) selectedOptions.contains(option) else option == selectedOption
 
+            // Disabled keeps the selection readable: a selected option keeps a faint fill.
+            val disabledColor = MaterialTheme.colorScheme.onSurface
             val containerColor by animateColorAsState(
-                targetValue = if (isSelected) {
-                    selectedContainerColorFor?.invoke(option) ?: selectedContainerColor
-                } else {
-                    unselectedContainerColor
+                targetValue = when {
+                    isSelected && !enabled -> disabledColor.copy(alpha = 0.12f)
+                    isSelected -> selectedContainerColorFor?.invoke(option) ?: selectedContainerColor
+                    else -> unselectedContainerColor
                 },
                 label = "containerColor"
             )
             val contentColor by animateColorAsState(
-                targetValue = if (isSelected) {
-                    selectedContentColorFor?.invoke(option) ?: selectedContentColor
-                } else {
-                    unselectedContentColor
+                targetValue = when {
+                    !enabled -> disabledColor.copy(alpha = 0.38f)
+                    isSelected -> selectedContentColorFor?.invoke(option) ?: selectedContentColor
+                    else -> unselectedContentColor
                 },
                 label = "contentColor"
             )
@@ -127,6 +131,7 @@ fun <T> ConnectedButtonGroup(
             ToggleButton(
                 checked = isSelected,
                 onCheckedChange = { onOptionSelected(option) },
+                enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -141,7 +146,9 @@ fun <T> ConnectedButtonGroup(
                     containerColor = containerColor,
                     contentColor = contentColor,
                     checkedContainerColor = containerColor,
-                    checkedContentColor = contentColor
+                    checkedContentColor = contentColor,
+                    disabledContainerColor = containerColor,
+                    disabledContentColor = contentColor
                 ),
                 elevation = null,
                 contentPadding = PaddingValues(0.dp)

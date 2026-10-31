@@ -113,7 +113,8 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
                 carbAbsorptionGramsPerHour =
                     tk.glucodata.settings.SettingsRegistry.PREDICTION_CARB_ABSORPTION.readFloatClamped(prefs),
                 foodMacrosEnabled = prefs.getBoolean(JOURNAL_KEY, true) && prefs.getBoolean(FOOD_MACROS_KEY, false),
-                modelProfile = PredictionModelProfileStore.load(prefs)
+                modelProfile = PredictionModelProfileStore.load(prefs),
+                adaptive = tk.glucodata.settings.SettingsRegistry.PREDICTION_ADAPTIVE.readBool(prefs)
             )
         )
         return predictionSeries.mapNotNull { series ->

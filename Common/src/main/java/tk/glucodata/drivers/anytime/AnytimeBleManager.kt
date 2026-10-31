@@ -304,6 +304,7 @@ class AnytimeBleManager(
     @Volatile private var lastBatteryRaw: Int = Int.MIN_VALUE
     @Volatile private var lastPolarisationMv: Triple<Int, Int, Int>? = null
     private val ct5RawScale = AnytimeCt5RawScale()
+    private val ct5LiveClock = AnytimeCt5LiveClock()
     /** Most recent algorithm output — for diagnostics (5 electrode voltages,
      *  IIR-filtered currents, sensitivity coefficient, K_BASE/K_AUTO). */
     @Volatile private var lastAlgorithmResult: AnytimeAlgorithm.Result? = null
@@ -1383,6 +1384,7 @@ class AnytimeBleManager(
         calibrationStatusClearAfterGlucoseId = 0
         lastAlgorithmCalibrationStatus = AnytimeCalibrationPolicy.CALIBRATION_STATUS_UNKNOWN
         lastAlgorithmResult = null
+        ct5LiveClock.reset()
         persistAlgorithmState()
     }
 
@@ -1428,6 +1430,7 @@ class AnytimeBleManager(
         synchronized(ct5ResolvedHistoryIds) { ct5ResolvedHistoryIds.clear() }
         ct5GapFailureTracker.clear()
         lastLiveFrameAtMs = 0L
+        ct5LiveClock.reset()
         ct5HistoryHealth.onGattSessionStarted()
         ct5SingleRecordHistoryOnly = false
         clearProtocolFrameTimeout()
@@ -1482,9 +1485,13 @@ class AnytimeBleManager(
             // A run is only one contiguous slice of a possibly sparse envelope.
             // Recompute from cached ids, then repair the next-newest hole before
             // returning to live streaming.
-            val moreGaps = refreshPendingCt5GapFromCache() != null
+            refreshPendingCt5GapFromCache()
             handler.postDelayed({
-                if (moreGaps) maybeResumePendingCt5Gap()
+                if (!stop && phase == Phase.STREAMING && !maybeResumePendingCt5Gap()) {
+                    // A range carried across reconnect may end before the new
+                    // session's newest overdue id. Re-estimate after importing it.
+                    maybeStartCt5ReconnectCatchup()
+                }
             }, historyBatchDelayMs())
             return
         }
@@ -1608,7 +1615,7 @@ class AnytimeBleManager(
     private val ct5HistorySettleRunnable: Runnable = Runnable {
         if (stop || !isCt5() || phase != Phase.STREAMING) return@Runnable
         if (historyBackfillActive) return@Runnable
-        maybeResumePendingCt5Gap()
+        if (!maybeResumePendingCt5Gap()) maybeStartCt5ReconnectCatchup()
     }
 
     private fun historyBatchDelayMs(): Long =
@@ -1767,40 +1774,44 @@ class AnytimeBleManager(
      * the next live push to learn how far behind we are.
      */
     private fun ct5ExpectedCurrentId(): Int {
-        val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
-        if (intervalMs <= 0L) return -1
-        // A live frame states the transmitter's current id outright. The clock-derived
-        // estimate below only stands in for ids missed while disconnected, and it runs
-        // away from reality the moment the sensor stops advancing: a CT5 frozen at its
-        // final id after INFO_COMPLETE_END still receives frames, so "expected" climbed
-        // past 8175 forever and the repair hunted 8214..8228, 8229..8243 and onwards --
-        // ids that never existed. Each attempt cost a GATT session and eventually marked
-        // history unhealthy, which blocked every other pull.
-        val liveAgeMs = if (lastLiveFrameAtMs > 0L) System.currentTimeMillis() - lastLiveFrameAtMs else Long.MAX_VALUE
-        if (liveAgeMs in 0..(intervalMs * 2)) return lastGlucoseId
-        // A reconnect asks before the first push of the new session lands, so the clock
-        // estimate is still consulted there. Cap it at the sensor's rated horizon: a
-        // transmitter cannot have produced an id beyond the end of its own cycle, and
-        // asking for one costs a GATT session per range for data that cannot exist.
-        val horizon = profile.endNumber.takeIf { it > 0 } ?: Int.MAX_VALUE
         val startMs = glucoseTimelineStartAtMs.takeIf { it > 0L }
             ?: sensorStartAtMs.takeIf { it > 0L }
-            ?: return -1
-        val elapsed = System.currentTimeMillis() - startMs
-        if (elapsed < 0L) return -1
-        // Never below what the transmitter has already shown us: this is a floor for ids
-        // possibly missed while away, not a correction of what it has actually reported.
-        return (elapsed / intervalMs).toInt().coerceAtMost(maxOf(horizon, lastGlucoseId))
+            ?: 0L
+        return ct5LiveClock.expectedCurrentId(
+            nowMs = System.currentTimeMillis(),
+            intervalMs = profile.readingIntervalMinutes * 60_000L,
+            streamingSinceMs = streamingSinceMs,
+            lastObservedId = lastGlucoseId,
+            timelineStartMs = startMs,
+            profileEndNumber = profile.endNumber,
+        )
     }
 
-    /** Targeted catch-up after reconnect; the id currently in flight is left to live. */
+    /** Targeted catch-up after reconnect, including the newest overdue clock-estimated id. */
     private fun maybeStartCt5ReconnectCatchup() {
-        if (!isCt5() || phase != Phase.STREAMING) return
+        if (stop || !isCt5() || phase != Phase.STREAMING) return
+        // Estimate only after the settle wait. A current/no-glucose/repeated
+        // frame received during that wait must override the old clock guess,
+        // before speculative future ids enter the durable repair envelope.
+        val now = System.currentTimeMillis()
+        if (!isCt5HistoryLinkSettled(
+                streamingSinceMs, now, CT5_HISTORY_LINK_SETTLE_MS,
+                isWriteInFlight() || protocolResponseInFlight,
+            )
+        ) {
+            val delayMs = (CT5_HISTORY_LINK_SETTLE_MS - (now - streamingSinceMs).coerceAtLeast(0L))
+                .coerceAtLeast(CT5_HISTORY_SETTLE_RETRY_MS)
+            Log.i(TAG, "Deferring CT5 reconnect catch-up until the link settles / GATT is free")
+            handler.removeCallbacks(ct5HistorySettleRunnable)
+            handler.postDelayed(ct5HistorySettleRunnable, delayMs)
+            return
+        }
         val expectedId = ct5ExpectedCurrentId()
         if (expectedId <= 0) return
-        val gap = ct5ReconnectGap(
+        val gap = ct5ReconnectCatchupGap(
             highestKnownId = ct5HighestKnownId(),
-            liveId = expectedId,
+            lastObservedId = lastGlucoseId,
+            expectedCurrentId = expectedId,
             maxRecords = CT5_MAX_GAP_REPAIR_RECORDS,
         ) ?: run {
             Log.i(TAG, "CT5 reconnect: no missing ids (have=${ct5HighestKnownId()} expected=$expectedId)")
@@ -2188,6 +2199,7 @@ class AnytimeBleManager(
         handler.removeCallbacks(connectWatchdog)
         handler.removeCallbacks(ct5HandshakeStallRunnable)
         handler.removeCallbacks(ct5UnprovenCipherRunnable)
+        handler.removeCallbacks(ct5HistorySettleRunnable)
         handler.removeCallbacks(serviceDiscoveryRetryRunnable)
         handler.removeCallbacks(cccdWriteTimeoutRunnable)
         handler.removeCallbacks(forceScanReconnectRetryRunnable)
@@ -2793,7 +2805,10 @@ class AnytimeBleManager(
                 UiRefreshBus.requestStatusRefresh()
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
-                Log.i(TAG, "Disconnected (status=$status)")
+                val now = System.currentTimeMillis()
+                val liveAgeMs = if (lastLiveFrameAtMs > 0L) now - lastLiveFrameAtMs else -1L
+                val streamingAgeMs = if (streamingSinceMs > 0L) now - streamingSinceMs else -1L
+                Log.i(TAG, "Disconnected (status=$status) phase=$phase liveAgeMs=$liveAgeMs streamingAgeMs=$streamingAgeMs")
                 // A disconnect out of CONNECTING never reached the transmitter, so
                 // status 147 here is Android's direct-connect timer expiring rather
                 // than a link that dropped.
@@ -2867,6 +2882,11 @@ class AnytimeBleManager(
                 phase = Phase.IDLE
             }
         }
+    }
+
+    override fun onConnectionParamsUpdated(gatt: BluetoothGatt, interval: Int, latency: Int, timeout: Int, status: Int) {
+        if (stop || mBluetoothGatt !== gatt) return
+        Log.i(TAG, "Connection parameters interval=$interval latency=$latency timeout=$timeout status=$status")
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
@@ -4209,6 +4229,7 @@ class AnytimeBleManager(
         }
 
         clearStaleRuntimeStateBeforeLiveRecord(record.glucoseId)
+        ct5LiveClock.observeLive(record.glucoseId, now, record.hasGlucose, record.errorCode)
         // Anchor the timeline from every live id, warm-up included — waiting for
         // the first glucose would leave a fresh sensor without a start time for
         // three quarters of an hour.

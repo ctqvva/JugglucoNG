@@ -13,4 +13,10 @@ interface JournalTreatmentUploadBridge {
     fun getReceiveTreatments(): Boolean
 
     fun uploadAll(useV3: Boolean): Boolean
+
+    /**
+     * Queues a send of this phone's journal entries to the Nightscout it follows. Returns at
+     * once; repeated calls before the pass starts collapse into one.
+     */
+    fun sendAsFollower()
 }

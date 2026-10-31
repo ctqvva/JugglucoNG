@@ -54,6 +54,7 @@ class SettingsRegistryTests {
                 KEY_SMOOTHING_COLLAPSE_CHUNKS,
                 KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY,
                 KEY_SMOOTHING_CAUSAL_LIVE,
+                KEY_SMOOTHING_TARGETS,
                 KEY_PREDICTION_ENABLED,
                 KEY_PREDICTION_TREND_MOMENTUM,
                 KEY_PREDICTION_CARB_RATIO,
@@ -132,6 +133,7 @@ class SettingsRegistryTests {
         assertEquals(KEY_SMOOTHING_GRAPH_ONLY, SettingsRegistry.SMOOTHING_GRAPH_ONLY.key)
         assertEquals(KEY_SMOOTHING_COLLAPSE_CHUNKS, SettingsRegistry.SMOOTHING_COLLAPSE_CHUNKS.key)
         assertEquals(KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY, SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.key)
+        assertEquals(KEY_SMOOTHING_TARGETS, SettingsRegistry.SMOOTHING_TARGETS.key)
         assertEquals(KEY_PREDICTION_ENABLED, SettingsRegistry.PREDICTION_ENABLED.key)
         assertEquals(KEY_PREDICTION_TREND_MOMENTUM, SettingsRegistry.PREDICTION_TREND_MOMENTUM.key)
         assertEquals(KEY_PREDICTION_CARB_RATIO, SettingsRegistry.PREDICTION_CARB_RATIO.key)

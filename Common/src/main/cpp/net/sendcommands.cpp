@@ -36,6 +36,7 @@
 #include "logs.hpp"
 #include "netstuff.hpp"
 #include "Connect.hpp"
+#include "MirrorCalibrationExchange.hpp"
 //#define LOGGERTAG(...) fprintf(stderr,__VA_ARGS__)
 #define lerrortag(...) lerror("sendcommands: " __VA_ARGS__)
 #define LOGGERTAG(...) LOGGER("sendcommands: " __VA_ARGS__)
@@ -321,6 +322,51 @@ bool Connect::sendStartSendCalibrate(crypt_t *pass,const uint16_t sensorindex) {
     LOGGERTAG("sendStartSendCalibrate getSenderIdent()=%d sensorindex=%hd\n",getSenderIdent(),sensorindex);
     return senduint16(pass,sStartSendCalibrate,sensorindex);
     }
+
+int Connect::pullMirrorCalibrationProfile(crypt_t *pass, std::string_view serial) {
+    const uint64_t generation = senderConnectionGeneration();
+    const std::string path = std::string(mirrorCalibrationPrefix) + std::string(serial) +
+                             std::string(mirrorCalibrationSuffix);
+    if (!isMirrorCalibrationProfilePath(path) || path.size() >= UINT16_MAX)
+        return 2;
+    auto read = [&](uint32_t length) -> dataonlyptr {
+        const size_t bytes = aligner<4>(static_cast<int>(sizeof(askfile) + path.size() + 1));
+        std::vector<uint8_t> command(bytes, 0);
+        auto *ask = reinterpret_cast<askfile *>(command.data());
+        ask->com = saskfile;
+        ask->namelen = static_cast<uint16_t>(path.size() + 1);
+        ask->off = 0;
+        ask->len = length;
+        memcpy(ask->name, path.c_str(), path.size() + 1);
+        if (!s_noacksendcommand(pass, command.data(), static_cast<int>(command.size())))
+            return dataonlyptr(nullptr);
+        return receivedataonly_s(pass, static_cast<int>(length));
+    };
+    auto size = read(0);
+    if (!size) return 0;
+    // Old peers implement an ordinary zero-byte file read and return zero.
+    if (size->len <= 0 || static_cast<uint32_t>(size->len) > mirrorCalibrationMaximumBytes)
+        return 2;
+    const int32_t requested = size->len;
+    auto profile = read(static_cast<uint32_t>(requested));
+    if (!profile) return 0;
+    // A concurrent receiver edit may grow the profile after the probe. Its
+    // complete new profile will be retrieved on the next sync/reconnect.
+    if (profile->len <= 0 || profile->len > requested) return 2;
+    const char *bytes = reinterpret_cast<const char *>(profile->data);
+    if (std::char_traits<char>::find(bytes, profile->len, '\0')) return 2;
+    const std::string json(bytes, profile->len);
+    const std::string sensorId(serial);
+    // Match the command receiver's deactivation barrier: a response from an
+    // abandoned connection cannot mutate the calibration store after teardown.
+    std::lock_guard<std::mutex> lock(receiverCommandsMutex);
+    if (!receiverCommandsEnabled.load(std::memory_order_acquire) ||
+        !isConnectedSender() || senderConnectionGeneration() != generation)
+        return 2;
+    extern void javaImportMirrorCalibrationProfile(const char *, const char *);
+    javaImportMirrorCalibrationProfile(sensorId.c_str(), json.c_str());
+    return 1;
+}
 bool Connect::sendBlueWatch(crypt_t *pass,int8_t stream,int8_t nums) {
     LOGGERTAG("sendBlueWatch getSenderIdent()=%d stream=%d nums=%d\n",getSenderIdent(),stream,nums);
     bluewatchstruct data{

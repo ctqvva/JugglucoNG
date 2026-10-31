@@ -9,6 +9,8 @@ data class CloneIceNetworkConfig(
     val verifyRendezvousCertificate: Boolean = true,
     val useLocalDiscovery: Boolean = true,
     val preferIPv4: Boolean = false,
+    /** Also use the app's own servers alongside a custom TURN / rendezvous server. */
+    val allowFallbackServers: Boolean = false,
 ) {
     init {
         require(rendezvousHost.length <= MAX_HOST_LENGTH)
@@ -31,6 +33,7 @@ object CloneIceNetworkConfigStore {
     private const val KEY_VERIFY_RENDEZVOUS_CERTIFICATE = "verify_rendezvous_certificate"
     private const val KEY_USE_LOCAL_DISCOVERY = "use_local_discovery"
     private const val KEY_PREFER_IPV4 = "prefer_ipv4"
+    private const val KEY_ALLOW_FALLBACK_SERVERS = "allow_fallback_servers"
 
     @JvmStatic
     fun load(context: Context): CloneIceNetworkConfig {
@@ -57,6 +60,7 @@ object CloneIceNetworkConfigStore {
             ),
             useLocalDiscovery = prefs.getBoolean(KEY_USE_LOCAL_DISCOVERY, true),
             preferIPv4 = prefs.getBoolean(KEY_PREFER_IPV4, false),
+            allowFallbackServers = prefs.getBoolean(KEY_ALLOW_FALLBACK_SERVERS, false),
         )
     }
 
@@ -83,6 +87,7 @@ object CloneIceNetworkConfigStore {
             )
             .putBoolean(KEY_USE_LOCAL_DISCOVERY, normalized.useLocalDiscovery)
             .putBoolean(KEY_PREFER_IPV4, normalized.preferIPv4)
+            .putBoolean(KEY_ALLOW_FALLBACK_SERVERS, normalized.allowFallbackServers)
             .commit()
         if (committed) applyToNative(normalized)
         return committed
@@ -115,6 +120,7 @@ object CloneIceNetworkConfigStore {
             config.verifyRendezvousCertificate,
             config.useLocalDiscovery,
             config.preferIPv4,
+            config.allowFallbackServers,
         )
     }
 }

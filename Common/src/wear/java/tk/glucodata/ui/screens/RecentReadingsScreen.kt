@@ -57,7 +57,7 @@ fun RecentReadingsScreen(onCalibrateReading: ((GlucosePoint) -> Unit)? = null) {
         tk.glucodata.ui.WearGlucoseStore.start()
     }
     val velocities = remember(storeSnapshot, readings, isMmol) {
-        rowVelocities(storeSnapshot.points, readings, storeSnapshot.isRawMode, isMmol)
+        rowVelocities(storeSnapshot.readings, readings, storeSnapshot.isRawMode, isMmol)
     }
     ScreenScaffold(timeText = { TimeText() }) {
         ScalingLazyColumn(contentPadding = PaddingValues(top = 32.dp, bottom = 28.dp, start = 20.dp, end = 20.dp)) {

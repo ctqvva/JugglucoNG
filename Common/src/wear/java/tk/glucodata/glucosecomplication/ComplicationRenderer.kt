@@ -468,15 +468,15 @@ internal object ComplicationRenderer {
         val minutes = runCatching {
             tk.glucodata.DataSmoothing.graphSmoothingMinutes(context)
         }.getOrDefault(0)
-        if (minutes <= 0) return points
-        val collapse = runCatching {
-            tk.glucodata.DataSmoothing.collapseChunks(context)
-        }.getOrDefault(false)
+        val collapseMinutes = runCatching {
+            tk.glucodata.DataSmoothing.graphCollapseMinutes(context)
+        }.getOrDefault(0)
+        if (minutes <= 0 && collapseMinutes <= 0) return points
         return runCatching {
             tk.glucodata.GlucoseSmoothing.smooth(
                 points = points,
                 smoothingMinutes = minutes,
-                collapseIntoChunks = collapse,
+                collapseMinutes = collapseMinutes,
                 timestamp = { it.timestamp },
                 value = { it.value },
                 rawValue = { it.rawValue },

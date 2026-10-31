@@ -1,6 +1,5 @@
 package tk.glucodata.ui
 
-import androidx.compose.material3.FilterChipDefaults
 import tk.glucodata.ui.components.IconButtonTooltip
 import androidx.compose.material3.IconButtonDefaults
 import android.widget.Toast
@@ -26,8 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.FilterChip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Science
@@ -85,6 +82,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.JournalTreatmentUploadAccess
 import tk.glucodata.Natives
 import tk.glucodata.NightPost
 import tk.glucodata.NightscoutTokenGrant
@@ -99,6 +97,8 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.components.SettingsChoice
+import tk.glucodata.ui.components.SettingsControlsCard
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.util.ConnectedButtonGroup
 
@@ -246,8 +246,12 @@ fun NightscoutSettingsScreen(navController: NavController) {
     var isActive by rememberSaveable { mutableStateOf(initialUploaderActive || followerConfig.enabled) }
     var sendTreatments by rememberSaveable { mutableStateOf(Natives.getpostTreatments()) }
     var sendLongInsulin by rememberSaveable { mutableStateOf(JournalTreatmentUploader.getSendLongInsulin()) }
+    var followerSendTreatments by rememberSaveable {
+        mutableStateOf(NightscoutFollowerRegistry.loadSendTreatments(context))
+    }
     var receiveTreatments by rememberSaveable { mutableStateOf(JournalTreatmentUploader.getReceiveTreatments()) }
     var uploadIob by rememberSaveable { mutableStateOf(NightPost.getUploadIob()) }
+    var uploadSensorStart by rememberSaveable { mutableStateOf(NightPost.getUploadSensorStart()) }
     var isV3 by rememberSaveable { mutableStateOf(Natives.getnightscoutV3()) }
     var followerV3 by rememberSaveable { mutableStateOf(followerConfig.useV3) }
     var showSecret by rememberSaveable { mutableStateOf(false) }
@@ -715,33 +719,65 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     var pollMinutes by remember {
                         mutableStateOf(NightscoutFollowerRegistry.loadPollMinutes(context))
                     }
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        shape = cardShape(CardPosition.SINGLE),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            NightscoutCardHeading(stringResource(R.string.nightscout_follow_interval_title)) {
-                                help = NightscoutHelp.POLLING
-                            }
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                NightscoutFollowerPollPolicy.CHOICES_MINUTES.forEach { minutes ->
-                                    FilterChip(
-                                        selected = pollMinutes == minutes,
-                                        onClick = {
-                                            pollMinutes = minutes
-                                            NightscoutFollowerRegistry.savePollMinutes(context, minutes)
-                                        },
-                                        label = { Text(stringResource(R.string.minutes_short_format, minutes)) },
-                                        shapes = FilterChipDefaults.shapes(),
-                                        colors = FilterChipDefaults.filterChipColors()
-                                    )
+                    SettingsControlsCard {
+                        SettingsChoice(
+                            title = stringResource(R.string.nightscout_follow_interval_title),
+                            options = NightscoutFollowerPollPolicy.CHOICES_MINUTES,
+                            labels = NightscoutFollowerPollPolicy.CHOICES_MINUTES.map {
+                                stringResource(R.string.minutes_short_format, it)
+                            },
+                            selectedOption = pollMinutes,
+                            onOptionSelected = { minutes ->
+                                pollMinutes = minutes
+                                NightscoutFollowerRegistry.savePollMinutes(context, minutes)
+                            },
+                            maxItemsPerRow = 3,
+                            titleTrailingContent = {
+                                NightscoutHelpButton(stringResource(R.string.nightscout_follow_interval_title)) {
+                                    help = NightscoutHelp.POLLING
                                 }
                             }
-                        }
+                        )
+                    }
+                }
+
+                item("nightscout_follow_send_treatments") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_send_treatments),
+                            subtitle = stringResource(R.string.nightscout_send_amounts_desc),
+                            checked = followerSendTreatments,
+                            onCheckedChange = {
+                                // The pass sends to the stored server, so what is on screen has
+                                // to be stored first, as leaving the screen would.
+                                persistSettings(connectFollower = isActive)
+                                followerSendTreatments = it
+                                NightscoutFollowerRegistry.saveSendTreatments(context, it)
+                                if (it) JournalTreatmentUploadAccess.sendAsFollower()
+                            },
+                            icon = Icons.Default.Medication,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            enabled = isActive,
+                            position = CardPosition.TOP
+                        )
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_send_long_insulin),
+                            subtitle = stringResource(R.string.nightscout_send_long_insulin_desc),
+                            checked = sendLongInsulin,
+                            onCheckedChange = {
+                                persistSettings(connectFollower = isActive)
+                                sendLongInsulin = it
+                                JournalTreatmentUploader.setSendLongInsulin(it)
+                                if (it) JournalTreatmentUploadAccess.sendAsFollower()
+                            },
+                            icon = Icons.Default.Medication,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            enabled = isActive && followerSendTreatments,
+                            position = CardPosition.BOTTOM
+                        )
                     }
                 }
             }
@@ -858,6 +894,20 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             onCheckedChange = {
                                 uploadIob = it
                                 NightPost.setUploadIob(it)
+                                if (it) Natives.wakeuploader()
+                            },
+                            icon = Icons.Default.CloudUpload,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            enabled = isActive,
+                            position = CardPosition.MIDDLE
+                        )
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_upload_sensor_start),
+                            subtitle = stringResource(R.string.nightscout_upload_sensor_start_desc),
+                            checked = uploadSensorStart,
+                            onCheckedChange = {
+                                uploadSensorStart = it
+                                NightPost.setUploadSensorStart(it)
                                 if (it) Natives.wakeuploader()
                             },
                             icon = Icons.Default.CloudUpload,
@@ -1007,13 +1057,5 @@ private fun NightscoutHelpButton(topic: String, onClick: () -> Unit) {
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@Composable
-private fun NightscoutCardHeading(title: String, modifier: Modifier = Modifier, onHelp: () -> Unit) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-        NightscoutHelpButton(title, onHelp)
     }
 }

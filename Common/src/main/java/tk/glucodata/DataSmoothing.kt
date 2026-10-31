@@ -45,76 +45,110 @@ object DataSmoothing {
     @JvmStatic
     fun isEnabled(context: Context): Boolean = getMinutes(context) > 0
 
-    @JvmStatic
-    fun isGraphOnly(context: Context): Boolean =
-        SettingsRegistry.SMOOTHING_GRAPH_ONLY.readBool(context)
-
-    @JvmStatic
-    fun collapseChunks(context: Context): Boolean =
-        SettingsRegistry.SMOOTHING_COLLAPSE_CHUNKS.readBool(context)
-
-    @JvmStatic
-    fun smoothOnlyExchangeOutputs(context: Context): Boolean =
-        SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.readBool(context)
-
     /**
      * Whether the newest reading — the one shown as current and the one sent out — is estimated
      * by [CausalGlucoseFilter] instead of the edge of the averaging window. Only the method
-     * changes: where smoothing applies is still decided by the three switches above.
+     * changes: where smoothing applies is still decided by [targets].
      */
     @JvmStatic
     fun useCausalFilter(context: Context): Boolean =
         SettingsRegistry.SMOOTHING_CAUSAL_LIVE.readBool(context)
 
     /**
-     * The three places a reading is used, and the one question each of them asks.
-     *
-     * The settings are three independent switches, so every caller used to recombine them
-     * for itself and they drifted: the same reading could be smoothed on its way to the
-     * notification and measured on its way to the row beside it. Ask here instead. Each
-     * destination has a `...SmoothingMinutes` accessor returning 0 when that destination
-     * takes the reading as measured, so "how much smoothing" and "any at all" are one
-     * question with one answer.
-     *
-     * Not fully independent, though: "collapse into chunks" is defined as keeping one
-     * *smoothed* reading per interval, so enabling it for exchange pulls exchange smoothing
-     * back on even under "graph only" — there is no smoothed reading to collapse to
-     * otherwise. See [shouldSmoothExchangeOutputs]'s `collapseChunks` parameter.
+     * The three places a reading is used, and what each does with it: the chart (presentation),
+     * the current reading (trend arrow, Δ, widgets, notification and every alert evaluated
+     * against a value), and what is sent to other apps. Each can be smoothed, thinned to fewer
+     * readings ([collapseIntervalMinutes] apart), both or neither, on its own.
      */
+    data class Targets(
+        val chart: Boolean,
+        val current: Boolean,
+        val sent: Boolean,
+        val fewerChart: Boolean = false,
+        val fewerCurrent: Boolean = false,
+        val fewerSent: Boolean = false,
+    ) {
+        internal fun toBits(): Int =
+            (if (chart) CHART_BIT else 0) or (if (current) CURRENT_BIT else 0) or (if (sent) SENT_BIT else 0) or
+                (if (fewerChart) FEWER_CHART_BIT else 0) or (if (fewerCurrent) FEWER_CURRENT_BIT else 0) or
+                (if (fewerSent) FEWER_SENT_BIT else 0)
+
+        companion object {
+            private const val CHART_BIT = 1
+            private const val CURRENT_BIT = 2
+            private const val SENT_BIT = 4
+            private const val FEWER_CHART_BIT = 8
+            private const val FEWER_CURRENT_BIT = 16
+            private const val FEWER_SENT_BIT = 32
+            internal const val MAX_BITS = 63
+
+            @JvmField val ALL = Targets(chart = true, current = true, sent = true)
+
+            internal fun fromBits(bits: Int): Targets = Targets(
+                chart = bits and CHART_BIT != 0,
+                current = bits and CURRENT_BIT != 0,
+                sent = bits and SENT_BIT != 0,
+                fewerChart = bits and FEWER_CHART_BIT != 0,
+                fewerCurrent = bits and FEWER_CURRENT_BIT != 0,
+                fewerSent = bits and FEWER_SENT_BIT != 0,
+            )
+        }
+    }
+
+    /**
+     * What each place does with readings. Until the user picks, this is derived from the
+     * graph-only / exchange-only / collapse switches it replaced (see [legacyTargets]), so an
+     * upgrade keeps every reading going where it went before.
+     */
+    @JvmStatic
+    fun targets(context: Context): Targets {
+        val bits = SettingsRegistry.SMOOTHING_TARGETS.readInt(context)
+        if (bits in 0..Targets.MAX_BITS) return Targets.fromBits(bits)
+        return legacyTargets(
+            graphOnly = SettingsRegistry.SMOOTHING_GRAPH_ONLY.readBool(context),
+            exchangeOutputsOnly = SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.readBool(context),
+            collapseChunks = SettingsRegistry.SMOOTHING_COLLAPSE_CHUNKS.readBool(context)
+        )
+    }
+
+    /**
+     * The old switches as targets. "Collapse" kept one *smoothed* reading per interval wherever
+     * smoothing applied, and under graph-only it pulled sent readings back into smoothing.
+     */
+    internal fun legacyTargets(graphOnly: Boolean, exchangeOutputsOnly: Boolean, collapseChunks: Boolean = false): Targets {
+        val chart = !exchangeOutputsOnly
+        val current = !graphOnly && !exchangeOutputsOnly
+        val sent = exchangeOutputsOnly || !graphOnly || collapseChunks
+        return Targets(
+            chart = chart,
+            current = current,
+            sent = sent,
+            fewerChart = collapseChunks && chart,
+            fewerCurrent = collapseChunks && current,
+            fewerSent = collapseChunks && sent,
+        )
+    }
+
     @JvmStatic
     fun shouldSmoothGraph(context: Context): Boolean = graphSmoothingMinutes(context) > 0
 
     @JvmStatic
-    fun graphSmoothingMinutes(context: Context): Int = graphSmoothingMinutes(
-        smoothingMinutes = getMinutes(context),
-        exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
-    )
+    fun graphSmoothingMinutes(context: Context): Int = graphSmoothingMinutes(getMinutes(context), targets(context))
 
     /**
      * The window the app's own reading carries: the trend arrow, the Δ readout, the delta
      * alarms and every threshold evaluated against a value. Smoothing here is deliberate —
-     * it is what keeps a single wild sample from deciding an arrow — and "smooth only
-     * graph" is the way to opt out of it.
+     * it is what keeps a single wild sample from deciding an arrow — and switching off the
+     * "current" target is the way to opt out of it.
      */
     @JvmStatic
-    fun localSmoothingMinutes(context: Context): Int = localSmoothingMinutes(
-        smoothingMinutes = getMinutes(context),
-        graphOnly = isGraphOnly(context),
-        exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
-    )
+    fun localSmoothingMinutes(context: Context): Int = localSmoothingMinutes(getMinutes(context), targets(context))
 
     @JvmStatic
     fun shouldSmoothLocalData(context: Context): Boolean = localSmoothingMinutes(context) > 0
 
     @JvmStatic
-    fun shouldSmoothExchangeOutputs(context: Context): Boolean {
-        return shouldSmoothExchangeOutputs(
-            smoothingMinutes = getMinutes(context),
-            graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
-            collapseChunks = collapseChunks(context)
-        )
-    }
+    fun shouldSmoothExchangeOutputs(context: Context): Boolean = exchangeSmoothingMinutes(context) > 0
 
     /**
      * Averaging window, in minutes, that every outgoing reading must carry — 0 when
@@ -124,29 +158,25 @@ object DataSmoothing {
      * for the window itself (see NightscoutCalibration.getExchangeSmoothingSeconds).
      */
     @JvmStatic
-    fun exchangeSmoothingMinutes(context: Context): Int {
-        return exchangeSmoothingMinutes(
-            smoothingMinutes = getMinutes(context),
-            graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
-            collapseChunks = collapseChunks(context)
-        )
-    }
+    fun exchangeSmoothingMinutes(context: Context): Int =
+        exchangeSmoothingMinutes(getMinutes(context), targets(context))
 
     @JvmStatic
-    fun shouldCollapseExchangeOutputs(context: Context): Boolean {
-        return shouldCollapseExchangeOutputs(
-            smoothingMinutes = getMinutes(context),
-            graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
-            collapseChunks = collapseChunks(context)
-        )
-    }
+    fun shouldCollapseExchangeOutputs(context: Context): Boolean =
+        exchangeThrottleIntervalMinutes(context) > 0
+
+    /** The interval the chart is thinned to, 0 for every reading. */
+    @JvmStatic
+    fun graphCollapseMinutes(context: Context): Int = graphCollapseMinutes(getMinutes(context), targets(context))
+
+    /** The interval the current reading and its arrow move in, 0 for every reading. */
+    @JvmStatic
+    fun localCollapseMinutes(context: Context): Int = localCollapseMinutes(getMinutes(context), targets(context))
 
     /**
      * How often, in minutes, an exchange output is fed: 0 means every reading.
      *
-     * "Collapse into chunks" thins the *rate* of what leaves the phone; it never changes what is
+     * "Fewer readings" thins the *rate* of what leaves the phone; it never changes what is
      * sent. Whatever is sent is the newest reading under its own timestamp — the payload is not
      * built from the last point of a completed chunk, which would be up to two intervals old.
      * This applies uniformly to every exchange destination, including the xDrip/xInfuus loop feed
@@ -155,12 +185,7 @@ object DataSmoothing {
      */
     @JvmStatic
     fun exchangeThrottleIntervalMinutes(context: Context): Int =
-        exchangeThrottleIntervalMinutes(
-            smoothingMinutes = getMinutes(context),
-            graphOnly = isGraphOnly(context),
-            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
-            collapseChunks = collapseChunks(context)
-        )
+        exchangeThrottleIntervalMinutes(getMinutes(context), targets(context))
 
     @JvmStatic
     fun setMinutes(context: Context, minutes: Int) {
@@ -183,26 +208,15 @@ object DataSmoothing {
     }
 
     @JvmStatic
-    fun setGraphOnly(context: Context, graphOnly: Boolean) {
+    fun setTargets(context: Context, targets: Targets) {
+        // The old switches are still written, as near as they can say it, for a watch on a
+        // build that predates targets: it reads only these, and collapse only for its chart.
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(SettingsRegistry.SMOOTHING_GRAPH_ONLY.key, graphOnly)
-            .apply()
-    }
-
-    @JvmStatic
-    fun setCollapseChunks(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(SettingsRegistry.SMOOTHING_COLLAPSE_CHUNKS.key, enabled)
-            .apply()
-    }
-
-    @JvmStatic
-    fun setSmoothOnlyExchangeOutputs(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.key, enabled)
+            .putInt(SettingsRegistry.SMOOTHING_TARGETS.key, targets.toBits())
+            .putBoolean(SettingsRegistry.SMOOTHING_GRAPH_ONLY.key, targets.chart && !targets.current)
+            .putBoolean(SettingsRegistry.SMOOTHING_EXCHANGE_OUTPUTS_ONLY.key, !targets.chart)
+            .putBoolean(SettingsRegistry.SMOOTHING_COLLAPSE_CHUNKS.key, targets.fewerChart)
             .apply()
     }
 
@@ -231,23 +245,43 @@ object DataSmoothing {
         collapseChunks: Boolean,
         nowMillis: Long = System.currentTimeMillis()
     ): List<GlucosePoint> {
+        val sanitizedMinutes = sanitizeMinutes(smoothingMinutes)
+        if (sanitizedMinutes <= 0) return points.orEmpty()
+        return smoothNativePoints(
+            points,
+            sanitizedMinutes,
+            if (collapseChunks) collapseIntervalMinutes(sanitizedMinutes) else 0,
+            nowMillis
+        )
+    }
+
+    /**
+     * [points] averaged over [smoothingMinutes] (0 = as measured), then thinned to one per
+     * [collapseMinutes] (0 = every reading). The two are independent: a place can be thinned
+     * without being smoothed.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun smoothNativePoints(
+        points: List<GlucosePoint>?,
+        smoothingMinutes: Int,
+        collapseMinutes: Int,
+        nowMillis: Long = System.currentTimeMillis()
+    ): List<GlucosePoint> {
         if (points.isNullOrEmpty()) {
             return emptyList()
         }
-        val sanitizedMinutes = sanitizeMinutes(smoothingMinutes)
-        if (sanitizedMinutes <= 0) {
-            return points
+        val smoothed = averagePoints(points, sanitizeMinutes(smoothingMinutes))
+        return if (collapseMinutes > 0) {
+            collapsePointsForDisplay(smoothed, collapseMinutes, nowMillis)
+        } else {
+            smoothed
         }
-        if (points.size < 3) {
-            return if (collapseChunks) {
-                collapsePointsForDisplay(points, collapseIntervalMinutes(sanitizedMinutes), nowMillis)
-            } else {
-                points
-            }
-        }
+    }
 
-        val halfWindowMs = (sanitizedMinutes * 60_000L) / 2L
-        if (halfWindowMs <= 0L) {
+    private fun averagePoints(points: List<GlucosePoint>, smoothingMinutes: Int): List<GlucosePoint> {
+        val halfWindowMs = (smoothingMinutes * 60_000L) / 2L
+        if (points.size < 3 || halfWindowMs <= 0L) {
             return points
         }
 
@@ -264,12 +298,7 @@ object DataSmoothing {
             point.uncertainty = source.uncertainty?.shifted(point.value - source.value)
             smoothed.add(point)
         }
-
-        return if (collapseChunks) {
-            collapsePointsForDisplay(smoothed, collapseIntervalMinutes(sanitizedMinutes), nowMillis)
-        } else {
-            smoothed
-        }
+        return smoothed
     }
 
     /**
@@ -387,71 +416,79 @@ object DataSmoothing {
         }
     }
 
-    /** Presentation. Untouched by "smooth only graph": that switch is about everything else. */
-    internal fun graphSmoothingMinutes(smoothingMinutes: Int, exchangeOutputsOnly: Boolean): Int {
+    /** The window a target carries: [smoothingMinutes] when it is switched on, otherwise 0. */
+    private fun windowFor(smoothingMinutes: Int, on: Boolean): Int {
         val sanitized = sanitizeMinutes(smoothingMinutes)
-        return if (sanitized > 0 && !exchangeOutputsOnly) sanitized else 0
+        return if (sanitized > 0 && on) sanitized else 0
     }
 
-    /** Evaluation: off when either "only the graph" or "only what leaves the phone" is set. */
-    internal fun localSmoothingMinutes(
-        smoothingMinutes: Int,
-        graphOnly: Boolean,
-        exchangeOutputsOnly: Boolean
-    ): Int {
-        val sanitized = sanitizeMinutes(smoothingMinutes)
-        return if (sanitized > 0 && !graphOnly && !exchangeOutputsOnly) sanitized else 0
-    }
+    /** Presentation. */
+    @JvmStatic
+    fun graphSmoothingMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        windowFor(smoothingMinutes, targets.chart)
 
-    /**
-     * "Collapse" keeps one *smoothed* reading per interval (see its own description) — it
-     * has nothing meaningful to keep if exchange stayed unsmoothed, so turning it on pulls
-     * exchange smoothing back in even under "graph only". Default false keeps every
-     * existing three-switch call site (and its tests) unaffected.
-     */
+    /** Evaluation: the current reading, its arrow and the alerts. */
+    @JvmStatic
+    fun localSmoothingMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        windowFor(smoothingMinutes, targets.current)
+
+    internal fun exchangeSmoothingMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        windowFor(smoothingMinutes, targets.sent)
+
+    /** The interval a place is thinned to: [collapseIntervalMinutes] when it asks for fewer readings, otherwise 0. */
+    private fun collapseFor(smoothingMinutes: Int, fewer: Boolean): Int =
+        if (fewer) collapseIntervalMinutes(smoothingMinutes) else 0
+
+    @JvmStatic
+    fun graphCollapseMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        collapseFor(smoothingMinutes, targets.fewerChart)
+
+    @JvmStatic
+    fun localCollapseMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        collapseFor(smoothingMinutes, targets.fewerCurrent)
+
+    internal fun exchangeThrottleIntervalMinutes(smoothingMinutes: Int, targets: Targets): Int =
+        collapseFor(smoothingMinutes, targets.fewerSent)
+
+    internal fun shouldCollapseExchangeOutputs(smoothingMinutes: Int, targets: Targets): Boolean =
+        exchangeThrottleIntervalMinutes(smoothingMinutes, targets) > 0
+
+    // The pre-targets graph-only / exchange-only pair, kept as the specification of what
+    // [legacyTargets] must preserve for settings that were never migrated.
+
+    internal fun graphSmoothingMinutes(smoothingMinutes: Int, exchangeOutputsOnly: Boolean): Int =
+        graphSmoothingMinutes(smoothingMinutes, legacyTargets(graphOnly = false, exchangeOutputsOnly = exchangeOutputsOnly))
+
+    internal fun localSmoothingMinutes(smoothingMinutes: Int, graphOnly: Boolean, exchangeOutputsOnly: Boolean): Int =
+        localSmoothingMinutes(smoothingMinutes, legacyTargets(graphOnly, exchangeOutputsOnly))
+
     internal fun shouldSmoothExchangeOutputs(
         smoothingMinutes: Int,
         graphOnly: Boolean,
         exchangeOutputsOnly: Boolean,
         collapseChunks: Boolean = false
-    ): Boolean {
-        return sanitizeMinutes(smoothingMinutes) > 0 && (exchangeOutputsOnly || !graphOnly || collapseChunks)
-    }
+    ): Boolean = exchangeSmoothingMinutes(smoothingMinutes, graphOnly, exchangeOutputsOnly, collapseChunks) > 0
 
     internal fun exchangeSmoothingMinutes(
         smoothingMinutes: Int,
         graphOnly: Boolean,
         exchangeOutputsOnly: Boolean,
         collapseChunks: Boolean = false
-    ): Int {
-        val sanitized = sanitizeMinutes(smoothingMinutes)
-        return if (shouldSmoothExchangeOutputs(sanitized, graphOnly, exchangeOutputsOnly, collapseChunks)) sanitized else 0
-    }
+    ): Int = exchangeSmoothingMinutes(smoothingMinutes, legacyTargets(graphOnly, exchangeOutputsOnly, collapseChunks))
 
     internal fun shouldCollapseExchangeOutputs(
         smoothingMinutes: Int,
         graphOnly: Boolean,
         exchangeOutputsOnly: Boolean,
         collapseChunks: Boolean
-    ): Boolean {
-        return collapseChunks && shouldSmoothExchangeOutputs(
-            smoothingMinutes = smoothingMinutes,
-            graphOnly = graphOnly,
-            exchangeOutputsOnly = exchangeOutputsOnly,
-            collapseChunks = collapseChunks
-        )
-    }
+    ): Boolean = shouldCollapseExchangeOutputs(smoothingMinutes, legacyTargets(graphOnly, exchangeOutputsOnly, collapseChunks))
 
     internal fun exchangeThrottleIntervalMinutes(
         smoothingMinutes: Int,
         graphOnly: Boolean,
         exchangeOutputsOnly: Boolean,
         collapseChunks: Boolean
-    ): Int = if (shouldCollapseExchangeOutputs(smoothingMinutes, graphOnly, exchangeOutputsOnly, collapseChunks)) {
-        collapseIntervalMinutes(smoothingMinutes)
-    } else {
-        0
-    }
+    ): Int = exchangeThrottleIntervalMinutes(smoothingMinutes, legacyTargets(graphOnly, exchangeOutputsOnly, collapseChunks))
 
     private fun setLastEnabledMinutes(context: Context, minutes: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

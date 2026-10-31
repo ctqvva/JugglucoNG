@@ -3,11 +3,13 @@ package tk.glucodata.ui
 import android.app.Activity
 import android.content.Context
 import android.os.Build
+import tk.glucodata.Applic
 import tk.glucodata.HealthConnection
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.OutboundApiSettings
 import tk.glucodata.SensorBluetooth
+import tk.glucodata.XdripFollowerSend
 import tk.glucodata.alerts.SensorHandoverRuntime
 
 /**
@@ -33,7 +35,8 @@ internal object PhoneAppsSettings {
 
     /** Consumers of the exchange payload that live outside the phone-apps screen. */
     fun hasOtherTrendConsumer(): Boolean =
-        OutboundApiSettings.isEnabled() || Natives.getgadgetbridge() || Natives.getwatchdrip()
+        OutboundApiSettings.isEnabled() || Natives.getgadgetbridge() || Natives.getwatchdrip() ||
+            XdripFollowerSend.isEnabled(Applic.app)
 
     /**
      * Only the xDrip-style broadcast carries the source name. Stays visible while enabled,

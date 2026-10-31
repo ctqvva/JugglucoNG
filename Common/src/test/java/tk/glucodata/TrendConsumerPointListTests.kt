@@ -38,6 +38,16 @@ class TrendConsumerPointListTests {
         assertNull(DisplayTrendSource.augmentHistory(listOf(source), live.copy(sensorId = "other"), "other", 0L).last().uncertainty)
     }
 
+    @Test fun anArrowBesideAnOlderShownReadingEndsAtThatReading() {
+        // Fewer readings shows 12:09 at 12:13: the falling 12:10–12:13 readings must not count.
+        val history = (0..13).map { GlucosePoint(it * 60_000L, if (it <= 9) 100f + it else 120f - it, 0f) }
+        val cut = DisplayTrendSource.endingAtShown(history, snapshot(9 * 60_000L, 109f))
+        assertEquals(9 * 60_000L, cut.last().timestamp)
+        assertEquals(10, cut.size)
+        assertTrue(DisplayTrendSource.endingAtShown(history, snapshot(13 * 60_000L, 107f)) === history)
+        assertTrue(DisplayTrendSource.endingAtShown(history, null) === history)
+    }
+
     @Before
     fun registerProductionTrendProvider() {
         // Specific.start() performs this registration in the app. Local JVM

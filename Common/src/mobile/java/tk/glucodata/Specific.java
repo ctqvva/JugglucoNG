@@ -41,6 +41,7 @@ public class Specific {
 		tk.glucodata.ui.ComposeHostAccess.register(tk.glucodata.ui.MobileComposeHost.INSTANCE);
 		JournalSnapshotAccess.register(tk.glucodata.OutboundApiJournalSnapshot.INSTANCE);
 		NotificationPredictionAccess.register(tk.glucodata.NotificationPredictionOverlay.INSTANCE);
+		PredictionAnalysisAccess.register(tk.glucodata.data.prediction.analysis.PredictionRecorder.INSTANCE);
 		GlucoseUncertaintyAccess.register(tk.glucodata.data.GlucoseUncertaintyStore.INSTANCE);
 		CalibrationProfileAccess.register(tk.glucodata.data.calibration.MobileCalibrationProfileBridge.INSTANCE);
 		CalibrationAccess.register(tk.glucodata.data.calibration.MobileCalibrationProvider.INSTANCE);

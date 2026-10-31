@@ -76,6 +76,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import tk.glucodata.drivers.ManagedSensorUiFamily;
+import tk.glucodata.drivers.api.ApiGlucoseSourceIdentityAdapter;
+import tk.glucodata.drivers.medtrum.MedtrumPersistence;
+
 import javax.net.ssl.SSLContext;
 
 
@@ -93,6 +97,7 @@ public class NightPost  {
     private static final int ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS = 10_000;
     private static final int ANCILLARY_TOKEN_READ_TIMEOUT_MS = 15_000;
     private static final AtomicBoolean deviceStatusUploadInFlight = new AtomicBoolean(false);
+    private static final AtomicBoolean sensorStartUploadInFlight = new AtomicBoolean(false);
     /**
      * Outcome of the IOB devicestatus upload, for the settings screen. The status card
      * otherwise only reports the native entries uploader, so a dead devicestatus path was
@@ -524,6 +529,7 @@ static public int batteryPercent() {
 
 private static final String PREFS_NAME="tk.glucodata_preferences";
 private static final String PREF_UPLOAD_IOB="nightscout_upload_iob";
+private static final String PREF_UPLOAD_SENSOR_START="nightscout_upload_sensor_start";
 private static long iobStatusUploadTime=0L;
 private static float iobStatusLastIob=Float.NaN;
 private static float iobStatusLastEiob=Float.NaN;
@@ -552,6 +558,48 @@ static public void setUploadIob(boolean enabled) {
             .edit()
             .putBoolean(PREF_UPLOAD_IOB, enabled)
             .apply();
+    }
+
+/**
+ * Default on: posts "Sensor Start" treatments so that Nightscout's
+ * sage plugin shows sensor age.
+ */
+@Keep
+static public boolean getUploadSensorStart() {
+    final Context context = Applic.getContext();
+    if(context == null)
+        return false;
+    return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(PREF_UPLOAD_SENSOR_START, true);
+    }
+
+@Keep
+static public void setUploadSensorStart(boolean enabled) {
+    final Context context = Applic.getContext();
+    if(context == null)
+        return;
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PREF_UPLOAD_SENSOR_START, enabled)
+            .apply();
+    }
+
+@Keep
+static public String getSensorStartLabel(String sensorId) {
+    return SensorSourceResolver.resolveSourceInfo(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN);
+    }
+
+@Keep
+static public long getSensorStartTime(String sensorId, long nativeStartTime, int managedFamilyCode) {
+    if(managedFamilyCode==ManagedSensorUiFamily.GENERIC.getNativeCode() &&
+            ApiGlucoseSourceIdentityAdapter.INSTANCE.resolveCanonicalSensorId(sensorId)!=null)
+        return 0L;
+    if(managedFamilyCode!=ManagedSensorUiFamily.MEDTRUM.getNativeCode())
+        return nativeStartTime;
+    final Context context=Applic.getContext();
+    if(context==null || sensorId==null || !sensorId.equals(MedtrumPersistence.INSTANCE.getSensorId(context)))
+        return 0L;
+    return MedtrumPersistence.INSTANCE.getSensorStartMs(context)/1000L;
     }
 
 /**
@@ -655,6 +703,40 @@ static public boolean uploadDeviceStatusAsync(
         boolean put
 ) {
     return uploadDeviceStatusAsync(httpurl,postdata,secret,put,false);
+    }
+
+/** Adds Sensor Start to the same bounded queue as device status. */
+@Keep
+static public boolean uploadSensorStartAsync(
+        String httpurl,
+        byte[] postdata,
+        String secret,
+        boolean put
+) {
+    if(!sensorStartUploadInFlight.compareAndSet(false, true))
+        return false;
+    try {
+        deviceStatusExecutor.execute(() -> {
+            try {
+                final int code=uploadWithTimeouts(
+                        httpurl,postdata,secret,put?"PUT":"POST",
+                        DEVICE_STATUS_CONNECT_TIMEOUT_MS,DEVICE_STATUS_READ_TIMEOUT_MS,false,"sensor-start");
+                if(code==HTTP_OK || code==HttpURLConnection.HTTP_CREATED)
+                    Log.i(LOG_ID,"sensor-start upload accepted code="+code);
+                else if(code!=ERROR_NO_TOKEN)
+                    Log.e(LOG_ID,"sensor-start upload failed code="+code);
+            }
+            finally {
+                sensorStartUploadInFlight.set(false);
+            }
+        });
+        return true;
+    }
+    catch(Throwable th) {
+        sensorStartUploadInFlight.set(false);
+        Log.e(LOG_ID,"sensor-start scheduling failure:\n"+stackline(th));
+        return false;
+    }
     }
 
 /**
@@ -885,6 +967,8 @@ public static void  config(MainActivity act, View settingsview) {
     wake.setOnClickListener(v-> Natives.wakeuploader());
     Button help;
     CheckBox treatments=getcheckbox(act,R.string.sendamounts,Natives.getpostTreatments());
+    CheckBox sensorStart=getcheckbox(act,R.string.nightscout_upload_sensor_start,getUploadSensorStart());
+    sensorStart.setOnCheckedChangeListener((buttonView,isChecked)->setUploadSensorStart(isChecked));
     if(!isWearable) {
         help=getbutton(act,R.string.helpname);
         help.setOnClickListener(v-> help(R.string.NightPost,act));
@@ -917,7 +1001,7 @@ public static void  config(MainActivity act, View settingsview) {
    if(isWearable) {
       var space1=new Space(act);
       var space2=new Space(act);
-       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
+       layout=new Layout(act, (lay, w, h) -> { return new int[] {w,h};}, new View[]{secretlabel},new View[]{visible},new View[]{editsecret},new View[]{urllabel},new View[]{url},new View[]{statusview},new View[]{treatments,sensorStart},new View[]{clear},new View[]{wake},new View[]{space1,activebox,cancel,space2},new View[]{save});
    }
       else {
     layout=new Layout(act, (lay, w, h) -> {
@@ -931,7 +1015,7 @@ public static void  config(MainActivity act, View settingsview) {
                                 };
 
             lay.setY(MainActivity.systembarTop);
-                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,help,cancel,save});
+                        return new int[] {w,h};}, new View[]{urllabel,url},new View[]{secretlabel,editsecret,visible},new View[]{statusview},new View[]{activebox,v3box,clear,wake},new View[]{treatments,sensorStart,help,cancel,save});
 
       }
         int laypar;

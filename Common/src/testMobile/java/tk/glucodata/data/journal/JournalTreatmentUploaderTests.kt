@@ -454,4 +454,16 @@ class JournalTreatmentUploaderTests {
         assertEquals(0, log.suppressedSince("HTTP 401", start))
         assertEquals(0, log.suppressedSince("HTTP 401", start - 60_000L))
     }
+
+    @Test
+    fun aFollowerSendsOnlyToTheServerItFollows() {
+        val followed = "https://luna29ru.nightscout-jino.ru"
+        assertTrue(JournalTreatmentUploader.sameServer(followed, followed))
+        // The native side drops an /api tail and adds the scheme; the follower keeps what was typed.
+        assertTrue(JournalTreatmentUploader.sameServer(followed, "luna29ru.nightscout-jino.ru/api/v1/"))
+        assertTrue(JournalTreatmentUploader.sameServer("https://Luna29ru.Nightscout-Jino.ru/", followed))
+        assertFalse(JournalTreatmentUploader.sameServer("https://other.example.org", followed))
+        assertFalse(JournalTreatmentUploader.sameServer("", ""))
+        assertFalse(JournalTreatmentUploader.sameServer(null, followed))
+    }
 }

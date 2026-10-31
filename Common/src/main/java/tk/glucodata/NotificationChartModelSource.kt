@@ -13,8 +13,11 @@ import tk.glucodata.chart.HistoryChartModelBuilder
 object NotificationChartModelSource {
 
     internal fun smoothPoints(points: List<GlucosePoint>, minutes: Int, collapse: Boolean): List<GlucosePoint> =
+        smoothPoints(points, minutes, if (collapse) DataSmoothing.collapseIntervalMinutes(minutes) else 0)
+
+    internal fun smoothPoints(points: List<GlucosePoint>, minutes: Int, collapseMinutes: Int): List<GlucosePoint> =
         GlucoseSmoothing.smooth(
-            points, minutes, collapse,
+            points, minutes, collapseMinutes,
             timestamp = { it.timestamp }, value = { it.value }, rawValue = { it.rawValue },
             sensorSerial = { it.sensorSerial },
             withValues = { source, auto, raw ->
@@ -47,7 +50,7 @@ object NotificationChartModelSource {
             .getOrDefault(tk.glucodata.chart.MainSensorOwnership.NONE)
 
         val smoothingMinutes = DataSmoothing.graphSmoothingMinutes(context)
-        val collapse = smoothingMinutes > 0 && DataSmoothing.collapseChunks(context)
+        val collapse = DataSmoothing.graphCollapseMinutes(context)
         val inputs = ArrayList<HistoryChartModelBuilder.SeriesInput>(peers.size + 1)
         inputs.add(
             HistoryChartModelBuilder.SeriesInput(

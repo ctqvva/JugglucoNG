@@ -50,6 +50,8 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onCharacteristicWrite(', 'public synchronized void onCharacteristicChanged(',
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
     'private Runnable forCurrentGatt(', 'private void endBLEHandler(',
+    'private void streamPacketReceived(', 'private synchronized void streamSilent(',
+    'private void logLinkEnd(',
 ])
 
 # Fields and all lifecycle/entry-point methods above come from production sources.
@@ -82,6 +84,7 @@ class SuperGattCallback {
     static class SensorOwnershipRuntime { static boolean blocked; static boolean blocksLocalConnection(String s){return blocked;} }
     static class WearSensorClaim { static int releases; static void onLocalGattDisconnected(String s){releases++;} }
     static class Natives { static int resets; static void resetbluetooth(long ptr){resets++;} }
+    static class SystemClock { static long elapsedRealtime(){return Applic.scheduler.now;} }
     static class Build { static class VERSION { static int SDK_INT=37; } static class VERSION_CODES { static int M=23; } }
     static class R { static class string { static int turn_on_nearby_devices_permission=0; } }
     static class Log {
@@ -155,6 +158,9 @@ class SuperGattCallback {
 java += field(base, 'private final GattConnectDeadline<BluetoothGatt> connectDeadline', '}, this::connectionAttemptExpired);')
 java += '\n' + base_methods + '\n}\nclass Libre2GattCallback extends SuperGattCallback {\n'
 java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> disconnectDeadline', '}, this::retryAfterDisconnect);')
+java += field(libre, 'private static final long STREAM_SILENCE_MILLIS', ';')
+java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> streamDeadline', '}, this::streamSilent);')
+java += field(libre, 'private long linkConnectedAt', ';') + field(libre, 'private int linkPackets', ';')
 java += r'''
     BluetoothGatt disconnectingGatt;
     long reconnectDelayMillis;
@@ -168,7 +174,7 @@ java += r'''
     boolean m2831x(){logins++;return true;}
     void writeBLELogin(){logins++;}
     void phase2(byte[] value){logins++;} void phase3(byte[] value){logins++;}
-    void oldonCharacteristicChanged(byte[] value){frames++;}
+    void oldonCharacteristicChanged(byte[] value){frames++;streamPacketReceived();}
     static void showCharacter(String s,BluetoothGattCharacteristic c){}
 '''
 java += libre_methods
@@ -207,7 +213,32 @@ java += r'''
         BluetoothGatt current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
         cb.onServicesDiscovered(current,0);cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
         check(current.discoveries==1&&cb.logins==1&&cb.frames==1,"healthy streaming did not resume");
-        Applic.scheduler.advance(360_000);check(cb.mBluetoothGatt==current,"healthy connection expired");
+        for(int minute=0;minute<6;minute++){Applic.scheduler.advance(60_000);cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());}
+        check(cb.mBluetoothGatt==current&&current.disconnected==0,"healthy connection expired");
+
+        // A CONNECTED link that stops streaming is retired through the same fresh-GATT path.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
+        Applic.scheduler.advance(100_000);cb.onReadRemoteRssi(current,-70,0);
+        Applic.scheduler.advance(49_999);check(current.disconnected==0,"stream watchdog early or RSSI extended it");
+        Applic.scheduler.advance(1);
+        check(current.disconnected==1&&"Loss of signal".equals(cb.constatstatusstr),"silent stream not recovered");
+        cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2&&cb.mBluetoothGatt!=current,"silent stream got no fresh GATT");
+        BluetoothGatt fresh=cb.mBluetoothGatt;cb.onConnectionStateChange(fresh,0,2);
+        for(int minute=0;minute<5;minute++){Applic.scheduler.advance(60_000);cb.onCharacteristicChanged(fresh,new BluetoothGattCharacteristic());}
+        check(fresh.disconnected==0&&cb.mBluetoothGatt==fresh&&cb.mActiveBluetoothDevice.calls==2,"retired stream deadline acted on replacement");
+
+        // A handshake that stalls after CONNECTED is bounded by the same deadline.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        Applic.scheduler.advance(150_000);check(current.disconnected==1,"stalled handshake not recovered");
+        Applic.scheduler.advance(2_000);check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,"stalled handshake got no fresh GATT");
+
+        // Pause and close cancel it.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.setPause(true);
+        Applic.scheduler.advance(600_000);check(current.disconnected<=1&&cb.mActiveBluetoothDevice.calls==1&&!"Loss of signal".equals(cb.constatstatusstr),"paused link hit stream watchdog");
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.close();
+        Applic.scheduler.advance(600_000);check(cb.mActiveBluetoothDevice.calls==1&&!"Loss of signal".equals(cb.constatstatusstr),"closed link hit stream watchdog");
 
         // Periodic recovery waits for DISCONNECTED and duplicate requests do not extend the fallback.
         cb=fresh();old=cb.mBluetoothGatt;cb.onConnectionStateChange(old,0,2);
@@ -301,7 +332,7 @@ java += r'''
         login=cb.forCurrentGatt(()->retries[0]++);Runnable replacement=cb.forCurrentGatt(()->retries[0]++);
         login.run();check(retries[0]==1,"superseded login ran on the same GATT");
         replacement.run();check(retries[0]==2,"replacement login rejected");
-        System.out.println("PASS: Libre 2 fresh-GATT recovery, callback isolation, deadlines, cancellation, ownership and login retries");
+        System.out.println("PASS: Libre 2 fresh-GATT recovery, stream watchdog, callback isolation, deadlines, cancellation, ownership and login retries");
     }
 }
 '''

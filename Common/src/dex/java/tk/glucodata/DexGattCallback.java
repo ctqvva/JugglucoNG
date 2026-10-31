@@ -867,6 +867,7 @@ private    void getdata(byte[] value) {
            case 0x59:{
               Applic.app.redraw();
               Natives.dexEndBackfill(dataptr);
+              syncBackfillToRoom();
               break;
               }
            default: {
@@ -1118,9 +1119,37 @@ public synchronized boolean changeAuthSlot(int slot) {
        else  {
          final var cmd = Natives.getDexbackfillcmd(dataptr);
          if(cmd != null) {
+            noteBackfill(cmd);
             tryer(()-> write(0, cmd));
           }
        }
+    }
+
+/* Backfill lands in native storage only. The app's history (Room) copies a few
+   minutes behind each live reading, and its catch-up sync starts from Room's newest
+   row, which the reading before the backfill has already moved past. So once the
+   sensor has finished, or the link drops mid-transfer, copy from where the
+   requested window starts (#767, as Libre 3 #620). */
+private long backfillRoomSyncFromMsec=0L;
+private synchronized void noteBackfill(byte[] cmd) {
+    // 0x59, then the window's start and end in little-endian seconds since sensor start.
+    if(cmd.length<5)
+        return;
+    final int startSecs=(cmd[1]&0xFF)|((cmd[2]&0xFF)<<8)|((cmd[3]&0xFF)<<16)|(cmd[4]<<24);
+    final long sensorStartMsec=Natives.getSensorStartmsec(dataptr);
+    if(sensorStartMsec<=0L)
+        return;
+    final long fromMsec=sensorStartMsec+(startSecs-5*60)*1000L;
+    if(backfillRoomSyncFromMsec==0L||fromMsec<backfillRoomSyncFromMsec)
+        backfillRoomSyncFromMsec=fromMsec;
+    }
+private synchronized void syncBackfillToRoom() {
+    final long fromMsec=backfillRoomSyncFromMsec;
+    if(fromMsec==0L)
+        return;
+    backfillRoomSyncFromMsec=0L;
+    {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill done, Room sync from "+fromMsec);};};
+    HistorySyncAccess.syncSensorWindowFromNative(SerialNumber,fromMsec);
     }
 
 
@@ -1154,6 +1183,8 @@ private void resetconnect() {
 public synchronized void close() {
    // Retired GATT callbacks are ignored, so teardown owns releasing this lock.
    releaselock();
+   // A transfer cut off by the disconnect still saved what arrived.
+   syncBackfillToRoom();
    connected = false;
    connectedAttempt = null;
    resetconnect();

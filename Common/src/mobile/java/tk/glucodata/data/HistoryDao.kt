@@ -179,6 +179,9 @@ interface HistoryDao {
     """)
     suspend fun getReadingsBetween(startTime: Long, endTime: Long): List<HistoryReading>
     
+    @Query("SELECT * FROM history_readings WHERE sensorSerial IN (:serials) AND timestamp >= :startTime AND timestamp <= :endTime ORDER BY timestamp ASC")
+    suspend fun getReadingsBetweenForSensors(serials: List<String>, startTime: Long, endTime: Long): List<HistoryReading>
+
     @Query("SELECT * FROM history_readings ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestReading(): HistoryReading?
 

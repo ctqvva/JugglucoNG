@@ -14,12 +14,15 @@ const val KEY_SMOOTHING_GRAPH_ONLY = "dashboard_data_smoothing_graph_only"
 const val KEY_SMOOTHING_COLLAPSE_CHUNKS = "dashboard_data_smoothing_collapse_chunks"
 const val KEY_SMOOTHING_EXCHANGE_OUTPUTS_ONLY = "dashboard_data_smoothing_exchange_outputs_only"
 const val KEY_SMOOTHING_CAUSAL_LIVE = "dashboard_data_smoothing_causal_live"
+const val KEY_SMOOTHING_TARGETS = "dashboard_data_smoothing_targets"
 const val KEY_PREDICTION_ENABLED = "dashboard_predictive_simulation_enabled"
 const val KEY_PREDICTION_TREND_MOMENTUM = "dashboard_prediction_trend_momentum_enabled"
 const val KEY_PREDICTION_CARB_RATIO = "dashboard_prediction_carb_ratio_g_per_u"
 const val KEY_PREDICTION_INSULIN_SENSITIVITY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
 const val KEY_PREDICTION_CARB_ABSORPTION = "dashboard_prediction_carb_absorption_g_per_h"
 const val KEY_PREDICTION_HORIZON = "dashboard_prediction_horizon_minutes"
+const val KEY_PREDICTION_ANALYSIS = "dashboard_prediction_analysis_enabled"
+const val KEY_PREDICTION_ADAPTIVE = "dashboard_prediction_adaptive_enabled"
 const val KEY_SENSOR_SELECTION = "dashboard_multi_sensor_selection_order"
 const val KEY_SENSOR_COLORS = "sensor_color_overrides_argb"
 
@@ -30,12 +33,16 @@ const val DEFAULT_SMOOTHING_GRAPH_ONLY = false
 const val DEFAULT_SMOOTHING_COLLAPSE_CHUNKS = false
 const val DEFAULT_SMOOTHING_EXCHANGE_OUTPUTS_ONLY = false
 const val DEFAULT_SMOOTHING_CAUSAL_LIVE = false
+/** Not chosen yet: the targets are derived from the graph-only / exchange-only pair. */
+const val DEFAULT_SMOOTHING_TARGETS = -1
 const val DEFAULT_PREDICTION_ENABLED = true
 const val DEFAULT_PREDICTION_TREND_MOMENTUM = true
 const val DEFAULT_PREDICTION_CARB_RATIO_G_PER_U = 10f
 const val DEFAULT_PREDICTION_INSULIN_SENSITIVITY_MGDL_PER_U = 54f
 const val DEFAULT_PREDICTION_CARB_ABSORPTION_G_PER_H = 35f
 const val DEFAULT_PREDICTION_HORIZON_MINUTES = 120
+const val DEFAULT_PREDICTION_ANALYSIS = false
+const val DEFAULT_PREDICTION_ADAPTIVE = false
 
 /** Where a setting belongs and who may write it. */
 enum class SettingScope { PHONE, WATCH, MIRRORED }
@@ -170,6 +177,10 @@ object SettingsRegistry {
         KEY_SMOOTHING_CAUSAL_LIVE, SettingType.BOOL, DEFAULT_SMOOTHING_CAUSAL_LIVE,
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
     )
+    val SMOOTHING_TARGETS = SettingDefinition(
+        KEY_SMOOTHING_TARGETS, SettingType.INT, DEFAULT_SMOOTHING_TARGETS,
+        SettingScope.MIRRORED, SettingBackup.INCLUDED, minValue = -1f, maxValue = 63f,
+    )
     val PREDICTION_ENABLED = SettingDefinition(
         KEY_PREDICTION_ENABLED, SettingType.BOOL, DEFAULT_PREDICTION_ENABLED,
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
@@ -194,6 +205,16 @@ object SettingsRegistry {
         KEY_PREDICTION_HORIZON, SettingType.INT, DEFAULT_PREDICTION_HORIZON_MINUTES,
         SettingScope.MIRRORED, SettingBackup.INCLUDED, minValue = 30f, maxValue = 360f,
     )
+    /** Record every forecast for Prediction analysis. Phone only: the watch draws, it does not record. */
+    val PREDICTION_ANALYSIS = SettingDefinition(
+        KEY_PREDICTION_ANALYSIS, SettingType.BOOL, DEFAULT_PREDICTION_ANALYSIS,
+        SettingScope.PHONE, SettingBackup.INCLUDED,
+    )
+    /** Draw the adaptive forecast instead of the standard one. Phone only, like the model it reads. */
+    val PREDICTION_ADAPTIVE = SettingDefinition(
+        KEY_PREDICTION_ADAPTIVE, SettingType.BOOL, DEFAULT_PREDICTION_ADAPTIVE,
+        SettingScope.PHONE, SettingBackup.INCLUDED,
+    )
     val SENSOR_SELECTION = SettingDefinition(
         KEY_SENSOR_SELECTION, SettingType.STRING, "",
         SettingScope.MIRRORED, SettingBackup.INCLUDED, effectiveString = ::effectiveSensorSelection,
@@ -209,12 +230,15 @@ object SettingsRegistry {
         SMOOTHING_COLLAPSE_CHUNKS,
         SMOOTHING_EXCHANGE_OUTPUTS_ONLY,
         SMOOTHING_CAUSAL_LIVE,
+        SMOOTHING_TARGETS,
         PREDICTION_ENABLED,
         PREDICTION_TREND_MOMENTUM,
         PREDICTION_CARB_RATIO,
         PREDICTION_INSULIN_SENSITIVITY,
         PREDICTION_CARB_ABSORPTION,
         PREDICTION_HORIZON,
+        PREDICTION_ANALYSIS,
+        PREDICTION_ADAPTIVE,
         SENSOR_SELECTION,
         SENSOR_COLORS,
     )

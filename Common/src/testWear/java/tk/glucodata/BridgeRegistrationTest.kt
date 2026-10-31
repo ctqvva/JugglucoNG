@@ -33,5 +33,7 @@ class BridgeRegistrationTest {
         assertFalse("HealthConnectAccess", HealthConnectAccess.isRegistered())
         assertFalse("HealthPermissionsAccess", HealthPermissionsAccess.isRegistered())
         assertFalse("NumberDataAccess", NumberDataAccess.isRegistered())
+        // The watch draws forecasts but never records them.
+        assertFalse("PredictionAnalysisAccess", PredictionAnalysisAccess.isRegistered())
     }
 }

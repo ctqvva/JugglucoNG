@@ -79,6 +79,15 @@ class SmoothedRecordedHistoryTests {
         CalibrationManager.init(Applic.app)
     }
 
+    @Test fun boundedSensorHistoryKeepsRecordedValuesAndExcludesRowsOutsideWindow() = runBlocking {
+        val start = base + 2 * 60_000L
+        val end = base + 4 * 60_000L
+        val actual = repository.getHistoryForSensor(serial, start, end)
+        assertEquals(listOf(start, start + 60_000L, end), actual.map { it.timestamp })
+        assertEquals(records.subList(2, 5).map { it.displayMgdl }, actual.map { it.sealedDisplayValue })
+        assertTrue(repository.getHistoryForSensor(serial, end, start).isEmpty())
+    }
+
     @Test fun chartAndStatsQueriesKeepEveryRecordIncludingSmoothedValues() = runBlocking {
         val expected = records.map { it.displayMgdl }
         val histories = listOf(

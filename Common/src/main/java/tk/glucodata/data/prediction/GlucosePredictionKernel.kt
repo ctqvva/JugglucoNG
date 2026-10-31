@@ -23,7 +23,12 @@ enum class GlucosePredictionSeriesKind {
 
 data class GlucosePredictionSeries(
     val kind: GlucosePredictionSeriesKind,
-    val points: List<GlucosePredictionPoint>
+    val points: List<GlucosePredictionPoint>,
+    /**
+     * The adaptive forecast was asked for but could not answer — no model yet, one that
+     * did not beat "no change", or too little recent history — so this is its fallback.
+     */
+    val adaptiveFallback: Boolean = false,
 )
 
 /**

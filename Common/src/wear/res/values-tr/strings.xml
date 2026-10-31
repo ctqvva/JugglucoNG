@@ -20,4 +20,8 @@
     <string name="wear_calibration_edit">Kalibrasyonu düzenle</string>
     <string name="wear_journal_delete">Sil</string>
     <string name="wear_sensor_forget">Sensörü unut</string>
+    <!-- Journal-derived, not the phone's device-status snapshot (#500). -->
+    <string name="wear_journal_derived_title">Günlük: IOB / COB</string>
+    <string name="wear_journal_iob">IOB %1$s</string>
+    <string name="wear_journal_cob">COB %1$s</string>
 </resources>

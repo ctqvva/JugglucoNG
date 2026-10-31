@@ -324,6 +324,26 @@ internal fun ct5ReconnectGap(
 ): AnytimeIdRange? = anytimeReconnectGap(highestKnownId, liveId, maxRecords)
 
 /**
+ * Reconnect catch-up before a new live push has established the newest id.
+ *
+ * A clock estimate ahead of every observed record names an already-due id,
+ * whose push may have been missed during the outage. Include that id: unlike
+ * [ct5ReconnectGap]'s liveId, it has not just arrived on the live path. Keep the
+ * exclusive boundary when the estimate is backed by an observed current frame
+ * (including a repeated final id or a frame carrying no glucose).
+ */
+internal fun ct5ReconnectCatchupGap(
+    highestKnownId: Int,
+    lastObservedId: Int,
+    expectedCurrentId: Int,
+    maxRecords: Int,
+): AnytimeIdRange? {
+    if (expectedCurrentId < 0 || expectedCurrentId == Int.MAX_VALUE) return null
+    val stopBeforeId = if (expectedCurrentId > lastObservedId) expectedCurrentId + 1 else expectedCurrentId
+    return ct5ReconnectGap(highestKnownId, stopBeforeId, maxRecords)
+}
+
+/**
  * What a finished gap pass still owes.
  *
  * A live id that jumps again during the pass widens the pending envelope past

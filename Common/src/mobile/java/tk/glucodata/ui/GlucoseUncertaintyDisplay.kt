@@ -1,33 +1,15 @@
 package tk.glucodata.ui
 
 import android.content.Context
-import tk.glucodata.Applic
+import tk.glucodata.data.settings.UncertaintySettingsRepository
 
-/**
- * Whether the uncertainty ribbon is drawn on the chart.
- *
- * Display only. The estimator still computes and stores its credible interval
- * when this is off, so the value details and tooltip keep working, turning it
- * back on needs no history rebuild, and nothing about the estimate changes —
- * this is a preference about the chart, not about the model.
- */
+/** Dashboard uncertainty visibility. Stored estimator intervals are unaffected by this preference. */
 object GlucoseUncertaintyDisplay {
-
-    private const val PREF_NAME = "tk.glucodata_preferences"
-    private const val PREF_RIBBON = tk.glucodata.chart.UncertaintyBands.PREFERENCE_KEY
-
-    private fun prefs(context: Context) =
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-
     fun isRibbonEnabled(context: Context): Boolean =
-        tk.glucodata.chart.UncertaintyBands.isEnabled(context)
-
-    /** Reads the app context; for composables that do not hold one. */
-    fun isRibbonEnabled(): Boolean =
-        Applic.app?.let { isRibbonEnabled(it) } ?: true
+        UncertaintySettingsRepository(context).isRibbonEnabled
 
     fun setRibbonEnabled(context: Context, enabled: Boolean) {
-        runCatching { prefs(context).edit().putBoolean(PREF_RIBBON, enabled).apply() }
-        tk.glucodata.UiRefreshBus.requestDataRefresh()
+        runCatching { UncertaintySettingsRepository(context).setRibbonEnabled(enabled) }
+        tk.glucodata.UiRefreshBus.requestStatusRefresh()
     }
 }

@@ -22,6 +22,7 @@ object NightscoutFollowerRegistry {
     private const val PREF_USE_V3 = "nightscout_follower_v3"
     private const val PREF_COMPLETE_HISTORY_PREFIX = "nightscout_follower_complete_history_v1_"
     private const val PREF_POLL_MINUTES = "nightscout_follower_poll_minutes"
+    private const val PREF_SEND_TREATMENTS = "nightscout_follower_send_treatments"
     const val SENSOR_PREFIX = "NSF-"
 
     data class Config(
@@ -101,6 +102,24 @@ object NightscoutFollowerRegistry {
         // apply() updates the in-memory value at once, so the follower already reads the new
         // interval here; its pending alarm was booked with the old one.
         findRunningFollower(loadConfig(context).sensorId)?.onPollIntervalChanged()
+    }
+
+    /**
+     * Whether a follower sends this phone's own journal entries to the server it follows.
+     * Opt-in: a parent following a child's Nightscout logs the doses and meals they gave, and
+     * without this those only went out by switching to Upload, which also stops following.
+     */
+    fun loadSendTreatments(context: Context): Boolean =
+        prefs(context).getBoolean(PREF_SEND_TREATMENTS, false)
+
+    fun saveSendTreatments(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(PREF_SEND_TREATMENTS, enabled).apply()
+    }
+
+    /** Follow mode is on and sending was asked for. Upload mode has its own switch. */
+    fun sendsTreatments(context: Context?): Boolean {
+        context ?: return false
+        return loadConfig(context).isUsable && loadSendTreatments(context)
     }
 
     fun persistedSensorIds(context: Context): List<String> =

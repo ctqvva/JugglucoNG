@@ -31,6 +31,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+          JUGGLUCO_TURN_POOL: ${{ secrets.CLONE_TURN_POOL_JSON }}
+          JUGGLUCO_TWILIO_ACCOUNT: ${{ secrets.CLONE_TWILIO_ACCOUNT_JSON }}
         run: |
           test "$LICENSE_APPROVED" = true || { echo 'Approve JNI redistribution in production-signing before publishing new APKs'; exit 1; }
           test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo 'Complete the four production-signing environment secrets'; exit 1; }
@@ -53,6 +55,8 @@ jobs:
           ORG_GRADLE_PROJECT_thekeyalias: ${{ secrets.ANDROID_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_thekeypassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
           JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}
+          JUGGLUCO_TURN_POOL: ${{ secrets.CLONE_TURN_POOL_JSON }}
+          JUGGLUCO_TWILIO_ACCOUNT: ${{ secrets.CLONE_TWILIO_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
           umask 077

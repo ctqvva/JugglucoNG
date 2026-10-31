@@ -33,4 +33,8 @@
     <string name="wear_sensor_forget">Szenzor elfelejtése</string>
     <string name="wear_multi_sensor_complication">Több szenzor értékei</string>
     <string name="wear_multi_sensor_arrow_complication">Több szenzor értékei + trendnyilak</string>
+    <!-- Journal-derived, not the phone's device-status snapshot (#500). -->
+    <string name="wear_journal_derived_title">Napló: IOB / COB</string>
+    <string name="wear_journal_iob">IOB %1$s</string>
+    <string name="wear_journal_cob">COB %1$s</string>
 </resources>

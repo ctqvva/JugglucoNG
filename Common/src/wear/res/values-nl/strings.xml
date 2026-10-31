@@ -21,5 +21,9 @@
     <string name="wear_calibration_edit">Kalibratie wijzigen</string>
     <string name="wear_journal_delete">Verwijderen</string>
     <string name="wear_sensor_forget">Sensor vergeten</string>
+    <!-- Journal-derived, not the phone's device-status snapshot (#500). -->
+    <string name="wear_journal_derived_title">Journaal: IOB / COB</string>
+    <string name="wear_journal_iob">IOB %1$s</string>
+    <string name="wear_journal_cob">COB %1$s</string>
 </resources>
 

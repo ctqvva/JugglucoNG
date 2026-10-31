@@ -78,6 +78,23 @@ object DisplayTrendSource {
     }
 
     /**
+     * [historyPoints] cut at the reading [shown] presents. With Fewer readings on the current
+     * value, [CurrentDisplaySource.resolveCurrent] shows the last completed interval's reading,
+     * older than the newest stored one; an arrow or Δ beside that value must end there too.
+     * Only for surfaces that show [shown] itself, not ones that send the newest reading.
+     */
+    @JvmStatic
+    fun endingAtShown(
+        historyPoints: List<GlucosePoint>?,
+        shown: CurrentDisplaySource.Snapshot?
+    ): List<GlucosePoint> {
+        val history = historyPoints ?: return emptyList()
+        val shownAt = shown?.timeMillis ?: return history
+        if ((history.lastOrNull()?.timestamp ?: Long.MIN_VALUE) <= shownAt) return history
+        return history.filter { it.timestamp <= shownAt }
+    }
+
+    /**
      * The one point list every trend arrow regresses over: recent history plus
      * the live reading, cut to [TREND_WINDOW_MS] anchored at the newest point.
      *

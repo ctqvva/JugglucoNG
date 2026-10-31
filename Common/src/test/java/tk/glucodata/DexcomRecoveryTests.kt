@@ -23,6 +23,22 @@ class DexcomRecoveryTests {
         }
     }
 
+    @Test fun finishedOrInterruptedBackfillCopiesTheGapIntoRoom() {
+        val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            .first { File(it, "tools/test-dexcom-backfill-room-sync.py").isFile }
+        val output = File.createTempFile("dexcom-backfill-", ".log")
+        try {
+            val process = ProcessBuilder("python3", File(root, "tools/test-dexcom-backfill-room-sync.py").path)
+                .directory(root).redirectErrorStream(true).redirectOutput(output).start()
+            val finished = process.waitFor(60, TimeUnit.SECONDS)
+            if (!finished) process.destroyForcibly()
+            assertTrue("Dexcom backfill Room sync timed out: ${output.readText()}", finished)
+            assertEquals(output.readText(), 0, process.exitValue())
+        } finally {
+            output.delete()
+        }
+    }
+
     @Test fun nativeLifetimeAndScanPathsPreserveSensorRecords() {
         val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
             .first { File(it, "tools/test-dexcom-native.py").isFile }

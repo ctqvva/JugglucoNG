@@ -1,5 +1,7 @@
 package tk.glucodata.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
@@ -18,6 +20,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /**
@@ -33,6 +36,10 @@ import androidx.compose.ui.unit.dp
  * its expanded anchor stable while nested scrolling continues to work normally. Change
  * [contentKey] when one sheet instance swaps between layouts with fundamentally different
  * intrinsic heights.
+ *
+ * A sheet whose content animates its height passes the same [contentHeight] to
+ * [Modifier.animateSheetContentHeight]; otherwise the first frame after a [contentKey] change
+ * still shows the old, viewport-tall height and would lock the shorter layout at full height.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +58,7 @@ fun StableModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.windowInsets },
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
     contentKey: Any? = Unit,
+    contentHeight: SheetContentHeightAnimation? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val heightPolicy = remember(sheetState, contentKey) { StableSheetHeightPolicy() }
@@ -59,7 +67,7 @@ fun StableModalBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.stabilizeViewportHeight(heightPolicy, isImeVisible),
+        modifier = modifier.stabilizeViewportHeight(heightPolicy, isImeVisible, contentHeight),
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
@@ -84,23 +92,55 @@ internal class StableSheetHeightPolicy {
 
     /**
      * A short sheet can fill the reduced viewport while the keyboard is open. Do not mistake that
-     * temporary measurement for content that genuinely needs the full viewport.
+     * temporary measurement for content that genuinely needs the full viewport. The same goes for
+     * a frame of a height animation: only the height it settles on says what the content needs.
      */
     fun onMeasured(
         measuredHeight: Int,
         maxHeight: Int,
         hasBoundedHeight: Boolean,
         isImeVisible: Boolean,
+        isContentHeightSettled: Boolean = true,
     ) {
-        if (hasBoundedHeight && !isImeVisible && measuredHeight >= maxHeight) {
+        if (hasBoundedHeight && !isImeVisible && isContentHeightSettled && measuredHeight >= maxHeight) {
             isViewportHeightLocked = true
         }
     }
 }
 
+/**
+ * Records a content height animation's shown and target heights within one measure pass, so the
+ * sheet can tell an in-between frame from the height the content actually needs.
+ */
+class SheetContentHeightAnimation {
+    internal var shownHeight: Int = 0
+    internal var targetHeight: Int = 0
+
+    internal val isSettled: Boolean
+        get() = shownHeight == targetHeight
+}
+
+/** [animateContentSize] for a sheet's content, reporting its progress to [animation]. */
+fun Modifier.animateSheetContentHeight(
+    animation: SheetContentHeightAnimation,
+    animationSpec: FiniteAnimationSpec<IntSize>,
+): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        animation.shownHeight = placeable.height
+        layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+    }
+        .animateContentSize(animationSpec = animationSpec)
+        .layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            animation.targetHeight = placeable.height
+            layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+        }
+
 private fun Modifier.stabilizeViewportHeight(
     policy: StableSheetHeightPolicy,
     isImeVisible: Boolean,
+    contentHeight: SheetContentHeightAnimation?,
 ): Modifier =
     layout { measurable, constraints ->
         val minimumHeight = policy.minimumHeight(
@@ -118,6 +158,7 @@ private fun Modifier.stabilizeViewportHeight(
             maxHeight = constraints.maxHeight,
             hasBoundedHeight = constraints.hasBoundedHeight,
             isImeVisible = isImeVisible,
+            isContentHeightSettled = contentHeight?.isSettled ?: true,
         )
 
         layout(placeable.width, placeable.height) {

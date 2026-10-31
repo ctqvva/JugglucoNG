@@ -1,4 +1,5 @@
 import json
+import base64
 import os
 from pathlib import Path
 import shutil
@@ -16,6 +17,40 @@ SERVER = {'host': 'relay.example.invalid', 'port': 3478, 'username': 'test-user'
 
 
 class DistributionTurn(unittest.TestCase):
+    def test_optional_twilio_build_input_is_private_and_validated(self):
+        account = {'sid': 'AC' + 'a' * 32, 'auth_token': 'b' * 32}
+        with patch.dict(os.environ, {turn.TWILIO_ENVIRONMENT: json.dumps(account)}):
+            self.assertEqual(turn.load_twilio(), account)
+        for value in ('broken-secret', '{}', json.dumps(dict(account, auth_token='bad secret'))):
+            with patch.dict(os.environ, {turn.TWILIO_ENVIRONMENT: value}):
+                with self.assertRaises(ValueError) as error:
+                    turn.load_twilio()
+                self.assertNotIn('broken-secret', str(error.exception))
+                self.assertNotIn('bad secret', str(error.exception))
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            turn.generate([SERVER], directory, account)
+            path = directory / turn.TWILIO_HEADER
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertIn('TWILIOACCOUNT', path.read_text())
+            self.assertNotIn(account['auth_token'], path.read_text())
+            basic = base64.b64encode((account['sid'] + ':' + account['auth_token']).encode())
+            payload = b'\0'.join(SERVER[field].encode() for field in ('host', 'username', 'password')) + b'\0'
+            apk = directory / 'test.apk'
+            with zipfile.ZipFile(apk, 'w') as archive:
+                archive.writestr('lib/arm64-v8a/libg.so', payload)
+            with self.assertRaisesRegex(ValueError, 'Optional Twilio input missing'):
+                turn.verify_apk(apk, [SERVER], ['arm64-v8a'], account)
+            with zipfile.ZipFile(apk, 'w') as archive:
+                archive.writestr('lib/arm64-v8a/libg.so', payload + account['sid'].encode() + b'\0' + basic + b'\0')
+            turn.verify_apk(apk, [SERVER], ['arm64-v8a'], account)
+
+    def test_extended_pool_secret_takes_priority_without_replacing_legacy_input(self):
+        pool = [dict(SERVER, transport='tls', port=443)]
+        with patch.dict(os.environ, {turn.ENVIRONMENT: json.dumps([SERVER]),
+                                    turn.POOL_ENVIRONMENT: json.dumps(pool)}):
+            self.assertEqual(turn.load(), pool)
+
     def test_missing_empty_and_partial_inputs_fail_without_echoing_values(self):
         invalid = [None, '', 'secret-malformed-json', '{}', '[]', '[null]',
                    json.dumps([dict(SERVER, password='')]), json.dumps([dict(SERVER, username=' ')]),
@@ -24,7 +59,10 @@ class DistributionTurn(unittest.TestCase):
                    json.dumps([dict(SERVER, port=65536)]), json.dumps([dict(SERVER, port='3478')]),
                    json.dumps([dict(SERVER, accountToken='master-token')]),
                    json.dumps([dict(SERVER, password='bad\0secret')]),
-                   json.dumps([dict(SERVER, password='x' * 1025)]), json.dumps([SERVER] * 3)]
+                   json.dumps([dict(SERVER, password='x' * 1025)]), json.dumps([SERVER] * 17),
+                   json.dumps([dict(SERVER, transport='https')]),
+                   json.dumps([dict(SERVER, provider='bad provider')]),
+                   json.dumps([dict(SERVER, region='x' * 65)])]
         invalid.extend([json.dumps([dict(SERVER, host='turn://relay.invalid')]),
                         json.dumps([dict(SERVER, password='bad\ud800secret')])])
         for value in invalid:
@@ -55,6 +93,19 @@ class DistributionTurn(unittest.TestCase):
                 archive.writestr('lib/arm64-v8a/libg.so', payload)
             with self.assertRaisesRegex(ValueError, 'native library missing'):
                 turn.verify_apk(apk, servers, ['arm64-v8a', 'armeabi-v7a'])
+
+    def test_pool_accepts_sixteen_relays_and_generates_transport_metadata(self):
+        servers = [dict(SERVER, host=f'relay{i}.invalid', transport=('udp', 'tcp', 'tls')[i % 3],
+                        provider=f'provider{i % 3}', region='asia') for i in range(16)]
+        self.assertEqual(len(turn.configuration(json.dumps(servers))), 16)
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            turn.generate(servers, directory)
+            options = (directory / turn.OPTIONS_HEADER).read_text()
+            self.assertIn('TurnRelayTransport::Tls', options)
+            self.assertIn('TurnRelayTransport::Tcp', options)
+            self.assertEqual((directory / turn.OPTIONS_HEADER).stat().st_mode & 0o777, 0o600)
+            self.assertNotIn(SERVER['password'], options)
 
     @unittest.skipUnless(shutil.which('c++'), 'requires a C++ compiler')
     def test_production_header_selection_and_escaping_in_real_cpp(self):
@@ -116,6 +167,8 @@ int main() {
         for name in ('signed-build.yml', 'dev-build.yml'):
             workflow = (ROOT / '.github/workflows' / name).read_text()
             self.assertEqual(workflow.count('JUGGLUCO_TURN_SERVERS: ${{ secrets.CLONE_TURN_SERVERS_JSON }}'), 2)
+            self.assertEqual(workflow.count('JUGGLUCO_TURN_POOL: ${{ secrets.CLONE_TURN_POOL_JSON }}'), 2)
+            self.assertEqual(workflow.count('JUGGLUCO_TWILIO_ACCOUNT: ${{ secrets.CLONE_TWILIO_ACCOUNT_JSON }}'), 2)
 
 
 if __name__ == '__main__':

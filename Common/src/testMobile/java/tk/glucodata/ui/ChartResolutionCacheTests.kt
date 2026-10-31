@@ -14,7 +14,7 @@ class ChartResolutionCacheTests {
         viewMode: Int = 0,
         ownership: MainSensorOwnership = MainSensorOwnership.NONE,
     ) = ChartResolutionInputs(
-        data, MultiSensorDisplayData.EMPTY, smoothing, false, ownership,
+        data, MultiSensorDisplayData.EMPTY, smoothing, 0, ownership,
         calibrationRevision, viewMode, false, false, "A", 0,
     )
 

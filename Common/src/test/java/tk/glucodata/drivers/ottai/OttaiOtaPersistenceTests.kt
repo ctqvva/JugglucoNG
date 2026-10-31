@@ -60,10 +60,10 @@ class OttaiOtaPersistenceTests {
             }
             assertEquals(actualActivationTime, anchor.invoke(manager))
             assertTrue(OttaiConstants.isWithinWarmup(anchor.invoke(manager) as Long, now))
-            val confirm = OttaiBleManager::class.java.getDeclaredMethod("offerConfirmedActiveTime", Long::class.javaPrimitiveType)
+            val confirm = OttaiBleManager::class.java.getDeclaredMethod("offerConfirmedActiveTime", Long::class.javaPrimitiveType, Int::class.javaPrimitiveType)
                 .apply { isAccessible = true }
-            confirm.invoke(manager, actualActivationTime)
-            confirm.invoke(manager, actualActivationTime)
+            confirm.invoke(manager, actualActivationTime, 20)
+            confirm.invoke(manager, actualActivationTime, 21)
             assertEquals(actualActivationTime, OttaiRegistry.loadMaterials(context, id).activeTimeMs)
         } finally { manager.close() }
     }

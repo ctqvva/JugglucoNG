@@ -67,6 +67,8 @@ using namespace std::literals;
 #include "RecoveryWakeBridge.hpp"
 #include "net/makerandom.hpp"
 #include "BundledTurnServers.hpp"
+#include "TurnTokenResponse.hpp"
+#include "IceLogPrivacy.hpp"
 
 extern std::mutex turn_server_mutex;
 
@@ -97,7 +99,8 @@ ICEConfigSnapshot currentICEConfig() {
 
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
                      bool useTurnForStun, bool verifyRendezvousCertificate,
-                     bool useLocalDiscovery, bool preferIPv4) {
+                     bool useLocalDiscovery, bool preferIPv4,
+                     bool allowFallbackServers) {
     const std::lock_guard<std::mutex> lock(ice_config_mutex);
     ice_config.rendezvousHost=std::move(rendezvousHost);
     ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
@@ -105,14 +108,22 @@ void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
     ice_config.verifyRendezvousCertificate=verifyRendezvousCertificate;
     ice_config.useLocalDiscovery=useLocalDiscovery;
     ice_config.preferIPv4=preferIPv4;
+    ice_config.allowFallbackServers=allowFallbackServers;
     }
 
-RendezvousEndpoint resolveRendezvousEndpoint(std::string_view label) {
-    auto config=currentICEConfig();
-    if(config.rendezvousHost.empty())
-        config.rendezvousHost=std::string(hostnames[hostselect(label)]);
-    return {std::move(config.rendezvousHost),config.rendezvousPort,
-            config.verifyRendezvousCertificate};
+std::vector<RendezvousEndpoint> resolveRendezvousEndpoints(std::string_view label) {
+    const auto config=currentICEConfig();
+    // Without a custom server the configured port still applies to the
+    // public one, as before failover existed.
+    const uint16_t publicPort=config.rendezvousHost.empty()?config.rendezvousPort:6789;
+    // A custom server is used alone unless the user allows the public ones
+    // as fallback.
+    const bool usePublic=config.rendezvousHost.empty()||config.allowFallbackServers;
+    return buildRendezvousEndpoints(
+        {config.rendezvousHost,config.rendezvousPort,
+         config.verifyRendezvousCertificate},
+        usePublic?std::span<const std::string_view>(hostnames):std::span<const std::string_view>(),
+        static_cast<size_t>(hostselect(label)),publicPort);
     }
 
 ICEConnect::ICEConnect(int allindex,const passhost_t &host)
@@ -122,10 +133,12 @@ ICEConnect::ICEConnect(int allindex,const passhost_t &host)
     }
 
 void ICEConnect::reloadNetworkConfig(const passhost_t &host) {
-    auto endpoint=resolveRendezvousEndpoint(host.getICEname());
-    rendezvousHost=std::move(endpoint.host);
-    rendezvousPort=endpoint.port;
-    verifyRendezvousCertificate=endpoint.verifyCertificate;
+    rendezvousEndpoints=resolveRendezvousEndpoints(host.getICEname());
+    const auto &primary=rendezvousEndpoints.front();
+    rendezvousHost=primary.host;
+    rendezvousPort=primary.port;
+    verifyRendezvousCertificate=primary.verifyCertificate;
+    setActiveRendezvous(0);
     useLocalDiscovery=currentICEConfig().useLocalDiscovery;
     }
 #ifndef LOGGER
@@ -191,6 +204,7 @@ static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
                   juiceErrorString(result),result);
         return false;
         }
+    con->turnRelayRotation.answered(generation);
     if(auto local=con->currentLocalSignal())
         local->setAcceptedRemoteDescription(description);
     if(fromLocalNetwork) {
@@ -258,12 +272,28 @@ static bool waitForCurrentAgent(ICEConnect *con, juice_agent_t *agent, int secon
     return con->isCurrentAgent(agent)&&!con->endConnect.load();
     }
 
-static HTTPSRequestOptions rendezvousRequestOptions(ICEConnect *con) {
+static HTTPSRequestOptions rendezvousRequestOptions(
+        ICEConnect *con,const RendezvousEndpoint &endpoint,
+        const RendezvousAttempt *attempt=nullptr) {
     return {
         .timeoutMilliseconds=10000,
         .cancelled=con->currentRendezvousCancellation(),
-        .verifyCertificate=con->verifyRendezvousCertificate
+        .superseded=attempt?attempt->superseded:nullptr,
+        .verifyCertificate=endpoint.verifyCertificate
         };
+    }
+
+// jugglucoconnect holds GET /description (≤6 min), PUT /description (≤11 min),
+// GET /address and PUT /done (≤4 min) until the peer acts. Abandoning such a
+// request leaves its handler waiting; when it notices the closed socket it
+// erases the label's whole entry, and a re-PUT of the description erases it
+// too. Connecting stays bounded; the answer is awaited until cancellation.
+static HTTPSRequestOptions rendezvousLongPollOptions(
+        ICEConnect *con,const RendezvousEndpoint &endpoint,
+        const RendezvousAttempt *attempt=nullptr) {
+    auto options=rendezvousRequestOptions(con,endpoint,attempt);
+    options.responseTimeoutMilliseconds=12*60*1000;
+    return options;
     }
 
 bool ICEConnect::prepareRendezvousGeneration() {
@@ -541,8 +571,8 @@ static void startPeerGenerationWatch(
 }
 
 static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generation,
-                               std::string commonLabel,bool side,std::string hostname,
-                               uint16_t rendezvousPort) {
+                               std::string commonLabel,bool side,
+                               RendezvousEndpoint endpoint) {
    static std::string_view address{"/address"};
    CreateAgentData addressdata(commonLabel,side,"") ;
    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
@@ -559,8 +589,8 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
            LOGGERICE("getaddress host=%d gen=%llu\n",allindex,
                      static_cast<unsigned long long>(generation));
            auto response=ContextHTTPS::getContext().getRequest(
-               hostname,rendezvousPort,address,addressdata.getSpan(),{},
-               rendezvousRequestOptions(con));
+               endpoint.host,endpoint.port,address,addressdata.getSpan(),{},
+               rendezvousLongPollOptions(con,endpoint));
            LOGGERICE("getaddress response host=%d code=%d bytes=%zu\n",
                      allindex,response.second,response.first.size());
            return response;
@@ -606,8 +636,7 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
    const passhost_t &host= getBackupHosts()[allindex];
    const std::string commonLabel(host.getICEname());
    const bool side=host.side;
-   const std::string hostname(con->rendezvousHost);
-   const uint16_t rendezvousPort=con->rendezvousPort;
+   const auto endpoint=con->activeRendezvousEndpoint();
    // Keep one signaling transport authoritative for the whole ICE
    // generation. Mixing a rendezvous description with LAN candidates leaves
    // the rendezvous /address reader waiting for completion even after ICE is
@@ -623,9 +652,9 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
        if(!con->isCurrentAgent(agent,generation))
            return;
        auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-           hostname,rendezvousPort,address,
+           endpoint.host,endpoint.port,address,
            std::span((const char *)sdpdata.data(),sdpdata.size()),{},
-           rendezvousRequestOptions(con));
+           rendezvousRequestOptions(con,endpoint));
        if(!con->isCurrentAgent(agent,generation))
            return;
        if(code==200) {
@@ -655,8 +684,7 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
     const passhost_t &host= getBackupHosts()[allindex];
     const std::string commonLabel(host.getICEname());
     const bool side=host.side;
-    const std::string hostname(con->rendezvousHost);
-    const uint16_t rendezvousPort=con->rendezvousPort;
+    const auto endpoint=con->activeRendezvousEndpoint();
     // Candidate completion must use the same signaling transport as the
     // description. Otherwise a rendezvous reader can remain blocked while a
     // LAN-only completion message is sent to the peer.
@@ -667,7 +695,7 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
         }
     CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
     std::vector<char> doneBody(body.data(),body.data()+body.size());
-    std::thread th{[allindex,agent,generation,commonLabel,side,hostname,rendezvousPort,
+    std::thread th{[allindex,agent,generation,commonLabel,side,endpoint,
                     doneBody=std::move(doneBody)] {
         LOGGERICE("Gathering done %s %d\n",commonLabel.data(),side);
         ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
@@ -679,8 +707,8 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
             return;
         while(true) {
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                hostname,rendezvousPort,done,doneBody,{},
-                rendezvousRequestOptions(con));
+                endpoint.host,endpoint.port,done,doneBody,{},
+                rendezvousLongPollOptions(con,endpoint));
             if(!con->isCurrentAgent(agent,generation))
                 return;
             if(code==200) {
@@ -819,6 +847,12 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
         case JUICE_STATE_CONNECTED: {
             setConnectTime(allindex,0);
             con->setConnected();
+            con->rendezvousExchangedUnconnected=false;
+            con->turnRelayRotation.connected(con->currentAgentGeneration());
+            if(!con->remoteDescriptionWasLocal.load()&&
+               con->activeRendezvousIndex.load(std::memory_order_acquire)==0&&
+               con->rendezvousEscalated.exchange(false))
+                LOGGERICE("allindex=%d rendezvous: primary server recovered\n",allindex);
             con->connectTime=time(nullptr);
             refreshSelectedCloneTransport(con,agent);
             if(auto local=con->currentLocalSignal())
@@ -863,12 +897,11 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             refreshSelectedCloneTransport(con,agent);
             break;
         case JUICE_STATE_FAILED: {
+            con->turnRelayRotation.failedAttempt(con->currentAgentGeneration());
             con->selectedCloneTransport.store(clone_transport_unknown);
             const std::string commonLabel(host.getICEname());
             const bool side=host.side;
-            const std::string hostname(con->rendezvousHost);
-            const uint16_t rendezvousPort=con->rendezvousPort;
-            const bool verifyCertificate=con->verifyRendezvousCertificate;
+            const auto endpoint=con->activeRendezvousEndpoint();
             CreateAgentData body(commonLabel,side,con->sdp,con->sdplen);
             std::vector<char> failureBody(body.data(),body.data()+body.size());
 
@@ -882,14 +915,14 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             con->wakeReceiver=true;
             con->receiveThreadCon.notify_one();
             }
-            std::thread th{[commonLabel,side,hostname,rendezvousPort,verifyCertificate,
+            std::thread th{[commonLabel,side,endpoint,
                             failureBody=std::move(failureBody)] {
                 std::string_view failure{"/failure"sv};
                 for(int i=0;i<3;++i) {
                     auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                        hostname,rendezvousPort,failure,
+                        endpoint.host,endpoint.port,failure,
                         std::span(failureBody.data(),failureBody.size()),{},
-                        {.verifyCertificate=verifyCertificate});
+                        {.verifyCertificate=endpoint.verifyCertificate});
                     if(code==200) {
                         LOGGERICE("%s %d: OK FAILURE\n",commonLabel.data(),side);
                         return;
@@ -1077,6 +1110,10 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
     }
 }
 static  void juice_logger(juice_log_level_t level, const char *message) {
+        if(message&&iceLogContainsCredentials(message)) {
+            LOGGER("libjuice%d: credential details omitted\n",level);
+            return;
+            }
         if(message) {
             LOGGER("libjuice%d: %s\n",level,message);
             }
@@ -1096,143 +1133,88 @@ class initJuice {
          };
      };
 
-static std::pair<const char *,const char *> getloginpass(char *twiliooutput,const int len) {
-     char *endstr=twiliooutput+len;
-     char *startsearch=twiliooutput+(len>300?len-300:0);
-    std::string_view  password{R"("password": ")"};
-    if(auto *pos=std::search(startsearch,endstr,&password[0],password.end());pos!=endstr) {
-        char *pass=pos+password.size();
-        char *endpass=std::find(pass,endstr,'"');
-        if(endpass==endstr) {
-                LOGAR(R"(ERROR: password no ending ")");
-                return {};
-                }
-        *endpass++='\0';
-        std::string_view  username{R"("username": ")"};
-        if(auto *pos=std::search(startsearch,endstr,&username[0],username.end());pos!=endstr) {
-            char *user=pos+username.size();
-            char *enduser=std::find(user,endstr,'"');
-            if(enduser==endstr) {
-                    LOGAR(R"(ERROR username no ending ")");
-                    return {};
-                    }
-            *enduser++='\0';
-            return {user,pass};
-            }
-        }
-     return {};
-    }
-#if !defined(JUGGLUCO_DISTRIBUTION) && __has_include("twilio.local.hpp")
+#if defined(JUGGLUCO_DISTRIBUTION) && __has_include("distribution-twilio.hpp")
+#include "distribution-twilio.hpp"
+#define JUGGLUCO_HAS_TWILIO_TOKEN 1
+#elif !defined(JUGGLUCO_DISTRIBUTION) && __has_include("twilio.local.hpp")
 #include "twilio.local.hpp"
 #define JUGGLUCO_HAS_TWILIO_TOKEN 1
 #else
 #define JUGGLUCO_HAS_TWILIO_TOKEN 0
 #endif
-// twilio.local.hpp can define:
-// #define TWILIOACCOUNT  // TWILIO_ACCOUNT_SID
-// #define USERPASSBASE64 // base64 TWILIO_ACCOUNT_SID:TWILIO_AUTH_TOKEN
-extern time_t oldTwilioTimes;
-time_t oldTwilioTimes=
+
+static std::vector<TurnRelay> twilioTurnRelays() {
 #if JUGGLUCO_HAS_TWILIO_TOKEN
-0;
+    // Token issuance is optional and bounded. A failed / expired account must
+    // never remove the independently provisioned static relays from the pool.
+    // Construct the shared TLS context before the worker owner, so shutdown
+    // joins a pending request before destroying the context it uses.
+    auto &context=ContextHTTPS::getContext();
+    struct Cache {
+        std::mutex mutex;
+        std::optional<TurnToken> token;
+        int64_t expires=0,refresh=0,nextTry=0;
+        bool fetching=false;
+        std::jthread request;
+    };
+    static Cache cache;
+    std::lock_guard lock(cache.mutex);
+    const auto now=elapsedRealtimeMilliseconds();
+    if(now>=cache.refresh&&now>=cache.nextTry&&!cache.fetching) {
+        cache.fetching=true;
+        cache.nextTry=now+60000;
+        cache.request=std::jthread([&context,now] {
+            constexpr std::string_view path="/2010-04-01/Accounts/" TWILIOACCOUNT "/Tokens.json";
+            constexpr std::string_view authorization="\r\nAuthorization: Basic " USERPASSBASE64
+                                                    "\r\nContent-Type: application/x-www-form-urlencoded";
+            constexpr std::string_view input="Ttl=86400";
+            auto [body,code]=context.postRequest(
+                "api.twilio.com",443,path,{input.data(),input.size()},authorization,
+                {.timeoutMilliseconds=4000});
+            std::lock_guard finished(cache.mutex);
+            if(code==201) {
+                auto replacement=TurnTokenReader({body.data(),body.size()}).read();
+                if(replacement) {
+                    cache.token=std::move(replacement);
+                    cache.expires=now+static_cast<int64_t>(cache.token->ttlSeconds)*1000;
+                    cache.refresh=cache.expires-std::min<int64_t>(3600000,cache.token->ttlSeconds*1000/4);
+                } else LOGARICE("Twilio token response invalid; keeping independent static relays");
+            } else {
+                LOGGERICE("Twilio token request unavailable HTTP=%d; keeping independent static relays\n",code);
+            }
+            cache.fetching=false;
+        });
+    }
+    if(!cache.token||now>=cache.expires) return {};
+    const auto &token=cache.token;
+    std::vector<TurnRelay> relays{{"global.turn.twilio.com",token->username,token->password,3478,
+             TurnRelayTransport::Udp,"twilio","global"},
+            {"global.turn.twilio.com",token->username,token->password,443,
+             TurnRelayTransport::Tls,"twilio","global"},
+            {"global.turn.twilio.com",token->username,token->password,3478,
+             TurnRelayTransport::Tcp,"twilio","global"}};
+    // Global uses latency-based routing. Explicit edges provide independent
+    // routes when that selected edge / route is unavailable. These region
+    // names and TLS port are documented by Twilio's NTS API / regions pages.
+    for(const char *region:{"frankfurt","dublin","ashburn","umatilla","singapore",
+                            "tokyo","mumbai","sydney","sao-paulo"})
+        relays.push_back({std::string(region)+".turn.twilio.com",token->username,
+                          token->password,443,TurnRelayTransport::Tls,"twilio",region});
+    return relays;
 #else
-std::numeric_limits<time_t>::max();
+    return {};
 #endif
-
-static bool isTwilioTurnServer(const juice_turn_server_t &server) {
-    return turnTextPresent(server.host)&&!strcmp(server.host,"global.turn.twilio.com");
-    }
-
-#if JUGGLUCO_HAS_TWILIO_TOKEN
-static void refreshTwilioTurnCredentials(juice_turn_server_t *servers,int servercount) {
-    bool hasTwilio=false;
-    for(int i=0;i<servercount;++i) {
-        if(isTwilioTurnServer(servers[i])) {
-            hasTwilio=true;
-            break;
-            }
-        }
-    if(!hasTwilio) {
-        oldTwilioTimes=std::numeric_limits<time_t>::max();
-        return;
-        }
-    static std::mutex mut;
-    std::lock_guard<std::mutex> lck(mut);
-    auto now=time(nullptr);
-    if(now<oldTwilioTimes)
-        return;
-    const auto url{"https://api.twilio.com/2010-04-01/Accounts/" TWILIOACCOUNT  "/Tokens.json"sv};
-    const std::span<const char> input{(const char *)nullptr,0};
-    const std::string_view header{"\r\nAuthorization: Basic " USERPASSBASE64 };
-    auto [resbody,code]=ContextHTTPS::getContext().postRequest("api.twilio.com",443,url,input,header);
-    if(code==201) {
-        auto [user,pass]=getloginpass(resbody.data(),resbody.size());
-        if(turnTextPresent(user)&&turnTextPresent(pass)) {
-            static std::string username;
-            static std::string password;
-            username=user;
-            password=pass;
-            for(int i=0;i<servercount;++i) {
-                if(isTwilioTurnServer(servers[i])) {
-                    servers[i].username=username.data();
-                    servers[i].password=password.data();
-                    }
-                }
-            oldTwilioTimes=now+24*60*60;
-            LOGAR("TWILIO: refreshed TURN credentials");
-            return;
-            }
-        LOGAR("TWILIO ERROR: missing username/password in token response");
-        }
-    else {
-        LOGGER("TWILIO ERROR: code=%d\n",code);
-        }
-    oldTwilioTimes=now+15*60;
-    }
-#else
-static void refreshTwilioTurnCredentials(juice_turn_server_t *,int) {
-    }
-#endif
-
-static std::vector<juice_turn_server_t> usableDefaultTurnServers(juice_turn_server_t *servers,int servercount) {
-    std::vector<juice_turn_server_t> usable;
-    usable.reserve(servercount);
-    for(int i=0;i<servercount;++i) {
-        auto &server=servers[i];
-        if(!turnTextPresent(server.host)) {
-            continue;
-            }
-        if(!hasTurnCredentials(server)) {
-            LOGGER("createAgent: skipping TURN server %s without credentials\n",server.host);
-            continue;
-            }
-        usable.push_back(server);
-        }
-    return usable;
-    }
-
-bool shouldRecreateAgentsForTurnRefresh() {
-#if JUGGLUCO_HAS_TWILIO_TOKEN
-    auto *data=backup?backup->getupdatedata():nullptr;
-    const std::lock_guard<std::mutex> lock(turn_server_mutex);
-    if(data&&data->NRturnserver&&data->turnserver[0].hostname[0])
-        return false;
-    return time(nullptr)>oldTwilioTimes;
-#else
-    return false;
-#endif
-    }
+}
 
 juice_agent *createAgent(int allindex) {
     static initJuice el;
     LOGGER("createAgent(%d)\n",allindex);
               
-    static auto default_turn_servers=std::to_array(bundledTurnServers);
+    static constexpr auto &default_turn_servers=bundledTurnServers;
     static constexpr int defaultservercount=std::size(bundledTurnServers);
     const juice_turn_server_t *turn_servers;
     int servercount;
 
-    juice_turn_server_t conf_server;
     std::string configured_turn_host;
     std::string configured_turn_username;
     std::string configured_turn_password;
@@ -1254,23 +1236,48 @@ juice_agent *createAgent(int allindex) {
             updatedata->NRturnserver=0;
             }
         }
-    if(has_configured_turn) {
-        conf_server.host=configured_turn_host.c_str();
-        conf_server.username=configured_turn_username.c_str();
-        conf_server.password=configured_turn_password.c_str();
-        conf_server.port=configured_turn_port;
-        servercount=1;
-        turn_servers=&conf_server;
-        }
-    else {
-        refreshTwilioTurnCredentials(default_turn_servers.data(),defaultservercount);
-        usable_turn_servers=usableDefaultTurnServers(default_turn_servers.data(),defaultservercount);
-        servercount=static_cast<int>(usable_turn_servers.size());
-        turn_servers=servercount?usable_turn_servers.data():nullptr;
-        }
-    LOGGER("createAgent: %d usable TURN servers (%s)\n",servercount,
-           has_configured_turn?"user configured":"bundled");
     const auto networkConfig=currentICEConfig();
+    // A custom relay is used alone unless the user allows the app's relays as
+    // fallback; then it stays in every selection and the backups rotate.
+    const bool useBundled=!has_configured_turn||networkConfig.allowFallbackServers;
+    std::vector<TurnRelay> pool;
+    if(has_configured_turn)
+        appendTurnRelay(pool,{configured_turn_host,configured_turn_username,
+                            configured_turn_password,configured_turn_port,
+                            TurnRelayTransport::Udp,"custom",""},true);
+    if(useBundled) {
+        for(int i=0;i<defaultservercount;++i) {
+            const auto &server=default_turn_servers[i];
+            const auto &options=bundledTurnOptions[i];
+            if(!turnTextPresent(server.host)||!hasTurnCredentials(server)) continue;
+            appendTurnRelay(pool,{server.host,server.username,server.password,server.port,
+                                options.transport,options.provider,options.region});
+            }
+        for(auto &relay:twilioTurnRelays()) appendTurnRelay(pool,std::move(relay));
+        }
+    auto *connection=static_cast<ICEConnect *>(connections[allindex]);
+    auto selected=connection->turnRelayRotation.select(pool,connection->currentAgentGeneration(),
+                                                       has_configured_turn);
+    for(const auto &relay:selected) {
+        LOGGERICE("TURN choice %s:%u transport=%d provider=%s region=%s\n",
+                  relay.host.c_str(),relay.port,static_cast<int>(relay.transport),
+                  relay.provider.c_str(),relay.region.c_str());
+        juice_turn_server_t server{relay.host.c_str(),relay.username.c_str(),
+                                   relay.password.c_str(),relay.port};
+        if(relay.transport!=TurnRelayTransport::Udp) {
+            auto stream=TurnStreamRelay::start(relay.host,relay.port,
+                                              relay.transport==TurnRelayTransport::Tls);
+            if(!stream) continue;
+            server.host="127.0.0.1";
+            server.port=stream->loopbackPort();
+            connection->turnStreams.push_back(std::move(stream));
+            }
+        usable_turn_servers.push_back(server);
+        }
+    servercount=static_cast<int>(usable_turn_servers.size());
+    turn_servers=servercount?usable_turn_servers.data():nullptr;
+    LOGGER("createAgent: %d active TURN relays from %zu configured and bundled choices\n",
+           servercount,pool.size());
     const bool useConfiguredTurnForStun=
         networkConfig.useTurnForStun&&has_configured_turn;
     if(networkConfig.useTurnForStun&&!has_configured_turn)
@@ -1314,62 +1321,96 @@ static_assert(shouldPublishDescriptionLocally(givefirst,false));
 static_assert(shouldPublishDescriptionLocally(!givefirst,true));
 static_assert(!shouldPublishDescriptionLocally(!givefirst,false));
 
-static bool waitonDescription(juice_agent *agent,int allindex,std::string_view commonLabel,int side,
-                              std::string_view hostname,uint16_t rendezvousPort) {
+// Waits like waitForCurrentAgent(), but also stops when another server has
+// already won this negotiation.
+static bool waitForAttempt(ICEConnect *con,juice_agent_t *agent,
+                           const RendezvousAttempt &attempt,int seconds) {
+    const int64_t deadline=elapsedRealtimeMilliseconds()+
+                           static_cast<int64_t>(std::max(seconds,0))*1000;
+    while(con->isCurrentAgent(agent)&&!con->endConnect.load()&&
+          !attempt.isSuperseded()) {
+        const int64_t remaining=deadline-elapsedRealtimeMilliseconds();
+        if(remaining<=0)
+            break;
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(std::min<int64_t>(remaining,250)));
+        }
+    return con->isCurrentAgent(agent)&&!con->endConnect.load()&&
+           !attempt.isSuperseded();
+    }
+
+static RendezvousAttemptResult stoppedAttempt(const RendezvousAttempt &attempt) {
+    return attempt.isSuperseded()?RendezvousAttemptResult::Lost
+                                 :RendezvousAttemptResult::Failed;
+    }
+
+// Side 1: fetch the offer from one server. Won means it was applied from here.
+static RendezvousAttemptResult waitonDescription(
+        juice_agent *agent,int allindex,std::string_view commonLabel,int side,
+        const RendezvousEndpoint &endpoint,RendezvousAttempt &attempt) {
     ICEConnect *con=currentICEConnection(allindex,agent);
     if(!con)
-        return false;
+        return RendezvousAttemptResult::Failed;
     const uint64_t generation=con->currentAgentGeneration();
     CreateAgentData sdpdata(commonLabel,side,"");
-    LOGGERICE("getdescription %s\n",sdpdata.data());
+    LOGGERICE("getdescription %s via %s\n",sdpdata.data(),endpoint.host.c_str());
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("getdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
-        return false;
+        return RendezvousAttemptResult::Failed;
     }
     while(true) {
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
-            return false;
+            return RendezvousAttemptResult::Failed;
         if(con->remoteDescriptionWasLocal.load()) {
             con->beginRendezvous();
-            return true;
+            return RendezvousAttemptResult::Lost;
             }
+        if(attempt.isSuperseded()||con->remoteDescriptionSet.load())
+            return RendezvousAttemptResult::Lost;
         auto [resbody,code]=ContextHTTPS::getContext().getRequest(
-            hostname,rendezvousPort,description,sdpdata.getSpan(),{},
-            rendezvousRequestOptions(con));
+            endpoint.host,endpoint.port,description,sdpdata.getSpan(),{},
+            rendezvousLongPollOptions(con,endpoint,&attempt));
         if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
-            return false;
+            return RendezvousAttemptResult::Failed;
         if(con->remoteDescriptionWasLocal.load()) {
             con->beginRendezvous();
-            return true;
+            return RendezvousAttemptResult::Lost;
             }
+        if(attempt.isSuperseded())
+            return RendezvousAttemptResult::Lost;
         if(code== 200) {
             if(resbody.size()>= (sizeof(BackDescription )+20)) {
                 const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
                 LOGGERICE("getdescription SUCCESS: %s %d: Remote description in:\n%*.s\n",commonLabel.data(),side,resbody.size()-offsetof(BackDescription,description),other->description);
                 if(applyRemoteDescription(allindex,agent,generation,
                                           other->description,false))
-                    return true;
+                    return RendezvousAttemptResult::Won;
+                if(con->remoteDescriptionSet.load())
+                    return RendezvousAttemptResult::Lost;
                 }
              else {
                 LOGGERICE("getdescription failure %s size=%d: getdescription Remote small body in :\n%.*s\n",commonLabel.data(),(int)resbody.size(),(int)resbody.size(),(const char *)resbody.data());
-                if(!waitForCurrentAgent(con,agent,1))
-                    return false;
+                if(!waitForAttempt(con,agent,attempt,1))
+                    return stoppedAttempt(attempt);
                 }
             }
          else {
-            LOGGERICE("getdescription failure %s %d: %s returns code=%d\n",commonLabel.data(),side,sdpdata.data(),code); 
-            if(!waitForCurrentAgent(con,agent,5))
-                return false;
+            if(code<0)
+                attempt.connectFailures.fetch_add(1,std::memory_order_release);
+            LOGGERICE("getdescription failure %s %d: %s via %s returns code=%d\n",commonLabel.data(),side,sdpdata.data(),endpoint.host.c_str(),code);
+            if(!waitForAttempt(con,agent,attempt,5))
+                return stoppedAttempt(attempt);
             }
         const auto lastfailedtime=getConnectTime(allindex);
         if(lastfailedtime&&(time(nullptr)-lastfailedtime)>maxconnectionunused)
             setConnectTime(allindex,time(nullptr));
         }
-//    return false;
     }
-static  bool putDescription(int allindex,juice_agent *agent,std::string_view commonLabel,bool side,
-                            std::string_view hostname,uint16_t rendezvousPort)  {
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+
+// Reads our description once per agent. libjuice makes the agent that asks
+// first controlling, so side 1 must only do this after applying the offer.
+static bool prepareLocalDescription(ICEConnect *con,juice_agent *agent,
+                                    std::string_view commonLabel,bool side) {
     if(const int error=juice_get_local_description(agent, con->sdp, JUICE_MAX_SDP_STRING_LEN);JUICE_ERR_SUCCESS!=error) {
         LOGGERICE("%s %d: juice_get_local_description failed: %s (%d)\n",commonLabel.data(),side,juiceErrorString(error),error);
         return  false;
@@ -1383,30 +1424,56 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
         if(auto local=con->currentLocalSignal())
             local->publishDescription({con->sdp,static_cast<size_t>(con->sdplen)});
         }
+    return true;
+    }
+
+// Side 0: offer on one server; Won when its answer was applied from here.
+// Side 1: answer on the server that delivered the offer.
+static RendezvousAttemptResult putDescription(
+        int allindex,juice_agent *agent,std::string_view commonLabel,bool side,
+        const RendezvousEndpoint &endpoint,RendezvousAttempt &attempt)  {
+    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
     CreateAgentData sdpdata(commonLabel,side,con->sdp,con->sdplen);
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("putdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
-        return false;
+        return RendezvousAttemptResult::Failed;
     }
     const uint64_t generation=con->currentAgentGeneration();
+    // Side 1 has already applied this server's offer, so no other server can
+    // take over the exchange. If the answer cannot be delivered here, restart
+    // the negotiation (keeping every server in play) instead of retrying.
+    constexpr int maxAnswerTries=3;
+    int answerFailures=0;
+    const auto answerUndeliverable=[&](bool rejected=false) {
+        if(side==givefirst||(!rejected&&++answerFailures<maxAnswerTries))
+            return false;
+        con->rendezvousEscalated=true;
+        restartRejectedNegotiation(con,agent,generation,allindex,
+                                   "answer could not be delivered");
+        return true;
+    };
     while(true) {
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
-                return false;
+                return RendezvousAttemptResult::Failed;
             if(con->remoteDescriptionWasLocal.load()) {
                 con->beginRendezvous();
-                return true;
+                return RendezvousAttemptResult::Lost;
                 }
-            LOGGERICE("putdescription: %s %d: Local description:\n%s\n",commonLabel.data(),side, con->sdp);
+            if(attempt.isSuperseded())
+                return RendezvousAttemptResult::Lost;
+            LOGGERICE("putdescription: %s %d via %s: Local description:\n%s\n",commonLabel.data(),side,endpoint.host.c_str(), con->sdp);
             auto [resbody,code]=ContextHTTPS::getContext().putRequest(
-                hostname,rendezvousPort,description,
+                endpoint.host,endpoint.port,description,
                 std::span((const char *)sdpdata.data(),sdpdata.size()),{},
-                rendezvousRequestOptions(con));
+                rendezvousLongPollOptions(con,endpoint,&attempt));
             if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
-                return false;
+                return RendezvousAttemptResult::Failed;
             if(con->remoteDescriptionWasLocal.load()) {
                 con->beginRendezvous();
-                return true;
+                return RendezvousAttemptResult::Lost;
                 }
+            if(attempt.isSuperseded())
+                return RendezvousAttemptResult::Lost;
             if(code==200) {
                 if(resbody.size()>= (sizeof(BackDescription )+20)) {
                     const BackDescription *other=reinterpret_cast<const BackDescription *>(resbody.data());
@@ -1414,28 +1481,97 @@ static  bool putDescription(int allindex,juice_agent *agent,std::string_view com
                     if(side!=givefirst||
                        applyRemoteDescription(allindex,agent,generation,
                                               other->description,false))
-                        return true;
+                        return RendezvousAttemptResult::Won;
+                    if(con->remoteDescriptionSet.load())
+                        return RendezvousAttemptResult::Lost;
                     }
                  else {
                     LOGGERICE("putdescription: %s %d: Remote small body in :\n%s\n",commonLabel.data(),side,(const char *)resbody.data());
-                    if(!waitForCurrentAgent(con,agent,1))
-                        return false;
+                    if(answerUndeliverable())
+                        return RendezvousAttemptResult::Failed;
+                    if(!waitForAttempt(con,agent,attempt,1))
+                        return stoppedAttempt(attempt);
                     }
                 }
              else if(code==400) {
-                LOGGERICE("putdescription: %s %d: generation rejected\n",commonLabel.data(),side);
-                return false;
+                LOGGERICE("putdescription: %s %d via %s: generation rejected\n",commonLabel.data(),side,endpoint.host.c_str());
+                // Side 1 cannot switch servers after accepting an offer. A
+                // terminal rejection must also stop the other held polls.
+                answerUndeliverable(true);
+                return RendezvousAttemptResult::Failed;
                 }
              else {
-                LOGGERICE("putdescription: %s %d: Http error\n",commonLabel.data(),side);
-                if(!waitForCurrentAgent(con,agent,5))
-                    return false;
+                if(code<0)
+                    attempt.connectFailures.fetch_add(1,std::memory_order_release);
+                LOGGERICE("putdescription: %s %d via %s: Http error\n",commonLabel.data(),side,endpoint.host.c_str());
+                if(answerUndeliverable())
+                    return RendezvousAttemptResult::Failed;
+                if(!waitForAttempt(con,agent,attempt,5))
+                    return stoppedAttempt(attempt);
                 }
 
         const auto lastfailedtime=getConnectTime(allindex);
         if(lastfailedtime&&(time(nullptr)-lastfailedtime)>maxconnectionunused)
             setConnectTime(allindex,time(nullptr));
         }
+    }
+
+// Exchanges descriptions on the primary server, bringing in the others once
+// it struggles. Returns false when no server and no LAN peer delivered.
+static bool exchangeDescriptions(ICEConnect *con,juice_agent *agent,int allindex,
+                                 std::string_view commonLabel,bool side,
+                                 uint64_t generation) {
+    if(side==givefirst&&!prepareLocalDescription(con,agent,commonLabel,side))
+        return false;
+    con->phase=side!=givefirst?GetDescription:PutDescription;
+    const auto &endpoints=con->rendezvousEndpoints;
+    const bool startEscalated=con->rendezvousEscalated.load()||
+                              con->rendezvousExchangedUnconnected.load();
+    const auto outcome=raceRendezvous(endpoints.size(),startEscalated,
+        [&](size_t index,RendezvousAttempt &attempt) {
+            const auto &endpoint=endpoints[index];
+            if(side!=givefirst) {
+                const auto offer=waitonDescription(agent,allindex,commonLabel,
+                                                   side,endpoint,attempt);
+                if(offer!=RendezvousAttemptResult::Won)
+                    return offer;
+                // Only the attempt that applied the offer gets here.
+                if(!prepareLocalDescription(con,agent,commonLabel,side))
+                    return RendezvousAttemptResult::Failed;
+                con->phase=PutDescription;
+                }
+            return putDescription(allindex,agent,commonLabel,side,endpoint,attempt);
+        },
+        [&] {
+            return con->isCurrentAgent(agent,generation)&&!con->endConnect.load()&&
+                   !con->remoteDescriptionWasLocal.load();
+        },
+        [] { return elapsedRealtimeMilliseconds(); },
+        [] { std::this_thread::sleep_for(std::chrono::milliseconds(250)); },
+        [&] {
+            LOGGERICE("rendezvous %s %d: %s struggling, also trying %zu more server(s)\n",
+                      commonLabel.data(),side,endpoints.front().host.c_str(),
+                      endpoints.size()-1);
+        });
+    if(outcome.escalated)
+        con->rendezvousEscalated=true;
+    if(!con->isCurrentAgent(agent,generation)||con->endConnect.load())
+        return false;
+    if(outcome.winner) {
+        con->setActiveRendezvous(*outcome.winner);
+        con->rendezvousExchangedUnconnected=true;
+        LOGGERICE("rendezvous %s %d: descriptions exchanged via %s\n",commonLabel.data(),
+                  side,endpoints[*outcome.winner].host.c_str());
+        return true;
+        }
+    if(con->remoteDescriptionWasLocal.load()) {
+        if(side!=givefirst&&!prepareLocalDescription(con,agent,commonLabel,side))
+            return false;
+        con->beginRendezvous();
+        return true;
+        }
+    LOGGERICE("rendezvous %s %d: no server completed the exchange\n",commonLabel.data(),side);
+    return false;
     }
 
 
@@ -1464,28 +1600,19 @@ bool initAgent(juice_agent *agent,int allindex) {
         }
     startPeerGenerationWatch(con,agent,allindex,commonLabel,side,hostname,
                              rendezvousPort);
-    if(side!=givefirst) {
-        con->phase=GetDescription;
-        if(!waitonDescription(agent,allindex,commonLabel,side,hostname,rendezvousPort)) {
-           LOGGERICE("initAgent %s %d: waitonDescription failed\n",commonLabel.data(),side);
-            return false;
+    const uint64_t generation=con->currentAgentGeneration();
+    if(!exchangeDescriptions(con,agent,allindex,commonLabel,side,generation)) {
+        LOGGERICE("initAgent %s %d: description exchange failed\n",commonLabel.data(),side);
+        return false;
         }
-      if(!stillworking(allindex))
-        return false;
-      }
-    con->phase=PutDescription;
-    if(!putDescription(allindex,agent, commonLabel, side,hostname,rendezvousPort)) {
-        LOGGERICE("initAgent %s %d: putDescription failed\n",commonLabel.data(),side);
-        return false;
-         }
     if(!stillworking(allindex))
         return false;
 
-    std::optional<std::jthread> receive;
-    if(!con->remoteDescriptionWasLocal.load()) {
-        receive.emplace(getAddressesThread,agent,allindex,
-                        con->currentAgentGeneration(),std::string(commonLabel),side,
-                        hostname,rendezvousPort);
+    const bool readCandidates=!con->remoteDescriptionWasLocal.load();
+    if(readCandidates) {
+        con->startCandidateReader(getAddressesThread,agent,allindex,generation,
+                                  std::string(commonLabel),side,
+                                  con->activeRendezvousEndpoint());
         }
     LOGGERICE("initAgent %s %d: Before juice_gather_candidates\n",commonLabel.data(),side);
     con->phase=GatherCandidates;
@@ -1493,5 +1620,17 @@ bool initAgent(juice_agent *agent,int allindex) {
     if(con->endConnect.load()||!stillworking(allindex))
         return false;
     LOGGERICE("initAgent %s %d: After juice_gather_candidates(%p)=%d\n",commonLabel.data(),side,agent,ret);
-    return ret==JUICE_ERR_SUCCESS;
+    if(ret!=JUICE_ERR_SUCCESS)
+        return false;
+    // Callers shake hands as soon as this returns, so keep negotiating until
+    // the START handshake has run (startDone) or the reader has ended. The
+    // server may hold /address longer, until the peer's /done arrives; that
+    // tail runs on in the background instead of delaying Clone reception.
+    if(readCandidates) {
+        while(!con->candidateReaderFinished.load(std::memory_order_acquire)&&
+              con->startDone.test()&&con->isCurrentAgent(agent,generation)&&
+              !con->endConnect.load())
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+    return true;
   }
