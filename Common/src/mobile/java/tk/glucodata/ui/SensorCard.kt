@@ -409,6 +409,7 @@ fun SensorCard(
     val hideCalibration = childFriendlyModeSettings.hideCalibration
     val hideSensorReset = childFriendlyModeSettings.hideSensorReset
     val hideAdvancedSensor = childFriendlyModeSettings.hideAdvancedSensor
+    val hideDataClearing = childFriendlyModeSettings.hideDataClearing
     var showTerminateDialog by remember { mutableStateOf(false) }
     var unbindAiDexChecked by remember(sensor.serial, sensor.isVendorPaired) {
         mutableStateOf(sensor.isVendorPaired)
@@ -686,13 +687,15 @@ fun SensorCard(
                 text = {
                     Column {
                         Text(stringResource(R.string.disconnect_sensor_desc))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = removeHistoryChecked,
-                                onCheckedChange = { removeHistoryChecked = it }
-                            )
-                            Text(stringResource(R.string.remove_sensor_history))
+                        if (!hideDataClearing) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = removeHistoryChecked,
+                                    onCheckedChange = { removeHistoryChecked = it }
+                                )
+                                Text(stringResource(R.string.remove_sensor_history))
+                            }
                         }
                         if (sensor.vendor == SensorVendor.OTTAI) {
                             Row(
@@ -725,10 +728,14 @@ fun SensorCard(
                 },
                 confirmButton = {
                     TextButton(onClick = {
+                        // Recheck at confirmation: an already checked box must not bypass
+                        // protection enabled while the dialog was open.
+                        val removeHistory = removeHistoryChecked &&
+                            !ChildFriendlyMode.settings(context).hideDataClearing
                         val removed = if (sensor.vendor == SensorVendor.OTTAI) {
-                            viewModel.disconnectOttaiSensor(sensor.serial, removeHistoryChecked, forgetOttaiChecked)
+                            viewModel.disconnectOttaiSensor(sensor.serial, removeHistory, forgetOttaiChecked)
                         } else {
-                            viewModel.terminateSensor(sensor.serial, removeHistoryChecked)
+                            viewModel.terminateSensor(sensor.serial, removeHistory)
                         }
                         showTerminateDialog = false
                         removeHistoryChecked = false
@@ -767,19 +774,23 @@ fun SensorCard(
             text = {
                 Column {
                     Text(stringResource(R.string.reconnect_sensor_desc))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = wipeDataChecked,
-                            onCheckedChange = { wipeDataChecked = it }
-                        )
-                        Text(stringResource(R.string.wipe_data))
+                    if (!hideDataClearing && !hideCalibration) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = wipeDataChecked,
+                                onCheckedChange = { wipeDataChecked = it }
+                            )
+                            Text(stringResource(R.string.wipe_data))
+                        }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.reconnectSensor(sensor.serial, wipeDataChecked)
+                    val protections = ChildFriendlyMode.settings(context)
+                    viewModel.reconnectSensor(sensor.serial,
+                        wipeDataChecked && !protections.hideDataClearing && !protections.hideCalibration)
                     showReconnectDialog = false
                     wipeDataChecked = false
                 },
@@ -924,7 +935,7 @@ fun SensorCard(
             text = { 
                 Column {
                     Text(stringResource(R.string.unified_reset_desc))
-                    if (sensor.dataptr != 0L) {
+                    if (sensor.dataptr != 0L && !hideDataClearing && !hideCalibration) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -941,7 +952,9 @@ fun SensorCard(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (sensor.dataptr == 0L || keepAutoCalChecked) {
+                    val protections = ChildFriendlyMode.settings(context)
+                    if (sensor.dataptr == 0L || keepAutoCalChecked ||
+                        protections.hideDataClearing || protections.hideCalibration) {
                         viewModel.resetSensor(sensor.serial)  // Hardware reset only
                     } else {
                         viewModel.clearAll(sensor.serial)     // Full reset
@@ -963,7 +976,7 @@ fun SensorCard(
         )
     }
 
-    if (showWipeDialog && !hideSensorReset) {
+    if (showWipeDialog && !hideSensorReset && !hideDataClearing && !hideCalibration) {
         AlertDialog(
             onDismissRequest = { showWipeDialog = false },
             title = { Text(stringResource(R.string.wipe_sensor_data_title)) },
@@ -1144,6 +1157,7 @@ fun SensorCard(
 
     if (showAiDexAlgorithmSheet && sensor.isAidex && sensor.viewMode != 1 && !hideAdvancedSensor) {
         AiDexAlgorithmSheet(sensor.serial, sensor.customCalIndex,
+            hideCalibration = hideCalibration,
             onSelect = { viewModel.setAiDexAlgorithmMode(sensor.serial, it) },
             onDismiss = { showAiDexAlgorithmSheet = false })
     }
@@ -1387,7 +1401,7 @@ fun SensorCard(
                             },
                             icon = Icons.Default.Insights,
                             iconTint = MaterialTheme.colorScheme.tertiary,
-                            position = CardPosition.BOTTOM,
+                            position = if (hideCalibration) CardPosition.SINGLE else CardPosition.BOTTOM,
                         )
                     }
                 }
