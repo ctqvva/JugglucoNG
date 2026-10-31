@@ -119,6 +119,17 @@ class OttaiOtaTests {
         }
     }
 
+    @Test fun softwareRevisionStopsAtTheFirstNulLikeACString() {
+        // Captured from an E1.2.6 sensor (29 bytes, stale byte after the terminator).
+        val raw = OttaiCrypto.hexToBytes("45312e322e362856312e372e5348323631362e31292c53544452440047")
+        val text = OttaiOtaProtocol.revisionText(raw)
+        assertEquals("E1.2.6(V1.7.SH2616.1),STDRD", text)
+        assertEquals(text, OttaiOtaProtocol.version(text))
+        assertEquals("V1.5.0", OttaiOtaProtocol.revisionText("V1.5.0".toByteArray()))
+        assertEquals("V1.5.0", OttaiOtaProtocol.revisionText("V1.5.0\u0000\u0000".toByteArray()))
+        assertEquals("", OttaiOtaProtocol.revisionText(ByteArray(0)))
+    }
+
     @Test fun upgradeOrderingHandlesVariantsFutureVersionsAndLargeNumericComponents() {
         assertTrue(OttaiOtaProtocol.isUpgrade("v1.2", "1.3.0_CN"))
         assertTrue(OttaiOtaProtocol.isUpgrade("V1.9.0", "V1.10.0"))

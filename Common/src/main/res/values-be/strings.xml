@@ -2543,6 +2543,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
     <string name="ottai_offline_hint">Таксама можна імпартаваць файл з ключамі ў раздзеле «Захаваныя датчыкі».</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
+    <string name="ottai_ota_upgrade_required">Сэрвіс Ottai не прывяжа гэты датчык, пакуль не абноўлена яго прашыўка. Спачатку абнавіце яе ў афіцыйнай праграме Ottai, потым паспрабуйце зноў.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код краіны</string>

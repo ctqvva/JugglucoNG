@@ -2667,6 +2667,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="ottai_connect_failed">Lama bilaabi karo xiriirka. Isku day mar kale.</string>
     <string name="ottai_offline_hint">Waxaad sidoo kale ka soo gelin kartaa fayl aqoonsi Dareemayaal la keydiyey.</string>
     <string name="ottai_already_binding_hint">Akoonkaagu weli wuxuu ku xiran yahay dareeme kale. Ka fur Dareemayaal la keydiyey, kadibna isku day mar kale.</string>
+    <string name="ottai_ota_upgrade_required">Adeegga Ottai ma xirayo dareemahan ilaa firmware-kiisa la cusboonaysiiyo. Marka hore ku cusboonaysii app-ka rasmiga ah ee Ottai, kadibna isku day mar kale.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Koodhka dalka</string>

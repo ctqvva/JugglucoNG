@@ -2495,6 +2495,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">无法开始连接，请重试。</string>
     <string name="ottai_offline_hint">也可以在“已保存的传感器”中导入凭据文件。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
+    <string name="ottai_ota_upgrade_required">在传感器固件更新之前，Ottai 服务不会绑定该传感器。请先用 Ottai 官方应用更新固件，然后重试。</string>
     <string name="ottai_region_cn_full">Ottai 国内版</string>
     <string name="ottai_region_global_full">Ottai 国际版</string>
     <string name="ottai_sms_country_title">国家/地区代码</string>

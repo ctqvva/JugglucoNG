@@ -2548,6 +2548,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не вдалося почати підключення. Спробуйте ще раз.</string>
     <string name="ottai_offline_hint">Також можна імпортувати файл із ключами в розділі «Збережені датчики».</string>
     <string name="ottai_already_binding_hint">До облікового запису досі прив\'язано інший датчик. Відв\'яжіть його в розділі «Збережені датчики» й спробуйте ще раз.</string>
+    <string name="ottai_ota_upgrade_required">Сервіс Ottai не прив\'яже цей датчик, доки не оновлено його прошивку. Спершу оновіть її в офіційному застосунку Ottai, потім спробуйте знову.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код країни</string>

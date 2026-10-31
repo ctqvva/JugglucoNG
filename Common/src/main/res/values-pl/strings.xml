@@ -2513,6 +2513,7 @@
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
+    <string name="ottai_ota_upgrade_required">Usługa Ottai nie powiąże tego sensora, dopóki jego firmware nie zostanie zaktualizowany. Najpierw zaktualizuj go w oficjalnej aplikacji Ottai, a potem spróbuj ponownie.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Kod kraju</string>

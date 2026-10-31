@@ -2485,6 +2485,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
+    <string name="ottai_ota_upgrade_required">Le service Ottai ne liera pas ce capteur tant que son firmware n\'est pas mis à jour. Mettez-le d\'abord à jour avec l\'application Ottai officielle, puis réessayez.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Indicatif du pays</string>

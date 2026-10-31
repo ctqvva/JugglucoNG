@@ -2479,6 +2479,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
     <string name="ottai_offline_hint">Du kan också importera en fil med inloggningsuppgifter under Sparade sensorer.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai-tjänsten kopplar inte den här sensorn förrän dess firmware är uppdaterad. Uppdatera den först med den officiella Ottai-appen och försök sedan igen.</string>
     <string name="ottai_region_cn_full">Ottai Kina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landsnummer</string>

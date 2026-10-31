@@ -263,6 +263,8 @@ private fun ottaiMaterialFailureMessage(
     // A rejected session is not a sensor problem; the caller has already signed the account
     // out, so the offline-routes hint would only send the user the wrong way.
     if (effective?.isTokenInvalid == true) return context.getString(R.string.ottai_session_invalid)
+    // Not a fetch problem either: the offline routes cannot produce keys the backend withholds.
+    if (effective?.isOtaUpgradeRequired == true) return context.getString(R.string.ottai_ota_upgrade_required)
     val headline = if (effective?.code.equals(OttaiCloudClient.BIZ_ALREADY_BINDING, ignoreCase = true)) {
         context.getString(R.string.ottai_already_binding_hint)
     } else {

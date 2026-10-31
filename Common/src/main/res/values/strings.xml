@@ -1191,6 +1191,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
     <string name="ottai_offline_hint">You can also import a credentials file under Saved sensors.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
+    <string name="ottai_ota_upgrade_required">The Ottai service won\'t link this sensor until its firmware is updated. Update it with the official Ottai app first, then try again.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Country code</string>

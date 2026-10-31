@@ -1077,6 +1077,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_connect_failed">Nem sikerült elindítani a kapcsolatot. Próbálja újra.</string>
     <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
+    <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás addig nem köti hozzá ezt a szenzort, amíg a firmware-e nincs frissítve. Előbb frissítse a hivatalos Ottai alkalmazással, majd próbálja újra.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Országhívószám</string>

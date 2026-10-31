@@ -73,6 +73,9 @@ object OttaiCloudClient {
     const val BIZ_ALREADY_BINDING = "AppUser_AlreadyBinding"
     const val BIZ_OUT_OF_PRODUCE_TIME = "AppDevice_OutOfProduceTime"
     const val BIZ_UPGRADE_VERSION = "AppDevice_Upgrade_Version"
+    // bindV3 refuses to issue keyA for a sensor whose firmware is too old (seen 2026-10-28 on
+    // E1.2.6(V1.7.SH2616.1), after a successful /cgmAuth/verify). Retrying cannot help.
+    const val BIZ_OTA_UPGRADE_REQUIRED = "OTA_UPGRADE_REQUIRED"
     // The server already considers the sensor finished. For [unbind] that is the state the caller
     // was asking for, so it counts as released. Not yet observed on-device.
     const val BIZ_END_USING = "AppDevice_EndUsing"
@@ -91,6 +94,9 @@ object OttaiCloudClient {
     data class CloudFailure(val text: String, val code: String = "", val httpStatus: Int = 0) {
         /** The backend no longer accepts the stored session; the caller must sign in again. */
         val isTokenInvalid: Boolean get() = code.equals(BIZ_TOKEN_INVALID, ignoreCase = true)
+
+        /** The sensor's firmware must be updated before the backend issues its credentials. */
+        val isOtaUpgradeRequired: Boolean get() = code.equals(BIZ_OTA_UPGRADE_REQUIRED, ignoreCase = true)
     }
 
     /** Failure belongs to this unbind attempt even if another cloud request finishes meanwhile. */
