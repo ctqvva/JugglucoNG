@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Event
@@ -76,7 +77,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -182,6 +185,20 @@ data class JournalEntryDraft(
     val foodItems: List<JournalDraftFoodItem> = emptyList()
 )
 
+/** What a meal ingredient's own numbers are for, and so what its quantity counts. */
+enum class JournalFoodBasis {
+    /** Nutrition per 100 g, as on a label or in the food database; the quantity is grams eaten. */
+    PER_100_G,
+    /** Nutrition for one serving, as a library preset; the quantity is servings eaten. */
+    PER_SERVING
+}
+
+/**
+ * One ingredient of a meal being logged. [carbsGrams], [proteinGrams] and [fatGrams] are what
+ * was eaten: the food's own numbers ([basisCarbsGrams] and the rest, per [basis]) scaled by
+ * [quantityText]. An ingredient [fromLabel] was typed in rather than picked, so its name and
+ * carbs per 100 g are editable too.
+ */
 data class JournalDraftFoodItem(
     val sourceFoodId: Long?,
     val displayName: String,
@@ -189,8 +206,71 @@ data class JournalDraftFoodItem(
     val proteinGrams: Float?,
     val fatGrams: Float?,
     val absorptionMinutes: Int,
-    val accentColor: Int
-)
+    val accentColor: Int,
+    val basis: JournalFoodBasis = JournalFoodBasis.PER_SERVING,
+    val basisCarbsGrams: Float = carbsGrams,
+    val basisProteinGrams: Float? = proteinGrams,
+    val basisFatGrams: Float? = fatGrams,
+    val quantityText: String = "1",
+    val fromLabel: Boolean = false,
+    val basisCarbsText: String = "",
+    /** The quantity as converted, when [quantityText] shows it rounded; dropped once it is edited. */
+    private val exactQuantity: Float? = null
+) {
+    /** Grams eaten for a per-100 g food, servings for a per-serving one; nothing while unreadable. */
+    val quantity: Float get() = exactQuantity ?: parseIngredientNumber(quantityText) ?: 0f
+
+    fun withQuantityText(text: String): JournalDraftFoodItem = copy(quantityText = text, exactQuantity = null).rescaled()
+
+    /**
+     * Sets the quantity from a portion weighed against the picker's per-100 g composition: grams
+     * as they are for a per-100 g food, and a preset counted as 100 g a serving, as that
+     * composition shows it.
+     */
+    fun withPortionGrams(grams: Float): JournalDraftFoodItem {
+        val converted = when (basis) {
+            JournalFoodBasis.PER_100_G -> grams
+            JournalFoodBasis.PER_SERVING -> grams / 100f
+        }
+        return copy(quantityText = formatFloatForEditor(converted), exactQuantity = converted).rescaled()
+    }
+
+    fun withBasisCarbsText(text: String): JournalDraftFoodItem =
+        copy(basisCarbsText = text, basisCarbsGrams = parseIngredientNumber(text) ?: 0f).rescaled()
+
+    private fun rescaled(): JournalDraftFoodItem {
+        val factor = when (basis) {
+            JournalFoodBasis.PER_100_G -> quantity / 100f
+            JournalFoodBasis.PER_SERVING -> quantity
+        }
+        return copy(
+            carbsGrams = basisCarbsGrams * factor,
+            proteinGrams = basisProteinGrams?.let { it * factor },
+            fatGrams = basisFatGrams?.let { it * factor }
+        )
+    }
+
+    companion object {
+        /** A food typed in from its label: carbs per 100 g and grams eaten, both still to fill in. */
+        fun fromLabel(displayName: String, absorptionMinutes: Int, accentColor: Int) = JournalDraftFoodItem(
+            sourceFoodId = null,
+            displayName = displayName,
+            carbsGrams = 0f,
+            proteinGrams = null,
+            fatGrams = null,
+            absorptionMinutes = absorptionMinutes,
+            accentColor = accentColor,
+            basis = JournalFoodBasis.PER_100_G,
+            basisCarbsGrams = 0f,
+            quantityText = "",
+            fromLabel = true
+        )
+    }
+}
+
+/** A non-negative decimal as typed, with either decimal separator; null while it isn't one. */
+internal fun parseIngredientNumber(text: String): Float? =
+    text.trim().replace(',', '.').toFloatOrNull()?.takeIf { it.isFinite() && it >= 0f }
 
 data class JournalDoseProfile(
     val enabled: Boolean,
@@ -679,19 +759,37 @@ fun JournalEntrySheet(
                                 selectedFoodId = draft.foodId,
                                 selectedItems = draft.foodItems,
                                 foodMacrosEnabled = foodMacrosEnabled,
-                                onFoodSelected = { food -> draft = draft.withFood(food, foodMacrosEnabled) },
-                                onFoodAdded = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
-                                onFoodRemoved = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) },
-                                onFoodImported = onSaveFood,
-                                onManualSelected = {
-                                    draft = draft.copy(
-                                        foodId = null,
-                                        title = "",
-                                        foodItems = emptyList(),
-                                        proteinText = if (foodMacrosEnabled) draft.proteinText else "",
-                                        fatText = if (foodMacrosEnabled) draft.fatText else ""
-                                    )
-                                }
+                                // Picking a food adds it to the meal; each ingredient is then
+                                // weighed, or removed, in the list below.
+                                onFoodSelected = { food -> draft = draft.plusFood(food, foodMacrosEnabled) },
+                                onFoodAdded = { food, portionGrams -> draft = draft.plusFood(food, foodMacrosEnabled, portionGrams) },
+                                onAddFromLabel = { name -> draft = draft.plusLabelFood(foodMacrosEnabled, name) },
+                                // A reopened entry keeps only its food's link, not its ingredients;
+                                // clearing it keeps the amounts as entered.
+                                onSavedFoodCleared = { draft = draft.copy(foodId = null, title = "") },
+                                onFoodImported = onSaveFood
+                            )
+                        }
+                    } else {
+                        // Typing a food in from its label needs no library.
+                        item(key = "carbs_from_label") {
+                            JournalAddFromLabelButton(onClick = { draft = draft.plusLabelFood(foodMacrosEnabled, "") })
+                        }
+                    }
+                    if (draft.foodItems.isNotEmpty()) {
+                        item(key = "carbs_ingredients") {
+                            JournalMealIngredients(
+                                items = draft.foodItems,
+                                onQuantityChange = { index, text ->
+                                    draft = draft.updateFoodAt(index, foodMacrosEnabled) { it.withQuantityText(text) }
+                                },
+                                onBasisCarbsChange = { index, text ->
+                                    draft = draft.updateFoodAt(index, foodMacrosEnabled) { it.withBasisCarbsText(text) }
+                                },
+                                onNameChange = { index, text ->
+                                    draft = draft.renameFoodAt(index, text)
+                                },
+                                onRemove = { index -> draft = draft.removeFoodAt(index, foodMacrosEnabled) }
                             )
                         }
                     }
@@ -1056,29 +1154,49 @@ private fun buildDraft(
     )
 }
 
-private fun JournalEntryDraft.withFood(
-    food: JournalFood,
-    foodMacrosEnabled: Boolean
-): JournalEntryDraft {
-    val item = food.toDraftFoodItem()
-    return copy(
-        foodId = food.id.takeIf { it > 0L },
-        title = food.displayName,
-        amountText = formatFloatForEditor(item.carbsGrams),
-        proteinText = if (foodMacrosEnabled) item.proteinGrams?.let(::formatFloatForEditor).orEmpty() else "",
-        fatText = if (foodMacrosEnabled) item.fatGrams?.let(::formatFloatForEditor).orEmpty() else "",
-        durationText = item.absorptionMinutes.toString(),
-        foodItems = listOf(item)
-    )
-}
-
 private fun JournalEntryDraft.plusFood(
     food: JournalFood,
-    foodMacrosEnabled: Boolean
+    foodMacrosEnabled: Boolean,
+    portionGrams: Float? = null
 ): JournalEntryDraft {
-    val items = foodItems + food.toDraftFoodItem()
-    return copyWithFoodItems(items, foodMacrosEnabled)
+    val item = food.toDraftFoodItem().let { item -> portionGrams?.let(item::withPortionGrams) ?: item }
+    return copyWithFoodItems(foodItems + item, foodMacrosEnabled)
 }
+
+private fun JournalEntryDraft.plusLabelFood(foodMacrosEnabled: Boolean, displayName: String): JournalEntryDraft =
+    copyWithFoodItems(
+        foodItems + JournalDraftFoodItem.fromLabel(
+            displayName = displayName,
+            absorptionMinutes = JournalMealShape.MIXED.durationMinutes,
+            accentColor = journalTypeColor(JournalEntryType.CARBS).toArgb()
+        ),
+        foodMacrosEnabled
+    )
+
+private fun JournalEntryDraft.updateFoodAt(
+    index: Int,
+    foodMacrosEnabled: Boolean,
+    update: (JournalDraftFoodItem) -> JournalDraftFoodItem
+): JournalEntryDraft {
+    if (index !in foodItems.indices) return this
+    // A weight or label edit doesn't change how fast the meal absorbs, so a meal shape picked
+    // below stays picked.
+    return copyWithFoodItems(
+        foodItems.mapIndexed { itemIndex, item -> if (itemIndex == index) update(item) else item },
+        foodMacrosEnabled
+    ).copy(durationText = durationText)
+}
+
+private fun JournalEntryDraft.renameFoodAt(index: Int, displayName: String): JournalEntryDraft {
+    if (index !in foodItems.indices) return this
+    val items = foodItems.mapIndexed { itemIndex, item ->
+        if (itemIndex == index) item.copy(displayName = displayName) else item
+    }
+    return copy(title = mealTitle(items), foodItems = items)
+}
+
+private fun mealTitle(items: List<JournalDraftFoodItem>): String =
+    items.map { it.displayName.trim() }.filter { it.isNotEmpty() }.joinToString(" + ").take(80)
 
 private fun JournalEntryDraft.removeFoodAt(
     index: Int,
@@ -1109,7 +1227,7 @@ private fun JournalEntryDraft.copyWithFoodItems(
     val duration = items.maxOf { it.absorptionMinutes }
     return copy(
         foodId = items.singleOrNull()?.sourceFoodId,
-        title = items.joinToString(" + ") { it.displayName }.take(80),
+        title = mealTitle(items),
         amountText = formatFloatForEditor(carbs),
         proteinText = if (foodMacrosEnabled) formatFloatForEditor(protein) else "",
         fatText = if (foodMacrosEnabled) formatFloatForEditor(fat) else "",
@@ -1119,6 +1237,8 @@ private fun JournalEntryDraft.copyWithFoodItems(
 }
 
 private fun JournalFood.toDraftFoodItem(): JournalDraftFoodItem {
+    // The food database gives nutrition per 100 g; a library preset gives it per serving.
+    val per100Grams = LegacyJournalFoodDatabase.isLegacyFood(this)
     return JournalDraftFoodItem(
         sourceFoodId = id.takeIf { it > 0L },
         displayName = displayName,
@@ -1126,7 +1246,9 @@ private fun JournalFood.toDraftFoodItem(): JournalDraftFoodItem {
         proteinGrams = proteinGrams,
         fatGrams = fatGrams,
         absorptionMinutes = absorptionMinutes,
-        accentColor = accentColor
+        accentColor = accentColor,
+        basis = if (per100Grams) JournalFoodBasis.PER_100_G else JournalFoodBasis.PER_SERVING,
+        quantityText = if (per100Grams) "100" else "1"
     )
 }
 
@@ -1141,15 +1263,6 @@ private fun JournalFood.toLibraryFoodInput(sortOrder: Int): JournalFoodInput {
         isBuiltIn = false,
         isArchived = false,
         sortOrder = sortOrder
-    )
-}
-
-private fun JournalFood.scaledForPortion(portionGrams: Float): JournalFood {
-    val scale = (portionGrams / 100f).coerceIn(0.01f, 20f)
-    return copy(
-        carbsGrams = carbsGrams * scale,
-        proteinGrams = proteinGrams?.let { it * scale },
-        fatGrams = fatGrams?.let { it * scale }
     )
 }
 
@@ -1651,10 +1764,10 @@ private fun JournalFoodLibrarySelector(
     selectedItems: List<JournalDraftFoodItem>,
     foodMacrosEnabled: Boolean,
     onFoodSelected: (JournalFood) -> Unit,
-    onFoodAdded: (JournalFood) -> Unit,
-    onFoodRemoved: (Int) -> Unit,
-    onFoodImported: ((JournalFoodInput) -> Unit)? = null,
-    onManualSelected: () -> Unit
+    onFoodAdded: (JournalFood, Float?) -> Unit,
+    onAddFromLabel: (String) -> Unit,
+    onSavedFoodCleared: () -> Unit,
+    onFoodImported: ((JournalFoodInput) -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -1775,12 +1888,29 @@ private fun JournalFoodLibrarySelector(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (selectedItems.isEmpty() && selectedFood != null) {
+                    IconButtonTooltip(stringResource(R.string.remove)) {
+                        IconButton(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSavedFoodCleared()
+                            },
+                            shapes = IconButtonDefaults.shapes()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.remove)
+                            )
+                        }
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         } else {
             Column(
@@ -1872,27 +2002,13 @@ private fun JournalFoodLibrarySelector(
                     }
                 }
 
-                if (visibleItems.isNotEmpty()) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        visibleItems.forEachIndexed { index, item ->
-                            JournalSelectedFoodChip(
-                                item = item,
-                                foodMacrosEnabled = foodMacrosEnabled,
-                                onRemove = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    if (selectedItems.isEmpty() && selectedFood != null) {
-                                        onManualSelected()
-                                    } else {
-                                        onFoodRemoved(index)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
+                // Not in the library or the database: type it in from the packet. What was
+                // searched for becomes its name.
+                JournalAddFromLabelButton(onClick = {
+                    onAddFromLabel(query.trim())
+                    query = ""
+                    expanded = false
+                })
 
                 AnimatedVisibility(
                     visible = expanded,
@@ -1960,13 +2076,7 @@ private fun JournalFoodLibrarySelector(
                                         FilledTonalIconButton(
                                             onClick = {
                                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                onFoodAdded(
-                                                    if (rowExpanded) {
-                                                        food.scaledForPortion(rowPortionGrams)
-                                                    } else {
-                                                        food
-                                                    }
-                                                )
+                                                onFoodAdded(food, rowPortionGrams.takeIf { rowExpanded })
                                                 if (rowExpanded) {
                                                     expandedFoodId = null
                                                 }
@@ -1988,6 +2098,25 @@ private fun JournalFoodLibrarySelector(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun JournalAddFromLabelButton(onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    OutlinedButton(
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp),
+        shapes = ButtonDefaults.shapes()
+    ) {
+        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = stringResource(R.string.journal_food_from_label))
     }
 }
 
@@ -2022,56 +2151,184 @@ private data class RankedJournalFood(
     val score: Int
 )
 
+/**
+ * The meal being logged, one ingredient per row: how much of it was eaten and the carbs that
+ * makes, with the meal's total underneath. Foods from the database count grams against their
+ * carbs per 100 g, library presets count servings, and a food typed in from its label has its
+ * name and carbs per 100 g filled in here too.
+ */
 @Composable
-private fun JournalSelectedFoodChip(
-    item: JournalDraftFoodItem,
-    foodMacrosEnabled: Boolean,
-    onRemove: () -> Unit
+private fun JournalMealIngredients(
+    items: List<JournalDraftFoodItem>,
+    onQuantityChange: (Int, String) -> Unit,
+    onBasisCarbsChange: (Int, String) -> Unit,
+    onNameChange: (Int, String) -> Unit,
+    onRemove: (Int) -> Unit
 ) {
-    val color = Color(item.accentColor)
+    val haptics = LocalHapticFeedback.current
     Surface(
-        color = color.copy(alpha = 0.18f),
-        shape = RoundedCornerShape(16.dp)
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(color, CircleShape)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.widthIn(max = 180.dp)) {
-                Text(
-                    text = item.displayName,
-                    style = MaterialTheme.typography.labelLargeEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = foodItemSummary(item, foodMacrosEnabled),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            items.forEachIndexed { index, item ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 20.dp)
+                            .size(8.dp)
+                            .background(Color(item.accentColor), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (item.fromLabel) {
+                                JournalIngredientField(
+                                    value = item.displayName,
+                                    onValueChange = { onNameChange(index, it) },
+                                    label = stringResource(R.string.journal_food_name),
+                                    keyboardType = KeyboardType.Text,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Text(
+                                    text = item.displayName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            IconButtonTooltip(stringResource(R.string.remove)) {
+                                IconButton(
+                                    onClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onRemove(index)
+                                    },
+                                    shapes = IconButtonDefaults.shapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.remove)
+                                    )
+                                }
+                            }
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (item.fromLabel) {
+                                JournalIngredientField(
+                                    value = item.basisCarbsText,
+                                    onValueChange = { onBasisCarbsChange(index, it) },
+                                    label = stringResource(R.string.journal_food_carbs_per_100g),
+                                    suffix = stringResource(R.string.unit_carbs_short),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            val per100Grams = item.basis == JournalFoodBasis.PER_100_G
+                            JournalIngredientField(
+                                value = item.quantityText,
+                                onValueChange = { onQuantityChange(index, it) },
+                                label = stringResource(
+                                    if (per100Grams) R.string.journal_food_weight else R.string.journal_food_servings
+                                ),
+                                suffix = stringResource(
+                                    if (per100Grams) R.string.unit_carbs_short else R.string.journal_food_servings_suffix
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = stringResource(R.string.journal_food_carbs_result, formatFloatForEditor(item.carbsGrams)),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.widthIn(min = 88.dp)
+                            )
+                        }
+                    }
+                }
             }
-            IconButtonTooltip(stringResource(R.string.remove)) {
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.size(34.dp),
-                    shapes = IconButtonDefaults.shapes()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = stringResource(R.string.remove),
-                        modifier = Modifier.size(18.dp)
+            if (items.size > 1) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.journal_meal_total),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(start = 20.dp)
+                            .weight(1f)
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.journal_food_carbs_result,
+                            formatFloatForEditor(items.sumOf { it.carbsGrams.toDouble() }.toFloat())
+                        ),
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 }
             }
         }
+    }
+}
+
+/** A small labelled number field for one ingredient, in the journal editor's field style. */
+@Composable
+private fun JournalIngredientField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    suffix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Decimal
+) {
+    val field = rememberSelectAllOnFocusField(value)
+    Surface(
+        modifier = modifier.heightIn(min = 56.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        BasicTextField(
+            value = field.value,
+            onValueChange = { field.onValueChange(it, onValueChange) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .onFocusChanged(field::onFocusChanged),
+            textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+            decorationBox = { innerTextField ->
+                Column(verticalArrangement = Arrangement.Center) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.weight(1f)) { innerTextField() }
+                        suffix?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 

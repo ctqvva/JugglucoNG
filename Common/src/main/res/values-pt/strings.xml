@@ -3053,6 +3053,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Login bloqueado — verifique a conta e a senha</string>
     <string name="dexcom_share_credentials_required">Digite primeiro a conta e a senha</string>
     <string name="dexcom_share_warning">Interface não oficial: a Dexcom pode alterá-la ou bloqueá-la a qualquer momento. Este não é um recurso de dispositivo médico.</string>
+    <string name="journal_food_from_label">Adicionar a partir do rótulo</string>
+    <string name="journal_food_name">Nome</string>
+    <string name="journal_food_carbs_per_100g">Hidratos por 100 g</string>
+    <string name="journal_food_weight">Peso</string>
+    <string name="journal_food_servings">Porções</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g de hidratos</string>
+    <string name="journal_meal_total">Total</string>
     <string name="stream_history_mode">Stream+Histórico</string>
     <string name="history_stream_mode">Histórico+Stream</string>
     <string name="libre_history_mode_caption">O histórico é o valor do próprio sensor, guardado a cada 15 minutos e cerca de 16 minutos atrás do stream. Até o histórico de um minuto chegar, o stream ocupa o seu lugar.</string>

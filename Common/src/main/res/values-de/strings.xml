@@ -3164,6 +3164,14 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="dexcom_share_auth_blocked">Anmeldung gesperrt — Konto und Passwort prüfen</string>
     <string name="dexcom_share_credentials_required">Zuerst Konto und Passwort eingeben</string>
     <string name="dexcom_share_warning">Inoffizielle Schnittstelle: Dexcom kann sie jederzeit ändern oder sperren. Dies ist keine Funktion eines Medizinprodukts.</string>
+    <string name="journal_food_from_label">Von Etikett hinzufügen</string>
+    <string name="journal_food_name">Name</string>
+    <string name="journal_food_carbs_per_100g">KH pro 100 g</string>
+    <string name="journal_food_weight">Gewicht</string>
+    <string name="journal_food_servings">Portionen</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g KH</string>
+    <string name="journal_meal_total">Gesamt</string>
     <string name="stream_history_mode">Stream+Verlauf</string>
     <string name="history_stream_mode">Verlauf+Stream</string>
     <string name="libre_history_mode_caption">Der Verlauf ist der eigene Wert des Sensors, alle 15 Minuten gespeichert und etwa 16 Minuten hinter dem Stream. Bis der Verlaufswert einer Minute eintrifft, steht der Stream dafür ein.</string>

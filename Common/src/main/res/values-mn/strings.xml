@@ -3152,6 +3152,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="dexcom_share_auth_blocked">Нэвтрэлт хаагдсан — бүртгэл болон нууц үгээ шалгана уу</string>
     <string name="dexcom_share_credentials_required">Эхлээд бүртгэл болон нууц үгээ оруулна уу</string>
     <string name="dexcom_share_warning">Албан бус интерфейс: Dexcom үүнийг хэзээ ч өөрчлөх эсвэл хааж болно. Энэ нь эмнэлгийн хэрэгслийн функц биш.</string>
+    <string name="journal_food_from_label">Шошгоноос нэмэх</string>
+    <string name="journal_food_name">Нэр</string>
+    <string name="journal_food_carbs_per_100g">100 г дахь нүүрс ус</string>
+    <string name="journal_food_weight">Жин</string>
+    <string name="journal_food_servings">Порц</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s г нүүрс ус</string>
+    <string name="journal_meal_total">Нийт</string>
     <string name="stream_history_mode">Дамжуулалт+Түүх</string>
     <string name="history_stream_mode">Түүх+Дамжуулалт</string>
     <string name="libre_history_mode_caption">Түүх нь мэдрэгчийн өөрийн утга бөгөөд 15 минут тутам хадгалагдаж, дамжуулалтаас ойролцоогоор 16 минутаар хоцордог. Тухайн минутын түүх ирэх хүртэл дамжуулалт түүнийг орлоно.</string>

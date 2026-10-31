@@ -3042,6 +3042,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Accesso bloccato — controlla account e password</string>
     <string name="dexcom_share_credentials_required">Inserisci prima account e password</string>
     <string name="dexcom_share_warning">Interfaccia non ufficiale: Dexcom può modificarla o bloccarla in qualsiasi momento. Non è una funzione di un dispositivo medico.</string>
+    <string name="journal_food_from_label">Aggiungi da etichetta</string>
+    <string name="journal_food_name">Nome</string>
+    <string name="journal_food_carbs_per_100g">Carboidrati per 100 g</string>
+    <string name="journal_food_weight">Peso</string>
+    <string name="journal_food_servings">Porzioni</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g di carboidrati</string>
+    <string name="journal_meal_total">Totale</string>
     <string name="stream_history_mode">Flusso+Cronologia</string>
     <string name="history_stream_mode">Cronologia+Flusso</string>
     <string name="libre_history_mode_caption">La cronologia è il valore proprio del sensore, salvato ogni 15 minuti e circa 16 minuti dietro il flusso. Finché la cronologia di un minuto non arriva, la sostituisce il flusso.</string>

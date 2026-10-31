@@ -3090,6 +3090,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">Это устройство не является трансмиттером Medtrum. Убедитесь, что трансмиттер рядом, и повторите попытку.</string>
 
     <string name="alert_sound_volume">Громкость звука тревоги</string>
+    <string name="journal_food_from_label">Добавить по этикетке</string>
+    <string name="journal_food_name">Название</string>
+    <string name="journal_food_carbs_per_100g">Углеводы на 100 г</string>
+    <string name="journal_food_weight">Вес</string>
+    <string name="journal_food_servings">Порции</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s г углеводов</string>
+    <string name="journal_meal_total">Итого</string>
     <string name="stream_history_mode">Поток+История</string>
     <string name="history_stream_mode">История+Поток</string>
     <string name="libre_history_mode_caption">История — собственное значение датчика, сохраняется каждые 15 минут и отстаёт от потока примерно на 16 минут. Пока история за минуту не пришла, вместо неё используется поток.</string>
