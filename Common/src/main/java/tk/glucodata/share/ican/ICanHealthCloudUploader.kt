@@ -6,6 +6,7 @@ class ICanHealthCloudUploader(
     private val client: ICanHealthCloudClient,
     private val settings: ICanHealthCloudSettings,
     private val queue: ICanHealthCloudQueue,
+    private val sleep: (Long) -> Unit = { Thread.sleep(it) },
 ) {
 
     @Synchronized
@@ -43,7 +44,7 @@ class ICanHealthCloudUploader(
                                 lastCode = result.code
                                 lastMessage = result.message
                                 if (attempt < MAX_RETRIES) {
-                                    Thread.sleep(backoffMs(attempt))
+                                    sleep(backoffMs(attempt))
                                 }
                             }
                         }

@@ -13,8 +13,6 @@ class ICanHealthCloudClient(
     private val transport: Transport = HttpTransport,
 ) {
 
-    constructor(region: Any?, transport: Transport) : this(transport)
-
     interface Transport {
         fun post(url: String, jsonBody: String?): HttpResult
         fun get(url: String): HttpResult
@@ -245,20 +243,40 @@ class ICanHealthCloudClient(
             "&thirdAuthKey="
     }
 
-    private fun decryptResponse(key: String, body: String): String? {
+    private fun decryptResponse(requestKey: String, body: String): String? {
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return null
-        val candidate = if (trimmed.startsWith("{")) {
-            val json = runCatching { JSONObject(trimmed) }.getOrNull()
-            val field = json?.optString("data", "").orEmpty()
-                .ifEmpty { json?.optString("msg", "").orEmpty() }
-                .ifEmpty { json?.optString("result", "").orEmpty() }
-            field
+        val json = if (trimmed.startsWith("{")) runCatching { JSONObject(trimmed) }.getOrNull() else null
+        val effectiveKey = if (json != null) {
+            val found = serverDeliveredKey(json)
+            if (found.isNotEmpty()) found else requestKey
+        } else {
+            requestKey
+        }
+        val candidate = if (json != null) {
+            json.optString("data", "").orEmpty()
+                .ifEmpty { json.optString("msg", "").orEmpty() }
+                .ifEmpty { json.optString("result", "").orEmpty() }
         } else {
             trimmed.removeSurrounding("\"")
         }
         if (candidate.isEmpty()) return null
-        return runCatching { ICanHealthCloudJson.aesDecrypt(key, candidate) }.getOrNull()
+        return runCatching { ICanHealthCloudJson.aesDecrypt(effectiveKey, candidate) }.getOrNull()
+    }
+
+    private fun serverDeliveredKey(json: JSONObject): String {
+        for (field in listOf("aesKey", "key", "dataKey")) {
+            val value = json.optString(field, "")
+            if (value.isNotEmpty()) return value
+        }
+        val nested = json.optJSONObject("data")
+        if (nested != null) {
+            for (field in listOf("aesKey", "key", "dataKey")) {
+                val value = nested.optString(field, "")
+                if (value.isNotEmpty()) return value
+            }
+        }
+        return ""
     }
 
     companion object {
