@@ -53,6 +53,19 @@ class ICanHealthCloudConstantsTests {
     }
 
     @Test
+    fun headerNamesAreSpelledTheWayTheVendorSpellsThem() {
+        assertEquals("Sino-Auth", ICanHealthCloudConstants.HEADER_SINO_AUTH)
+        assertEquals("platformType", ICanHealthCloudConstants.HEADER_PLATFORM_TYPE)
+        assertEquals("langCode", ICanHealthCloudConstants.HEADER_LANG_CODE)
+        assertEquals("country", ICanHealthCloudConstants.HEADER_COUNTRY)
+        assertEquals("versionCode", ICanHealthCloudConstants.HEADER_VERSION_CODE)
+        assertEquals("versionName", ICanHealthCloudConstants.HEADER_VERSION_NAME)
+        assertEquals("clientId", ICanHealthCloudConstants.HEADER_CLIENT_ID)
+        assertEquals("authorization", ICanHealthCloudConstants.HEADER_AUTHORIZATION)
+        assertEquals("timeZone", ICanHealthCloudConstants.HEADER_TIME_ZONE)
+    }
+
+    @Test
     fun authorizationCarriesTheVendorBasicCredentials() {
         val authorization = ICanHealthCloudConstants.AUTHORIZATION_BASIC
         assertTrue(authorization.startsWith("Basic "))

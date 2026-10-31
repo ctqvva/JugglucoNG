@@ -44,6 +44,23 @@ object ICanHealthCloudConstants {
     /** The `timeZone` header: the UTC offset in hours. */
     const val TIME_ZONE = "3"
 
+    /**
+     * The header names, spelled the way the vendor app spells them.
+     *
+     * The spellings are not uniform: the Dart side of the app uses `clientId`, while the native
+     * CGM SDK uses `client-id` for the same value. Only the first set is sent here, because only
+     * the first set belongs to the endpoints this channel calls.
+     */
+    const val HEADER_SINO_AUTH = "Sino-Auth"
+    const val HEADER_PLATFORM_TYPE = "platformType"
+    const val HEADER_LANG_CODE = "langCode"
+    const val HEADER_COUNTRY = "country"
+    const val HEADER_VERSION_CODE = "versionCode"
+    const val HEADER_VERSION_NAME = "versionName"
+    const val HEADER_CLIENT_ID = "clientId"
+    const val HEADER_AUTHORIZATION = "authorization"
+    const val HEADER_TIME_ZONE = "timeZone"
+
     /** The alphabet the vendor draws the per-request AES key from. */
     const val GET_RANDOM_STRING_ALPHABET =
         "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
