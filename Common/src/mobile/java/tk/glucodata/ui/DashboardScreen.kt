@@ -296,6 +296,7 @@ fun DashboardScreen(
     // push the whole dashboard down by one gap whenever there is no update to announce.
     val appUpdateBannerVisible = rememberAppUpdateBannerVisible()
     val context = LocalContext.current
+    val childFriendlyModeSettings = rememberChildFriendlyModeSettings()
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
     val dashboardPrefs = remember(context) {
@@ -1406,7 +1407,9 @@ fun DashboardScreen(
                     is CalibrationSheetState.Edit -> state.entity.isRawMode
                     CalibrationSheetState.Hidden -> false
                 }
-                if (tk.glucodata.data.calibration.CalibrationManager.isEnabledForMode(targetRawMode, targetSensorId)) {
+                if (!childFriendlyModeSettings.hideCalibration &&
+                    tk.glucodata.data.calibration.CalibrationManager.isEnabledForMode(targetRawMode, targetSensorId)
+                ) {
                     onTriggerCalibration(state)
                 }
             }
@@ -1660,8 +1663,10 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                onDeleteReading = if (!childFriendlyModeSettings.hideDataClearing) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 modifier = Modifier
                             )
@@ -2135,8 +2140,10 @@ fun DashboardScreen(
                                         )
                                     )
                                 },
-                                onDeleteReading = { point ->
-                                    viewModel.deleteHistoryReading(point, sensorName)
+                                onDeleteReading = if (!childFriendlyModeSettings.hideDataClearing) {
+                                    { point -> viewModel.deleteHistoryReading(point, sensorName) }
+                                } else {
+                                    null
                                 },
                                 onBaselineHeightMeasured = if (index == 0) {
                                     { measuredReadingBaselineHeightPx = it }
@@ -2150,32 +2157,34 @@ fun DashboardScreen(
                     }
                 }
 
-                // Calibrations Card
-                item {
-                    Box(modifier = Modifier.padding(horizontal = contentHorizontalPadding)) {
-                        CalibrationsCard(
-                            viewMode = viewMode,
-                            isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
-                            sensorId = sensorName,
-                            showEmptyAction = hasVisibleReadingContent,
-                            onAddCalibration = {
-                                val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
-                                val rawVal = latestPoint?.rawValue ?: autoVal
-                                triggerCalibrationIfEnabled(
-                                    CalibrationSheetState.New(
-                                        autoVal,
-                                        rawVal,
-                                        latestPoint?.timestamp ?: System.currentTimeMillis(),
-                                        latestPoint?.sensorSerial?.takeIf { it.isNotBlank() } ?: sensorName
+                if (!childFriendlyModeSettings.hideCalibration) {
+                    // Calibrations Card
+                    item {
+                        Box(modifier = Modifier.padding(horizontal = contentHorizontalPadding)) {
+                            CalibrationsCard(
+                                viewMode = viewMode,
+                                isMmol = tk.glucodata.ui.util.GlucoseFormatter.isMmol(unit),
+                                sensorId = sensorName,
+                                showEmptyAction = hasVisibleReadingContent,
+                                onAddCalibration = {
+                                    val autoVal = latestPoint?.value ?: tk.glucodata.GlucoseValueParser.parseFirstOrZero(currentGlucose)
+                                    val rawVal = latestPoint?.rawValue ?: autoVal
+                                    triggerCalibrationIfEnabled(
+                                        CalibrationSheetState.New(
+                                            autoVal,
+                                            rawVal,
+                                            latestPoint?.timestamp ?: System.currentTimeMillis(),
+                                            latestPoint?.sensorSerial?.takeIf { it.isNotBlank() } ?: sensorName
+                                        )
                                     )
-                                )
-                            },
-                            onEditCalibration = { cal ->
-                                triggerCalibrationIfEnabled(CalibrationSheetState.Edit(cal))
-                            },
-                            onViewHistory = onNavigateToCalibrations,
-                            snackbarHostState = snackbarHostState
-                        )
+                                },
+                                onEditCalibration = { cal ->
+                                    triggerCalibrationIfEnabled(CalibrationSheetState.Edit(cal))
+                                },
+                                onViewHistory = onNavigateToCalibrations,
+                                snackbarHostState = snackbarHostState
+                            )
+                        }
                     }
                 }
             }

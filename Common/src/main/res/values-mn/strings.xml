@@ -1,6 +1,8 @@
 <resources>
     <string name="language">mn</string>
     <string name="languagename">Монгол хэл</string>
+    <string name="child_friendly_mode_title">Хүүхдэд ээлтэй горим</string>
+    <string name="child_friendly_mode_desc">Хүүхдээс нуух тохиргоогоо сонгоно уу.</string>
     <string name="app_name">JugglucoNG</string>
     <string name="ok">OK</string>
     <string name="cancel">Цуцлах</string>

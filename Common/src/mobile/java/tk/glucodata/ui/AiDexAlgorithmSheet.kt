@@ -46,7 +46,13 @@ import tk.glucodata.ui.components.StableModalBottomSheet
 /** Separate AiDex sheet: no changes to Sibionics model choices or behavior. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun AiDexAlgorithmSheet(serial: String, selection: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
+internal fun AiDexAlgorithmSheet(
+    serial: String,
+    selection: Int,
+    hideCalibration: Boolean = false,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var mode by remember(serial, selection) { mutableIntStateOf(selection) }
     val context = LocalContext.current
     var ribbon by remember { mutableStateOf(GlucoseUncertaintyDisplay.isRibbonEnabled(context)) }
@@ -63,11 +69,15 @@ internal fun AiDexAlgorithmSheet(serial: String, selection: Int, onSelect: (Int)
                     Triple(8, R.string.sibionics_adaptive_v2, R.string.aidex_adaptive_v2_desc),
                 ).forEachIndexed { index, (base, title, description) ->
                     val selected = mode and 8 == base
+                    // Stock mode has no calibration lane. Switching from 9 to 0 would
+                    // disable calibration even with its switch hidden.
+                    val enabled = !hideCalibration || mode and 1 == 0 || base != 0
                     Surface(shape = if (index == 0) RoundedCornerShape(12.dp, 12.dp, 4.dp, 4.dp)
                         else RoundedCornerShape(4.dp, 4.dp, 12.dp, 12.dp),
                         color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer) {
-                        Row(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
+                        Row(Modifier.fillMaxWidth().selectable(selected = selected, enabled = enabled, role = Role.RadioButton,
                             onClick = {
+                                if (!enabled) return@selectable
                                 val next = if (base == 0) 0 else 8 or (mode and 1)
                                 if (next != mode) { mode = next; onSelect(next) }
                             }).padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -77,7 +87,7 @@ internal fun AiDexAlgorithmSheet(serial: String, selection: Int, onSelect: (Int)
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(Modifier.width(16.dp))
-                            RadioButton(selected, onClick = null)
+                            RadioButton(selected, onClick = null, enabled = enabled)
                         }
                     }
                 }
@@ -85,22 +95,24 @@ internal fun AiDexAlgorithmSheet(serial: String, selection: Int, onSelect: (Int)
             AnimatedVisibility(visible = mode and 8 != 0) {
                 Column {
                     Spacer(Modifier.height(16.dp))
-                    SettingsSwitchItem(title = stringResource(R.string.calibration),
-                        subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
-                        subtitleStyle = MaterialTheme.typography.bodySmall,
-                        checked = mode and 1 != 0,
-                        onCheckedChange = { enabled ->
-                            mode = if (enabled) 9 else 8
-                            onSelect(mode)
-                        }, icon = Icons.Default.Science, iconTint = MaterialTheme.colorScheme.primary,
-                        position = CardPosition.TOP)
-                    Spacer(Modifier.height(4.dp))
+                    if (!hideCalibration) {
+                        SettingsSwitchItem(title = stringResource(R.string.calibration),
+                            subtitle = stringResource(R.string.sibionics_stock_algorithm_detail),
+                            subtitleStyle = MaterialTheme.typography.bodySmall,
+                            checked = mode and 1 != 0,
+                            onCheckedChange = { enabled ->
+                                mode = if (enabled) 9 else 8
+                                onSelect(mode)
+                            }, icon = Icons.Default.Science, iconTint = MaterialTheme.colorScheme.primary,
+                            position = CardPosition.TOP)
+                        Spacer(Modifier.height(4.dp))
+                    }
                     SettingsSwitchItem(title = stringResource(R.string.sibionics_uncertainty_ribbon),
                         subtitle = stringResource(R.string.sibionics_uncertainty_ribbon_desc),
                         subtitleStyle = MaterialTheme.typography.bodySmall, checked = ribbon,
                         onCheckedChange = { ribbon = it; GlucoseUncertaintyDisplay.setRibbonEnabled(context, it) },
                         icon = Icons.Default.Insights, iconTint = MaterialTheme.colorScheme.tertiary,
-                        position = CardPosition.BOTTOM)
+                        position = if (hideCalibration) CardPosition.SINGLE else CardPosition.BOTTOM)
                 }
             }
             Spacer(Modifier.height(16.dp))

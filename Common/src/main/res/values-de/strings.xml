@@ -1,6 +1,8 @@
 <resources>
     <string name="language">de</string>
     <string name="languagename">Sprache</string>
+    <string name="child_friendly_mode_title">Kindgerechter Modus</string>
+    <string name="child_friendly_mode_desc">Wählen Sie aus, welche Steuerelemente vor Kindern verborgen werden sollen.</string>
 
      <string name="app_name">JugglucoNG</string>
      <string name="ok">OK</string>
