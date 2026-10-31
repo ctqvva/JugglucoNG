@@ -114,6 +114,22 @@ class ICanHealthCloudClient(
         }
     }
 
+    fun buildFollowerSavePayload(
+        email: String,
+        phone: String,
+        phoneAreaCode: String,
+        name: String,
+    ): Map<String, Any?> {
+        return mapOf(
+            "email" to email,
+            "phone" to phone,
+            "phoneAreaCode" to phoneAreaCode,
+            "name" to name,
+            "id" to "",
+            "invitedTime" to "",
+        )
+    }
+
     fun followerSave(
         token: String,
         email: String,
@@ -123,14 +139,7 @@ class ICanHealthCloudClient(
     ): FollowerFriends {
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/save"
-        val payload = mapOf(
-            "email" to email,
-            "phone" to phone,
-            "phoneAreaCode" to phoneAreaCode,
-            "name" to name,
-            "id" to "",
-            "invitedTime" to "",
-        )
+        val payload = buildFollowerSavePayload(email, phone, phoneAreaCode, name)
         val key = ICanHealthCloudJson.getRandomString()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()

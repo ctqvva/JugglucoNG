@@ -80,6 +80,19 @@ class ICanHealthCloudClientTests {
     }
 
     @Test
+    fun followerSavePayloadHasTheRightKeys() {
+        val client = ICanHealthCloudClient(FakeTransport { HttpResult(200, """{"code":0,"data":{}}""") })
+        val payload = client.buildFollowerSavePayload("a@b.com", "123", "7", "name")
+        assertEquals(6, payload.size)
+        assertEquals("a@b.com", payload["email"])
+        assertEquals("123", payload["phone"])
+        assertEquals("7", payload["phoneAreaCode"])
+        assertEquals("name", payload["name"])
+        assertTrue(payload.containsKey("id"))
+        assertTrue(payload.containsKey("invitedTime"))
+    }
+
+    @Test
     fun followerSaveSendsTheRightKeys() {
         val transport = FakeTransport { url -> HttpResult(200, """{"code":0,"data":{}}""") }
         val client = ICanHealthCloudClient(transport)
