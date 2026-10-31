@@ -15,7 +15,6 @@ class ICanHealthCloudQueue(context: Context) {
         synchronized(lock) { load() }
     }
 
-    @Synchronized
     fun enqueue(egv: EgvUpload) {
         synchronized(lock) {
             val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
@@ -26,14 +25,12 @@ class ICanHealthCloudQueue(context: Context) {
         }
     }
 
-    @Synchronized
     fun peek(): List<EgvUpload> {
         synchronized(lock) {
             return items.toList()
         }
     }
 
-    @Synchronized
     fun remove(ids: Any?) {
         synchronized(lock) {
             val targets = when (ids) {
@@ -57,7 +54,6 @@ class ICanHealthCloudQueue(context: Context) {
         }
     }
 
-    @Synchronized
     fun size(): Int {
         synchronized(lock) {
             return items.size
