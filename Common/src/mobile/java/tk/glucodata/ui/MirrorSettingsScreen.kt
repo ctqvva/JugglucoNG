@@ -7,8 +7,6 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.text.Html
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,7 +16,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,7 +35,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,7 +52,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -189,7 +194,6 @@ fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
 @Composable
 private fun MirrorQrDialog(
     title: String,
-    instruction: String?,
     content: String,
     onDismiss: () -> Unit
 ) {
@@ -198,28 +202,48 @@ private fun MirrorQrDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            val qrSize = minOf(maxWidth - 32.dp, maxHeight - 180.dp, 560.dp)
+            // The encoder draws the code's own white quiet zone, so only the dialog padding (24) is reserved.
+            val qrSize = minOf(maxWidth - 48.dp, maxHeight - 240.dp, 480.dp)
                 .coerceAtLeast(200.dp)
             val bitmapSize = with(LocalDensity.current) { qrSize.roundToPx() }
             Surface(
-                modifier = Modifier.width(qrSize + 24.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 6.dp
+                modifier = Modifier.width(qrSize + 48.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(title, style = MaterialTheme.typography.titleLarge)
-                    if (instruction != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(instruction, style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    QRCodeImage(content, bitmapSize, Modifier.size(qrSize))
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(
+                            R.string.clone_qr_instruction,
+                            stringResource(R.string.clone_sync_title),
+                            stringResource(R.string.scan_qr_button),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    QRCodeImage(
+                        content,
+                        bitmapSize,
+                        Modifier
+                            .size(qrSize)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White)
+                    )
+                    Spacer(Modifier.height(16.dp))
                     TextButton(
                         onClick = onDismiss,
                         modifier = Modifier.align(Alignment.End),
@@ -446,6 +470,7 @@ fun MirrorSettingsScreen(navController: NavController) {
     var triggerRefresh by remember { mutableIntStateOf(0) }
     var mirrors by remember { mutableStateOf(emptyList<MirrorItemData>()) }
     var showMyQR by remember { mutableStateOf<String?>(null) }
+    var showMyQRTitle by remember { mutableStateOf<String?>(null) }
 
     // mDNS
     val mdnsManager = remember { MDnsManager(context) }
@@ -604,10 +629,9 @@ fun MirrorSettingsScreen(navController: NavController) {
 
     if (showMyQR != null) {
         MirrorQrDialog(
-            title = stringResource(R.string.auto_qr),
-            instruction = stringResource(R.string.scan_with_follower),
+            title = showMyQRTitle ?: stringResource(R.string.mirror_share_relay_qr),
             content = showMyQR!!,
-            onDismiss = { showMyQR = null }
+            onDismiss = { showMyQR = null; showMyQRTitle = null }
         )
     }
 
@@ -621,6 +645,8 @@ fun MirrorSettingsScreen(navController: NavController) {
         hasReceiver = hasActiveCloneReceiver(readMirrorConnectionSnapshots()),
         backgroundLiveness = backgroundLivenessEnabled,
         broadcasting = isBroadcasting,
+        broadcastName = android.os.Build.MODEL ?: "Device",
+        nearbyDevices = discoveredMirrors,
         onBack = { navController.popBackStack() },
         onRefresh = {
             Natives.resetnetwork()
@@ -672,6 +698,11 @@ fun MirrorSettingsScreen(navController: NavController) {
                 if (kind == QuickPairKind.LOCAL && Natives.getbackuplabel(idx) == broadcastSenderLabel) {
                     broadcastOwnsSender = false
                 }
+                showMyQRTitle = localizedMirrorConnectionLabel(
+                    Natives.getbackuplabel(idx),
+                    context.getString(R.string.mirror_default_local_label),
+                    context.getString(R.string.mirror_default_hybrid_label),
+                )
                 showMyQR = Natives.getbackJson(idx)
                 triggerRefresh++
             } else {
@@ -718,32 +749,9 @@ fun MirrorSettingsScreen(navController: NavController) {
                 broadcastOwnsSender = false
             }
         },
+        onNearbyDevice = { pendingNearby = it },
         onNetworkSettings = { navController.navigate("settings/turnserver") },
     ) {
-        if (discoveredMirrors.isNotEmpty()) {
-            items(discoveredMirrors, key = { it.ip }) { device ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { pendingNearby = device },
-                    shape = cardShape(CardPosition.SINGLE),
-                    color = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(device.name, style = MaterialTheme.typography.titleSmall)
-                            Text("${device.ip}:${device.port}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f))
-                        }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f))
-                    }
-                }
-            }
-        }
-
         // ── Connections ──────────────────────────────────────────
         item(key = "connections_section") {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -876,7 +884,6 @@ fun MirrorConnectionCard(
     if (qrContent != null) {
         MirrorQrDialog(
             title = displayLabel ?: context.getString(R.string.connection_number, mirror.index),
-            instruction = null,
             content = qrContent!!,
             onDismiss = { qrContent = null }
         )
@@ -901,21 +908,38 @@ fun MirrorConnectionCard(
         )
     }
 
+    val active = !mirror.isDeactivated
+    val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = cardShape(CardPosition.SINGLE),
-        color = if (mirror.isDeactivated) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
+        color = if (active) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column {
+            // Same geometry as a settings row, so the title sits on the 68dp line of the rows above.
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .heightIn(min = 72.dp)
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconTile(
+                    icon = when {
+                        mirror.isWearOs -> Icons.Filled.Watch
+                        mirror.isIce -> Icons.Filled.Cloud
+                        else -> Icons.Filled.Wifi
+                    },
+                    tint = tint,
+                    containerColor = IconTileDefaults.toggleContainerColor(tint, active),
+                )
+                Spacer(Modifier.width(IconTileDefaults.Gap))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         displayLabel?.takeIf { it.isNotEmpty() } ?: mirror.names?.firstOrNull() ?: context.getString(R.string.connection_number, mirror.index),
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (mirror.isDeactivated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else Color.Unspecified
+                        color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     val sub = if (mirror.isDeactivated) {
                         stringResource(R.string.deactivated)
@@ -926,61 +950,60 @@ fun MirrorConnectionCard(
                     } else {
                         null
                     }
-                    if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (sub != null) Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.graphicsLayer { rotationZ = chevronRotation })
             }
 
             AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                Column {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    if (!mirror.isDeactivated) {
-                        if (mirror.isIce) {
-                            CloneConnectionDiagnostics(mirror)
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        }
-                        AndroidView<TextView>(
-                            factory = { ctx -> TextView(ctx).apply { textSize = 13f } },
-                            update = { it.text = Html.fromHtml(mirror.status, Html.FROM_HTML_MODE_LEGACY) },
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (active) {
+                        if (mirror.isIce) CloneConnectionDiagnostics(mirror)
+                        if (mirror.status.isNotBlank()) CloneNativeStatus(mirror.status)
                     }
                     if (mirror.canSendHistory) {
-                        Button(
+                        FilledTonalButton(
                             onClick = onSendHistory,
                             enabled = controlsEnabled,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = ButtonDefaults.ContentPadding,
                         ) {
+                            Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.clone_history_recovery))
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.End
+                    // FlowRow: five labelled actions wrap instead of clipping at large font scales.
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        TextButton(
-                            onClick = { showDeleteConfirm = true },
-                            enabled = controlsEnabled,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.TextButtonContentPadding
-                        ) {
-                            Text(stringResource(R.string.delete))
-                        }
-                        TextButton(onClick = onToggle, enabled = controlsEnabled, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                            Text(if (mirror.isDeactivated) stringResource(R.string.enable) else stringResource(R.string.disable))
-                        }
-                        TextButton(onClick = { qrContent = Natives.getbackJson(mirror.index) }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                            Text(stringResource(R.string.qr))
-                        }
+                        CloneCardAction(
+                            label = stringResource(R.string.qr_code),
+                            icon = Icons.Outlined.QrCode,
+                            onClick = { qrContent = Natives.getbackJson(mirror.index) },
+                        )
                         val testHost = mirror.names?.firstOrNull()?.takeIf { it.isNotBlank() }
                         if (testHost != null) {
-                            TextButton(
+                            CloneCardAction(
+                                label = stringResource(R.string.test),
+                                icon = when (cardTestState) {
+                                    ConnTestState.SUCCESS -> Icons.Filled.CheckCircle
+                                    ConnTestState.FAILURE -> Icons.Filled.ErrorOutline
+                                    else -> Icons.Filled.NetworkCheck
+                                },
+                                busy = cardTestState == ConnTestState.TESTING,
+                                enabled = cardTestState != ConnTestState.TESTING,
+                                color = when (cardTestState) {
+                                    ConnTestState.SUCCESS -> StatusPalette.success()
+                                    ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
+                                    else -> null
+                                },
                                 onClick = {
                                     cardTestState = ConnTestState.TESTING
                                     scope.launch {
@@ -989,35 +1012,86 @@ fun MirrorConnectionCard(
                                             ConnTestState.SUCCESS else ConnTestState.FAILURE
                                     }
                                 },
-                                enabled = cardTestState != ConnTestState.TESTING,
-                                colors = ButtonDefaults.textButtonColors(
-                                    contentColor = when (cardTestState) {
-                                        ConnTestState.SUCCESS -> StatusPalette.success()
-                                        ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
-                                        else -> MaterialTheme.colorScheme.primary
-                                    }
-                                ),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.TextButtonContentPadding
-                            ) {
-                                if (cardTestState == ConnTestState.TESTING) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(12.dp),
-                                        strokeWidth = 1.5.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                }
-                                Text(stringResource(R.string.test))
-                            }
+                            )
                         }
-                        TextButton(onClick = onEdit, enabled = controlsEnabled, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                            Text(stringResource(R.string.edit))
-                        }
+                        CloneCardAction(
+                            label = stringResource(R.string.edit),
+                            icon = Icons.Filled.Edit,
+                            enabled = controlsEnabled,
+                            onClick = onEdit,
+                        )
+                        CloneCardAction(
+                            label = stringResource(if (mirror.isDeactivated) R.string.enable else R.string.disable),
+                            icon = if (mirror.isDeactivated) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                            enabled = controlsEnabled,
+                            onClick = onToggle,
+                        )
+                        CloneCardAction(
+                            label = stringResource(R.string.delete),
+                            icon = Icons.Filled.Delete,
+                            enabled = controlsEnabled,
+                            color = MaterialTheme.colorScheme.error,
+                            onClick = { showDeleteConfirm = true },
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloneCardAction(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    color: Color? = null,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = if (color != null) ButtonDefaults.outlinedButtonColors(contentColor = color)
+        else ButtonDefaults.outlinedButtonColors(),
+        border = if (color != null && enabled) BorderStroke(1.dp, color.copy(alpha = 0.5f))
+        else ButtonDefaults.outlinedButtonBorder(enabled),
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+    ) {
+        if (busy) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(label, maxLines = 1)
+    }
+}
+
+/** The native engine's own status report. Its HTML title repeats the card title at h1 size, so it is flattened to bold. */
+@Composable
+private fun CloneNativeStatus(statusHtml: String) {
+    val text = remember(statusHtml) {
+        val html = AnnotatedString.fromHtml(
+            statusHtml
+                .replace(Regex("<h\\d>"), "<b>")
+                .replace(Regex("</h\\d>"), "</b><br>")
+        )
+        // The closing paragraph leaves blank lines that would pad the panel's bottom edge.
+        html.subSequence(0, html.text.trimEnd().length)
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(12.dp),
+        )
     }
 }
 
@@ -1038,10 +1112,7 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
         null -> unknown
     }
 
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CloneDiagnosticRow(stringResource(R.string.mirror_route), route)
         CloneDiagnosticRow(stringResource(R.string.clone_signaling), signaling)
         CloneDiagnosticRow(
@@ -1066,7 +1137,7 @@ private fun CloneConnectionDiagnostics(mirror: MirrorItemData) {
 
 @Composable
 private fun CloneDiagnosticRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,

@@ -5,6 +5,8 @@ package tk.glucodata.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.QrCode
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
+import tk.glucodata.util.DiscoveredMirror
 import tk.glucodata.ui.components.*
 import tk.glucodata.ui.components.AppTopBar
 
@@ -26,6 +29,8 @@ internal fun CloneSettingsContent(
     hasReceiver: Boolean,
     backgroundLiveness: Boolean,
     broadcasting: Boolean,
+    broadcastName: String,
+    nearbyDevices: List<DiscoveredMirror>,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onMasterChanged: (Boolean) -> Unit,
@@ -33,6 +38,7 @@ internal fun CloneSettingsContent(
     onScan: () -> Unit,
     onBackgroundChanged: (Boolean) -> Unit,
     onBroadcastChanged: (Boolean) -> Unit,
+    onNearbyDevice: (DiscoveredMirror) -> Unit,
     onNetworkSettings: () -> Unit,
     connections: LazyListScope.() -> Unit,
 ) {
@@ -43,7 +49,11 @@ internal fun CloneSettingsContent(
                 title = stringResource(R.string.clone_sync_title),
                 onNavigateBack = onBack,
                 actions = {
-                    IconButton(onClick = onRefresh, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all)) }
+                    IconButtonTooltip(stringResource(R.string.mirror_reconnect_all)) {
+                        IconButton(onClick = onRefresh, shapes = IconButtonDefaults.shapes()) {
+                            Icon(Icons.Default.Refresh, stringResource(R.string.mirror_reconnect_all))
+                        }
+                    }
                 },
             )
         },
@@ -64,17 +74,44 @@ internal fun CloneSettingsContent(
                     onCheckedChange = onMasterChanged,
                 )
             }
+            // Pairing comes first: it is what almost everyone opens this screen to do.
             item(key = "qr_section") {
-                SectionLabel(stringResource(R.string.mirror_quick_pair), topPadding = 8.dp)
+                SectionLabel(stringResource(R.string.mirror_quick_pair))
             }
             item(key = "qr_share_hybrid") {
                 SettingsItem(
                     title = stringResource(R.string.mirror_share_relay_qr),
                     subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
-                    icon = Icons.Filled.Cloud,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    icon = Icons.Outlined.QrCode,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
                     onClick = { onShare(QuickPairKind.HYBRID) },
+                )
+            }
+            item(key = "qr_scan") {
+                SettingsItem(
+                    title = stringResource(R.string.scan_qr_button),
+                    subtitle = stringResource(R.string.mirror_scan_qr_desc),
+                    icon = Icons.Outlined.QrCodeScanner,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.BOTTOM,
+                    onClick = onScan,
+                )
+            }
+            item(key = "wifi_section") { SectionLabel(stringResource(R.string.clone_same_wifi)) }
+            item(key = "broadcast") {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.clone_visible_nearby),
+                    subtitle = if (broadcasting) {
+                        stringResource(R.string.clone_visible_nearby_on, broadcastName)
+                    } else {
+                        stringResource(R.string.clone_visible_nearby_desc)
+                    },
+                    checked = broadcasting,
+                    onCheckedChange = onBroadcastChanged,
+                    icon = Icons.Default.WifiTethering,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.TOP,
                 )
             }
             item(key = "qr_share_local") {
@@ -83,18 +120,27 @@ internal fun CloneSettingsContent(
                     subtitle = stringResource(R.string.mirror_share_my_qr_desc),
                     icon = Icons.Outlined.QrCode,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.MIDDLE,
+                    position = if (nearbyDevices.isEmpty()) CardPosition.BOTTOM else CardPosition.MIDDLE,
+                    animatePosition = true,
                     onClick = { onShare(QuickPairKind.LOCAL) },
                 )
             }
-            item(key = "qr_scan") {
+            itemsIndexed(nearbyDevices, key = { _, device -> "nearby_${device.ip}" }) { index, device ->
                 SettingsItem(
-                    title = stringResource(R.string.scan_qr_button),
-                    subtitle = stringResource(R.string.mirror_scan_qr_desc),
-                    icon = Icons.Outlined.QrCodeScanner,
+                    title = device.name,
+                    subtitle = stringResource(R.string.clone_nearby_device_desc),
+                    icon = Icons.Default.PhoneAndroid,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.BOTTOM,
-                    onClick = onScan,
+                    position = if (index == nearbyDevices.lastIndex) CardPosition.BOTTOM else CardPosition.MIDDLE,
+                    animatePosition = true,
+                    onClick = { onNearbyDevice(device) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                 )
             }
             item(key = "setup_section") { SectionLabel(stringResource(R.string.clone_connection_options)) }
@@ -109,29 +155,18 @@ internal fun CloneSettingsContent(
                         enabled = controlsEnabled,
                         onCheckedChange = onBackgroundChanged,
                         icon = Icons.Default.BatterySaver,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        iconTint = MaterialTheme.colorScheme.secondary,
                         position = CardPosition.TOP,
                     )
                 }
-            }
-            item(key = "broadcast") {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.clone_visible_nearby),
-                    subtitle = stringResource(R.string.clone_visible_nearby_desc),
-                    checked = broadcasting,
-                    onCheckedChange = onBroadcastChanged,
-                    icon = Icons.Default.CellTower,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = if (hasConnections) CardPosition.MIDDLE else CardPosition.TOP,
-                )
             }
             item(key = "turn") {
                 SettingsItem(
                     title = stringResource(R.string.clone_network_title),
                     subtitle = stringResource(R.string.clone_network_summary),
                     icon = Icons.Default.Hub,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.BOTTOM,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = if (hasConnections) CardPosition.BOTTOM else CardPosition.SINGLE,
                     onClick = onNetworkSettings,
                 )
             }
