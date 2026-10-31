@@ -34,19 +34,25 @@ class MDnsManager(private val context: Context) {
      * NSD TXT record values are limited to 255 bytes each, so we chunk
      * the JSON across multiple keys (j0, j1, j2, ...) if needed.
      */
-    fun registerService(deviceName: String, port: Int = 8795, mirrorJson: String = "") {
-        val serviceInfo = NsdServiceInfo().apply {
-            serviceName = "JugglucoNG-$deviceName"
-            this.serviceType = this@MDnsManager.serviceType
-            this.port = port
-            // Chunk the JSON into <=250 byte pieces (leaving room for key overhead)
-            if (mirrorJson.isNotEmpty()) {
-                val chunks = mirrorJson.chunked(250)
-                chunks.forEachIndexed { index, chunk ->
-                    setAttribute("j$index", chunk)
+    fun registerService(deviceName: String, port: Int = 8795, mirrorJson: String = ""): Boolean {
+        // setAttribute throws past Android's TXT limits (255 bytes per entry, ~1300 in total).
+        val serviceInfo = try {
+            NsdServiceInfo().apply {
+                serviceName = "JugglucoNG-$deviceName"
+                this.serviceType = this@MDnsManager.serviceType
+                this.port = port
+                // Chunk the JSON into <=250 byte pieces (leaving room for key overhead)
+                if (mirrorJson.isNotEmpty()) {
+                    val chunks = mirrorJson.chunked(250)
+                    chunks.forEachIndexed { index, chunk ->
+                        setAttribute("j$index", chunk)
+                    }
+                    setAttribute("jn", chunks.size.toString())
                 }
-                setAttribute("jn", chunks.size.toString())
             }
+        } catch (e: IllegalArgumentException) {
+            Log.e("MDNS", "Announcement too large", e)
+            return false
         }
 
         registrationListener = object : NsdManager.RegistrationListener {
@@ -70,10 +76,12 @@ class MDnsManager(private val context: Context) {
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
         }
 
-        try {
+        return try {
             nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+            true
         } catch (e: Exception) {
             Log.e("MDNS", "Register error", e)
+            false
         }
     }
 
@@ -81,10 +89,14 @@ class MDnsManager(private val context: Context) {
         try {
             registrationListener?.let { nsdManager.unregisterService(it) }
         } catch (e: Exception) {}
+        registrationListener = null
     }
 
     // Scanning (Follower side)
-    fun discoverServices(onServiceFound: (DiscoveredMirror) -> Unit) {
+    fun discoverServices(
+        onServiceFound: (DiscoveredMirror) -> Unit,
+        onServiceLost: (name: String) -> Unit = {},
+    ) {
         discoveryListener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {
                 Log.d("MDNS", "Service discovery started")
@@ -125,7 +137,11 @@ class MDnsManager(private val context: Context) {
                 }
             }
 
-            override fun onServiceLost(service: NsdServiceInfo) {}
+            // A sharing phone advertises only while its code is on screen, so drop it once it stops.
+            override fun onServiceLost(service: NsdServiceInfo) {
+                val name = service.serviceName.removePrefix("JugglucoNG-")
+                Handler(Looper.getMainLooper()).post { onServiceLost(name) }
+            }
             override fun onDiscoveryStopped(serviceType: String) {}
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
                 nsdManager.stopServiceDiscovery(this)

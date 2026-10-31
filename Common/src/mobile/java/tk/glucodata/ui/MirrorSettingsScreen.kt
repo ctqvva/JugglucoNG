@@ -191,11 +191,21 @@ fun QRCodeImage(content: String, size: Int, modifier: Modifier = Modifier) {
     }
 }
 
+private enum class ClonePairingStatus { WAITING, WAITING_ANNOUNCED, CONNECTED }
+
+/**
+ * A connection's QR code. Opened from "Show code" it is the whole pairing step: a choice of
+ * network, the code, and whether the other phone has joined.
+ */
 @Composable
 private fun MirrorQrDialog(
     title: String,
     content: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    kind: QuickPairKind? = null,
+    onKindChange: (QuickPairKind) -> Unit = {},
+    status: ClonePairingStatus? = null,
+    deviceName: String = "",
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -230,26 +240,55 @@ private fun MirrorQrDialog(
                             style = MaterialTheme.typography.headlineSmall,
                             textAlign = TextAlign.Center,
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(
-                                R.string.clone_qr_instruction,
-                                stringResource(R.string.clone_sync_title),
-                                stringResource(R.string.scan_qr_button),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        QRCodeImage(
-                            content,
-                            bitmapSize,
-                            Modifier
-                                .size(qrSize)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White)
-                        )
+                        // Once the other phone has joined, the code has done its job; showing it
+                        // longer only invites a second phone to scan a code already in use.
+                        AnimatedVisibility(visible = status != ClonePairingStatus.CONNECTED) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    stringResource(
+                                        R.string.clone_qr_instruction,
+                                        stringResource(R.string.clone_sync_title),
+                                        stringResource(R.string.clone_scan_code),
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                                if (kind != null) {
+                                    Spacer(Modifier.height(16.dp))
+                                    val anyNetwork = stringResource(R.string.clone_code_any_network)
+                                    val wifiOnly = stringResource(R.string.clone_code_wifi_only)
+                                    val kindLabel = { option: QuickPairKind ->
+                                        if (option == QuickPairKind.HYBRID) anyNetwork else wifiOnly
+                                    }
+                                    ConnectedButtonGroup(
+                                        options = listOf(QuickPairKind.HYBRID, QuickPairKind.LOCAL),
+                                        selectedOption = kind,
+                                        onOptionSelected = onKindChange,
+                                        labelText = kindLabel,
+                                        label = { option -> Text(kindLabel(option)) },
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                                Spacer(Modifier.height(if (kind != null) 16.dp else 24.dp))
+                                QRCodeImage(
+                                    content,
+                                    bitmapSize,
+                                    Modifier
+                                        .size(qrSize)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.White)
+                                )
+                            }
+                        }
+                        if (status != null) {
+                            Spacer(Modifier.height(if (status == ClonePairingStatus.CONNECTED) 24.dp else 16.dp))
+                            ClonePairingStatusLine(status, deviceName)
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     TextButton(
@@ -258,9 +297,50 @@ private fun MirrorQrDialog(
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.TextButtonContentPadding
                     ) {
-                        Text(stringResource(R.string.close))
+                        Text(
+                            stringResource(
+                                if (status == ClonePairingStatus.CONNECTED) R.string.clone_history_done else R.string.close
+                            )
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ClonePairingStatusLine(status: ClonePairingStatus, deviceName: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (status == ClonePairingStatus.CONNECTED) {
+            Icon(
+                Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = StatusPalette.success(),
+                modifier = Modifier.size(32.dp),
+            )
+        } else {
+            LoadingIndicator(modifier = Modifier.size(32.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(
+                    if (status == ClonePairingStatus.CONNECTED) R.string.clone_pairing_connected
+                    else R.string.clone_pairing_waiting
+                ),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            if (status == ClonePairingStatus.WAITING_ANNOUNCED) {
+                Text(
+                    stringResource(R.string.clone_pairing_announced, deviceName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -424,10 +504,14 @@ private fun finishCloneReceptionDisable() {
     tk.glucodata.OutboundApiJournalSnapshot.journalChanged()
 }
 
-private fun deleteAnnouncementSender(label: String?, ownedByAnnouncement: Boolean): Boolean {
+private fun deleteAnnouncementSender(
+    label: String?,
+    ownedByAnnouncement: Boolean,
+    kind: QuickPairKind,
+): Boolean {
     if (label.isNullOrBlank()) return false
     val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
-    if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement)) return false
+    if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement, kind)) return false
     Natives.deletebackuphost(connection!!.index)
     return true
 }
@@ -454,21 +538,27 @@ private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickP
     return QuickPairSender(index, created = index >= 0)
 }
 
-private fun cleanupAnnouncementSender(
-    context: Context,
-    label: String?,
-    ownedByAnnouncement: Boolean,
-    syncReceptionState: Boolean = true,
-): Boolean {
-    if (!deleteAnnouncementSender(label, ownedByAnnouncement)) return false
-    if (syncReceptionState) {
-        val cloneEnabled = isCloneEnabled(readMirrorConnectionSnapshots())
-        tk.glucodata.CloneSensorRegistry.setReceptionEnabled(cloneEnabled)
-        if (!cloneEnabled) finishCloneReceptionDisable()
-    }
+private fun cleanupAnnouncementSender(context: Context, session: ClonePairingSession): Boolean {
+    if (!deleteAnnouncementSender(session.label, session.created, session.kind)) return false
+    val cloneEnabled = isCloneEnabled(readMirrorConnectionSnapshots())
+    tk.glucodata.CloneSensorRegistry.setReceptionEnabled(cloneEnabled)
+    if (!cloneEnabled) finishCloneReceptionDisable()
     refreshMirrorNetworking(context)
     return true
 }
+
+/** What the "Show code" window is offering: one sender, shown as a QR code and announced on the Wi-Fi. */
+private data class ClonePairingSession(
+    val kind: QuickPairKind,
+    val index: Int,
+    val label: String?,
+    val created: Boolean,
+    val json: String,
+    val announced: Boolean,
+)
+
+private fun mirrorJsonIceLabel(json: String): String? =
+    runCatching { org.json.JSONObject(json).optString("ICElabel") }.getOrNull()?.takeIf { it.isNotBlank() }
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -477,14 +567,11 @@ fun MirrorSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     var triggerRefresh by remember { mutableIntStateOf(0) }
     var mirrors by remember { mutableStateOf(emptyList<MirrorItemData>()) }
-    var showMyQR by remember { mutableStateOf<String?>(null) }
-    var showMyQRTitle by remember { mutableStateOf<String?>(null) }
-
-    // mDNS
+    // "Show code": this phone is announced on the Wi-Fi only while the window is open.
     val mdnsManager = remember { MDnsManager(context) }
-    var isBroadcasting by remember { mutableStateOf(false) }
-    var broadcastSenderLabel by remember { mutableStateOf<String?>(null) }
-    var broadcastOwnsSender by remember { mutableStateOf(false) }
+    val deviceName = android.os.Build.MODEL ?: "Device"
+    var pairing by remember { mutableStateOf<ClonePairingSession?>(null) }
+    var pairingConnected by remember { mutableStateOf(false) }
     var discoveredMirrors by remember { mutableStateOf(emptyList<DiscoveredMirror>()) }
 
     // Pending states
@@ -501,9 +588,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         mutableStateOf(tk.glucodata.CloneBackgroundLiveness.isEnabled())
     }
 
-    val latestIsBroadcasting by rememberUpdatedState(isBroadcasting)
-    val latestBroadcastSenderLabel by rememberUpdatedState(broadcastSenderLabel)
-    val latestBroadcastOwnsSender by rememberUpdatedState(broadcastOwnsSender)
+    val latestPairing by rememberUpdatedState(pairing)
 
     // Native ICE state changes independently of Compose. Keep the visible
     // connection cards current while this screen is open.
@@ -516,20 +601,63 @@ fun MirrorSettingsScreen(navController: NavController) {
     }
 
     DisposableEffect(Unit) {
-        mdnsManager.discoverServices { mirror ->
-            if (discoveredMirrors.none { it.ip == mirror.ip }) {
-                discoveredMirrors = discoveredMirrors + mirror
-            }
-        }
+        mdnsManager.discoverServices(
+            onServiceFound = { mirror ->
+                // A phone that reopens its window may announce a different code; keep the newest.
+                discoveredMirrors = discoveredMirrors.filterNot { it.name == mirror.name } + mirror
+            },
+            onServiceLost = { name ->
+                discoveredMirrors = discoveredMirrors.filterNot { it.name == name }
+            },
+        )
         onDispose {
             mdnsManager.stopDiscovery()
-            if (latestIsBroadcasting) {
-                mdnsManager.unregisterService()
-                cleanupAnnouncementSender(
-                    context,
-                    latestBroadcastSenderLabel,
-                    latestBroadcastOwnsSender
-                )
+            if (latestPairing?.announced == true) mdnsManager.unregisterService()
+        }
+    }
+
+    fun stopAnnouncing() {
+        if (pairing?.announced == true) mdnsManager.unregisterService()
+        pairing = pairing?.copy(announced = false)
+    }
+
+    fun startPairing(kind: QuickPairKind) {
+        val previous = pairing
+        stopAnnouncing()
+        // Switching between "Any network" and "This Wi-Fi only" should not leave the unused
+        // code behind as a connection.
+        if (previous != null && previous.kind != kind) cleanupAnnouncementSender(context, previous)
+        val sender = ensureQuickPairSender(context, kind)
+        val index = sender.index
+        if (index < 0) {
+            pairing = null
+            Toast.makeText(context, context.getString(R.string.mirror_error_with_code, index), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val json = Natives.getbackJson(index) ?: ""
+        val port = Natives.getbackuphostport(index)?.toIntOrNull() ?: 8795
+        pairingConnected = false
+        pairing = ClonePairingSession(
+            kind = kind,
+            index = index,
+            label = Natives.getbackuplabel(index),
+            created = sender.created,
+            json = json,
+            announced = json.isNotEmpty() && mdnsManager.registerService(deviceName, port, json),
+        )
+        triggerRefresh++
+    }
+
+    // A new sender stays pending until the other phone completes its first handshake.
+    LaunchedEffect(pairing?.index, pairing?.label) {
+        val session = pairing ?: return@LaunchedEffect
+        while (!pairingConnected) {
+            delay(1_000)
+            val connection = readMirrorConnectionSnapshots()
+                .firstOrNull { it.index == session.index && it.label == session.label }
+            if (connection != null && !connection.isPending) {
+                pairingConnected = true
+                stopAnnouncing()
             }
         }
     }
@@ -611,50 +739,66 @@ fun MirrorSettingsScreen(navController: NavController) {
         )
     }
 
+    fun getReadings(device: DiscoveredMirror) {
+        if (injectMirrorJson(device.mirrorJson, context)) {
+            discoveredMirrors = discoveredMirrors.filterNot { it.name == device.name }
+            triggerRefresh++
+        }
+    }
+
+    // Only a code carrying its own relay settings asks first: accepting it replaces this phone's.
     if (pendingNearby != null) {
         val device = pendingNearby!!
         AlertDialog(
             onDismissRequest = { pendingNearby = null },
             icon = { Icon(Icons.Filled.Wifi, contentDescription = null) },
             title = { Text(stringResource(R.string.mirror_connect_nearby_title, device.name)) },
-            text = { Text(stringResource(R.string.mirror_connect_nearby_message, device.ip, device.port, device.name)) },
+            text = { Text(stringResource(R.string.mirror_connect_qr_turn_message)) },
             confirmButton = {
-                Button(onClick = {
-                    // Use injectMirrorJson — same code path as QR scanning
-                    if (device.mirrorJson.isNotEmpty()) {
-                        if (injectMirrorJson(device.mirrorJson, context)) triggerRefresh++
-                    } else {
-                        Toast.makeText(context, context.getString(R.string.mirror_connection_data_missing), Toast.LENGTH_SHORT).show()
-                    }
-                    pendingNearby = null
-                },
-                        shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.mirror_connect_action)) }
+                Button(
+                    onClick = { getReadings(device); pendingNearby = null },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) { Text(stringResource(R.string.mirror_connect_action)) }
             },
             dismissButton = { OutlinedButton(onClick = { pendingNearby = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
         )
     }
 
-    if (showMyQR != null) {
+    pairing?.let { session ->
         MirrorQrDialog(
-            title = showMyQRTitle ?: stringResource(R.string.mirror_share_relay_qr),
-            content = showMyQR!!,
-            onDismiss = { showMyQR = null; showMyQRTitle = null }
+            title = stringResource(R.string.clone_connect_title),
+            content = session.json,
+            onDismiss = {
+                stopAnnouncing()
+                pairing = null
+                triggerRefresh++
+            },
+            kind = session.kind,
+            onKindChange = { kind -> if (kind != session.kind) startPairing(kind) },
+            status = when {
+                pairingConnected -> ClonePairingStatus.CONNECTED
+                session.announced -> ClonePairingStatus.WAITING_ANNOUNCED
+                else -> ClonePairingStatus.WAITING
+            },
+            deviceName = deviceName,
         )
     }
 
     // ── Content ──────────────────────────────────────────────────────────
 
     val cloneConnections = mirrors.filterNot { it.isWearOs }
+    // Hide a sharing phone this one already follows.
+    val followedIceLabels = mirrors.mapNotNull { it.iceLabel }.toSet()
     CloneSettingsContent(
         cloneEnabled = cloneTransitionDesired ?: cloneConnections.any { !it.isDeactivated },
         controlsEnabled = cloneConnections.isNotEmpty() && !CloneHostTransitionRunner.isRunning(),
         hasConnections = cloneConnections.isNotEmpty(),
-        hasReceiver = hasActiveCloneReceiver(readMirrorConnectionSnapshots()),
+        listsConnections = mirrors.isNotEmpty(),
         backgroundLiveness = backgroundLivenessEnabled,
-        broadcasting = isBroadcasting,
-        broadcastName = android.os.Build.MODEL ?: "Device",
-        nearbyDevices = discoveredMirrors,
+        nearbyDevices = discoveredMirrors.filter { device ->
+            device.mirrorJson.isNotEmpty() && mirrorJsonIceLabel(device.mirrorJson) !in followedIceLabels
+        },
         onBack = { navController.popBackStack() },
         onRefresh = {
             Natives.resetnetwork()
@@ -666,8 +810,6 @@ fun MirrorSettingsScreen(navController: NavController) {
             // Close the receiver gate before native host shutdown;
             // perform potentially blocking libjuice teardown away
             // from Android's input-dispatch thread.
-            val announcementLabel = broadcastSenderLabel
-            val announcementOwned = broadcastOwnsSender
             val started = CloneHostTransitionRunner.start(
                 connectionIndices = {
                     cloneConnectionIndices(readMirrorConnectionSnapshots())
@@ -676,18 +818,9 @@ fun MirrorSettingsScreen(navController: NavController) {
                 cloneEnabledAfterTransition = enabled,
                 beforeNative = {
                     tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabled)
-                    if (!enabled && isBroadcasting) {
-                        mdnsManager.unregisterService()
-                        isBroadcasting = false
-                        broadcastSenderLabel = null
-                        broadcastOwnsSender = false
-                    }
                 },
                 afterNative = {
-                    if (!enabled) {
-                        deleteAnnouncementSender(announcementLabel, announcementOwned)
-                        finishCloneReceptionDisable()
-                    }
+                    if (!enabled) finishCloneReceptionDisable()
                 },
                 onFinished = {
                     refreshMirrorNetworking(context)
@@ -699,90 +832,21 @@ fun MirrorSettingsScreen(navController: NavController) {
                 cloneTransitionDesired = enabled
             }
         },
-        onShare = { kind ->
-            val sender = ensureQuickPairSender(context, kind)
-            val idx = sender.index
-            if (idx >= 0) {
-                if (kind == QuickPairKind.LOCAL && Natives.getbackuplabel(idx) == broadcastSenderLabel) {
-                    broadcastOwnsSender = false
-                }
-                showMyQRTitle = localizedMirrorConnectionLabel(
-                    Natives.getbackuplabel(idx),
-                    context.getString(R.string.mirror_default_local_label),
-                    context.getString(R.string.mirror_default_hybrid_label),
-                )
-                showMyQR = Natives.getbackJson(idx)
-                triggerRefresh++
-            } else {
-                Toast.makeText(context, context.getString(R.string.mirror_error_with_code, idx), Toast.LENGTH_SHORT).show()
-            }
-        },
+        onShowCode = { startPairing(QuickPairKind.HYBRID) },
         onScan = { launchScanner() },
+        onGetReadings = { device ->
+            if (mirrorQrContainsTurnConfig(device.mirrorJson)) pendingNearby = device else getReadings(device)
+        },
         onBackgroundChanged = { enabled ->
             backgroundLivenessEnabled = enabled
             tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
         },
-        onBroadcastChanged = { checked ->
-            isBroadcasting = checked
-            if (checked) {
-                val sender = ensureQuickPairSender(context, QuickPairKind.LOCAL)
-                val idx = sender.index
-                if (idx >= 0) {
-                    broadcastSenderLabel = Natives.getbackuplabel(idx)
-                    broadcastOwnsSender = sender.created
-                    triggerRefresh++
-                    val senderPort = Natives.getbackuphostport(idx)?.toIntOrNull() ?: 8795
-                    // Get the full JSON (same data as QR code) for the follower
-                    val mirrorJson = Natives.getbackJson(idx) ?: ""
-                    mdnsManager.registerService(
-                        android.os.Build.MODEL ?: "Device",
-                        senderPort,
-                        mirrorJson
-                    )
-                } else {
-                    broadcastSenderLabel = null
-                    broadcastOwnsSender = false
-                    mdnsManager.registerService(android.os.Build.MODEL ?: "Device")
-                }
-            } else {
-                mdnsManager.unregisterService()
-                if (cleanupAnnouncementSender(
-                        context,
-                        broadcastSenderLabel,
-                        broadcastOwnsSender
-                    )) {
-                    triggerRefresh++
-                }
-                broadcastSenderLabel = null
-                broadcastOwnsSender = false
-            }
-        },
-        onNearbyDevice = { pendingNearby = it },
         onNetworkSettings = { navController.navigate("settings/turnserver") },
+        onAddManually = { editSheetPos = -1 },
     ) {
         // ── Connections ──────────────────────────────────────────
-        item(key = "connections_section") {
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                SectionLabel(stringResource(R.string.mirror_connections), topPadding = 0.dp)
-                Spacer(Modifier.weight(1f))
-                IconButtonTooltip(stringResource(R.string.add_connection)) {
-                    IconButton(onClick = { editSheetPos = -1 }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_connection), tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-        }
-
-        if (mirrors.isEmpty()) {
-            item(key = "empty_msg") {
-                Text(
-                    text = stringResource(R.string.clone_connections_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 24.dp),
-                )
-            }
-        } else {
+        if (mirrors.isNotEmpty()) {
+            item(key = "connections_section") { SectionLabel(stringResource(R.string.mirror_connections)) }
             items(mirrors, key = { it.index }) { mirror ->
                 MirrorConnectionCard(
                     mirror = mirror,
@@ -820,12 +884,6 @@ fun MirrorSettingsScreen(navController: NavController) {
                             it.index != mirror.index && !it.isDeactivated
                         }
                         tk.glucodata.CloneSensorRegistry.setReceptionEnabled(enabledAfterDelete)
-                        if (mirror.label == broadcastSenderLabel) {
-                            mdnsManager.unregisterService()
-                            isBroadcasting = false
-                            broadcastSenderLabel = null
-                            broadcastOwnsSender = false
-                        }
                         Natives.deletebackuphost(mirror.index)
                         if (!enabledAfterDelete) {
                             finishCloneReceptionDisable()

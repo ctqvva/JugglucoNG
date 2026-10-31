@@ -5,8 +5,6 @@ package tk.glucodata.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.QrCode
@@ -14,6 +12,7 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tk.glucodata.R
@@ -26,20 +25,18 @@ internal fun CloneSettingsContent(
     cloneEnabled: Boolean,
     controlsEnabled: Boolean,
     hasConnections: Boolean,
-    hasReceiver: Boolean,
+    listsConnections: Boolean,
     backgroundLiveness: Boolean,
-    broadcasting: Boolean,
-    broadcastName: String,
     nearbyDevices: List<DiscoveredMirror>,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onMasterChanged: (Boolean) -> Unit,
-    onShare: (QuickPairKind) -> Unit,
+    onShowCode: () -> Unit,
     onScan: () -> Unit,
+    onGetReadings: (DiscoveredMirror) -> Unit,
     onBackgroundChanged: (Boolean) -> Unit,
-    onBroadcastChanged: (Boolean) -> Unit,
-    onNearbyDevice: (DiscoveredMirror) -> Unit,
     onNetworkSettings: () -> Unit,
+    onAddManually: () -> Unit,
     connections: LazyListScope.() -> Unit,
 ) {
     Scaffold(
@@ -63,85 +60,73 @@ internal fun CloneSettingsContent(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            item(key = "clone_master") {
-                MasterSwitchCard(
-                    title = stringResource(R.string.mirror_clone_master),
-                    subtitle = stringResource(if (!hasConnections) R.string.clone_add_first
-                        else if (cloneEnabled) R.string.enabled_status else R.string.disabled_status),
-                    checked = cloneEnabled,
-                    enabled = controlsEnabled,
-                    icon = Icons.Default.SyncAlt,
-                    onCheckedChange = onMasterChanged,
-                )
+            // The master switch only means something once there is a connection to turn off.
+            if (hasConnections) {
+                item(key = "clone_master") {
+                    MasterSwitchCard(
+                        title = stringResource(R.string.mirror_clone_master),
+                        subtitle = stringResource(if (cloneEnabled) R.string.enabled_status else R.string.disabled_status),
+                        checked = cloneEnabled,
+                        enabled = controlsEnabled,
+                        icon = Icons.Default.SyncAlt,
+                        onCheckedChange = onMasterChanged,
+                    )
+                }
             }
-            // Pairing comes first: it is what almost everyone opens this screen to do.
-            item(key = "qr_section") {
-                SectionLabel(stringResource(R.string.mirror_quick_pair))
-            }
-            item(key = "qr_share_hybrid") {
-                SettingsItem(
-                    title = stringResource(R.string.mirror_share_relay_qr),
-                    subtitle = stringResource(R.string.mirror_share_relay_qr_desc),
-                    icon = Icons.Outlined.QrCode,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    position = CardPosition.TOP,
-                    onClick = { onShare(QuickPairKind.HYBRID) },
-                )
-            }
-            item(key = "qr_scan") {
-                SettingsItem(
-                    title = stringResource(R.string.scan_qr_button),
-                    subtitle = stringResource(R.string.mirror_scan_qr_desc),
-                    icon = Icons.Outlined.QrCodeScanner,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    position = CardPosition.BOTTOM,
-                    onClick = onScan,
-                )
-            }
-            item(key = "wifi_section") { SectionLabel(stringResource(R.string.clone_same_wifi)) }
-            item(key = "broadcast") {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.clone_visible_nearby),
-                    subtitle = if (broadcasting) {
-                        stringResource(R.string.clone_visible_nearby_on, broadcastName)
-                    } else {
-                        stringResource(R.string.clone_visible_nearby_desc)
-                    },
-                    checked = broadcasting,
-                    onCheckedChange = onBroadcastChanged,
-                    icon = Icons.Default.WifiTethering,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.TOP,
-                )
-            }
-            item(key = "qr_share_local") {
-                SettingsItem(
-                    title = stringResource(R.string.mirror_share_my_qr),
-                    subtitle = stringResource(R.string.mirror_share_my_qr_desc),
-                    icon = Icons.Outlined.QrCode,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = if (nearbyDevices.isEmpty()) CardPosition.BOTTOM else CardPosition.MIDDLE,
-                    animatePosition = true,
-                    onClick = { onShare(QuickPairKind.LOCAL) },
-                )
-            }
-            itemsIndexed(nearbyDevices, key = { _, device -> "nearby_${device.ip}" }) { index, device ->
-                SettingsItem(
-                    title = device.name,
-                    subtitle = stringResource(R.string.clone_nearby_device_desc),
-                    icon = Icons.Default.PhoneAndroid,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = if (index == nearbyDevices.lastIndex) CardPosition.BOTTOM else CardPosition.MIDDLE,
-                    animatePosition = true,
-                    onClick = { onNearbyDevice(device) },
-                    trailingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Returning users come to check their connections; first-time users have none, so
+            // pairing leads for them.
+            connections()
+            item(key = "pairing") {
+                Column(
+                    modifier = Modifier.animateItem().padding(top = if (listsConnections) 24.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // A phone sharing on this Wi-Fi is the most specific thing to do here.
+                    nearbyDevices.forEach { device ->
+                        AppUpdateCard(
+                            accent = MaterialTheme.colorScheme.tertiary,
+                            title = stringResource(R.string.clone_nearby_sharing, device.name),
+                            body = stringResource(R.string.clone_nearby_sharing_body),
+                            icon = Icons.Default.PhoneAndroid,
+                            elevated = true,
+                        ) {
+                            ClonePairAction(
+                                label = stringResource(R.string.clone_get_readings),
+                                icon = Icons.Default.Download,
+                                filled = true,
+                                accent = MaterialTheme.colorScheme.tertiary,
+                                onClick = { onGetReadings(device) },
+                            )
+                        }
+                    }
+                    AppUpdateCard(
+                        accent = MaterialTheme.colorScheme.primary,
+                        title = stringResource(R.string.clone_connect_title),
+                        body = stringResource(
+                            R.string.clone_connect_body,
+                            stringResource(R.string.clone_show_code),
+                            stringResource(R.string.clone_scan_code),
+                        ),
+                        icon = Icons.Default.AddLink,
+                        // The screen's hero until something is paired; a quiet card after that.
+                        elevated = !hasConnections,
+                    ) {
+                        ClonePairAction(
+                            label = stringResource(R.string.clone_scan_code),
+                            icon = Icons.Outlined.QrCodeScanner,
+                            filled = false,
+                            accent = MaterialTheme.colorScheme.primary,
+                            onClick = onScan,
                         )
-                    },
-                )
+                        ClonePairAction(
+                            label = stringResource(R.string.clone_show_code),
+                            icon = Icons.Outlined.QrCode,
+                            filled = true,
+                            accent = MaterialTheme.colorScheme.primary,
+                            onClick = onShowCode,
+                        )
+                    }
+                }
             }
             item(key = "setup_section") { SectionLabel(stringResource(R.string.clone_connection_options)) }
             // A preference, not a status: gating it on a connection being live right
@@ -166,11 +151,52 @@ internal fun CloneSettingsContent(
                     subtitle = stringResource(R.string.clone_network_summary),
                     icon = Icons.Default.Hub,
                     iconTint = MaterialTheme.colorScheme.secondary,
-                    position = if (hasConnections) CardPosition.BOTTOM else CardPosition.SINGLE,
+                    position = if (hasConnections) CardPosition.MIDDLE else CardPosition.TOP,
+                    animatePosition = true,
                     onClick = onNetworkSettings,
                 )
             }
-            connections()
+            item(key = "add_manually") {
+                SettingsItem(
+                    title = stringResource(R.string.add_connection),
+                    subtitle = stringResource(R.string.clone_add_manually_desc),
+                    icon = Icons.Default.Add,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.BOTTOM,
+                    onClick = onAddManually,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun ClonePairAction(
+    label: String,
+    icon: ImageVector,
+    filled: Boolean,
+    accent: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
+    val content: @Composable RowScope.() -> Unit = {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, maxLines = 1)
+    }
+    if (filled) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = contentColorFor(accent)),
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            content = content,
+        )
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            content = content,
+        )
     }
 }
