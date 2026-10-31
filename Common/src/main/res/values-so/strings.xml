@@ -498,6 +498,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="clone_local_discovery_summary">Ku xidh lammaanaha Hybrid ee la yaqaan ee isku shabakad maxalli ah adigoon isticmaalin server rendezvous. Furayaasha xidhiidhka waligood lama shaacin.</string>
     <string name="clone_prefer_ipv4">Doorbiday IPv4</string>
     <string name="clone_prefer_ipv4_summary">Xiriirrada cusub u doorbiday IPv4, IPv6-na kayd ahaan u hay. Ka daar labada taleefan. Xiriirrada jira isma beddelaan.</string>
+    <string name="clone_allow_fallback_servers">Oggolow server-yada kaydka</string>
+    <string name="clone_allow_fallback_servers_desc">Sidoo kale isticmaal server-yada app-ka oo la jira kuwaaga</string>
     <string name="clone_lan_discovery_status">Helitaanka shabakadda maxalliga ah</string>
     <string name="clone_signaling">Ogaansho</string>
     <string name="clone_signaling_lan">LAN</string>

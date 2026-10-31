@@ -474,6 +474,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_local_discovery_summary">Нэг дотоод сүлжээн дэх мэдэгдэж буй Hybrid хосуудад rendezvous сервергүйгээр холбогдоно. Хослуулах нууц түлхүүрийг хэзээ ч зарладаггүй.</string>
     <string name="clone_prefer_ipv4">IPv4-г илүүд үзэх</string>
     <string name="clone_prefer_ipv4_summary">Шинэ холболтод IPv4-г илүүд үзэж, IPv6-г нөөцөөр ашиглана. Хоёр утсан дээр идэвхжүүлнэ үү. Одоогийн холболтууд өөрчлөгдөхгүй.</string>
+    <string name="clone_allow_fallback_servers">Нөөц серверүүдийг зөвшөөрөх</string>
+    <string name="clone_allow_fallback_servers_desc">Өөрийн серверийн хамт аппын серверүүдийг ашиглах</string>
     <string name="clone_lan_discovery_status">Дотоод сүлжээний хайлт</string>
     <string name="clone_signaling">Илрүүлэлт</string>
     <string name="clone_signaling_lan">LAN</string>

@@ -468,6 +468,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_local_discovery_summary">Csatlakozás az ismert hibrid párokhoz ugyanazon a helyi hálózaton, rendezvous-szerver nélkül. A párosítás titkos adatai soha nem kerülnek közzétételre.</string>
     <string name="clone_prefer_ipv4">IPv4 előnyben részesítése</string>
     <string name="clone_prefer_ipv4_summary">Új kapcsolatoknál az IPv4 előnyben részesítése, az IPv6 megtartásával tartalékként. Mindkét telefonon engedélyezendő. A meglévő kapcsolatok változatlanok maradnak.</string>
+    <string name="clone_allow_fallback_servers">Tartalékszerverek engedélyezése</string>
+    <string name="clone_allow_fallback_servers_desc">Az alkalmazás szervereinek használata a sajátjai mellett</string>
     <string name="clone_lan_discovery_status">LAN-felderítés</string>
     <string name="clone_signaling">Felderítés</string>
     <string name="clone_signaling_lan">LAN</string>

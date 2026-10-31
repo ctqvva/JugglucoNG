@@ -12,12 +12,15 @@ struct ICEConfigSnapshot {
     bool verifyRendezvousCertificate{true};
     bool useLocalDiscovery{true};
     bool preferIPv4{false};
+    // With a custom TURN / rendezvous server, also use the app's own servers.
+    bool allowFallbackServers{false};
 };
 
 ICEConfigSnapshot currentICEConfig();
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
                      bool useTurnForStun, bool verifyRendezvousCertificate,
-                     bool useLocalDiscovery, bool preferIPv4 = false);
+                     bool useLocalDiscovery, bool preferIPv4 = false,
+                     bool allowFallbackServers = false);
 
 struct RendezvousEndpoint {
     std::string host;

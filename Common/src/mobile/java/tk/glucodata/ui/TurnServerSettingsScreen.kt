@@ -74,6 +74,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
             useLocalDiscovery = next.useLocalDiscovery,
             useTurnForStun = next.useTurnForStun && saved.turnEndpoint != null,
             preferIPv4 = next.preferIPv4,
+            allowFallbackServers = next.allowFallbackServers,
         )
         if (CloneIceNetworkConfigStore.save(context, nextConfig)) {
             config = nextConfig
@@ -81,6 +82,7 @@ fun TurnServerSettingsScreen(navController: NavController) {
                 useLocalDiscovery = nextConfig.useLocalDiscovery,
                 useTurnForStun = nextConfig.useTurnForStun,
                 preferIPv4 = nextConfig.preferIPv4,
+                allowFallbackServers = nextConfig.allowFallbackServers,
             )
         } else {
             reportFailure()

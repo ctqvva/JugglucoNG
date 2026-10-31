@@ -921,7 +921,8 @@ extern "C" JNIEXPORT void JNICALL fromjava(setTurnServer)(
 extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
     JNIEnv *env, jclass cl, jstring rendezvousHost, jint rendezvousPort,
     jboolean useTurnForStun, jboolean verifyRendezvousCertificate,
-    jboolean useLocalDiscovery, jboolean preferIPv4) {
+    jboolean useLocalDiscovery, jboolean preferIPv4,
+    jboolean allowFallbackServers) {
 #ifdef __ANDROID__
   extern void initializeLocalICEMulticast(JNIEnv *env);
   initializeLocalICEMulticast(env);
@@ -940,7 +941,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setCloneICEConfig)(
                       ? static_cast<uint16_t>(rendezvousPort)
                       : static_cast<uint16_t>(6789),
                   useTurnForStun, verifyRendezvousCertificate,
-                  useLocalDiscovery, preferIPv4);
+                  useLocalDiscovery, preferIPv4, allowFallbackServers);
 }
 
 extern "C" JNIEXPORT void JNICALL fromjava(deleteTurnServer)(JNIEnv *env,

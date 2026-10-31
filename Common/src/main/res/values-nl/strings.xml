@@ -995,6 +995,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_local_discovery_summary">Verbind met bekende Hybrid-paren op hetzelfde lokale netwerk zonder rendezvousserver. Koppelgeheimen worden nooit bekendgemaakt.</string>
     <string name="clone_prefer_ipv4">IPv4 verkiezen</string>
     <string name="clone_prefer_ipv4_summary">Geef IPv4 voorrang bij nieuwe verbindingen, met IPv6 als alternatief. Schakel dit op beide telefoons in. Bestaande verbindingen blijven ongewijzigd.</string>
+    <string name="clone_allow_fallback_servers">Uitwijkservers toestaan</string>
+    <string name="clone_allow_fallback_servers_desc">Ook de servers van de app naast die van jezelf gebruiken</string>
     <string name="clone_lan_discovery_status">Detectie op lokaal netwerk</string>
     <string name="clone_signaling">Detectie</string>
     <string name="clone_signaling_lan">LAN</string>

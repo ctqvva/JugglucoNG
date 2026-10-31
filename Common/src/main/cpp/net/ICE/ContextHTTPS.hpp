@@ -41,6 +41,7 @@ struct HTTPSRequestOptions {
 };
 
 class ContextHTTPS {
+friend class TurnStreamRelay;
 private:
     SSL_CTX* ctx=nullptr;
     bool error=false;

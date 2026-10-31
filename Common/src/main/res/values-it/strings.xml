@@ -924,6 +924,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery_summary">Connettiti alle coppie Hybrid note sulla stessa rete locale senza un server di rendezvous. I segreti di associazione non vengono mai annunciati.</string>
     <string name="clone_prefer_ipv4">Preferisci IPv4</string>
     <string name="clone_prefer_ipv4_summary">Preferisci IPv4 per le nuove connessioni, mantenendo IPv6 come alternativa. Attiva su entrambi i telefoni. Le connessioni esistenti non cambiano.</string>
+    <string name="clone_allow_fallback_servers">Consenti server di riserva</string>
+    <string name="clone_allow_fallback_servers_desc">Usa anche i server dell’app insieme ai tuoi</string>
     <string name="clone_lan_discovery_status">Rilevamento sulla rete locale</string>
     <string name="clone_signaling">Rilevamento</string>
     <string name="clone_signaling_lan">LAN</string>

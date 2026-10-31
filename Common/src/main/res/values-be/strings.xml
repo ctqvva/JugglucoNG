@@ -944,6 +944,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_local_discovery_summary">Падключацца да вядомых пар Hybrid у той жа лакальнай сетцы без сервера рандэву. Сакрэты спалучэння ніколі не абвяшчаюцца.</string>
     <string name="clone_prefer_ipv4">Аддаваць перавагу IPv4</string>
     <string name="clone_prefer_ipv4_summary">Аддаваць перавагу IPv4 для новых злучэнняў, пакідаючы IPv6 як запасны варыянт. Уключыце на абодвух тэлефонах. Наяўныя злучэнні не зменяцца.</string>
+    <string name="clone_allow_fallback_servers">Дазволіць запасныя серверы</string>
+    <string name="clone_allow_fallback_servers_desc">Выкарыстоўваць серверы праграмы разам з вашымі</string>
     <string name="clone_lan_discovery_status">Пошук у лакальнай сетцы</string>
     <string name="clone_signaling">Выяўленне</string>
     <string name="clone_signaling_lan">LAN</string>

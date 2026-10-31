@@ -976,6 +976,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="clone_local_discovery_summary">Aynı yerel ağdaki bilinen Hybrid eşlerine rendezvous sunucusu olmadan bağlan. Eşleşme gizli anahtarları asla duyurulmaz.</string>
     <string name="clone_prefer_ipv4">IPv4 tercih et</string>
     <string name="clone_prefer_ipv4_summary">Yeni bağlantılarda IPv4 tercih edilir, IPv6 yedek olarak kullanılabilir. Her iki telefonda etkinleştirin. Mevcut bağlantılar değişmez.</string>
+    <string name="clone_allow_fallback_servers">Yedek sunuculara izin ver</string>
+    <string name="clone_allow_fallback_servers_desc">Kendi sunucularınızın yanında uygulamanın sunucularını da kullan</string>
     <string name="clone_lan_discovery_status">Yerel ağda keşif</string>
     <string name="clone_signaling">Keşif</string>
     <string name="clone_signaling_lan">LAN</string>

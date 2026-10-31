@@ -39,7 +39,7 @@ class RendezvousTlsSafetyTests {
         assertTrue(config.contains("KEY_VERIFY_RENDEZVOUS_CERTIFICATE,\n                true"))
         assertTrue(https.contains("if(!options.verifyCertificate)"))
         assertTrue(https.contains("SSL_set_verify(ssl,SSL_VERIFY_NONE,nullptr)"))
-        assertTrue(https.contains("if(options.verifyCertificate)"))
+        assertTrue(https.contains("if(options.verifyCertificate&&!verifyTLSHost(ssl,hostName))"))
         assertTrue(https.contains("!SSL_get_peer_certificateptr"))
         assertTrue(https.contains("!X509_check_hostptr"))
         assertTrue(https.contains("!X509_check_ip_ascptr"))

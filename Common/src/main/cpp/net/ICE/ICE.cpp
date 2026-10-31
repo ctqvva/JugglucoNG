@@ -67,6 +67,8 @@ using namespace std::literals;
 #include "RecoveryWakeBridge.hpp"
 #include "net/makerandom.hpp"
 #include "BundledTurnServers.hpp"
+#include "TurnTokenResponse.hpp"
+#include "IceLogPrivacy.hpp"
 
 extern std::mutex turn_server_mutex;
 
@@ -97,7 +99,8 @@ ICEConfigSnapshot currentICEConfig() {
 
 void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
                      bool useTurnForStun, bool verifyRendezvousCertificate,
-                     bool useLocalDiscovery, bool preferIPv4) {
+                     bool useLocalDiscovery, bool preferIPv4,
+                     bool allowFallbackServers) {
     const std::lock_guard<std::mutex> lock(ice_config_mutex);
     ice_config.rendezvousHost=std::move(rendezvousHost);
     ice_config.rendezvousPort=rendezvousPort?rendezvousPort:6789;
@@ -105,6 +108,7 @@ void updateICEConfig(std::string rendezvousHost, uint16_t rendezvousPort,
     ice_config.verifyRendezvousCertificate=verifyRendezvousCertificate;
     ice_config.useLocalDiscovery=useLocalDiscovery;
     ice_config.preferIPv4=preferIPv4;
+    ice_config.allowFallbackServers=allowFallbackServers;
     }
 
 std::vector<RendezvousEndpoint> resolveRendezvousEndpoints(std::string_view label) {
@@ -112,10 +116,14 @@ std::vector<RendezvousEndpoint> resolveRendezvousEndpoints(std::string_view labe
     // Without a custom server the configured port still applies to the
     // public one, as before failover existed.
     const uint16_t publicPort=config.rendezvousHost.empty()?config.rendezvousPort:6789;
+    // A custom server is used alone unless the user allows the public ones
+    // as fallback.
+    const bool usePublic=config.rendezvousHost.empty()||config.allowFallbackServers;
     return buildRendezvousEndpoints(
         {config.rendezvousHost,config.rendezvousPort,
          config.verifyRendezvousCertificate},
-        hostnames,static_cast<size_t>(hostselect(label)),publicPort);
+        usePublic?std::span<const std::string_view>(hostnames):std::span<const std::string_view>(),
+        static_cast<size_t>(hostselect(label)),publicPort);
     }
 
 ICEConnect::ICEConnect(int allindex,const passhost_t &host)
@@ -196,6 +204,7 @@ static bool applyRemoteDescription(int allindex, juice_agent_t *agent,
                   juiceErrorString(result),result);
         return false;
         }
+    con->turnRelayRotation.answered(generation);
     if(auto local=con->currentLocalSignal())
         local->setAcceptedRemoteDescription(description);
     if(fromLocalNetwork) {
@@ -839,6 +848,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             setConnectTime(allindex,0);
             con->setConnected();
             con->rendezvousExchangedUnconnected=false;
+            con->turnRelayRotation.connected(con->currentAgentGeneration());
             if(!con->remoteDescriptionWasLocal.load()&&
                con->activeRendezvousIndex.load(std::memory_order_acquire)==0&&
                con->rendezvousEscalated.exchange(false))
@@ -887,6 +897,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
             refreshSelectedCloneTransport(con,agent);
             break;
         case JUICE_STATE_FAILED: {
+            con->turnRelayRotation.failedAttempt(con->currentAgentGeneration());
             con->selectedCloneTransport.store(clone_transport_unknown);
             const std::string commonLabel(host.getICEname());
             const bool side=host.side;
@@ -1099,6 +1110,10 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
     }
 }
 static  void juice_logger(juice_log_level_t level, const char *message) {
+        if(message&&iceLogContainsCredentials(message)) {
+            LOGGER("libjuice%d: credential details omitted\n",level);
+            return;
+            }
         if(message) {
             LOGGER("libjuice%d: %s\n",level,message);
             }
@@ -1118,143 +1133,88 @@ class initJuice {
          };
      };
 
-static std::pair<const char *,const char *> getloginpass(char *twiliooutput,const int len) {
-     char *endstr=twiliooutput+len;
-     char *startsearch=twiliooutput+(len>300?len-300:0);
-    std::string_view  password{R"("password": ")"};
-    if(auto *pos=std::search(startsearch,endstr,&password[0],password.end());pos!=endstr) {
-        char *pass=pos+password.size();
-        char *endpass=std::find(pass,endstr,'"');
-        if(endpass==endstr) {
-                LOGAR(R"(ERROR: password no ending ")");
-                return {};
-                }
-        *endpass++='\0';
-        std::string_view  username{R"("username": ")"};
-        if(auto *pos=std::search(startsearch,endstr,&username[0],username.end());pos!=endstr) {
-            char *user=pos+username.size();
-            char *enduser=std::find(user,endstr,'"');
-            if(enduser==endstr) {
-                    LOGAR(R"(ERROR username no ending ")");
-                    return {};
-                    }
-            *enduser++='\0';
-            return {user,pass};
-            }
-        }
-     return {};
-    }
-#if !defined(JUGGLUCO_DISTRIBUTION) && __has_include("twilio.local.hpp")
+#if defined(JUGGLUCO_DISTRIBUTION) && __has_include("distribution-twilio.hpp")
+#include "distribution-twilio.hpp"
+#define JUGGLUCO_HAS_TWILIO_TOKEN 1
+#elif !defined(JUGGLUCO_DISTRIBUTION) && __has_include("twilio.local.hpp")
 #include "twilio.local.hpp"
 #define JUGGLUCO_HAS_TWILIO_TOKEN 1
 #else
 #define JUGGLUCO_HAS_TWILIO_TOKEN 0
 #endif
-// twilio.local.hpp can define:
-// #define TWILIOACCOUNT  // TWILIO_ACCOUNT_SID
-// #define USERPASSBASE64 // base64 TWILIO_ACCOUNT_SID:TWILIO_AUTH_TOKEN
-extern time_t oldTwilioTimes;
-time_t oldTwilioTimes=
+
+static std::vector<TurnRelay> twilioTurnRelays() {
 #if JUGGLUCO_HAS_TWILIO_TOKEN
-0;
+    // Token issuance is optional and bounded. A failed / expired account must
+    // never remove the independently provisioned static relays from the pool.
+    // Construct the shared TLS context before the worker owner, so shutdown
+    // joins a pending request before destroying the context it uses.
+    auto &context=ContextHTTPS::getContext();
+    struct Cache {
+        std::mutex mutex;
+        std::optional<TurnToken> token;
+        int64_t expires=0,refresh=0,nextTry=0;
+        bool fetching=false;
+        std::jthread request;
+    };
+    static Cache cache;
+    std::lock_guard lock(cache.mutex);
+    const auto now=elapsedRealtimeMilliseconds();
+    if(now>=cache.refresh&&now>=cache.nextTry&&!cache.fetching) {
+        cache.fetching=true;
+        cache.nextTry=now+60000;
+        cache.request=std::jthread([&context,now] {
+            constexpr std::string_view path="/2010-04-01/Accounts/" TWILIOACCOUNT "/Tokens.json";
+            constexpr std::string_view authorization="\r\nAuthorization: Basic " USERPASSBASE64
+                                                    "\r\nContent-Type: application/x-www-form-urlencoded";
+            constexpr std::string_view input="Ttl=86400";
+            auto [body,code]=context.postRequest(
+                "api.twilio.com",443,path,{input.data(),input.size()},authorization,
+                {.timeoutMilliseconds=4000});
+            std::lock_guard finished(cache.mutex);
+            if(code==201) {
+                auto replacement=TurnTokenReader({body.data(),body.size()}).read();
+                if(replacement) {
+                    cache.token=std::move(replacement);
+                    cache.expires=now+static_cast<int64_t>(cache.token->ttlSeconds)*1000;
+                    cache.refresh=cache.expires-std::min<int64_t>(3600000,cache.token->ttlSeconds*1000/4);
+                } else LOGARICE("Twilio token response invalid; keeping independent static relays");
+            } else {
+                LOGGERICE("Twilio token request unavailable HTTP=%d; keeping independent static relays\n",code);
+            }
+            cache.fetching=false;
+        });
+    }
+    if(!cache.token||now>=cache.expires) return {};
+    const auto &token=cache.token;
+    std::vector<TurnRelay> relays{{"global.turn.twilio.com",token->username,token->password,3478,
+             TurnRelayTransport::Udp,"twilio","global"},
+            {"global.turn.twilio.com",token->username,token->password,443,
+             TurnRelayTransport::Tls,"twilio","global"},
+            {"global.turn.twilio.com",token->username,token->password,3478,
+             TurnRelayTransport::Tcp,"twilio","global"}};
+    // Global uses latency-based routing. Explicit edges provide independent
+    // routes when that selected edge / route is unavailable. These region
+    // names and TLS port are documented by Twilio's NTS API / regions pages.
+    for(const char *region:{"frankfurt","dublin","ashburn","umatilla","singapore",
+                            "tokyo","mumbai","sydney","sao-paulo"})
+        relays.push_back({std::string(region)+".turn.twilio.com",token->username,
+                          token->password,443,TurnRelayTransport::Tls,"twilio",region});
+    return relays;
 #else
-std::numeric_limits<time_t>::max();
+    return {};
 #endif
-
-static bool isTwilioTurnServer(const juice_turn_server_t &server) {
-    return turnTextPresent(server.host)&&!strcmp(server.host,"global.turn.twilio.com");
-    }
-
-#if JUGGLUCO_HAS_TWILIO_TOKEN
-static void refreshTwilioTurnCredentials(juice_turn_server_t *servers,int servercount) {
-    bool hasTwilio=false;
-    for(int i=0;i<servercount;++i) {
-        if(isTwilioTurnServer(servers[i])) {
-            hasTwilio=true;
-            break;
-            }
-        }
-    if(!hasTwilio) {
-        oldTwilioTimes=std::numeric_limits<time_t>::max();
-        return;
-        }
-    static std::mutex mut;
-    std::lock_guard<std::mutex> lck(mut);
-    auto now=time(nullptr);
-    if(now<oldTwilioTimes)
-        return;
-    const auto url{"https://api.twilio.com/2010-04-01/Accounts/" TWILIOACCOUNT  "/Tokens.json"sv};
-    const std::span<const char> input{(const char *)nullptr,0};
-    const std::string_view header{"\r\nAuthorization: Basic " USERPASSBASE64 };
-    auto [resbody,code]=ContextHTTPS::getContext().postRequest("api.twilio.com",443,url,input,header);
-    if(code==201) {
-        auto [user,pass]=getloginpass(resbody.data(),resbody.size());
-        if(turnTextPresent(user)&&turnTextPresent(pass)) {
-            static std::string username;
-            static std::string password;
-            username=user;
-            password=pass;
-            for(int i=0;i<servercount;++i) {
-                if(isTwilioTurnServer(servers[i])) {
-                    servers[i].username=username.data();
-                    servers[i].password=password.data();
-                    }
-                }
-            oldTwilioTimes=now+24*60*60;
-            LOGAR("TWILIO: refreshed TURN credentials");
-            return;
-            }
-        LOGAR("TWILIO ERROR: missing username/password in token response");
-        }
-    else {
-        LOGGER("TWILIO ERROR: code=%d\n",code);
-        }
-    oldTwilioTimes=now+15*60;
-    }
-#else
-static void refreshTwilioTurnCredentials(juice_turn_server_t *,int) {
-    }
-#endif
-
-static std::vector<juice_turn_server_t> usableDefaultTurnServers(juice_turn_server_t *servers,int servercount) {
-    std::vector<juice_turn_server_t> usable;
-    usable.reserve(servercount);
-    for(int i=0;i<servercount;++i) {
-        auto &server=servers[i];
-        if(!turnTextPresent(server.host)) {
-            continue;
-            }
-        if(!hasTurnCredentials(server)) {
-            LOGGER("createAgent: skipping TURN server %s without credentials\n",server.host);
-            continue;
-            }
-        usable.push_back(server);
-        }
-    return usable;
-    }
-
-bool shouldRecreateAgentsForTurnRefresh() {
-#if JUGGLUCO_HAS_TWILIO_TOKEN
-    auto *data=backup?backup->getupdatedata():nullptr;
-    const std::lock_guard<std::mutex> lock(turn_server_mutex);
-    if(data&&data->NRturnserver&&data->turnserver[0].hostname[0])
-        return false;
-    return time(nullptr)>oldTwilioTimes;
-#else
-    return false;
-#endif
-    }
+}
 
 juice_agent *createAgent(int allindex) {
     static initJuice el;
     LOGGER("createAgent(%d)\n",allindex);
               
-    static auto default_turn_servers=std::to_array(bundledTurnServers);
+    static constexpr auto &default_turn_servers=bundledTurnServers;
     static constexpr int defaultservercount=std::size(bundledTurnServers);
     const juice_turn_server_t *turn_servers;
     int servercount;
 
-    juice_turn_server_t conf_server;
     std::string configured_turn_host;
     std::string configured_turn_username;
     std::string configured_turn_password;
@@ -1276,23 +1236,48 @@ juice_agent *createAgent(int allindex) {
             updatedata->NRturnserver=0;
             }
         }
-    if(has_configured_turn) {
-        conf_server.host=configured_turn_host.c_str();
-        conf_server.username=configured_turn_username.c_str();
-        conf_server.password=configured_turn_password.c_str();
-        conf_server.port=configured_turn_port;
-        servercount=1;
-        turn_servers=&conf_server;
-        }
-    else {
-        refreshTwilioTurnCredentials(default_turn_servers.data(),defaultservercount);
-        usable_turn_servers=usableDefaultTurnServers(default_turn_servers.data(),defaultservercount);
-        servercount=static_cast<int>(usable_turn_servers.size());
-        turn_servers=servercount?usable_turn_servers.data():nullptr;
-        }
-    LOGGER("createAgent: %d usable TURN servers (%s)\n",servercount,
-           has_configured_turn?"user configured":"bundled");
     const auto networkConfig=currentICEConfig();
+    // A custom relay is used alone unless the user allows the app's relays as
+    // fallback; then it stays in every selection and the backups rotate.
+    const bool useBundled=!has_configured_turn||networkConfig.allowFallbackServers;
+    std::vector<TurnRelay> pool;
+    if(has_configured_turn)
+        appendTurnRelay(pool,{configured_turn_host,configured_turn_username,
+                            configured_turn_password,configured_turn_port,
+                            TurnRelayTransport::Udp,"custom",""},true);
+    if(useBundled) {
+        for(int i=0;i<defaultservercount;++i) {
+            const auto &server=default_turn_servers[i];
+            const auto &options=bundledTurnOptions[i];
+            if(!turnTextPresent(server.host)||!hasTurnCredentials(server)) continue;
+            appendTurnRelay(pool,{server.host,server.username,server.password,server.port,
+                                options.transport,options.provider,options.region});
+            }
+        for(auto &relay:twilioTurnRelays()) appendTurnRelay(pool,std::move(relay));
+        }
+    auto *connection=static_cast<ICEConnect *>(connections[allindex]);
+    auto selected=connection->turnRelayRotation.select(pool,connection->currentAgentGeneration(),
+                                                       has_configured_turn);
+    for(const auto &relay:selected) {
+        LOGGERICE("TURN choice %s:%u transport=%d provider=%s region=%s\n",
+                  relay.host.c_str(),relay.port,static_cast<int>(relay.transport),
+                  relay.provider.c_str(),relay.region.c_str());
+        juice_turn_server_t server{relay.host.c_str(),relay.username.c_str(),
+                                   relay.password.c_str(),relay.port};
+        if(relay.transport!=TurnRelayTransport::Udp) {
+            auto stream=TurnStreamRelay::start(relay.host,relay.port,
+                                              relay.transport==TurnRelayTransport::Tls);
+            if(!stream) continue;
+            server.host="127.0.0.1";
+            server.port=stream->loopbackPort();
+            connection->turnStreams.push_back(std::move(stream));
+            }
+        usable_turn_servers.push_back(server);
+        }
+    servercount=static_cast<int>(usable_turn_servers.size());
+    turn_servers=servercount?usable_turn_servers.data():nullptr;
+    LOGGER("createAgent: %d active TURN relays from %zu configured and bundled choices\n",
+           servercount,pool.size());
     const bool useConfiguredTurnForStun=
         networkConfig.useTurnForStun&&has_configured_turn;
     if(networkConfig.useTurnForStun&&!has_configured_turn)

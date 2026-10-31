@@ -304,6 +304,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
                     useLocalDiscovery = iceConfig.useLocalDiscovery,
                     // Address-family preference belongs to this phone, not the QR sender.
                     preferIPv4 = previousIceConfig?.preferIPv4 ?: false,
+                    allowFallbackServers = previousIceConfig?.allowFallbackServers ?: false,
                 ),
             )
             if (!saved) throw IllegalStateException("Could not save Clone ICE settings")

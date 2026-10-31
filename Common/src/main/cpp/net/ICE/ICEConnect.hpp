@@ -36,6 +36,8 @@
 #include "ICE_data.hpp"
 #include "ICEConfig.hpp"
 #include "RendezvousFailover.hpp"
+#include "TurnRelayPool.hpp"
+#include "TurnStreamRelay.hpp"
 #include "LocalICESignal.hpp"
 #include "RecoveryWakeLease.hpp"
 #define LOGGERICE(...) LOGGER("ICE: " __VA_ARGS__)
@@ -116,6 +118,12 @@ std::atomic<size_t> activeRendezvousIndex{0};
 // play until a negotiation connects through the primary again.
 std::atomic_bool rendezvousEscalated{false};
 std::atomic_bool rendezvousExchangedUnconnected{false};
+TurnRelayRotation turnRelayRotation;
+std::vector<std::unique_ptr<TurnStreamRelay>> turnStreams;
+void stopTurnStreams() {
+        for(auto &stream:turnStreams) stream->cancel();
+        turnStreams.clear();
+        }
 bool useLocalDiscovery;
 RecoveryWakeLease recoveryWake;
 
@@ -126,6 +134,7 @@ void reloadNetworkConfig(const passhost_t &host);
         endConnectionHere();
         cancelLocalSignal();
         stopCandidateReader();
+        stopTurnStreams();
         }
 void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
@@ -307,6 +316,7 @@ void releaseReceiverThread() {
         cancelGenerationWatch();
         cancelLocalSignal();
         stopCandidateReader();
+        turnRelayRotation.failedAttempt(currentAgentGeneration());
         auto wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
         if(wasagent) {
@@ -319,6 +329,7 @@ void releaseReceiverThread() {
             juice_set_log_level(juice_log_level);
             #endif
             }
+        stopTurnStreams();
         icedata[1].reCreated(); 
         icedata[0].reCreated(); 
         resetStart();
@@ -342,6 +353,7 @@ void releaseReceiverThread() {
 
         juice_agent *theagent=createAgent(allindex);
         if(!theagent) {
+                stopTurnStreams();
                 phase=FailedInitAgent;
                 endConnect=true;
                 recoveryWake.cancel();
@@ -356,6 +368,7 @@ void releaseReceiverThread() {
                 cancelGenerationWatch();
                 LOGGER("end ICEConnect::newConnection failed allindex=%d, juice_destroy(%p)\n",allindex,theagent);
                 stopCandidateReader();
+                turnRelayRotation.failedAttempt(currentAgentGeneration());
                 auto current=agent.exchange(nullptr);
                 advanceAgentGeneration();
                 if(current) {
@@ -367,6 +380,7 @@ void releaseReceiverThread() {
                     juice_set_log_level(juice_log_level);
                 #endif
                     }
+                stopTurnStreams();
                 endConnect=true;
                 recoveryWake.cancel();
                 return -1;
@@ -397,6 +411,7 @@ void endConnection() override{
         destruct _{[this]{initrunning.clear();}};
         LOGGERICE("%d: ICEConnect::endConnection allindex=%d agent=%p\n",side,allindex,agent.load());
         stopCandidateReader();
+        turnRelayRotation.failedAttempt(currentAgentGeneration());
         juice_agent *wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
         if(wasagent) {
@@ -409,6 +424,7 @@ void endConnection() override{
             juice_set_log_level(juice_log_level);
             #endif
             } 
+        stopTurnStreams();
 #ifndef NOLOG
         LOGGERICE("%d: end ICEConnect::endConnection allindex=%d set agent=%p\n",side,allindex, wasagent);
 #endif
