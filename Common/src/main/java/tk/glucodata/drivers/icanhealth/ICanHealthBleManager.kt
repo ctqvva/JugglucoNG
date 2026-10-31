@@ -271,6 +271,10 @@ class ICanHealthBleManager(
     // registry supplied. Only a guess like that may be dropped for not being a CGM.
     @Volatile private var onboardingScanPickedAddress: String? = null
     private val nonCgmCandidateStrikes = ConcurrentHashMap<String, Int>()
+    private val unreachableCandidates = ICanHealthUnreachableCandidates()
+    // The GATT whose current attempt reached STATE_CONNECTED. Tied to the instance, because a
+    // dropped candidate is closed without a disconnect callback and must not vouch for the next.
+    @Volatile private var connectedGatt: BluetoothGatt? = null
 
     private var provisionalSensorIdForAdoption: String? =
         serial.takeIf { ICanHealthConstants.isProvisionalSensorId(it) }
@@ -901,6 +905,7 @@ class ICanHealthBleManager(
         // Always reset the rejected-address set on (re)onboarding, so a transient misread
         // or a retried onboarding attempt is not permanently blacklisted for this SN.
         rejectedOnboardingAddresses.clear()
+        unreachableCandidates.clear()
         onboardingDeviceSn = normalized
     }
 
@@ -1178,7 +1183,7 @@ class ICanHealthBleManager(
     override fun matchDeviceName(deviceName: String?, address: String?): Boolean {
         val trimmedName = deviceName?.trim()?.takeIf { it.isNotEmpty() } ?: return false
         val candidateAddress = address?.trim()?.uppercase(Locale.US)
-        if (candidateAddress != null && candidateAddress in rejectedOnboardingAddresses) {
+        if (isExcludedOnboardingCandidate(candidateAddress)) {
             return false
         }
         val knownAddress = mActiveDeviceAddress?.takeIf { it.isNotBlank() }
@@ -1199,6 +1204,12 @@ class ICanHealthBleManager(
             matchesUnaddressedName(trimmedName),
         )
     }
+
+    private fun isExcludedOnboardingCandidate(address: String?): Boolean =
+        address != null && (
+            address in rejectedOnboardingAddresses ||
+                unreachableCandidates.isSetAside(address, SystemClock.elapsedRealtime())
+            )
 
     private fun matchesUnaddressedName(trimmedName: String): Boolean {
         val expectedDisplayName = mygetDeviceName().trim().takeIf { it.isNotEmpty() }
@@ -1226,7 +1237,7 @@ class ICanHealthBleManager(
 
     override fun matchScanResult(result: ScanResult): Boolean {
         val address = result.device?.address?.trim()?.uppercase(Locale.US)
-        if (address != null && address in rejectedOnboardingAddresses) {
+        if (isExcludedOnboardingCandidate(address)) {
             return false
         }
         val knownAddress = mActiveDeviceAddress?.takeIf { it.isNotBlank() }
@@ -1308,6 +1319,7 @@ class ICanHealthBleManager(
                 resetConnectionAttemptState()
                 clearGattTransportState(clearReconnect = false, clearServices = true)
                 mBluetoothGatt = gatt
+                connectedGatt = gatt
                 connectTime = System.currentTimeMillis()
                 lastConnectionStartedAtMs = connectTime
                 receivedGlucoseThisConnection = false
@@ -1340,6 +1352,8 @@ class ICanHealthBleManager(
 
             BluetoothProfile.STATE_DISCONNECTED -> {
                 Log.i(TAG, "Disconnected (status=$status)")
+                val reachedConnected = connectedGatt === gatt
+                connectedGatt = null
                 if (historyBackfillRequested || awaitingFreshStatusForHistoryBackfill) {
                     Log.w(
                         TAG,
@@ -1392,7 +1406,7 @@ class ICanHealthBleManager(
                 }
                 mBluetoothGatt = null
 
-                if (!stop && !pausedByUser) {
+                if (!stop && !pausedByUser && !setAsideUnreachableOnboardingCandidate(gatt, reachedConnected)) {
                     scheduleReconnect(reconnectPlan)
                 }
                 UiRefreshBus.requestStatusRefresh()
@@ -1700,6 +1714,34 @@ class ICanHealthBleManager(
         return true
     }
 
+    /**
+     * Onboarding found this peripheral by name and it never accepted a GATT connection, so the
+     * non-CGM check above never gets a GATT table to judge. A car head unit (`GeelyVehicle995`,
+     * whose name passes the loose iCan name check) timed out with status 147 every ~40 s for
+     * hours while the real sensor was never considered. After
+     * [ICanHealthConstants.UNREACHABLE_CANDIDATE_REJECT_STRIKES] such attempts in a row the address
+     * is set aside for [ICanHealthConstants.UNREACHABLE_CANDIDATE_COOLDOWN_MS] and scanning resumes.
+     */
+    private fun setAsideUnreachableOnboardingCandidate(gatt: BluetoothGatt, reachedConnected: Boolean): Boolean {
+        if (!isAwaitingOnboardingIdentity()) {
+            return false
+        }
+        val address = gatt.device?.address?.trim()?.uppercase(Locale.US) ?: return false
+        if (!address.equals(onboardingScanPickedAddress, ignoreCase = true)) {
+            return false
+        }
+        if (!unreachableCandidates.attemptEnded(address, reachedConnected, SystemClock.elapsedRealtime())) {
+            if (!reachedConnected) {
+                Log.w(TAG, "iCan candidate address=$address did not connect (${unreachableCandidates.strikes(address)}/${ICanHealthConstants.UNREACHABLE_CANDIDATE_REJECT_STRIKES})")
+            }
+            return false
+        }
+        Log.w(TAG, "Setting aside iCan candidate address=$address for ${ICanHealthConstants.UNREACHABLE_CANDIDATE_COOLDOWN_MS / 60_000L} min: no connection in ${ICanHealthConstants.UNREACHABLE_CANDIDATE_REJECT_STRIKES} attempts")
+        // Not a permanent rejection: the cooldown lives in unreachableCandidates only.
+        dropOnboardingCandidate(null)
+        return true
+    }
+
     private fun rejectMismatchedOnboardingCandidate(
         gatt: BluetoothGatt,
         rawSerial: String,
@@ -1714,6 +1756,7 @@ class ICanHealthBleManager(
                 ICanHealthConstants.matchesOnboardingIdentity(expectedOnboardingSn, resolvedSerial)
         if (identityMatches) {
             rejectedOnboardingAddresses.clear()
+            unreachableCandidates.clear()
             return false
         }
 

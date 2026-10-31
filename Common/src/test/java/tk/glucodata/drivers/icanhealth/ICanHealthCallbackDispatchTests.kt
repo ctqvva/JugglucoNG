@@ -71,4 +71,24 @@ class ICanHealthCallbackDispatchTests {
             "nowMs = SystemClock.elapsedRealtime(), ) { gatt.writeCharacteristic(char) }",
         ))
     }
+
+    @Test fun aClosedCandidateCannotVouchForTheNextAttempt() {
+        // dropOnboardingCandidate closes without a disconnect callback, so "this attempt connected"
+        // must be judged per GATT instance, not from a connection timestamp left behind.
+        val disconnected = manager.substringAfter("BluetoothProfile.STATE_DISCONNECTED -> {")
+            .substringBefore("override fun onMtuChanged(")
+        assertTrue(disconnected.contains("val reachedConnected = connectedGatt === gatt connectedGatt = null"))
+        assertTrue(disconnected.contains("!setAsideUnreachableOnboardingCandidate(gatt, reachedConnected)"))
+        val connected = manager.substringAfter("BluetoothProfile.STATE_CONNECTED -> {")
+            .substringBefore("BluetoothProfile.STATE_DISCONNECTED -> {")
+        assertTrue(connected.contains("connectedGatt = gatt"))
+    }
+
+    @Test fun aCooldownNeverLiftsAPermanentRejection() {
+        val setAside = manager.substringAfter("private fun setAsideUnreachableOnboardingCandidate(")
+            .substringBefore("private fun rejectMismatchedOnboardingCandidate(")
+        assertTrue(setAside.contains("dropOnboardingCandidate(null)"))
+        assertFalse(setAside.contains("rejectedOnboardingAddresses"))
+        assertFalse(setAside.contains("handler.postDelayed"))
+    }
 }

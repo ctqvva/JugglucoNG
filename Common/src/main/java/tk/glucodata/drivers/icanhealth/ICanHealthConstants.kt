@@ -728,6 +728,19 @@ object ICanHealthConstants {
     const val NON_CGM_CANDIDATE_REJECT_STRIKES = 2
 
     /**
+     * Consecutive connection attempts that end without a GATT connection before onboarding sets
+     * aside an address it found by name. Such a peripheral never shows a GATT table, so
+     * [isConclusivelyNotCgm] cannot judge it.
+     */
+    const val UNREACHABLE_CANDIDATE_REJECT_STRIKES = 3
+
+    /**
+     * How long an unreachable candidate stays set aside. Unlike a non-CGM, it may be the real
+     * sensor that was briefly out of reach, so it gets another turn.
+     */
+    const val UNREACHABLE_CANDIDATE_COOLDOWN_MS = 10L * 60_000L
+
+    /**
      * True when a discovered GATT table is populated beyond the generic services and still has no
      * CGM service, i.e. the peripheral answered and it is not a CGM. Name matching stays broad on
      * purpose (rebrands and unknown naming schemes); this is what lets onboarding move past a
