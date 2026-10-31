@@ -22,6 +22,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -60,6 +63,16 @@ class GluciferSettingsLayoutTests {
     private var width by mutableIntStateOf(360)
     private lateinit var context: Context
     private var openedUri: String? = null
+    // Neutral dynamic palette from the user's Telegram reference, with visibly distinct surfaces.
+    private val colors = darkColorScheme(
+        surface = Color(0xFF0E0E0E),
+        surfaceContainer = Color(0xFF19191B),
+        surfaceContainerHigh = Color(0xFF1F1F21),
+        primary = Color(0xFFC2C6D6),
+        onPrimary = Color(0xFF404550),
+        onSurface = Color(0xFFE5E2E1),
+        onSurfaceVariant = Color(0xFFC5C6D0)
+    )
     private val scanRegistryOwner = object : ActivityResultRegistryOwner {
         override val activityResultRegistry = object : ActivityResultRegistry() {
             override fun <I, O> onLaunch(requestCode: Int, contract: ActivityResultContract<I, O>,
@@ -71,7 +84,7 @@ class GluciferSettingsLayoutTests {
 
     @After fun resetFontScale() { RuntimeEnvironment.setFontScale(1f) }
 
-    private fun render(fullEditor: Boolean = false) {
+    private fun render(fullEditor: Boolean = false, telegramReference: Boolean = false) {
         compose.setContent {
             val base = LocalContext.current
             val config = Configuration(LocalConfiguration.current).apply {
@@ -88,15 +101,18 @@ class GluciferSettingsLayoutTests {
                     override fun openUri(uri: String) { openedUri = uri }
                 }
             ) {
-                MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                MaterialTheme(colorScheme = colors, typography = AppTypography) {
                     Column(Modifier.width(width.dp).height(800.dp)
-                        .background(MaterialTheme.colorScheme.surface).testTag("editor")
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh).testTag("editor")
                         .padding(16.dp).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (fullEditor) {
                             DestinationEditor(destination, false, {}, { destination = it }, {})
                         } else {
-                            GluciferConnectionHeading()
+                            if (telegramReference) {
+                                BubbleRefreshSection(OutboundApiSettings.createDestination(OutboundApiSettings.PRESET_TELEGRAM_BOT)
+                                    .copy(refreshInPlaceEnabled = true)) {}
+                            } else GluciferConnectionHeading()
                             GluciferOptions(destination) { destination = it }
                         }
                     }
@@ -177,6 +193,44 @@ class GluciferSettingsLayoutTests {
             assertTrue("alert:high" in destination.gluciferFields)
             assertTrue("predictions" in destination.gluciferFields)
         }
+    }
+
+    private data class RowAppearance(val background: Int, val labelLeft: Float, val switchRight: Float)
+
+    private fun appearance(title: Int): RowAppearance {
+        val row = compose.onNode(hasText(label(title)) and isToggleable()).performScrollTo()
+        val bounds = row.fetchSemanticsNode().boundsInRoot
+        val pixels = row.captureToImage().toPixelMap()
+        val right = (0 until pixels.width).lastOrNull { x ->
+            (0 until pixels.height).any { y -> pixels[x, y].toArgb() == colors.primary.toArgb() }
+        } ?: error("No checked switch track in ${label(title)}")
+        return RowAppearance(
+            pixels[pixels.width / 2, 1].toArgb(),
+            compose.onNode(hasText(label(title)) and hasAnyAncestor(isToggleable()), useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot.left,
+            bounds.left + right
+        )
+    }
+
+    @Test fun expandedControlsMatchTelegramPanelColorAndTheSurroundingSwitchGrid() {
+        destination = destination.copy(gluciferHistory = true, gluciferJournal = true, gluciferJournalNotes = true)
+        render(telegramReference = true)
+        val telegram = appearance(R.string.outbound_api_bubble_refresh_title)
+        assertEquals(colors.surfaceContainer.toArgb(), telegram.background)
+        tap(R.string.glucifer_data_title)
+        assertEquals(telegram, appearance(R.string.stats_trend))
+        tap(R.string.glucifer_data_title)
+        tap(R.string.glucose_alerts_title)
+        assertEquals(telegram, appearance(R.string.alert_low))
+        assertEquals(telegram, appearance(R.string.glucifer_history_title))
+        assertEquals(telegram, appearance(R.string.glucifer_journal))
+        capture("alerts-grid")
+        assertEquals(telegram, appearance(R.string.glucifer_journal_notes))
+        capture("journal-grid")
+        tap(R.string.glucose_alerts_title)
+        tap(R.string.glucifer_delivery_title)
+        assertEquals(telegram, appearance(R.string.glucifer_live_short))
+        capture("delivery-grid")
     }
 
     @Test fun selectorsKeepTheirFullRangesAndIndependentValues() {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -865,88 +866,90 @@ private fun TriggerEditorSheet(
     }
 }
 
+/** The nested control surface used by API destinations, including Telegram and Glucifer. */
 @Composable
-private fun BubbleRefreshSection(
+internal fun ApiDestinationControlPanel(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), content = content)
+    }
+}
+
+@Composable
+internal fun BubbleRefreshSection(
     destination: OutboundApiSettings.Destination,
     onChange: (OutboundApiSettings.Destination) -> Unit
 ) {
     SettingsSubsectionTitle(stringResource(R.string.outbound_api_bubble_title))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardShape(CardPosition.SINGLE, radius = 18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-        ) {
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_refresh_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_refresh_desc),
-                checked = destination.refreshInPlaceEnabled,
-                onCheckedChange = { checked ->
-                    onChange(destination.copy(refreshInPlaceEnabled = checked))
-                }
+    ApiDestinationControlPanel {
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_refresh_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_refresh_desc),
+            checked = destination.refreshInPlaceEnabled,
+            onCheckedChange = { checked ->
+                onChange(destination.copy(refreshInPlaceEnabled = checked))
+            }
+        )
+        if (destination.refreshInPlaceEnabled) {
+            ControlDivider()
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_refresh_window),
+                value = destination.refreshWindowMinutes,
+                range = 1..60,
+                onChange = { onChange(destination.copy(refreshWindowMinutes = it)) }
             )
-            if (destination.refreshInPlaceEnabled) {
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_refresh_window),
-                    value = destination.refreshWindowMinutes,
-                    range = 1..60,
-                    onChange = { onChange(destination.copy(refreshWindowMinutes = it)) }
+        }
+        ControlDivider()
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_suppress_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_suppress_desc),
+            checked = destination.suppressDeltaBelowMgdl > 0,
+            onCheckedChange = { checked ->
+                onChange(
+                    destination.copy(
+                        suppressDeltaBelowMgdl = if (checked) {
+                            OutboundApiSettings.DEFAULT_SUPPRESS_DELTA_BELOW_MGDL
+                        } else 0
+                    )
                 )
             }
+        )
+        ControlDivider()
+        ToggleRow(
+            title = stringResource(R.string.outbound_api_bubble_stale_title),
+            subtitle = stringResource(R.string.outbound_api_bubble_stale_desc),
+            checked = destination.staleEnabled,
+            onCheckedChange = { checked ->
+                onChange(destination.copy(staleEnabled = checked))
+            }
+        )
+        if (destination.staleEnabled) {
             ControlDivider()
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_suppress_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_suppress_desc),
-                checked = destination.suppressDeltaBelowMgdl > 0,
-                onCheckedChange = { checked ->
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_stale_threshold),
+                value = destination.staleThresholdMinutes,
+                range = 1..120,
+                onChange = { stale ->
+                    val missed = if (destination.missedThresholdMinutes <= stale) stale + 1
+                    else destination.missedThresholdMinutes
                     onChange(
                         destination.copy(
-                            suppressDeltaBelowMgdl = if (checked) {
-                                OutboundApiSettings.DEFAULT_SUPPRESS_DELTA_BELOW_MGDL
-                            } else 0
+                            staleThresholdMinutes = stale,
+                            missedThresholdMinutes = missed
                         )
                     )
                 }
             )
             ControlDivider()
-            ToggleRow(
-                title = stringResource(R.string.outbound_api_bubble_stale_title),
-                subtitle = stringResource(R.string.outbound_api_bubble_stale_desc),
-                checked = destination.staleEnabled,
-                onCheckedChange = { checked ->
-                    onChange(destination.copy(staleEnabled = checked))
-                }
+            NumberStepper(
+                label = stringResource(R.string.outbound_api_bubble_missed_threshold),
+                value = destination.missedThresholdMinutes,
+                range = (destination.staleThresholdMinutes + 1)..240,
+                onChange = { onChange(destination.copy(missedThresholdMinutes = it)) }
             )
-            if (destination.staleEnabled) {
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_stale_threshold),
-                    value = destination.staleThresholdMinutes,
-                    range = 1..120,
-                    onChange = { stale ->
-                        val missed = if (destination.missedThresholdMinutes <= stale) stale + 1
-                        else destination.missedThresholdMinutes
-                        onChange(
-                            destination.copy(
-                                staleThresholdMinutes = stale,
-                                missedThresholdMinutes = missed
-                            )
-                        )
-                    }
-                )
-                ControlDivider()
-                NumberStepper(
-                    label = stringResource(R.string.outbound_api_bubble_missed_threshold),
-                    value = destination.missedThresholdMinutes,
-                    range = (destination.staleThresholdMinutes + 1)..240,
-                    onChange = { onChange(destination.copy(missedThresholdMinutes = it)) }
-                )
-            }
         }
     }
 }

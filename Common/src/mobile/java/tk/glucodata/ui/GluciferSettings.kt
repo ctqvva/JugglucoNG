@@ -2,6 +2,9 @@
 
 package tk.glucodata.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,17 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.EventNote
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuPopup
@@ -36,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -46,11 +46,6 @@ import tk.glucodata.OutboundApiSettings
 import tk.glucodata.R
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.ui.components.AdaptiveTrailingRow
-import tk.glucodata.ui.components.CardPosition
-import tk.glucodata.ui.components.DisclosingSwitchCard
-import tk.glucodata.ui.components.ExpandableSettingsCard
-import tk.glucodata.ui.components.SettingsSwitchItem
-import tk.glucodata.ui.components.SettingsItem
 
 internal const val GLUCIFER_SETUP_GUIDE = "https://github.com/pannal/glucifer-ha#quick-setup"
 
@@ -108,81 +103,84 @@ internal fun GluciferOptions(
         gluciferFields = if (selected) destination.gluciferFields + key else destination.gluciferFields - key
     ))
 
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        ExpandableSettingsCard(
+    ApiDestinationControlPanel {
+        GluciferDisclosure(
             title = stringResource(R.string.glucifer_data_title),
             summary = stringResource(R.string.glucifer_selection_summary,
                 fields.count { it.first in destination.gluciferFields }, fields.size),
-            icon = Icons.Filled.Tune,
             expanded = dataExpanded,
-            onExpandedChange = { dataExpanded = it },
-            position = CardPosition.TOP
+            onExpandedChange = { dataExpanded = it }
         ) {
             Text(stringResource(R.string.glucifer_glucose_required),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column {
-                fields.forEach { (key, label) ->
+                fields.forEachIndexed { index, (key, label) ->
+                    if (index > 0) ControlDivider()
                     ToggleRow(stringResource(label), null, key in destination.gluciferFields) { selection(key, it) }
                 }
             }
         }
-        ExpandableSettingsCard(
+        ControlDivider()
+        GluciferDisclosure(
             title = stringResource(R.string.glucose_alerts_title),
             summary = stringResource(R.string.glucifer_selection_summary,
                 alerts.count { it.first in destination.gluciferFields }, alerts.size),
-            icon = Icons.Filled.Notifications,
             expanded = alertsExpanded,
-            onExpandedChange = { alertsExpanded = it },
-            position = CardPosition.MIDDLE
+            onExpandedChange = { alertsExpanded = it }
         ) {
             Column {
-                alerts.forEach { (key, label) ->
+                alerts.forEachIndexed { index, (key, label) ->
+                    if (index > 0) ControlDivider()
                     ToggleRow(stringResource(label), null, key in destination.gluciferFields) { selection(key, it) }
                 }
             }
         }
-        SettingsSwitchItem(
+        ControlDivider()
+        ToggleRow(
             title = stringResource(R.string.glucifer_history_title),
             subtitle = stringResource(R.string.glucifer_days, 7),
-            icon = Icons.Filled.History,
-            iconTint = MaterialTheme.colorScheme.primary,
             checked = destination.gluciferHistory,
-            onCheckedChange = { onChange(destination.copy(gluciferHistory = it)) },
-            position = CardPosition.MIDDLE
+            onCheckedChange = { onChange(destination.copy(gluciferHistory = it)) }
         )
-        DisclosingSwitchCard(
+        ControlDivider()
+        ToggleRow(
             title = stringResource(R.string.glucifer_journal),
             subtitle = stringResource(R.string.glucifer_days, destination.gluciferJournalDays),
-            icon = Icons.Filled.EventNote,
             checked = destination.gluciferJournal,
-            onCheckedChange = { onChange(destination.copy(gluciferJournal = it)) },
-            position = CardPosition.MIDDLE
-        ) {
-            GluciferChoice(
-                title = stringResource(R.string.glucifer_journal_days),
-                value = destination.gluciferJournalDays,
-                options = listOf(1, 3, 7, 14, 30, 60, 90),
-                label = { stringResource(R.string.glucifer_days, it) },
-                onChange = { onChange(destination.copy(gluciferJournalDays = it)) }
-            )
-            ToggleRow(stringResource(R.string.glucifer_journal_notes), null,
-                destination.gluciferJournalNotes) { onChange(destination.copy(gluciferJournalNotes = it)) }
-            Text(stringResource(R.string.glucifer_journal_help), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            onCheckedChange = { onChange(destination.copy(gluciferJournal = it)) }
+        )
+        AnimatedVisibility(visible = destination.gluciferJournal) {
+            Column {
+                ControlDivider()
+                GluciferChoice(
+                    title = stringResource(R.string.glucifer_journal_days),
+                    value = destination.gluciferJournalDays,
+                    options = listOf(1, 3, 7, 14, 30, 60, 90),
+                    label = { stringResource(R.string.glucifer_days, it) },
+                    onChange = { onChange(destination.copy(gluciferJournalDays = it)) }
+                )
+                ControlDivider()
+                ToggleRow(stringResource(R.string.glucifer_journal_notes), null,
+                    destination.gluciferJournalNotes) { onChange(destination.copy(gluciferJournalNotes = it)) }
+                Text(stringResource(R.string.glucifer_journal_help), style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        ExpandableSettingsCard(
+        ControlDivider()
+        GluciferDisclosure(
             title = stringResource(R.string.glucifer_delivery_title),
             summary = if (destination.gluciferLiveBypass) stringResource(R.string.glucifer_live_short)
                 else stringResource(R.string.glucifer_spacing_summary, gluciferIntervalLabel(destination.gluciferMinIntervalSeconds)),
-            icon = Icons.Filled.Schedule,
             expanded = timingExpanded,
-            onExpandedChange = { timingExpanded = it },
-            position = CardPosition.BOTTOM
+            onExpandedChange = { timingExpanded = it }
         ) {
             ToggleRow(stringResource(R.string.glucifer_live_short), null, destination.gluciferLiveBypass) {
                 onChange(destination.copy(gluciferLiveBypass = it))
             }
+            ControlDivider()
             GluciferChoice(
                 title = stringResource(R.string.glucifer_fallback_short),
                 value = destination.gluciferFallbackSeconds,
@@ -190,6 +188,7 @@ internal fun GluciferOptions(
                 label = { gluciferIntervalLabel(it) },
                 onChange = { onChange(destination.copy(gluciferFallbackSeconds = it)) }
             )
+            ControlDivider()
             GluciferChoice(
                 title = stringResource(if (destination.gluciferLiveBypass)
                     R.string.glucifer_spacing_short else R.string.glucifer_all_spacing_title),
@@ -198,7 +197,8 @@ internal fun GluciferOptions(
                 label = { gluciferIntervalLabel(it) },
                 onChange = { onChange(destination.copy(gluciferMinIntervalSeconds = it)) }
             )
-            TextButton(onClick = { timingHelp = true }, shapes = ButtonDefaults.shapes(),
+            TextButton(onClick = { timingHelp = true }, modifier = Modifier.padding(horizontal = 16.dp),
+                shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
                 Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -207,6 +207,43 @@ internal fun GluciferOptions(
         }
     }
     if (timingHelp) GluciferHelpDialog(timing = true, onDismiss = { timingHelp = false })
+}
+
+/** A disclosure uses the API editor's row grid; its children own their single 16dp inset. */
+@Composable
+private fun GluciferDisclosure(
+    title: String,
+    summary: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    content: @Composable () -> Unit
+) {
+    GluciferValueRow(title, summary, expanded) { onExpandedChange(!expanded) }
+    AnimatedVisibility(visible = expanded) {
+        Column {
+            ControlDivider()
+            content()
+        }
+    }
+}
+
+@Composable
+private fun GluciferValueRow(title: String, summary: String, expanded: Boolean, onClick: () -> Unit) {
+    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "gluciferDisclosure")
+    AdaptiveTrailingRow(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .heightIn(min = 88.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+        spacing = 16.dp,
+        trailingContent = {
+            Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.rotate(rotation),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    ) {
+        Column {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable
@@ -228,12 +265,7 @@ private fun GluciferChoice(
     var expanded by rememberSaveable { mutableStateOf(false) }
     val labels = options.map { label(it) }
     Box {
-        SettingsItem(
-            title = title,
-            subtitle = label(value),
-            onClick = { expanded = true },
-            trailingContent = { Icon(Icons.Filled.ExpandMore, contentDescription = null) }
-        )
+        GluciferValueRow(title, label(value), expanded) { expanded = true }
         DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuGroup(
                 shapes = MenuDefaults.groupShape(0, 1),
