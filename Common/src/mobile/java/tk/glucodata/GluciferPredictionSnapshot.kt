@@ -29,7 +29,7 @@ object GluciferPredictionSnapshot {
         val isMmol = Applic.unit == 1
         val unit = if (isMmol) "mmol/L" else "mg/dL"
         val minutes = DataSmoothing.localSmoothingMinutes(context)
-        val points = prepareHistory(history, isMmol, minutes, minutes > 0 && DataSmoothing.collapseChunks(context))
+        val points = prepareHistory(history, isMmol, minutes, DataSmoothing.localCollapseMinutes(context))
         val baseline = points.lastOrNull()?.timestamp ?: return@runBlocking "[]"
         if (glucoseTime - baseline > 120_000L) return@runBlocking "[]"
         val horizon = prefs.getInt("dashboard_prediction_horizon_minutes", 120).coerceIn(30, 360)
@@ -57,8 +57,8 @@ object GluciferPredictionSnapshot {
         serialize(series, isMmol)
     }
 
-    internal fun prepareHistory(history: List<tk.glucodata.ui.GlucosePoint>, isMmol: Boolean, minutes: Int, collapse: Boolean) =
-        buildSmoothedConsumerHistory(history.inDisplayUnit(isMmol), minutes, collapse)
+    internal fun prepareHistory(history: List<tk.glucodata.ui.GlucosePoint>, isMmol: Boolean, minutes: Int, collapseMinutes: Int) =
+        buildSmoothedConsumerHistory(history.inDisplayUnit(isMmol), minutes, evaluationCollapseMinutes = collapseMinutes)
 
     internal fun serialize(series: List<GlucosePredictionSeries>, isMmol: Boolean): String =
         JSONArray().apply {
