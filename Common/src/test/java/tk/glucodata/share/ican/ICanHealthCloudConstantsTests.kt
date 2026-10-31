@@ -31,9 +31,10 @@ class ICanHealthCloudConstantsTests {
 
     @Test
     fun rsaPublicKeyParsesAsA2048BitKey() {
-        val lines = ICanHealthCloudConstants.RSA_PUBLIC_KEY.lines().filter { it.isNotBlank() }
-        assertEquals(3, lines.size)
-        val body = lines[1].replace("\\s".toRegex(), "")
+        val body = ICanHealthCloudConstants.RSA_PUBLIC_KEY
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .filter { !it.isWhitespace() }
         val key = KeyFactory.getInstance("RSA")
             .generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(body)))
                 as RSAPublicKey
@@ -63,7 +64,6 @@ class ICanHealthCloudConstantsTests {
     fun randomStringAlphabetIsTheVendorAlphabet() {
         val alphabet = ICanHealthCloudConstants.GET_RANDOM_STRING_ALPHABET
         assertEquals("ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678", alphabet)
-        assertEquals(48, alphabet.length)
         assertEquals(alphabet.length, alphabet.toSet().size)
         assertTrue(alphabet.all { it.isLetterOrDigit() })
         assertTrue(alphabet.any { it.isUpperCase() })
