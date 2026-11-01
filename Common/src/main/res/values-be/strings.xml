@@ -2548,6 +2548,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
     <string name="ottai_offline_hint">Таксама можна імпартаваць файл з ключамі ў раздзеле «Захаваныя датчыкі».</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
+    <string name="ottai_ota_upgrade_required">Сэрвіс Ottai не прывяжа гэты датчык, пакуль не абноўлена яго прашыўка. Спачатку абнавіце яе ў афіцыйнай праграме Ottai, потым паспрабуйце зноў.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код краіны</string>
@@ -3188,6 +3189,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Пошук у наладах</string>
     <string name="settings_search_no_results">Няма налад, падобных да «%1$s»</string>
     <string name="settings_search_clear">Ачысціць пошук</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Эксперыментальны тэст прашыўкі</string>
+    <string name="ottai_ota_warning">Збой абнаўлення можа вывесці сенсар са строю. Пакіньце гэты экран адкрытым і трымайце тэлефон каля сенсара.</string>
+    <string name="ottai_ota_connecting">Падключэнне без актывацыі…</string>
+    <string name="ottai_ota_authenticating">Праверка сапраўднасці сенсара…</string>
+    <string name="ottai_ota_checking">Праверка і спампоўванне прашыўкі…</string>
+    <string name="ottai_ota_recovery">Пакет аднаўлення гатовы. Усталяванне захаванага пакета пачнецца спачатку.</string>
+    <string name="ottai_ota_ready">Прашыўка гатовая. Сенсар не актываваны.</string>
+    <string name="ottai_ota_no_update">Абнаўленне прашыўкі не прапанавана</string>
+    <string name="ottai_ota_installing">Усталяванне прашыўкі…</string>
+    <string name="ottai_ota_reconnecting">Паўторнае падключэнне і праверка ўсталяванай версіі…</string>
+    <string name="ottai_ota_preparing">Абнаўленне ўліковых даных і запіс заводскіх параметраў…</string>
+    <string name="ottai_ota_complete">Падрыхтоўка завершана. Закрыйце акно і падключыцеся звычайным спосабам для актывацыі сенсара.</string>
+    <string name="ottai_ota_failed">Тэст спынены. Перад паўторам праверце журнал трасіроўкі. Незавершаныя абнаўленні блакуюць актывацыю.</string>
+    <string name="ottai_ota_version">Сенсар: %1$s · Абнаўленне: %2$s</string>
+    <string name="ottai_ota_package">%1$d байтаў · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Код дыягностыкі: %1$s</string>
+    <string name="ottai_ota_install">Усталяваць прашыўку</string>
+    <string name="ottai_ota_parameters">Запісаць толькі заводскія параметры</string>
+    <string name="ottai_ota_confirm">Усталяваць эксперыментальнае абнаўленне? Сенсар можа назаўсёды выйсці са строю. Актывацыя выконваецца асобна пасля праверкі версіі і заводскіх параметраў.</string>
+    <string name="ottai_ota_parameters_confirm">Запісаць падтрыманыя заводскія каэфіцыенты і каліброўку? Гэта зменіць налады без абнаўлення прашыўкі і запуску тэрміну працы сенсара.</string>
+    <string name="ottai_ota_check">Праверыць прашыўку (эксперыментальна)</string>
+    <string name="ottai_ota_cloud_recheck">Паўтарыць з воблачнай аўтэнтыфікацыяй V3</string>
+    <string name="ottai_ota_cloud_authenticating">Аўтэнтыфікацыя праз уліковы запіс Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Паўторная праверка прашыўкі з аўтэнтыфікацыяй датчыка праз сервер. Датчык не будзе актываваны або прывязаны да ўліковага запісу.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Спачатку адключыце гэты сенсар ад маніторынгу. Абнаўленне запушчанага сенсара можа сцерці паказанні, скінуць тэрмін працы або завяршыць працу сенсара.</string>
+    <string name="ottai_ota_fresh_mode">Новы сенсар</string>
+    <string name="ottai_ota_started_mode">Запушчаны сенсар</string>
+    <string name="ottai_ota_started_ready">Абнаўленне запушчанага сенсара гатова. Перад усталяваннем праверце пачатковыя даныя.</string>
+    <string name="ottai_ota_result_active">Прашыўка абноўлена. Сенсар паведамляе пра актыўны стан; перад падключэннем маніторынгу праверце журнал.</string>
+    <string name="ottai_ota_result_ended">Прашыўка абноўлена. Сенсар паведамляе пра завяршэнне працы; праверце журнал.</string>
+    <string name="ottai_ota_result_reset">Прашыўка абноўлена. Сенсар паведамляе, што не актываваны; паўторная актывацыя не выконвалася.</string>
+    <string name="ottai_ota_started_confirm">Усталяваць на запушчаны сенсар? Паказанні і стан працы могуць быць сцёрты або скінуты. Тэст запіша вынік без паўторнай актывацыі і запісу заводскіх параметраў.</string>
+    <string name="ottai_ota_observation">%1$s · стан %2$d · тэрмін %3$s с · апошні запіс %4$s · RTC %5$s с</string>
+    <string name="ottai_ota_before">Да</string>
+    <string name="ottai_ota_after">Пасля</string>
+
+    <string name="ottai_ota_discard">Адмяніць тэст прашыўкі</string>
+    <string name="ottai_ota_discard_confirm">Выдаліць захаваны пакет і дазволіць падключэнне? Гэта не адновіць папярэднюю прашыўку ці налады. Пасля перарванай запісы можа спатрэбіцца аднаўленне.</string>
+    <string name="ottai_ota_pending">Незавершаны тэст прашыўкі блакуе падключэнне. Адкрыйце аднаўленне прашыўкі, каб працягнуць ці адмяніць тэст.</string>
+    <string name="ottai_ota_finish_preparation">Прашыўка праверана. Пацвердзіце запіс заводскіх параметраў для завяршэння наладкі.</string>
+    <string name="ottai_ota_discard_failed">Не ўдалося адмяніць тэст прашыўкі. Паўтарыце спробу.</string>
     <string name="prediction_analysis_section">Аналіз прагнозаў</string>
     <string name="prediction_analysis_record">Захоўваць прагнозы</string>
     <string name="prediction_analysis_record_summary">Захоўваць кожны прагноз на гэтым тэлефоне, каб параўнаць з тым, што адбылося</string>

@@ -130,6 +130,29 @@ class OttaiNetSecurityTests {
         assertEquals(0, h.sends)
     }
 
+    @Test fun httpSuccessDoesNotHideBusinessRejections() {
+        for (code in listOf("Error", "Device_Auth_Error", "AppDevice_Upgrade_Version", "40001")) {
+            val h = Harness()
+            h.reply = JSONObject().put("code", code).put("message", "private-token https://host/private-signed-url")
+                .put("data", JSONObject().put("auth", "private-auth"))
+            val error = assertThrows(OttaiOtaCloudException::class.java) { h.get() }
+            assertEquals("ota_request_http=200_biz=$code", error.diagnostic)
+            assertEquals(code, error.businessCode)
+            assertEquals(200, error.httpStatus)
+            assertEquals(1, h.sends)
+        }
+    }
+
+    @Test fun malformedOrOversizedBusinessCodesCannotEscapeInDiagnostics() {
+        for (code in listOf("Error\nprivate-token", "https://host/private", "Error " + "x".repeat(100), "x".repeat(97))) {
+            val h = Harness()
+            h.reply = JSONObject().put("code", code).put("message", "private-token")
+            val error = assertThrows(OttaiOtaCloudException::class.java) { h.get() }
+            assertEquals("ota_request_http=200", error.diagnostic)
+            assertEquals("", error.businessCode)
+        }
+    }
+
     @Test fun closingTheClientForcesANewExchange() {
         val h = Harness(); h.get(); h.client.close(); h.get()
         assertEquals(2, h.exchanges)

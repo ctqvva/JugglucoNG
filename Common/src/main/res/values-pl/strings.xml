@@ -2518,6 +2518,7 @@
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
+    <string name="ottai_ota_upgrade_required">Usługa Ottai nie powiąże tego sensora, dopóki jego firmware nie zostanie zaktualizowany. Najpierw zaktualizuj go w oficjalnej aplikacji Ottai, a potem spróbuj ponownie.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Kod kraju</string>
@@ -3158,6 +3159,51 @@
     <string name="settings_search_hint">Szukaj w ustawieniach</string>
     <string name="settings_search_no_results">Brak ustawień pasujących do „%1$s”</string>
     <string name="settings_search_clear">Wyczyść wyszukiwanie</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Eksperymentalny test oprogramowania</string>
+    <string name="ottai_ota_warning">Nieudana aktualizacja może uszkodzić sensor. Pozostaw ten ekran otwarty i trzymaj telefon blisko sensora.</string>
+    <string name="ottai_ota_connecting">Łączenie bez aktywacji…</string>
+    <string name="ottai_ota_authenticating">Weryfikacja tożsamości sensora…</string>
+    <string name="ottai_ota_checking">Sprawdzanie i pobieranie oprogramowania…</string>
+    <string name="ottai_ota_recovery">Pakiet odzyskiwania gotowy. Instalacja zapisanej paczki rozpocznie się od początku.</string>
+    <string name="ottai_ota_ready">Pakiet gotowy. Sensor nie jest aktywowany.</string>
+    <string name="ottai_ota_no_update">Nie zaoferowano aktualizacji</string>
+    <string name="ottai_ota_installing">Instalowanie oprogramowania…</string>
+    <string name="ottai_ota_reconnecting">Ponowne łączenie i sprawdzanie zainstalowanej wersji…</string>
+    <string name="ottai_ota_preparing">Odświeżanie danych dostępu i zapis parametrów fabrycznych…</string>
+    <string name="ottai_ota_complete">Przygotowanie zakończone. Zamknij okno, a następnie połącz się normalnie, aby aktywować sensor.</string>
+    <string name="ottai_ota_failed">Test zatrzymany. Przed ponowieniem sprawdź dziennik śledzenia. Niedokończone aktualizacje blokują aktywację.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Aktualizacja: %2$s</string>
+    <string name="ottai_ota_package">%1$d bajtów · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Kod diagnostyczny: %1$s</string>
+    <string name="ottai_ota_install">Zainstaluj oprogramowanie</string>
+    <string name="ottai_ota_parameters">Zapisz tylko parametry fabryczne</string>
+    <string name="ottai_ota_confirm">Zainstalować eksperymentalną aktualizację? Może to trwale uszkodzić sensor. Aktywacja nastąpi osobno po sprawdzeniu wersji i parametrów fabrycznych.</string>
+    <string name="ottai_ota_parameters_confirm">Zapisać obsługiwane współczynniki i kalibrację fabryczną? Zmieni to konfigurację bez aktualizacji oprogramowania ani rozpoczęcia czasu pracy sensora.</string>
+    <string name="ottai_ota_check">Sprawdź oprogramowanie (eksperymentalnie)</string>
+    <string name="ottai_ota_cloud_recheck">Sprawdź ponownie z uwierzytelnianiem V3 w chmurze</string>
+    <string name="ottai_ota_cloud_authenticating">Uwierzytelnianie przez konto Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Sprawdź dostępność firmware z uwierzytelnianiem sensora przez serwer. Nie aktywuje to sensora ani nie wiąże go z kontem.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Najpierw odłącz ten sensor od monitorowania. Aktualizacja uruchomionego sensora może usunąć odczyty, zresetować czas pracy lub zakończyć działanie sensora.</string>
+    <string name="ottai_ota_fresh_mode">Nowy sensor</string>
+    <string name="ottai_ota_started_mode">Uruchomiony sensor</string>
+    <string name="ottai_ota_started_ready">Aktualizacja uruchomionego sensora gotowa. Przed instalacją sprawdź dane początkowe.</string>
+    <string name="ottai_ota_result_active">Oprogramowanie zaktualizowane. Sensor zgłasza stan aktywny; sprawdź dziennik przed wznowieniem monitorowania.</string>
+    <string name="ottai_ota_result_ended">Oprogramowanie zaktualizowane. Sensor zgłasza zakończenie działania; sprawdź dziennik.</string>
+    <string name="ottai_ota_result_reset">Oprogramowanie zaktualizowane. Sensor zgłasza brak aktywacji; nie próbowano ponownej aktywacji.</string>
+    <string name="ottai_ota_started_confirm">Zainstalować na uruchomionym sensorze? Odczyty i stan działania mogą zostać usunięte lub zresetowane. Test zapisze wynik bez ponownej aktywacji i zapisu parametrów fabrycznych.</string>
+    <string name="ottai_ota_observation">%1$s · stan %2$d · czas pracy %3$s s · ostatni rekord %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Przed</string>
+    <string name="ottai_ota_after">Po</string>
+
+    <string name="ottai_ota_discard">Porzuć test oprogramowania</string>
+    <string name="ottai_ota_discard_confirm">Usunąć zapisany pakiet i odblokować połączenie? Nie przywróci to poprzedniego oprogramowania ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
+    <string name="ottai_ota_pending">Niedokończony test oprogramowania blokuje połączenie. Otwórz odzyskiwanie, aby wznowić lub porzucić test.</string>
+    <string name="ottai_ota_finish_preparation">Oprogramowanie zweryfikowane. Potwierdź parametry fabryczne, aby zakończyć konfigurację.</string>
+    <string name="ottai_ota_discard_failed">Nie udało się porzucić testu. Spróbuj ponownie.</string>
     <string name="prediction_analysis_section">Analiza prognoz</string>
     <string name="prediction_analysis_record">Zapisuj prognozy</string>
     <string name="prediction_analysis_record_summary">Przechowuj każdą prognozę na tym telefonie, aby porównać ją z tym, co się stało</string>

@@ -186,6 +186,8 @@ class OttaiBleManager(
     companion object {
         private const val TAG = OttaiConstants.TAG
         const val SENSOR_GEN = 0
+        // A misframed history frame is at most a few hundred bytes; log all of it (2 hex chars/byte).
+        private const val MISFRAMED_PAYLOAD_LOG_HEX_CHARS = 1_024
         private const val RECONNECT_DELAY_MS = 3_000L
         // Link supervision timeout — the peer stopped answering rather than closing the link.
         // Android exports no constant for the BTA GATT_CONN_* codes, and this was the status on
@@ -3231,6 +3233,10 @@ class OttaiBleManager(
         // Judge the frame whole before any of it can be stored or mirrored.
         if (!live && OttaiOutputFilter.isMisframedFrame(readings)) {
             Log.w(TAG, "$kind $source misframed: ${readings.size} records at width ${heldRecordSize() ?: "auto"}, discarding frame")
+            // The sensor can return the same undecodable frame on every retry (2026-10-28:
+            // [5335,5352) x5, 168 bytes for 17 records). Keep the whole payload so the real
+            // record layout can be recovered offline; the frame itself is not stored.
+            Log.w(TAG, "$kind $source misframed payloadLen=${payload.size} front=${OttaiParser.frontDataNo(payload)} hex=${OttaiCrypto.bytesToHex(payload).take(MISFRAMED_PAYLOAD_LOG_HEX_CHARS)}")
             abandonHistoryWindow()
             return
         }
@@ -4063,6 +4069,11 @@ class OttaiBleManager(
     override fun requestActivation(): Boolean {
         val force = forceActivationRequested
         forceActivationRequested = false
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+            Log.w(TAG, "activation refused: finish the pending firmware test first")
+            return false
+        }
         if (!force && (effectiveActiveTimeMs() > 0L || activationCommandSentAtMs > 0L)) {
             Log.i(TAG, "activation request ignored — command already sent/start time known")
             activateRequestedFor = null
@@ -4148,6 +4159,11 @@ class OttaiBleManager(
     }
 
     private fun startActivationWrites(gatt: BluetoothGatt) {
+        val context = Applic.app
+        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+            failActivation("pending firmware test")
+            return
+        }
         if (!activationNegotiationActive || maxActiveCandidatesMs.isEmpty()) {
             beginActivationNegotiation()
         }

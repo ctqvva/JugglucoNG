@@ -2474,6 +2474,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
+    <string name="ottai_ota_upgrade_required">Il servizio Ottai non associa questo sensore finché il suo firmware non è aggiornato. Aggiornalo prima con l\'app Ottai ufficiale, poi riprova.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Prefisso internazionale</string>
@@ -3103,6 +3104,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Cerca nelle impostazioni</string>
     <string name="settings_search_no_results">Nessuna impostazione corrisponde a “%1$s”</string>
     <string name="settings_search_clear">Cancella ricerca</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Test firmware sperimentale</string>
+    <string name="ottai_ota_warning">Un aggiornamento non riuscito può rendere il sensore inutilizzabile. Tieni aperta questa schermata e il telefono vicino al sensore.</string>
+    <string name="ottai_ota_connecting">Connessione senza attivazione…</string>
+    <string name="ottai_ota_authenticating">Verifica dell’identità del sensore…</string>
+    <string name="ottai_ota_checking">Verifica e download del firmware…</string>
+    <string name="ottai_ota_recovery">Pacchetto di ripristino pronto. L’installazione riparte dall’inizio del pacchetto salvato.</string>
+    <string name="ottai_ota_ready">Firmware pronto. Il sensore non è attivato.</string>
+    <string name="ottai_ota_no_update">Nessun aggiornamento firmware disponibile</string>
+    <string name="ottai_ota_installing">Installazione del firmware…</string>
+    <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
+    <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
+    <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
+    <string name="ottai_ota_failed">Test interrotto. Controlla il registro di traccia prima di riprovare. Gli aggiornamenti incompleti bloccano l’attivazione.</string>
+    <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
+    <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Codice diagnostico: %1$s</string>
+    <string name="ottai_ota_install">Installa firmware</string>
+    <string name="ottai_ota_parameters">Scrivi solo i parametri di fabbrica</string>
+    <string name="ottai_ota_confirm">Installare questo aggiornamento sperimentale? Il sensore potrebbe diventare inutilizzabile in modo permanente. L’attivazione avviene separatamente dopo la verifica della versione e dei parametri di fabbrica.</string>
+    <string name="ottai_ota_parameters_confirm">Scrivere i coefficienti e la calibrazione di fabbrica supportati? Questo modifica la configurazione senza aggiornare il firmware o avviare la durata del sensore.</string>
+    <string name="ottai_ota_check">Controlla firmware (sperimentale)</string>
+    <string name="ottai_ota_cloud_recheck">Ricontrolla con autenticazione cloud V3</string>
+    <string name="ottai_ota_cloud_authenticating">Autenticazione tramite il tuo account Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Ricontrolla la disponibilità del firmware con l’autenticazione del sensore tramite server. Il sensore non viene attivato né associato all’account.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Scollega prima questo sensore dal monitoraggio. L’aggiornamento di un sensore avviato può cancellare le letture, azzerare la durata o terminare il sensore.</string>
+    <string name="ottai_ota_fresh_mode">Sensore nuovo</string>
+    <string name="ottai_ota_started_mode">Sensore già avviato</string>
+    <string name="ottai_ota_started_ready">Aggiornamento pronto per il sensore avviato. Controlla i dati iniziali prima dell’installazione.</string>
+    <string name="ottai_ota_result_active">Firmware aggiornato. Il sensore risulta attivo; controlla il registro prima di riconnettere il monitoraggio.</string>
+    <string name="ottai_ota_result_ended">Firmware aggiornato. Il sensore risulta terminato; controlla il registro.</string>
+    <string name="ottai_ota_result_reset">Firmware aggiornato. Il sensore risulta non attivato; non è stata tentata la riattivazione.</string>
+    <string name="ottai_ota_started_confirm">Installare su questo sensore già avviato? Letture e stato operativo potrebbero essere cancellati o azzerati. Il test registra il risultato senza riattivare o scrivere parametri di fabbrica.</string>
+    <string name="ottai_ota_observation">%1$s · stato %2$d · durata %3$s s · ultima registrazione %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Prima</string>
+    <string name="ottai_ota_after">Dopo</string>
+
+    <string name="ottai_ota_discard">Abbandona test firmware</string>
+    <string name="ottai_ota_discard_confirm">Eliminare il pacchetto salvato e sbloccare la connessione? Questo non ripristina il firmware o le impostazioni precedenti. Una scrittura interrotta può ancora richiedere il recupero.</string>
+    <string name="ottai_ota_pending">Un test firmware incompleto blocca la connessione. Apri il recupero firmware per riprendere o abbandonare il test.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
+    <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>
     <string name="prediction_analysis_record">Registra le previsioni</string>
     <string name="prediction_analysis_record_summary">Conserva ogni previsione su questo telefono per confrontarla con ciò che è successo</string>

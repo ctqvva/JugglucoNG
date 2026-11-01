@@ -2553,6 +2553,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не вдалося почати підключення. Спробуйте ще раз.</string>
     <string name="ottai_offline_hint">Також можна імпортувати файл із ключами в розділі «Збережені датчики».</string>
     <string name="ottai_already_binding_hint">До облікового запису досі прив\'язано інший датчик. Відв\'яжіть його в розділі «Збережені датчики» й спробуйте ще раз.</string>
+    <string name="ottai_ota_upgrade_required">Сервіс Ottai не прив\'яже цей датчик, доки не оновлено його прошивку. Спершу оновіть її в офіційному застосунку Ottai, потім спробуйте знову.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код країни</string>
@@ -3193,6 +3194,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Пошук у налаштуваннях</string>
     <string name="settings_search_no_results">Немає налаштувань, що відповідають «%1$s»</string>
     <string name="settings_search_clear">Очистити пошук</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Експериментальний тест прошивки</string>
+    <string name="ottai_ota_warning">Збій оновлення може вивести сенсор із ладу. Залиште цей екран відкритим і тримайте телефон біля сенсора.</string>
+    <string name="ottai_ota_connecting">Підключення без активації…</string>
+    <string name="ottai_ota_authenticating">Перевірка справжності сенсора…</string>
+    <string name="ottai_ota_checking">Перевірка та завантаження прошивки…</string>
+    <string name="ottai_ota_recovery">Пакет відновлення готовий. Установлення збереженого пакета почнеться спочатку.</string>
+    <string name="ottai_ota_ready">Прошивка готова. Сенсор не активовано.</string>
+    <string name="ottai_ota_no_update">Оновлення прошивки не запропоновано</string>
+    <string name="ottai_ota_installing">Установлення прошивки…</string>
+    <string name="ottai_ota_reconnecting">Повторне підключення й перевірка встановленої версії…</string>
+    <string name="ottai_ota_preparing">Оновлення облікових даних і запис заводських параметрів…</string>
+    <string name="ottai_ota_complete">Підготовку завершено. Закрийте вікно та підключіться звичайним способом для активації сенсора.</string>
+    <string name="ottai_ota_failed">Тест зупинено. Перед повтором перевірте журнал трасування. Незавершені оновлення блокують активацію.</string>
+    <string name="ottai_ota_version">Сенсор: %1$s · Оновлення: %2$s</string>
+    <string name="ottai_ota_package">%1$d байтів · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Код діагностики: %1$s</string>
+    <string name="ottai_ota_install">Установити прошивку</string>
+    <string name="ottai_ota_parameters">Записати лише заводські параметри</string>
+    <string name="ottai_ota_confirm">Установити експериментальне оновлення? Сенсор може назавжди вийти з ладу. Активація виконується окремо після перевірки версії та заводських параметрів.</string>
+    <string name="ottai_ota_parameters_confirm">Записати підтримувані заводські коефіцієнти та калібрування? Це змінить налаштування без оновлення прошивки та запуску строку роботи сенсора.</string>
+    <string name="ottai_ota_check">Перевірити прошивку (експериментально)</string>
+    <string name="ottai_ota_cloud_recheck">Повторити з хмарною автентифікацією V3</string>
+    <string name="ottai_ota_cloud_authenticating">Автентифікація через обліковий запис Ottai…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Повторна перевірка прошивки з автентифікацією датчика через сервер. Датчик не буде активовано або прив’язано до облікового запису.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Спочатку відключіть цей сенсор від моніторингу. Оновлення запущеного сенсора може стерти показання, скинути строк роботи або завершити роботу сенсора.</string>
+    <string name="ottai_ota_fresh_mode">Новий сенсор</string>
+    <string name="ottai_ota_started_mode">Запущений сенсор</string>
+    <string name="ottai_ota_started_ready">Оновлення запущеного сенсора готове. Перед установленням перевірте початкові дані.</string>
+    <string name="ottai_ota_result_active">Прошивку оновлено. Сенсор повідомляє про активний стан; перед підключенням моніторингу перевірте журнал.</string>
+    <string name="ottai_ota_result_ended">Прошивку оновлено. Сенсор повідомляє про завершення роботи; перевірте журнал.</string>
+    <string name="ottai_ota_result_reset">Прошивку оновлено. Сенсор повідомляє, що не активований; повторна активація не виконувалася.</string>
+    <string name="ottai_ota_started_confirm">Установити на запущений сенсор? Показання та стан роботи можуть бути стерті або скинуті. Тест запише результат без повторної активації та запису заводських параметрів.</string>
+    <string name="ottai_ota_observation">%1$s · стан %2$d · строк %3$s с · останній запис %4$s · RTC %5$s с</string>
+    <string name="ottai_ota_before">До</string>
+    <string name="ottai_ota_after">Після</string>
+
+    <string name="ottai_ota_discard">Скасувати тест прошивки</string>
+    <string name="ottai_ota_discard_confirm">Видалити збережений пакет і дозволити підключення? Це не відновить попередню прошивку чи налаштування. Після перерваного запису може знадобитися відновлення.</string>
+    <string name="ottai_ota_pending">Незавершений тест прошивки блокує підключення. Відкрийте відновлення прошивки, щоб продовжити або скасувати тест.</string>
+    <string name="ottai_ota_finish_preparation">Прошивку перевірено. Підтвердьте запис заводських параметрів для завершення налаштування.</string>
+    <string name="ottai_ota_discard_failed">Не вдалося скасувати тест прошивки. Спробуйте ще раз.</string>
     <string name="prediction_analysis_section">Аналіз прогнозів</string>
     <string name="prediction_analysis_record">Зберігати прогнози</string>
     <string name="prediction_analysis_record_summary">Зберігати кожен прогноз на цьому телефоні, щоб порівняти з тим, що сталося</string>

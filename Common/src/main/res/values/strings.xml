@@ -1199,6 +1199,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
     <string name="ottai_offline_hint">You can also import a credentials file under Saved sensors.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
+    <string name="ottai_ota_upgrade_required">The Ottai service won\'t link this sensor until its firmware is updated. Update it with the official Ottai app first, then try again.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Country code</string>
@@ -3376,6 +3377,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_no_results">No settings match “%1$s”</string>
     <string name="settings_search_clear">Clear search</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimental firmware test</string>
+    <string name="ottai_ota_warning">A failed update may make the sensor unusable. Keep this screen open and the phone near the sensor.</string>
+    <string name="ottai_ota_connecting">Connecting without activation…</string>
+    <string name="ottai_ota_authenticating">Verifying sensor identity…</string>
+    <string name="ottai_ota_checking">Checking and downloading firmware…</string>
+    <string name="ottai_ota_recovery">Recovery package ready. Installation restarts the saved package from the beginning.</string>
+    <string name="ottai_ota_ready">Firmware package ready. The sensor is not activated.</string>
+    <string name="ottai_ota_no_update">No firmware update offered</string>
+    <string name="ottai_ota_installing">Installing firmware…</string>
+    <string name="ottai_ota_reconnecting">Reconnecting and checking the installed version…</string>
+    <string name="ottai_ota_preparing">Refreshing credentials and writing factory parameters…</string>
+    <string name="ottai_ota_complete">Preparation complete. Close this dialog, then connect normally to activate the sensor.</string>
+    <string name="ottai_ota_failed">Firmware test stopped. Check the trace log before retrying. Unfinished updates block activation.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
+    <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnostic code: %1$s</string>
+    <string name="ottai_ota_install">Install firmware</string>
+    <string name="ottai_ota_parameters">Write factory parameters only</string>
+    <string name="ottai_ota_confirm">Install this experimental update? This may permanently disable the sensor. Activation follows separately after the installed version and factory parameters are verified.</string>
+    <string name="ottai_ota_parameters_confirm">Write the factory coefficients and calibration supported by this firmware? This changes the sensor configuration without updating firmware or starting its lifetime.</string>
+    <string name="ottai_ota_check">Check firmware (experimental)</string>
+    <string name="ottai_ota_cloud_recheck">Recheck with V3 cloud authentication</string>
+    <string name="ottai_ota_cloud_authenticating">Authenticating through your Ottai account…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Recheck firmware availability using server-mediated sensor authentication. This does not activate or bind the sensor.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Disconnect this sensor from monitoring first. Updating a started sensor may erase readings, reset its lifetime or end the sensor.</string>
+    <string name="ottai_ota_fresh_mode">Fresh sensor</string>
+    <string name="ottai_ota_started_mode">Started sensor</string>
+    <string name="ottai_ota_started_ready">Update ready for the started sensor. Review the baseline before installation.</string>
+    <string name="ottai_ota_result_active">Firmware updated. Sensor reports active; review the trace before reconnecting monitoring.</string>
+    <string name="ottai_ota_result_ended">Firmware updated. Sensor reports ended; review the trace.</string>
+    <string name="ottai_ota_result_reset">Firmware updated. Sensor reports unactivated; no reactivation was attempted.</string>
+    <string name="ottai_ota_started_confirm">Install on this started sensor? Its readings and running state may be erased or reset. The test records the result without reactivating it or writing factory parameters.</string>
+    <string name="ottai_ota_observation">%1$s · status %2$d · lifetime %3$s s · latest record %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Before</string>
+    <string name="ottai_ota_after">After</string>
+
+    <string name="ottai_ota_discard">Discard firmware test</string>
+    <string name="ottai_ota_discard_confirm">Discard the saved package and unblock connection? This does not restore the previous firmware or settings. An interrupted flash may still need recovery.</string>
+    <string name="ottai_ota_pending">An unfinished firmware test blocks connection. Open firmware recovery to resume or discard it.</string>
+    <string name="ottai_ota_finish_preparation">Firmware verified. Confirm factory preparation to finish setup.</string>
+    <string name="ottai_ota_discard_failed">Could not discard the firmware test. Try again.</string>
     <string name="prediction_analysis_section">Prediction analysis</string>
     <string name="prediction_analysis_record">Record forecasts</string>
     <string name="prediction_analysis_record_summary">Keep each forecast on this phone to compare with what happened</string>

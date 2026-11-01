@@ -2591,6 +2591,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_connect_failed">Холболтыг эхлүүлж чадсангүй. Дахин оролдоно уу.</string>
     <string name="ottai_offline_hint">Мөн «Хадгалсан мэдрэгчүүд» хэсэгт түлхүүрийн файл импортлох боломжтой.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
+    <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийн програм хангамжийг шинэчлээгүй үед холбохгүй. Эхлээд албан ёсны Ottai аппаар шинэчилж, дараа нь дахин оролдоно уу.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Улсын код</string>
@@ -3213,6 +3214,51 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="settings_search_hint">Тохиргооноос хайх</string>
     <string name="settings_search_no_results">“%1$s”-тэй тохирох тохиргоо алга</string>
     <string name="settings_search_clear">Хайлтыг арилгах</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Туршилтын програм хангамж</string>
+    <string name="ottai_ota_warning">Шинэчлэлт амжилтгүй болбол мэдрэгч ашиглах боломжгүй болж болно. Энэ дэлгэцийг нээлттэй байлгаж, утсаа мэдрэгчийн ойролцоо байлгана уу.</string>
+    <string name="ottai_ota_connecting">Идэвхжүүлэхгүйгээр холбогдож байна…</string>
+    <string name="ottai_ota_authenticating">Мэдрэгчийн таних мэдээллийг шалгаж байна…</string>
+    <string name="ottai_ota_checking">Програм хангамж шалгаж, татаж байна…</string>
+    <string name="ottai_ota_recovery">Сэргээх багц бэлэн. Хадгалсан багцыг эхнээс нь дахин суулгана.</string>
+    <string name="ottai_ota_ready">Програм хангамжийн багц бэлэн. Мэдрэгч идэвхжээгүй.</string>
+    <string name="ottai_ota_no_update">Програм хангамжийн шинэчлэлт алга</string>
+    <string name="ottai_ota_installing">Програм хангамж суулгаж байна…</string>
+    <string name="ottai_ota_reconnecting">Дахин холбогдож суулгасан хувилбарыг шалгаж байна…</string>
+    <string name="ottai_ota_preparing">Нэвтрэх мэдээлэл шинэчилж, үйлдвэрийн параметр бичиж байна…</string>
+    <string name="ottai_ota_complete">Бэлтгэл дууслаа. Энэ цонхыг хааж, мэдрэгчийг идэвхжүүлэхийн тулд ердийн байдлаар холбоно уу.</string>
+    <string name="ottai_ota_failed">Туршилт зогслоо. Дахин оролдохын өмнө мөрдөх бүртгэлийг шалгана уу. Дуусаагүй шинэчлэлт идэвхжүүлэхийг хориглоно.</string>
+    <string name="ottai_ota_version">Мэдрэгч: %1$s · Шинэчлэлт: %2$s</string>
+    <string name="ottai_ota_package">%1$d байт · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Оношилгооны код: %1$s</string>
+    <string name="ottai_ota_install">Програм хангамж суулгах</string>
+    <string name="ottai_ota_parameters">Зөвхөн үйлдвэрийн параметр бичих</string>
+    <string name="ottai_ota_confirm">Энэ туршилтын шинэчлэлтийг суулгах уу? Мэдрэгч бүрмөсөн ажиллахгүй болж болно. Хувилбар болон үйлдвэрийн параметрийг шалгасны дараа тусад нь идэвхжүүлнэ.</string>
+    <string name="ottai_ota_parameters_confirm">Дэмжигдсэн үйлдвэрийн коэффициент болон тохируулгыг бичих үү? Энэ нь програм хангамж шинэчлэхгүй, ашиглалтын хугацааг эхлүүлэхгүйгээр тохиргоог өөрчилнө.</string>
+    <string name="ottai_ota_check">Програм хангамж шалгах (туршилт)</string>
+    <string name="ottai_ota_cloud_recheck">V3 үүлэн баталгаажуулалтаар дахин шалгах</string>
+    <string name="ottai_ota_cloud_authenticating">Ottai бүртгэлээр баталгаажуулж байна…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Серверээр мэдрэгчийг баталгаажуулж, програмын шинэчлэл байгаа эсэхийг дахин шалгана. Мэдрэгчийг идэвхжүүлэхгүй, бүртгэлд холбохгүй.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Эхлээд энэ мэдрэгчийн хяналтын холболтыг салгана уу. Ажиллаж буй мэдрэгчийг шинэчлэхэд уншилт устаж, ашиглалтын хугацаа дахин эхэлж эсвэл мэдрэгч зогсож болно.</string>
+    <string name="ottai_ota_fresh_mode">Шинэ мэдрэгч</string>
+    <string name="ottai_ota_started_mode">Ажиллаж буй мэдрэгч</string>
+    <string name="ottai_ota_started_ready">Ажиллаж буй мэдрэгчийн шинэчлэлт бэлэн. Суулгахын өмнө эхний өгөгдлийг шалгана уу.</string>
+    <string name="ottai_ota_result_active">Програм хангамж шинэчлэгдлээ. Мэдрэгч идэвхтэй гэж мэдээлж байна; хяналтыг дахин холбохын өмнө бүртгэлийг шалгана уу.</string>
+    <string name="ottai_ota_result_ended">Програм хангамж шинэчлэгдлээ. Мэдрэгч дууссан гэж мэдээлж байна; бүртгэлийг шалгана уу.</string>
+    <string name="ottai_ota_result_reset">Програм хангамж шинэчлэгдлээ. Мэдрэгч идэвхжээгүй гэж мэдээлж байна; дахин идэвхжүүлэх оролдлого хийгээгүй.</string>
+    <string name="ottai_ota_started_confirm">Энэ ажиллаж буй мэдрэгчид суулгах уу? Уншилт болон ажлын төлөв устаж эсвэл шинэчлэгдэж болно. Туршилт нь дахин идэвхжүүлэхгүй, үйлдвэрийн параметр бичихгүйгээр үр дүнг бүртгэнэ.</string>
+    <string name="ottai_ota_observation">%1$s · төлөв %2$d · хугацаа %3$s сек · сүүлийн бичлэг %4$s · RTC %5$s сек</string>
+    <string name="ottai_ota_before">Өмнө</string>
+    <string name="ottai_ota_after">Дараа</string>
+
+    <string name="ottai_ota_discard">Программын туршилтыг цуцлах</string>
+    <string name="ottai_ota_discard_confirm">Хадгалсан багцыг устгаж, холболтыг нээх үү? Энэ нь өмнөх программ эсвэл тохиргоог сэргээхгүй. Тасалдсан бичилтийн дараа сэргээх шаардлагатай байж болно.</string>
+    <string name="ottai_ota_pending">Дуусаагүй программын туршилт холболтыг хааж байна. Үргэлжлүүлэх эсвэл цуцлахын тулд программ сэргээх хэсгийг нээнэ үү.</string>
+    <string name="ottai_ota_finish_preparation">Программыг шалгалаа. Тохиргоог дуусгахын тулд үйлдвэрийн параметр бичихийг баталгаажуулна уу.</string>
+    <string name="ottai_ota_discard_failed">Программын туршилтыг цуцалж чадсангүй. Дахин оролдоно уу.</string>
     <string name="prediction_analysis_section">Таамаглалын шинжилгээ</string>
     <string name="prediction_analysis_record">Таамаглалыг хадгалах</string>
     <string name="prediction_analysis_record_summary">Болсон үйл явдалтай харьцуулахын тулд таамаглал бүрийг энэ утсанд хадгална</string>

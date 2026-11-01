@@ -2500,6 +2500,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">无法开始连接，请重试。</string>
     <string name="ottai_offline_hint">也可以在“已保存的传感器”中导入凭据文件。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
+    <string name="ottai_ota_upgrade_required">在传感器固件更新之前，Ottai 服务不会绑定该传感器。请先用 Ottai 官方应用更新固件，然后重试。</string>
     <string name="ottai_region_cn_full">Ottai 国内版</string>
     <string name="ottai_region_global_full">Ottai 国际版</string>
     <string name="ottai_sms_country_title">国家/地区代码</string>
@@ -3125,6 +3126,51 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_no_results">没有与“%1$s”匹配的设置</string>
     <string name="settings_search_clear">清除搜索</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">实验性固件测试</string>
+    <string name="ottai_ota_warning">更新失败可能导致传感器无法使用。请保持此屏幕打开，并将手机放在传感器附近。</string>
+    <string name="ottai_ota_connecting">正在连接，不激活传感器…</string>
+    <string name="ottai_ota_authenticating">正在验证传感器身份…</string>
+    <string name="ottai_ota_checking">正在检查并下载固件…</string>
+    <string name="ottai_ota_recovery">恢复包已就绪。安装将从头重新发送已保存的软件包。</string>
+    <string name="ottai_ota_ready">固件包已就绪。传感器尚未激活。</string>
+    <string name="ottai_ota_no_update">未提供固件更新</string>
+    <string name="ottai_ota_installing">正在安装固件…</string>
+    <string name="ottai_ota_reconnecting">正在重新连接并检查已安装的版本…</string>
+    <string name="ottai_ota_preparing">正在刷新凭据并写入出厂参数…</string>
+    <string name="ottai_ota_complete">准备完成。请关闭此对话框，然后正常连接以激活传感器。</string>
+    <string name="ottai_ota_failed">固件测试已停止。重试前请检查跟踪日志。未完成的更新会阻止激活。</string>
+    <string name="ottai_ota_version">传感器：%1$s · 更新：%2$s</string>
+    <string name="ottai_ota_package">%1$d 字节 · SHA-256：%2$s</string>
+    <string name="ottai_ota_error_code">诊断代码：%1$s</string>
+    <string name="ottai_ota_install">安装固件</string>
+    <string name="ottai_ota_parameters">仅写入出厂参数</string>
+    <string name="ottai_ota_confirm">安装此实验性更新？这可能永久损坏传感器。验证已安装的版本和出厂参数后，将另行激活。</string>
+    <string name="ottai_ota_parameters_confirm">写入此固件支持的出厂系数和校准参数？此操作会更改传感器配置，但不会更新固件或开始计时。</string>
+    <string name="ottai_ota_check">检查固件（实验性）</string>
+    <string name="ottai_ota_cloud_recheck">使用 V3 云端认证重新检查</string>
+    <string name="ottai_ota_cloud_authenticating">正在通过您的 Ottai 账号认证…</string>
+    <string name="ottai_ota_cloud_recheck_hint">通过服务器进行传感器认证后重新检查固件更新。此操作不会激活传感器或将其绑定到账号。</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">请先断开此传感器的监测连接。更新已启动的传感器可能会删除读数、重置使用期限或结束传感器运行。</string>
+    <string name="ottai_ota_fresh_mode">新传感器</string>
+    <string name="ottai_ota_started_mode">已启动的传感器</string>
+    <string name="ottai_ota_started_ready">已启动传感器的更新已就绪。安装前请检查初始数据。</string>
+    <string name="ottai_ota_result_active">固件已更新。传感器报告为已激活；重新连接监测前请检查跟踪日志。</string>
+    <string name="ottai_ota_result_ended">固件已更新。传感器报告为已结束；请检查跟踪日志。</string>
+    <string name="ottai_ota_result_reset">固件已更新。传感器报告为未激活；未尝试重新激活。</string>
+    <string name="ottai_ota_started_confirm">在此已启动的传感器上安装更新？读数和运行状态可能会被删除或重置。测试会记录结果，不会重新激活或写入出厂参数。</string>
+    <string name="ottai_ota_observation">%1$s · 状态 %2$d · 使用期限 %3$s 秒 · 最新记录 %4$s · RTC %5$s 秒</string>
+    <string name="ottai_ota_before">更新前</string>
+    <string name="ottai_ota_after">更新后</string>
+
+    <string name="ottai_ota_discard">放弃固件测试</string>
+    <string name="ottai_ota_discard_confirm">删除已保存的固件包并解除连接限制？这不会恢复之前的固件或设置。中断的写入可能仍需要恢复。</string>
+    <string name="ottai_ota_pending">未完成的固件测试阻止了连接。请打开固件恢复以继续或放弃测试。</string>
+    <string name="ottai_ota_finish_preparation">固件已验证。请确认写入出厂参数以完成设置。</string>
+    <string name="ottai_ota_discard_failed">无法放弃固件测试。请重试。</string>
     <string name="prediction_analysis_section">预测分析</string>
     <string name="prediction_analysis_record">记录预测</string>
     <string name="prediction_analysis_record_summary">在此手机上保存每次预测，以便与实际情况对比</string>

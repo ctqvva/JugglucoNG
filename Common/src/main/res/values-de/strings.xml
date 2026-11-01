@@ -2594,6 +2594,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
+    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst verknüpft diesen Sensor erst, wenn seine Firmware aktualisiert ist. Aktualisiere ihn zuerst mit der offiziellen Ottai-App und versuche es dann erneut.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Ländervorwahl</string>
@@ -3225,6 +3226,51 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
     <string name="settings_search_no_results">Keine Einstellung passt zu „%1$s“</string>
     <string name="settings_search_clear">Suche löschen</string>
+
+    <!-- Explicit firmware field test. -->
+    <string name="ottai_ota_title">Experimenteller Firmwaretest</string>
+    <string name="ottai_ota_warning">Ein fehlgeschlagenes Update kann den Sensor unbrauchbar machen. Diesen Bildschirm geöffnet und das Telefon nahe am Sensor halten.</string>
+    <string name="ottai_ota_connecting">Verbindung ohne Aktivierung…</string>
+    <string name="ottai_ota_authenticating">Sensoridentität wird geprüft…</string>
+    <string name="ottai_ota_checking">Firmware wird geprüft und heruntergeladen…</string>
+    <string name="ottai_ota_recovery">Wiederherstellungspaket bereit. Das gespeicherte Paket wird von Anfang an installiert.</string>
+    <string name="ottai_ota_ready">Firmwarepaket bereit. Der Sensor ist nicht aktiviert.</string>
+    <string name="ottai_ota_no_update">Kein Firmwareupdate angeboten</string>
+    <string name="ottai_ota_installing">Firmware wird installiert…</string>
+    <string name="ottai_ota_reconnecting">Erneute Verbindung und Prüfung der installierten Version…</string>
+    <string name="ottai_ota_preparing">Zugangsdaten werden aktualisiert und Werksparameter geschrieben…</string>
+    <string name="ottai_ota_complete">Vorbereitung abgeschlossen. Diesen Dialog schließen und den Sensor zur Aktivierung normal verbinden.</string>
+    <string name="ottai_ota_failed">Firmwaretest gestoppt. Vor einem erneuten Versuch das Trace-Protokoll prüfen. Unvollständige Updates blockieren die Aktivierung.</string>
+    <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
+    <string name="ottai_ota_package">%1$d Bytes · SHA-256: %2$s</string>
+    <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
+    <string name="ottai_ota_install">Firmware installieren</string>
+    <string name="ottai_ota_parameters">Nur Werksparameter schreiben</string>
+    <string name="ottai_ota_confirm">Dieses experimentelle Update installieren? Der Sensor kann dauerhaft ausfallen. Die Aktivierung erfolgt separat nach Prüfung der Version und der Werksparameter.</string>
+    <string name="ottai_ota_parameters_confirm">Die von dieser Firmware unterstützten Werkskoeffizienten und Kalibrierungswerte schreiben? Dies ändert die Sensorkonfiguration ohne Firmwareupdate oder Start der Laufzeit.</string>
+    <string name="ottai_ota_check">Firmware prüfen (experimentell)</string>
+    <string name="ottai_ota_cloud_recheck">Mit V3-Cloud-Authentifizierung erneut prüfen</string>
+    <string name="ottai_ota_cloud_authenticating">Authentifizierung über dein Ottai-Konto…</string>
+    <string name="ottai_ota_cloud_recheck_hint">Die Firmware-Verfügbarkeit mit servergestützter Sensorauthentifizierung erneut prüfen. Der Sensor wird dabei weder aktiviert noch mit dem Konto verknüpft.</string>
+
+    <!-- Started-sensor OTA experiment. -->
+    <string name="ottai_ota_mode_hint">Diesen Sensor zuerst von der Überwachung trennen. Ein Update eines gestarteten Sensors kann Messwerte löschen, die Laufzeit zurücksetzen oder den Sensor beenden.</string>
+    <string name="ottai_ota_fresh_mode">Neuer Sensor</string>
+    <string name="ottai_ota_started_mode">Gestarteter Sensor</string>
+    <string name="ottai_ota_started_ready">Update für den gestarteten Sensor bereit. Vor der Installation die Ausgangswerte prüfen.</string>
+    <string name="ottai_ota_result_active">Firmware aktualisiert. Der Sensor meldet aktiv; vor der Überwachung das Trace-Protokoll prüfen.</string>
+    <string name="ottai_ota_result_ended">Firmware aktualisiert. Der Sensor meldet beendet; das Trace-Protokoll prüfen.</string>
+    <string name="ottai_ota_result_reset">Firmware aktualisiert. Der Sensor meldet nicht aktiviert; keine erneute Aktivierung versucht.</string>
+    <string name="ottai_ota_started_confirm">Auf diesem gestarteten Sensor installieren? Messwerte und Betriebszustand können gelöscht oder zurückgesetzt werden. Der Test protokolliert das Ergebnis ohne erneute Aktivierung oder Schreiben von Werksparametern.</string>
+    <string name="ottai_ota_observation">%1$s · Status %2$d · Laufzeit %3$s s · letzter Datensatz %4$s · RTC %5$s s</string>
+    <string name="ottai_ota_before">Vorher</string>
+    <string name="ottai_ota_after">Nachher</string>
+
+    <string name="ottai_ota_discard">Firmwaretest verwerfen</string>
+    <string name="ottai_ota_discard_confirm">Gespeichertes Paket löschen und Verbindung freigeben? Die vorherige Firmware oder Einstellungen werden nicht wiederhergestellt. Nach einem abgebrochenen Flash kann eine Wiederherstellung nötig sein.</string>
+    <string name="ottai_ota_pending">Ein unvollständiger Firmwaretest blockiert die Verbindung. Firmwarewiederherstellung öffnen, um fortzufahren oder den Test zu verwerfen.</string>
+    <string name="ottai_ota_finish_preparation">Firmware geprüft. Werksparameter bestätigen, um die Einrichtung abzuschließen.</string>
+    <string name="ottai_ota_discard_failed">Firmwaretest konnte nicht verworfen werden. Erneut versuchen.</string>
     <string name="prediction_analysis_section">Prognoseanalyse</string>
     <string name="prediction_analysis_record">Prognosen aufzeichnen</string>
     <string name="prediction_analysis_record_summary">Jede Prognose auf diesem Telefon behalten, um sie mit dem Verlauf zu vergleichen</string>
