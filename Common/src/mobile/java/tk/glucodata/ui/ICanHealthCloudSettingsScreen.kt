@@ -55,6 +55,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.share.ican.ICanHealthCloudClient
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
 import tk.glucodata.ui.components.AppTopBar
@@ -76,13 +77,47 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
     var status by remember { mutableStateOf(initial.lastSyncMs) }
     var testing by remember { mutableStateOf(false) }
     var testMessage by remember { mutableStateOf<String?>(null) }
+    val hasCredentials = account.isNotBlank() && password.isNotBlank()
 
     fun save() {
         val s = ICanHealthCloudSettings(context)
         s.enabled = enabled
         s.account = account
-        if (password.isNotBlank()) s.token = "" // force re-login
         status = s.lastSyncMs
+    }
+
+    fun login() {
+        if (!hasCredentials) {
+            testMessage = "Enter account and password"
+            return
+        }
+        testing = true
+        testMessage = null
+        coroutineScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                ICanHealthCloudClient().login(account, password)
+            }
+            withContext(Dispatchers.Main) {
+                testing = false
+                when (result) {
+                    is ICanHealthCloudClient.LoginResult.Ok -> {
+                        val s = ICanHealthCloudSettings(context)
+                        s.enabled = enabled
+                        s.account = account
+                        s.token = result.sessionId
+                        s.refreshToken = result.model.refreshToken
+                        s.userId = result.model.userId
+                        s.tenantId = result.model.tenantId
+                        status = s.lastSyncMs
+                        testMessage = "Logged in"
+                        password = ""
+                    }
+                    is ICanHealthCloudClient.LoginResult.Failed -> {
+                        testMessage = "Login failed: ${result.message.ifBlank { result.kind.name }}"
+                    }
+                }
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -95,8 +130,6 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             delay(1_000)
         }
     }
-
-    val hasCredentials = account.isNotBlank() && password.isNotBlank()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -173,14 +206,27 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             }
 
             Button(
-                onClick = { save(); testMessage = null },
+                onClick = { login() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
                 shapes = ButtonDefaults.shapes(),
                 contentPadding = ButtonDefaults.ContentPadding,
+                enabled = !testing,
             ) {
-                Text("Save")
+                if (testing) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.size(8.dp))
+                }
+                Text(if (testing) "Signing in…" else "Sign in")
+            }
+
+            if (testMessage != null) {
+                Text(
+                    text = testMessage!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
 
             Text(
@@ -188,6 +234,15 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            OutlinedButton(
+                onClick = { navController.navigate("settings/ican-health/followers") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+            ) {
+                Text("Manage followers")
+            }
         }
     }
 }
