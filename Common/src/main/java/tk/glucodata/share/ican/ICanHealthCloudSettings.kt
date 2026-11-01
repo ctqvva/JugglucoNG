@@ -64,6 +64,12 @@ class ICanHealthCloudSettings(context: Context) {
             context.applicationContext
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getBoolean(KEY_ENABLED, false)
+
+        @JvmStatic
+        fun isSetUp(context: Context): Boolean =
+            isEnabled(context) || context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_ACCOUNT, "").orEmpty().isNotBlank()
         private const val KEY_ACCOUNT = "ican_cloud_account"
         private const val KEY_TOKEN = "ican_cloud_token"
         private const val KEY_REFRESH_TOKEN = "ican_cloud_refresh_token"
