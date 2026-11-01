@@ -92,7 +92,21 @@ class ICanHealthCloudClient(
                 ICanHealthCloudError.message(response.body),
             )
         }
+        val bodyCode = plainBodyCode(response.body)
+        if (bodyCode != null && bodyCode != 0 && bodyCode != 200) {
+            return UploadResult.Failed(
+                ICanHealthCloudError.classify(bodyCode, response.body),
+                bodyCode,
+                ICanHealthCloudError.message(response.body),
+            )
+        }
         return UploadResult.Ok
+    }
+
+    private fun plainBodyCode(body: String): Int? {
+        val trimmed = body.trim()
+        if (!trimmed.startsWith("{")) return null
+        return runCatching { org.json.JSONObject(trimmed).optInt("code", 0) }.getOrNull()
     }
 
     fun followerList(token: String): List<FollowerFriends> {
@@ -153,7 +167,7 @@ class ICanHealthCloudClient(
         return FollowerFriends.fromJson(data)
     }
 
-    fun followerUpdate(token: String, id: String, status: String, nickname: String): Unit {
+    fun followerUpdate(token: String, id: String, status: String, nickname: String): Boolean {
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/update"
         val payload = linkedMapOf<String, Any?>(
@@ -164,11 +178,14 @@ class ICanHealthCloudClient(
         val key = ICanHealthCloudJson.getRandomString()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
-        transport.post(
+        val response = transport.post(
             url,
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == 401 || response.code !in 200..299) return false
+        val bodyCode = plainBodyCode(response.body)
+        return bodyCode == null || bodyCode == 0 || bodyCode == 200
     }
 
     fun followerGet(token: String, id: String): FollowerFriends {
@@ -209,18 +226,21 @@ class ICanHealthCloudClient(
         return response.body
     }
 
-    fun basicConfigFollowerUpdate(token: String, shareFollower: String): Unit {
+    fun basicConfigFollowerUpdate(token: String, shareFollower: String): Boolean {
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/basic/config/follower/update"
         val payload = mapOf("shareFollower" to shareFollower)
         val key = ICanHealthCloudJson.getRandomString()
         val envelope = ICanHealthCloudJson.createEncryptedRequest(payload, key)
         val body = JSONObject(envelope).toString()
-        transport.post(
+        val response = transport.post(
             url,
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
+        if (response.code == 401 || response.code !in 200..299) return false
+        val bodyCode = plainBodyCode(response.body)
+        return bodyCode == null || bodyCode == 0 || bodyCode == 200
     }
 
     fun logout(token: String): Unit {
