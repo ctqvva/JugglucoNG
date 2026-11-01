@@ -257,7 +257,7 @@ static int addcurrent(const SensorGlucoseData *sens,char *buf,int64_t histor,con
 	viewed=getisviewed(tim) ;
 	const char *isviewed=viewed?"true":"false";
 	return sprintf(buf,onecurrent, trendName[el->tr],isviewed,gmttime,recordnum,timestr,
-	               (float)libreviewExportedMgdl(sens,tim,el->getmgdL(),sens?sens->getRawForPoll(el):0));
+	               (float)libreviewExportedMgdl(sens,tim,el->getmgdL(),sens?sens->getRawForPoll(el):0,el->hasResolvedGlucose()));
 	}
 //uint16_t lastLifeCountReceived;
 

@@ -130,17 +130,17 @@ extern void libreviewJournalInit(JNIEnv *env);
 //LibreView was the one destination still sending the stored sensor lane, so a calibrated
 //user's LibreLinkUp followers saw numbers that matched nothing on their phone.
 extern int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sensorname,
-                                 const uint32_t tim,const int storedMgdl,const int rawCurrent);
+                                 const uint32_t tim,const int storedMgdl,const int rawCurrent,const bool primaryIsResolved);
 
 //rawCurrent stays 0 for records that are not polls -- scans and the 15-minute history --
 //because raw values only exist in the polls array and there is nothing to look them up by.
 //A raw-primary sensor then keeps its auto lane there rather than being calibrated against a
 //value that is not present.
 inline int libreviewExportedMgdl(const SensorGlucoseData *sens,const uint32_t tim,
-                                 const int storedMgdl,const int rawCurrent=0) {
+                                 const int storedMgdl,const int rawCurrent=0,const bool primaryIsResolved=false) {
 	if(!sens||storedMgdl<=0)
 		return storedMgdl;
-	const int exported=resolveExportedMgdlAt(sens,sens->shortsensorname(),tim,storedMgdl,rawCurrent);
+	const int exported=resolveExportedMgdlAt(sens,sens->shortsensorname(),tim,storedMgdl,rawCurrent,primaryIsResolved);
 	return exported>0?exported:storedMgdl;
 	}
 #include "settings/mixpass.hpp"

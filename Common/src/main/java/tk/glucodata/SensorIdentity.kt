@@ -200,7 +200,9 @@ object SensorIdentity {
         // screen showing "No data" over a full store.
         if (Applic.isWearable) return true
         managedDriverHistorySync(raw)?.let { return it }
-        val canonical = canonicalOrRaw(raw) ?: raw
+        // Native current exposes a short name. Recover its full identity before
+        // asking adapters such as API/NSF, which recognize their prefixed ids.
+        val canonical = canonicalSensorId(raw) ?: raw
         if (!canonical.equals(raw, ignoreCase = true)) {
             managedDriverHistorySync(canonical)?.let { return it }
         }

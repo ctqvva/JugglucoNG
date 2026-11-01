@@ -240,7 +240,9 @@ bool inituploader(JNIEnv *env) {
     return true;
        }
 
-static int getNightscoutCalibrationOverrideForItem(SensorGlucoseData *sens,const char *sensorname,int autoMgdl,int rawCurrent,long long timestampMillis) {
+static int getNightscoutCalibrationOverrideForItem(SensorGlucoseData *sens,const char *sensorname,int autoMgdl,int rawCurrent,long long timestampMillis,bool primaryIsResolved) {
+    if(primaryIsResolved)
+        return autoMgdl;
     if(nightscoutcalibrationclass==nullptr)
         return 0;
     auto env=getenv();
@@ -750,7 +752,11 @@ static int smoothPollWindow(std::span<const ScanData> gdata,const int pos,Getval
 //Deliberately never calls ScanData::valid(): that patches a zero timestamp from the
 //preceding entry as a side effect, which a read-only averaging pass must not do.
 static int smoothedUploadMgdl(std::span<const ScanData> gdata,const int pos) {
-    return smoothPollWindow(gdata,pos,[gdata](const int i) {
+    return smoothPollWindow(gdata,pos,[gdata,pos](const int i) {
+        // An upgrade can leave both stock and final samples in this window.
+        // Average only the representation to which the caller's calibration applies.
+        if(gdata[i].hasResolvedGlucose()!=gdata[pos].hasResolvedGlucose())
+            return 0;
         const int g=gdata[i].getmgdL();
         return (g>0&&g<552)?g:0;
         });
@@ -777,11 +783,11 @@ template <class T> int mkuploaditem(SensorGlucoseData *sens,char *buf,const sens
     //this yields the same series the app's own smoothed display and broadcasts carry.
     ScanData smoothed=item;
     if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.g=avg;
+        smoothed.setmgdL(avg);
     int autoMgdl=smoothed.getmgdL();
     if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
         autoMgdl=(int)round(calibrated);
-    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL);
+    int mgdL=getNightscoutCalibrationOverrideForItem(sens,sensornameStr,autoMgdl,rawCurrent,tim*1000LL,item.hasResolvedGlucose());
     if(mgdL<=0)
         mgdL=autoMgdl;
     const float change=effectivechange(gdata,pos,item);
@@ -893,7 +899,7 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
     //this yields the same series the app's own smoothed display and broadcasts carry.
     ScanData smoothed=*el;
     if(const int avg=smoothedUploadMgdl(gdata,pos);avg>0)
-        smoothed.g=avg;
+        smoothed.setmgdL(avg);
     int autoMgdl=smoothed.getmgdL();
     if(double calibrated=calibrateONEtest(sens,smoothed);!isnan(calibrated))
         autoMgdl=(int)round(calibrated);
@@ -905,13 +911,14 @@ extern char * writev3entry(char *outin,const ScanData *val, const sensorname_t *
         sensornameStr,
         autoMgdl,
         rawSmoothed>0?rawSmoothed:sens->getRawForPoll(el),
-        el->gettime()*1000LL
+        el->gettime()*1000LL,
+        el->hasResolvedGlucose()
     );
     ScanData outel=*el;
     if(overrideValue>0)
-        outel.g=overrideValue;
+        outel.setmgdL(overrideValue);
     else
-        outel.g=autoMgdl;
+        outel.setmgdL(autoMgdl);
     outel.ch=effectivechange(gdata,pos,*el);
     return writev3entry(buf,&outel,sensorname,false,sens->sensid());
     }

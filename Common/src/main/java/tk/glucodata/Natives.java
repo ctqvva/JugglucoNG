@@ -770,6 +770,9 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** Stores an upstream final primary with persisted per-reading provenance. */
+        public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
         public static native long ensureSensorShell(String sensorId, long startTimeSec);
 
         public static native long ensureSensorShellWithCapacity(String sensorId, long startTimeSec, int minimumRecords);

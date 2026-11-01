@@ -1484,7 +1484,7 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                      jlong timestamp, jfloat glucose,
                                      jfloat rawGlucose, jfloat temperatureC,
                                      bool overwriteRaw, bool overwriteTemp,
-                                     bool quiet, int *rewindFrom) {
+                                     bool quiet, int *rewindFrom, bool primaryIsResolved = false) {
   if (!hist || hist->error() || timestamp <= 0)
     return false;
   auto *info = hist->getinfo();
@@ -1530,12 +1530,13 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
 
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
                                              mgVal, timestamp);
+  const int storedGlucose = mgVal | (primaryIsResolved ? ScanData::resolvedGlucoseFlag : 0);
   const bool stored = quiet
                           ? hist->savepollallIDsQuiet<60>(
-                                timestamp, lifeCount, mgVal, 0, change,
+                                timestamp, lifeCount, storedGlucose, 0, change,
                                 preservedRaw, preservedTemp)
                           : hist->savepollallIDs<60>(
-                                timestamp, lifeCount, mgVal, 0, change,
+                                timestamp, lifeCount, storedGlucose, 0, change,
                                 preservedRaw, preservedTemp);
   if (!stored)
     return false;
@@ -1662,9 +1663,9 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTemp)(
 // quiet writes that skip the per-sample LOGGER, a single backstream/backhistory
 // rewind from the lowest index touched, and one setstreaming. Mirroring a
 // 4867-sample history one call at a time cost all of that per reading.
-extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
-    JNIEnv *env, jclass cl, jlongArray timestamps, jfloatArray glucoses,
-    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+static jint addGlucoseStreamBatchWithRawTempInternal(
+    JNIEnv *env, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved) {
   if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
       !sensorId)
     return 0;
@@ -1705,7 +1706,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index],
               rawValues[index], temperatureValues[index], true, true, true,
-              &rewindFrom)) {
+              &rewindFrom, primaryIsResolved)) {
         ++stored;
       }
     }
@@ -1723,6 +1724,20 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
   env->ReleaseLongArrayElements(timestamps, timeValues, JNI_ABORT);
   env->ReleaseStringUTFChars(sensorId, str);
   return stored;
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, false);
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addResolvedGlucoseStreamBatchWithRawTemp)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, true);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL fromjava(addGlucoseStreamWithRawTemp)(
@@ -1945,7 +1960,7 @@ fromjava(addRawGlucoseStream)(JNIEnv *env, jclass cl, jlong timestamp,
         }
         // See addGlucoseStreamInternal(): derive rather than storing a fake flat 0.0f.
         const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
-                                                   preservedAuto, timestamp);
+                                                   (preservedAuto & 0xffff), timestamp);
         hist->savepollallIDs<60>(timestamp, lifeCount, preservedAuto, 0, change,
                                  rawVal, preservedTemp);
         if (backup) {
@@ -2138,7 +2153,7 @@ static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
     jlong valAuto = 0;
     if (autoValid) {
       double cali = calibrateNow(hist, item);
-      valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.g * 10;
+      valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.getmgdL() * 10;
     }
 
     jlong valRaw = rawVal > 0 ? (jlong)(rawVal * convfactordL) : 0;
@@ -2169,7 +2184,7 @@ static void appendScanHistory(const SensorGlucoseData *hist, jlong starttime,
       continue;
 
     const double cali = calibrateNow(hist, item);
-    const jlong valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.g * 10;
+    const jlong valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.getmgdL() * 10;
 
     // Scans have no dedicated raw lane like rawpolls.dat. Assignment is
     // intentional: a scan is a newer source than the periodic history point.

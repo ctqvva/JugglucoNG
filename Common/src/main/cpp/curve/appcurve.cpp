@@ -758,7 +758,7 @@ void JCurve::showscanner(NVGcontext *avg, const SensorGlucoseData *hist,
   buf[len++] = ' ';
   char *buf1 = buf + len;
   --len;
-  const int32_t gluval = last.g;
+  const int32_t gluval = last.getmgdL();
   int len1;
   float endtime = x, sensleft = 0.0f;
 
@@ -852,7 +852,7 @@ void JCurve::showscanner(NVGcontext *avg, const SensorGlucoseData *hist,
   }
 #endif
 
-  showok(avg, (last.g > 70 && last.g <= 140),
+  showok(avg, (last.getmgdL() > 70 && last.getmgdL() <= 140),
          ((y - dtop) < (dheight / 2)) ? false : true);
 }
 
