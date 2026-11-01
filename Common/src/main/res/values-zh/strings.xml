@@ -1,6 +1,8 @@
 <resources>
     <string name="language">zh</string>
     <string name="languagename">语言</string>
+    <string name="child_friendly_mode_title">儿童友好模式</string>
+    <string name="child_friendly_mode_desc">选择要向儿童隐藏的控件。</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">确定</string>

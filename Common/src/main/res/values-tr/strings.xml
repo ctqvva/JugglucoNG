@@ -1,6 +1,8 @@
 <resources>
     <string name="language">tr</string>
     <string name="languagename">Dil</string>
+    <string name="child_friendly_mode_title">Çocuk dostu mod</string>
+    <string name="child_friendly_mode_desc">Çocuklardan gizlenecek kontrolleri seçin.</string>
     <string name="app_name">JugglucoNG</string>
 
     <string name="ok">Tamam</string>

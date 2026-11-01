@@ -1,6 +1,8 @@
 <resources>
     <string name="language">fr</string>
     <string name="languagename">Langue</string>
+    <string name="child_friendly_mode_title">Mode adapté aux enfants</string>
+    <string name="child_friendly_mode_desc">Choisissez les commandes à masquer aux enfants.</string>
 <string name="app_name">JugglucoNG</string>
 
 <string name="ok">OK</string>
