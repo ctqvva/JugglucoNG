@@ -24,7 +24,7 @@ class ICanHealthCloudClient(
     data class HttpResult(val code: Int, val body: String)
 
     sealed class LoginResult {
-        data class Ok(val sessionId: String) : LoginResult()
+        data class Ok(val sessionId: String, val model: LoginModel = LoginModel()) : LoginResult()
         data class Failed(val kind: ICanHealthCloudError.Kind, val code: Int, val message: String) :
             LoginResult()
     }
@@ -56,8 +56,9 @@ class ICanHealthCloudClient(
         val json = runCatching { JSONObject(response.body) }.getOrNull()
         val code = json?.optInt("code", response.code) ?: response.code
         if (code == 0) {
-            val token = json?.optJSONObject("data")?.optString("access_token", "").orEmpty()
-            if (token.isNotEmpty()) return LoginResult.Ok(token)
+            val data = json?.optJSONObject("data")
+            val token = data?.optString("access_token", "").orEmpty()
+            if (token.isNotEmpty()) return LoginResult.Ok(token, LoginModel.fromJson(data))
         }
         return LoginResult.Failed(
             ICanHealthCloudError.classify(response.code, response.body),
