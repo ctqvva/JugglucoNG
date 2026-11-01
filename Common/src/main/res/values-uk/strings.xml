@@ -3140,6 +3140,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Вхід заблоковано — перевірте обліковий запис і пароль</string>
     <string name="dexcom_share_credentials_required">Спочатку введіть обліковий запис і пароль</string>
     <string name="dexcom_share_warning">Неофіційний інтерфейс: Dexcom може змінити або заблокувати його будь-коли. Це не функція медичного виробу.</string>
+    <string name="journal_food_from_label">Додати з етикетки</string>
+    <string name="journal_food_name">Назва</string>
+    <string name="journal_food_carbs_per_100g">Вуглеводи на 100 г</string>
+    <string name="journal_food_weight">Вага</string>
+    <string name="journal_food_servings">Порції</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s г вуглеводів</string>
+    <string name="journal_meal_total">Разом</string>
     <string name="stream_history_mode">Потік+Історія</string>
     <string name="history_stream_mode">Історія+Потік</string>
     <string name="libre_history_mode_caption">Історія — власне значення сенсора, зберігається кожні 15 хвилин і відстає від потоку приблизно на 16 хвилин. Доки історія за хвилину не надійшла, замість неї використовується потік.</string>

@@ -3309,6 +3309,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_iob_help">eIOB and COB are sent in the jugglucong field of devicestatus, separately from standard IOB.</string>
 
     <string name="alert_sound_volume">Alert sound volume</string>
+    <string name="journal_food_from_label">Add from a food label</string>
+    <string name="journal_food_name">Name</string>
+    <string name="journal_food_carbs_per_100g">Carbs per 100 g</string>
+    <string name="journal_food_weight">Weight</string>
+    <string name="journal_food_servings">Servings</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g carbs</string>
+    <string name="journal_meal_total">Total</string>
     <string name="stream_history_mode">Stream+History</string>
     <string name="history_stream_mode">History+Stream</string>
     <string name="libre_history_mode_caption">History is the sensor\'s own value, stored every 15 minutes and about 16 minutes behind the stream. Until a minute\'s history arrives, the stream stands in for it.</string>

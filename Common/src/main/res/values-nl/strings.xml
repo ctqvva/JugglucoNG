@@ -3102,6 +3102,14 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="dexcom_share_auth_blocked">Inloggen geblokkeerd — controleer account en wachtwoord</string>
     <string name="dexcom_share_credentials_required">Vul eerst account en wachtwoord in</string>
     <string name="dexcom_share_warning">Onofficiële interface: Dexcom kan deze op elk moment wijzigen of blokkeren. Dit is geen functie van een medisch hulpmiddel.</string>
+    <string name="journal_food_from_label">Toevoegen van etiket</string>
+    <string name="journal_food_name">Naam</string>
+    <string name="journal_food_carbs_per_100g">Koolhydraten per 100 g</string>
+    <string name="journal_food_weight">Gewicht</string>
+    <string name="journal_food_servings">Porties</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g koolhydraten</string>
+    <string name="journal_meal_total">Totaal</string>
     <string name="stream_history_mode">Stream+Geschiedenis</string>
     <string name="history_stream_mode">Geschiedenis+Stream</string>
     <string name="libre_history_mode_caption">De geschiedenis is de eigen waarde van de sensor, elke 15 minuten opgeslagen en ongeveer 16 minuten achter op de stream. Tot de geschiedenis van een minuut binnen is, neemt de stream haar plaats in.</string>

@@ -3059,6 +3059,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="dexcom_share_auth_blocked">Inloggning blockerad — kontrollera konto och lösenord</string>
     <string name="dexcom_share_credentials_required">Ange konto och lösenord först</string>
     <string name="dexcom_share_warning">Inofficiellt gränssnitt: Dexcom kan ändra eller blockera det när som helst. Detta är inte en funktion i en medicinteknisk produkt.</string>
+    <string name="journal_food_from_label">Lägg till från etikett</string>
+    <string name="journal_food_name">Namn</string>
+    <string name="journal_food_carbs_per_100g">Kolhydrater per 100 g</string>
+    <string name="journal_food_weight">Vikt</string>
+    <string name="journal_food_servings">Portioner</string>
+    <string name="journal_food_servings_suffix">×</string>
+    <string name="journal_food_carbs_result">%1$s g kolhydrater</string>
+    <string name="journal_meal_total">Totalt</string>
     <string name="stream_history_mode">Strömmade+Historiska</string>
     <string name="history_stream_mode">Historiska+Strömmade</string>
     <string name="libre_history_mode_caption">Historiken är sensorns eget värde, sparat var 15:e minut och cirka 16 minuter efter strömmen. Tills en minuts historik har kommit används strömmen i dess ställe.</string>
