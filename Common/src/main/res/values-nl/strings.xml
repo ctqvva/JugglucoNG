@@ -1938,7 +1938,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connect_qr_message">Er is een Juggluco Mirror QR-code gescand. Hiermee worden glucosegegevens met het externe apparaat gesynchroniseerd.</string>
     <string name="mirror_connect_qr_turn_message">Deze hybride QR vervangt ook de hybride configuratie van dit apparaat.</string>
     <string name="mirror_connect_action">Verbinden</string>
-    <string name="mirror_connect_nearby_title">Verbinden met %1$s?</string>
     <string name="mirror_connection_data_missing">Verbindingsgegevens ontbreken</string>
     <string name="mirror_reconnect_all">Alles opnieuw verbinden</string>
     <string name="mirror_broadcast_network">Uitzenden op netwerk</string>

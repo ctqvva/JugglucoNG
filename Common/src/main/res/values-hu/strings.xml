@@ -2341,7 +2341,6 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mirror_connect_qr_message">Juggluco Mirror QR-kód beolvasva. Ez szinkronizálja a glükózadatokat a távoli eszközzel.</string>
     <string name="mirror_connect_qr_turn_message">Ez a ‘Hibrid\' QR-kód az eszköz hibrid konfigurációját is lecseréli.</string>
     <string name="mirror_connect_action">Csatlakozás</string>
-    <string name="mirror_connect_nearby_title">Csatlakozás: %1$s?</string>
     <string name="mirror_connection_data_missing">Hiányzó kapcsolati adatok</string>
     <string name="mirror_reconnect_all">Összes újracsatlakoztatása</string>
     <string name="mirror_broadcast_network">Hálózati hirdetés</string>

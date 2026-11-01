@@ -422,7 +422,6 @@ fun MirrorSettingsScreen(navController: NavController) {
 
     // Pending states
     var scannedQrPayload by remember { mutableStateOf<String?>(null) }
-    var pendingNearby by remember { mutableStateOf<DiscoveredMirror?>(null) }
 
     // Edit sheet state
     var editSheetPos by remember { mutableStateOf<Int?>(null) }
@@ -490,7 +489,10 @@ fun MirrorSettingsScreen(navController: NavController) {
             label = Natives.getbackuplabel(index),
             created = sender.created,
             json = json,
-            announced = json.isNotEmpty() && mdnsManager.registerService(deviceName, port, json),
+            // Relay settings (TURN credentials included) stay in the QR code; the Wi-Fi only
+            // hears the connection itself, which the other phone joins with its own settings.
+            announced = mirrorQrWithoutNetworkConfig(json)
+                ?.let { mdnsManager.registerService(deviceName, port, it) } == true,
         )
         triggerRefresh++
     }
@@ -500,9 +502,18 @@ fun MirrorSettingsScreen(navController: NavController) {
         val session = pairing ?: return@LaunchedEffect
         while (!pairingConnected) {
             delay(1_000)
-            val connection = readMirrorConnectionSnapshots()
-                .firstOrNull { it.index == session.index && it.label == session.label }
-            if (connection != null && !connection.isPending) {
+            // Deleting an earlier connection moves this one down a slot, so find it by label.
+            val connection = readMirrorConnectionSnapshots().firstOrNull {
+                if (session.label != null) it.label == session.label else it.index == session.index
+            }
+            if (connection == null || connection.isDeactivated) {
+                // Its card was deleted or disabled: the code on screen can no longer deliver readings.
+                stopAnnouncing()
+                pairing = null
+                pairMode = null
+                return@LaunchedEffect
+            }
+            if (!connection.isPending) {
                 pairingConnected = true
                 stopAnnouncing()
             }
@@ -565,7 +576,7 @@ fun MirrorSettingsScreen(navController: NavController) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.mirror_connect_qr_message))
-                    if (mirrorQrContainsTurnConfig(scannedQrPayload!!)) {
+                    if (mirrorQrContainsNetworkConfig(scannedQrPayload!!)) {
                         Text(
                             stringResource(R.string.mirror_connect_qr_turn_message),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -591,25 +602,6 @@ fun MirrorSettingsScreen(navController: NavController) {
             discoveredMirrors = discoveredMirrors.filterNot { it.name == device.name }
             triggerRefresh++
         }
-    }
-
-    // Only a code carrying its own relay settings asks first: accepting it replaces this phone's.
-    if (pendingNearby != null) {
-        val device = pendingNearby!!
-        AlertDialog(
-            onDismissRequest = { pendingNearby = null },
-            icon = { Icon(Icons.Filled.Wifi, contentDescription = null) },
-            title = { Text(stringResource(R.string.mirror_connect_nearby_title, device.name)) },
-            text = { Text(stringResource(R.string.mirror_connect_qr_turn_message)) },
-            confirmButton = {
-                Button(
-                    onClick = { getReadings(device); pendingNearby = null },
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text(stringResource(R.string.mirror_connect_action)) }
-            },
-            dismissButton = { OutlinedButton(onClick = { pendingNearby = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
-        )
     }
 
     // ── Content ──────────────────────────────────────────────────────────
@@ -673,9 +665,8 @@ fun MirrorSettingsScreen(navController: NavController) {
         },
         onSendKind = { kind -> startPairing(kind) },
         onScan = { launchScanner() },
-        onConnectNearby = { device ->
-            if (mirrorQrContainsTurnConfig(device.mirrorJson)) pendingNearby = device else getReadings(device)
-        },
+        // Announcements carry no relay settings (see startPairing), so nothing here replaces this phone's.
+        onConnectNearby = { device -> getReadings(device) },
         onBackgroundChanged = { enabled ->
             backgroundLivenessEnabled = enabled
             tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
@@ -741,6 +732,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         MirrorEditSheet(
             pos = editSheetPos!!,
+            status = mirrors.firstOrNull { it.index == editSheetPos },
             sheetState = sheetState,
             onDismiss = { editSheetPos = null; triggerRefresh++ }
         )
@@ -1050,7 +1042,7 @@ enum class ConnectionType { LOCAL, ICE, DIRECT }
 enum class ConnectionDirection { PASSIVE, ACTIVE, BOTH }
 
 @Composable
-fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
+fun MirrorEditSheet(pos: Int, status: MirrorItemData?, sheetState: SheetState, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val isNew = pos == -1
     val scope = rememberCoroutineScope()
@@ -1224,7 +1216,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             )
 
             // Troubleshooting detail lives with the connection's settings, not on the screen's cards.
-            val statusMirror = remember(pos) { if (isNew) null else getMirrorsList().getOrNull(pos) }
+            val statusMirror = status.takeUnless { isNew }
             if (statusMirror != null && !statusMirror.isDeactivated &&
                 (statusMirror.isIce || statusMirror.status.isNotBlank())
             ) {

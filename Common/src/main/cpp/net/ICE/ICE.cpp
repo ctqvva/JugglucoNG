@@ -942,7 +942,13 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
     }
 
 void ICEConnect::receiverThread(int argindex) {
-    destruct runningGuard{[this] { recoveryWake.cancel(); releaseReceiverThread(); }};
+    destruct runningGuard{[this,argindex] {
+        recoveryWake.cancel();
+        releaseReceiverThread();
+        // Deleting an earlier host moves this one down a slot; carry on there.
+        if(argindex!=allindex&&!finish&&connections[allindex]==this)
+            startReceiverThread(allindex);
+        }};
     #ifndef HAVE_NOPRCTL
       constexpr const int maxbuf=14;
       char name[14];

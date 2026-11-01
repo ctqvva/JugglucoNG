@@ -57,7 +57,7 @@ class MDnsManager(private val context: Context) {
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
-                registeredServiceName = NsdServiceInfo.serviceName
+                if (registrationListener === this) registeredServiceName = NsdServiceInfo.serviceName
                 Log.d("MDNS", "Service registered: ${NsdServiceInfo.serviceName}")
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
@@ -89,7 +89,9 @@ class MDnsManager(private val context: Context) {
         try {
             registrationListener?.let { nsdManager.unregisterService(it) }
         } catch (e: Exception) {}
+        // The callbacks of a dropped listener no longer reach this state, so clear it here.
         registrationListener = null
+        registeredServiceName = null
     }
 
     // Scanning (Follower side)

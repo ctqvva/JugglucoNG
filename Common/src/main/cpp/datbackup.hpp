@@ -541,6 +541,16 @@ public:
     if (sendindex >= 0) {
       deletestart(sendindex);
     }
+    // The transport object belongs to the deleted host. Left in place, a host
+    // added later in this slot would inherit it (an ICE object behind a TCP
+    // host, or the reverse). Detached threads may still hold it, so it is
+    // flagged and ended, never freed; libjuice teardown can block, so it runs
+    // off the caller's (often the UI) thread.
+    if (Connect *retired = connections[index]) {
+      retired->setReceiverCommandsEnabled(false);
+      retired->finish = true;
+      std::thread([retired] { retired->endConnection(); }).detach();
+    }
     if (--getupdatedata()->hostnr != index) {
       LOGGER("--hostnr %d\n", getupdatedata()->hostnr);
       int fromend = getupdatedata()->hostnr - index;
@@ -551,7 +561,14 @@ public:
               fromend * sizeof(hostsocks[0]));
       memmove(lastuptodate + index, lastuptodate + index + 1,
               fromend * sizeof(lastuptodate[0]));
+      memmove(connections + index, connections + index + 1,
+              fromend * sizeof(connections[0]));
+      for (int i = index; i < getupdatedata()->hostnr; ++i) {
+        if (connections[i])
+          connections[i]->setindex(i);
+      }
     }
+    connections[getupdatedata()->hostnr] = nullptr;
 
     if (sendindex >= 0) {
       deupdated();
