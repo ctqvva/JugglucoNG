@@ -101,7 +101,7 @@ internal class VirtualSensorNativeMirror(
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         val ordered = readings
             .asSequence()
-            .filter { it.storageGlucoseMgdl.isFinite() && it.storageGlucoseMgdl > 0f }
+            .filter { it.primaryGlucoseMgdl.isFinite() && it.primaryGlucoseMgdl > 0f }
             .map { (it.timestampMs / 1000L) to it }
             .filter { (seconds, _) -> seconds > 0L }
             .sortedBy { (seconds, _) -> seconds }
@@ -128,7 +128,9 @@ internal class VirtualSensorNativeMirror(
 
         val stored = writeBatch(
             LongArray(writable.size) { writable[it].first },
-            FloatArray(writable.size) { nativeGlucose(writable[it].second.storageGlucoseMgdl) },
+            // Native readers follow the same upstream primary as publishCurrent().
+            // Room retains the separate automatic lane through storageGlucoseMgdl.
+            FloatArray(writable.size) { nativeGlucose(writable[it].second.primaryGlucoseMgdl) },
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },

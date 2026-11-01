@@ -183,6 +183,65 @@ class VirtualSensorNativeMirrorTests {
     }
 
     @Test
+    fun apiMirrorUsesThePublishedValueWhileRoomKeepsTheAutomaticLane() {
+        val native = FakeNative()
+        val reading = VirtualGlucoseSensorBridge.Reading(
+            timestampMs = now * 1000L,
+            glucoseMgdl = 130f,
+            autoMgdl = 115f,
+            rawMgdl = 110f,
+        )
+
+        mirrorOver(native).mirror(serial, listOf(reading), "API source")
+
+        assertEquals(115f, reading.storageGlucoseMgdl, 0f)
+        assertEquals(130f, reading.primaryGlucoseMgdl, 0f)
+        assertEquals(13f, native.batches.single().glucose.single(), 0f)
+        assertEquals(110f, native.batches.single().raws.single(), 0f)
+    }
+
+    @Test
+    fun explicitCalibratedValueAndItsFallbackMatchLivePublishing() {
+        val native = FakeNative()
+        val reading = VirtualGlucoseSensorBridge.Reading(
+            timestampMs = now * 1000L,
+            glucoseMgdl = 130f,
+            autoMgdl = 115f,
+            calibratedMgdl = 140f,
+        )
+
+        mirrorOver(native).mirror(
+            serial,
+            listOf(
+                reading,
+                reading.copy(timestampMs = (now + 60L) * 1000L, calibratedMgdl = 0f),
+                reading.copy(timestampMs = (now + 120L) * 1000L, calibratedMgdl = Float.NaN),
+            ),
+            "API source",
+        )
+
+        assertArrayEquals(floatArrayOf(14f, 13f, 13f), native.batches.single().glucose, 0f)
+    }
+
+    @Test
+    fun validAutomaticLaneCannotMakeAnInvalidPublishedValueReachNative() {
+        val native = FakeNative()
+
+        val stored = mirrorOver(native).mirror(
+            serial,
+            listOf(VirtualGlucoseSensorBridge.Reading(
+                timestampMs = now * 1000L,
+                glucoseMgdl = Float.NaN,
+                autoMgdl = 115f,
+            )),
+            "API source",
+        )
+
+        assertEquals(0, stored)
+        assertTrue(native.batches.isEmpty())
+    }
+
+    @Test
     fun unusableReadingsNeverReachNative() {
         val native = FakeNative()
 
