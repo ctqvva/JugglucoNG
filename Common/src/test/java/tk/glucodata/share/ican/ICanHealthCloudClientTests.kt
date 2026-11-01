@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.share.ican.ICanHealthCloudClient.HttpResult
@@ -101,5 +102,24 @@ class ICanHealthCloudClientTests {
         val json = JSONObject(body)
         assertTrue(json.has("data"))
         assertTrue(json.has("key"))
+    }
+
+    @Test
+    fun uploadRejectsBodyCode401EvenOnHttp200() {
+        val transport = FakeTransport { _ -> HttpResult(200, """{"code":401,"msg":"expired"}""") }
+        val client = ICanHealthCloudClient(transport)
+        val result = client.uploadGlucose("tok", "SN", emptyList())
+        assertTrue(result is ICanHealthCloudClient.UploadResult.Failed)
+        assertEquals(
+            tk.glucodata.share.ican.ICanHealthCloudError.Kind.UNAUTHORIZED,
+            (result as ICanHealthCloudClient.UploadResult.Failed).kind,
+        )
+    }
+
+    @Test
+    fun followerUpdateReportsHttpFailure() {
+        val transport = FakeTransport { _ -> HttpResult(500, "boom") }
+        val client = ICanHealthCloudClient(transport)
+        assertFalse(client.followerUpdate("tok", "1", "deleted", ""))
     }
 }
