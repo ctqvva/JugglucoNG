@@ -17,18 +17,18 @@ class ICanHealthCloudFollowerManager(
         return client.followerSave(token, email, phone, phoneAreaCode, name)
     }
 
-    fun remove(id: String) {
+    fun remove(id: String): Boolean {
         val token = settings.token
-        client.followerUpdate(token, id, "deleted", "")
+        return client.followerUpdate(token, id, "deleted", "")
     }
 
-    fun rename(id: String, nickname: String) {
+    fun rename(id: String, nickname: String): Boolean {
         val token = settings.token
-        client.followerUpdate(token, id, "", nickname)
+        return client.followerUpdate(token, id, "", nickname)
     }
 
-    fun setShareFollower(enabled: Boolean) {
+    fun setShareFollower(enabled: Boolean): Boolean {
         val token = settings.token
-        client.basicConfigFollowerUpdate(token, enabled.toString())
+        return client.basicConfigFollowerUpdate(token, enabled.toString())
     }
 }
