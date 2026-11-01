@@ -9,6 +9,12 @@ class ICanHealthCloudSettings(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    var enabled: Boolean
+        get() = prefs.getBoolean(KEY_ENABLED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_ENABLED, value).apply()
+        }
+
     var account: String
         get() = prefs.getString(KEY_ACCOUNT, "") ?: ""
         set(value) {
@@ -51,6 +57,13 @@ class ICanHealthCloudSettings(context: Context) {
 
     companion object {
         private const val PREFS = "ican_cloud"
+        private const val KEY_ENABLED = "ican_cloud_enabled"
+
+        @JvmStatic
+        fun isEnabled(context: Context): Boolean =
+            context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false)
         private const val KEY_ACCOUNT = "ican_cloud_account"
         private const val KEY_TOKEN = "ican_cloud_token"
         private const val KEY_REFRESH_TOKEN = "ican_cloud_refresh_token"

@@ -26,6 +26,8 @@ import tk.glucodata.XdripBackfill
 import tk.glucodata.share.DexcomShareBackfillTrend
 import tk.glucodata.share.DexcomShareSettings
 import tk.glucodata.share.DexcomShareUploader
+import tk.glucodata.share.ican.ICanHealthCloudSettings
+import tk.glucodata.share.ican.ICanHealthCloudUploader
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -736,6 +738,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     dexcomRows(backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
                 )
             }
+            if (app != null && ICanHealthCloudSettings.isEnabled(app)) {
+                ICanHealthCloudUploader.onHistoryStored(
+                    serial,
+                    icnRows(serial, backfillRows, XdripBackfill.displayedRows(serial, backfillRows)),
+                )
+            }
         }
     }
 
@@ -748,6 +756,18 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         return DexcomShareBackfillTrend.rows(
             displayed.map { DexcomShareBackfillTrend.Source(it.timeMs, it.mgdl, rateByTime[it.timeMs]) },
         )
+    }
+
+    /** The rows iCan Health cloud should hear about. */
+    private fun icnRows(
+        serial: String,
+        rows: List<XdripBackfill.Row>,
+        displayed: List<XdripBackfill.DisplayedRow>,
+    ): List<ICanHealthCloudUploader.Row> {
+        val rateByTime = rows.associate { it.timeMs to it.rate }
+        return displayed.map { r ->
+            ICanHealthCloudUploader.Row(serial, r.timeMs, r.mgdl, (rateByTime[r.timeMs] ?: 0.0).toInt())
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 package tk.glucodata.share.ican
 
+import android.content.Context
 import tk.glucodata.share.ican.ICanHealthCloudClient.UploadResult
 
 class ICanHealthCloudUploader(
@@ -8,6 +9,8 @@ class ICanHealthCloudUploader(
     private val queue: ICanHealthCloudQueue,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
 ) {
+
+    data class Row(val serial: String, val timeMs: Long, val mgdl: Int, val trendIndex: Int)
 
     @Synchronized
     fun flush(): FlushResult {
@@ -97,9 +100,78 @@ class ICanHealthCloudUploader(
     }
 
     companion object {
+        private const val LOG_ID = "ICanHealthCloud"
+        private const val THREAD_NAME = "ICanHealthCloudSend"
         private const val BATCH_SIZE = 60
         private const val MAX_RETRIES = 3
         private const val INITIAL_BACKOFF_MS = 100L
+
+        private val executor: java.util.concurrent.ScheduledExecutorService =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, THREAD_NAME)
+            }
+
+        private val lock = Any()
+        private var state: State? = null
+
+        private class State(
+            val queue: ICanHealthCloudQueue,
+            val client: ICanHealthCloudClient,
+            val settings: ICanHealthCloudSettings,
+        )
+
+        @JvmStatic
+        fun onHistoryStored(sensorSerial: String, rows: List<ICanHealthCloudUploader.Row>) {
+            if (sensorSerial.isEmpty() || rows.isEmpty()) return
+            try {
+                val context = tk.glucodata.Applic.app ?: return
+                if (!ICanHealthCloudSettings.isEnabled(context)) return
+                val current = stateFor(context)
+                val accepted = current.queue.let { q ->
+                    var count = 0
+                    for (row in rows.filter { it.mgdl > 0 }) {
+                        val egv = EgvUpload(row.serial, row.timeMs, row.mgdl, row.trendIndex)
+                        val before = q.size()
+                        q.enqueue(egv)
+                        if (q.size() > before) count++
+                    }
+                    count
+                }
+                if (accepted > 0) {
+                    requestFlush(context)
+                }
+            } catch (error: Throwable) {
+                tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
+            }
+        }
+
+        private fun stateFor(context: Context): State {
+            synchronized(lock) {
+                state?.let { return it }
+                val settings = ICanHealthCloudSettings(context.applicationContext)
+                val queue = ICanHealthCloudQueue(context.applicationContext)
+                val client = ICanHealthCloudClient()
+                val created = State(queue, client, settings)
+                state = created
+                return created
+            }
+        }
+
+        private fun requestFlush(context: Context) {
+            val appContext = context.applicationContext
+            synchronized(lock) {
+                executor.execute { runFlush(appContext) }
+            }
+        }
+
+        private fun runFlush(context: Context) {
+            try {
+                val current = stateFor(context)
+                ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
+            } catch (error: Throwable) {
+                tk.glucodata.Log.stack(LOG_ID, "runFlush", error)
+            }
+        }
 
         private fun backoffMs(attempt: Int): Long {
             return INITIAL_BACKOFF_MS * (1L shl (attempt - 1).coerceIn(0, 10))
