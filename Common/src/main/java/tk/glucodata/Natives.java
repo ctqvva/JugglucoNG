@@ -139,9 +139,6 @@ public class Natives {
 
         public static native String resolveFullSensorName(String sensorId);
 
-        /** True for a native follower mirror whose primary glucose is already final. Accepts short aliases. */
-        public static native boolean isGlucoseValueResolved(String sensorId);
-
         public static native int getSensorIndex(String sensorId);
 
         public static native int getSensorIndexFromDataPtr(long dataptr);
@@ -772,6 +769,9 @@ public class Natives {
          * Arrays must be equal length; returns the number of samples stored.
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
+
+        /** Stores an upstream final primary with persisted per-reading provenance. */
+        public static native int addResolvedGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
         public static native long ensureSensorShell(String sensorId, long startTimeSec);
 

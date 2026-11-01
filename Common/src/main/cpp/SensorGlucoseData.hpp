@@ -164,9 +164,15 @@ struct ScanData {
   int32_t g;
   int32_t tr;
   float ch;
+  // Stored in the formerly unused high half of the glucose word. The record
+  // stays 20 bytes, including over Clone. Legacy records have no marker and
+  // keep their stock meaning even alongside newly written final values.
+  static constexpr int32_t resolvedGlucoseFlag = 0x10000;
+  bool hasResolvedGlucose() const { return (g & resolvedGlucoseFlag) != 0; }
+  void setmgdL(uint16_t value) { g = value | (g & resolvedGlucoseFlag); }
   uint16_t getmgdL() const { return g; };
-  float getmmolL() const { return g / convfactordL; };
-  uint16_t getsputnik() const { return g * 10; };
+  float getmmolL() const { return getmgdL() / convfactordL; };
+  uint16_t getsputnik() const { return getmgdL() * 10; };
   float getchange() const { return ch; }
   uint32_t gettime() const { return t; };
   uint32_t getid() const { return id; };
@@ -179,11 +185,11 @@ struct ScanData {
     }
     // return
     // g&&g>38&&g<502&&id>=0&&id<maxminutes&&t>1598911200u&&t<2145909600u;
-    return g && g < 552 && id >= 0 && id < maxminutes && t > 1598911200u &&
+    return getmgdL() && getmgdL() < 552 && id >= 0 && id < maxminutes && t > 1598911200u &&
            t < 2145909600u;
   }
   bool current(int pos = 1) const { return valid(pos) && !isnan(ch); }
-  float inappunit() const { return ::gconvert(g * 10); }
+  float inappunit() const { return ::gconvert(getmgdL() * 10); }
 };
 
 struct RawData {
@@ -1220,15 +1226,6 @@ public:
                               sensordir.length() - last_slash - 1);
     }
     return sensordir;
-  }
-  // These namespaces are written only by VirtualGlucoseSensorBridge, whose
-  // live publication is LiveReadingLanes.resolved. Their native primary is
-  // final too. Use the persisted full id so this survives restart and Clone,
-  // without depending on the receiving device having a managed driver record.
-  bool hasResolvedGlucose() const {
-    const auto id = sensid();
-    return id.starts_with("API-") || id.starts_with("NSF-") ||
-           id.starts_with("MQF-");
   }
   typedef std::array<char, 11> sensorname_t;
   [[nodiscard]] const sensorname_t *shortsensorname() const {
@@ -2356,7 +2353,7 @@ uint32_t getlastpolltime() const {
     std::ofstream uit(file);
     for (int i = 0; i < count; i++) {
       const ScanData &scan = scans[i];
-      uit << scan.t << "\t" << scan.id << '\t' << scan.g << '\t' << scan.tr
+      uit << scan.t << "\t" << scan.id << '\t' << scan.getmgdL() << '\t' << scan.tr
           << '\t' << scan.ch << std::endl;
     }
     uit.close();
@@ -2947,8 +2944,8 @@ public:
       const struct ScanData *fn = startstreambuf + streamstart;
       time_t tim = fn->t;
       LOGGER("GLU: streamstart=%d streamend=%d %s %.1f (%d) dowith=%d %s",
-             streamstart, streamend, polluit.data(), fn->g / convfactordL,
-             fn->g, cmd, ctime(&tim));
+             streamstart, streamend, polluit.data(), fn->getmgdL() / convfactordL,
+             fn->getmgdL(), cmd, ctime(&tim));
 #endif
 
       if (!connect->senddata(pass, streamstart, startstreambuf + streamstart,

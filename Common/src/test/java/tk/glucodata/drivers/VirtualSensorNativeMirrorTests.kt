@@ -16,6 +16,7 @@ class VirtualSensorNativeMirrorTests {
         val glucose: FloatArray,
         val raws: FloatArray,
         val sensorSerial: String,
+        val primaryIsResolved: Boolean,
     )
 
     /** A stand-in for the native shell: one start second, and whatever was written. */
@@ -38,8 +39,8 @@ class VirtualSensorNativeMirrorTests {
             native.rebased += startSeconds
             native.startSeconds = startSeconds
         },
-        writeBatch = { timestampsSec, glucose, raws, sensorSerial ->
-            native.batches += Batch(timestampsSec, glucose, raws, sensorSerial)
+        writeBatch = { timestampsSec, glucose, raws, sensorSerial, primaryIsResolved ->
+            native.batches += Batch(timestampsSec, glucose, raws, sensorSerial, primaryIsResolved)
             timestampsSec.size
         },
     )
@@ -67,6 +68,7 @@ class VirtualSensorNativeMirrorTests {
 
         val batch = native.batches.single()
         assertEquals(serial, batch.sensorSerial)
+        assertTrue(batch.primaryIsResolved)
         assertArrayEquals(longArrayOf(now - 300L, now), batch.timestampsSec)
         // g.cpp storeGlucoseStreamSample(): mgVal = glucose * 10.
         assertEquals(12.0f, batch.glucose[0], 0.0001f)

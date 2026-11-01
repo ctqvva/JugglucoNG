@@ -1775,7 +1775,7 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(saylastglucose)(JNIEnv *env,
       return poll->gettime() * 1000L;
     }
 
-    const auto nonconvert = poll->g;
+    const auto nonconvert = poll->getmgdL();
     if (!nonconvert) {
       LOGAR("glucose = 0");
       return 0L;

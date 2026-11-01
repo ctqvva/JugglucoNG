@@ -27,7 +27,8 @@ struct ScanData {
     int32_t g;
     int32_t id = 0;
     uint16_t raw = 0; // rawpolls.dat, mmol/L x 10
-    bool valid() const { return g > 0; }
+    uint16_t getmgdL() const { return g; }
+    bool valid() const { return getmgdL() > 0; }
 };
 
 struct SensorGlucoseData {
@@ -60,7 +61,7 @@ double calibrateNow(const SensorGlucoseData *, const uint32_t, const double valu
     return std::isnan(calibrationOffset) ? NAN : value + calibrationOffset;
 }
 double calibrateNow(const SensorGlucoseData *sens, const ScanData &value) {
-    return calibrateNow(sens, value.t, (double)value.g);
+    return calibrateNow(sens, value.t, (double)value.getmgdL());
 }
 
 // PRODUCTION_EXPORTER
@@ -255,6 +256,19 @@ int main() {
         assert(samples.at(measuredTime + 3600).first == 1200);
         assert(samples.at(measuredTime + 3600).second == 1200);
         calibrationOffset = NAN;
+    }
+
+    // The persisted representation marker is never part of JNI glucose units.
+    {
+        SensorGlucoseData finalMirror{false, {}, 0,
+            {{measuredTime, 130 | 0x10000, 0}}};
+        finalMirror.patchinfo = false;
+        samples = exportAll(finalMirror);
+        assert(samples.at(measuredTime).first == 1300);
+        finalMirror.scans = finalMirror.polls;
+        finalMirror.polls.clear();
+        samples = exportAll(finalMirror);
+        assert(samples.at(measuredTime).first == 1300);
     }
 
     const SensorGlucoseData empty{false, {}};

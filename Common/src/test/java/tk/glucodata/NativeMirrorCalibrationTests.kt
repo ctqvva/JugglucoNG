@@ -49,7 +49,8 @@ class NativeMirrorCalibrationTests {
             readShellStartSeconds = { reading.timestampMs / 1000L - 60L },
             openShell = { _, _, _ -> error("existing shell") },
             rebaseShell = { _, _ -> error("existing window") },
-            writeBatch = { _, values, _, _ ->
+            writeBatch = { _, values, _, _, resolved ->
+                assertEquals(primaryIsResolved, resolved)
                 // storeGlucoseStreamSample multiplies this argument by 10.
                 stored = (values.single() * 10f).toInt()
                 1
@@ -62,34 +63,30 @@ class NativeMirrorCalibrationTests {
     }
 
     @Test
-    fun apiPrimaryIsNotCorrectedAgainOnExportInEitherUnitOrViewMode() {
+    fun apiMirrorWritesFinalPrimaryWithExplicitRepresentation() {
         val reading = VirtualGlucoseSensorBridge.Reading(
             timestampMs = 1_760_000_000_000L,
             glucoseMgdl = 130f, autoMgdl = 115f, calibratedMgdl = 130f,
         )
         val storedMgdl = mirror(reading)
         assertEquals(130, storedMgdl)
-        for (unit in 0..1) {
-            Applic.unit = unit
-            for (mode in 0..3) {
-                assertEquals(130, NightscoutCalibration.resolveExportedValueMgdl(
-                    "API-123456789ABC", mode, storedMgdl, 50, reading.timestampMs,
-                ))
-            }
-        }
         assertEquals(0, calibrationCalls)
     }
 
     @Test
-    fun nativeAliasAndNightscoutOrMqFollowerAlsoKeepTheirFinalValue() {
-        Applic.unit = 0
-        for (sensor in listOf("23456789ABC", "NSF-123456789ABC", "MQF-123456789ABC")) {
-            assertEquals(130, NightscoutCalibration.resolveExportedValueMgdl(sensor, 0, 130, 0, 1L))
-            assertEquals(0f, NightscoutCalibration.getCalibratedValueForViewMode(
-                sensor, 0, 130f, 0f, 1L,
-            ), 0f)
+    fun roomAutomaticValuesAreCalibratedEvenForFollowerIdsAndAliases() {
+        for (unit in 0..1) {
+            Applic.unit = unit
+            for (sensor in listOf("API-123456789ABC", "23456789ABC", "NSF-123456789ABC", "MQF-123456789ABC")) {
+                // This shared method receives stock lane values. Native final
+                // values bypass it at the native export call site instead.
+                assertEquals(130, NightscoutCalibration.resolveExportedValueMgdl(sensor, 0, 115, 0, 1L))
+                val row = XdripBackfill.Row(1_760_000_000_000L, 115f, 90f, null)
+                assertEquals(130.0, XdripBackfill.candidates(sensor, listOf(row), 0, 0).single().mgdl, 0.001)
+                assertEquals(130, XdripBackfill.displayedRows(sensor, listOf(row), 0, 0, null).single().mgdl)
+            }
         }
-        assertEquals(0, calibrationCalls)
+        assertEquals(24, calibrationCalls)
     }
 
     @Test
@@ -113,8 +110,5 @@ class NativeMirrorCalibrationTests {
 class NativeMirrorCalibrationInputs {
     companion object {
         @JvmStatic @Implementation fun __staticInitializer__() {}
-        @JvmStatic @Implementation fun isGlucoseValueResolved(id: String): Boolean = id in setOf(
-            "API-123456789ABC", "23456789ABC", "NSF-123456789ABC", "MQF-123456789ABC",
-        )
     }
 }

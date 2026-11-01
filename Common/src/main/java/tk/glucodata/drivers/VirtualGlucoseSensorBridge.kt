@@ -43,13 +43,15 @@ object VirtualGlucoseSensorBridge {
             }
         },
         rebaseShell = { serial, startSeconds -> Natives.rebaseDirectStreamWindow(serial, startSeconds) },
-        writeBatch = { timestampsSec, glucose, raws, serial ->
-            Natives.addGlucoseStreamBatchWithRawTemp(
+        writeBatch = { timestampsSec, glucose, raws, serial, primaryIsResolved ->
+            if (primaryIsResolved) Natives.addResolvedGlucoseStreamBatchWithRawTemp(
                 timestampsSec,
                 glucose,
                 raws,
                 FloatArray(timestampsSec.size),
                 serial,
+            ) else Natives.addGlucoseStreamBatchWithRawTemp(
+                timestampsSec, glucose, raws, FloatArray(timestampsSec.size), serial,
             )
         },
     )

@@ -33,7 +33,7 @@ internal class VirtualSensorNativeMirror(
     private val readShellStartSeconds: (String) -> Long,
     private val openShell: (String, Long, Int) -> Unit,
     private val rebaseShell: (String, Long) -> Unit,
-    private val writeBatch: (LongArray, FloatArray, FloatArray, String) -> Int,
+    private val writeBatch: (LongArray, FloatArray, FloatArray, String, Boolean) -> Int,
 ) {
 
     companion object {
@@ -131,14 +131,14 @@ internal class VirtualSensorNativeMirror(
 
         val stored = writeBatch(
             LongArray(writable.size) { writable[it].first },
-            // API-/NSF-/MQF- shells carry this final upstream primary; native
-            // readers recognize those full ids and bypass further calibration.
-            // Stock BLE mirrors (e.g. Medtrum) keep their normal calibration path.
+            // Persist the representation with each value; an existing shell may
+            // still hold older automatic readings outside this source page.
             FloatArray(writable.size) { nativeGlucose(mirroredGlucose(writable[it].second)) },
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },
             sensorSerial,
+            primaryIsResolved,
         )
         if (stored <= 0) {
             Log.w(TAG, "Native mirror stored no $logLabel points for $sensorSerial")
