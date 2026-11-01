@@ -515,6 +515,29 @@ class StatsAnalyticsTests {
     }
 
     @Test
+    fun moddPairsWithTheNearestReadingADayEarlierEvenWhenItComesJustAfter() {
+        // A sensor restart or reconnect shifts the reading grid: day two sits 3 minutes past
+        // day one's 5-minute slots. The reading a day earlier that is closest to each day-two
+        // reading is then 2 minutes AFTER the target, while the one just before it is 3
+        // minutes off - outside the half-cadence tolerance. Only looking backwards found no
+        // pair at all and reported 0, i.e. "every day repeats itself perfectly".
+        val start = LocalDateTime.of(2026, 3, 2, 0, 0)
+        val dayOne = series(start, 5, List(288) { 100f })
+        val dayTwo = series(start.plusDays(1).plusMinutes(3), 5, List(288) { 130f })
+        assertEquals(30f, StatsAnalytics.modd(dayOne + dayTwo), 0.5f)
+    }
+
+    @Test
+    fun moddStillUsesTheEarlierReadingWhenThatOneIsCloser() {
+        // Day two 1 minute late: the reading before the target (1 min) is the nearer one and
+        // the reading after it (4 min) is outside the tolerance, so the earlier one must win.
+        val start = LocalDateTime.of(2026, 3, 2, 0, 0)
+        val dayOne = series(start, 5, (0 until 288).map { if (it % 2 == 0) 100f else 160f })
+        val dayTwo = series(start.plusDays(1).plusMinutes(1), 5, (0 until 288).map { if (it % 2 == 0) 110f else 170f })
+        assertEquals(10f, StatsAnalytics.modd(dayOne + dayTwo), 0.5f)
+    }
+
+    @Test
     fun dawnRiseMeasuresTheClimbFromTheOvernightLow() {
         val start = LocalDateTime.of(2026, 3, 2, 0, 0)
         // Flat at 90 until 04:00, then climbing to 150 by 08:00.

@@ -636,7 +636,14 @@ object StatsAnalytics {
             ) {
                 candidateIndex++
             }
-            val candidate = history[candidateIndex]
+            // The loop leaves the last reading at or before the target; the first one after it
+            // can be the nearer of the two. Day-to-day phase drift (a restart, a reconnect)
+            // regularly puts the only match within tolerance on that side.
+            var candidate = history[candidateIndex]
+            if (candidateIndex < history.lastIndex) {
+                val next = history[candidateIndex + 1]
+                if (abs(next.timestamp - target) < abs(candidate.timestamp - target)) candidate = next
+            }
             if (abs(candidate.timestamp - target) <= tolerance) {
                 sum += abs(point.value - candidate.value)
                 counted++
