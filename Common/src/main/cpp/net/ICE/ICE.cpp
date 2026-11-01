@@ -153,8 +153,14 @@ static bool restartRejectedNegotiation(ICEConnect *con,juice_agent_t *agent,
                                        uint64_t generation,int allindex,
                                        const char *reason,bool protectRecovery=false);
 
+// After a delete, a slot can hold another host's connection, of either kind.
+static ICEConnect *iceConnectionAt(int allindex) {
+    Connect *con=connections[allindex];
+    return con&&con->isICE()?static_cast<ICEConnect *>(con):nullptr;
+    }
+
 static bool stillworking(int allindex)  {
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    ICEConnect *con=iceConnectionAt(allindex);
     bool res=con&&!con->finish&&con->allindex==allindex;
     if(!res)  {
         LOGGERICE("stillworking(%d)=%d\n",allindex,res);
@@ -168,7 +174,7 @@ static bool stillworking(int allindex)  {
 static ICEConnect *currentICEConnection(int allindex, juice_agent_t *agent) {
     if(!stillworking(allindex))
         return nullptr;
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    ICEConnect *con=iceConnectionAt(allindex);
     if(!con||!con->isCurrentAgent(agent)) {
         LOGGERICE("Ignoring stale agent callback allindex=%d agent=%p\n",allindex,agent);
         return nullptr;
@@ -440,13 +446,14 @@ static void watchPeerGeneration(
     static constexpr std::string_view path="/generation";
     std::string observedPeer;
     const auto active=[&] {
-        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+        ICEConnect *con=iceConnectionAt(allindex);
         return con&&con->isCurrentAgent(agent,agentGeneration)&&
            !con->endConnect.load()&&
            !(cancellation&&cancellation->load(std::memory_order_acquire));
     };
     runGenerationWatchRequests(active,[&] {
-        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+        ICEConnect *con=iceConnectionAt(allindex);
+        if(!con) return GenerationWatchResult::Stop;
         std::string requestGeneration=localGeneration;
         if(!observedPeer.empty()) {
             requestGeneration.push_back(':');
@@ -527,7 +534,7 @@ static void publishRendezvousGeneration(
         {.timeoutMilliseconds=10000,
          .cancelled=cancellation,
          .verifyCertificate=verifyCertificate});
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    ICEConnect *con=iceConnectionAt(allindex);
     if(!con||!con->isCurrentAgent(agent,agentGeneration)||
        con->endConnect.load()||
        (cancellation&&cancellation->load(std::memory_order_acquire)))
@@ -575,7 +582,7 @@ static void getAddressesThread(juice_agent *agent,int allindex,uint64_t generati
                                RendezvousEndpoint endpoint) {
    static std::string_view address{"/address"};
    CreateAgentData addressdata(commonLabel,side,"") ;
-   ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+   ICEConnect *con=iceConnectionAt(allindex);
    if(!con||!con->isCurrentAgent(agent,generation)) return;
    const auto cancellation=con->currentRendezvousCancellation();
    const auto active=[&] {
@@ -698,7 +705,7 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
     std::thread th{[allindex,agent,generation,commonLabel,side,endpoint,
                     doneBody=std::move(doneBody)] {
         LOGGERICE("Gathering done %s %d\n",commonLabel.data(),side);
-        ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
+        ICEConnect *con=iceConnectionAt(allindex);
         if(!con||!con->isCurrentAgent(agent,generation))
             return;
         std::string_view done{"/done"sv};
@@ -862,7 +869,7 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
                 static void thread(juice_agent_t *agent,int allindex,uint64_t generation) {
                    LOGGERICE("start CONNECT::thread allindex=%d\n",allindex);
                     passhost_t &host= getBackupHosts()[allindex];
-                    ICEConnect *con=static_cast<ICEConnect*>(connections[allindex]);
+                    ICEConnect *con=iceConnectionAt(allindex);
                     if(!con||!con->isCurrentAgent(agent,generation)) {
                         LOGGERICE("connection[%d] no longer owns agent=%p\n",allindex,agent);
                         return;
@@ -942,7 +949,13 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
     }
 
 void ICEConnect::receiverThread(int argindex) {
-    destruct runningGuard{[this] { recoveryWake.cancel(); releaseReceiverThread(); }};
+    destruct runningGuard{[this,argindex] {
+        recoveryWake.cancel();
+        releaseReceiverThread();
+        // Deleting an earlier host moves this one down a slot; carry on there.
+        if(argindex!=allindex&&!finish&&connections[allindex]==this)
+            startReceiverThread(allindex);
+        }};
     #ifndef HAVE_NOPRCTL
       constexpr const int maxbuf=14;
       char name[14];
@@ -974,6 +987,11 @@ void ICEConnect::receiverThread(int argindex) {
         }
         wakeReceiver=false;
         traceIceRecovery(argindex,currentAgentGeneration(),"receiver-wait-end");
+        // The slot may have moved during the wait; `host` would be another connection's.
+        if(argindex!=allindex||finish) {
+            LOGARICE("receiverThread: allindex changed or finished during wait, return");
+            return;
+            }
         if(host.deactivated) {
             recoveryWake.cancel();
             LOGGERICE("allindex=%d receiverThread parked: host deactivated\n",allindex);
@@ -1042,7 +1060,7 @@ void ICEConnect::receiverThread(int argindex) {
     };
 
 void startReceiverThread(int allindex) {
-    if(ICEConnect *con=static_cast<ICEConnect *>(connections[allindex])) {
+    if(ICEConnect *con=iceConnectionAt(allindex)) {
         if(!con->claimReceiverThread()) {
             LOGGER("startReceiverThread(%d): already running\n",allindex);
             {
@@ -1070,7 +1088,7 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
         const passhost_t &host = getBackupHosts()[allindex];
         if (!host.ICE || host.deactivated)
             continue;
-        ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
+        ICEConnect *connection = iceConnectionAt(allindex);
         if (!connection)
             continue;
         bool probing = false;
@@ -1085,8 +1103,7 @@ void wakeICEReceiversForNetworkChange(bool resetConnections,
                 LOGGERICE("allindex=%d: probe LAN before replacing TURN generation\n",
                           allindex);
                 std::thread([agent, allindex, agentGeneration] {
-                    ICEConnect *current = static_cast<ICEConnect *>(
-                        connections[allindex]);
+                    ICEConnect *current = iceConnectionAt(allindex);
                     if (!current ||
                         !waitForCurrentAgent(current, agent, 2) ||
                         current->cloneTransportCode() != clone_transport_turn)
@@ -1255,7 +1272,8 @@ juice_agent *createAgent(int allindex) {
             }
         for(auto &relay:twilioTurnRelays()) appendTurnRelay(pool,std::move(relay));
         }
-    auto *connection=static_cast<ICEConnect *>(connections[allindex]);
+    auto *connection=iceConnectionAt(allindex);
+    if(!connection) return nullptr;
     auto selected=connection->turnRelayRotation.select(pool,connection->currentAgentGeneration(),
                                                        has_configured_turn);
     for(const auto &relay:selected) {
@@ -1432,7 +1450,8 @@ static bool prepareLocalDescription(ICEConnect *con,juice_agent *agent,
 static RendezvousAttemptResult putDescription(
         int allindex,juice_agent *agent,std::string_view commonLabel,bool side,
         const RendezvousEndpoint &endpoint,RendezvousAttempt &attempt)  {
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    ICEConnect *con=iceConnectionAt(allindex);
+    if(!con) return RendezvousAttemptResult::Failed;
     CreateAgentData sdpdata(commonLabel,side,con->sdp,con->sdplen);
     if(commonLabel.size()<10) { //TODO: becomes 16 later
         LOGGERICE("putdescription: ERROR %s size=%d side=%d\n",commonLabel.data(),commonLabel.size(),side);
@@ -1580,7 +1599,8 @@ bool initAgent(juice_agent *agent,int allindex) {
         return false;
     const passhost_t &host= getBackupHosts()[allindex];
     std::string_view commonLabel=host.getICEname();
-    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+    ICEConnect *con=iceConnectionAt(allindex);
+    if(!con) return false;
     const std::string hostname=con->rendezvousHost;
     const uint16_t rendezvousPort=con->rendezvousPort;
     LOGGER("initAgent %s allindex=%d side=%d\n",commonLabel.data(),allindex,host.side);
