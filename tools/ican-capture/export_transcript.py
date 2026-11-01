@@ -114,6 +114,22 @@ def redact(hexstr: str) -> str:
     return " ".join(tokens)
 
 
+def is_auth_payload(op, handle, val) -> bool:
+    """Whether this ATT value is auth material that must never be exported.
+
+    F3 carries the challenge, F4 the account token; both are on the RACP
+    characteristic (0x0024). The token's ciphertext and the challenge together
+    let a reader recover the account id, so the payload is dropped entirely.
+    """
+    if handle != 0x0024 or not val:
+        return False
+    if op in (0x12, 0x52) and val[0] in (0xF3, 0xF4):
+        return True
+    if op == 0x1D and val[:3] in (b"\x06\xf3\x01", b"\x1c\xf4\x01"):
+        return True
+    return False
+
+
 def annotate(op, handle, val):
     if op in (0x12, 0x52) and handle == 0x0024 and val:
         if val[0] == 0xF3:
@@ -173,16 +189,23 @@ def main():
             continue
         if t0 is None:
             t0 = ts
-        op = pdu[0] & 0x3F
+        op = pdu[0]
         if op not in KEEP_OPS:
             continue
         has_handle = op in HANDLE_OPS and len(pdu) >= 3
         handle = struct.unpack("<H", pdu[1:3])[0] if has_handle else None
         val = pdu[3:] if has_handle else pdu[1:]
         note = annotate(op, handle, val)
+        auth = is_auth_payload(op, handle, val)
         masked = ""
-        if val:
+        if auth:
+            masked = "<auth>"
+        elif val:
             masked = redact(val.hex(" "))
+        else:
+            masked = ""
+        if auth:
+            note = "auth (payload hidden)"
         handle_text = ("0x%04X %s" % (handle, UUID16.get(handle, ""))) if handle is not None else "-"
         rows.append((ts - t0, "H→S" if direction == 0 else "S→H", OPCODES.get(op, "0x%02X" % op),
                      handle_text, masked, note))
