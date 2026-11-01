@@ -98,7 +98,7 @@ std::shared_ptr<LocalICESignalSession> localSignal;
 std::mutex candidateReaderMutex;
 std::jthread candidateReader;
 std::atomic_bool candidateReaderFinished{true};
-ICE_data   icedata[2]{{allindex,side},{allindex,!side}};
+ICE_data   icedata[2]{{this,allindex,side},{this,allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
@@ -269,6 +269,7 @@ void stopCandidateReader() {
         cancelRendezvous();
         joinCandidateReader();
         }
+bool isICE() const override { return true; }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
         icedata[1].allindex=in;

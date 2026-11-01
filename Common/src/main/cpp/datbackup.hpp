@@ -541,12 +541,11 @@ public:
     if (sendindex >= 0) {
       deletestart(sendindex);
     }
-    // The transport object belongs to the deleted host. Left in place, a host
-    // added later in this slot would inherit it (an ICE object behind a TCP
-    // host, or the reverse). Detached threads may still hold it, so it is
-    // flagged and ended, never freed; libjuice teardown can block, so it runs
-    // off the caller's (often the UI) thread.
-    if (Connect *retired = connections[index]) {
+    // The transport object belongs to the deleted host. Detached threads may
+    // still hold it, so it is flagged and ended, never freed; libjuice teardown
+    // can block, so it runs off the caller's (often the UI) thread.
+    Connect *retired = connections[index];
+    if (retired) {
       retired->setReceiverCommandsEnabled(false);
       retired->finish = true;
       std::thread([retired] { retired->endConnection(); }).detach();
@@ -568,7 +567,9 @@ public:
           connections[i]->setindex(i);
       }
     }
-    connections[getupdatedata()->hostnr] = nullptr;
+    // The freed last slot keeps the retired object (after a shift it would
+    // otherwise hold a copy of its live neighbour) until changehost replaces it.
+    connections[getupdatedata()->hostnr] = retired;
 
     if (sendindex >= 0) {
       deupdated();
@@ -1009,7 +1010,8 @@ public:
     deupdated();
 
     closesocksone(index, getupdatedata()->allhosts + index);
-    if (newhost && !connections[index])
+    // A slot freed by deletehost still holds the deleted host's retired object.
+    if (newhost && (!connections[index] || connections[index]->finish))
       connections[index] = new TCPConnect(index);
     if (startthreads) {
       if (newthread)

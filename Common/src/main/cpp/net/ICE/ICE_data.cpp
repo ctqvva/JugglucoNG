@@ -175,7 +175,7 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
    udp_header  *head=const_cast<udp_header *>(reinterpret_cast<const udp_header *>(data));
    switch(head->com) {
         case START: {
-            ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+            ICEConnect *con=owner;
             if(!con||!con->isCurrentAgent(agent)) {
                 LOGGERICE("allindex=%d on_recv START, but agent is no longer current\n",allindex);
                 return;
@@ -285,7 +285,7 @@ void ICE_data::on_recv(juice_agent_t *agent, const char *data, size_t size,int a
                        return;
                        }
                 LOGGERICE("%d received END\n",side);
-                if(ICEConnect *con=static_cast<ICEConnect *>(connections[allindex])) {
+                if(ICEConnect *con=owner) {
                         con->endConnectionHere();
                         }
                 
@@ -359,7 +359,7 @@ bool ICE_data::sendWithError(juice_agent_t *agent,const char *data, int len) {
             LOGGER("allindex=%d sendWithError success\n",allindex);
             return true;
             }
-        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+        ICEConnect *con=owner;
         con->endConnectionHere(); 
         LOGGER("allindex=%d sendWithError failed\n",allindex);
         return false;
@@ -447,7 +447,7 @@ int ICE_data::senddata(juice_agent_t *agent, const char *data,int len) {
            LOGGERICE("allindex=%d side=%d: senddata  agent==null 2\n",allindex,side);
            return -1;
            }
-        ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+        ICEConnect *con=owner;
         if(!con) {
                 LOGGERICE("side=%d senddata ICEConnect==null\n",side);
                 return -1;
@@ -653,7 +653,7 @@ void ICE_data::setshutdown() {
     }
 
 void ICE_data::sendshutDown(juice_agent_t *agent) {
-       ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+       ICEConnect *con=owner;
        if(!con) {
           LOGGERICE( "ICE_data::end connections[%d]==null\n",allindex);
           return;
@@ -689,7 +689,7 @@ void ICE_data::shutDown(juice_agent_t *agent) {
 void ICE_data::end(juice_agent_t *agent) {
        setshutdown();
        LOGGERICE("ICE_data::end allindex=%d send_trans_id=%d side=%d\n",allindex,send_trans_id,side);
-       ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+       ICEConnect *con=owner;
        if(!con) {
           LOGGERICE( "ICE_data::end connections[%d]==null\n",allindex);
           return;
@@ -740,7 +740,7 @@ int ICE_data::receive(juice_agent_t *agent,char *buf, const int maxbuf) {
                 if(datalen>offset)
                     return true;
                 if(!askedData) {
-                    ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
+                    ICEConnect *con=owner;
                     if(con->isConnected)  {
                            if(asked>10) {
                                 if((time(nullptr)-beginReceive)>3*60) {
