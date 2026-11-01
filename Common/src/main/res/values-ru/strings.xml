@@ -1939,6 +1939,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_message">Отсканирован QR-код зеркала Juggluco. Данные глюкозы будут синхронизироваться с удаленным устройством.</string>
     <string name="mirror_connect_qr_turn_message">Этот гибридный QR также заменит гибридную конфигурацию на этом устройстве.</string>
     <string name="mirror_connect_action">Подключить</string>
+    <string name="mirror_connect_nearby_title">Подключиться к %1$s?</string>
     <string name="mirror_connection_data_missing">Данные подключения отсутствуют</string>
     <string name="mirror_reconnect_all">Переподключить все</string>
     <string name="mirror_broadcast_network">Объявлять в сети</string>

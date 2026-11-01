@@ -1911,6 +1911,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_message">已扫描 Juggluco 镜像二维码。这会与远程设备同步血糖数据。</string>
     <string name="mirror_connect_qr_turn_message">此混合二维码还会替换本设备的混合连接配置。</string>
     <string name="mirror_connect_action">连接</string>
+    <string name="mirror_connect_nearby_title">连接到 %1$s？</string>
     <string name="mirror_connection_data_missing">缺少连接数据</string>
     <string name="mirror_reconnect_all">全部重新连接</string>
     <string name="mirror_broadcast_network">在网络中广播</string>

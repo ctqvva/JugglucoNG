@@ -2083,6 +2083,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connect_qr_message">Ein QR-Code für Juggluco-Spiegelung wurde gescannt. Dadurch werden Glukosedaten mit dem entfernten Gerät synchronisiert.</string>
     <string name="mirror_connect_qr_turn_message">Dieser Hybrid-QR ersetzt auch die Hybrid-Konfiguration dieses Geräts.</string>
     <string name="mirror_connect_action">Verbinden</string>
+    <string name="mirror_connect_nearby_title">Mit %1$s verbinden?</string>
     <string name="mirror_connection_data_missing">Verbindungsdaten fehlen</string>
     <string name="mirror_reconnect_all">Alle neu verbinden</string>
     <string name="mirror_broadcast_network">Im Netzwerk ankündigen</string>

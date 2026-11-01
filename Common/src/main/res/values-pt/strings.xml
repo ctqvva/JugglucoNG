@@ -1896,6 +1896,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_message">Um código QR do espelho Juggluco foi escaneado. Isso sincronizará dados de glicose com o dispositivo remoto.</string>
     <string name="mirror_connect_qr_turn_message">Este QR híbrido também substitui a configuração híbrida deste dispositivo.</string>
     <string name="mirror_connect_action">Conectar</string>
+    <string name="mirror_connect_nearby_title">Conectar a %1$s?</string>
     <string name="mirror_connection_data_missing">Dados de conexão ausentes</string>
     <string name="mirror_reconnect_all">Reconectar tudo</string>
     <string name="mirror_broadcast_network">Transmitir na rede</string>

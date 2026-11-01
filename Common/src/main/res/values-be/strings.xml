@@ -1966,6 +1966,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_message">Адсканаваны QR-код люстэрка Juggluco. Даныя глюкозы будуць сінхранізавацца з аддаленай прыладай.</string>
     <string name="mirror_connect_qr_turn_message">Гэты гібрыдны QR таксама заменіць гібрыдную канфігурацыю на гэтай прыладзе.</string>
     <string name="mirror_connect_action">Падключыць</string>
+    <string name="mirror_connect_nearby_title">Падключыцца да %1$s?</string>
     <string name="mirror_connection_data_missing">Даныя падключэння адсутнічаюць</string>
     <string name="mirror_reconnect_all">Перападключыць усё</string>
     <string name="mirror_broadcast_network">Абвяшчаць у сетцы</string>

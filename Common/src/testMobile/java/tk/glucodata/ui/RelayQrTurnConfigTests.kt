@@ -81,7 +81,7 @@ class RelayQrTurnConfigTests {
 
         assertNull(parseHybridQrTurnConfig(json))
         assertNull(parseHybridQrIceConfig(json, null))
-        assertFalse(mirrorQrContainsNetworkConfig(payload))
+        assertFalse(mirrorQrContainsTurnConfig(payload))
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -105,33 +105,10 @@ class RelayQrTurnConfigTests {
     @Test
     fun turnConfigurationIsVisibleBeforeImport() {
         assertTrue(
-            mirrorQrContainsNetworkConfig(
+            mirrorQrContainsTurnConfig(
                 """{"ICElabel":"pair","turn":["turn.example.test",3478,"",""]} MirrorJuggluco"""
             )
         )
-    }
-
-    @Test
-    fun rendezvousWithoutTurnIsStillNetworkConfiguration() {
-        assertTrue(
-            mirrorQrContainsNetworkConfig(
-                """{"ICElabel":"pair","stun":false,"rv":["connect.example.test",6789]} MirrorJuggluco"""
-            )
-        )
-    }
-
-    @Test
-    fun wifiAnnouncementDropsRelaySettingsAndCredentials() {
-        val announced = mirrorQrWithoutNetworkConfig(
-            """{"ICElabel":"pair","pass":"p","turn":["turn.example.test",3478,"user","secret"],"stun":true,"rv":6789,"cv":false,"ld":false} MirrorJuggluco"""
-        )!!
-
-        assertFalse(announced.contains("secret"))
-        assertFalse(mirrorQrContainsNetworkConfig(announced))
-        val json = parseMirrorQrJson(announced)
-        assertEquals("pair", json.getString("ICElabel"))
-        assertEquals("p", json.getString("pass"))
-        assertTrue(announced.endsWith(" MirrorJuggluco"))
     }
 
     @Test(expected = IllegalArgumentException::class)

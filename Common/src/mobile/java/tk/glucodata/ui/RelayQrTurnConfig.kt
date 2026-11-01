@@ -168,16 +168,5 @@ internal fun parseHybridQrIceConfig(
     )
 }
 
-/** Keys whose import replaces this phone's Hybrid relay settings for every connection. */
-private val MIRROR_QR_NETWORK_KEYS = listOf("turn", "stun", "rv", "cv", "ld")
-
-internal fun mirrorQrContainsNetworkConfig(payload: String): Boolean =
-    runCatching { parseMirrorQrJson(payload).let { json -> MIRROR_QR_NETWORK_KEYS.any(json::has) } }
-        .getOrDefault(false)
-
-/** The connection alone, for a Wi-Fi announcement: no relay settings and no TURN credentials. */
-internal fun mirrorQrWithoutNetworkConfig(payload: String): String? = runCatching {
-    val json = parseMirrorQrJson(payload)
-    MIRROR_QR_NETWORK_KEYS.forEach(json::remove)
-    if (payload.endsWith(MIRROR_QR_SUFFIX)) json.toString() + MIRROR_QR_SUFFIX else json.toString()
-}.getOrNull()
+internal fun mirrorQrContainsTurnConfig(payload: String): Boolean =
+    runCatching { parseMirrorQrJson(payload).has("turn") }.getOrDefault(false)

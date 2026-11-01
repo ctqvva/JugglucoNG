@@ -402,6 +402,30 @@ private data class ClonePairingSession(
     val announced: Boolean,
 )
 
+/** Whether importing [payload] would replace this phone's relay settings with different ones. */
+private fun mirrorJsonChangesNetworkSettings(context: Context, payload: String): Boolean = runCatching {
+    val json = parseMirrorQrJson(payload)
+    val turn = parseHybridQrTurnConfig(json)
+    val ice = parseHybridQrIceConfig(json, turn)
+    val turnChanges = turn != null && (
+        Natives.TurnServerNR() <= 0 || turn != HybridQrTurnConfig(
+            Natives.getTurnHost(0).orEmpty(),
+            Natives.getTurnPort(0),
+            Natives.getTurnUser(0).orEmpty(),
+            Natives.getTurnPassword(0).orEmpty(),
+        )
+    )
+    val current = CloneIceNetworkConfigStore.load(context)
+    val iceChanges = ice != null && (
+        ice.rendezvousHost != current.rendezvousHost ||
+            ice.rendezvousPort != current.rendezvousPort ||
+            ice.useTurnForStun != current.useTurnForStun ||
+            ice.verifyRendezvousCertificate != current.verifyRendezvousCertificate ||
+            ice.useLocalDiscovery != current.useLocalDiscovery
+    )
+    turnChanges || iceChanges
+}.getOrDefault(true)
+
 private fun mirrorJsonIceLabel(json: String): String? =
     runCatching { org.json.JSONObject(json).optString("ICElabel") }.getOrNull()?.takeIf { it.isNotBlank() }
 
@@ -422,6 +446,7 @@ fun MirrorSettingsScreen(navController: NavController) {
 
     // Pending states
     var scannedQrPayload by remember { mutableStateOf<String?>(null) }
+    var pendingNearby by remember { mutableStateOf<DiscoveredMirror?>(null) }
 
     // Edit sheet state
     var editSheetPos by remember { mutableStateOf<Int?>(null) }
@@ -489,10 +514,9 @@ fun MirrorSettingsScreen(navController: NavController) {
             label = Natives.getbackuplabel(index),
             created = sender.created,
             json = json,
-            // Relay settings (TURN credentials included) stay in the QR code; the Wi-Fi only
-            // hears the connection itself, which the other phone joins with its own settings.
-            announced = mirrorQrWithoutNetworkConfig(json)
-                ?.let { mdnsManager.registerService(deviceName, port, it) } == true,
+            // The same code as the QR, relay settings included, so a phone that joins over the
+            // Wi-Fi can still reach this one away from it. Announced only while Send is open.
+            announced = json.isNotEmpty() && mdnsManager.registerService(deviceName, port, json),
         )
         triggerRefresh++
     }
@@ -576,7 +600,7 @@ fun MirrorSettingsScreen(navController: NavController) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.mirror_connect_qr_message))
-                    if (mirrorQrContainsNetworkConfig(scannedQrPayload!!)) {
+                    if (mirrorJsonChangesNetworkSettings(context, scannedQrPayload!!)) {
                         Text(
                             stringResource(R.string.mirror_connect_qr_turn_message),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -602,6 +626,25 @@ fun MirrorSettingsScreen(navController: NavController) {
             discoveredMirrors = discoveredMirrors.filterNot { it.name == device.name }
             triggerRefresh++
         }
+    }
+
+    // Asks only when accepting would change the relay settings other Hybrid connections rely on.
+    if (pendingNearby != null) {
+        val device = pendingNearby!!
+        AlertDialog(
+            onDismissRequest = { pendingNearby = null },
+            icon = { Icon(Icons.Filled.Wifi, contentDescription = null) },
+            title = { Text(stringResource(R.string.mirror_connect_nearby_title, device.name)) },
+            text = { Text(stringResource(R.string.mirror_connect_qr_turn_message)) },
+            confirmButton = {
+                Button(
+                    onClick = { getReadings(device); pendingNearby = null },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) { Text(stringResource(R.string.mirror_connect_action)) }
+            },
+            dismissButton = { OutlinedButton(onClick = { pendingNearby = null }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ContentPadding) { Text(stringResource(R.string.cancel)) } }
+        )
     }
 
     // ── Content ──────────────────────────────────────────────────────────
@@ -665,8 +708,14 @@ fun MirrorSettingsScreen(navController: NavController) {
         },
         onSendKind = { kind -> startPairing(kind) },
         onScan = { launchScanner() },
-        // Announcements carry no relay settings (see startPairing), so nothing here replaces this phone's.
-        onConnectNearby = { device -> getReadings(device) },
+        onConnectNearby = { device ->
+            val othersRelyOnSettings = mirrors.any { it.isIce && !it.isWearOs }
+            if (othersRelyOnSettings && mirrorJsonChangesNetworkSettings(context, device.mirrorJson)) {
+                pendingNearby = device
+            } else {
+                getReadings(device)
+            }
+        },
         onBackgroundChanged = { enabled ->
             backgroundLivenessEnabled = enabled
             tk.glucodata.CloneBackgroundLiveness.setEnabled(enabled)
