@@ -103,7 +103,12 @@ class ICanHealthCloudQueue(context: Context) {
             val array = JSONArray()
             items.forEach { array.put(it.toJson()) }
             file.parentFile?.mkdirs()
-            file.writeText(array.toString())
+            val tmp = java.io.File(file.parentFile, file.name + ".tmp")
+            tmp.writeText(array.toString())
+            if (!tmp.renameTo(file)) {
+                file.writeText(tmp.readText())
+                tmp.delete()
+            }
         }
     }
 
