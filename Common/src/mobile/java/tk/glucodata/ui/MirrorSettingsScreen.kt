@@ -350,12 +350,11 @@ private fun finishCloneReceptionDisable() {
 }
 
 private fun deleteAnnouncementSender(
-    label: String?,
+    session: ClonePairingSession,
     ownedByAnnouncement: Boolean,
     kind: QuickPairKind,
 ): Boolean {
-    if (label.isNullOrBlank()) return false
-    val connection = readMirrorConnectionSnapshots().firstOrNull { it.label == label }
+    val connection = findPairingConnection(session)
     if (!shouldDeleteAnnouncementSender(connection, ownedByAnnouncement, kind)) return false
     Natives.deletebackuphost(connection!!.index)
     return true
@@ -384,7 +383,7 @@ private fun ensureQuickPairSender(context: Context, kind: QuickPairKind): QuickP
 }
 
 private fun cleanupAnnouncementSender(context: Context, session: ClonePairingSession): Boolean {
-    if (!deleteAnnouncementSender(session.label, session.created, session.kind)) return false
+    if (!deleteAnnouncementSender(session, session.created, session.kind)) return false
     val cloneEnabled = isCloneEnabled(readMirrorConnectionSnapshots())
     tk.glucodata.CloneSensorRegistry.setReceptionEnabled(cloneEnabled)
     if (!cloneEnabled) finishCloneReceptionDisable()
@@ -400,7 +399,18 @@ private data class ClonePairingSession(
     val created: Boolean,
     val json: String,
     val announced: Boolean,
+    /** Generated per sender, unlike the label (every Wi-Fi-only sender is "Local Clone"). */
+    val password: String?,
 )
+
+/** The session's connection, wherever deleting an earlier one has moved it. */
+private fun findPairingConnection(session: ClonePairingSession): MirrorConnectionSnapshot? {
+    val connections = readMirrorConnectionSnapshots()
+    if (session.password.isNullOrEmpty()) {
+        return connections.firstOrNull { it.index == session.index && it.label == session.label }
+    }
+    return connections.firstOrNull { Natives.getbackuppassword(it.index) == session.password }
+}
 
 /** Whether importing [payload] would replace this phone's relay settings with different ones. */
 private fun mirrorJsonChangesNetworkSettings(context: Context, payload: String): Boolean = runCatching {
@@ -512,6 +522,7 @@ fun MirrorSettingsScreen(navController: NavController) {
             kind = kind,
             index = index,
             label = Natives.getbackuplabel(index),
+            password = Natives.getbackuppassword(index),
             created = sender.created,
             json = json,
             // The same code as the QR, relay settings included, so a phone that joins over the
@@ -526,10 +537,7 @@ fun MirrorSettingsScreen(navController: NavController) {
         val session = pairing ?: return@LaunchedEffect
         while (!pairingConnected) {
             delay(1_000)
-            // Deleting an earlier connection moves this one down a slot, so find it by label.
-            val connection = readMirrorConnectionSnapshots().firstOrNull {
-                if (session.label != null) it.label == session.label else it.index == session.index
-            }
+            val connection = findPairingConnection(session)
             if (connection == null || connection.isDeactivated) {
                 // Its card was deleted or disabled: the code on screen can no longer deliver readings.
                 stopAnnouncing()
