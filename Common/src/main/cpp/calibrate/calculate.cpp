@@ -503,6 +503,8 @@ double calibrateValue(const CaliPara &cali ,const ScanData &el) {
     }
 
 double     calibrateNowNoCheck(const SensorGlucoseData *sens,const uint32_t time, const double value) {
+    if(sens->hasResolvedGlucose())
+        return NAN;
     const auto *info=sens->getinfo();
     const uint32_t nr=info->caliNr;
     if(nr==0) {
@@ -538,6 +540,8 @@ const CaliPara *getCaliBefore(const CaliPara *first,const CaliPara *end,uint32_t
     }
 
 double     calibrateONE(const SensorGlucoseData *sens,const uint32_t time, const double value) {
+    if(sens->hasResolvedGlucose())
+        return NAN;
     const auto *info=sens->getinfo();
     const uint32_t nr=info->caliNr;
     if(!nr)  {
@@ -580,7 +584,7 @@ void showCalis(const char *name,const CaliPara *first,const uint32_t nr) {
 std::pair<const ScanData*,const ScanData*>      makecalibrated(const SensorGlucoseData *sens,const ScanData *input,ScanData *calibrated,int nr,bool allvalues) {
     const auto *info=sens->getinfo();
     const CaliPara *first= info->caliPara;
-    const auto caliNr=info->caliNr;
+    const auto caliNr=sens->hasResolvedGlucose()?0:info->caliNr;
     if(!caliNr) {
         LOGGER("makecalibrated %s: No calibrations\n",sens->shortsensorname()->data());
         if(allvalues) {
@@ -659,7 +663,7 @@ std::pair<const ScanData*,const ScanData*>      makecalibrated(const SensorGluco
     }
 std::pair<const ScanData*,const ScanData*>      makecalibratedback(const SensorGlucoseData *sens,const ScanData *input,ScanData *calibrated,int nr,bool allvalues) {
     const auto *info=sens->getinfo();
-    const auto caliNr=info->caliNr;
+    const auto caliNr=sens->hasResolvedGlucose()?0:info->caliNr;
     if(!caliNr) {
         if(allvalues) {
             memcpy(calibrated,input,nr*sizeof(input[0]));

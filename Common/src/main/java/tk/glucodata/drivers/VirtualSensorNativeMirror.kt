@@ -97,11 +97,14 @@ internal class VirtualSensorNativeMirror(
         sensorSerial: String,
         readings: List<VirtualGlucoseSensorBridge.Reading>,
         logLabel: String,
+        primaryIsResolved: Boolean = true,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
+        fun mirroredGlucose(reading: VirtualGlucoseSensorBridge.Reading): Float =
+            if (primaryIsResolved) reading.primaryGlucoseMgdl else reading.storageGlucoseMgdl
         val ordered = readings
             .asSequence()
-            .filter { it.primaryGlucoseMgdl.isFinite() && it.primaryGlucoseMgdl > 0f }
+            .filter { mirroredGlucose(it).isFinite() && mirroredGlucose(it) > 0f }
             .map { (it.timestampMs / 1000L) to it }
             .filter { (seconds, _) -> seconds > 0L }
             .sortedBy { (seconds, _) -> seconds }
@@ -128,9 +131,10 @@ internal class VirtualSensorNativeMirror(
 
         val stored = writeBatch(
             LongArray(writable.size) { writable[it].first },
-            // Native readers follow the same upstream primary as publishCurrent().
-            // Room retains the separate automatic lane through storageGlucoseMgdl.
-            FloatArray(writable.size) { nativeGlucose(writable[it].second.primaryGlucoseMgdl) },
+            // API-/NSF-/MQF- shells carry this final upstream primary; native
+            // readers recognize those full ids and bypass further calibration.
+            // Stock BLE mirrors (e.g. Medtrum) keep their normal calibration path.
+            FloatArray(writable.size) { nativeGlucose(mirroredGlucose(writable[it].second)) },
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },

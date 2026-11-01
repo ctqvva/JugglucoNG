@@ -64,8 +64,9 @@ object VirtualGlucoseSensorBridge {
         readings: List<Reading>,
         logLabel: String,
         nativeFamily: ManagedSensorUiFamily,
+        primaryIsResolved: Boolean = true,
     ): Int = synchronized(mirrorLock) {
-        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel) }
+        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
             .getOrDefault(0)
         // Stamp only once a shell exists: the stamp call would otherwise create one.
@@ -94,7 +95,7 @@ object VirtualGlucoseSensorBridge {
         val nowMs = System.currentTimeMillis()
         val valid = readings.filter { isUsableHistoryReading(it, nowMs) }
         if (valid.isEmpty()) return 0
-        return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily)
+        return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily, primaryIsResolved = false)
     }
 
     data class Reading(

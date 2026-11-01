@@ -139,6 +139,9 @@ public class Natives {
 
         public static native String resolveFullSensorName(String sensorId);
 
+        /** True for a native follower mirror whose primary glucose is already final. Accepts short aliases. */
+        public static native boolean isGlucoseValueResolved(String sensorId);
+
         public static native int getSensorIndex(String sensorId);
 
         public static native int getSensorIndexFromDataPtr(long dataptr);

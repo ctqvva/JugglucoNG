@@ -33,6 +33,14 @@ public final class NightscoutCalibration {
         return value;
     }
 
+    private static boolean isResolvedNativeMirror(String sensorId) {
+        try {
+            return Natives.isGlucoseValueResolved(resolveSensorId(sensorId));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static boolean isMmolApp() {
         return Applic.unit == 1;
     }
@@ -61,6 +69,11 @@ public final class NightscoutCalibration {
     ) {
         try {
             final float autoValue = sanitizeMgdl(autoMgdl);
+            // Follower mirrors contain the final upstream primary, like their
+            // LiveReadingLanes.resolved publication. Do not select/calibrate it again.
+            if (isResolvedNativeMirror(sensorId)) {
+                return Math.round(autoValue);
+            }
             final float rawValue = sanitizeMgdl(rawCurrentToMgdl(rawCurrent));
 
             float primaryValue = autoValue;
@@ -110,6 +123,9 @@ public final class NightscoutCalibration {
             long timestampMillis
     ) {
         try {
+            if (isResolvedNativeMirror(sensorId)) {
+                return 0f;
+            }
             final boolean rawPrimary = isRawPrimary(viewMode);
             final String resolvedSensorId = resolveSensorId(sensorId);
             if (!CalibrationAccess.hasActiveCalibration(rawPrimary, resolvedSensorId)) {

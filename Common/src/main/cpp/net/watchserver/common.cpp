@@ -49,6 +49,10 @@ int resolveExportedMgdlAt(const SensorGlucoseData *sens,const sensorname_t *sens
                           const uint32_t tim,const int storedMgdl,const int rawCurrent) {
     if(!sens||!sensorname||storedMgdl<=0)
         return 0;
+    // Upstream primary values are already final, before either the native or
+    // Java calibration layer. The same contract applies on a Clone receiver.
+    if(sens->hasResolvedGlucose())
+        return storedMgdl;
     int autoMgdl=storedMgdl;
     if(settings->data()->DoCalibrate) {
         if(double calibrated=calibrateONE(sens,tim,(double)storedMgdl);!isnan(calibrated))

@@ -1005,6 +1005,19 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(resolveFullSensorName)(
   return result;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL fromjava(isGlucoseValueResolved)(
+    JNIEnv *env, jclass cl, jstring sensorId) {
+  if (!sensors || !sensorId)
+    return JNI_FALSE;
+  const char *name = env->GetStringUTFChars(sensorId, nullptr);
+  if (!name)
+    return JNI_FALSE;
+  const auto *hist = sensors->gethistshort(name);
+  const bool resolved = hist && !hist->error() && hist->hasResolvedGlucose();
+  env->ReleaseStringUTFChars(sensorId, name);
+  return resolved ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jint JNICALL fromjava(getSensorIndex)(
     JNIEnv *envin, jclass cl, jstring sensorId) {
   if (!sensors || !sensorId)

@@ -1221,6 +1221,15 @@ public:
     }
     return sensordir;
   }
+  // These namespaces are written only by VirtualGlucoseSensorBridge, whose
+  // live publication is LiveReadingLanes.resolved. Their native primary is
+  // final too. Use the persisted full id so this survives restart and Clone,
+  // without depending on the receiving device having a managed driver record.
+  bool hasResolvedGlucose() const {
+    const auto id = sensid();
+    return id.starts_with("API-") || id.starts_with("NSF-") ||
+           id.starts_with("MQF-");
+  }
   typedef std::array<char, 11> sensorname_t;
   [[nodiscard]] const sensorname_t *shortsensorname() const {
     std::string_view sid = sensid();
