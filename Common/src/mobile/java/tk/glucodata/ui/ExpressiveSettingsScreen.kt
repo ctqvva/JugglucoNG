@@ -78,6 +78,7 @@ import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorSourceResolver
 import tk.glucodata.share.DexcomShareSettings
+import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.alerts.SensorHandoverRuntime
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.data.ScheduledBackupSettings
@@ -125,6 +126,10 @@ fun ExpressiveSettingsScreen(
     val showDexcomShare = remember {
         runCatching { DexcomShareSettings.isSetUp(context) }.getOrDefault(false) ||
             hasActiveDexcomSensor()
+    }
+    val showICanHealth = remember {
+        runCatching { ICanHealthCloudSettings.isSetUp(context) }.getOrDefault(false) ||
+            hasActiveICanSensor()
     }
     val showOttaiSettings = remember {
         SensorBluetooth.mygatts().any { callback ->
@@ -563,6 +568,16 @@ fun ExpressiveSettingsScreen(
                         iconTint = exchangeColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/dexcom-share") }
+                    )
+                }
+                if (showICanHealth) {
+                    SettingsItem(
+                        title = "iCan Health Cloud",
+                        subtitle = "Upload glucose to SinoCare iCan Health",
+                        icon = Icons.Default.CloudUpload,
+                        iconTint = exchangeColor,
+                        position = CardPosition.MIDDLE,
+                        onClick = { navController.navigate("settings/ican-health") }
                     )
                 }
                 SettingsItem(
@@ -1633,5 +1648,12 @@ private fun hasActiveDexcomSensor(): Boolean = runCatching {
     Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
         SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
             SensorSourceResolver.SENSOR_KIND_DEXCOM
+    }
+}.getOrDefault(false)
+
+private fun hasActiveICanSensor(): Boolean = runCatching {
+    Natives.activeSensors()?.filterNotNull().orEmpty().any { sensorId ->
+        SensorSourceResolver.resolveSensorKind(sensorId, SensorSourceResolver.SENSOR_KIND_UNKNOWN) ==
+            SensorSourceResolver.SENSOR_KIND_ICAN
     }
 }.getOrDefault(false)
