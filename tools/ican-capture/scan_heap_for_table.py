@@ -73,7 +73,7 @@ def main():
         for name, sig in (("head", HEAD), ("pair", PAIR), ("table25", TABLE25)):
             i = d.find(sig)
             if i >= 0:
-                vals = floats_at(d, i - 4, 25)
+                vals = floats_at(d, i - 4 if name == "pair" else i, 25)
                 print("FLOATS %-8s %s +0x%x  %s" % (
                     name, p, i, " ".join("%.4g" % v for v in (vals or [])) if vals else ""))
         for b in blobs:

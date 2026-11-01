@@ -15,6 +15,15 @@ adb shell su -c "rm -rf $PHONE_DIR; mkdir -p $PHONE_DIR" >/dev/null 2>&1
 echo "watching $PKG every ${IV}s, max $MAX snapshots -> $OUT"
 
 i=0
+pull_all() {
+  echo "snapshots on phone:"
+  adb shell su -c "ls -lh $PHONE_DIR/*.tar" 2>/dev/null
+  for f in $(adb shell su -c "ls $PHONE_DIR/*.tar" 2>/dev/null | tr -d '\r'); do
+    adb pull "$f" "$OUT/" >/dev/null 2>&1 && echo "pulled $(basename "$f")"
+  done
+}
+trap 'pull_all; exit 0' INT TERM
+
 while [ "$i" -lt "$MAX" ]; do
   PID=$(adb shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')
   if [ -n "$PID" ]; then
@@ -26,8 +35,4 @@ while [ "$i" -lt "$MAX" ]; do
   sleep "$IV"
 done
 
-echo "snapshots on phone:"
-adb shell su -c "ls -lh $PHONE_DIR/*.tar" 2>/dev/null
-for f in $(adb shell su -c "ls $PHONE_DIR/*.tar" 2>/dev/null | tr -d '\r'); do
-  adb pull "$f" "$OUT/" >/dev/null 2>&1 && echo "pulled $(basename "$f")"
-done
+pull_all

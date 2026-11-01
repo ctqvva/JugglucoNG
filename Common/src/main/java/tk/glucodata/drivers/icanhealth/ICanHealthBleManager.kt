@@ -161,6 +161,7 @@ class ICanHealthBleManager(
     }
 
     private val gattQueue = ArrayDeque<GattOp>()
+    private val gattQueueLock = Any()
     @Volatile private var gattOpActive = false
 
     private var cgmService: BluetoothGattService? = null
@@ -2635,10 +2636,12 @@ class ICanHealthBleManager(
         // An aborted chain must not leave its queued (not yet sent) chunk in the GATT
         // queue — it would go on air later with nobody listening for the ack.
         correctCodePendingChunk?.let { pending ->
-            gattQueue.removeAll {
-                it is GattOp.Write &&
-                    it.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS &&
-                    it.data.contentEquals(pending)
+            synchronized(gattQueueLock) {
+                gattQueue.removeAll {
+                    it is GattOp.Write &&
+                        it.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS &&
+                        it.data.contentEquals(pending)
+                }
             }
         }
         correctCodePendingChunk = null
@@ -4310,14 +4313,17 @@ class ICanHealthBleManager(
     }
 
     private fun enqueueOp(op: GattOp) {
-        gattQueue.add(op)
+        synchronized(gattQueueLock) { gattQueue.add(op) }
     }
 
     private fun drainGattQueue() {
-        if (gattOpActive || gattQueue.isEmpty()) return
         val gatt = mBluetoothGatt ?: return
-        val op = gattQueue.poll() ?: return
-        gattOpActive = true
+        val op = synchronized(gattQueueLock) {
+            if (gattOpActive || gattQueue.isEmpty()) return
+            val next = gattQueue.poll() ?: return
+            gattOpActive = true
+            next
+        }
         handler.removeCallbacks(gattOpTimeoutRunnable)
         handler.postDelayed(gattOpTimeoutRunnable, GATT_OP_TIMEOUT_MS)
 
@@ -4507,7 +4513,7 @@ class ICanHealthBleManager(
     ) {
         lastSensorInfoMarker = null
         resetCorrectCodeState()
-        gattQueue.clear()
+        synchronized(gattQueueLock) { gattQueue.clear() }
         gattOpActive = false
         handler.removeCallbacks(noDataWatchdog)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
@@ -4589,7 +4595,7 @@ class ICanHealthBleManager(
     }
 
     private fun maybeHandleQueueDrained() {
-        if (gattOpActive || gattQueue.isNotEmpty()) {
+        if (gattOpActive || synchronized(gattQueueLock) { gattQueue.isNotEmpty() }) {
             return
         }
         when (phase) {
