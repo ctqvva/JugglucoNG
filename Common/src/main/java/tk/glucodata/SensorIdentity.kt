@@ -199,6 +199,12 @@ object SensorIdentity {
         // managed driver answer "Room owns this" left both sources empty and the
         // screen showing "No data" over a full store.
         if (Applic.isWearable) return true
+        // A sensor mirrored in over Clone reaches this phone only through native
+        // storage; its driver writes Room on the phone wearing it. The managed
+        // families answer "Room owns this" from the serial alone (AiDEX since
+        // #636), which froze a receiver's history while readings kept arriving.
+        // Taking the sensor over clears the Clone flag, so the driver rules again.
+        if (CloneSensorRegistry.isCloneSensor(raw)) return true
         managedDriverHistorySync(raw)?.let { return it }
         val canonical = canonicalOrRaw(raw) ?: raw
         if (!canonical.equals(raw, ignoreCase = true)) {
