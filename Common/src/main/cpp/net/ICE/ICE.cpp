@@ -987,6 +987,11 @@ void ICEConnect::receiverThread(int argindex) {
         }
         wakeReceiver=false;
         traceIceRecovery(argindex,currentAgentGeneration(),"receiver-wait-end");
+        // The slot may have moved during the wait; `host` would be another connection's.
+        if(argindex!=allindex||finish) {
+            LOGARICE("receiverThread: allindex changed or finished during wait, return");
+            return;
+            }
         if(host.deactivated) {
             recoveryWake.cancel();
             LOGGERICE("allindex=%d receiverThread parked: host deactivated\n",allindex);

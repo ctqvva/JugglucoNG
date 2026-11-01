@@ -34,7 +34,13 @@ class MDnsManager(private val context: Context) {
      * NSD TXT record values are limited to 255 bytes each, so we chunk
      * the JSON across multiple keys (j0, j1, j2, ...) if needed.
      */
-    fun registerService(deviceName: String, port: Int = 8795, mirrorJson: String = ""): Boolean {
+    fun registerService(
+        deviceName: String,
+        port: Int = 8795,
+        mirrorJson: String = "",
+        // Android accepts the request first and can still fail it later, on the main thread.
+        onFailed: () -> Unit = {},
+    ): Boolean {
         // setAttribute throws past Android's TXT limits (255 bytes per entry, ~1300 in total).
         val serviceInfo = try {
             NsdServiceInfo().apply {
@@ -61,11 +67,11 @@ class MDnsManager(private val context: Context) {
                 Log.d("MDNS", "Service registered: ${NsdServiceInfo.serviceName}")
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                if (registrationListener === this) {
-                    registeredServiceName = null
-                    registrationListener = null
-                }
                 Log.e("MDNS", "Registration failed: $errorCode")
+                if (registrationListener !== this) return
+                registeredServiceName = null
+                registrationListener = null
+                Handler(Looper.getMainLooper()).post(onFailed)
             }
             override fun onServiceUnregistered(arg0: NsdServiceInfo) {
                 if (registrationListener === this) {

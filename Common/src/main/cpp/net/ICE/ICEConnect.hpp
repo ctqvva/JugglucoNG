@@ -272,9 +272,21 @@ void stopCandidateReader() {
 bool isICE() const override { return true; }
 virtual int setindex(int in) override{
         LOGGER("setindex(%d)\n",in);
+        const bool moved=in!=allindex;
         icedata[1].allindex=in;
         icedata[0].allindex=in;
-        return Connect::setindex(in);
+        const int res=Connect::setindex(in);
+        if(moved) {
+            // deletehost moved this host down a slot. Whatever runs against the old
+            // slot stops; the receiver wakes, sees the move and restarts at the new one.
+            endConnectionHere();
+            {
+            std::lock_guard<std::mutex> lck(receiveThreadMutex);
+            wakeReceiver=true;
+            }
+            receiveThreadCon.notify_one();
+            }
+        return res;
         }
 int cloneTransportCode() const override {
         const juice_state_t currentState = state.load();

@@ -517,17 +517,20 @@ fun MirrorSettingsScreen(navController: NavController) {
         }
         val json = Natives.getbackJson(index) ?: ""
         val port = Natives.getbackuphostport(index)?.toIntOrNull() ?: 8795
+        val password = Natives.getbackuppassword(index)
         pairingConnected = false
         pairing = ClonePairingSession(
             kind = kind,
             index = index,
             label = Natives.getbackuplabel(index),
-            password = Natives.getbackuppassword(index),
+            password = password,
             created = sender.created,
             json = json,
             // The same code as the QR, relay settings included, so a phone that joins over the
             // Wi-Fi can still reach this one away from it. Announced only while Send is open.
-            announced = json.isNotEmpty() && mdnsManager.registerService(deviceName, port, json),
+            announced = json.isNotEmpty() && mdnsManager.registerService(deviceName, port, json) {
+                if (pairing?.password == password) pairing = pairing?.copy(announced = false)
+            },
         )
         triggerRefresh++
     }
