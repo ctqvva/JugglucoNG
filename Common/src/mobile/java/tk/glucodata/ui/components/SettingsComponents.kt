@@ -32,7 +32,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import tk.glucodata.R
+
+// Keep wrapped row subtitles compact without tightening paragraph text elsewhere in the app.
+private val Typography.settingsSubtitle: TextStyle
+    get() = bodyMedium.copy(lineHeight = 18.sp)
 
 /**
  * A settings row that opens its own content underneath, inside the same card:
@@ -68,7 +73,7 @@ fun ExpandableSettingsCard(
                     .fillMaxWidth()
                     .clickable { onExpandedChange(!expanded) }
                     .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 trailingContent = {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
@@ -86,7 +91,7 @@ fun ExpandableSettingsCard(
                         Text(
                             modifier = Modifier.padding(top = 2.dp),
                             text = summary,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -145,7 +150,7 @@ fun DisclosingSwitchCard(
                     .fillMaxWidth()
                     .clickable(enabled = enabled) { onCheckedChange(!checked) }
                     .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 trailingContent = {
                     StyledSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
                 }
@@ -158,7 +163,7 @@ fun DisclosingSwitchCard(
                         Text(
                             modifier = Modifier.padding(top = 2.dp),
                             text = subtitle,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -270,8 +275,8 @@ fun SettingsItem(
     ) {
         AdaptiveTrailingRow(
             modifier = Modifier
-                .heightIn(min = 72.dp) // M3 Two-line item standard
-                .padding(horizontal = 16.dp, vertical = 16.dp), // Coherent spacing
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             trailingContent = {
                 if (trailingContent != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) { trailingContent() }
@@ -292,11 +297,11 @@ fun SettingsItem(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium) // Heavier weight (500) for legibility
+                    Text(title, style = MaterialTheme.typography.titleMedium)
                     if (subtitle != null) {
                         Text(
                             subtitle,
-                            style = subtitleStyle ?: MaterialTheme.typography.bodyMedium,
+                            style = subtitleStyle ?: MaterialTheme.typography.settingsSubtitle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -462,7 +467,7 @@ fun MasterSwitchCard(
                         style = MaterialTheme.typography.titleMediumEmphasized,)
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.settingsSubtitle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

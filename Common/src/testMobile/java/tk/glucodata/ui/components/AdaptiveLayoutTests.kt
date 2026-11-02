@@ -484,8 +484,93 @@ class AdaptiveLayoutTests {
         val row = compose.onNodeWithTag("row").fetchSemanticsNode().boundsInRoot
         val title = compose.onNodeWithText("Benachrichtigungseinstellungen", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot
-        // 16dp padding under the title, and no stack gap for a control that isn't there.
-        assertEquals(16f, row.bottom - title.bottom, 0.5f)
+        // Compact bottom padding, and no stack gap for a control that isn't there.
+        assertEquals(12f, row.bottom - title.bottom, 0.5f)
+    }
+
+    @Test
+    fun wrappedSettingsSubtitlesStayCompactAndReadableAcrossTextSizes() {
+        var env by mutableStateOf(Environment(width = 400, fontScale = 1f))
+        var russian by mutableStateOf(true)
+        var checked by mutableStateOf(false)
+        var opened by mutableStateOf(false)
+        val title = "Nightscout"
+        fun subtitle() = if (russian) "Отправка и получение показаний" else "Send and receive glucose readings"
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(env.density, env.fontScale)) {
+                MaterialTheme(typography = AppTypography) {
+                    Column(Modifier.width(env.width.dp).testTag("settings")) {
+                        SettingsNavSwitchItem(
+                            title = title,
+                            subtitle = subtitle(),
+                            icon = Icons.Default.Settings,
+                            checked = checked,
+                            onCheckedChange = { checked = it },
+                            onClick = { opened = true },
+                            modifier = Modifier.testTag("navRow"),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        SettingsItem(
+                            title = if (russian) "Зеркало (клон)" else "Mirror (clone)",
+                            subtitle = if (russian) "Отправка или приём значений между вашими устройствами"
+                                else "Send or receive readings between your devices",
+                            icon = Icons.Default.Settings,
+                            onClick = {},
+                        )
+                    }
+                }
+            }
+        }
+        for (environment in listOf(
+            Environment(width = 400, fontScale = 1f),
+            Environment(width = 360, fontScale = 1.3f),
+            Environment(width = 320, density = 1.5f, fontScale = 2f),
+        )) {
+            for (ru in listOf(true, false)) {
+                compose.runOnIdle {
+                    env = environment
+                    russian = ru
+                    checked = false
+                    opened = false
+                }
+                val label = compose.onNodeWithText(subtitle(), useUnmergedTree = true)
+                val layout = label.textLayout()
+                label.assertTextFits()
+                compose.onNodeWithText(title, useUnmergedTree = true).assertTextFits()
+                assertTrue("fixture should wrap: $environment/$ru", layout.lineCount >= 2)
+                for (line in 1 until layout.lineCount) {
+                    val baselineGap = layout.getLineBaseline(line) - layout.getLineBaseline(line - 1)
+                    if (environment.fontScale == 1f) {
+                        assertTrue("subtitle lines too far apart: $baselineGap", baselineGap <= 19f)
+                    }
+                    assertTrue("subtitle lines overlap", layout.getLineTop(line) >= layout.getLineBottom(line - 1) - 1f)
+                }
+                val row = compose.onNodeWithTag("navRow").fetchSemanticsNode().boundsInRoot
+                val text = label.fetchSemanticsNode().boundsInRoot
+                val toggle = compose.onNode(isToggleable())
+                val control = toggle.fetchSemanticsNode().boundsInRoot
+                assertTrue(text.bottom <= row.bottom)
+                assertTrue("switch overlaps subtitle", control.left >= text.right || control.top >= text.bottom)
+                val touch = toggle.fetchSemanticsNode().touchBoundsInRoot
+                assertTrue("switch touch target shrank: $touch", touch.width >= 48f * environment.density && touch.height >= 48f * environment.density)
+                if (environment.fontScale == 1f) {
+                    assertTrue("two-line subtitle row is too tall: ${row.height}", row.height <= 88f)
+                }
+                val output = File("build/outputs/layout-regressions/settings-subtitles-${environment.width}-${environment.density}-${environment.fontScale}-$ru.png")
+                output.parentFile?.mkdirs()
+                output.outputStream().use {
+                    compose.onNodeWithTag("settings").captureToImage().asAndroidBitmap()
+                        .compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                toggle.performClick()
+                compose.runOnIdle {
+                    assertTrue(checked)
+                    assertFalse("switch must not navigate", opened)
+                }
+                compose.onNodeWithTag("navRow").performClick()
+                compose.runOnIdle { assertTrue(opened) }
+            }
+        }
     }
 
     @Test
