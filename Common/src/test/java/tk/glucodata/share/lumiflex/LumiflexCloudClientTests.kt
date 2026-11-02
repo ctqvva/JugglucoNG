@@ -156,8 +156,8 @@ class LumiflexCloudClientTests {
         val transport = FakeTransport { _, _ ->
             LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200,\"data\":[]}"))
         }
-        newClient(transport).followerList("tok", isShare = false)
-        assertTrue(transport.urls.first().endsWith("?type=2"))
+        newClient(transport).followerList("tok", isShare = false, userId = "u1")
+        assertTrue(transport.urls.first().contains("?type=0"))
     }
 
     @Test
@@ -204,12 +204,12 @@ class LumiflexCloudClientTests {
         val transport = FakeTransport { _, _ ->
             LumiflexCloudClient.HttpResult(
                 200,
-                envelope("""{"code":200,"data":[{"userAuthorizationId":"a1","readerUserName":"f@b.c"}]}"""),
+                envelope("""{"code":200,"data":[{"userAuthorizationId":"a1","readerUserName":"f@b.c","dataProviderId":"u1","dataReaderId":"u2"}]}"""),
             )
         }
-        val list = newClient(transport).followerList("tok", isShare = true)
+        val list = newClient(transport).followerList("tok", isShare = true, userId = "u1")
         assertEquals(1, list?.size)
         assertEquals("a1", list?.first()?.userAuthorizationId)
-        assertTrue(transport.urls.first().endsWith("/userAuthorization/findUserAuthorizationList?type=1"))
+        assertTrue(transport.urls.first().contains("/userAuthorization/findUserAuthorizationList?type=0"))
     }
 }

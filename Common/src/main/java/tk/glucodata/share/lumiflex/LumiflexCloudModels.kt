@@ -95,6 +95,8 @@ data class LoginModel(
 
 data class FollowerInfo(
     val userAuthorizationId: String = "",
+    val dataProviderId: String = "",
+    val dataReaderId: String = "",
     val providerUserName: String = "",
     val providerAlias: String = "",
     val readerUserName: String = "",
@@ -109,6 +111,8 @@ data class FollowerInfo(
             if (json == null) return FollowerInfo()
             return FollowerInfo(
                 userAuthorizationId = json.optString("userAuthorizationId", ""),
+                dataProviderId = json.optString("dataProviderId", ""),
+                dataReaderId = json.optString("dataReaderId", ""),
                 providerUserName = json.optString("providerUserName", ""),
                 providerAlias = json.optString("providerAlias", ""),
                 readerUserName = json.optString("readerUserName", ""),

@@ -135,9 +135,9 @@ class LumiflexCloudClient(
         return postOk(LumiflexCloudConstants.PATH_DEVICE_REGISTER, body, token, userId)
     }
 
-    fun followerList(token: String, isShare: Boolean): List<FollowerInfo>? {
-        val type = if (isShare) "1" else "2"
-        val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) + "?type=$type"
+    fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? {
+        val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
+            "?type=0&pageNum=1&pageSize=500"
         val response = transport.get(url, headers(token, ""))
         if (response.code !in 200..299) return null
         val plain = decoded(response.body) ?: return null
@@ -145,8 +145,15 @@ class LumiflexCloudClient(
         if (json != null && json.optInt("code", 200) != 200) return null
         val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain) }.getOrNull()
         if (array == null) return null
-        return (0 until array.length()).map { index ->
+        val rows = (0 until array.length()).map { index ->
             FollowerInfo.fromJson(array.optJSONObject(index))
+        }
+        return rows.filter { row ->
+            if (isShare) {
+                row.dataProviderId.equals(userId, ignoreCase = true)
+            } else {
+                row.dataReaderId.equals(userId, ignoreCase = true)
+            }
         }
     }
 
