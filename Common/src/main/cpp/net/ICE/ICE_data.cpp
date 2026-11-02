@@ -728,14 +728,17 @@ int ICE_data::receive(juice_agent_t *agent,char *buf, const int maxbuf,int timeo
         intmax_t waittime=RTO*100*timesRTO;
         int asked=0;
         uint32_t beginReceive=time(nullptr);
+        // Steady, so a wall-clock correction cannot stretch or cut the timeout.
+        const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(timeoutSecs);
         while(true) {
             if(timeoutSecs>0) {
-                const intmax_t left=(intmax_t)timeoutSecs-(intmax_t)(time(nullptr)-beginReceive);
+                const intmax_t left=std::chrono::duration_cast<std::chrono::microseconds>(
+                        deadline-std::chrono::steady_clock::now()).count();
                 if(left<=0) {
                     LOGGER("receive: allindex=%d side=%d nothing within %d s\n",allindex,side,timeoutSecs);
                     return -1;
                     }
-                waittime=std::min<intmax_t>(waittime,left*1000*1000);
+                waittime=std::min<intmax_t>(waittime,left);
                 }
             LOGGERICE("side=%d ICE_data::receive before wait_for %d microsecs\n",side,waittime);
             {
