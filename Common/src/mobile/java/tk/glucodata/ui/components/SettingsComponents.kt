@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
+import tk.glucodata.ui.theme.settingsTitle
 
 // Keep wrapped row subtitles compact without tightening paragraph text elsewhere in the app.
 private val Typography.settingsSubtitle: TextStyle
@@ -87,7 +88,7 @@ fun ExpandableSettingsCard(
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium)
+                        Text(text = title, style = MaterialTheme.typography.settingsTitle)
                         Text(
                             modifier = Modifier.padding(top = 2.dp),
                             text = summary,
@@ -159,7 +160,7 @@ fun DisclosingSwitchCard(
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium)
+                        Text(text = title, style = MaterialTheme.typography.settingsTitle)
                         Text(
                             modifier = Modifier.padding(top = 2.dp),
                             text = subtitle,
@@ -297,7 +298,7 @@ fun SettingsItem(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(title, style = MaterialTheme.typography.settingsTitle)
                     if (subtitle != null) {
                         Text(
                             subtitle,
@@ -598,7 +599,7 @@ fun SettingsSlider(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(title, style = MaterialTheme.typography.settingsTitle)
         Slider(
             value = value,
             onValueChange = onValueChange,
@@ -638,10 +639,10 @@ fun <T> SettingsChoice(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (titleTrailingContent == null) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.settingsTitle)
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.settingsTitle)
                 // Let a 48dp help target extend into the card inset and title gap,
                 // keeping the same title height as the other settings choices.
                 Box(Modifier.height(24.dp).wrapContentHeight(unbounded = true)) {
@@ -708,7 +709,7 @@ fun DangerItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.settingsTitle,
                     color = contentColor
                 )
                 Text(
