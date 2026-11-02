@@ -4070,7 +4070,7 @@ class OttaiBleManager(
         val force = forceActivationRequested
         forceActivationRequested = false
         val context = Applic.app
-        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+        if (context != null && OttaiFirmwareSession.hasPendingSetup(context, SerialNumber.orEmpty())) {
             Log.w(TAG, "activation refused: finish the pending firmware test first")
             return false
         }
@@ -4160,7 +4160,7 @@ class OttaiBleManager(
 
     private fun startActivationWrites(gatt: BluetoothGatt) {
         val context = Applic.app
-        if (context != null && OttaiFirmwareSession.hasPendingTransfer(context, SerialNumber.orEmpty())) {
+        if (context != null && OttaiFirmwareSession.hasPendingSetup(context, SerialNumber.orEmpty())) {
             failActivation("pending firmware test")
             return
         }

@@ -2552,7 +2552,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не ўдалося пачаць падключэнне. Паспрабуйце зноў.</string>
     <string name="ottai_offline_hint">Таксама можна імпартаваць файл з ключамі ў раздзеле «Захаваныя датчыкі».</string>
     <string name="ottai_already_binding_hint">Да ўліковага запісу ўсё яшчэ прывязаны іншы датчык. Адвяжыце яго ў раздзеле «Захаваныя датчыкі» і паспрабуйце зноў.</string>
-    <string name="ottai_ota_upgrade_required">Сэрвіс Ottai не прывяжа гэты датчык, пакуль не абноўлена яго прашыўка. Спачатку абнавіце яе ў афіцыйнай праграме Ottai, потым паспрабуйце зноў.</string>
+    <string name="ottai_ota_upgrade_required">Пры прывязцы датчыка сэрвіс Ottai запытаў абнаўленне прашыўкі. Паўтарыце наладку прашыўкі або імпартуйце захаваныя ключы. Таксама можна паспрабаваць афіцыйную праграму Ottai.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код краіны</string>
@@ -3197,7 +3197,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Паўторнае падключэнне і праверка ўсталяванай версіі…</string>
     <string name="ottai_ota_preparing">Абнаўленне ўліковых даных і запіс заводскіх параметраў…</string>
     <string name="ottai_ota_complete">Падрыхтоўка завершана. Закрыйце акно і падключыцеся звычайным спосабам для актывацыі сенсара.</string>
-    <string name="ottai_ota_failed">Тэст спынены. Перад паўторам праверце журнал трасіроўкі. Незавершаныя абнаўленні блакуюць актывацыю.</string>
+    <string name="ottai_ota_failed">Наладка спынена. Паўтарыце спробу або праверце журнал трасіроўкі. Незавершаная наладка блакуе актывацыю.</string>
     <string name="ottai_ota_version">Сенсар: %1$s · Абнаўленне: %2$s</string>
     <string name="ottai_ota_package">%1$d байтаў · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Код дыягностыкі: %1$s</string>
@@ -3223,9 +3223,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">Да</string>
     <string name="ottai_ota_after">Пасля</string>
 
-    <string name="ottai_ota_discard">Адмяніць тэст прашыўкі</string>
-    <string name="ottai_ota_discard_confirm">Выдаліць захаваны пакет і дазволіць падключэнне? Гэта не адновіць папярэднюю прашыўку ці налады. Пасля перарванай запісы можа спатрэбіцца аднаўленне.</string>
-    <string name="ottai_ota_pending">Незавершаны тэст прашыўкі блакуе падключэнне. Адкрыйце аднаўленне прашыўкі, каб працягнуць ці адмяніць тэст.</string>
+    <string name="ottai_ota_discard">Скасаваць незавершаную наладку</string>
+    <string name="ottai_ota_discard_confirm">Выдаліць захаваны стан абнаўлення і падрыхтоўкі, каб дазволіць падключэнне? Гэта не адновіць прашыўку або параметры. Пасля перарванага абнаўлення можа спатрэбіцца аднаўленне.</string>
+    <string name="ottai_ota_pending">Наладка датчыка не завершана. Падключыцеся зноў або адкрыйце аднаўленне, каб завяршыць ці скасаваць яе.</string>
     <string name="ottai_ota_finish_preparation">Прашыўка праверана. Пацвердзіце запіс заводскіх параметраў для завяршэння наладкі.</string>
     <string name="ottai_ota_discard_failed">Не ўдалося адмяніць тэст прашыўкі. Паўтарыце спробу.</string>
     <string name="prediction_analysis_section">Аналіз прагнозаў</string>
@@ -3300,4 +3300,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Адпраўляць запуск сенсара</string>
     <string name="nightscout_upload_sensor_start_desc">Адпраўляць падзею Sensor Start для кожнага сенсара (узрост, тып і серыйны нумар)</string>
+    <string name="ottai_retry">Паўтарыць</string>
+    <string name="ottai_setup_failed">Наладка спынена. Паўтарыце спробу або зачыніце акно і імпартуйце захаваныя ключы.</string>
 </resources>

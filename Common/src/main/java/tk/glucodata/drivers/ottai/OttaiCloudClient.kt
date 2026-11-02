@@ -73,8 +73,8 @@ object OttaiCloudClient {
     const val BIZ_ALREADY_BINDING = "AppUser_AlreadyBinding"
     const val BIZ_OUT_OF_PRODUCE_TIME = "AppDevice_OutOfProduceTime"
     const val BIZ_UPGRADE_VERSION = "AppDevice_Upgrade_Version"
-    // bindV3 refuses to issue keyA for a sensor whose firmware is too old (seen 2026-10-28 on
-    // E1.2.6(V1.7.SH2616.1), after a successful /cgmAuth/verify). Retrying cannot help.
+    // A bind rejection, not proof of an available/necessary update. The 2026-11-02 Global
+    // test bound/activated on the same firmware using its full BLE revision instead.
     const val BIZ_OTA_UPGRADE_REQUIRED = "OTA_UPGRADE_REQUIRED"
     // The server already considers the sensor finished. For [unbind] that is the state the caller
     // was asking for, so it counts as released. Not yet observed on-device.
@@ -95,7 +95,7 @@ object OttaiCloudClient {
         /** The backend no longer accepts the stored session; the caller must sign in again. */
         val isTokenInvalid: Boolean get() = code.equals(BIZ_TOKEN_INVALID, ignoreCase = true)
 
-        /** The sensor's firmware must be updated before the backend issues its credentials. */
+        /** The backend refused this bind with its OTA code; check the actual BLE revision. */
         val isOtaUpgradeRequired: Boolean get() = code.equals(BIZ_OTA_UPGRADE_REQUIRED, ignoreCase = true)
     }
 
@@ -1106,12 +1106,33 @@ object OttaiCloudClient {
             }.toString())
         }
 
-        /** Explicit firmware preparation uses this client's account, without changing normal CN dispatch. */
+        /** Bind with the actual BLE revision; recover a previous/lost successful bind read-only. */
         fun bindMaterials(mac: String, firmware: String): DeviceResp {
             if (userId.isBlank()) throw OttaiOtaCloudException("ota_session")
             val body = bindRequestBody(mac, firmware, userId, now() / 1_000L, BindContract.V3)
-            return parseDeviceResp(request("POST", OttaiConstants.EP_BIND_V3.removePrefix(OttaiConstants.PREFIX),
-                body = body.toString())) ?: throw IllegalArgumentException("materials_refresh")
+            fun matching(response: JSONObject): DeviceResp? = parseDeviceResp(response)?.takeIf {
+                OttaiConstants.canonicalSensorId(it.mac) == OttaiConstants.canonicalSensorId(mac) &&
+                    OttaiOtaProtocol.materialsVersionMatches(firmware, it.deviceVersion)
+            }
+            val failure = try {
+                return matching(request("POST", OttaiConstants.EP_BIND_V3.removePrefix(OttaiConstants.PREFIX),
+                    body = body.toString())) ?: throw IllegalArgumentException("materials_identity")
+            } catch (error: Exception) {
+                if (closed || Thread.currentThread().isInterrupted ||
+                    (error is OttaiOtaCloudException && (error.diagnostic == "cancelled" ||
+                        error.businessCode.equals(BIZ_TOKEN_INVALID, true)))) throw error
+                error
+            }
+            // Do not repeat a state-changing request: the server may have committed the bind
+            // before the response was lost. Never consume a different account sensor's keys.
+            try {
+                matching(request("GET", OttaiConstants.EP_GET_BIND_DEVICE.removePrefix(OttaiConstants.PREFIX)))
+                    ?.let { return it }
+            } catch (error: Exception) {
+                if (error is OttaiOtaCloudException && (error.diagnostic == "cancelled" ||
+                        error.businessCode.equals(BIZ_TOKEN_INVALID, true))) throw error
+            }
+            throw failure
         }
         fun close() { closed = true }
     }

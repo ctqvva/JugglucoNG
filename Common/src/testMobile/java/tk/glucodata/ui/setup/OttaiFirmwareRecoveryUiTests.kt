@@ -184,4 +184,46 @@ class OttaiFirmwareRecoveryUiTests {
         OttaiFirmwareSession.discardPendingTransfer(context, id)
         assertEquals(text(R.string.ottai_connect_failed), ottaiConnectFailureMessage(context, id))
     }
+    @Test
+    @Config(qualifiers = "ru-w400dp-h800dp-mdpi")
+    fun setupFailureHasRetryAndCloseWithoutClaimingAFlashIsPending() {
+        RuntimeEnvironment.setFontScale(2f)
+        var retries = 0
+        var closed = 0
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = AppTypography) {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.FAILED,
+                    errorCode = "ota_request_http=200_biz=OTA_UPGRADE_REQUIRED"), false,
+                    onInstall = { error("No install from failure") }, onPrepare = { error("No preparation from failure") },
+                    onDiscard = {}, onDismiss = { closed++ }, prepareForSetup = true, onRetry = { retries++ })
+            }
+        }
+        compose.onNodeWithText(text(R.string.ottai_setup_title)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_retry)).assertIsDisplayed().performClick()
+        compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ottai_ota_discard)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_failed)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.ottai_ota_upgrade_required)).performScrollTo().assertIsDisplayed()
+        capture("setup-retry-russian-large-font")
+        compose.onNodeWithText(text(R.string.close)).performClick()
+        compose.runOnIdle { assertEquals(1, retries); assertEquals(1, closed) }
+    }
+
+    @Test fun ordinarySetupCannotInstallFirmwareWithoutItsOwnConfirmation() {
+        var installed = 0
+        compose.setContent {
+            MaterialTheme {
+                OttaiFirmwareStatusDialog(OttaiFirmwareState(stage = OttaiFirmwareStage.READY,
+                    firmware = "V1.7", target = "V1.8", canPrepareParameters = true), false,
+                    onInstall = { installed++ }, onPrepare = {}, onDiscard = {}, onDismiss = {}, prepareForSetup = true)
+            }
+        }
+        assertEquals(0, installed)
+        compose.onNodeWithText(text(R.string.ottai_ota_install)).performClick()
+        assertEquals(0, installed)
+        compose.onNodeWithText(text(R.string.ottai_ota_confirm)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.ok)).performClick()
+        compose.runOnIdle { assertEquals(1, installed) }
+    }
+
 }

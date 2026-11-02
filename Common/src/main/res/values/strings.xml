@@ -1196,7 +1196,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Couldn\'t start the connection. Try again.</string>
     <string name="ottai_offline_hint">You can also import a credentials file under Saved sensors.</string>
     <string name="ottai_already_binding_hint">Your account still has another sensor bound. Unbind it under Saved sensors, then try again.</string>
-    <string name="ottai_ota_upgrade_required">The Ottai service won\'t link this sensor until its firmware is updated. Update it with the official Ottai app first, then try again.</string>
+    <string name="ottai_ota_upgrade_required">The Ottai service requested a firmware update while linking this sensor. Retry firmware setup, or import saved credentials. You can also try the official Ottai app.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Country code</string>
@@ -3385,7 +3385,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Reconnecting and checking the installed version…</string>
     <string name="ottai_ota_preparing">Refreshing credentials and writing factory parameters…</string>
     <string name="ottai_ota_complete">Preparation complete. Close this dialog, then connect normally to activate the sensor.</string>
-    <string name="ottai_ota_failed">Firmware test stopped. Check the trace log before retrying. Unfinished updates block activation.</string>
+    <string name="ottai_ota_failed">Setup stopped. Try again or check the trace log. Unfinished setup blocks activation.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Diagnostic code: %1$s</string>
@@ -3411,9 +3411,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">Before</string>
     <string name="ottai_ota_after">After</string>
 
-    <string name="ottai_ota_discard">Discard firmware test</string>
-    <string name="ottai_ota_discard_confirm">Discard the saved package and unblock connection? This does not restore the previous firmware or settings. An interrupted flash may still need recovery.</string>
-    <string name="ottai_ota_pending">An unfinished firmware test blocks connection. Open firmware recovery to resume or discard it.</string>
+    <string name="ottai_ota_discard">Discard unfinished setup</string>
+    <string name="ottai_ota_discard_confirm">Discard saved update and preparation state to unblock connection? This does not restore firmware or settings. An interrupted flash may still need recovery.</string>
+    <string name="ottai_ota_pending">Sensor setup is unfinished. Connect again or open recovery to finish or discard it.</string>
     <string name="ottai_ota_finish_preparation">Firmware verified. Confirm factory preparation to finish setup.</string>
     <string name="ottai_ota_discard_failed">Could not discard the firmware test. Try again.</string>
     <string name="prediction_analysis_section">Prediction analysis</string>
@@ -3478,4 +3478,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
         <item quantity="one">Included %d planned journal entry</item>
         <item quantity="other">Included %d planned journal entries</item>
     </plurals>
+    <string name="ottai_retry">Try again</string>
+    <string name="ottai_setup_failed">Setup stopped. Try again, or close and import saved credentials.</string>
 </resources>

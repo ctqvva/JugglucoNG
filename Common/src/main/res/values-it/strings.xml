@@ -2478,7 +2478,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossibile avviare la connessione. Riprova.</string>
     <string name="ottai_offline_hint">Puoi anche importare un file di credenziali in Sensori salvati.</string>
     <string name="ottai_already_binding_hint">Il tuo account ha ancora un altro sensore associato. Scollegalo in Sensori salvati, poi riprova.</string>
-    <string name="ottai_ota_upgrade_required">Il servizio Ottai non associa questo sensore finché il suo firmware non è aggiornato. Aggiornalo prima con l\'app Ottai ufficiale, poi riprova.</string>
+    <string name="ottai_ota_upgrade_required">Il servizio Ottai ha richiesto un aggiornamento del firmware durante l’associazione del sensore. Riprova la configurazione o importa le credenziali salvate. Puoi anche provare l’app ufficiale Ottai.</string>
     <string name="ottai_region_cn_full">Ottai Cina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Prefisso internazionale</string>
@@ -3112,7 +3112,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Riconnessione e verifica della versione installata…</string>
     <string name="ottai_ota_preparing">Aggiornamento delle credenziali e scrittura dei parametri di fabbrica…</string>
     <string name="ottai_ota_complete">Preparazione completata. Chiudi questa finestra e connettiti normalmente per attivare il sensore.</string>
-    <string name="ottai_ota_failed">Test interrotto. Controlla il registro di traccia prima di riprovare. Gli aggiornamenti incompleti bloccano l’attivazione.</string>
+    <string name="ottai_ota_failed">Configurazione interrotta. Riprova o controlla il registro di traccia. La configurazione incompleta blocca l’attivazione.</string>
     <string name="ottai_ota_version">Sensore: %1$s · Aggiornamento: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Codice diagnostico: %1$s</string>
@@ -3138,9 +3138,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">Prima</string>
     <string name="ottai_ota_after">Dopo</string>
 
-    <string name="ottai_ota_discard">Abbandona test firmware</string>
-    <string name="ottai_ota_discard_confirm">Eliminare il pacchetto salvato e sbloccare la connessione? Questo non ripristina il firmware o le impostazioni precedenti. Una scrittura interrotta può ancora richiedere il recupero.</string>
-    <string name="ottai_ota_pending">Un test firmware incompleto blocca la connessione. Apri il recupero firmware per riprendere o abbandonare il test.</string>
+    <string name="ottai_ota_discard">Annulla configurazione incompleta</string>
+    <string name="ottai_ota_discard_confirm">Eliminare lo stato salvato di aggiornamento e preparazione per consentire la connessione? Firmware e impostazioni non verranno ripristinati. Un aggiornamento interrotto potrebbe richiedere il recupero.</string>
+    <string name="ottai_ota_pending">La configurazione del sensore è incompleta. Connetti di nuovo o apri il recupero per completarla o annullarla.</string>
     <string name="ottai_ota_finish_preparation">Firmware verificato. Conferma i parametri di fabbrica per completare la configurazione.</string>
     <string name="ottai_ota_discard_failed">Impossibile abbandonare il test firmware. Riprova.</string>
     <string name="prediction_analysis_section">Analisi delle previsioni</string>
@@ -3207,4 +3207,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Invia avvio sensore</string>
     <string name="nightscout_upload_sensor_start_desc">Invia un evento Sensor Start per ogni sensore (età, tipo e numero di serie)</string>
+    <string name="ottai_retry">Riprova</string>
+    <string name="ottai_setup_failed">Configurazione interrotta. Riprova oppure chiudi e importa le credenziali salvate.</string>
 </resources>

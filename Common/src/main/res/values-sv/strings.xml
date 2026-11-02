@@ -2488,7 +2488,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Kunde inte starta anslutningen. Försök igen.</string>
     <string name="ottai_offline_hint">Du kan också importera en fil med inloggningsuppgifter under Sparade sensorer.</string>
     <string name="ottai_already_binding_hint">Ditt konto har fortfarande en annan sensor kopplad. Koppla från den under Sparade sensorer och försök igen.</string>
-    <string name="ottai_ota_upgrade_required">Ottai-tjänsten kopplar inte den här sensorn förrän dess firmware är uppdaterad. Uppdatera den först med den officiella Ottai-appen och försök sedan igen.</string>
+    <string name="ottai_ota_upgrade_required">Ottai-tjänsten begärde en firmwareuppdatering när sensorn skulle kopplas. Försök med firmwareinställningen igen eller importera sparade inloggningsuppgifter. Du kan också prova den officiella Ottai-appen.</string>
     <string name="ottai_region_cn_full">Ottai Kina</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landsnummer</string>
@@ -3121,7 +3121,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Återansluter och kontrollerar installerad version…</string>
     <string name="ottai_ota_preparing">Uppdaterar inloggningsuppgifter och skriver fabriksparametrar…</string>
     <string name="ottai_ota_complete">Förberedelsen är klar. Stäng dialogrutan och anslut normalt för att aktivera sensorn.</string>
-    <string name="ottai_ota_failed">Testet stoppades. Kontrollera spårningsloggen innan du försöker igen. Ofullständiga uppdateringar blockerar aktivering.</string>
+    <string name="ottai_ota_failed">Inställningen stoppades. Försök igen eller kontrollera spårloggen. Ofullständig inställning blockerar aktivering.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Uppdatering: %2$s</string>
     <string name="ottai_ota_package">%1$d byte · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Diagnostikkod: %1$s</string>
@@ -3147,9 +3147,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">Före</string>
     <string name="ottai_ota_after">Efter</string>
 
-    <string name="ottai_ota_discard">Kasta firmwaretest</string>
-    <string name="ottai_ota_discard_confirm">Ta bort det sparade paketet och tillåta anslutning? Detta återställer inte tidigare firmware eller inställningar. En avbruten skrivning kan fortfarande kräva återställning.</string>
-    <string name="ottai_ota_pending">Ett oavslutat firmwaretest blockerar anslutningen. Öppna firmwareåterställning för att återuppta eller kasta testet.</string>
+    <string name="ottai_ota_discard">Kasta ofullständig inställning</string>
+    <string name="ottai_ota_discard_confirm">Radera sparat uppdaterings- och förberedelseläge för att tillåta anslutning? Firmware och inställningar återställs inte. En avbruten uppdatering kan fortfarande kräva återställning.</string>
+    <string name="ottai_ota_pending">Sensorinställningen är ofullständig. Anslut igen eller öppna återställning för att slutföra eller kasta den.</string>
     <string name="ottai_ota_finish_preparation">Firmware verifierad. Bekräfta fabriksparametrarna för att slutföra inställningen.</string>
     <string name="ottai_ota_discard_failed">Firmwaretestet kunde inte kastas. Försök igen.</string>
     <string name="prediction_analysis_section">Prognosanalys</string>
@@ -3216,4 +3216,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Skicka sensorstart</string>
     <string name="nightscout_upload_sensor_start_desc">Skicka en Sensor Start-händelse per sensor (ålder, typ och serienummer)</string>
+    <string name="ottai_retry">Försök igen</string>
+    <string name="ottai_setup_failed">Inställningen stoppades. Försök igen eller stäng och importera sparade inloggningsuppgifter.</string>
 </resources>

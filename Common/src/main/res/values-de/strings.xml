@@ -2598,7 +2598,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_connect_failed">Die Verbindung konnte nicht gestartet werden. Versuche es erneut.</string>
     <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
-    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst verknüpft diesen Sensor erst, wenn seine Firmware aktualisiert ist. Aktualisiere ihn zuerst mit der offiziellen Ottai-App und versuche es dann erneut.</string>
+    <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Ländervorwahl</string>
@@ -3234,7 +3234,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_ota_reconnecting">Erneute Verbindung und Prüfung der installierten Version…</string>
     <string name="ottai_ota_preparing">Zugangsdaten werden aktualisiert und Werksparameter geschrieben…</string>
     <string name="ottai_ota_complete">Vorbereitung abgeschlossen. Diesen Dialog schließen und den Sensor zur Aktivierung normal verbinden.</string>
-    <string name="ottai_ota_failed">Firmwaretest gestoppt. Vor einem erneuten Versuch das Trace-Protokoll prüfen. Unvollständige Updates blockieren die Aktivierung.</string>
+    <string name="ottai_ota_failed">Einrichtung angehalten. Versuche es erneut oder prüfe das Trace-Protokoll. Eine unfertige Einrichtung blockiert die Aktivierung.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d Bytes · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
@@ -3260,9 +3260,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_ota_before">Vorher</string>
     <string name="ottai_ota_after">Nachher</string>
 
-    <string name="ottai_ota_discard">Firmwaretest verwerfen</string>
-    <string name="ottai_ota_discard_confirm">Gespeichertes Paket löschen und Verbindung freigeben? Die vorherige Firmware oder Einstellungen werden nicht wiederhergestellt. Nach einem abgebrochenen Flash kann eine Wiederherstellung nötig sein.</string>
-    <string name="ottai_ota_pending">Ein unvollständiger Firmwaretest blockiert die Verbindung. Firmwarewiederherstellung öffnen, um fortzufahren oder den Test zu verwerfen.</string>
+    <string name="ottai_ota_discard">Unfertige Einrichtung verwerfen</string>
+    <string name="ottai_ota_discard_confirm">Gespeicherten Update- und Vorbereitungsstand löschen, um die Verbindung freizugeben? Firmware und Einstellungen werden nicht wiederhergestellt. Ein abgebrochenes Flashen kann weiterhin eine Wiederherstellung erfordern.</string>
+    <string name="ottai_ota_pending">Die Sensoreinrichtung ist nicht abgeschlossen. Verbinde erneut oder öffne die Wiederherstellung, um sie abzuschließen oder zu verwerfen.</string>
     <string name="ottai_ota_finish_preparation">Firmware geprüft. Werksparameter bestätigen, um die Einrichtung abzuschließen.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest konnte nicht verworfen werden. Erneut versuchen.</string>
     <string name="prediction_analysis_section">Prognoseanalyse</string>
@@ -3329,4 +3329,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensorstart senden</string>
     <string name="nightscout_upload_sensor_start_desc">Für jeden Sensor ein Sensor-Start-Ereignis senden (Alter, Typ und Seriennummer)</string>
+    <string name="ottai_retry">Erneut versuchen</string>
+    <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
 </resources>

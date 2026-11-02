@@ -2494,7 +2494,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Impossible de démarrer la connexion. Réessayez.</string>
     <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
-    <string name="ottai_ota_upgrade_required">Le service Ottai ne liera pas ce capteur tant que son firmware n\'est pas mis à jour. Mettez-le d\'abord à jour avec l\'application Ottai officielle, puis réessayez.</string>
+    <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Indicatif du pays</string>
@@ -3128,7 +3128,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Reconnexion et vérification de la version installée…</string>
     <string name="ottai_ota_preparing">Actualisation des identifiants et écriture des paramètres d’usine…</string>
     <string name="ottai_ota_complete">Préparation terminée. Fermez cette fenêtre, puis connectez-vous normalement pour activer le capteur.</string>
-    <string name="ottai_ota_failed">Test arrêté. Consultez le journal de trace avant de réessayer. Une mise à jour inachevée bloque l’activation.</string>
+    <string name="ottai_ota_failed">Configuration arrêtée. Réessayez ou consultez le journal de trace. Une configuration inachevée bloque l’activation.</string>
     <string name="ottai_ota_version">Capteur : %1$s · Mise à jour : %2$s</string>
     <string name="ottai_ota_package">%1$d octets · SHA-256 : %2$s</string>
     <string name="ottai_ota_error_code">Code de diagnostic : %1$s</string>
@@ -3154,9 +3154,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">Avant</string>
     <string name="ottai_ota_after">Après</string>
 
-    <string name="ottai_ota_discard">Abandonner le test du micrologiciel</string>
-    <string name="ottai_ota_discard_confirm">Supprimer le paquet enregistré et débloquer la connexion ? Cela ne restaure ni le micrologiciel ni les réglages précédents. Une écriture interrompue peut encore nécessiter une récupération.</string>
-    <string name="ottai_ota_pending">Un test de micrologiciel inachevé bloque la connexion. Ouvrez la récupération pour reprendre ou abandonner le test.</string>
+    <string name="ottai_ota_discard">Abandonner la configuration inachevée</string>
+    <string name="ottai_ota_discard_confirm">Supprimer l’état enregistré de mise à jour et de préparation pour autoriser la connexion ? Cela ne restaure ni le micrologiciel ni les réglages. Une mise à jour interrompue peut encore nécessiter une récupération.</string>
+    <string name="ottai_ota_pending">La configuration du capteur est inachevée. Reconnectez-vous ou ouvrez la récupération pour la terminer ou l’abandonner.</string>
     <string name="ottai_ota_finish_preparation">Micrologiciel vérifié. Confirmez les paramètres usine pour terminer la configuration.</string>
     <string name="ottai_ota_discard_failed">Impossible d’abandonner le test. Réessayez.</string>
     <string name="prediction_analysis_section">Analyse des prévisions</string>
@@ -3223,4 +3223,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Envoyer le démarrage du capteur</string>
     <string name="nightscout_upload_sensor_start_desc">Envoyer un événement Sensor Start par capteur (âge, type et numéro de série)</string>
+    <string name="ottai_retry">Réessayer</string>
+    <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
 </resources>

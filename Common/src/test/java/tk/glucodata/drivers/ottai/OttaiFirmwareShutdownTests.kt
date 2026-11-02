@@ -31,12 +31,13 @@ class OttaiFirmwareShutdownTests {
         val constructor = OttaiFirmwareSession::class.java.getDeclaredConstructor(
             Context::class.java, String::class.java, String::class.java,
             OttaiRegistry.DeviceMaterials::class.java, OttaiFirmwareMode::class.java,
+            Boolean::class.javaPrimitiveType,
             kotlin.jvm.functions.Function1::class.java,
         ).apply { isAccessible = true }
         val publish: (OttaiFirmwareState) -> Unit = {}
         val session = constructor.newInstance(RuntimeEnvironment.getApplication(), "AABBCCDDEEFF",
             "AA:BB:CC:DD:EE:FF", OttaiRegistry.DeviceMaterials("00".repeat(96), "V0", "1,2", 0, "V1.7.0", 1),
-            OttaiFirmwareMode.STARTED_SENSOR, publish) as OttaiFirmwareSession
+            OttaiFirmwareMode.STARTED_SENSOR, false, publish) as OttaiFirmwareSession
         val worker = OttaiFirmwareSession::class.java.getDeclaredField("worker").apply { isAccessible = true }
             .get(session) as ExecutorService
         return session to worker

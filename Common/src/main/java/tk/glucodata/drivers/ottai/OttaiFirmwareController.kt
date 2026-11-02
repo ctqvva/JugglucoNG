@@ -56,6 +56,8 @@ internal interface OttaiFirmwareIo {
     fun verifyCloudAuth(param: ByteArray, signature: ByteArray, done: (Result<OttaiCloudClient.V3AuthMaterial>) -> Unit)
     fun refreshMaterials(version: String, done: (Result<OttaiRegistry.DeviceMaterials>) -> Unit)
     fun savedImage(): OttaiFirmwareImage?
+    fun preparationPending(): Boolean = false
+    fun markPreparationStarted(version: String) {}
     fun markTransferStarted(image: OttaiFirmwareImage)
     fun reportVerified(image: OttaiFirmwareImage)
     fun clearRecovery()
@@ -73,6 +75,7 @@ internal class OttaiFirmwareController(
     private var materials: OttaiRegistry.DeviceMaterials,
     private val io: OttaiFirmwareIo,
     private val mode: OttaiFirmwareMode = OttaiFirmwareMode.PREACTIVATION,
+    private val prepareForSetup: Boolean = false,
     private val publish: (OttaiFirmwareState) -> Unit,
 ) {
     var state = OttaiFirmwareState(mode = mode)
@@ -89,6 +92,8 @@ internal class OttaiFirmwareController(
 
     private fun update(stage: OttaiFirmwareStage, change: (OttaiFirmwareState) -> OttaiFirmwareState = { it }) {
         state = change(state.copy(stage = stage))
+        // Setup may start the managed BLE owner as soon as COMPLETE is published.
+        if (stage == OttaiFirmwareStage.COMPLETE) retire()
         io.log("mode=$mode stage=$stage source=${state.firmware} target=${state.target} ack=${state.acknowledgedBytes}/${state.totalBytes} recovery=${state.recovery} error=${state.errorCode}")
         publish(state)
     }
@@ -168,6 +173,13 @@ internal class OttaiFirmwareController(
         read(OttaiConstants.SERVICE_CGM, OttaiConstants.CHAR_COMMAND) { command ->
             val status = command.firstOrNull()?.toInt()?.and(255) ?: -1
             if (mode == OttaiFirmwareMode.PREACTIVATION) {
+                if (prepareForSetup && status == 3 && !afterInstall && io.savedImage() == null && materials.authKeys != null) {
+                    // Another client may have activated a previously interrupted setup. Verified
+                    // active credentials can stream; never rewrite its factory parameters.
+                    io.clearRecovery()
+                    update(OttaiFirmwareStage.COMPLETE)
+                    return@read
+                }
                 require(OttaiConstants.commandNeedsActivation(status)) { "sensor_already_active_or_ended" }
                 state = state.copy(canPrepareParameters = true)
                 next()
@@ -189,7 +201,6 @@ internal class OttaiFirmwareController(
             if (mode == OttaiFirmwareMode.STARTED_SENSOR) {
                 io.clearRecovery()
                 update(OttaiFirmwareStage.COMPLETE)
-                retire()
             } else update(OttaiFirmwareStage.PREPARATION_READY)
         } else {
             val saved = applicationRecovery
@@ -206,6 +217,11 @@ internal class OttaiFirmwareController(
                 }
                 return
             }
+            if (io.preparationPending()) {
+                if (prepareForSetup) prepareParameters()
+                else update(OttaiFirmwareStage.PREPARATION_READY)
+                return
+            }
             update(OttaiFirmwareStage.CHECKING)
             val done = completion<Result<OttaiFirmwareImage?>> { result -> acceptOffer(version, result) }
             io.prepareImage(version) { done(Result.success(it)) }
@@ -213,21 +229,37 @@ internal class OttaiFirmwareController(
     }
 
     private fun acceptOffer(version: String, result: Result<OttaiFirmwareImage?>) {
+        val error = result.exceptionOrNull()?.message.orEmpty()
+        require(error != "cancelled" && !error.contains(OttaiCloudClient.BIZ_TOKEN_INVALID, true)) {
+            error
+        }
         if (result.isFailure && state.canPrepareParameters) {
             // A firmware download is not a prerequisite for factory provisioning.
             update(OttaiFirmwareStage.NO_UPDATE) {
                 it.copy(errorCode = diagnosticCode(result.exceptionOrNull()?.message ?: "cloud_or_package"))
             }
+            prepareForSetupIfReady()
             return
         }
         val image = result.getOrThrow()
         packageForInstall = image?.copy(mode = mode, before = state.before)
-        if (image == null) update(OttaiFirmwareStage.NO_UPDATE)
+        if (image == null) {
+            update(OttaiFirmwareStage.NO_UPDATE)
+            prepareForSetupIfReady()
+        }
         else {
             require(hasOta && image.source == version && OttaiOtaProtocol.isUpgrade(version, image.target)) { "ota_offer_mismatch" }
             update(OttaiFirmwareStage.READY) {
                 it.copy(target = image.target, totalBytes = image.image.size, sha256 = image.image.sha256)
             }
+        }
+    }
+
+    private fun prepareForSetupIfReady() {
+        // Connect authorizes ordinary provisioning, not a firmware transfer or silent recovery.
+        // A failed offer/download must not prevent binding/preparing the installed firmware.
+        if (prepareForSetup && mode == OttaiFirmwareMode.PREACTIVATION && !state.recovery && state.canPrepareParameters) {
+            prepareParameters()
         }
     }
 
@@ -425,7 +457,12 @@ internal class OttaiFirmwareController(
 
     private fun prepareParameters() {
         val minor = OttaiOtaProtocol.minor(state.firmware)
-        require(minor >= 0) { "factory_parameter_profile" }
+        // Preserve the previous credential-only setup path for an existing unknown profile.
+        // Never invent V1 packets for it or use this escape for a flashed/recovery target.
+        require(minor >= 0 || (prepareForSetup && installed == null && !state.recovery)) { "factory_parameter_profile" }
+        if (minor < 0) io.log("setup_credentials_only=unknown_factory_profile")
+        // Durable before binding: saving keys is not proof that parameter writes finished.
+        io.markPreparationStarted(state.firmware)
         update(OttaiFirmwareStage.PREPARING) { it.copy(errorCode = "") }
         io.refreshMaterials(state.firmware, completion { fresh ->
             require(OttaiOtaProtocol.materialsVersionMatches(state.firmware, fresh.deviceVersion) && fresh.authKeys != null) { "materials_version" }
@@ -455,7 +492,6 @@ internal class OttaiFirmwareController(
         fun finish() {
             io.clearRecovery()
             update(OttaiFirmwareStage.COMPLETE)
-            retire()
         }
         fun writeCalibration() {
             if (calibration == null) finish()
@@ -482,6 +518,7 @@ internal class OttaiFirmwareController(
     private fun diagnosticCode(code: String): String = code.take(80).replace(Regex("[^A-Za-z0-9_=-]"), "_")
 
     private fun retire() {
+        if (retired) return
         retired = true
         epoch++
         sessionKey = ""

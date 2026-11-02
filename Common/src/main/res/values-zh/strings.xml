@@ -2504,7 +2504,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">无法开始连接，请重试。</string>
     <string name="ottai_offline_hint">也可以在“已保存的传感器”中导入凭据文件。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
-    <string name="ottai_ota_upgrade_required">在传感器固件更新之前，Ottai 服务不会绑定该传感器。请先用 Ottai 官方应用更新固件，然后重试。</string>
+    <string name="ottai_ota_upgrade_required">Ottai 服务在绑定此传感器时要求更新固件。请重试固件设置，或导入已保存的凭据。也可以尝试使用 Ottai 官方应用。</string>
     <string name="ottai_region_cn_full">Ottai 国内版</string>
     <string name="ottai_region_global_full">Ottai 国际版</string>
     <string name="ottai_sms_country_title">国家/地区代码</string>
@@ -3134,7 +3134,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">正在重新连接并检查已安装的版本…</string>
     <string name="ottai_ota_preparing">正在刷新凭据并写入出厂参数…</string>
     <string name="ottai_ota_complete">准备完成。请关闭此对话框，然后正常连接以激活传感器。</string>
-    <string name="ottai_ota_failed">固件测试已停止。重试前请检查跟踪日志。未完成的更新会阻止激活。</string>
+    <string name="ottai_ota_failed">设置已停止。请重试或检查跟踪日志。未完成的设置会阻止激活。</string>
     <string name="ottai_ota_version">传感器：%1$s · 更新：%2$s</string>
     <string name="ottai_ota_package">%1$d 字节 · SHA-256：%2$s</string>
     <string name="ottai_ota_error_code">诊断代码：%1$s</string>
@@ -3160,9 +3160,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">更新前</string>
     <string name="ottai_ota_after">更新后</string>
 
-    <string name="ottai_ota_discard">放弃固件测试</string>
-    <string name="ottai_ota_discard_confirm">删除已保存的固件包并解除连接限制？这不会恢复之前的固件或设置。中断的写入可能仍需要恢复。</string>
-    <string name="ottai_ota_pending">未完成的固件测试阻止了连接。请打开固件恢复以继续或放弃测试。</string>
+    <string name="ottai_ota_discard">放弃未完成的设置</string>
+    <string name="ottai_ota_discard_confirm">删除已保存的更新和准备状态以解除连接限制？这不会恢复固件或设置。中断的固件更新可能仍需要恢复。</string>
+    <string name="ottai_ota_pending">传感器设置尚未完成。请再次连接，或打开恢复功能以完成或放弃设置。</string>
     <string name="ottai_ota_finish_preparation">固件已验证。请确认写入出厂参数以完成设置。</string>
     <string name="ottai_ota_discard_failed">无法放弃固件测试。请重试。</string>
     <string name="prediction_analysis_section">预测分析</string>
@@ -3225,4 +3225,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">发送传感器启动事件</string>
     <string name="nightscout_upload_sensor_start_desc">为每个传感器发送 Sensor Start 事件（使用时长、类型和序列号）</string>
+    <string name="ottai_retry">重试</string>
+    <string name="ottai_setup_failed">设置已停止。请重试，或关闭此窗口并导入已保存的凭据。</string>
 </resources>

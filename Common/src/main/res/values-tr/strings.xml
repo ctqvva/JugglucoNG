@@ -2516,7 +2516,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_connect_failed">Bağlantı başlatılamadı. Tekrar deneyin.</string>
     <string name="ottai_offline_hint">Kayıtlı sensörler altında bir kimlik bilgisi dosyası da içe aktarabilirsiniz.</string>
     <string name="ottai_already_binding_hint">Hesabınıza hâlâ başka bir sensör bağlı. Kayıtlı sensörler altında bağını kaldırın, sonra tekrar deneyin.</string>
-    <string name="ottai_ota_upgrade_required">Ottai hizmeti, bellenimi güncellenene kadar bu sensörü bağlamaz. Önce resmî Ottai uygulamasıyla güncelleyin, sonra tekrar deneyin.</string>
+    <string name="ottai_ota_upgrade_required">Ottai hizmeti bu sensörü bağlarken bellenim güncellemesi istedi. Bellenim kurulumunu yeniden deneyin veya kayıtlı kimlik bilgilerini içe aktarın. Resmî Ottai uygulamasını da deneyebilirsiniz.</string>
     <string name="ottai_region_cn_full">Ottai Çin</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Ülke kodu</string>
@@ -3149,7 +3149,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_ota_reconnecting">Yeniden bağlanılıyor ve yüklü sürüm denetleniyor…</string>
     <string name="ottai_ota_preparing">Kimlik bilgileri yenileniyor ve fabrika parametreleri yazılıyor…</string>
     <string name="ottai_ota_complete">Hazırlık tamamlandı. Bu pencereyi kapatıp sensörü etkinleştirmek için normal şekilde bağlanın.</string>
-    <string name="ottai_ota_failed">Test durduruldu. Yeniden denemeden önce izleme günlüğünü kontrol edin. Tamamlanmamış güncellemeler etkinleştirmeyi engeller.</string>
+    <string name="ottai_ota_failed">Kurulum durdu. Yeniden deneyin veya izleme günlüğüne bakın. Tamamlanmamış kurulum etkinleştirmeyi engeller.</string>
     <string name="ottai_ota_version">Sensör: %1$s · Güncelleme: %2$s</string>
     <string name="ottai_ota_package">%1$d bayt · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Tanılama kodu: %1$s</string>
@@ -3175,9 +3175,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="ottai_ota_before">Önce</string>
     <string name="ottai_ota_after">Sonra</string>
 
-    <string name="ottai_ota_discard">Firmware testini iptal et</string>
-    <string name="ottai_ota_discard_confirm">Kayıtlı paket silinsin ve bağlantı açılsın mı? Bu, önceki firmware veya ayarları geri yüklemez. Kesilen yazma işlemi hâlâ kurtarma gerektirebilir.</string>
-    <string name="ottai_ota_pending">Tamamlanmamış bir firmware testi bağlantıyı engelliyor. Sürdürmek veya iptal etmek için firmware kurtarmayı açın.</string>
+    <string name="ottai_ota_discard">Tamamlanmamış kurulumu sil</string>
+    <string name="ottai_ota_discard_confirm">Bağlantıyı açmak için kayıtlı güncelleme ve hazırlık durumu silinsin mi? Bu işlem bellenimi veya ayarları geri yüklemez. Yarıda kesilen güncelleme hâlâ kurtarma gerektirebilir.</string>
+    <string name="ottai_ota_pending">Sensör kurulumu tamamlanmadı. Tamamlamak veya silmek için yeniden bağlanın ya da kurtarmayı açın.</string>
     <string name="ottai_ota_finish_preparation">Firmware doğrulandı. Kurulumu bitirmek için fabrika parametrelerini onaylayın.</string>
     <string name="ottai_ota_discard_failed">Firmware testi iptal edilemedi. Tekrar deneyin.</string>
     <string name="prediction_analysis_section">Tahmin analizi</string>
@@ -3244,4 +3244,6 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensör başlangıcını gönder</string>
     <string name="nightscout_upload_sensor_start_desc">Her sensör için Sensor Start olayı gönder (yaş, tür ve seri numarası)</string>
+    <string name="ottai_retry">Yeniden dene</string>
+    <string name="ottai_setup_failed">Kurulum durdu. Yeniden deneyin veya kapatıp kayıtlı kimlik bilgilerini içe aktarın.</string>
 </resources>

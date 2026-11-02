@@ -50,6 +50,7 @@ class OttaiRegionalTransportTests {
         val clearBodies = mutableListOf<JSONObject>()
         val connections = mutableListOf<HttpURLConnection>()
         var business = JSONObject("""{"code":"OK","data":{"result":"synthetic-materials"}}""")
+        var businessForPath: ((String) -> JSONObject)? = null
         var exchangeFailure: JSONObject? = null
         var gatewayFailure: JSONObject? = null
         var corruptResponse = false
@@ -112,7 +113,8 @@ class OttaiRegionalTransportTests {
             }
             gatewayFailure?.let { return OttaiNetSecurity.Reply(401, it) }
             if (emptyResponse) return OttaiNetSecurity.Reply(200, null)
-            if (plaintextResponse) return OttaiNetSecurity.Reply(200, business)
+            val responseBusiness = businessForPath?.invoke(call.url.substringBefore('?')) ?: business
+            if (plaintextResponse) return OttaiNetSecurity.Reply(200, responseBusiness)
             check(call.headers[if (base == OttaiConstants.API_BASE) "cipherUserId" else "webDeviceId"] == identity &&
                 call.headers["cipherSecretId"] == secretId)
             check(call.headers["versionCode"] == if (base == OttaiConstants.API_BASE) "264122" else "10000000")
@@ -130,7 +132,7 @@ class OttaiRegionalTransportTests {
             clearQueries += if (query.isEmpty()) JSONObject() else decrypt(JSONObject(query), "Param")
             call.body?.let { clearBodies += decrypt(JSONObject(it), "Body") }
             val nonce = ByteArray(12) { 7 }
-            val encrypted = crypt(Cipher.ENCRYPT_MODE, nonce, business.toString().toByteArray())
+            val encrypted = crypt(Cipher.ENCRYPT_MODE, nonce, responseBusiness.toString().toByteArray())
             val tag = encrypted.takeLast(16).toByteArray()
             if (corruptResponse) tag[0] = (tag[0].toInt() xor 1).toByte()
             return OttaiNetSecurity.Reply(200, JSONObject().put("code", "OK").put("cipherSecretId", secretId)
@@ -377,6 +379,68 @@ class OttaiRegionalTransportTests {
                 assertTrue(server.clearBodies.single().getLong("activeTime") > 0)
             } finally { client.close() }
         }
+    }
+
+    @Test fun bindUsesFullBleRevisionAndRecoversKeysFromALostOrPreviouslyCompletedBind() {
+        val version = "E1.2.6(V1.7.SH2616.1),STDRD"
+        for (code in listOf("OTA_UPGRADE_REQUIRED", "AppDevice_AlreadyUsed", "AppUser_AlreadyBinding")) {
+            val server = Server()
+            server.businessForPath = { path ->
+                if (path.endsWith("/bindV3")) JSONObject().put("code", code)
+                else JSONObject("""{"code":"OK","data":{"cgmDeviceRespVO":{"mac":"001122334455","keyA":"encrypted-key","deviceVersion":"E1.2.6(V1.7.SH2616.1)"}}}""")
+            }
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+            try {
+                assertEquals("001122334455", client.bindMaterials("001122334455", version).mac)
+                assertEquals(listOf("POST", "POST", "POST", "GET"), server.calls.map { it.method })
+                assertTrue(server.calls.last().url.endsWith("/deviceBind/getBindDevice"))
+                assertEquals(version, server.clearBodies.single().getString("deviceVersion"))
+                assertEquals(1, server.calls.count { it.url.endsWith("/bindV3") })
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun lostBindResponseIsRecoveredReadOnlyInsteadOfRebinding() {
+        val server = Server()
+        server.businessForPath = { path ->
+            if (path.endsWith("/bindV3")) throw java.io.IOException("synthetic response lost after commit")
+            JSONObject("""{"code":"OK","data":{"mac":"001122334455","keyA":"encrypted-key","deviceVersion":"V1.7"}}""")
+        }
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+        try {
+            assertEquals("001122334455", client.bindMaterials("001122334455", "V1.7").mac)
+            assertEquals(1, server.calls.count { it.url.endsWith("/bindV3") })
+            assertTrue(server.calls.last().url.endsWith("/deviceBind/getBindDevice"))
+        } finally { client.close() }
+    }
+
+    @Test fun bindRecoveryCannotBorrowAnotherSensorsKeysOrAnotherFirmwareBuild() {
+        for ((mac, version) in listOf("AABBCCDDEEFF" to "V1.7", "001122334455" to "V1.8")) {
+            val server = Server()
+            server.businessForPath = { path ->
+                if (path.endsWith("/bindV3")) JSONObject().put("code", "OTA_UPGRADE_REQUIRED")
+                else JSONObject("""{"code":"OK","data":{"mac":"$mac","keyA":"encrypted-key","deviceVersion":"$version"}}""")
+            }
+            val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+            try {
+                assertEquals("OTA_UPGRADE_REQUIRED", assertThrows(OttaiOtaCloudException::class.java) {
+                    client.bindMaterials("001122334455", "V1.7")
+                }.businessCode)
+                assertEquals(4, server.calls.size)
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun expiredAccountDoesNotTriggerBindFallbackRequests() {
+        val server = Server()
+        server.business = JSONObject().put("code", OttaiCloudClient.BIZ_TOKEN_INVALID)
+        val client = OttaiCloudClient.OtaClient(OttaiConstants.API_BASE_GLOBAL, headers, server::connection, userId = "synthetic-user")
+        try {
+            assertEquals(OttaiCloudClient.BIZ_TOKEN_INVALID, assertThrows(OttaiOtaCloudException::class.java) {
+                client.bindMaterials("001122334455", "V1.7")
+            }.businessCode)
+            assertEquals(2, server.calls.size)
+        } finally { client.close() }
     }
 
     @Test fun explicitCloudProofUsesTheCapturedRegionalIdentityAndExactlyTheSignedTimestamp() {

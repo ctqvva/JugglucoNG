@@ -2557,7 +2557,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_connect_failed">Не вдалося почати підключення. Спробуйте ще раз.</string>
     <string name="ottai_offline_hint">Також можна імпортувати файл із ключами в розділі «Збережені датчики».</string>
     <string name="ottai_already_binding_hint">До облікового запису досі прив\'язано інший датчик. Відв\'яжіть його в розділі «Збережені датчики» й спробуйте ще раз.</string>
-    <string name="ottai_ota_upgrade_required">Сервіс Ottai не прив\'яже цей датчик, доки не оновлено його прошивку. Спершу оновіть її в офіційному застосунку Ottai, потім спробуйте знову.</string>
+    <string name="ottai_ota_upgrade_required">Під час прив’язування датчика сервіс Ottai запросив оновлення прошивки. Повторіть налаштування прошивки або імпортуйте збережені ключі. Також можна спробувати офіційний застосунок Ottai.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код країни</string>
@@ -3202,7 +3202,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_reconnecting">Повторне підключення й перевірка встановленої версії…</string>
     <string name="ottai_ota_preparing">Оновлення облікових даних і запис заводських параметрів…</string>
     <string name="ottai_ota_complete">Підготовку завершено. Закрийте вікно та підключіться звичайним способом для активації сенсора.</string>
-    <string name="ottai_ota_failed">Тест зупинено. Перед повтором перевірте журнал трасування. Незавершені оновлення блокують активацію.</string>
+    <string name="ottai_ota_failed">Налаштування зупинено. Повторіть спробу або перевірте журнал трасування. Незавершене налаштування блокує активацію.</string>
     <string name="ottai_ota_version">Сенсор: %1$s · Оновлення: %2$s</string>
     <string name="ottai_ota_package">%1$d байтів · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Код діагностики: %1$s</string>
@@ -3228,9 +3228,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_ota_before">До</string>
     <string name="ottai_ota_after">Після</string>
 
-    <string name="ottai_ota_discard">Скасувати тест прошивки</string>
-    <string name="ottai_ota_discard_confirm">Видалити збережений пакет і дозволити підключення? Це не відновить попередню прошивку чи налаштування. Після перерваного запису може знадобитися відновлення.</string>
-    <string name="ottai_ota_pending">Незавершений тест прошивки блокує підключення. Відкрийте відновлення прошивки, щоб продовжити або скасувати тест.</string>
+    <string name="ottai_ota_discard">Скасувати незавершене налаштування</string>
+    <string name="ottai_ota_discard_confirm">Видалити збережений стан оновлення та підготовки, щоб дозволити підключення? Це не відновить прошивку чи параметри. Після перерваного оновлення може знадобитися відновлення.</string>
+    <string name="ottai_ota_pending">Налаштування датчика не завершено. Натисніть «Підключити» ще раз або відкрийте відновлення, щоб завершити чи скасувати його.</string>
     <string name="ottai_ota_finish_preparation">Прошивку перевірено. Підтвердьте запис заводських параметрів для завершення налаштування.</string>
     <string name="ottai_ota_discard_failed">Не вдалося скасувати тест прошивки. Спробуйте ще раз.</string>
     <string name="prediction_analysis_section">Аналіз прогнозів</string>
@@ -3305,4 +3305,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Надсилати запуск сенсора</string>
     <string name="nightscout_upload_sensor_start_desc">Надсилати подію Sensor Start для кожного сенсора (вік, тип і серійний номер)</string>
+    <string name="ottai_retry">Спробувати знову</string>
+    <string name="ottai_setup_failed">Налаштування зупинено. Повторіть спробу або закрийте вікно й імпортуйте збережені ключі.</string>
 </resources>

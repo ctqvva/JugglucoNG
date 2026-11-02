@@ -13,17 +13,58 @@ OTA experiment. Both require the sensor to be disconnected from managed monitori
 
 ## Regions and verification
 
-PR #739 includes the CN mobile secure-transport dependency from #755. Its test build includes
-both changes: ordinary CN account/device lookup, validation and credential bootstrap use
-the encrypted channel. Fresh OTA can run before credential bootstrap or binding. The supplied fresh-CN trace
-`juggluco-trace-20261029-020202.log` shows why this dependency is required: the old
-`/deviceBind/list` and `/device/validateDeviceByMacV2` routes both return HTTP 403 with
-`NET_SECURITY_PLAINTEXT_ROUTE_FORBIDDEN`. Splitting the reviews must not omit this setup
-dependency from the test build. Signed-in CN lookup, authentication and credential persistence
-are confirmed below; a physical firmware transfer and activation remain unverified.
-Both PRs target main because the signed-build controller only accepts that base. The #755
-commit is merged into #739's source branch; reviewing/merging #755 first keeps its review
-separate and removes those changes from #739's remaining diff.
+### Normal Connect and fallbacks
+
+Normal **Connect** uses the same V3 preparation owner as the field test when credentials are
+missing. It reads the actual BLE revision, authenticates with the server and checks firmware
+before binding. A no-update response or a failed offer/download continues with preparation of
+the installed firmware. A cancelled request or expired account stops instead. An offered
+firmware package always waits for a separate install confirmation; opening setup cannot flash.
+After successful preparation, BLE is closed before the managed connection is started, and its
+authenticated command status determines activation versus streaming. For an existing unknown
+factory profile, normal setup can fetch/verify credentials without inventing V1 factory packets;
+this does not relax the pre-flash gate for an unsupported Fresh OTA target.
+
+Bind sends the actual BLE string, including any variant, rather than the shortened version from
+cloud validation. It performs one bind. If the response is lost, empty, or rejected, a read-only
+`getBindDevice` can recover credentials from a bind that already succeeded. Both sensor MAC and
+firmware metadata must match; another account sensor's keys or a conflicting build are refused.
+No invented version, legacy bind retry or automatic account unbind is used in this flow.
+
+Already-saved keys keep normal Connect independent of device-list refresh requests. Saved-package
+recovery can run without an account when local keys are present, and failed material refresh can
+reuse matching cached parameters. Missing/wrong-version keys, invalid coefficients, absent V1.8
+calibration, and cancellation cannot use that fallback. New experiments still need an account.
+
+Preparation has a durable checkpoint before binding, cleared only after all parameter writes
+finish or explicit discard. Saved keys alone do not bypass it after a close, crash or restart.
+Connect resumes it without another firmware-host request; both normal and forced activation
+are blocked until it finishes. A verified already-active sensor can return to streaming without
+parameter/activation writes. The checkpoint retains the original BLE address and has the same
+explicit discard path as transfer recovery, preserving credentials and other sensors.
+
+Failures expose **Try again** and **Close**, plus confirmed discard when a journal exists. A normal
+setup retry re-runs credential lookup, so keys issued by an interrupted bind can be recovered.
+Import and account/NFC actions remain available after closing. A journal remains scoped to its
+original package, address and mode; retries cannot silently replace it. A genuine server refusal
+with no usable credentials/package still needs account/vendor recovery or imported credentials;
+the app cannot promise to manufacture an activation credential or compatible firmware image.
+
+The supplied `juggluco-trace-20261102-144020.log` confirms Global activation through the manual
+preparation path on unchanged `E1.2.6(V1.7.SH2616.1),STDRD`. Normal binding with cloud metadata
+without the variant returned `OTA_UPGRADE_REQUIRED` twice, while two authenticated firmware
+checks offered no image. Preparation obtained keys and wrote coefficients; subsequent normal
+activation changed command status 2 to 3 and accepted 2,592,000 seconds. Glucose publishing
+followed warmup. The changed version field is established, but its causal role in the server's
+decision is not isolated. This is physical preparation/activation evidence, not firmware-transfer
+evidence.
+
+CN mobile secure transport from merged PR #755 is now on main and included in this branch.
+Ordinary CN account/device lookup, validation and credential bootstrap use the encrypted
+channel. Fresh OTA can run before binding. The supplied `juggluco-trace-20261029-020202.log`
+shows why the migration was required: old device-list and V2-validation routes returned
+`NET_SECURITY_PLAINTEXT_ROUTE_FORBIDDEN`. Signed-in CN lookup, authentication and credential
+persistence are confirmed below; physical CN activation and firmware transfer remain unverified.
 
 New experiments are available in debug and release builds, on the selected sensor card, for
 signed-in CN phone, Ottai Global and Syai sessions with a BLE address. Fresh mode permits
@@ -52,6 +93,9 @@ step. Started sensor mode does not perform factory preparation and keeps its cro
 update experiment. An existing journal is retained when an unsupported recovery is rejected.
 
 ## Test on the phone
+
+Ordinary activation can use **Connect** directly; the steps below describe the separate manual
+firmware experiment and its additional confirmations.
 
 1. Enable Android Bluetooth HCI snoop logging if available. This records **our own** traffic;
    it is diagnostic evidence, not an independent official-protocol reference.
@@ -268,8 +312,8 @@ Firmware files, credentials and raw captures must stay outside the repository.
 ## Cloud scope
 
 Ordinary CN login, account lookup, binding and activation use the encrypted migration reviewed
-in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). The #739 test build
-includes both branches so setup is available before the OTA experiment. The supplied
+in [merged PR #755](https://github.com/ctqvva/JugglucoNG/pull/755), now on main and included
+in the #739 test build. The supplied
 `juggluco-trace-20261029-023831.log` confirms signed-in CN account/device lookup, V3 validation,
 server authentication and `bindV3` credential persistence. Fresh sign-in and physical activation
 remain unverified. OTA checks, the explicit V3 authentication

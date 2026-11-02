@@ -2531,7 +2531,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_connect_failed">Kon de verbinding niet starten. Probeer het opnieuw.</string>
     <string name="ottai_offline_hint">Je kunt ook een bestand met inloggegevens importeren onder Opgeslagen sensoren.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
-    <string name="ottai_ota_upgrade_required">De Ottai-dienst koppelt deze sensor pas als de firmware is bijgewerkt. Werk hem eerst bij met de officiële Ottai-app en probeer het dan opnieuw.</string>
+    <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landcode</string>
@@ -3164,7 +3164,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_ota_reconnecting">Opnieuw verbinden en de geïnstalleerde versie controleren…</string>
     <string name="ottai_ota_preparing">Inloggegevens vernieuwen en fabrieksparameters schrijven…</string>
     <string name="ottai_ota_complete">Voorbereiding voltooid. Sluit dit venster en verbind normaal om de sensor te activeren.</string>
-    <string name="ottai_ota_failed">Firmwaretest gestopt. Controleer het tracelogboek voordat je opnieuw probeert. Onvoltooide updates blokkeren activering.</string>
+    <string name="ottai_ota_failed">Instellen gestopt. Probeer opnieuw of bekijk het tracelogboek. Een onvoltooide instelling blokkeert activering.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Update: %2$s</string>
     <string name="ottai_ota_package">%1$d bytes · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Diagnosecode: %1$s</string>
@@ -3190,9 +3190,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_ota_before">Voor</string>
     <string name="ottai_ota_after">Na</string>
 
-    <string name="ottai_ota_discard">Firmwaretest verwijderen</string>
-    <string name="ottai_ota_discard_confirm">Opgeslagen pakket verwijderen en verbinding vrijgeven? Dit herstelt de vorige firmware of instellingen niet. Na een onderbroken update kan herstel nog nodig zijn.</string>
-    <string name="ottai_ota_pending">Een onvoltooide firmwaretest blokkeert de verbinding. Open firmwareherstel om de test te hervatten of te verwijderen.</string>
+    <string name="ottai_ota_discard">Onvoltooide instelling wissen</string>
+    <string name="ottai_ota_discard_confirm">Opgeslagen update- en voorbereidingsstatus wissen om verbinding toe te staan? Firmware en instellingen worden niet hersteld. Een onderbroken firmware-update kan nog herstel vereisen.</string>
+    <string name="ottai_ota_pending">De sensorinstelling is niet voltooid. Verbind opnieuw of open herstel om deze te voltooien of te wissen.</string>
     <string name="ottai_ota_finish_preparation">Firmware gecontroleerd. Bevestig de fabrieksparameters om de installatie af te ronden.</string>
     <string name="ottai_ota_discard_failed">Firmwaretest kon niet worden verwijderd. Probeer opnieuw.</string>
     <string name="prediction_analysis_section">Voorspellingsanalyse</string>
@@ -3259,4 +3259,6 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensorstart verzenden</string>
     <string name="nightscout_upload_sensor_start_desc">Verzend per sensor een Sensor Start-gebeurtenis (leeftijd, type en serienummer)</string>
+    <string name="ottai_retry">Opnieuw proberen</string>
+    <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
 </resources>

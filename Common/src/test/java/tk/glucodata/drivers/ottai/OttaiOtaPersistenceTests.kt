@@ -22,6 +22,7 @@ class OttaiOtaPersistenceTests {
     @Before fun setUp() {
         context = RuntimeEnvironment.getApplication()
         Applic.app = context as Applic
+        context.getSharedPreferences("ottai-preparation", Context.MODE_PRIVATE).edit().clear().commit()
         context.getSharedPreferences("tk.glucodata_preferences", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
@@ -117,4 +118,29 @@ class OttaiOtaPersistenceTests {
         }
         assertFalse(OttaiFirmwareSession.hasPendingTransfer(context, id))
     }
+    @Test fun preparationCheckpointSurvivesSavedKeysAndBlocksActivationUntilFinishedOrDiscarded() {
+        val material = OttaiRegistry.DeviceMaterials("00".repeat(96), "V0", "1,2", 0, "V1.7.0", 1)
+        assertTrue(OttaiRegistry.saveMaterials(context, id, material))
+        OttaiFirmwareSession.markPreparation(context, id, "AA:BB:CC:DD:EE:FF", "V1.7.0")
+        OttaiFirmwareSession.markPreparation(context, "001122334455", "00:11:22:33:44:55", "V1.7.0")
+        assertFalse(OttaiFirmwareSession.hasPendingTransfer(context, id))
+        assertTrue(OttaiFirmwareSession.hasPendingSetup(context, id))
+        assertEquals(OttaiFirmwareMode.PREACTIVATION,
+            OttaiFirmwareSession.pendingMode(context, id, "AA:BB:CC:DD:EE:FF"))
+        assertNull(OttaiFirmwareSession.pendingMode(context, id, "00:11:22:33:44:55"))
+        val manager = OttaiBleManager(id, 0)
+        try {
+            assertFalse(manager.requestActivation())
+            assertFalse(manager.requestForceActivation())
+            OttaiFirmwareSession.discardPendingTransfer(context, id)
+            assertFalse(OttaiFirmwareSession.hasPendingSetup(context, id))
+            assertEquals(material.keyAHex, OttaiRegistry.loadMaterials(context, id).keyAHex)
+            assertTrue(OttaiFirmwareSession.hasPendingSetup(context, "001122334455"))
+        } finally {
+            manager.close()
+            OttaiFirmwareSession.discardPendingTransfer(context, id)
+            OttaiFirmwareSession.discardPendingTransfer(context, "001122334455")
+        }
+    }
+
 }

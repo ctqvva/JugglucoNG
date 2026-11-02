@@ -219,7 +219,7 @@ private fun fetchOttaiMaterials(
         // A fresh V3 sensor cannot bind yet: its current authDev/authSign must first be read over
         // BLE and completed through cgmAuth. Return that route to the explicit setup action rather
         // than trying bindV3 before the sensor-mediated handshake or falling back to legacy bind.
-        if (validation?.requiresV3Bind == true) {
+        if (validation?.requiresV3Bind == true || failure?.isOtaUpgradeRequired == true) {
             return OttaiMaterialFetch(
                 materials = null,
                 failure = failure,
@@ -283,7 +283,7 @@ internal fun ottaiFirmwareEntryAvailable(signedIn: Boolean, sessionReady: Boolea
     pending || (signedIn && sessionReady && hasAddress)
 
 internal fun ottaiConnectFailureMessage(context: Context, sensorId: String): String = context.getString(
-    if (OttaiFirmwareSession.hasPendingTransfer(context, sensorId)) R.string.ottai_ota_pending
+    if (OttaiFirmwareSession.hasPendingSetup(context, sensorId)) R.string.ottai_ota_pending
     else R.string.ottai_connect_failed,
 )
 
@@ -295,7 +295,7 @@ private fun connectOttaiSensor(
     route: OttaiSetupConnectRoute,
 ): Boolean {
     val canonical = OttaiConstants.canonicalSensorId(mac).ifEmpty { return false }
-    if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) return false
+    if (OttaiFirmwareSession.hasPendingSetup(context, canonical)) return false
     val ble = OttaiConstants.normalizeBleAddress(
         bleAddress, allowPlain = false,
     ) ?: OttaiConstants.normalizeBleAddress(
@@ -546,8 +546,9 @@ fun OttaiSetupWizard(
     var statusIsError by remember { mutableStateOf(false) }
     var currentMaterials by remember { mutableStateOf<OttaiRegistry.DeviceMaterials?>(null) }
     var materialLoading by remember { mutableStateOf(false) }
-    var credentialBootstrap by remember { mutableStateOf<OttaiBleManager?>(null) }
     var showFirmwareTest by remember { mutableStateOf(false) }
+    var setupAfterFirmware by remember { mutableStateOf(false) }
+    var firmwareLaunchId by remember { mutableStateOf(0) }
     var lastAutoFetchId by remember { mutableStateOf("") }
     var materialRefresh by remember { mutableStateOf(0) }
     // The account's sensors (current + past); null = not loaded yet, empty = none.
@@ -821,12 +822,6 @@ fun OttaiSetupWizard(
         }
         OttaiNfc.onResult = callback
         onDispose {
-            // Activity recreation used to cancel a successful Active Auth while bindV3 was in
-            // flight. Keep the wizard-owned transaction across configuration changes; an actual
-            // navigation away still cancels it.
-            if (context.findActivity()?.isChangingConfigurations != true) {
-                credentialBootstrap?.cancelV3CredentialBootstrap()
-            }
             OttaiNfc.dumpMode = false
             if (OttaiNfc.onResult === callback) OttaiNfc.onResult = null
         }
@@ -1045,17 +1040,24 @@ fun OttaiSetupWizard(
         val canonical = OttaiConstants.canonicalSensorId(mac)
         cloudId = canonical
         if (OttaiFirmwareSession.hasPendingTransfer(context, canonical)) {
-            showStatus(context.getString(R.string.ottai_ota_pending), error = true)
+            val recoveryAddress = OttaiConstants.normalizeBleAddress(selectedBleAddress, allowPlain = false)
+                ?: OttaiRegistry.findDraftRecord(context, canonical)?.address
+            if (recoveryAddress != null) {
+                bleAddress = recoveryAddress
+                setupAfterFirmware = true
+                firmwareLaunchId++
+                OttaiSetupScanHold.stopPanelScans()
+                showFirmwareTest = true
+            } else showStatus(context.getString(R.string.ottai_ota_pending), error = true)
             return
         }
         busy = true
         showStatus("")
         materialLoading = false
         scope.launch {
-            // Refresh account binding state for every explicit setup attempt. Local
-            // credentials remain the BLE source of truth, but must not suppress the
-            // cloud query that refreshes current binding state and the unbind UI.
-            if (signedIn) {
+            // Selection refreshes the account/unbind UI separately. Saved keys must keep
+            // Connect available offline instead of waiting on unrelated device-list requests.
+            if (signedIn && OttaiRegistry.loadMaterials(context, canonical).authKeys == null) {
                 cloudBindingCheckingId = canonical
                 cloudBindingCheckedId = ""
                 cloudBindingFailedId = ""
@@ -1105,7 +1107,8 @@ fun OttaiSetupWizard(
                 requiresV3Bootstrap = fetched?.requiresV3Bootstrap == true,
                 signedIn = signedIn,
             )
-            if (route == OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP) {
+            if (route == OttaiSetupConnectRoute.V3_CREDENTIAL_BOOTSTRAP ||
+                OttaiFirmwareSession.hasPendingPreparation(context, canonical)) {
                 if (!connectAfterCredentialFetch) {
                     // Row selection may validate/read credentials, but server-auth + bindV3
                     // belongs to an explicit Connect. Fresh OTA is available before that bind.
@@ -1124,58 +1127,16 @@ fun OttaiSetupWizard(
                     showStatus(context.getString(R.string.ottai_v3_needs_nearby), error = true)
                     return@launch
                 }
-                materialLoading = true
-                credentialBootstrap = OttaiRegistry.startV3CredentialBootstrap(
-                    context,
-                    canonical,
-                    explicitBle,
-                ) { materials, failure ->
-                    credentialBootstrap = null
-                    materialLoading = false
-                    if (materials?.authKeys != null) {
-                        currentMaterials = materials
-                        if (materials.deviceVersion.isNotBlank()) {
-                            selectedDeviceVersion = materials.deviceVersion
-                        }
-                        savedRefresh += 1
-                        if (connectAfterCredentialFetch) {
-                            // Only the explicit Connect button reaches this path.
-                            // Continue with normal authenticated status-gated setup;
-                            // a row selection always stops after saving JSON.
-                            scope.launch {
-                                val connected = withContext(Dispatchers.IO) {
-                                    connectOttaiSensor(
-                                        context,
-                                        canonical,
-                                        explicitBle,
-                                        activate = false,
-                                        route = OttaiSetupConnectRoute.STORED_MATERIALS,
-                                    )
-                                }
-                                busy = false
-                                if (connected) {
-                                    showStatus("")
-                                    step = OttaiSetupStep.CONNECTING
-                                } else {
-                                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
-                                    nfcScanRestartKey += 1
-                                }
-                            }
-                        } else {
-                            busy = false
-                            showStatus("")
-                        }
-                    } else {
-                        busy = false
-                        showStatus(ottaiMaterialFailureMessage(context, failure), error = true)
-                        if (failure?.isTokenInvalid == true) invalidateSession()
-                    }
-                }
-                if (credentialBootstrap == null) {
-                    busy = false
-                    materialLoading = false
-                    showStatus(ottaiConnectFailureMessage(context, canonical), error = true)
-                }
+                // One shared flow reads the real BLE revision, checks OTA before binding,
+                // and prepares the installed firmware. The normal Connect action authorizes
+                // provisioning; firmware installation still requires its own confirmation.
+                busy = false
+                materialLoading = false
+                bleAddress = explicitBle
+                setupAfterFirmware = true
+                firmwareLaunchId++
+                OttaiSetupScanHold.stopPanelScans()
+                showFirmwareTest = true
                 return@launch
             }
 
@@ -1322,10 +1283,27 @@ fun OttaiSetupWizard(
         }
     }
     if (showFirmwareTest) {
-        OttaiFirmwareTestDialog(cloudId, bleAddress) {
-            showFirmwareTest = false
-            savedRefresh += 1
-            materialRefresh += 1
+        androidx.compose.runtime.key(firmwareLaunchId) {
+            OttaiFirmwareTestDialog(cloudId, bleAddress, prepareForSetup = setupAfterFirmware,
+                onPrepared = {
+                    showFirmwareTest = false
+                    setupAfterFirmware = false
+                    savedRefresh += 1
+                    materialRefresh += 1
+                    startConnect(cloudId, bleAddress, true)
+                },
+                onRetrySetup = {
+                    showFirmwareTest = false
+                    setupAfterFirmware = false
+                    lastAutoFetchId = ""
+                    startConnect(cloudId, bleAddress, true)
+                },
+                onDismiss = {
+                    showFirmwareTest = false
+                    setupAfterFirmware = false
+                    savedRefresh += 1
+                    materialRefresh += 1
+                })
         }
     }
     BackHandler(enabled = !showFirmwareTest, onBack = goBack)
@@ -1414,7 +1392,9 @@ fun OttaiSetupWizard(
             onFirmware = if (!busy && !materialLoading && ottaiFirmwareEntryAvailable(signedIn,
                 OttaiCloudClient.loadOtaSession(context),
                 OttaiConstants.normalizeBleAddress(bleAddress) != null,
-                OttaiFirmwareSession.hasPendingTransfer(context, cloudId))) ({
+                OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
+                setupAfterFirmware = false
+                firmwareLaunchId++
                 OttaiSetupScanHold.stopPanelScans()
                 showFirmwareTest = true
             }) else null,

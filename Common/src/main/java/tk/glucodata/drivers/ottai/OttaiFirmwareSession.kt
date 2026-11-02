@@ -33,6 +33,7 @@ internal class OttaiFirmwareSession private constructor(
     private val address: String,
     materials: OttaiRegistry.DeviceMaterials,
     mode: OttaiFirmwareMode,
+    prepareForSetup: Boolean,
     publish: (OttaiFirmwareState) -> Unit,
 ) : OttaiFirmwareIo {
     private val thread = HandlerThread("OttaiFirmware").also { it.start() }
@@ -60,7 +61,7 @@ internal class OttaiFirmwareSession private constructor(
     private var discoveryStarted = false
     private var discoveryGate: OttaiFirmwareDiscovery? = null
     private val recovery = AtomicFile(File(context.filesDir, "ottai-ota/$sensorId.bin"))
-    private val controller = OttaiFirmwareController(sensorId, materials, this, mode) { state ->
+    private val controller = OttaiFirmwareController(sensorId, materials, this, mode, prepareForSetup) { state ->
         main.post { publish(state) }
     }
 
@@ -94,6 +95,39 @@ internal class OttaiFirmwareSession private constructor(
     }
 
     companion object {
+        private fun preparationPrefs(context: Context) = context.getSharedPreferences("ottai-preparation", Context.MODE_PRIVATE)
+
+        fun hasPendingPreparation(context: Context, sensorId: String): Boolean =
+            preparationPrefs(context).contains(OttaiConstants.canonicalSensorId(sensorId))
+
+        fun hasPendingSetup(context: Context, sensorId: String): Boolean =
+            hasPendingTransfer(context, sensorId) || hasPendingPreparation(context, sensorId)
+
+        internal fun markPreparation(context: Context, sensorId: String, address: String, version: String) {
+            val id = OttaiConstants.canonicalSensorId(sensorId)
+            require(OttaiConstants.looksLikeMac(id) && OttaiOtaProtocol.version(version) != null)
+            val ble = requireNotNull(OttaiConstants.normalizeBleAddress(address))
+            require(preparationPrefs(context).edit().putString(id, "$ble|$version").commit()) { "preparation_save" }
+        }
+
+        private fun clearPreparation(context: Context, sensorId: String) {
+            require(preparationPrefs(context).edit().remove(OttaiConstants.canonicalSensorId(sensorId)).commit()) { "preparation_clear" }
+        }
+
+        internal fun preparationMaterials(version: String, cached: OttaiRegistry.DeviceMaterials,
+            refresh: () -> OttaiRegistry.DeviceMaterials): OttaiRegistry.DeviceMaterials = try {
+            refresh()
+        } catch (error: Exception) {
+            if (Thread.currentThread().isInterrupted ||
+                error is InterruptedException || (error is OttaiOtaCloudException && error.diagnostic == "cancelled")) throw error
+            val minor = OttaiOtaProtocol.minor(version)
+            val reusable = cached.authKeys != null && OttaiOtaProtocol.materialsVersionMatches(version, cached.deviceVersion) &&
+                minor >= 0 && (minor < 6 || runCatching { OttaiOtaProtocol.coefficientPacket(cached.coefficient) }.isSuccess) &&
+                (minor < 8 || (cached.calibrationValueK?.isFinite() == true && cached.calibrationValueB?.isFinite() == true))
+            if (!reusable) throw error
+            cached
+        }
+
         internal fun savePreparedMaterials(context: Context, sensorId: String,
             fresh: OttaiRegistry.DeviceMaterials): OttaiRegistry.DeviceMaterials {
             // bindV3 echoes its request timestamp even for a sensor confirmed unactivated.
@@ -114,6 +148,11 @@ internal class OttaiFirmwareSession private constructor(
             val id = OttaiConstants.canonicalSensorId(sensorId)
             require(OttaiConstants.looksLikeMac(id))
             val ble = requireNotNull(OttaiConstants.normalizeBleAddress(address))
+            if (!hasPendingTransfer(context, id) && hasPendingPreparation(context, id)) {
+                val saved = requireNotNull(preparationPrefs(context).getString(id, null)).split('|', limit = 2)
+                require(saved.size == 2 && saved[0] == ble && OttaiOtaProtocol.version(saved[1]) != null)
+                return@runCatching OttaiFirmwareMode.PREACTIVATION
+            }
             DataInputStream(AtomicFile(File(context.filesDir, "ottai-ota/$id.bin")).openRead()).use {
                 OttaiFirmwareJournal.read(it, id, ble).mode
             }
@@ -123,25 +162,33 @@ internal class OttaiFirmwareSession private constructor(
             val id = OttaiConstants.canonicalSensorId(sensorId)
             require(OttaiConstants.looksLikeMac(id))
             AtomicFile(File(context.filesDir, "ottai-ota/$id.bin")).delete()
+            clearPreparation(context, id)
             require(!hasPendingTransfer(context, id)) { "recovery_discard" }
         }
 
         fun start(context: Context, sensorId: String, address: String,
             mode: OttaiFirmwareMode = OttaiFirmwareMode.PREACTIVATION,
+            prepareForSetup: Boolean = false,
             publish: (OttaiFirmwareState) -> Unit): OttaiFirmwareSession? {
             val id = OttaiConstants.canonicalSensorId(sensorId)
             val ble = OttaiConstants.normalizeBleAddress(address) ?: return null
-            if (!OttaiConstants.looksLikeMac(id) || !OttaiCloudClient.loadOtaSession(context)) return null
+            if (!OttaiConstants.looksLikeMac(id)) return null
+            val materials = OttaiRegistry.loadMaterials(context, id)
+            // A validated saved package and local keys can recover without an available account.
+            // New experiments still require the signed-in regional session.
+            if (!OttaiCloudClient.loadOtaSession(context) &&
+                !(hasPendingSetup(context, id) && materials.authKeys != null)) return null
+            if (hasPendingPreparation(context, id) && !hasPendingTransfer(context, id) &&
+                pendingMode(context, id, ble) == null) return null
             if (OttaiRegistry.isV3CredentialBootstrapPending(context, id)) return null
             // A managed owner could reconnect and consume activation intent in parallel.
             if (OttaiRegistry.findRecord(context, id) != null || SensorBluetooth.mygatts().any { callback ->
                     callback is OttaiDriver && callback.matchesManagedSensorId(id)
                 }) return null
-            val materials = OttaiRegistry.loadMaterials(context, id)
             // Fresh OTA must precede bindV3. Its server-authenticated BLE handshake does
             // not require fetching account-bound credentials first.
             if (materials.authKeys == null && mode != OttaiFirmwareMode.PREACTIVATION) return null
-            return OttaiFirmwareSession(context.applicationContext, id, ble, materials, mode, publish).also { session ->
+            return OttaiFirmwareSession(context.applicationContext, id, ble, materials, mode, prepareForSetup, publish).also { session ->
                 session.handler.post { session.controller.start() }
             }
         }
@@ -395,11 +442,13 @@ internal class OttaiFirmwareSession private constructor(
 
     override fun refreshMaterials(version: String, done: (Result<OttaiRegistry.DeviceMaterials>) -> Unit) {
         work({
-            require(OttaiCloudClient.loadOtaSession(context)) { "ota_session" }
-            val resp = otaCloud.value.bindMaterials(sensorId, version)
-            require(OttaiConstants.canonicalSensorId(resp.mac) == sensorId &&
-                OttaiOtaProtocol.materialsVersionMatches(version, resp.deviceVersion)) { "materials_identity" }
-            OttaiCloudClient.toMaterials(context, sensorId, resp)?.takeIf { it.authKeys != null } ?: error("materials_decrypt")
+            preparationMaterials(version, OttaiRegistry.loadMaterials(context, sensorId)) {
+                require(OttaiCloudClient.loadOtaSession(context)) { "ota_session" }
+                val resp = otaCloud.value.bindMaterials(sensorId, version)
+                require(OttaiConstants.canonicalSensorId(resp.mac) == sensorId &&
+                    OttaiOtaProtocol.materialsVersionMatches(version, resp.deviceVersion)) { "materials_identity" }
+                OttaiCloudClient.toMaterials(context, sensorId, resp)?.takeIf { it.authKeys != null } ?: error("materials_decrypt")
+            }
         }) { result ->
             done(result.mapCatching { fresh ->
                 // Commit only on the still-current session's serial owner, never in a late worker.
@@ -445,8 +494,11 @@ internal class OttaiFirmwareSession private constructor(
 
     override fun clearRecovery() {
         recovery.delete()
+        clearPreparation(context, sensorId)
         require(!hasPendingTransfer(context, sensorId)) { "recovery_clear" }
     }
+    override fun preparationPending(): Boolean = hasPendingPreparation(context, sensorId)
+    override fun markPreparationStarted(version: String) = markPreparation(context, sensorId, address, version)
     override fun log(message: String) { logi("OttaiOTA") { message } }
 
     override fun disconnect() {

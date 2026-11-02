@@ -30,12 +30,11 @@ report and user-confirmed preparation
 bind are scoped to this client.
 
 Ordinary CN login, device lists, binding and activation use the secure transport dependency
-in [draft PR #755](https://github.com/ctqvva/JugglucoNG/pull/755). PR #739 includes that dependency,
-with signed-in account/device lookup, V3 validation, server authentication and credential
-persistence confirmed by `juggluco-trace-20261029-023831.log`. Fresh sign-in and physical
-activation remain unverified. No general CN dispatcher
-change needs duplicate review; the combined test build includes it from #755. Both PRs
-target main to satisfy the signed-build controller; merge #755 first to reduce the OTA diff.
+in [merged PR #755](https://github.com/ctqvva/JugglucoNG/pull/755), now on main and included
+in this branch. Signed-in CN account/device lookup, V3 validation, server authentication and
+credential persistence are confirmed by `juggluco-trace-20261029-023831.log`. Fresh CN sign-in
+and physical CN activation remain unverified. Global preparation and activation are confirmed
+separately by the November 2 field trace; it did not transfer firmware.
 Main's global/Syai login and serial lookup remain intact.
 
 Successful worker shutdown drains advisory reporting without retaining BLE. Reopening a

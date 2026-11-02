@@ -2522,7 +2522,7 @@
     <string name="ottai_connect_failed">Nie udało się rozpocząć połączenia. Spróbuj ponownie.</string>
     <string name="ottai_offline_hint">Możesz też zaimportować plik z danymi dostępowymi w sekcji Zapisane sensory.</string>
     <string name="ottai_already_binding_hint">Twoje konto ma jeszcze powiązany inny sensor. Odłącz go w sekcji Zapisane sensory i spróbuj ponownie.</string>
-    <string name="ottai_ota_upgrade_required">Usługa Ottai nie powiąże tego sensora, dopóki jego firmware nie zostanie zaktualizowany. Najpierw zaktualizuj go w oficjalnej aplikacji Ottai, a potem spróbuj ponownie.</string>
+    <string name="ottai_ota_upgrade_required">Podczas wiązania sensora usługa Ottai zażądała aktualizacji firmware. Ponów konfigurację firmware lub zaimportuj zapisane dane uwierzytelniające. Możesz też spróbować oficjalnej aplikacji Ottai.</string>
     <string name="ottai_region_cn_full">Ottai Chiny</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Kod kraju</string>
@@ -3167,7 +3167,7 @@
     <string name="ottai_ota_reconnecting">Ponowne łączenie i sprawdzanie zainstalowanej wersji…</string>
     <string name="ottai_ota_preparing">Odświeżanie danych dostępu i zapis parametrów fabrycznych…</string>
     <string name="ottai_ota_complete">Przygotowanie zakończone. Zamknij okno, a następnie połącz się normalnie, aby aktywować sensor.</string>
-    <string name="ottai_ota_failed">Test zatrzymany. Przed ponowieniem sprawdź dziennik śledzenia. Niedokończone aktualizacje blokują aktywację.</string>
+    <string name="ottai_ota_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub sprawdź dziennik śledzenia. Niedokończona konfiguracja blokuje aktywację.</string>
     <string name="ottai_ota_version">Sensor: %1$s · Aktualizacja: %2$s</string>
     <string name="ottai_ota_package">%1$d bajtów · SHA-256: %2$s</string>
     <string name="ottai_ota_error_code">Kod diagnostyczny: %1$s</string>
@@ -3193,9 +3193,9 @@
     <string name="ottai_ota_before">Przed</string>
     <string name="ottai_ota_after">Po</string>
 
-    <string name="ottai_ota_discard">Porzuć test oprogramowania</string>
-    <string name="ottai_ota_discard_confirm">Usunąć zapisany pakiet i odblokować połączenie? Nie przywróci to poprzedniego oprogramowania ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
-    <string name="ottai_ota_pending">Niedokończony test oprogramowania blokuje połączenie. Otwórz odzyskiwanie, aby wznowić lub porzucić test.</string>
+    <string name="ottai_ota_discard">Porzuć niedokończoną konfigurację</string>
+    <string name="ottai_ota_discard_confirm">Usunąć zapisany stan aktualizacji i przygotowania, aby odblokować połączenie? Nie przywróci to firmware ani ustawień. Przerwana aktualizacja może nadal wymagać odzyskiwania.</string>
+    <string name="ottai_ota_pending">Konfiguracja sensora jest niedokończona. Połącz ponownie lub otwórz odzyskiwanie, aby ją zakończyć lub porzucić.</string>
     <string name="ottai_ota_finish_preparation">Oprogramowanie zweryfikowane. Potwierdź parametry fabryczne, aby zakończyć konfigurację.</string>
     <string name="ottai_ota_discard_failed">Nie udało się porzucić testu. Spróbuj ponownie.</string>
     <string name="prediction_analysis_section">Analiza prognoz</string>
@@ -3270,4 +3270,6 @@
     </plurals>
     <string name="nightscout_upload_sensor_start">Wysyłaj rozpoczęcie sensora</string>
     <string name="nightscout_upload_sensor_start_desc">Wysyłaj zdarzenie Sensor Start dla każdego sensora (wiek, typ i numer seryjny)</string>
+    <string name="ottai_retry">Spróbuj ponownie</string>
+    <string name="ottai_setup_failed">Konfiguracja zatrzymana. Spróbuj ponownie lub zamknij okno i zaimportuj zapisane dane uwierzytelniające.</string>
 </resources>
