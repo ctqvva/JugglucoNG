@@ -25,7 +25,11 @@ class LumiflexCloudClient(
     data class HttpResult(val code: Int, val body: String)
 
     sealed class LoginResult {
-        data class Ok(val userId: String) : LoginResult()
+        data class Ok(
+            val userId: String,
+            val token: String = "",
+            val account: String = "",
+        ) : LoginResult()
         data class Failed(
             val kind: LumiflexCloudError.Kind,
             val code: Int,
@@ -42,8 +46,22 @@ class LumiflexCloudClient(
         ) : SyncResult()
     }
 
+    /**
+     * Signs in and persists the session. Prefer the settings-free overload when the caller has to
+     * decide whether a reply is still wanted (for example after a sign-out).
+     */
     fun login(account: String, password: String, settings: LumiflexCloudSettings): LoginResult {
-        val previousAccount = settings.account
+        val result = login(account, password)
+        if (result is LoginResult.Ok) {
+            settings.account = result.account
+            settings.token = result.token
+            settings.userId = result.userId
+        }
+        return result
+    }
+
+    /** Network-only sign-in: stores nothing, so a cancelled attempt cannot resurrect a session. */
+    fun login(account: String, password: String): LoginResult {
         val body = JSONObject()
             .put("userName", account)
             .put("password", LumiflexCloudCrypto.passwordHash(password))
@@ -68,12 +86,8 @@ class LumiflexCloudClient(
         val data = json?.optJSONObject("data")
         val model = LoginModel.fromJson(data)
         if (response.code in 200..299 && code == 200 && model.token.isNotBlank()) {
-            settings.account = account
-            settings.token = model.token
-            settings.userId = model.userId
-            return LoginResult.Ok(model.userId)
+            return LoginResult.Ok(model.userId, model.token, account)
         }
-        settings.account = previousAccount
         return LoginResult.Failed(
             LumiflexCloudError.classify(response.code, response.body),
             code,

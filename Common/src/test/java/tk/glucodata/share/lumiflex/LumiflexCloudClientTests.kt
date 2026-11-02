@@ -90,6 +90,21 @@ class LumiflexCloudClientTests {
     }
 
     @Test
+    fun loginWithoutSettingsStoresNothing() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("{\"code\":200,\"data\":{\"token\":\"tok\",\"userId\":\"u1\"}}"),
+            )
+        }
+        val s = settings()
+        val result = newClient(transport).login("a@b.c", "pw")
+        assertTrue(result is LumiflexCloudClient.LoginResult.Ok)
+        assertEquals("", s.token)
+        assertEquals("", s.account)
+    }
+
+    @Test
     fun login401ClassifiesUnauthorized() {
         val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(401, "") }
         val result = newClient(transport).login("a@b.c", "pw", settings())

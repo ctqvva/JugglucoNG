@@ -94,13 +94,17 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         val generation = ++signInGeneration
         coroutineScope.launch {
             val result = withContext(Dispatchers.IO) {
-                LumiflexCloudClient().login(account, password, LumiflexCloudSettings(context))
+                LumiflexCloudClient().login(account, password)
             }
             withContext(Dispatchers.Main) {
                 if (generation != signInGeneration) return@withContext
                 testing = false
                 when (result) {
                     is LumiflexCloudClient.LoginResult.Ok -> {
+                        val settings = LumiflexCloudSettings(context)
+                        settings.account = result.account
+                        settings.token = result.token
+                        settings.userId = result.userId
                         enabled = true
                         save()
                         signedIn = true
