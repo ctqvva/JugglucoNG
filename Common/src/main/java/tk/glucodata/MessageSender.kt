@@ -210,7 +210,7 @@ private fun nameSendMessage(name:String, messagePath: WearMessagePath, data:Byte
             }
         }
     }
-private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, data:ByteArray):Boolean {
+private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, data:ByteArray, timeoutSeconds: Long = 60L):Boolean {
         val path = messagePath.wire
         if (!outgoingAllowed()) {
             if (doLog) { Log.i(LOG_ID, "nameSendMessageResult($messagePath) skipped: companion disabled") }
@@ -219,7 +219,7 @@ private fun nameSendMessageResult(name:String, messagePath: WearMessagePath, dat
         try {
 //            val len=data.size
 //            val timeout:Long= (len / 20L).coerceAtMost(1L)
-            val timeout:Long= 60L
+            val timeout:Long= timeoutSeconds
         val res=Tasks.await(messageClient.sendMessage(name, path, data),timeout,TimeUnit.SECONDS)
         Log.i(LOG_ID,"nameSendMessageResult "+res)
         return true
@@ -585,7 +585,7 @@ companion object {
         if (!outgoingAllowed()) return false
         val sender = messagesender ?: return false
         val targets = sender.nodes?.takeIf { it.isNotEmpty() } ?: return false
-        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data) }
+        return targets.all { node -> sender.nameSendMessageResult(node.id, messagePath, data, timeoutSeconds = 5L) }
     }
 
     @Keep
