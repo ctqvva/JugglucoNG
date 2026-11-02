@@ -46,7 +46,7 @@ class LumiflexCloudClient(
         settings.account = account
         val body = JSONObject()
             .put("userName", account)
-            .put("password", password)
+            .put("password", LumiflexCloudCrypto.passwordHash(password))
             .toString()
         val response = post(LumiflexCloudConstants.PATH_LOGIN, body, token = "", userId = "")
         if (response.code == UNAUTHORIZED) {

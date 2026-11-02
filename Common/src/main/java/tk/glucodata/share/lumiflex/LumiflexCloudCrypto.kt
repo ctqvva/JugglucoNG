@@ -1,12 +1,14 @@
 package tk.glucodata.share.lumiflex
 
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import java.security.KeyFactory
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
+import java.util.Locale
 import javax.crypto.Cipher
 import org.json.JSONObject
 
@@ -49,6 +51,10 @@ object LumiflexCloudCrypto {
         }
         output.toString(Charsets.UTF_8.name())
     }.getOrNull()
+
+    fun passwordHash(password: String): String = MessageDigest.getInstance("MD5")
+        .digest(password.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(Locale.ROOT, it.toInt() and 0xFF) }
 
     fun versionCheckJson(userId: String, nowMs: Long): String = JSONObject()
         .put("version", LumiflexCloudConstants.VENDOR_VERSION)

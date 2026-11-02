@@ -75,6 +75,21 @@ class LumiflexCloudClientTests {
     }
 
     @Test
+    fun loginSendsMd5OfPassword() {
+        var plainSeen = ""
+        val transport = FakeTransport { _, body ->
+            plainSeen = LumiflexCloudCrypto.decryptEnvelope(body, keys.second)!!
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("{\"code\":200,\"data\":{\"token\":\"tok\",\"userId\":\"u1\"}}"),
+            )
+        }
+        newClient(transport).login("a@b.c", "pw", settings())
+        val json = JSONObject(plainSeen)
+        assertEquals("8fe4c11451281c094a6578e6ddbf5eed", json.getString("password"))
+    }
+
+    @Test
     fun login401ClassifiesUnauthorized() {
         val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(401, "") }
         val result = newClient(transport).login("a@b.c", "pw", settings())
