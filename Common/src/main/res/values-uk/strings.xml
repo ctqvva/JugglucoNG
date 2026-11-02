@@ -880,6 +880,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">Немає налаштованих глюкометрів</string>
     <string name="glucose_meters_none_desc">Знайдіть глюкометр поблизу, щоб імпортувати вимірювання.</string>
     <string name="glucose_meters_nearby">Глюкометри поблизу</string>
+    <string name="glucose_meter_recheck">Повторна перевірка глюкометра через</string>
+    <string name="glucose_meter_recheck_now">Одразу</string>
+    <string name="glucose_meter_recheck_hint">Для глюкометрів, які не вимикаються, як Satellite. Нове вимірювання може надійти з такою затримкою</string>
     <string name="glucose_meter_last_reading">Останнє вимірювання: %1$s</string>
     <string name="glucose_meter_no_readings">Вимірювання ще не імпортовано</string>
     <string name="satellite_meter_code_missing">Глюкометр Satellite: спочатку вкажіть код глюкометра в налаштуваннях глюкометрів</string>
@@ -1972,15 +1975,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">Цей гібридний QR також замінить гібридну конфігурацію на цьому пристрої.</string>
     <string name="mirror_connect_action">Підключити</string>
     <string name="mirror_connect_nearby_title">Підключитися до %1$s?</string>
-    <string name="mirror_connect_nearby_message">Знайдено за адресою %1$s:%2$d.\nЦе отримуватиме дані глюкози від %3$s.</string>
     <string name="mirror_connection_data_missing">Дані підключення відсутні</string>
     <string name="mirror_reconnect_all">Перепідключити все</string>
-    <string name="mirror_quick_pair">Швидке сполучення</string>
-    <string name="mirror_share_my_qr">Поділитися локальним QR</string>
-    <string name="mirror_share_my_qr_desc">Лише в одній локальній мережі</string>
-    <string name="mirror_share_relay_qr">Поділитися гібридним QR</string>
-    <string name="mirror_share_relay_qr_desc">Спочатку пряме з’єднання, за потреби TURN</string>
-    <string name="mirror_scan_qr_desc">Скануйте QR іншого пристрою для підключення</string>
     <string name="mirror_broadcast_network">Оголошувати в мережі</string>
     <string name="mirror_broadcast_network_desc">Дозволити пристроям поруч знайти цей пристрій</string>
     <string name="mirror_relay">Реле</string>
@@ -2558,6 +2554,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_offline_hint">Також можна імпортувати файл із ключами в розділі «Збережені датчики».</string>
     <string name="ottai_already_binding_hint">До облікового запису досі прив\'язано інший датчик. Відв\'яжіть його в розділі «Збережені датчики» й спробуйте ще раз.</string>
     <string name="ottai_ota_upgrade_required">Під час прив’язування датчика сервіс Ottai запросив оновлення прошивки. Повторіть налаштування прошивки або імпортуйте збережені ключі. Також можна спробувати офіційний застосунок Ottai.</string>
+    <string name="ottai_retry">Спробувати знову</string>
+    <string name="ottai_setup_failed">Налаштування зупинено. Повторіть спробу або закрийте вікно й імпортуйте збережені ключі.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Код країни</string>
@@ -2982,11 +2980,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">Зміни сервера перепідключать Clone. На обох пристроях мають бути однакові налаштування.</string>
     <string name="clone_use_default_server">Сервер застосунку</string>
     <string name="clone_custom_server">Власний сервер</string>
-    <string name="clone_add_first">Спочатку підключіть пристрій</string>
-    <string name="clone_visible_nearby">Видимість у мережі</string>
-    <string name="clone_visible_nearby_desc">Нові пристрої можуть знайти цей телефон</string>
+    <string name="clone_qr_instruction">На іншому телефоні відкрийте %1$s і торкніться %2$s.</string>
+    <string name="clone_connect_title">Під’єднати інший телефон</string>
+    <string name="clone_scan_code">Сканувати код</string>
+    <string name="clone_get_readings">Отримувати показники</string>
+    <string name="clone_code_any_network">Будь-яка мережа</string>
+    <string name="clone_code_wifi_only">Лише ця мережа Wi-Fi</string>
+    <string name="clone_pairing_waiting">Очікування іншого телефона…</string>
+    <string name="clone_pairing_announced">Також видимий у цій мережі Wi-Fi як %1$s</string>
+    <string name="clone_pairing_connected">Під’єднано</string>
+    <string name="clone_add_manually_desc">Ввести адресу й параметри вручну</string>
+    <string name="clone_send_readings">Надсилати показники</string>
+    <string name="clone_on_this_wifi">У цій мережі Wi-Fi</string>
+    <string name="clone_nearby_empty">Тут з’являться телефони, що надсилають показники в цій мережі Wi-Fi</string>
+    <string name="clone_sharing_readings">Надсилає показники</string>
     <string name="clone_network_summary">Сервери та локальний пошук</string>
-    <string name="clone_connections_empty">Підключених пристроїв ще немає.</string>
     <string name="clone_background_desc">Збільшує витрату батареї</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3305,6 +3313,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Надсилати запуск сенсора</string>
     <string name="nightscout_upload_sensor_start_desc">Надсилати подію Sensor Start для кожного сенсора (вік, тип і серійний номер)</string>
-    <string name="ottai_retry">Спробувати знову</string>
-    <string name="ottai_setup_failed">Налаштування зупинено. Повторіть спробу або закрийте вікно й імпортуйте збережені ключі.</string>
+    <string name="ican_calibration_marker">Калібрування (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">стабільно</string>
+    <string name="tts_trend_increasing">підвищується</string>
+    <string name="tts_trend_decreasing">знижується</string>
+    <string name="tts_trend_rising_quickly">швидко підвищується</string>
+    <string name="tts_trend_falling_quickly">швидко знижується</string>
 </resources>

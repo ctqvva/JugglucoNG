@@ -440,6 +440,9 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="glucose_meters_none">Хэмжигч тохируулаагүй</string>
     <string name="glucose_meters_none_desc">Хэмжилт импортлохын тулд ойролцоох хэмжигчийг олно уу.</string>
     <string name="glucose_meters_nearby">Ойролцоох хэмжигчүүд</string>
+    <string name="glucose_meter_recheck">Глюкометрийг дахин шалгах хугацаа</string>
+    <string name="glucose_meter_recheck_now">Шууд</string>
+    <string name="glucose_meter_recheck_hint">Satellite шиг үргэлж асаалттай байдаг глюкометрт. Шинэ хэмжилт ийм хугацаагаар хоцорч ирж болно</string>
     <string name="glucose_meter_last_reading">Сүүлийн хэмжилт: %1$s</string>
     <string name="glucose_meter_no_readings">Хэмжилт хараахан импортлоогүй</string>
     <string name="satellite_meter_code_missing">Satellite хэмжигч: эхлээд глюкометрийн тохиргоонд хэмжигчийн кодыг оруулна уу</string>
@@ -1926,15 +1929,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="mirror_connect_qr_turn_message">Энэ Hybrid QR нь бас энэ төхөөрөмжийн Hybrid тохиргоог солино.</string>
     <string name="mirror_connect_action">Connect</string>
     <string name="mirror_connect_nearby_title">Connect to %1$s?</string>
-    <string name="mirror_connect_nearby_message">Found at %1$s:%2$d.\nThis will receive glucose data from %3$s.</string>
     <string name="mirror_connection_data_missing">Connection data missing</string>
     <string name="mirror_reconnect_all">Reconnect all</string>
-    <string name="mirror_quick_pair">Quick Pair</string>
-    <string name="mirror_share_my_qr">Дотоод QR хуваалцах</string>
-    <string name="mirror_share_my_qr_desc">Зөвхөн нэг дотоод сүлжээнд</string>
-    <string name="mirror_share_relay_qr">Hybrid QR хуваалцах</string>
-    <string name="mirror_share_relay_qr_desc">Эхлээд шууд, шаардлагатай бол TURN ашиглана</string>
-    <string name="mirror_scan_qr_desc">Scan another device QR to connect</string>
     <string name="mirror_broadcast_network">Broadcast on Network</string>
     <string name="mirror_broadcast_network_desc">Let nearby devices discover this device</string>
     <string name="mirror_relay">Relay</string>
@@ -2596,6 +2592,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="ottai_offline_hint">Мөн «Хадгалсан мэдрэгчүүд» хэсэгт түлхүүрийн файл импортлох боломжтой.</string>
     <string name="ottai_already_binding_hint">Таны бүртгэлд өөр мэдрэгч холбогдсон хэвээр байна. «Хадгалсан мэдрэгчүүд» хэсэгт салгаад дахин оролдоно уу.</string>
     <string name="ottai_ota_upgrade_required">Ottai үйлчилгээ энэ мэдрэгчийг холбох үед програм хангамж шинэчлэхийг хүссэн. Тохиргоог дахин оролдох эсвэл хадгалсан нэвтрэх мэдээллийг импортлоно уу. Албан ёсны Ottai аппыг мөн туршиж болно.</string>
+    <string name="ottai_retry">Дахин оролдох</string>
+    <string name="ottai_setup_failed">Тохиргоо зогслоо. Дахин оролдох эсвэл цонхыг хааж хадгалсан нэвтрэх мэдээллийг импортлоно уу.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Улсын код</string>
@@ -3006,11 +3004,21 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="clone_server_edit_hint">Серверийн өөрчлөлт Clone-ийг дахин холбоно. Хоёр төхөөрөмжид ижил тохиргоо ашиглана уу.</string>
     <string name="clone_use_default_server">Аппын сервер ашиглах</string>
     <string name="clone_custom_server">Өөрийн сервер</string>
-    <string name="clone_add_first">Эхлээд төхөөрөмж хослуулна уу</string>
-    <string name="clone_visible_nearby">Ойр орчимд харагдах</string>
-    <string name="clone_visible_nearby_desc">Шинэ төхөөрөмжүүд энэ утсыг олох боломжтой</string>
+    <string name="clone_qr_instruction">Нөгөө утсан дээр %1$s-г нээж, %2$s дээр дарна уу.</string>
+    <string name="clone_connect_title">Өөр утас холбох</string>
+    <string name="clone_scan_code">Код уншуулах</string>
+    <string name="clone_get_readings">Заалт авах</string>
+    <string name="clone_code_any_network">Ямар ч сүлжээ</string>
+    <string name="clone_code_wifi_only">Зөвхөн энэ Wi-Fi</string>
+    <string name="clone_pairing_waiting">Нөгөө утсыг хүлээж байна…</string>
+    <string name="clone_pairing_announced">Энэ Wi-Fi дээр %1$s нэрээр бас харагдана</string>
+    <string name="clone_pairing_connected">Холбогдсон</string>
+    <string name="clone_add_manually_desc">Хаяг, тохиргоогоо өөрөө оруулах</string>
+    <string name="clone_send_readings">Заалт илгээх</string>
+    <string name="clone_on_this_wifi">Энэ Wi-Fi дээр</string>
+    <string name="clone_nearby_empty">Энэ Wi-Fi дээр заалт илгээж буй утаснууд энд харагдана</string>
+    <string name="clone_sharing_readings">Заалт илгээж байна</string>
     <string name="clone_network_summary">Серверүүд ба дотоод хайлт</string>
-    <string name="clone_connections_empty">Хосолсон төхөөрөмж одоогоор алга.</string>
     <string name="clone_background_desc">Батарейн зарцуулалт нэмэгдэнэ</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3317,6 +3325,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     </plurals>
     <string name="nightscout_upload_sensor_start">Мэдрэгч эхэлснийг илгээх</string>
     <string name="nightscout_upload_sensor_start_desc">Мэдрэгч бүрийн Sensor Start үйл явдлыг илгээх (нас, төрөл, серийн дугаар)</string>
-    <string name="ottai_retry">Дахин оролдох</string>
-    <string name="ottai_setup_failed">Тохиргоо зогслоо. Дахин оролдох эсвэл цонхыг хааж хадгалсан нэвтрэх мэдээллийг импортлоно уу.</string>
+    <string name="ican_calibration_marker">Каллибраци (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">тогтвортой</string>
+    <string name="tts_trend_increasing">өсөж байна</string>
+    <string name="tts_trend_decreasing">буурч байна</string>
+    <string name="tts_trend_rising_quickly">хурдан өсөж байна</string>
+    <string name="tts_trend_falling_quickly">хурдан буурч байна</string>
 </resources>

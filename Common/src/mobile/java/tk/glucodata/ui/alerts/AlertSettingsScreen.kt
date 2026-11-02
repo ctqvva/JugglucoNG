@@ -270,8 +270,8 @@ fun AlertSettingsScreen(
                                 retryIntervalMinutes = draft.retryIntervalMinutes,
                                 retryCount = draft.retryCount,
                                 timeRangeEnabled = draft.timeRangeEnabled,
-                                startTimeMinutes = (draft.activeStartHour ?: 0) * 60 + (draft.activeStartMinute ?: 0),
-                                endTimeMinutes = (draft.activeEndHour ?: 0) * 60 + (draft.activeEndMinute ?: 0),
+                                startTimeMinutes = draft.timeRangeStartMinutesOfDay(),
+                                endTimeMinutes = draft.timeRangeEndMinutesOfDay(),
                                 soundUri = BundledAlertSounds.forAlert(
                                     draft.customSoundUri, context.packageName,
                                     if (alert.type == CustomAlertType.LOW) 0 else 1
@@ -826,8 +826,8 @@ fun CustomAlertCard(
                                 retryIntervalMinutes = newConfig.retryIntervalMinutes,
                                 retryCount = newConfig.retryCount,
                                 timeRangeEnabled = newConfig.timeRangeEnabled,
-                                startTimeMinutes = (newConfig.activeStartHour ?: 0) * 60 + (newConfig.activeStartMinute ?: 0),
-                                endTimeMinutes = (newConfig.activeEndHour ?: 0) * 60 + (newConfig.activeEndMinute ?: 0)
+                                startTimeMinutes = newConfig.timeRangeStartMinutesOfDay(),
+                                endTimeMinutes = newConfig.timeRangeEndMinutesOfDay()
                             )
                             onUpdate(updated)
                         },
@@ -1051,12 +1051,13 @@ private fun AlertCard(
                             append(" ×")
                             append(config.deltaCount ?: AlertDefaults.DELTA_COUNT_DEFAULT)
                         }
-                        // Add time range if enabled
-                        if (config.timeRangeEnabled) {
+                        // Add time range if it restricts anything: with an end unset the
+                        // alert is active all day (isActiveAtMinutes), not "00:00-00:00".
+                        val startH = config.activeStartHour
+                        val endH = config.activeEndHour
+                        if (config.timeRangeEnabled && startH != null && endH != null) {
                             if (isNotEmpty()) append(" • ")
-                            val startH = config.activeStartHour ?: 0
                             val startM = config.activeStartMinute ?: 0
-                            val endH = config.activeEndHour ?: 0
                             val endM = config.activeEndMinute ?: 0
                             append(String.format("%02d:%02d-%02d:%02d", startH, startM, endH, endM))
                         }
@@ -1728,9 +1729,11 @@ internal fun TimeRangeSettings(
     onStartChange: (Int, Int) -> Unit,  // (hour, minute)
     onEndChange: (Int, Int) -> Unit      // (hour, minute)
 ) {
-    val startH = startHour ?: 22
+    // AlertConfig.withTimeRangeEnabled/withActiveStart/withActiveEnd store these same
+    // defaults, so the window drawn here is the window the alert keeps.
+    val startH = startHour ?: AlertDefaults.TIME_RANGE_DEFAULT_START_HOUR
     val startM = startMinute ?: 0
-    val endH = endHour ?: 8
+    val endH = endHour ?: AlertDefaults.TIME_RANGE_DEFAULT_END_HOUR
     val endM = endMinute ?: 0
     
     Column {

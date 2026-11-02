@@ -434,6 +434,9 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="glucose_meters_none">Nincs beállított mérő</string>
     <string name="glucose_meters_none_desc">Közeli mérő keresésével indítható a mérések importálása.</string>
     <string name="glucose_meters_nearby">Közeli mérők</string>
+    <string name="glucose_meter_recheck">Mérő újbóli ellenőrzése</string>
+    <string name="glucose_meter_recheck_now">Azonnal</string>
+    <string name="glucose_meter_recheck_hint">Bekapcsolva maradó mérőkhöz, mint a Satellite. Egy új mérés ennyivel később érkezhet meg</string>
     <string name="glucose_meter_last_reading">Utolsó mérés: %1$s</string>
     <string name="glucose_meter_no_readings">Még nincs importált mérés</string>
     <string name="glucose_meter_forget">Elfelejtés</string>
@@ -1075,6 +1078,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="ottai_offline_hint">Hitelesítőadat-fájlt a Mentett szenzorok alatt is importálhat.</string>
     <string name="ottai_already_binding_hint">A fiókjához még egy másik szenzor van kötve. Oldja fel a kötését a Mentett szenzorok alatt, majd próbálja újra.</string>
     <string name="ottai_ota_upgrade_required">Az Ottai szolgáltatás firmware-frissítést kért a szenzor hozzárendelésekor. Próbálja újra a firmware beállítását, vagy importálja a mentett hitelesítő adatokat. A hivatalos Ottai alkalmazást is kipróbálhatja.</string>
+    <string name="ottai_retry">Újrapróbálás</string>
+    <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
     <string name="ottai_region_cn_full">Ottai Kína</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Országhívószám</string>
@@ -2343,15 +2348,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="mirror_connect_qr_turn_message">Ez a ‘Hibrid\' QR-kód az eszköz hibrid konfigurációját is lecseréli.</string>
     <string name="mirror_connect_action">Csatlakozás</string>
     <string name="mirror_connect_nearby_title">Csatlakozás: %1$s?</string>
-    <string name="mirror_connect_nearby_message">Megtalálva: %1$s:%2$d.\nGlükózadatok fogadása innen: %3$s.</string>
     <string name="mirror_connection_data_missing">Hiányzó kapcsolati adatok</string>
     <string name="mirror_reconnect_all">Összes újracsatlakoztatása</string>
-    <string name="mirror_quick_pair">Gyors párosítás</string>
-    <string name="mirror_share_my_qr">Helyi QR-kód megosztása</string>
-    <string name="mirror_share_my_qr_desc">Csak azonos helyi hálózaton</string>
-    <string name="mirror_share_relay_qr">Hibrid QR-kód megosztása</string>
-    <string name="mirror_share_relay_qr_desc">Először közvetlenül próbálkozik, majd szükség esetén TURN-nel</string>
-    <string name="mirror_scan_qr_desc">Másik eszköz QR-kódjának szkennelése a csatlakozáshoz</string>
     <string name="mirror_broadcast_network">Hálózati hirdetés</string>
     <string name="mirror_broadcast_network_desc">Az eszköz felfedezhetővé tétele a közeli eszközök számára</string>
     <string name="mirror_relay">Közvetítő</string>
@@ -2979,11 +2977,21 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="clone_server_edit_hint">A kiszolgáló módosításakor a Clone újracsatlakozik. Mindkét eszközön azonos beállításokat használjon.</string>
     <string name="clone_use_default_server">Alkalmazás alapértelmezésének használata</string>
     <string name="clone_custom_server">Egyéni kiszolgáló</string>
-    <string name="clone_add_first">A kezdéshez párosítson egy eszközt</string>
-    <string name="clone_visible_nearby">Látható a közelben</string>
-    <string name="clone_visible_nearby_desc">Új eszközök megtalálhatják ezt a telefont</string>
+    <string name="clone_qr_instruction">A másik telefonon nyissa meg: %1$s, és koppintson erre: %2$s.</string>
+    <string name="clone_connect_title">Másik telefon csatlakoztatása</string>
+    <string name="clone_scan_code">Kód beolvasása</string>
+    <string name="clone_get_readings">Értékek fogadása</string>
+    <string name="clone_code_any_network">Bármely hálózat</string>
+    <string name="clone_code_wifi_only">Csak ez a Wi-Fi</string>
+    <string name="clone_pairing_waiting">Várakozás a másik telefonra…</string>
+    <string name="clone_pairing_announced">Ezen a Wi-Fi-n is látható mint %1$s</string>
+    <string name="clone_pairing_connected">Csatlakoztatva</string>
+    <string name="clone_add_manually_desc">Adja meg saját maga a címet és a beállításokat</string>
+    <string name="clone_send_readings">Értékek küldése</string>
+    <string name="clone_on_this_wifi">Ezen a Wi-Fi-n</string>
+    <string name="clone_nearby_empty">Itt jelennek meg az ezen a Wi-Fi-n értékeket küldő telefonok</string>
+    <string name="clone_sharing_readings">Értékeket küld</string>
     <string name="clone_network_summary">Kiszolgálók és helyi felderítés</string>
-    <string name="clone_connections_empty">Még nincs párosított eszköz.</string>
     <string name="clone_background_desc">Nagyobb akkumulátorfogyasztás</string>
     <string name="watch_transport_section">Átvitel</string>
     <string name="watch_wearos_enable_desc">Wear OS-üzenetátvitel engedélyezése</string>
@@ -3285,6 +3293,12 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     </plurals>
     <string name="nightscout_upload_sensor_start">Szenzorindítás küldése</string>
     <string name="nightscout_upload_sensor_start_desc">Sensor Start esemény küldése szenzoronként (életkor, típus és sorozatszám)</string>
-    <string name="ottai_retry">Újrapróbálás</string>
-    <string name="ottai_setup_failed">A beállítás leállt. Próbálja újra, vagy zárja be, és importálja a mentett hitelesítő adatokat.</string>
+    <string name="ican_calibration_marker">Kalibráció (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabil</string>
+    <string name="tts_trend_increasing">emelkedik</string>
+    <string name="tts_trend_decreasing">csökken</string>
+    <string name="tts_trend_rising_quickly">gyorsan emelkedik</string>
+    <string name="tts_trend_falling_quickly">gyorsan csökken</string>
 </resources>

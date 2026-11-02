@@ -142,6 +142,9 @@ class GlucoseRepository {
             BatteryTrace.bump("glucose.native.poll_once", logEvery = 20L)
             // Get the main sensor serial for tagging
             val sensorSerial = Natives.lastsensorname() ?: "unknown"
+            // Native current may be a driver's mirror (Ottai, Sibionics); that driver
+            // writes Room itself, so copying its mirror back would duplicate rows.
+            if (!SensorIdentity.shouldUseNativeHistorySync(sensorSerial)) return
             val canonicalSerial = SensorIdentity.resolveAppSensorId(sensorSerial) ?: sensorSerial
             if (canonicalSerial.isBlank()) return
             

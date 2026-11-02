@@ -2431,6 +2431,14 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(lastsensorname)(JNIEnv *envin,
   }
   return nullptr;
 }
+extern "C" JNIEXPORT jstring JNICALL fromjava(currentsensorname)(JNIEnv *envin,
+                                                                 jclass cl) {
+  if (!sensors)
+    return nullptr;
+  if (const char *name = sensors->currentshortsensorname_chars(); name && *name)
+    return envin->NewStringUTF(name);
+  return nullptr;
+}
 extern "C" JNIEXPORT jlong JNICALL fromjava(laststarttime)(JNIEnv *envin,
                                                            jclass cl) {
   return sensors->laststarttime();

@@ -838,6 +838,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">Aucun lecteur configuré</string>
     <string name="glucose_meters_none_desc">Recherchez un lecteur à proximité pour importer des mesures.</string>
     <string name="glucose_meters_nearby">Lecteurs à proximité</string>
+    <string name="glucose_meter_recheck">Revérifier le lecteur après</string>
+    <string name="glucose_meter_recheck_now">Immédiatement</string>
+    <string name="glucose_meter_recheck_hint">Pour les lecteurs qui restent allumés, comme Satellite. Une nouvelle mesure peut arriver avec ce retard</string>
     <string name="glucose_meter_last_reading">Dernière mesure : %1$s</string>
     <string name="glucose_meter_no_readings">Aucune mesure importée</string>
     <string name="satellite_meter_code_missing">Lecteur Satellite : définissez d\'abord le code du lecteur dans les réglages des lecteurs de glycémie</string>
@@ -1902,15 +1905,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">Ce QR hybride remplace aussi la configuration hybride de cet appareil.</string>
     <string name="mirror_connect_action">Connecter</string>
     <string name="mirror_connect_nearby_title">Se connecter à %1$s ?</string>
-    <string name="mirror_connect_nearby_message">Trouvé à %1$s:%2$d.\nCet appareil recevra les données de glucose de %3$s.</string>
     <string name="mirror_connection_data_missing">Données de connexion manquantes</string>
     <string name="mirror_reconnect_all">Tout reconnecter</string>
-    <string name="mirror_quick_pair">Appairage rapide</string>
-    <string name="mirror_share_my_qr">Partager le QR local</string>
-    <string name="mirror_share_my_qr_desc">Même réseau local uniquement</string>
-    <string name="mirror_share_relay_qr">Partager le QR hybride</string>
-    <string name="mirror_share_relay_qr_desc">Essaie d’abord une connexion directe, puis TURN si nécessaire</string>
-    <string name="mirror_scan_qr_desc">Scanner le QR d’un autre appareil pour se connecter</string>
     <string name="mirror_broadcast_network">Diffuser sur le réseau</string>
     <string name="mirror_broadcast_network_desc">Permettre aux appareils proches de trouver cet appareil</string>
     <string name="mirror_relay">Relais</string>
@@ -2495,6 +2491,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_offline_hint">Vous pouvez aussi importer un fichier d\'identifiants sous Capteurs enregistrés.</string>
     <string name="ottai_already_binding_hint">Votre compte a encore un autre capteur lié. Déliez-le sous Capteurs enregistrés, puis réessayez.</string>
     <string name="ottai_ota_upgrade_required">Le service Ottai a demandé une mise à jour du micrologiciel lors de la liaison du capteur. Réessayez la configuration ou importez les identifiants enregistrés. Vous pouvez aussi essayer l’application officielle Ottai.</string>
+    <string name="ottai_retry">Réessayer</string>
+    <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
     <string name="ottai_region_cn_full">Ottai Chine</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Indicatif du pays</string>
@@ -2911,11 +2909,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">Modifier le serveur reconnecte Clone. Utilisez les mêmes paramètres sur les deux appareils.</string>
     <string name="clone_use_default_server">Utiliser le serveur par défaut</string>
     <string name="clone_custom_server">Serveur personnalisé</string>
-    <string name="clone_add_first">Associez d’abord un appareil</string>
-    <string name="clone_visible_nearby">Visible à proximité</string>
-    <string name="clone_visible_nearby_desc">Les nouveaux appareils peuvent trouver ce téléphone</string>
+    <string name="clone_qr_instruction">Sur l’autre téléphone, ouvrez %1$s et appuyez sur %2$s.</string>
+    <string name="clone_connect_title">Connecter un autre téléphone</string>
+    <string name="clone_scan_code">Scanner le code</string>
+    <string name="clone_get_readings">Recevoir les valeurs</string>
+    <string name="clone_code_any_network">Tout réseau</string>
+    <string name="clone_code_wifi_only">Ce Wi-Fi uniquement</string>
+    <string name="clone_pairing_waiting">En attente de l’autre téléphone…</string>
+    <string name="clone_pairing_announced">Également visible sur ce Wi-Fi comme %1$s</string>
+    <string name="clone_pairing_connected">Connecté</string>
+    <string name="clone_add_manually_desc">Saisir vous-même l’adresse et les options</string>
+    <string name="clone_send_readings">Envoyer les valeurs</string>
+    <string name="clone_on_this_wifi">Sur ce Wi-Fi</string>
+    <string name="clone_nearby_empty">Les téléphones qui envoient des valeurs sur ce Wi-Fi apparaissent ici</string>
+    <string name="clone_sharing_readings">Envoie des valeurs</string>
     <string name="clone_network_summary">Serveurs et recherche locale</string>
-    <string name="clone_connections_empty">Aucun appareil associé.</string>
     <string name="clone_background_desc">Consomme plus de batterie</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3223,6 +3231,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">Envoyer le démarrage du capteur</string>
     <string name="nightscout_upload_sensor_start_desc">Envoyer un événement Sensor Start par capteur (âge, type et numéro de série)</string>
-    <string name="ottai_retry">Réessayer</string>
-    <string name="ottai_setup_failed">Configuration arrêtée. Réessayez ou fermez cette fenêtre et importez les identifiants enregistrés.</string>
+    <string name="ican_calibration_marker">Étalonnage (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stable</string>
+    <string name="tts_trend_increasing">en hausse</string>
+    <string name="tts_trend_decreasing">en baisse</string>
+    <string name="tts_trend_rising_quickly">en hausse rapide</string>
+    <string name="tts_trend_falling_quickly">en baisse rapide</string>
 </resources>

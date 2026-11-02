@@ -230,4 +230,32 @@ class SensorIdentityTests {
         assertTrue(SensorIdentity.matches("sensor-alpha", ""))
     }
 
+    @Test
+    fun nativeMirrorSensorName_returnsTheNativeSensorAManagedDriverMirrorsInto() {
+        // Ottai writes its native stream shell under its own id.
+        val native = setOf("X-222227KUFY", "70D07EDCB416")
+        assertEquals(
+            "70D07EDCB416",
+            SensorIdentity.nativeMirrorSensorName("70D07EDCB416") { name ->
+                name.takeIf { it in native }
+            }
+        )
+    }
+
+    @Test
+    fun nativeMirrorSensorName_isNullForASourceWithNoNativeSensor() {
+        assertNull(SensorIdentity.nativeMirrorSensorName("virtual-source") { null })
+        assertNull(SensorIdentity.nativeMirrorSensorName(null) { it })
+        assertNull(SensorIdentity.nativeMirrorSensorName("  ") { it })
+    }
+
+    @Test
+    fun nativeMirrorSensorName_isNullWhenNativeIsUnavailable() {
+        assertNull(
+            SensorIdentity.nativeMirrorSensorName("70D07EDCB416") {
+                throw UnsatisfiedLinkError("no native library")
+            }
+        )
+    }
+
 }

@@ -36,6 +36,25 @@ class ICanHealthProvisioningPolicyTests {
         }
     }
 
+    @Test fun realBoxLabelsGiveTheirFactoryScale() {
+        // Pins only what we write. 84F01FF13594A read back F6 0x024E (590) and the vendor SDK log
+        // shows x13 = 0.59, but that sensor's readings still ran about twice too high, so this
+        // does not show the rule yields correct glucose. The other labels are unconfirmed.
+        val labels = mapOf(
+            "84F01FF13594A" to 590,
+            "937001AEB546A" to 540,
+            "92602F429575A" to 570,
+            "926030609535A" to 530,
+            "77E0067C2643A" to 640,
+            "7BF00099C663A" to 660,
+            "80201D2BE443A" to 440,
+        )
+        for ((serial, f6) in labels) {
+            assertEquals(serial, f6, (policy.factoryCode(serial)!! * 1000f).toInt())
+            assertEquals(ICanHealthProvisioningPolicy.Eligibility.FRESH, policy.eligibility(0xffff, serial))
+        }
+    }
+
     @Test fun genericRowsCannotEnterThroughResponseCacheFileOrBuilder() {
         for (code in listOf(0f, .4f, .59f, .99f)) {
             val table = policy.defaultTable.toMutableMap().apply {

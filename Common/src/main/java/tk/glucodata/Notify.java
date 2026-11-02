@@ -2580,9 +2580,11 @@ public class Notify {
         final boolean quietSuppressesVibration = AlertDeliveryPolicy.shouldSuppressVibration(quietWindow,
                 quietMode, quietBreakThrough);
 
+        // Stop the previous alarm before claiming focus for this one: its stop callback
+        // clears notifyfocus and releases the previous alarm's request.
+        stopalarm();
         notifyfocus = true;
         doTurnFocuson();
-        stopalarm();
         // final int[] curfilter={-1};
         final boolean glucosealarm = kind < 2 || kind > 4;
         if (!DontTalk) {
@@ -2594,7 +2596,7 @@ public class Notify {
                 // newtalker(). Every other call site already guards; the alarm path did not.
                 final Talker alarmTalker = SuperGattCallback.talker;
                 if (current != null && alarmTalker != null) {
-                    alarmTalker.speak(current.getSpeechPrimaryStr(),
+                    alarmTalker.speak(GlucoseSpeech.format(Applic.app,current),
                             disturb ? ScanNfcV.audioattributes : notification_audio);
                 }
             }
@@ -2640,7 +2642,6 @@ public class Notify {
         runstopalarm = () -> {
             boolean wasAlarm = getisalarm(); // Check state BEFORE resetting it
             if (wasAlarm) {
-                notifyfocus = false;
                 lastalarm = -1; // Now safe to reset
 
                 {
@@ -2676,41 +2677,35 @@ public class Notify {
                 if (vibrate) {
                     stopvibratealarm();
                 }
-                if (!DontTalk) {
-                    if (glucosealarm && Natives.speakalarms() && !quietSilencesSound) {
-                        final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
-                        if (current != null) {
-                            Applic.scheduler.schedule(
-                                    () -> {
-                                        // Resolve the talker inside the lambda, not at schedule
-                                        // time: endtalk() has this whole 300ms delay in which to
-                                        // null the field, which would throw on the scheduler
-                                        // thread mid-alarm.
-                                        final Talker delayedTalker = SuperGattCallback.talker;
-                                        if (delayedTalker == null) {
-                                            Log.e(LOG_ID, "alarm speech: no talker, dropping utterance");
-                                            doTurnFocusoff();
-                                            return;
-                                        }
-                                        // Release focus if the engine refused the utterance too:
-                                        // a false return means nothing was queued, so no
-                                        // onDone/onError will arrive to release it for us.
-                                        // notifyfocus is false here, so the listener - not the
-                                        // alarm stop path - is what would otherwise own this.
-                                        if (!delayedTalker.speak(current.getSpeechPrimaryStr(),
-                                                disturb ? ScanNfcV.audioattributes : notification_audio)) {
-                                            Log.e(LOG_ID, "alarm speech: engine refused utterance");
-                                            doTurnFocusoff();
-                                        }
-                                    },
-                                    300, TimeUnit.MILLISECONDS);
-                        } else
-                            doTurnFocusoff();
-                    } else
-                        doTurnFocusoff();
-                    // overwriteglucose();
-                } else
-                    doTurnFocusoff();
+                final CurrentDisplaySource.Snapshot closingSpeech = !DontTalk && glucosealarm
+                        && Natives.speakalarms() && !quietSilencesSound
+                        ? resolveNotificationCurrentSnapshot() : null;
+                // Own continuing speech and the closing delay before releasing alarm focus.
+                // The reservation is distinct from utterance ownership, so late completion of
+                // the opening words cannot release the closing announcement's focus.
+                final SpeechFocus.Hold closingFocus = Talker.finishAlarmFocus(closingSpeech != null);
+                if (closingSpeech != null) {
+                    try {
+                        Applic.scheduler.schedule(() -> {
+                            try {
+                                final Talker delayedTalker = SuperGattCallback.talker;
+                                if (delayedTalker == null) {
+                                    Log.e(LOG_ID, "alarm speech: no talker, dropping utterance");
+                                    return;
+                                }
+                                if (!delayedTalker.speak(GlucoseSpeech.format(Applic.app,closingSpeech),
+                                        disturb ? ScanNfcV.audioattributes : notification_audio)) {
+                                    Log.e(LOG_ID, "alarm speech: engine refused utterance");
+                                }
+                            } finally {
+                                closingFocus.close();
+                            }
+                        }, 300, TimeUnit.MILLISECONDS);
+                    } catch (RuntimeException e) {
+                        closingFocus.close();
+                        Log.stack(LOG_ID, "alarm speech: scheduling failed", e);
+                    }
+                }
 
                 if (glucosealarm)
                     overwriteglucose(kind);

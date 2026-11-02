@@ -11,6 +11,7 @@ import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalEntrySource
 import tk.glucodata.data.journal.JournalEntryType
 import tk.glucodata.data.journal.JournalRepository
+import tk.glucodata.glucosemeter.MeterSyncPacing
 import tk.glucodata.glucosemeter.SatelliteMeterCredentials
 
 data class GlucoseMeterSnapshot(
@@ -20,6 +21,8 @@ data class GlucoseMeterSnapshot(
     val active: Boolean,
     val connected: Boolean,
     val lastReadingAt: Long,
+    /** Never sleeps, so the recheck interval applies to it (the Satellite). */
+    val staysOn: Boolean,
 )
 
 /** Compose-facing facade over the legacy, protocol-capable glucose meter runtime. */
@@ -35,6 +38,13 @@ object GlucoseMeterManager {
         if (SatelliteMeterCredentials.isValid(code)) {
             BluetoothGlucoseMeter.retrySatelliteSessions()
         }
+    }
+
+    fun recheckMinutes(): Int = MeterSyncPacing.minutes()
+
+    fun setRecheckMinutes(minutes: Int) {
+        MeterSyncPacing.setMinutes(minutes)
+        BluetoothGlucoseMeter.pacingChanged()
     }
 
     fun configuredMeters(): List<GlucoseMeterSnapshot> =
@@ -112,6 +122,8 @@ object GlucoseMeterManager {
             active = Natives.GlucoseMeterGetActive(index),
             connected = gatt?.connected == true,
             lastReadingAt = Natives.GlucoseMeterGetLastTime(index),
+            // The name before the first link; what the link found after it.
+            staysOn = name.startsWith("Satellite", ignoreCase = true) || gatt?.staysOn() == true,
         )
     }
 }

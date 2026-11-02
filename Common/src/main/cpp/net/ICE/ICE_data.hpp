@@ -51,7 +51,10 @@ struct ICE_data {
     bool  sendStop=false;
     int allindex;
     bool side;
-    ICE_data(int index,int t):allindex(index),side(t) {
+    // The connection this channel belongs to. A deleted host's connection is
+    // still torn down after its slot in connections[] holds another one.
+    ICEConnect *owner;
+    ICE_data(ICEConnect *con,int index,int t):allindex(index),side(t),owner(con) {
         };
     std::bitset<sendwindow>  acknowledged;
     uint32_t starttime=time(nullptr);

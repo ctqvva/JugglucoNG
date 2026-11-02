@@ -2,9 +2,11 @@ package tk.glucodata.glucosemeter
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VerioSessionTest {
@@ -195,6 +197,8 @@ class VerioSessionTest {
         session.onNotification(recordPacket(), -1)
         session.take() // ack
         assertEquals("record 5 does not exist, walk is over", null, session.take())
+        assertTrue(session.isDone())
+        assertFalse("a walk that ran out of records finished cleanly", session.isFailed())
     }
 
     @Test
@@ -204,6 +208,8 @@ class VerioSessionTest {
         session.onNotification(VerioSession.command(0x07, 0x03), -1)
         assertArrayEquals("the meter still gets its ack", byteArrayOf(0x81.toByte()), session.take())
         assertEquals("and no further request is queued", null, session.take())
+        assertTrue("an error answer ends the session", session.isDone())
+        assertTrue("as a failure, not a finished sync", session.isFailed())
     }
 
     @Test

@@ -998,11 +998,21 @@ public class Applic extends Application implements androidx.work.Configuration.P
                 String currentSensor = Natives.lastsensorname();
                 if (currentSensor != null && !currentSensor.isEmpty()
                         && !tk.glucodata.SensorIdentity.hasNativeSensorBacking(currentSensor)) {
-                    tk.glucodata.ManagedCurrentSensor.set(currentSensor);
-                    Natives.setcurrentsensor("");
-                    Log.i("Applic", "Moved virtual current sensor '" + currentSensor + "' out of native lastsensorname");
-                    currentSensor = "";
+                    if (tk.glucodata.SensorIdentity.nativeMirrorSensorName(currentSensor) != null) {
+                        // A driver's native mirror (Ottai, Sibionics, followers) is a real native
+                        // sensor; native current must stay on it for the web server and watch value.
+                        if (tk.glucodata.ManagedCurrentSensor.get() == null) {
+                            tk.glucodata.ManagedCurrentSensor.set(currentSensor);
+                        }
+                    } else {
+                        tk.glucodata.ManagedCurrentSensor.set(currentSensor);
+                        Natives.setcurrentsensor("");
+                        Log.i("Applic", "Moved virtual current sensor '" + currentSensor + "' out of native lastsensorname");
+                        currentSensor = "";
+                    }
                 }
+                tk.glucodata.CurrentSensorSelection.syncNativeToManaged(
+                        tk.glucodata.SensorIdentity.resolveMainSensor());
                 String[] active = Natives.activeSensors();
                 if ((currentSensor == null || currentSensor.isEmpty())
                         && tk.glucodata.ManagedCurrentSensor.get() == null

@@ -420,6 +420,9 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
 <string name="glucose_meters_none">Keine Messgeräte eingerichtet</string>
 <string name="glucose_meters_none_desc">Ein Messgerät in der Nähe suchen, um Messwerte zu importieren.</string>
 <string name="glucose_meters_nearby">Messgeräte in der Nähe</string>
+<string name="glucose_meter_recheck">Messgerät erneut prüfen nach</string>
+<string name="glucose_meter_recheck_now">Sofort</string>
+<string name="glucose_meter_recheck_hint">Für Messgeräte, die eingeschaltet bleiben, wie Satellite. Ein neuer Messwert kann so viel später ankommen</string>
 <string name="glucose_meter_last_reading">Letzter Messwert: %1$s</string>
 <string name="glucose_meter_no_readings">Noch keine Messwerte importiert</string>
 <string name="satellite_meter_code_missing">Satellite-Messgerät: Legen Sie zuerst den Messgerätecode in den Einstellungen für Blutzuckermessgeräte fest</string>
@@ -2084,15 +2087,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connect_qr_turn_message">Dieser Hybrid-QR ersetzt auch die Hybrid-Konfiguration dieses Geräts.</string>
     <string name="mirror_connect_action">Verbinden</string>
     <string name="mirror_connect_nearby_title">Mit %1$s verbinden?</string>
-    <string name="mirror_connect_nearby_message">Gefunden unter %1$s:%2$d.\nDieses Gerät empfängt Glukosedaten von %3$s.</string>
     <string name="mirror_connection_data_missing">Verbindungsdaten fehlen</string>
     <string name="mirror_reconnect_all">Alle neu verbinden</string>
-    <string name="mirror_quick_pair">Schnell koppeln</string>
-    <string name="mirror_share_my_qr">Lokalen QR-Code teilen</string>
-    <string name="mirror_share_my_qr_desc">Nur im selben lokalen Netzwerk</string>
-    <string name="mirror_share_relay_qr">Hybrid-QR teilen</string>
-    <string name="mirror_share_relay_qr_desc">Versucht zuerst eine direkte Verbindung, dann bei Bedarf TURN</string>
-    <string name="mirror_scan_qr_desc">QR eines anderen Geräts zum Verbinden scannen</string>
     <string name="mirror_broadcast_network">Im Netzwerk ankündigen</string>
     <string name="mirror_broadcast_network_desc">Geräte in der Nähe dieses Gerät finden lassen</string>
     <string name="mirror_relay">Relais</string>
@@ -2599,6 +2595,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="ottai_offline_hint">Du kannst auch unter „Gespeicherte Sensoren“ eine Zugangsdaten-Datei importieren.</string>
     <string name="ottai_already_binding_hint">Dein Konto hat noch einen anderen Sensor gebunden. Löse ihn unter „Gespeicherte Sensoren“ und versuche es dann erneut.</string>
     <string name="ottai_ota_upgrade_required">Der Ottai-Dienst hat beim Verknüpfen dieses Sensors ein Firmwareupdate angefordert. Wiederhole die Firmwareeinrichtung oder importiere gespeicherte Zugangsdaten. Du kannst auch die offizielle Ottai-App versuchen.</string>
+    <string name="ottai_retry">Erneut versuchen</string>
+    <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Ländervorwahl</string>
@@ -3018,11 +3016,21 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="clone_server_edit_hint">Serveränderungen verbinden Klon neu. Verwende auf beiden Geräten dieselben Einstellungen.</string>
     <string name="clone_use_default_server">App-Standard verwenden</string>
     <string name="clone_custom_server">Eigener Server</string>
-    <string name="clone_add_first">Zuerst ein Gerät koppeln</string>
-    <string name="clone_visible_nearby">In der Nähe sichtbar</string>
-    <string name="clone_visible_nearby_desc">Neue Geräte können dieses Telefon finden</string>
+    <string name="clone_qr_instruction">Öffnen Sie auf dem anderen Telefon %1$s und tippen Sie auf %2$s.</string>
+    <string name="clone_connect_title">Weiteres Telefon verbinden</string>
+    <string name="clone_scan_code">Code scannen</string>
+    <string name="clone_get_readings">Werte empfangen</string>
+    <string name="clone_code_any_network">Jedes Netz</string>
+    <string name="clone_code_wifi_only">Nur dieses WLAN</string>
+    <string name="clone_pairing_waiting">Warten auf das andere Telefon…</string>
+    <string name="clone_pairing_announced">Auch in diesem WLAN sichtbar als %1$s</string>
+    <string name="clone_pairing_connected">Verbunden</string>
+    <string name="clone_add_manually_desc">Adresse und Optionen selbst eingeben</string>
+    <string name="clone_send_readings">Werte senden</string>
+    <string name="clone_on_this_wifi">In diesem WLAN</string>
+    <string name="clone_nearby_empty">Telefone, die in diesem WLAN Werte senden, erscheinen hier</string>
+    <string name="clone_sharing_readings">Sendet Werte</string>
     <string name="clone_network_summary">Server und lokale Suche</string>
-    <string name="clone_connections_empty">Noch keine gekoppelten Geräte.</string>
     <string name="clone_background_desc">Erhöht den Akkuverbrauch</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3329,6 +3337,12 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensorstart senden</string>
     <string name="nightscout_upload_sensor_start_desc">Für jeden Sensor ein Sensor-Start-Ereignis senden (Alter, Typ und Seriennummer)</string>
-    <string name="ottai_retry">Erneut versuchen</string>
-    <string name="ottai_setup_failed">Einrichtung angehalten. Versuche es erneut oder schließe das Fenster und importiere gespeicherte Zugangsdaten.</string>
+    <string name="ican_calibration_marker">Kalibrierung (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabil</string>
+    <string name="tts_trend_increasing">steigend</string>
+    <string name="tts_trend_decreasing">sinkend</string>
+    <string name="tts_trend_rising_quickly">schnell steigend</string>
+    <string name="tts_trend_falling_quickly">schnell sinkend</string>
 </resources>

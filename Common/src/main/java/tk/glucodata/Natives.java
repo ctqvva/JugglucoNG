@@ -164,6 +164,8 @@ public class Natives {
         public static native void setcurrentsensor(String name);
 
         public static native String lastsensorname();
+        /** Native current only; unlike {@link #lastsensorname()} no fallback to the last sensor. */
+        public static native String currentsensorname();
 
         public static native long laststarttime();
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -167,12 +168,18 @@ internal fun DataStatusPulse(
     )
 
     Row(
-        modifier = modifier.width(if (subdued) 22.dp else 28.dp).height(if (subdued) 16.dp else 22.dp),
+        // Its own layer, so a pulse frame re-records these three bars and not the status text
+        // and card drawn around them.
+        modifier = modifier.width(if (subdued) 22.dp else 28.dp).height(if (subdued) 16.dp else 22.dp)
+            .graphicsLayer(),
         horizontalArrangement = Arrangement.spacedBy(if (subdued) 4.dp else 4.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.Bottom
     ) {
-        listOf(phase1.value, phase2.value, phase3.value).forEach { amplitude ->
+        // Read the phases while drawing, not here: a read in composition recomposed this row and
+        // re-measured the reading row around it on every frame for as long as the pulse showed.
+        listOf(phase1, phase2, phase3).forEach { phase ->
             Canvas(modifier = Modifier.weight(1f).fillMaxSize()) {
+                val amplitude = phase.value
                 val barWidth = size.width
                 val barHeight = size.height * (0.35f + (amplitude * 0.65f))
                 drawRoundRect(

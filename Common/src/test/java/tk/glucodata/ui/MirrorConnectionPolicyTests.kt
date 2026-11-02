@@ -92,6 +92,21 @@ class MirrorConnectionPolicyTests {
     }
 
     @Test
+    fun switchingCodeKindDeletesOnlyAnUnusedSenderOfThatKind() {
+        val hybrid = connection(1, label = "Hybrid Clone", isIce = true)
+
+        assertTrue(shouldDeleteAnnouncementSender(hybrid, ownedByAnnouncement = true, kind = QuickPairKind.HYBRID))
+        assertFalse(shouldDeleteAnnouncementSender(hybrid, ownedByAnnouncement = true, kind = QuickPairKind.LOCAL))
+        assertFalse(
+            shouldDeleteAnnouncementSender(
+                hybrid.copy(isPending = false),
+                ownedByAnnouncement = true,
+                kind = QuickPairKind.HYBRID,
+            )
+        )
+    }
+
+    @Test
     fun iceConnectionsDoNotExposeTheirEncodedLabelAsAPort() {
         assertNull(mirrorDisplayPort(isIce = true, rawPort = "18755"))
         assertEquals("8795", mirrorDisplayPort(isIce = false, rawPort = "8795"))

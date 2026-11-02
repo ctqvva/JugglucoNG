@@ -406,6 +406,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
 <string name="glucose_meters_none">Geen meters ingesteld</string>
 <string name="glucose_meters_none_desc">Zoek een meter in de buurt om metingen te importeren.</string>
 <string name="glucose_meters_nearby">Meters in de buurt</string>
+<string name="glucose_meter_recheck">Meter opnieuw controleren na</string>
+<string name="glucose_meter_recheck_now">Direct</string>
+<string name="glucose_meter_recheck_hint">Voor meters die aan blijven, zoals Satellite. Een nieuwe meting kan zoveel later binnenkomen</string>
 <string name="glucose_meter_last_reading">Laatste meting: %1$s</string>
 <string name="glucose_meter_no_readings">Nog geen metingen geïmporteerd</string>
 <string name="satellite_meter_code_missing">Satellite-meter: stel eerst de metercode in bij de instellingen voor glucosemeters</string>
@@ -1939,15 +1942,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connect_qr_turn_message">Deze hybride QR vervangt ook de hybride configuratie van dit apparaat.</string>
     <string name="mirror_connect_action">Verbinden</string>
     <string name="mirror_connect_nearby_title">Verbinden met %1$s?</string>
-    <string name="mirror_connect_nearby_message">Gevonden op %1$s:%2$d.\nDit apparaat ontvangt glucosegegevens van %3$s.</string>
     <string name="mirror_connection_data_missing">Verbindingsgegevens ontbreken</string>
     <string name="mirror_reconnect_all">Alles opnieuw verbinden</string>
-    <string name="mirror_quick_pair">Snel koppelen</string>
-    <string name="mirror_share_my_qr">Lokale QR delen</string>
-    <string name="mirror_share_my_qr_desc">Alleen hetzelfde lokale netwerk</string>
-    <string name="mirror_share_relay_qr">Hybride QR delen</string>
-    <string name="mirror_share_relay_qr_desc">Probeert eerst direct, daarna TURN indien nodig</string>
-    <string name="mirror_scan_qr_desc">Scan de QR van een ander apparaat om te verbinden</string>
     <string name="mirror_broadcast_network">Uitzenden op netwerk</string>
     <string name="mirror_broadcast_network_desc">Laat apparaten in de buurt dit apparaat vinden</string>
     <string name="mirror_relay">Relay</string>
@@ -2532,6 +2528,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="ottai_offline_hint">Je kunt ook een bestand met inloggegevens importeren onder Opgeslagen sensoren.</string>
     <string name="ottai_already_binding_hint">Je account heeft nog een andere sensor gekoppeld. Ontkoppel die onder Opgeslagen sensoren en probeer het opnieuw.</string>
     <string name="ottai_ota_upgrade_required">De Ottai-dienst vroeg om een firmware-update bij het koppelen van deze sensor. Probeer de firmware-instelling opnieuw of importeer opgeslagen inloggegevens. Je kunt ook de officiële Ottai-app proberen.</string>
+    <string name="ottai_retry">Opnieuw proberen</string>
+    <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
     <string name="ottai_region_cn_full">Ottai China</string>
     <string name="ottai_region_global_full">Ottai Global</string>
     <string name="ottai_sms_country_title">Landcode</string>
@@ -2948,11 +2946,21 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="clone_server_edit_hint">Serverwijzigingen verbinden Clone opnieuw. Gebruik dezelfde instellingen op beide apparaten.</string>
     <string name="clone_use_default_server">App-standaard gebruiken</string>
     <string name="clone_custom_server">Eigen server</string>
-    <string name="clone_add_first">Koppel eerst een apparaat</string>
-    <string name="clone_visible_nearby">Zichtbaar in de buurt</string>
-    <string name="clone_visible_nearby_desc">Nieuwe apparaten kunnen deze telefoon vinden</string>
+    <string name="clone_qr_instruction">Open op de andere telefoon %1$s en tik op %2$s.</string>
+    <string name="clone_connect_title">Andere telefoon koppelen</string>
+    <string name="clone_scan_code">Code scannen</string>
+    <string name="clone_get_readings">Waarden ontvangen</string>
+    <string name="clone_code_any_network">Elk netwerk</string>
+    <string name="clone_code_wifi_only">Alleen deze wifi</string>
+    <string name="clone_pairing_waiting">Wachten op de andere telefoon…</string>
+    <string name="clone_pairing_announced">Ook zichtbaar op deze wifi als %1$s</string>
+    <string name="clone_pairing_connected">Verbonden</string>
+    <string name="clone_add_manually_desc">Voer zelf het adres en de opties in</string>
+    <string name="clone_send_readings">Waarden sturen</string>
+    <string name="clone_on_this_wifi">Op deze wifi</string>
+    <string name="clone_nearby_empty">Telefoons die op deze wifi waarden sturen, verschijnen hier</string>
+    <string name="clone_sharing_readings">Stuurt waarden</string>
     <string name="clone_network_summary">Servers en lokaal zoeken</string>
-    <string name="clone_connections_empty">Nog geen gekoppelde apparaten.</string>
     <string name="clone_background_desc">Verbruikt meer batterij</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3259,6 +3267,12 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     </plurals>
     <string name="nightscout_upload_sensor_start">Sensorstart verzenden</string>
     <string name="nightscout_upload_sensor_start_desc">Verzend per sensor een Sensor Start-gebeurtenis (leeftijd, type en serienummer)</string>
-    <string name="ottai_retry">Opnieuw proberen</string>
-    <string name="ottai_setup_failed">Instellen gestopt. Probeer opnieuw of sluit dit venster en importeer opgeslagen inloggegevens.</string>
+    <string name="ican_calibration_marker">Kalibratie (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">stabiel</string>
+    <string name="tts_trend_increasing">stijgend</string>
+    <string name="tts_trend_decreasing">dalend</string>
+    <string name="tts_trend_rising_quickly">snel stijgend</string>
+    <string name="tts_trend_falling_quickly">snel dalend</string>
 </resources>

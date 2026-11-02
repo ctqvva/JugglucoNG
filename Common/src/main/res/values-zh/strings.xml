@@ -880,6 +880,9 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="glucose_meters_none">尚未配置血糖仪</string>
     <string name="glucose_meters_none_desc">查找附近的血糖仪以开始导入读数。</string>
     <string name="glucose_meters_nearby">附近的血糖仪</string>
+    <string name="glucose_meter_recheck">再次检查血糖仪的间隔</string>
+    <string name="glucose_meter_recheck_now">立即</string>
+    <string name="glucose_meter_recheck_hint">适用于一直开着的血糖仪，例如 Satellite。新的测量结果最多会晚这么久到达</string>
     <string name="glucose_meter_last_reading">最近读数：%1$s</string>
     <string name="glucose_meter_no_readings">尚未导入读数</string>
     <string name="satellite_meter_code_missing">Satellite 血糖仪：请先在血糖仪设置中填写血糖仪代码</string>
@@ -1912,15 +1915,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connect_qr_turn_message">此混合二维码还会替换本设备的混合连接配置。</string>
     <string name="mirror_connect_action">连接</string>
     <string name="mirror_connect_nearby_title">连接到 %1$s？</string>
-    <string name="mirror_connect_nearby_message">在 %1$s:%2$d 找到。\n此设备将从 %3$s 接收血糖数据。</string>
     <string name="mirror_connection_data_missing">缺少连接数据</string>
     <string name="mirror_reconnect_all">全部重新连接</string>
-    <string name="mirror_quick_pair">快速配对</string>
-    <string name="mirror_share_my_qr">分享本地二维码</string>
-    <string name="mirror_share_my_qr_desc">仅限同一本地网络</string>
-    <string name="mirror_share_relay_qr">分享混合二维码</string>
-    <string name="mirror_share_relay_qr_desc">先尝试直连，需要时再使用 TURN</string>
-    <string name="mirror_scan_qr_desc">扫描另一台设备的二维码以连接</string>
     <string name="mirror_broadcast_network">在网络中广播</string>
     <string name="mirror_broadcast_network_desc">允许附近设备发现此设备</string>
     <string name="mirror_relay">中继</string>
@@ -2505,6 +2501,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="ottai_offline_hint">也可以在“已保存的传感器”中导入凭据文件。</string>
     <string name="ottai_already_binding_hint">您的账号仍绑定着另一个传感器。请在“已保存的传感器”中解绑后重试。</string>
     <string name="ottai_ota_upgrade_required">Ottai 服务在绑定此传感器时要求更新固件。请重试固件设置，或导入已保存的凭据。也可以尝试使用 Ottai 官方应用。</string>
+    <string name="ottai_retry">重试</string>
+    <string name="ottai_setup_failed">设置已停止。请重试，或关闭此窗口并导入已保存的凭据。</string>
     <string name="ottai_region_cn_full">Ottai 国内版</string>
     <string name="ottai_region_global_full">Ottai 国际版</string>
     <string name="ottai_sms_country_title">国家/地区代码</string>
@@ -2919,11 +2917,21 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clone_server_edit_hint">更改服务器将重新连接 Clone。请在两台设备上使用相同的设置。</string>
     <string name="clone_use_default_server">使用默认服务器</string>
     <string name="clone_custom_server">自定义服务器</string>
-    <string name="clone_add_first">请先配对设备</string>
-    <string name="clone_visible_nearby">附近可见</string>
-    <string name="clone_visible_nearby_desc">允许新设备发现此手机</string>
+    <string name="clone_qr_instruction">在另一部手机上打开“%1$s”，然后点按“%2$s”。</string>
+    <string name="clone_connect_title">连接另一部手机</string>
+    <string name="clone_scan_code">扫描二维码</string>
+    <string name="clone_get_readings">接收读数</string>
+    <string name="clone_code_any_network">任何网络</string>
+    <string name="clone_code_wifi_only">仅此 Wi-Fi</string>
+    <string name="clone_pairing_waiting">正在等待另一部手机…</string>
+    <string name="clone_pairing_announced">在此 Wi-Fi 上也显示为 %1$s</string>
+    <string name="clone_pairing_connected">已连接</string>
+    <string name="clone_add_manually_desc">自行输入地址和选项</string>
+    <string name="clone_send_readings">发送读数</string>
+    <string name="clone_on_this_wifi">此 Wi-Fi 上</string>
+    <string name="clone_nearby_empty">在此 Wi-Fi 上发送读数的手机会显示在这里</string>
+    <string name="clone_sharing_readings">正在发送读数</string>
     <string name="clone_network_summary">服务器与本地发现</string>
-    <string name="clone_connections_empty">尚无已配对设备。</string>
     <string name="clone_background_desc">会增加耗电量</string>
     <string name="journal_chart_marker_count">×%1$d</string>
     <plurals name="journal_chart_marker_count_description">
@@ -3225,6 +3233,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     </plurals>
     <string name="nightscout_upload_sensor_start">发送传感器启动事件</string>
     <string name="nightscout_upload_sensor_start_desc">为每个传感器发送 Sensor Start 事件（使用时长、类型和序列号）</string>
-    <string name="ottai_retry">重试</string>
-    <string name="ottai_setup_failed">设置已停止。请重试，或关闭此窗口并导入已保存的凭据。</string>
+    <string name="ican_calibration_marker">校准 (F6)</string>
+
+    <!-- Spoken glucose trend; no arrow symbols for the TTS engine. -->
+    <string name="tts_trend_stable">平稳</string>
+    <string name="tts_trend_increasing">上升</string>
+    <string name="tts_trend_decreasing">下降</string>
+    <string name="tts_trend_rising_quickly">快速上升</string>
+    <string name="tts_trend_falling_quickly">快速下降</string>
 </resources>

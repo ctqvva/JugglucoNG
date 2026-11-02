@@ -50,14 +50,9 @@ import static tk.glucodata.util.getbutton;
 import static tk.glucodata.util.getcheckbox;
 import static tk.glucodata.util.getlabel;
 import static tk.glucodata.util.getlocale;
-import static tk.glucodata.Notify.doTurnFocuson;
-import static tk.glucodata.Notify.doTurnFocusoff;
-import static tk.glucodata.Notify.audiofocusrequest;
 import android.app.Activity;
 import android.content.Context;
 import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
-import android.media.AudioManager;
 import android.os.Build;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -194,18 +189,29 @@ public static void previewVoice(int index) {
 
 private void speakPreview() {
     if (DontTalk) return;
+    final String wordsId="voice_preview#"+utteranceSeq.incrementAndGet();
+    boolean queued=false;
     try {
       synchronized (queueLock) {
+        synchronized (focus) {
+            lastWordsId=wordsId;
+            focus.claim(wordsId,!notifyfocus);
+        }
         if (android.os.Build.VERSION.SDK_INT >= minandroid) {
             engine.setAudioAttributes(mediaAudio);
-            engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null, "voice_preview");
-            engine.setAudioAttributes(notification_audio);
+            try {
+                queued=engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null, wordsId)==TextToSpeech.SUCCESS;
+            } finally {
+                engine.setAudioAttributes(notification_audio);
+            }
         } else {
-            engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null);
+            queued=engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null, wordsId)==TextToSpeech.SUCCESS;
         }
       }
     } catch (Throwable th) {
         Log.stack(LOG_ID, "speakPreview failed", th);
+    } finally {
+        if (!queued) focus.release(wordsId);
     }
 }
 
@@ -318,7 +324,7 @@ public static void testCurrentValue(Context context) {
     if(DontTalk)
         return;
     var current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
-    var say=current!=null?current.getSpeechPrimaryStr():context.getString(R.string.tts_missed_readings);
+    var say=current!=null?GlucoseSpeech.format(context,current):context.getString(R.string.tts_missed_readings);
     var talk=SuperGattCallback.talker;
     if(talk!=null && talk.engineReady) {
         talk.setvalues();
@@ -457,16 +463,15 @@ if(!DontTalk) {
           });
     engine.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
- //  AudioFocusRequest audiofocusrequest = (android.os.Build.VERSION.SDK_INT <26)?null:new AudioFocusRequest.Builder( AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes( notification_audio ).build();
         @Override
         public void onDone(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onDone "+utteranceId);};
             // The words that follow the lead-in still need the focus speak() took for them.
             if(LeadIn.isLeadIn(utteranceId))
                 return;
-            if(!notifyfocus)
-                focus.release(utteranceId);
-            if ("voice_preview".equals(utteranceId)) {
+            // Speech owns a separate request, so ending it cannot release an active alarm.
+            focus.release(utteranceId);
+            if (utteranceId != null && utteranceId.startsWith("voice_preview#")) {
                 var cb = previewDoneCallback;
                 if (cb != null) Applic.RunOnUiThread(cb);
             }
@@ -479,8 +484,7 @@ if(!DontTalk) {
             if(doLog) {Log.i(LOG_ID,"onStop "+utteranceId+" interrupted="+interrupted);};
             if(LeadIn.isLeadIn(utteranceId))
                 return;
-            if(!notifyfocus)
-                focus.release(utteranceId);
+            focus.release(utteranceId);
             }
 
         @Override
@@ -489,9 +493,8 @@ if(!DontTalk) {
             // A lead-in that failed to play is skipped; the words queued after it still play.
             if(LeadIn.isLeadIn(utteranceId))
                 return;
-            if(!notifyfocus)
-                focus.release(utteranceId);
-            if ("voice_preview".equals(utteranceId)) {
+            focus.release(utteranceId);
+            if (utteranceId != null && utteranceId.startsWith("voice_preview#")) {
                 var cb = previewDoneCallback;
                 if (cb != null) Applic.RunOnUiThread(cb);
             }
@@ -499,13 +502,8 @@ if(!DontTalk) {
         @Override
         public void onStart(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onStart "+utteranceId);};
-            // Words from speak() already hold focus from before their lead-in, so this only
-            // re-confirms them; it is what takes focus for utterances that bypass speak(), such
-            // as the voice preview.
-            if(LeadIn.isLeadIn(utteranceId))
-                return;
-            if(!notifyfocus)
-                focus.claim(utteranceId);
+            // Every queue path, including preview, claims its unique owner before playback.
+            // A delayed start must never move ownership back to a flushed utterance.
             }
 
     });
@@ -514,33 +512,6 @@ if(!DontTalk) {
         engine.setAudioAttributes(notification_audio);
         }
    }
-
-// Fraction of the stream's max volume that is the minimum allowed for TTS output.
-// Prevents silence when the user (or system) drives the stream to zero.
-private static final float MIN_TTS_VOLUME_FRACTION = 0.25f;
-
-private static int usageToStreamType(int usage) {
-    switch (usage) {
-        case AudioAttributes.USAGE_ALARM:  return AudioManager.STREAM_ALARM;
-        case AudioAttributes.USAGE_MEDIA:  return AudioManager.STREAM_MUSIC;
-        default:                           return AudioManager.STREAM_NOTIFICATION;
-    }
-}
-
-private static void ensureMinStreamVolume() {
-    try {
-        AudioManager am = (AudioManager) Applic.app.getSystemService(Context.AUDIO_SERVICE);
-        if (am == null) return;
-        final int stream = usageToStreamType(Natives.getSoundType());
-        final int maxVol = am.getStreamMaxVolume(stream);
-        final int minVol = Math.max(1, Math.round(maxVol * MIN_TTS_VOLUME_FRACTION));
-        if (am.getStreamVolume(stream) < minVol) {
-            am.setStreamVolume(stream, minVol, 0);
-        }
-    } catch (Throwable th) {
-        Log.stack(LOG_ID, "ensureMinStreamVolume", th);
-    }
-}
 
 /**
  * Hand an utterance to the engine.
@@ -563,8 +534,11 @@ public boolean speak(String message) {
  * The words then follow a short lead-in, see {@link LeadIn}.
  */
 boolean speak(String message,boolean chime) {
+    return speak(message,notification_audio,chime);
+    }
+
+private boolean queueSpeech(String message,boolean chime) {
     if(!DontTalk) {
-        final boolean ownsFocus=!notifyfocus;
         // Unique, so a callback for an earlier utterance of the same value cannot release this
         // one's focus.
         final String wordsId=message+"#"+utteranceSeq.incrementAndGet();
@@ -572,16 +546,15 @@ boolean speak(String message,boolean chime) {
         try {
             // One read: destruct() nulls the field from another thread, and this makes three calls.
             final TextToSpeech gine=engine;
-            ensureMinStreamVolume();
             final int speakResult;
             // An utterance is now several queue calls. Unlocked, a second speak() could flush
             // between this one's lead-in and its words, and these older words would then be
             // appended after the newer ones instead of being replaced by them. Claiming inside
             // the lock keeps the focus owner the utterance that was queued last.
             synchronized(queueLock) {
-            if(ownsFocus) {
+            synchronized(focus) {
                 lastWordsId=wordsId;
-                focus.claim(wordsId);
+                focus.claim(wordsId,!notifyfocus);
                 }
             speakResult=LeadIn.queue(new LeadIn.Engine() {
                 @Override
@@ -615,7 +588,7 @@ boolean speak(String message,boolean chime) {
         finally {
             // Nothing will call onDone for words that were never queued, and the listener
             // ignores the lead-in, so the focus taken above is ours to give back.
-            if(ownsFocus&&!queued)
+            if(!queued)
                 focus.release(wordsId);
             }
         }
@@ -626,19 +599,18 @@ boolean speak(String message,boolean chime) {
 private final Object queueLock=new Object();
 
 /** Static, as the focus it tracks is: a replaced Talker's late callbacks must not release it. */
-private static final SpeechFocus focus=new SpeechFocus(new SpeechFocus.Audio() {
-    @Override
-    public void request() {
-        doTurnFocuson();
-        }
-    @Override
-    public void abandon() {
-        doTurnFocusoff();
-        }
-    });
+private static final SpeechFocus focus=new SpeechFocus(new SpeechAudioFocus());
 private static final java.util.concurrent.atomic.AtomicLong utteranceSeq=new java.util.concurrent.atomic.AtomicLong();
 /** The words this Talker last claimed focus for, released by destruct(). */
 private volatile String lastWordsId;
+
+/** Transfer outstanding speech and the closing delay before dropping alarm focus. */
+static SpeechFocus.Hold finishAlarmFocus(boolean closingAnnouncement) {
+    synchronized(focus) {
+        notifyfocus=false;
+        return focus.handoff(closingAnnouncement,Notify::doTurnFocusoff);
+    }
+}
 
 private static final String PREFS="tk.glucodata_preferences";
 private static final String KEY_CHIME="voice_chime_before_glucose";
@@ -670,7 +642,7 @@ private static final long FAILED_SPEAK_RETRY_MS=30_000L;
 public boolean needsReinit() {
     return health.needsReinit();
     }
-static boolean notifyfocus=false;
+static volatile boolean notifyfocus=false;
 //private static final AudioAttributes notification_audio = (new AudioAttributes.Builder()) .setLegacyStreamType(TextToSpeech.Engine.DEFAULT_STREAM) .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH) .build(); 
 //private static final AudioAttributes notification_audio =(android.os.Build.VERSION.SDK_INT >= 21)?new AudioAttributes.Builder().setUsage(isWearable? USAGE_ASSISTANCE_SONIFICATION:USAGE_NOTIFICATION ) .build():null;
 //private static final AudioAttributes notification_audio = notification_audio;
@@ -701,13 +673,13 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
     final boolean override=android.os.Build.VERSION.SDK_INT >= minandroid && attr!=notification_audio;
     boolean spoken=false;
     // Locked so another speak() cannot queue under these attributes, or restore them, between
-    // the override and this utterance. speak(message,chime) takes the same lock again.
+    // the override and this utterance. queueSpeech() takes the same lock again.
     synchronized(queueLock) {
     try {
-        if(override) {
-            gine.setAudioAttributes(attr);
-            }
-        spoken=speak(message,chime);
+        // Refresh even the default attributes: the Media setting can change while this
+        // engine stays alive. Otherwise it keeps speaking on its old stream until restart.
+        gine.setAudioAttributes(attr);
+        spoken=queueSpeech(message,chime);
         }
     catch(Throwable th) {
         Log.stack(LOG_ID,"speak(message,attr)",th);
@@ -1079,7 +1051,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
         });
     test.setOnClickListener(v->  {
         var current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
-        var say=current!=null?current.getSpeechPrimaryStr():context.getString(R.string.tts_missed_readings);
+        var say=current!=null?GlucoseSpeech.format(context,current):context.getString(R.string.tts_missed_readings);
         getvalues.run();
         if(istalking()) {
             var talk=SuperGattCallback.talker;
