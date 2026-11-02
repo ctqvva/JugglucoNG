@@ -248,3 +248,55 @@ UI/поведение:
   существующей авторизации; `type=0` возвращает все авторизации аккаунта. Поэтому клиент
   запрашивает `?type=0&pageNum=1&pageSize=500` и сам фильтрует по направлению:
   share — `dataProviderId == userId`, follow — `dataReaderId == userId`.
+
+## 12. Device registration and sensor "name" (2026-11-03)
+
+Проверено вживую на аккаунте `<account phone>`.
+
+### Есть ли у сенсора имя
+
+Отдельного имени/алиаса сенсора в облаке нет: ни в одном эндпоинте `ApiService` (полный список
+констант `ApiServiceKt`) нет операции переименования устройства, а в модели `CgmDevice` нет поля
+имени — только `deviceModel`, `deviceType`, `deviceSn`, `deviceId`, `sensorId`. В ответе
+`getFirstAndLastDeviceInfo` поле `name` вычисляется сервером из типа устройства (`deviceType=2` →
+`"AiDEX X"`), клиент его не задаёт и изменить не может. Ограничений на имя нет, потому что имени нет.
+
+### Полный payload `POST /cgmDevice/userDeviceRegister`
+
+Сервер валидирует поля по одному и отвечает `3000xx` с сообщением; порядок проверок:
+
+| Ответ | Поле |
+|---|---|
+| `300003` Укажите серийный номер устройства | `deviceSn` |
+| `300007` Укажите часовой пояс активации устройства | `startUpTimeZone` |
+| `300004` Укажите MAC-адрес устройства | `deviceMac` |
+| `300006` Укажите время активации устройства | `sensorStartUp` |
+| `300002` Укажите режим устройства | `deviceModel` (или `deviceType`) |
+| `300008` Укажите ID устройства | `deviceId` |
+| `300005` Укажите ключ устройства | `deviceKey` |
+
+Принятый запрос (`200`, ответ `{"deviceId": ...}`):
+
+```json
+{"deviceSn":"0000000000","deviceMac":"00:11:22:33:44:55","startUpTimeZone":"Europe/Moscow",
+ "sensorStartUp":"2026-11-03 00:00:00+0000","deviceModel":"0","deviceType":2,
+ "deviceId":"0123456789abcdef0123456789abcdef","deviceKey":"<deviceKey>",
+ "sensorId":"0123456789abcdef0123456789abcdea","sensorIndex":123456,"et":15,"dstOffset":"0",
+ "registerTime":"2026-11-03 00:00:00+0000"}
+```
+
+- `deviceId` и `sensorId` клиент присылает сам (32 hex); сервер их сохраняет как есть.
+- `userId` подставляется сервером; `deviceMac`, `deviceKey`, `sensorStartUp`, `startUpTimeZone`
+  обязательны. У официального приложения MAC — это BLE-адрес сенсора
+  (`deviceMac=<BLE MAC>` при `deviceSn=<sensor SN>`), `deviceKey` — base64 на 16 байт.
+- Проверка SN по белому списку (`checkSnFromListBySnNumber`) на регистрацию не влияет: `0000000000`
+  зарегистрировался, хотя `checkSn` для него возвращает `false`.
+- `POST /cgmDevice/deviceUnRegister` с `{"deviceId": ...}` ставит `unregisterTime` (мягкое удаление);
+  запись остаётся в `getFirstAndLastDeviceInfo` с заполненным `unregisterTime`.
+
+### Что из этого следует для JNG
+
+Регистрация из JNG невозможна без MAC/ключа/времени активации сенсора, поэтому вызов
+`registerDevice` убран: раньше он отправлял только `deviceSn`/`sensorId`/`sensorIndex` и гарантированно
+получал `300007`. Сенсор должен быть привязан в официальном приложении — тогда `sensorId` берётся из
+`getFirstAndLastDeviceInfo`.

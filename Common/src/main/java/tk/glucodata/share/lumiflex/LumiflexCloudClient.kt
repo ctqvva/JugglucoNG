@@ -125,16 +125,6 @@ class LumiflexCloudClient(
         return classifySync(response)
     }
 
-    fun registerDevice(token: String, userId: String, serial: String): Boolean {
-        if (serial.isBlank()) return false
-        val body = JSONObject()
-            .put("deviceSn", serial)
-            .put("sensorId", serial)
-            .put("sensorIndex", 0)
-            .toString()
-        return postOk(LumiflexCloudConstants.PATH_DEVICE_REGISTER, body, token, userId)
-    }
-
     fun followerList(token: String, isShare: Boolean, userId: String): List<FollowerInfo>? {
         val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) +
             "?type=0&pageNum=1&pageSize=500"

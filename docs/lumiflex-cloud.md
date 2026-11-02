@@ -37,8 +37,10 @@ offers: *Switch display*, *Regular reminders*, *Urgent low*, *Extreme high*.
 
 ## Known limitations
 
-- Sensor registration on the account (`cgmDevice/userDeviceRegister`) is attempted best-effort; if
-  the portal shows the sensor as unregistered, record upload still runs.
+- JNG does not create sensor records on the account: the vendor's `userDeviceRegister` needs
+  `deviceMac`, `deviceKey`, `sensorStartUp` and a device-key pair that only the official app has, and
+  the server accepts a registration only with a complete payload. A sensor that was never paired in
+  the official app therefore cannot be uploaded.
 - No live-value/trend push in v1 — the follower view is fed by the uploaded records.
 - No follower-side consumption: JNG does not read another account's data from this cloud.
 - The vendor contract can change with an app update; the channel is isolated behind its own

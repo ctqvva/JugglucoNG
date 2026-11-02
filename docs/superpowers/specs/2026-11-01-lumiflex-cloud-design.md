@@ -198,8 +198,10 @@ iCan hook, gated by `LumiflexCloudSettings.isEnabled(app)`; rows built the same 
 ## 8. Data flow
 
 1. Settings screen → `client.login(user, pass)` → store `token`/`userId`.
-2. On first upload for a sensor, `registerDevice(sensor)` (see OI1) — best-effort, failure does
-   not block records.
+2. ~~On first upload for a sensor, `registerDevice(sensor)` (see OI1)~~ — dropped: the vendor requires
+   `deviceMac`/`deviceKey`/`sensorStartUp` (see `docs/lumiflex-cloud-recon.md` §12), which JNG cannot
+   supply; the sensor must be paired in the official app. A serial without a server-side `sensorId`
+   stays queued.
 3. `HistoryRepository` append → `LumiflexCloudUploader.onHistoryStored` → queue → drain:
    group by serial, batch (default 100), `saveCgmRecord`, remove on success, retry on 5xx/network,
    stop and clear token on 401.

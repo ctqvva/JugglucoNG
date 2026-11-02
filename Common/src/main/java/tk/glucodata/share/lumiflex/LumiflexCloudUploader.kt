@@ -16,8 +16,6 @@ class LumiflexCloudUploader(
     private val sensorIds: () -> Map<String, String>? = { emptyMap() },
 ) {
 
-    private val registeredSerials = HashSet<String>()
-
     data class Row(
         val serial: String,
         val timeMs: Long,
@@ -49,9 +47,6 @@ class LumiflexCloudUploader(
         usable.groupBy { it.serial }.forEach { (serial, items) ->
             val sensorId = sensorIdFor(sensorIdBySerial, serial)
             if (sensorId.isNullOrBlank()) return@forEach
-            if (registeredSerials.add(serial)) {
-                client.registerDevice(token, settings.userId, serial)
-            }
             var index = 0
             while (index < items.size) {
                 val end = minOf(index + LumiflexCloudConstants.BATCH_SIZE, items.size)

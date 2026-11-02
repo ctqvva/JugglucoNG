@@ -185,21 +185,6 @@ class LumiflexCloudClientTests {
     }
 
     @Test
-    fun registerDevicePostsVendorPayload() {
-        var bodySeen = ""
-        val transport = FakeTransport { _, body ->
-            bodySeen = LumiflexCloudCrypto.decryptEnvelope(body, keys.second)!!
-            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200,\"data\":{}}"))
-        }
-        val ok = newClient(transport).registerDevice("tok", "u1", "SN1")
-        assertTrue(ok)
-        assertTrue(transport.urls.first().endsWith("/cgmDevice/userDeviceRegister"))
-        val json = JSONObject(bodySeen)
-        assertEquals("SN1", json.getString("deviceSn"))
-        assertEquals("SN1", json.getString("sensorId"))
-    }
-
-    @Test
     fun followerListParsesDataArray() {
         val transport = FakeTransport { _, _ ->
             LumiflexCloudClient.HttpResult(
