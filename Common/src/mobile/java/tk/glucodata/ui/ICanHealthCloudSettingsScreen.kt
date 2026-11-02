@@ -242,6 +242,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             )
 
             OutlinedButton(
+                shapes = ButtonDefaults.shapes(),
                 onClick = { navController.navigate("settings/ican-health/followers") },
                 modifier = Modifier
                     .fillMaxWidth()
