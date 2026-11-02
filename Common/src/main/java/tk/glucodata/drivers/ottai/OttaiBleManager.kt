@@ -4042,7 +4042,17 @@ class OttaiBleManager(
             if (stop) return
             val days = activatedLifetimeDays()
             if (days <= 0 || id.isBlank()) return
-            runCatching { Natives.setSensorWearDays(id, days) }
+            runCatching {
+                // setSensorWearDays also creates a missing shell, at the default 15-day
+                // capacity. Lifetime acceptance precedes a trustworthy activation time, so
+                // reserve storage with no start hint before that setter can create it.
+                val minimumRecords = maxOf(OttaiConstants.EXTENDED_LIFETIME_DAYS, days) * 24 * 60
+                if (Natives.ensureSensorShellWithCapacity(id, 0L, minimumRecords) == 0L) {
+                    Log.e(TAG, "cannot reserve native storage before setting lifetime for $id")
+                    return@runCatching
+                }
+                Natives.setSensorWearDays(id, days)
+            }
                 .onFailure { Log.stack(TAG, "setSensorWearDays", it) }
         }
     }

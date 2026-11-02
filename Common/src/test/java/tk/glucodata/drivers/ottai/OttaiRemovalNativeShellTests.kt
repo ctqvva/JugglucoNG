@@ -56,6 +56,34 @@ class OttaiRemovalNativeShellTests {
     }
 
     @Test
+    fun acceptingLifetimeBeforeActivationReservesExtendedStorageWithoutInventingAStart() {
+        val manager = OttaiBleManager(sensorId, 0L)
+        try {
+            set(manager, "materials", OttaiRegistry.DeviceMaterials("", "", "", 0L, "", 0))
+            invoke(manager, "adoptActivatedMaxActive", TimeUnit.DAYS.toMillis(28), "activation-accept")
+
+            assertEquals(listOf("reserve:0:43200", "wear:28"), OttaiRemovalNatives.storageEvents)
+            assertEquals(43200, OttaiRemovalNatives.shellCapacity)
+        } finally {
+            manager.close()
+        }
+    }
+
+    @Test
+    fun failedStorageReservationDoesNotLetLifetimeSetterCreateAnUndersizedShell() {
+        val manager = OttaiBleManager(sensorId, 0L)
+        try {
+            OttaiRemovalNatives.reserveSucceeds = false
+            invoke(manager, "adoptActivatedMaxActive", TimeUnit.DAYS.toMillis(28), "activation-accept")
+
+            assertEquals(listOf("reserve:0:43200"), OttaiRemovalNatives.storageEvents)
+            assertEquals(0, OttaiRemovalNatives.shellCapacity)
+        } finally {
+            manager.close()
+        }
+    }
+
+    @Test
     fun removalFinishesTheShellNamedByTheRecordForAColonAddressId() {
         OttaiRegistry.ensureSensorRecord(context, sensorId, "", "Ottai CGM")
 
@@ -244,6 +272,9 @@ class OttaiRemovalNatives {
         var onWrite: () -> Unit = {}
         var shellFinished = false
         var nativeWrites = 0
+        val storageEvents = mutableListOf<String>()
+        var shellCapacity = 0
+        var reserveSucceeds = true
 
         fun reset() {
             finished.clear()
@@ -251,6 +282,9 @@ class OttaiRemovalNatives {
             onWrite = {}
             shellFinished = false
             nativeWrites = 0
+            storageEvents.clear()
+            shellCapacity = 0
+            reserveSucceeds = true
         }
 
         @JvmStatic @Implementation
@@ -258,6 +292,9 @@ class OttaiRemovalNatives {
 
         @JvmStatic @Implementation
         fun ensureSensorShellWithCapacity(sensorId: String, startSec: Long, minimumRecords: Int): Long {
+            storageEvents += "reserve:$startSec:$minimumRecords"
+            if (!reserveSucceeds) return 0L
+            if (shellCapacity == 0) shellCapacity = minimumRecords
             shellFinished = false
             nativeWrites++
             return 1L
@@ -282,6 +319,8 @@ class OttaiRemovalNatives {
 
         @JvmStatic @Implementation
         fun setSensorWearDays(sensorId: String, days: Int) {
+            storageEvents += "wear:$days"
+            if (shellCapacity == 0) shellCapacity = 15 * 24 * 60
             shellFinished = false
             nativeWrites++
         }
