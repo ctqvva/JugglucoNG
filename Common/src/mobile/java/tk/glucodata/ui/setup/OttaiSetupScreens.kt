@@ -447,7 +447,13 @@ internal fun OttaiSensorCard(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                     shapes = ButtonDefaults.shapes(),
                     contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text(stringResource(R.string.ottai_ota_check)) }
+                ) {
+                    Text(
+                        stringResource(R.string.ottai_ota_check),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
             AdaptiveButtonRow(modifier = Modifier.fillMaxWidth()) {
                 if (!loading && onExport != null) {
