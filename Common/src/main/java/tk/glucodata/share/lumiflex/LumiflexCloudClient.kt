@@ -88,9 +88,10 @@ class LumiflexCloudClient(
         if (records.isEmpty()) return SyncResult.Ok
         val zone = TimeZone.getDefault()
         val formatter = SimpleDateFormat(DATE_PATTERN, Locale.US).apply { timeZone = zone }
+        val createTimeFormatter = SimpleDateFormat(CREATE_TIME_PATTERN, Locale.US).apply { timeZone = zone }
         val appTimeZone = zone.id
-        val dstOffset = (zone.getOffset(nowMs) / 1000).toString()
-        val appCreateTime = formatter.format(Date(nowMs))
+        val dstOffset = (zone.getDSTSavings() / 1000).toString()
+        val appCreateTime = createTimeFormatter.format(Date(nowMs))
         val array = JSONArray()
         records.forEach { record ->
             array.put(
@@ -118,7 +119,8 @@ class LumiflexCloudClient(
         return postOk(LumiflexCloudConstants.PATH_DEVICE_REGISTER, body, token, userId)
     }
 
-    fun followerList(token: String, isShare: Boolean): List<FollowerInfo> {        val type = if (isShare) "share" else "follow"
+    fun followerList(token: String, isShare: Boolean): List<FollowerInfo> {
+        val type = if (isShare) "1" else "2"
         val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) + "?type=$type"
         val response = transport.get(url, headers(token, ""))
         if (response.code !in 200..299) return emptyList()
@@ -128,6 +130,27 @@ class LumiflexCloudClient(
         return (0 until array.length()).map { index ->
             FollowerInfo.fromJson(array.optJSONObject(index))
         }
+    }
+
+    fun devicesBySensorSerial(token: String): Map<String, String> {
+        val response = transport.get(
+            url(LumiflexCloudConstants.PATH_FIRST_LAST_DEVICE),
+            headers(token, ""),
+        )
+        if (response.code !in 200..299) return emptyMap()
+        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull() ?: return emptyMap()
+        val data = json.optJSONObject("data") ?: return emptyMap()
+        val result = LinkedHashMap<String, String>()
+        listOf("firstList", "lastList").forEach { key ->
+            val array = data.optJSONArray(key) ?: return@forEach
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val sn = item.optString("deviceSn", "")
+                val sensorId = item.optString("sensorId", "")
+                if (sn.isNotBlank() && sensorId.isNotBlank()) result[sn] = sensorId
+            }
+        }
+        return result
     }
 
     fun addFollower(token: String, account: String, alias: String, userId: String = ""): FollowerInfo? {
@@ -246,6 +269,7 @@ class LumiflexCloudClient(
         internal const val TRANSPORT_FAILURE_CODE = -1
         private const val UNAUTHORIZED = 401
         private const val DATE_PATTERN = "yyyy-MM-dd HH:mm:ss"
+        private const val CREATE_TIME_PATTERN = "yyyy-MM-dd HH:mm:ssZ"
 
         internal object HttpTransport : Transport {
             override fun post(url: String, body: String, headers: Map<String, String>): HttpResult =

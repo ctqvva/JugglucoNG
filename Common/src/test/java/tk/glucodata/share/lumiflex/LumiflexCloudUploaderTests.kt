@@ -41,6 +41,7 @@ class LumiflexCloudUploaderTests {
                 settings,
                 queue,
                 sleep = {},
+                sensorIds = { mapOf("SN1" to "SID1") },
             ),
         )
     }

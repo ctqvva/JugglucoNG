@@ -12,6 +12,7 @@ class LumiflexCloudUploader(
     private val settings: LumiflexCloudSettings,
     private val queue: LumiflexCloudQueue,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
+    private val sensorIds: () -> Map<String, String> = { emptyMap() },
 ) {
 
     private val registeredSerials = HashSet<String>()
@@ -41,7 +42,10 @@ class LumiflexCloudUploader(
         if (usable.isEmpty()) return FlushResult.Success(0)
 
         var uploaded = 0
+        val sensorIdBySerial = sensorIds()
         usable.groupBy { it.serial }.forEach { (serial, items) ->
+            val sensorId = sensorIdBySerial[serial]
+            if (sensorId.isNullOrBlank()) return@forEach
             if (registeredSerials.add(serial)) {
                 client.registerDevice(token, settings.userId, serial)
             }
@@ -175,7 +179,13 @@ class LumiflexCloudUploader(
         private fun runFlush(context: Context) {
             try {
                 val current = stateFor(context)
-                LumiflexCloudUploader(current.client, current.settings, current.queue).flush()
+                val uploader = LumiflexCloudUploader(
+                    client = current.client,
+                    settings = current.settings,
+                    queue = current.queue,
+                    sensorIds = { current.client.devicesBySensorSerial(current.settings.token) },
+                )
+                uploader.flush()
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "runFlush", error)
             }

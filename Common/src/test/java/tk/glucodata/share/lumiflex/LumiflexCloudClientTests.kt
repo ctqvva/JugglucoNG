@@ -137,6 +137,27 @@ class LumiflexCloudClientTests {
     }
 
     @Test
+    fun followerListUsesNumericType() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":200,\"data\":[]}"))
+        }
+        newClient(transport).followerList("tok", isShare = false)
+        assertTrue(transport.urls.first().endsWith("?type=2"))
+    }
+
+    @Test
+    fun devicesBySensorSerialMapsDeviceSnToSensorId() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(
+                200,
+                envelope("{\"code\":200,\"data\":{\"firstList\":[{\"deviceSn\":\"SN1\",\"sensorId\":\"SID1\"}]}}"),
+            )
+        }
+        val map = newClient(transport).devicesBySensorSerial("tok")
+        assertEquals("SID1", map["SN1"])
+    }
+
+    @Test
     fun uploadNonJsonSuccessBodyIsFailure() {
         val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(200, "oops") }
         val result = newClient(transport).uploadGlucose(
@@ -174,6 +195,6 @@ class LumiflexCloudClientTests {
         val list = newClient(transport).followerList("tok", isShare = true)
         assertEquals(1, list.size)
         assertEquals("a1", list.first().userAuthorizationId)
-        assertTrue(transport.urls.first().endsWith("/userAuthorization/findUserAuthorizationList?type=share"))
+        assertTrue(transport.urls.first().endsWith("/userAuthorization/findUserAuthorizationList?type=1"))
     }
 }
