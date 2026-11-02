@@ -34,9 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
+import tk.glucodata.R
 import tk.glucodata.share.ican.ICanHealthCloudFollowerManager
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.ui.components.AppTopBar
@@ -62,7 +64,7 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = "iCan Health Followers",
+                title = stringResource(R.string.ican_health_followers_title),
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -75,20 +77,20 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Invite a follower", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Text(stringResource(R.string.ican_health_invite_follower), style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text(stringResource(R.string.ican_health_follower_email)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text(stringResource(R.string.ican_health_follower_phone)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.ican_health_follower_name)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Button(
                 onClick = {
                     scope.launch {
                         try {
                             manager.invite(email, phone, "", name)
                             followers = manager.list()
-                            status = "Invited"
+                            status = context.getString(R.string.ican_health_invited)
                             email = ""; phone = ""; name = ""
                         } catch (e: Exception) {
-                            status = "Error: ${e.message}"
+                            status = context.getString(R.string.ican_health_invite_failed, e.message ?: "")
                         }
                     }
                 },
@@ -96,14 +98,14 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
             ) {
                 Icon(Icons.Default.PersonAdd, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
-                Text("Send invite")
+                Text(stringResource(R.string.ican_health_send_invite))
             }
 
             if (status.isNotEmpty()) {
                 Text(status, style = MaterialTheme.typography.bodySmall)
             }
 
-            Text("Followers", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.ican_health_followers), style = MaterialTheme.typography.titleMedium)
             followers.forEach { f ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -116,7 +118,7 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(f.sharerName.ifBlank { f.email }, style = MaterialTheme.typography.bodyMedium)
                             Text(f.email, style = MaterialTheme.typography.bodySmall)
-                            Text("Status: ${f.status}", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.ican_health_follower_status, f.status), style = MaterialTheme.typography.bodySmall)
                         }
                         IconButton(onClick = {
                             scope.launch {
@@ -124,7 +126,7 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                                 followers = manager.list()
                             }
                         }) {
-                            Text("X")
+                            Text(stringResource(R.string.ican_health_remove))
                         }
                     }
                 }

@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -55,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.R
 import tk.glucodata.share.ican.ICanHealthCloudClient
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
@@ -88,7 +90,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
 
     fun login() {
         if (!hasCredentials) {
-            testMessage = "Enter account and password"
+            testMessage = context.getString(R.string.ican_health_credentials_required)
             return
         }
         testing = true
@@ -109,11 +111,11 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                         s.userId = result.model.userId
                         s.tenantId = result.model.tenantId
                         status = s.lastSyncMs
-                        testMessage = "Logged in"
+                        testMessage = context.getString(R.string.ican_health_logged_in)
                         password = ""
                     }
                     is ICanHealthCloudClient.LoginResult.Failed -> {
-                        testMessage = "Login failed: ${result.message.ifBlank { result.kind.name }}"
+                        testMessage = context.getString(R.string.ican_health_login_failed, result.message.ifBlank { result.kind.name })
                     }
                 }
             }
@@ -135,7 +137,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = "iCan Health Cloud",
+                title = stringResource(R.string.ican_health_settings_title),
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -149,8 +151,8 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             MasterSwitchCard(
-                title = "iCan Health cloud",
-                subtitle = "Upload glucose to SinoCare iCan Health",
+                title = stringResource(R.string.ican_health_title),
+                subtitle = stringResource(R.string.ican_health_active_desc),
                 checked = enabled,
                 onCheckedChange = {
                     enabled = it
@@ -160,12 +162,12 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 icon = Icons.Default.CloudUpload
             )
 
-            SectionLabel(text = "Account", topPadding = 0.dp)
+            SectionLabel(text = stringResource(R.string.ican_health_section_account), topPadding = 0.dp)
 
             OutlinedTextField(
                 value = account,
                 onValueChange = { account = it },
-                label = { Text("Account (email)") },
+                label = { Text(stringResource(R.string.ican_health_account)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -174,7 +176,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.ican_health_password)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = if (showPassword) {
@@ -185,12 +187,12 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 trailingIcon = {
                     val image = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     IconButtonTooltip(
-                        if (showPassword) "Hide password" else "Show password"
+                        if (showPassword) stringResource(R.string.ican_health_hide_password) else stringResource(R.string.ican_health_show_password)
                     ) {
                         IconButton(onClick = { showPassword = !showPassword }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 imageVector = image,
-                                contentDescription = if (showPassword) "Hide password" else "Show password"
+                                contentDescription = if (showPassword) stringResource(R.string.ican_health_hide_password) else stringResource(R.string.ican_health_show_password)
                             )
                         }
                     }
@@ -199,7 +201,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
 
             if (!hasCredentials && enabled) {
                 Text(
-                    text = "Credentials required",
+                    text = stringResource(R.string.ican_health_credentials_required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -218,7 +220,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.size(8.dp))
                 }
-                Text(if (testing) "Signing in…" else "Sign in")
+                Text(if (testing) stringResource(R.string.ican_health_signing_in) else stringResource(R.string.ican_health_sign_in))
             }
 
             if (testMessage != null) {
@@ -230,7 +232,11 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
             }
 
             Text(
-                text = "Last sync: " + if (status > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.getDefault()).format(Date(status)) else "never",
+                text = stringResource(
+                    R.string.ican_health_last_sync,
+                    if (status > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.getDefault()).format(Date(status))
+                    else stringResource(R.string.ican_health_never),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -241,7 +247,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
             ) {
-                Text("Manage followers")
+                Text(stringResource(R.string.ican_health_manage_followers))
             }
         }
     }
