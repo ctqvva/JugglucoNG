@@ -76,7 +76,7 @@ class ICanHealthCloudUploader(
                 index = end
             }
         }
-        if (newestMs > 0L) settings.lastSyncMs = newestMs
+        if (newestMs > 0L) settings.lastSyncMs = maxOf(settings.lastSyncMs, newestMs)
         return FlushResult.Success(uploadedTotal)
     }
 
@@ -128,6 +128,8 @@ class ICanHealthCloudUploader(
 
         private val lock = Any()
         private var state: State? = null
+        private var scheduledFlush: java.util.concurrent.ScheduledFuture<*>? = null
+        private var scheduledAtMs = 0L
 
         private class State(
             val queue: ICanHealthCloudQueue,
@@ -161,9 +163,17 @@ class ICanHealthCloudUploader(
             try {
                 val context = tk.glucodata.Applic.app ?: return
                 if (!ICanHealthCloudSettings.isEnabled(context)) return
-                val current = stateFor(context)
-                current.queue.enqueue(EgvUpload(sensorSerial, timeMs, mgdl, trendIndex))
-                requestFlush(context)
+                val appContext = context.applicationContext
+                synchronized(lock) {
+                    executor.execute {
+                        try {
+                            stateFor(appContext).queue.enqueue(EgvUpload(sensorSerial, timeMs, mgdl, trendIndex))
+                            requestFlush(appContext)
+                        } catch (error: Throwable) {
+                            tk.glucodata.Log.stack(LOG_ID, "onLiveReading", error)
+                        }
+                    }
+                }
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onLiveReading", error)
             }
@@ -184,15 +194,19 @@ class ICanHealthCloudUploader(
         private fun requestFlush(context: Context, delayMs: Long = 0L) {
             val appContext = context.applicationContext
             synchronized(lock) {
-                if (delayMs <= 0L) {
-                    executor.execute { runFlush(appContext) }
-                } else {
-                    executor.schedule({ runFlush(appContext) }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-                }
+                val dueAt = System.currentTimeMillis() + delayMs
+                if (scheduledAtMs != 0L && scheduledAtMs <= dueAt) return
+                scheduledFlush?.cancel(false)
+                scheduledAtMs = dueAt
+                scheduledFlush = executor.schedule({ runFlush(appContext) }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
             }
         }
 
         private fun runFlush(context: Context) {
+            synchronized(lock) {
+                scheduledAtMs = 0L
+                scheduledFlush = null
+            }
             try {
                 val current = stateFor(context)
                 val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()

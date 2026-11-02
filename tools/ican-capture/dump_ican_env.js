@@ -32,11 +32,9 @@ function round() {
                     try {
                         var s = String(v.getSdkAppSecret());
                         secret = (s === 'null') ? 'null' : ('len=' + s.length);
-                        if (s.length >= 6 && s !== 'null') {
-                            console.log('[env-secret-prefix]', name, s.substring(0, 6) + '…');
-                        }
                     } catch (e2) { secret = 'err ' + e2; }
-                    console.log('[env]', name, 'base="' + base + '"', 'appId="' + appId + '"', 'secret=' + secret);
+                    var appIdMasked = (appId === 'null') ? 'null' : ('len=' + String(appId).length);
+                    console.log('[env]', name, 'base="' + base + '"', 'appId=' + appIdMasked, 'secret=' + secret);
                     ok += 1;
                 }
             } catch (e) { console.log('[skip] enum values(): ' + e); }
@@ -50,8 +48,11 @@ function round() {
                         var fields = cls.getDeclaredFields();
                         for (var i = 0; i < fields.length; i++) {
                             fields[i].setAccessible(true);
-                            console.log('[live]', String(fields[i].getName()), '=',
-                                String(fields[i].get(inst)));
+                            var fname = String(fields[i].getName());
+                            var raw = String(fields[i].get(inst));
+                            var masked = /secret|appid|token|password|key/i.test(fname)
+                                ? ('len=' + raw.length) : raw;
+                            console.log('[live]', fname, '=', masked);
                             ok += 1;
                         }
                     } catch (e) { console.log('[skip] reflect: ' + e); }

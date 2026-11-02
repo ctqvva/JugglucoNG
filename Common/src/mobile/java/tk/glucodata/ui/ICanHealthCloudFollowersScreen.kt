@@ -65,10 +65,17 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
     var phone by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
+    var generation by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) { followers = manager.list() }
+    fun reload() {
+        val gen = ++generation
+        scope.launch {
+            val list = withContext(Dispatchers.IO) { manager.list() }
+            if (gen == generation) followers = list
+        }
     }
+
+    LaunchedEffect(Unit) { reload() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -100,7 +107,7 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                                 manager.invite(email, phone, "", name)
                             }
                             if (result != null) {
-                                followers = withContext(Dispatchers.IO) { manager.list() }
+                                reload()
                                 status = context.getString(R.string.ican_health_invited)
                                 email = ""; phone = ""; name = ""
                             } else {
@@ -141,7 +148,7 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                             scope.launch {
                                 val ok = withContext(Dispatchers.IO) { manager.remove(f.id) }
                                 if (ok) {
-                                    followers = withContext(Dispatchers.IO) { manager.list() }
+                                    reload()
                                 } else {
                                     status = context.getString(R.string.ican_health_invite_failed, "")
                                 }

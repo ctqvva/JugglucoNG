@@ -975,12 +975,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     exchangePayload.getTrendIndex(),
                     exchangePayload.getTimeMillis());
         // The iCan cloud checks its own enable flag; a disabled destination costs one
-        // preference read and never leaves the phone.
-        tk.glucodata.share.ican.ICanHealthCloudUploader.onLiveReading(
-                exchangePayload.getSensorId(),
-                exchangePayload.getTimeMillis(),
-                exchangePayload.getPrimaryMgdl(),
-                exchangePayload.getTrendIndex());
+        // preference read and never leaves the phone. The payload exists only when a
+        // destination upstream needed it, hence the null guard.
+        if (exchangePayload != null)
+            tk.glucodata.share.ican.ICanHealthCloudUploader.onLiveReading(
+                    exchangePayload.getSensorId(),
+                    exchangePayload.getTimeMillis(),
+                    exchangePayload.getPrimaryMgdl(),
+                    exchangePayload.getTrendIndex());
         // Readings travel to whichever device is not holding the sensor, so the
         // watch pushes too when it is the one reading. A reading that arrived
         // from the peer is not sent straight back.

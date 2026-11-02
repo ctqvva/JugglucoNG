@@ -125,12 +125,23 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                         coroutineScope.launch(Dispatchers.IO) {
                             runCatching {
                                 val serial = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runCatching
-                                val points = tk.glucodata.data.HistoryRepository(context)
-                                    .getHistoryForDisplaySensor(serial, since)
+                                val roomSerial = tk.glucodata.SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+                                val repo = tk.glucodata.data.HistoryRepository(context)
+                                val readings = repo.storedReadingsByMinuteForSensor(roomSerial, since).values
+                                val rows = readings.map {
+                                    tk.glucodata.XdripBackfill.Row(
+                                        it.timestamp,
+                                        it.value,
+                                        it.rawValue,
+                                        it.rate,
+                                        it.firstStoredAt,
+                                    )
+                                }
+                                val displayed = tk.glucodata.XdripBackfill.displayedRows(roomSerial, rows)
                                 ICanHealthCloudUploader.onHistoryStored(
-                                    serial,
-                                    points.map {
-                                        ICanHealthCloudUploader.Row(serial, it.timestamp, it.value.toInt(), 0)
+                                    roomSerial,
+                                    displayed.map {
+                                        ICanHealthCloudUploader.Row(roomSerial, it.timeMs, it.mgdl, 0)
                                     },
                                 )
                             }
