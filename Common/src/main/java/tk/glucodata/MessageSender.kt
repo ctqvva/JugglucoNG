@@ -591,6 +591,15 @@ companion object {
     @Keep
     @JvmStatic
     public fun sendDatawithName(ident: String, data: ByteArray): Boolean {
+        if (!Applic.isWearable) {
+            // Wear v2 (d12ce176b): the watch ingests nothing over /data; WearSync2 owns the
+            // companion's store. Every byte that would leave here for a wear peer is a dead
+            // letter, so drop it before it reaches the radio. Report success: the native
+            // sender must keep treating the tunnel as healthy, or a "failure" turns into
+            // reconnect churn (see the open→teardown note in netinfo.cpp).
+            if (doLog) Log.i(LOG_ID, "dropped /data for $ident: dead letter (Wear v2)")
+            return true
+        }
         val sender = messagesender ?: return false
     if(doLog) {Log.i(LOG_ID,"start sendDatawithName $ident");}
         val res=sender.nameSendMessageResult(ident, WearMessagePath.DATA, data)
