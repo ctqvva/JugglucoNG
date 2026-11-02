@@ -210,3 +210,31 @@ UI/поведение:
 2. Затем **master** (загрузка), после проверки `userDeviceRegister` на живом аккаунте.
 3. Перед реализацией снять один реальный прогон (mitmproxy + trust-all TLS из §3),
    чтобы зафиксировать точные параметры `list-recent` и `saveCgmRecord`.
+
+## 10. Live validation (2026-11-02, account `<account phone>`)
+
+Проверено на реальном аккаунте прямым HTTP-клиентом (без приложения).
+
+- Логин: `POST /api-x/user/loginByPassword`, тело `{"userName":"<account phone>","password":"<md5 hex>"}`.
+  Сервер ждёт **MD5** пароля (`EncryptUtils.md5` в официальном клиенте). Пока сессия приложения
+  активна, ответ `802 "This account has been logged in from other equipments"` — **одна сессия на
+  аккаунт**: вход из JNG разлогинивает официальное приложение и наоборот.
+- `GET /user/getUserInfo` → `{userId, email, phone, isSettedPassword, ...}`.
+- `GET /cgmDevice/getFirstAndLastDeviceInfo` → `firstList/lastList` с полями
+  `deviceId, userId, sensorId, deviceModel, deviceSn, deviceMac, deviceKey, registerTime,
+  unregisterTime, startUpTimeZone, sensorIndex, sensorStartUp, sensorErrorTimeOffset, et,
+  deviceType, name` (name = `AiDEX X`).
+- `GET /cgmRecord/getCgmRecordsByPageInfo?pageNum=1&pageSize=N` → записи с полями
+  `cgmRecordId, frontRecordId, userId, sensorId, autoIncrementColumn, timeOffset (минуты),
+  appTime ("yyyy-MM-dd HH:mm:ss"), appTimeZone ("Europe/Moscow"), dstOffset (строка, DST-сдвиг),
+  glucose (float), status, quality, glucoseIsValid, rawOne, rawTwo, rawVc, rawIsValid,
+  eventWarning, appCreateTime ("yyyy-MM-dd HH:mm:ss+0300"), trendValue, appTimeOffset, deviceStatus`.
+- `GET /userAuthorization/findUserAuthorizationList?type=1|2` — `type` **числовой** (1 = share,
+  2 = follow); строки `share`/`follow` дают `500 Запрос не выполнен`.
+- `POST /cgmRecord/saveCgmRecord` с телом `{"records":[ ... ]}` принят (`code 200`, вернул
+  `cgmRecordId` и `autoIncrementColumn`). Лишние поля (`deviceSn`, `sensorIndex`) сервер терпит.
+- `sensorId` — серверный идентификатор сенсора, не серийник: берётся из
+  `getFirstAndLastDeviceInfo` по `deviceSn`. `updateCgmRecord` с `deleteStatus:1` по `cgmRecordId`
+  удалить запись не дал (500) — удаление осталось непроверенным.
+- `userDeviceRegister` вживую не проверялся: на аккаунте сенсор уже привязан официальным
+  приложением. Пока считаем, что новый сенсор должен быть сначала зарегистрирован приложением.

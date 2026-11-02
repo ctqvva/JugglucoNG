@@ -27,6 +27,14 @@ sensors JNG itself is driving, and only while the channel is switched on.
 with an optional nickname, rename, remove, and toggle the per-follower options the vendor app
 offers: *Switch display*, *Regular reminders*, *Urgent low*, *Extreme high*.
 
+## Session and sensor requirements
+
+- The Lumiflex cloud keeps **one session per account**: signing in from JNG signs the official app
+  out, and vice versa. Use it as a replacement for the official upload, not alongside it.
+- A sensor must already be registered on the account (paired in the official app) — JNG resolves the
+  server-side `sensorId` from the device list by `deviceSn`; readings for an unknown serial stay
+  queued instead of being sent.
+
 ## Known limitations
 
 - Sensor registration on the account (`cgmDevice/userDeviceRegister`) is attempted best-effort; if
