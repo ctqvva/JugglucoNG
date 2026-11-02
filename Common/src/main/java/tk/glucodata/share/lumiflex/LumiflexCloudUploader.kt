@@ -12,7 +12,7 @@ class LumiflexCloudUploader(
     private val settings: LumiflexCloudSettings,
     private val queue: LumiflexCloudQueue,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
-    private val sensorIds: () -> Map<String, String> = { emptyMap() },
+    private val sensorIds: () -> Map<String, String>? = { emptyMap() },
 ) {
 
     private val registeredSerials = HashSet<String>()
@@ -32,6 +32,7 @@ class LumiflexCloudUploader(
 
     @Synchronized
     fun flush(): FlushResult {
+        if (!settings.enabled) return FlushResult.Success(0)
         val token = settings.token
         if (token.isBlank()) return FlushResult.Unauthorized(0)
 
@@ -43,8 +44,9 @@ class LumiflexCloudUploader(
 
         var uploaded = 0
         val sensorIdBySerial = sensorIds()
+            ?: return FlushResult.Failed(0, 0, "Device list unavailable")
         usable.groupBy { it.serial }.forEach { (serial, items) ->
-            val sensorId = sensorIdBySerial[serial]
+            val sensorId = sensorIdFor(sensorIdBySerial, serial)
             if (sensorId.isNullOrBlank()) return@forEach
             if (registeredSerials.add(serial)) {
                 client.registerDevice(token, settings.userId, serial)
@@ -58,11 +60,12 @@ class LumiflexCloudUploader(
                 var lastCode = 0
                 var lastMessage = ""
                 while (attempt < LumiflexCloudConstants.RETRY_LIMIT && !success) {
+                    if (!settings.enabled) return FlushResult.Success(uploaded)
                     attempt++
                     val result = client.uploadGlucose(
                         token = token,
                         userId = settings.userId,
-                        records = batch,
+                        records = batch.map { it.copy(sensorId = sensorId) },
                         nowMs = System.currentTimeMillis(),
                     )
                     when (result) {
@@ -86,7 +89,7 @@ class LumiflexCloudUploader(
                 index = end
             }
         }
-        settings.lastSyncMs = System.currentTimeMillis()
+        if (uploaded > 0) settings.lastSyncMs = System.currentTimeMillis()
         return FlushResult.Success(uploaded)
     }
 
@@ -128,13 +131,10 @@ class LumiflexCloudUploader(
                 if (!shouldUpload(sensorSerial)) return
                 val current = stateFor(context)
                 val start = sensorStartProvider(sensorSerial)
-                var accepted = 0
-                toRecords(rows, start).forEach { record ->
-                    val before = current.queue.size()
-                    current.queue.enqueue(record)
-                    if (current.queue.size() > before) accepted++
-                }
-                if (accepted > 0) requestFlush(context)
+                val records = toRecords(rows, start)
+                if (records.isEmpty()) return
+                current.queue.enqueueAll(records)
+                requestFlush(context)
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
             }
@@ -152,6 +152,11 @@ class LumiflexCloudUploader(
                 SensorSourceResolver.resolveSensorKind(serial, SensorSourceResolver.SENSOR_KIND_UNKNOWN)
             }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
         }
+
+        internal fun sensorIdFor(bySerial: Map<String, String>, serial: String): String? =
+            bySerial[serial]
+                ?: bySerial[serial.removePrefix("X-")]
+                ?: bySerial["X-$serial"]
 
         internal fun shouldUpload(serial: String): Boolean =
             sensorKindProvider(serial) == SensorSourceResolver.SENSOR_KIND_AIDEX

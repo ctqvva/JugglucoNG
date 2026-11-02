@@ -5,9 +5,9 @@ class LumiflexCloudFollowerManager(
     private val settings: LumiflexCloudSettings,
 ) {
 
-    fun list(): List<FollowerInfo> = client.followerList(settings.token, isShare = true)
+    fun list(): List<FollowerInfo>? = client.followerList(settings.token, isShare = true)
 
-    fun follows(): List<FollowerInfo> = client.followerList(settings.token, isShare = false)
+    fun follows(): List<FollowerInfo>? = client.followerList(settings.token, isShare = false)
 
     fun invite(account: String, alias: String): Boolean {
         if (account.isBlank()) return false

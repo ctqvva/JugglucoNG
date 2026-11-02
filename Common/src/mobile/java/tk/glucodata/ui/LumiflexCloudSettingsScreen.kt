@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,6 +74,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
     var testing by remember { mutableStateOf(false) }
     var testMessage by remember { mutableStateOf<String?>(null) }
     var signedIn by remember { mutableStateOf(initial.token.isNotBlank()) }
+    var signInGeneration by remember { mutableIntStateOf(0) }
     val hasCredentials = account.isNotBlank() && password.isNotBlank()
 
     fun save() {
@@ -89,11 +91,13 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         }
         testing = true
         testMessage = null
+        val generation = ++signInGeneration
         coroutineScope.launch {
             val result = withContext(Dispatchers.IO) {
                 LumiflexCloudClient().login(account, password, LumiflexCloudSettings(context))
             }
             withContext(Dispatchers.Main) {
+                if (generation != signInGeneration) return@withContext
                 testing = false
                 when (result) {
                     is LumiflexCloudClient.LoginResult.Ok -> {
@@ -113,6 +117,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
     }
 
     fun logout() {
+        signInGeneration++
         val settings = LumiflexCloudSettings(context)
         settings.token = ""
         settings.enabled = false
@@ -157,6 +162,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 checked = enabled,
                 onCheckedChange = {
                     enabled = it
+                    if (!it) signInGeneration++
                     save()
                     testMessage = null
                 },

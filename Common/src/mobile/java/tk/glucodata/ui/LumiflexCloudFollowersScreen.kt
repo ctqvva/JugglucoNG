@@ -65,14 +65,19 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
 
     fun refresh() {
         scope.launch {
-            followers = withContext(Dispatchers.IO) { manager.list() }
+            val loaded = withContext(Dispatchers.IO) { manager.list() }
+            if (loaded != null) {
+                followers = loaded
+            } else {
+                status = context.getString(R.string.lumiflex_status_load_failed)
+            }
         }
     }
 
     androidx.compose.runtime.LaunchedEffect(Unit) { refresh() }
 
-    fun update(id: String, transform: (FollowerInfo) -> Unit) {
-        followers = followers.map { if (it.userAuthorizationId == id) it.also(transform) else it }
+    fun update(id: String, transform: (FollowerInfo) -> FollowerInfo) {
+        followers = followers.map { if (it.userAuthorizationId == id) transform(it) else it }
     }
 
     Scaffold(
@@ -154,13 +159,17 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                         Text(follower.readerUserName, style = MaterialTheme.typography.bodySmall)
 
                         ToggleRow(stringResource(R.string.lumiflex_switch_display), follower.hideState == 1) { checked ->
-                            update(follower.userAuthorizationId) { it.copy(hideState = if (checked) 1 else 0) }
+                            update(follower.userAuthorizationId) {
+                                it.copy(hideState = if (checked) 1 else 0)
+                            }
                             scope.launch(Dispatchers.IO) {
                                 manager.setDisplayHidden(follower.userAuthorizationId, checked)
                             }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_regular_reminders), follower.normalPushState == 1) { checked ->
-                            update(follower.userAuthorizationId) { it.copy(normalPushState = if (checked) 1 else 0) }
+                            update(follower.userAuthorizationId) {
+                                it.copy(normalPushState = if (checked) 1 else 0)
+                            }
                             scope.launch(Dispatchers.IO) {
                                 manager.setAlerts(
                                     follower.userAuthorizationId,
@@ -171,7 +180,9 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                             }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_urgent_low), follower.emergePushState == 1) { checked ->
-                            update(follower.userAuthorizationId) { it.copy(emergePushState = if (checked) 1 else 0) }
+                            update(follower.userAuthorizationId) {
+                                it.copy(emergePushState = if (checked) 1 else 0)
+                            }
                             scope.launch(Dispatchers.IO) {
                                 manager.setAlerts(
                                     follower.userAuthorizationId,
@@ -182,7 +193,9 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                             }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_extreme_high), follower.extremeHighPushState == 1) { checked ->
-                            update(follower.userAuthorizationId) { it.copy(extremeHighPushState = if (checked) 1 else 0) }
+                            update(follower.userAuthorizationId) {
+                                it.copy(extremeHighPushState = if (checked) 1 else 0)
+                            }
                             scope.launch(Dispatchers.IO) {
                                 manager.setAlerts(
                                     follower.userAuthorizationId,

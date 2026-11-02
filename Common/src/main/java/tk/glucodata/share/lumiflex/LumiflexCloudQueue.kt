@@ -15,19 +15,34 @@ class LumiflexCloudQueue(context: Context) {
         synchronized(lock) { load() }
     }
 
-    fun enqueue(record: CgmRecord) {
+    fun enqueue(record: CgmRecord): Boolean {
         synchronized(lock) {
-            val duplicate = items.any {
-                it.serial == record.serial && it.timeOffsetMinutes == record.timeOffsetMinutes
-            }
-            if (duplicate) return
-            items.add(record)
-            items.sortBy { it.timeMs }
-            while (items.size > LumiflexCloudConstants.QUEUE_CAP) {
-                items.removeAt(0)
-            }
-            persist()
+            var added = false
+            append(record) { added = true }
+            if (added) persist()
+            return added
         }
+    }
+
+    fun enqueueAll(records: List<CgmRecord>) {
+        synchronized(lock) {
+            var changed = false
+            records.forEach { record -> append(record) { changed = true } }
+            if (changed) persist()
+        }
+    }
+
+    private inline fun append(record: CgmRecord, onAdded: () -> Unit) {
+        val duplicate = items.any {
+            it.serial == record.serial && it.timeOffsetMinutes == record.timeOffsetMinutes
+        }
+        if (duplicate) return
+        items.add(record)
+        items.sortBy { it.timeMs }
+        while (items.size > LumiflexCloudConstants.QUEUE_CAP) {
+            items.removeAt(0)
+        }
+        onAdded()
     }
 
     fun peek(): List<CgmRecord> = synchronized(lock) { items.toList() }

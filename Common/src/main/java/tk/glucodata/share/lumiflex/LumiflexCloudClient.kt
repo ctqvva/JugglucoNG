@@ -43,7 +43,7 @@ class LumiflexCloudClient(
     }
 
     fun login(account: String, password: String, settings: LumiflexCloudSettings): LoginResult {
-        settings.account = account
+        val previousAccount = settings.account
         val body = JSONObject()
             .put("userName", account)
             .put("password", LumiflexCloudCrypto.passwordHash(password))
@@ -63,15 +63,17 @@ class LumiflexCloudClient(
                 response.body,
             )
         }
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull()
+        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull()
         val code = json?.optInt("code", response.code) ?: response.code
         val data = json?.optJSONObject("data")
         val model = LoginModel.fromJson(data)
         if (response.code in 200..299 && code == 200 && model.token.isNotBlank()) {
+            settings.account = account
             settings.token = model.token
             settings.userId = model.userId
             return LoginResult.Ok(model.userId)
         }
+        settings.account = previousAccount
         return LoginResult.Failed(
             LumiflexCloudError.classify(response.code, response.body),
             code,
@@ -119,26 +121,30 @@ class LumiflexCloudClient(
         return postOk(LumiflexCloudConstants.PATH_DEVICE_REGISTER, body, token, userId)
     }
 
-    fun followerList(token: String, isShare: Boolean): List<FollowerInfo> {
+    fun followerList(token: String, isShare: Boolean): List<FollowerInfo>? {
         val type = if (isShare) "1" else "2"
         val url = url(LumiflexCloudConstants.PATH_FOLLOWER_LIST) + "?type=$type"
         val response = transport.get(url, headers(token, ""))
-        if (response.code !in 200..299) return emptyList()
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull()
-        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(decoded(response.body)) }.getOrNull()
-        if (array == null) return emptyList()
+        if (response.code !in 200..299) return null
+        val plain = decoded(response.body) ?: return null
+        val json = runCatching { JSONObject(plain) }.getOrNull()
+        if (json != null && json.optInt("code", 200) != 200) return null
+        val array = json?.optJSONArray("data") ?: runCatching { JSONArray(plain) }.getOrNull()
+        if (array == null) return null
         return (0 until array.length()).map { index ->
             FollowerInfo.fromJson(array.optJSONObject(index))
         }
     }
 
-    fun devicesBySensorSerial(token: String): Map<String, String> {
+    fun devicesBySensorSerial(token: String): Map<String, String>? {
         val response = transport.get(
             url(LumiflexCloudConstants.PATH_FIRST_LAST_DEVICE),
             headers(token, ""),
         )
-        if (response.code !in 200..299) return emptyMap()
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull() ?: return emptyMap()
+        if (response.code !in 200..299) return null
+        val plain = decoded(response.body) ?: return null
+        val json = runCatching { JSONObject(plain) }.getOrNull() ?: return null
+        if (json.optInt("code", 200) != 200) return null
         val data = json.optJSONObject("data") ?: return emptyMap()
         val result = LinkedHashMap<String, String>()
         listOf("firstList", "lastList").forEach { key ->
@@ -163,7 +169,7 @@ class LumiflexCloudClient(
             .toString()
         val response = post(LumiflexCloudConstants.PATH_FOLLOWER_SAVE, body, token, userId)
         if (response.code !in 200..299) return null
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull() ?: return null
+        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull() ?: return null
         if (json.optInt("code", 200) != 200) return null
         return FollowerInfo.fromJson(json.optJSONObject("data") ?: json)
     }
@@ -204,7 +210,7 @@ class LumiflexCloudClient(
     private fun postOk(path: String, body: String, token: String, userId: String): Boolean {
         val response = post(path, body, token, userId)
         if (response.code !in 200..299) return false
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull() ?: return true
+        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull() ?: return true
         return json.optInt("code", 200) == 200
     }
 
@@ -226,7 +232,13 @@ class LumiflexCloudClient(
                 LumiflexCloudError.message(decoded(response.body)),
             )
         }
-        val json = runCatching { JSONObject(decoded(response.body)) }.getOrNull()
+        val plain = decoded(response.body)
+            ?: return SyncResult.Failed(
+                LumiflexCloudError.Kind.OTHER,
+                response.code,
+                "Unreadable server response",
+            )
+        val json = runCatching { JSONObject(plain) }.getOrNull()
         if (json == null) {
             if (response.body.isBlank()) return SyncResult.Ok
             return SyncResult.Failed(
@@ -244,7 +256,13 @@ class LumiflexCloudClient(
         )
     }
 
-    private fun decoded(body: String): String = decrypt(body) ?: body
+    /** Plain JSON stays as-is; an encrypted envelope that will not decrypt returns null. */
+    private fun decoded(body: String): String? {
+        val parsed = runCatching { JSONObject(body) }.getOrNull()
+        if (parsed == null) return body
+        if (!parsed.has("encryptData")) return body
+        return decrypt(body)
+    }
 
     private fun url(path: String): String =
         LumiflexCloudConstants.BASE_URL + LumiflexCloudConstants.API_PREFIX + path

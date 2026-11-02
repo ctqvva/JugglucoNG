@@ -3476,6 +3476,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_rename_failed">Rename failed</string>
     <string name="lumiflex_status_removed">Removed</string>
     <string name="lumiflex_status_remove_failed">Remove failed</string>
+    <string name="lumiflex_status_load_failed">Could not load followers</string>
     <string name="lumiflex_show_password">Show password</string>
     <string name="lumiflex_hide_password">Hide password</string>
 </resources>

@@ -29,6 +29,7 @@ class LumiflexCloudUploaderTests {
     private fun uploader(code: Int): Triple<LumiflexCloudSettings, LumiflexCloudQueue, LumiflexCloudUploader> {
         val context = RuntimeEnvironment.getApplication()
         val settings = LumiflexCloudSettings(context)
+        settings.enabled = true
         settings.token = "tok"
         settings.userId = "u1"
         val queue = LumiflexCloudQueue(context)
@@ -53,6 +54,15 @@ class LumiflexCloudUploaderTests {
         queue.enqueue(CgmRecord("SN1", "SN1", 0, 2, start + 120_000L, 101, 0))
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Success)
         assertEquals(0, queue.size())
+    }
+
+    @Test
+    fun flushDoesNothingWhenDisabled() {
+        val (settings, queue, up) = uploader(200)
+        settings.enabled = false
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Success)
+        assertEquals(1, queue.size())
     }
 
     @Test

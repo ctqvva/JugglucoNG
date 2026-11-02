@@ -154,7 +154,7 @@ class LumiflexCloudClientTests {
             )
         }
         val map = newClient(transport).devicesBySensorSerial("tok")
-        assertEquals("SID1", map["SN1"])
+        assertEquals("SID1", map?.get("SN1"))
     }
 
     @Test
@@ -193,8 +193,8 @@ class LumiflexCloudClientTests {
             )
         }
         val list = newClient(transport).followerList("tok", isShare = true)
-        assertEquals(1, list.size)
-        assertEquals("a1", list.first().userAuthorizationId)
+        assertEquals(1, list?.size)
+        assertEquals("a1", list?.first()?.userAuthorizationId)
         assertTrue(transport.urls.first().endsWith("/userAuthorization/findUserAuthorizationList?type=1"))
     }
 }
