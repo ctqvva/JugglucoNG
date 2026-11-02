@@ -149,7 +149,7 @@ class ICanHealthCloudClient(
         phone: String,
         phoneAreaCode: String,
         name: String,
-    ): FollowerFriends {
+    ): FollowerFriends? {
         val url =
             ICanHealthCloudConstants.BASE_URL + ICanHealthCloudConstants.APP_HOST_FIRST_PATH + "sino-ican/v1/follower/save"
         val payload = buildFollowerSavePayload(email, phone, phoneAreaCode, name)
@@ -161,8 +161,10 @@ class ICanHealthCloudClient(
             body,
             mapOf(ICanHealthCloudConstants.HEADER_SINO_AUTH to token),
         )
-        if (response.code == 401 || response.code !in 200..299) return FollowerFriends()
-        val decrypted = decryptResponse(key, response.body) ?: return FollowerFriends()
+        if (response.code == 401 || response.code !in 200..299) return null
+        val bodyCode = plainBodyCode(response.body)
+        if (bodyCode != null && bodyCode != 0 && bodyCode != 200) return null
+        val decrypted = decryptResponse(key, response.body) ?: return null
         val json = runCatching { JSONObject(decrypted) }.getOrNull()
         val data = json?.optJSONObject("data") ?: json
         return FollowerFriends.fromJson(data)

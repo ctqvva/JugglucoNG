@@ -65,6 +65,7 @@ class ICanHealthCloudSmokeTests {
         val settings = ICanHealthCloudSettings(context)
         settings.clear()
         settings.token = token
+        settings.enabled = true
 
         val queue = ICanHealthCloudQueue(context)
         queue.remove(queue.peek())

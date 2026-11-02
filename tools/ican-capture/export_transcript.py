@@ -125,7 +125,11 @@ def is_auth_payload(op, handle, val) -> bool:
         return False
     if op in (0x12, 0x52) and val[0] in (0xF3, 0xF4):
         return True
-    if op == 0x1D and val[:3] in (b"\x06\xf3\x01", b"\x1c\xf4\x01"):
+    if op == 0x1D and val[:3] in (
+        b"\x06\xf3\x01",
+        b"\x1c\xf4\x01",
+        b"\x1c\xf4\x02",
+    ):
         return True
     return False
 

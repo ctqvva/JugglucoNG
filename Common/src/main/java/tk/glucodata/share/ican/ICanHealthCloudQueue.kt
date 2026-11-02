@@ -25,6 +25,33 @@ class ICanHealthCloudQueue(context: Context) {
         }
     }
 
+    fun enqueueAll(egvs: List<EgvUpload>): Int {
+        if (egvs.isEmpty()) return 0
+        synchronized(lock) {
+            val keys = items.map { it.serial to it.timeMs }.toHashSet()
+            var added = 0
+            for (egv in egvs) {
+                val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
+                val key = clamped.serial to clamped.timeMs
+                if (!keys.add(key)) continue
+                items.add(clamped)
+                added++
+            }
+            if (added > 0) {
+                items.sortBy { it.timeMs }
+                persist()
+            }
+            return added
+        }
+    }
+
+    fun clear() {
+        synchronized(lock) {
+            items.clear()
+            persist()
+        }
+    }
+
     fun peek(): List<EgvUpload> {
         synchronized(lock) {
             return items.toList()

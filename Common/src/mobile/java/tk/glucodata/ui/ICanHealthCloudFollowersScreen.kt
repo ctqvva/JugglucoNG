@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,8 +40,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tk.glucodata.R
+import tk.glucodata.share.ican.FollowerFriends
 import tk.glucodata.share.ican.ICanHealthCloudFollowerManager
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.ui.components.AppTopBar
@@ -56,11 +60,15 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
         settings
     ) }
 
-    var followers by remember { mutableStateOf(manager.list()) }
+    var followers by remember { mutableStateOf<List<FollowerFriends>>(emptyList()) }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { followers = manager.list() }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -88,10 +96,16 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                 onClick = {
                     scope.launch {
                         try {
-                            manager.invite(email, phone, "", name)
-                            followers = manager.list()
-                            status = context.getString(R.string.ican_health_invited)
-                            email = ""; phone = ""; name = ""
+                            val result = withContext(Dispatchers.IO) {
+                                manager.invite(email, phone, "", name)
+                            }
+                            if (result != null) {
+                                followers = withContext(Dispatchers.IO) { manager.list() }
+                                status = context.getString(R.string.ican_health_invited)
+                                email = ""; phone = ""; name = ""
+                            } else {
+                                status = context.getString(R.string.ican_health_invite_failed, "")
+                            }
                         } catch (e: Exception) {
                             status = context.getString(R.string.ican_health_invite_failed, e.message ?: "")
                         }
@@ -125,8 +139,12 @@ fun ICanHealthCloudFollowersScreen(navController: NavController) {
                         }
                         IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                             scope.launch {
-                                manager.remove(f.id)
-                                followers = manager.list()
+                                val ok = withContext(Dispatchers.IO) { manager.remove(f.id) }
+                                if (ok) {
+                                    followers = withContext(Dispatchers.IO) { manager.list() }
+                                } else {
+                                    status = context.getString(R.string.ican_health_invite_failed, "")
+                                }
                             }
                         }) {
                             Text(stringResource(R.string.ican_health_remove))

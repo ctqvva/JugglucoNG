@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.share.ican.ICanHealthCloudClient
+import tk.glucodata.share.ican.ICanHealthCloudQueue
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
 import tk.glucodata.ui.components.AppTopBar
@@ -80,6 +81,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
     var testing by remember { mutableStateOf(false) }
     var testMessage by remember { mutableStateOf<String?>(null) }
     val hasCredentials = account.isNotBlank() && password.isNotBlank()
+    val hasSession = remember(status) { ICanHealthCloudSettings(context).token.isNotBlank() }
 
     fun save() {
         val s = ICanHealthCloudSettings(context)
@@ -104,15 +106,35 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 when (result) {
                     is ICanHealthCloudClient.LoginResult.Ok -> {
                         val s = ICanHealthCloudSettings(context)
+                        val oldUserId = s.userId
                         s.enabled = enabled
                         s.account = account
                         s.token = result.sessionId
                         s.refreshToken = result.model.refreshToken
                         s.userId = result.model.userId
                         s.tenantId = result.model.tenantId
+                        if (oldUserId.isNotEmpty() && oldUserId != result.model.userId) {
+                            ICanHealthCloudQueue(context).clear()
+                            s.lastSyncMs = 0L
+                        }
                         status = s.lastSyncMs
                         testMessage = context.getString(R.string.ican_health_logged_in)
                         password = ""
+                        val since = if (s.lastSyncMs > 0L) s.lastSyncMs else
+                            System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+                        coroutineScope.launch(Dispatchers.IO) {
+                            runCatching {
+                                val serial = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runCatching
+                                val points = tk.glucodata.data.HistoryRepository(context)
+                                    .getHistoryForDisplaySensor(serial, since)
+                                ICanHealthCloudUploader.onHistoryStored(
+                                    serial,
+                                    points.map {
+                                        ICanHealthCloudUploader.Row(serial, it.timestamp, it.value.toInt(), 0)
+                                    },
+                                )
+                            }
+                        }
                     }
                     is ICanHealthCloudClient.LoginResult.Failed -> {
                         testMessage = context.getString(R.string.ican_health_login_failed, result.message.ifBlank { result.kind.name })
@@ -199,7 +221,7 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 }
             )
 
-            if (!hasCredentials && enabled) {
+            if (!hasCredentials && !hasSession && enabled) {
                 Text(
                     text = stringResource(R.string.ican_health_credentials_required),
                     style = MaterialTheme.typography.bodySmall,

@@ -9,7 +9,7 @@ class ICanHealthCloudFollowerManager(
         return client.followerList(token)
     }
 
-    fun invite(email: String, phone: String, phoneAreaCode: String, name: String): Any {
+    fun invite(email: String, phone: String, phoneAreaCode: String, name: String): FollowerFriends? {
         if (email.isEmpty() && phone.isEmpty()) {
             throw IllegalArgumentException("email or phone required")
         }

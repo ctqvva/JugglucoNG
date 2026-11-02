@@ -32,6 +32,7 @@ class ICanHealthCloudUploaderTests {
         val client = ICanHealthCloudClient(transport)
         val settings = ICanHealthCloudSettings(context)
         settings.token = "tok"
+        settings.enabled = true
         val queue = ICanHealthCloudQueue(context)
         queue.remove(queue.peek())
         queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 100, trend = 1))
@@ -49,6 +50,7 @@ class ICanHealthCloudUploaderTests {
         val client = ICanHealthCloudClient(transport)
         val settings = ICanHealthCloudSettings(context)
         settings.token = "tok"
+        settings.enabled = true
         val queue = ICanHealthCloudQueue(context)
         queue.remove(queue.peek())
         queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 100, trend = 1))
@@ -67,6 +69,7 @@ class ICanHealthCloudUploaderTests {
         val client = ICanHealthCloudClient(transport)
         val settings = ICanHealthCloudSettings(context)
         settings.token = "tok"
+        settings.enabled = true
         val queue = ICanHealthCloudQueue(context)
         queue.remove(queue.peek())
         queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 100, trend = 1))

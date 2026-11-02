@@ -18,15 +18,25 @@ class ICanHealthCloudUploader(
         if (token.isBlank()) {
             return FlushResult.Unauthorized(0)
         }
+        if (!settings.enabled) {
+            return FlushResult.Disabled(0)
+        }
         val all = queue.peek()
         if (all.isEmpty()) {
             return FlushResult.Success(0)
         }
         var uploadedTotal = 0
+        var newestMs = 0L
         val bySerial = all.groupBy { it.serial }
         for ((serial, items) in bySerial) {
             var index = 0
             while (index < items.size) {
+                if (!settings.enabled) {
+                    return FlushResult.Disabled(uploadedTotal)
+                }
+                if (settings.token != token) {
+                    return FlushResult.Unauthorized(uploadedTotal)
+                }
                 val end = minOf(index + BATCH_SIZE, items.size)
                 val batch = items.subList(index, end).toList()
                 var attempt = 0
@@ -54,7 +64,7 @@ class ICanHealthCloudUploader(
                     }
                 }
                 if (unauthorized) {
-                    settings.token = ""
+                    if (settings.token == token) settings.token = ""
                     return FlushResult.Unauthorized(uploadedTotal)
                 }
                 if (!success) {
@@ -62,9 +72,11 @@ class ICanHealthCloudUploader(
                 }
                 queue.remove(batch)
                 uploadedTotal += batch.size
+                newestMs = maxOf(newestMs, batch.last().timeMs)
                 index = end
             }
         }
+        if (newestMs > 0L) settings.lastSyncMs = newestMs
         return FlushResult.Success(uploadedTotal)
     }
 
@@ -86,6 +98,8 @@ class ICanHealthCloudUploader(
             FlushResult(uploaded, false, true, 401, message)
         data class Unauthenticated(override val uploaded: Int = 0, override val message: String = "") :
             FlushResult(uploaded, false, true, 401, message)
+        data class Disabled(override val uploaded: Int = 0) :
+            FlushResult(uploaded, false, false, 0, "disabled")
         data class Failed(
             override val uploaded: Int = 0,
             override val code: Int = 0,
@@ -105,6 +119,7 @@ class ICanHealthCloudUploader(
         private const val BATCH_SIZE = 60
         private const val MAX_RETRIES = 3
         private const val INITIAL_BACKOFF_MS = 100L
+        private const val RETRY_DELAY_MS = 5L * 60_000L
 
         private val executor: java.util.concurrent.ScheduledExecutorService =
             java.util.concurrent.Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -127,21 +142,30 @@ class ICanHealthCloudUploader(
                 val context = tk.glucodata.Applic.app ?: return
                 if (!ICanHealthCloudSettings.isEnabled(context)) return
                 val current = stateFor(context)
-                val accepted = current.queue.let { q ->
-                    var count = 0
-                    for (row in rows.filter { it.mgdl > 0 }) {
-                        val egv = EgvUpload(row.serial, row.timeMs, row.mgdl, row.trendIndex)
-                        val before = q.size()
-                        q.enqueue(egv)
-                        if (q.size() > before) count++
-                    }
-                    count
-                }
+                val accepted = current.queue.enqueueAll(
+                    rows.filter { it.mgdl > 0 }.map {
+                        EgvUpload(it.serial, it.timeMs, it.mgdl, it.trendIndex)
+                    },
+                )
                 if (accepted > 0) {
                     requestFlush(context)
                 }
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
+            }
+        }
+
+        @JvmStatic
+        fun onLiveReading(sensorSerial: String, timeMs: Long, mgdl: Int, trendIndex: Int) {
+            if (sensorSerial.isEmpty() || mgdl <= 0 || timeMs <= 0L) return
+            try {
+                val context = tk.glucodata.Applic.app ?: return
+                if (!ICanHealthCloudSettings.isEnabled(context)) return
+                val current = stateFor(context)
+                current.queue.enqueue(EgvUpload(sensorSerial, timeMs, mgdl, trendIndex))
+                requestFlush(context)
+            } catch (error: Throwable) {
+                tk.glucodata.Log.stack(LOG_ID, "onLiveReading", error)
             }
         }
 
@@ -157,17 +181,24 @@ class ICanHealthCloudUploader(
             }
         }
 
-        private fun requestFlush(context: Context) {
+        private fun requestFlush(context: Context, delayMs: Long = 0L) {
             val appContext = context.applicationContext
             synchronized(lock) {
-                executor.execute { runFlush(appContext) }
+                if (delayMs <= 0L) {
+                    executor.execute { runFlush(appContext) }
+                } else {
+                    executor.schedule({ runFlush(appContext) }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                }
             }
         }
 
         private fun runFlush(context: Context) {
             try {
                 val current = stateFor(context)
-                ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
+                val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
+                if (result is FlushResult.Failed && result.code != 401) {
+                    requestFlush(context, RETRY_DELAY_MS)
+                }
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "runFlush", error)
             }

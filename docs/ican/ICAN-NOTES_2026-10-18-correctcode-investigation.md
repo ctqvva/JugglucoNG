@@ -139,15 +139,15 @@ Device advertisement: `deviceName=Sinocare CGM`, GATT name `ICN-ZP1TH05FEE50…`
 
 ```
 WIRE tx write 2AAC F3
-WIRE rx notify 2AAC 06 F3 01 F1 18 6B D2                     ; challenge
+WIRE rx notify 2AAC 06 F3 01 <challenge>                     ; challenge
 authUserId=P1TH05FEE505 from source=ZP1TH05FEE505 …          ; driver derived the userId from the name
-WIRE tx write 2AAC F4 10 E5 DF … 
-WIRE rx notify 2AAC 1C F4 02 85 31 66 EB BB 41 16 C1 35 ED 64 96 97 79 66 53 01   ; REJECT 0x02 + payload
-Persisted recovered userId for 01TH05FE00030101: len=12, suffix=6753
-Auth rejected (0x02) but recovered realUserId=len=12, suffix=6753 — retrying auth
-WIRE tx write 2AAC F3 → 06 F3 01 F1 18 6B D2
-authUserId=851361226753 from source=851361226753 …
-WIRE tx write 2AAC F4 10 F7 0C …
+WIRE tx write 2AAC F4 <redacted> 
+WIRE rx notify 2AAC 1C F4 02 <redacted>   ; REJECT 0x02 + payload
+Persisted recovered userId for 01TH05FE00030101: len=12, suffix=<redacted>
+Auth rejected (0x02) but recovered realUserId=len=12, suffix=<redacted> — retrying auth
+WIRE tx write 2AAC F3 → 06 F3 01 <challenge>
+authUserId=<USER_ID> from source=<USER_ID> …
+WIRE tx write 2AAC F4 <redacted>
 WIRE rx notify 2AAC 1C F4 01                                 ; OK
 WIRE tx write 2AAC F6 → 1C F6 01 F4 01                       ; correctCode marker = 500
 ```
@@ -242,7 +242,7 @@ W/ICanHealth RACP history request failed; will retry on a later authenticated re
 | | `01TH04SQ…` (activated with our app) | `01TH05FE…` (activated with the official app) |
 |---|---|---|
 | period | Aug 17–18 | Aug 19–20 |
-| F4 on connect | our id accepted immediately | our id rejected → recovered `851361226753` → accepted |
+| F4 on connect | our id accepted immediately | our id rejected → recovered `<USER_ID>` → accepted |
 | F6 | `FF FF` (code not written) | `F4 01` = 500 (written) |
 | history | 59 attempts, **0 records**, all answers `06 00 F1 0A` / `06 00 01 0A` | 1 request → `06 00 F1 01` (OK), `cycle completed with 1 imported records` |
 
