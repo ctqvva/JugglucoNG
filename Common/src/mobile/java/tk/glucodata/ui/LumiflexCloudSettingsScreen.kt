@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -49,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.R
 import tk.glucodata.share.lumiflex.LumiflexCloudClient
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.ui.components.AppTopBar
@@ -135,7 +138,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
-                title = "Lumiflex cloud",
+                title = stringResource(R.string.lumiflex_cloud_title),
                 onNavigateBack = { navController.popBackStack() },
             )
         },
@@ -149,8 +152,8 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             MasterSwitchCard(
-                title = "Lumiflex cloud",
-                subtitle = "Upload glucose to Lumiflex",
+                title = stringResource(R.string.lumiflex_cloud_title),
+                subtitle = stringResource(R.string.lumiflex_cloud_subtitle),
                 checked = enabled,
                 onCheckedChange = {
                     enabled = it
@@ -160,12 +163,12 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 icon = Icons.Default.CloudUpload,
             )
 
-            SectionLabel(text = "Account", topPadding = 0.dp)
+            SectionLabel(text = stringResource(R.string.lumiflex_account), topPadding = 0.dp)
 
             OutlinedTextField(
                 value = account,
                 onValueChange = { account = it },
-                label = { Text("Account (email or phone)") },
+                label = { Text(stringResource(R.string.lumiflex_account_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -174,7 +177,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.lumiflex_password)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = if (showPassword) {
@@ -183,10 +186,15 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                     PasswordVisualTransformation()
                 },
                 trailingIcon = {
-                    IconButton(onClick = { showPassword = !showPassword }) {
+                    IconButton(
+                        onClick = { showPassword = !showPassword },
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                            contentDescription = if (showPassword) "Hide password" else "Show password",
+                            contentDescription = stringResource(
+                                if (showPassword) R.string.lumiflex_hide_password else R.string.lumiflex_show_password,
+                            ),
                         )
                     }
                 },
@@ -194,7 +202,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 
             if (!hasCredentials && enabled && !signedIn) {
                 Text(
-                    text = "Credentials required",
+                    text = stringResource(R.string.lumiflex_credentials_required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -212,7 +220,10 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.size(8.dp))
                 }
-                Text(if (testing) "Signing in…" else "Sign in")
+                Text(
+                    if (testing) stringResource(R.string.lumiflex_signing_in)
+                    else stringResource(R.string.lumiflex_sign_in),
+                )
             }
 
             if (testMessage != null) {
@@ -224,15 +235,18 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
             }
 
             Text(
-                text = "Last sync: " + if (status > 0) {
-                    DateFormat.getDateTimeInstance(
-                        DateFormat.SHORT,
-                        DateFormat.SHORT,
-                        Locale.getDefault(),
-                    ).format(Date(status))
-                } else {
-                    "never"
-                },
+                text = stringResource(
+                    R.string.lumiflex_last_sync,
+                    if (status > 0) {
+                        DateFormat.getDateTimeInstance(
+                            DateFormat.SHORT,
+                            DateFormat.SHORT,
+                            Locale.getDefault(),
+                        ).format(Date(status))
+                    } else {
+                        stringResource(R.string.lumiflex_never)
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -242,9 +256,10 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
                 enabled = signedIn,
             ) {
-                Text("Manage followers")
+                Text(stringResource(R.string.lumiflex_manage_followers))
             }
 
             OutlinedButton(
@@ -252,8 +267,9 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
+                shapes = ButtonDefaults.shapes(),
             ) {
-                Text("Sign out")
+                Text(stringResource(R.string.lumiflex_sign_out))
             }
         }
     }
