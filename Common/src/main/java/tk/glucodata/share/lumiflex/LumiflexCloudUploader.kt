@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledExecutorService
 import tk.glucodata.Applic
 import tk.glucodata.Natives
 import tk.glucodata.SensorSourceResolver
+import tk.glucodata.drivers.aidex.AiDexSerialIdentity
 
 class LumiflexCloudUploader(
     private val client: LumiflexCloudClient,
@@ -153,10 +154,10 @@ class LumiflexCloudUploader(
             }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
         }
 
-        internal fun sensorIdFor(bySerial: Map<String, String>, serial: String): String? =
-            bySerial[serial]
-                ?: bySerial[serial.removePrefix("X-")]
-                ?: bySerial["X-$serial"]
+        internal fun sensorIdFor(bySerial: Map<String, String>, serial: String): String? {
+            val bare = AiDexSerialIdentity.bareSerial(serial)
+            return bySerial[serial] ?: bySerial[bare] ?: bySerial["X-$bare"]
+        }
 
         internal fun shouldUpload(serial: String): Boolean =
             sensorKindProvider(serial) == SensorSourceResolver.SENSOR_KIND_AIDEX

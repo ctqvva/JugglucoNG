@@ -118,6 +118,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 
     fun logout() {
         signInGeneration++
+        testing = false
         val settings = LumiflexCloudSettings(context)
         settings.token = ""
         settings.enabled = false
@@ -162,7 +163,10 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                 checked = enabled,
                 onCheckedChange = {
                     enabled = it
-                    if (!it) signInGeneration++
+                    if (!it) {
+                        signInGeneration++
+                        testing = false
+                    }
                     save()
                     testMessage = null
                 },

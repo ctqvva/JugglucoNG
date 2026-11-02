@@ -210,8 +210,9 @@ class LumiflexCloudClient(
     private fun postOk(path: String, body: String, token: String, userId: String): Boolean {
         val response = post(path, body, token, userId)
         if (response.code !in 200..299) return false
-        val json = runCatching { JSONObject(decoded(response.body).orEmpty()) }.getOrNull() ?: return true
-        return json.optInt("code", 200) == 200
+        val plain = decoded(response.body) ?: return false
+        val json = runCatching { JSONObject(plain) }.getOrNull() ?: return false
+        return json.optInt("code", 0) == 200
     }
 
     private fun post(path: String, plainBody: String, token: String, userId: String): HttpResult =
