@@ -2014,7 +2014,12 @@ fun InteractiveGlucoseChart(
     // How far the range picker reaches up into the plot when expanded, to sit close to the
     // axis labels. Laid out rather than offset: an offset only moved the picker's paint,
     // and left the space it was measured into as a hole underneath it.
-    val pickerLift = chartUnderlayBottomDp + (8.dp * safeExpandedProgress)
+    // Above a shown preview strip it reaches 4 dp further: the drag handle's slot over the
+    // picker is empty until the chart is pulled taller, and with that slot counted the strip
+    // stood 16 dp off the picker while the picker stands 12 dp off the stats below it.
+    val previewOverHiddenHandle = previewRevealProgress * (1f - chartBoostProgress.coerceIn(0f, 1f))
+    val pickerLift = chartUnderlayBottomDp + (8.dp * safeExpandedProgress) +
+        (4.dp * safeExpandedProgress * previewOverHiddenHandle)
     Layout(
         modifier = Modifier.fillMaxSize(),
         content = {
