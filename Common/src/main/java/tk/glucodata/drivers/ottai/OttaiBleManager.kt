@@ -3749,7 +3749,7 @@ class OttaiBleManager(
                 )
                 if (stored > 0) {
                     applyActivatedWearToNative(id)
-                    Natives.wakebackup()
+                    Natives.wakehereonly()
                     Log.i(TAG, "mirrored $stored/${readings.size} history readings into native")
                 }
             }.onFailure { Log.stack(TAG, "mirrorHistoryIntoNative", it) }
@@ -3772,7 +3772,7 @@ class OttaiBleManager(
                 )
                 if (stored) {
                     applyActivatedWearToNative(id)
-                    Natives.wakebackup()
+                    Natives.wakestreamonly()
                     // The shell is sized and the start is known by the time a live write lands, so
                     // this is the first safe moment to close whatever native is missing.
                     handler.post { reconcileNativeFromRoom(id) }

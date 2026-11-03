@@ -701,6 +701,16 @@ extern "C" JNIEXPORT void JNICALL fromjava(wakehereonly)(JNIEnv *env,
   }
 }
 
+// A new reading: the same wake the native drivers give their readings. Clone
+// sends the stream over the open link; a reconnect would redo the handshake
+// and every profile push once a minute, keeping the phone off deep sleep.
+extern "C" JNIEXPORT void JNICALL fromjava(wakestreamonly)(JNIEnv *env,
+                                                           jclass cl) {
+  if (backup) {
+    backup->wakebackup(Backup::wakestream);
+  }
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 fromjava(getHostDeactivated)(JNIEnv *envin, jclass cl, jint pos) {
   if (pos < backup->getupdatedata()->hostnr) {
