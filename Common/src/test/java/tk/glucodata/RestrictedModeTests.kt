@@ -57,12 +57,23 @@ class RestrictedModeTests {
         assertEquals(0L, RestrictedModePin.remainingLockoutMs(7, 100_000L + wait, wait, 7, 100_000L + wait))
     }
 
+    @Test fun anUnknownBootCounterKeepsAWaitStartedNow() {
+        // BOOT_COUNT unreadable on a phone up for 20 minutes: a wait just started must still
+        // run in full, not read as already over.
+        val wait = 30_000L
+        val uptime = 20L * 60_000L
+        assertEquals(wait, RestrictedModePin.remainingLockoutMs(-1, uptime + wait, wait, -1, uptime))
+        assertEquals(10_000L, RestrictedModePin.remainingLockoutMs(-1, uptime + wait, wait, -1, uptime + 20_000L))
+        assertEquals(0L, RestrictedModePin.remainingLockoutMs(-1, uptime + wait, wait, -1, uptime + wait))
+    }
+
     @Test fun restartingThePhoneNeverShortensALockout() {
         val wait = 15L * 60_000L
         // A new boot restarts the elapsed clock: the whole wait counts again from boot.
         assertEquals(wait - 120_000L, RestrictedModePin.remainingLockoutMs(7, 9_000_000L, wait, 8, 120_000L))
         assertEquals(0L, RestrictedModePin.remainingLockoutMs(7, 9_000_000L, wait, 8, wait))
-        // Boot unknown: treated as a new boot, never as "already over".
+        // Boot unknown after a restart: the deadline sits more than a wait ahead of the
+        // restarted clock, so the whole wait counts from boot.
         assertEquals(wait - 1_000L, RestrictedModePin.remainingLockoutMs(-1, 9_000_000L, wait, -1, 1_000L))
         // Never more than the wait itself, and nothing without a saved lockout.
         assertEquals(wait, RestrictedModePin.remainingLockoutMs(7, Long.MAX_VALUE, wait, 7, 0L))

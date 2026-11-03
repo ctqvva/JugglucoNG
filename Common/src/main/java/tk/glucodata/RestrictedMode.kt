@@ -123,14 +123,17 @@ object RestrictedMode {
     /**
      * Whether an NFC tap on a Libre must be refused because it would add a sensor. Libre 3
      * NFC only activates or pairs, so it needs Libre allowed; a Libre 1/2 tap is refused
-     * only for a sensor this phone does not have yet, so reading a known one keeps working.
+     * only for a sensor this phone has not stored yet, so reading a known one keeps working.
+     * "Stored" is any sensor in native storage (getSensorIndex, by full or short name), not
+     * only the streaming ones activeSensors() lists: a Libre without Bluetooth streaming is
+     * read by NFC alone.
      */
     @JvmStatic
     fun refusesNfcSensor(isLibre3: Boolean, serial: String?): Boolean {
         if (canAddSensorFamily(LIBRE_FAMILY)) return false
         if (isLibre3 || serial.isNullOrBlank()) return true
-        val known = runCatching { Natives.activeSensors() }.getOrNull() ?: return true
-        return known.none { SensorIdentity.matches(it, serial) }
+        val index = runCatching { Natives.getSensorIndex(serial) }.getOrDefault(-1)
+        return index < 0
     }
 
     /** Whether an alarm may be stopped outright rather than only snoozed. */
@@ -340,9 +343,14 @@ object RestrictedModePin {
     }
 
     /**
-     * What is left of a lockout. On the boot it was set, the elapsed-time deadline decides;
-     * on any other boot (or when the boot is unknown) the elapsed clock has restarted, so the
-     * whole wait is counted from boot again: restarting the phone never shortens it.
+     * What is left of a lockout, on the elapsed-time clock. On the boot it was set, the saved
+     * deadline decides. After a restart the elapsed clock starts again from zero, so the whole
+     * wait is counted from boot instead: restarting the phone never shortens it.
+     *
+     * A restart is known from the boot counter when both are available, and otherwise from the
+     * clock itself: a deadline more than one whole wait ahead can only mean the clock restarted.
+     * A deadline already passed is over on either reading, since the saved deadline is at least
+     * one wait past zero.
      */
     fun remainingLockoutMs(
         savedBoot: Int,
@@ -352,8 +360,10 @@ object RestrictedModePin {
         nowElapsed: Long,
     ): Long {
         if (savedUntilElapsed <= 0L || savedDurationMs <= 0L) return 0L
-        val sameBoot = savedBoot >= 0 && savedBoot == currentBoot
-        val remaining = if (sameBoot) savedUntilElapsed - nowElapsed else savedDurationMs - nowElapsed
+        val bootsKnown = savedBoot >= 0 && currentBoot >= 0
+        val restarted = (bootsKnown && savedBoot != currentBoot) ||
+            savedUntilElapsed - nowElapsed > savedDurationMs
+        val remaining = if (restarted) savedDurationMs - nowElapsed else savedUntilElapsed - nowElapsed
         return remaining.coerceIn(0L, savedDurationMs)
     }
 
