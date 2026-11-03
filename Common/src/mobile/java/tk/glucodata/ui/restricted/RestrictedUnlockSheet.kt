@@ -8,6 +8,7 @@ import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
 import android.os.Build
 import android.os.CancellationSignal
+import android.os.SystemClock
 import android.text.format.DateUtils
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
@@ -25,7 +26,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Check
@@ -54,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -196,7 +200,11 @@ private fun PinUnlock(
     val context = LocalContext.current
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var lockedOutUntil by remember { mutableLongStateOf(RestrictedMode.pinLockoutUntil(context)) }
+    // When the keypad opens again, on the elapsed-time clock (0: open).
+    var lockedOutUntil by remember {
+        val remaining = RestrictedMode.pinLockoutRemainingMs(context)
+        mutableLongStateOf(if (remaining > 0L) SystemClock.elapsedRealtime() + remaining else 0L)
+    }
     val wrongPin = stringResource(R.string.restricted_wrong_pin)
     PinPad(
         title = stringResource(R.string.restricted_enter_pin),
@@ -210,11 +218,11 @@ private fun PinUnlock(
                 RestrictedMode.PinCheck.Accepted -> onAccepted()
                 is RestrictedMode.PinCheck.Rejected -> {
                     error = wrongPin
-                    lockedOutUntil = result.lockedOutUntilMs
+                    lockedOutUntil = if (result.lockoutMs > 0L) SystemClock.elapsedRealtime() + result.lockoutMs else 0L
                     attempt++
                 }
                 is RestrictedMode.PinCheck.LockedOut -> {
-                    lockedOutUntil = result.untilMs
+                    lockedOutUntil = SystemClock.elapsedRealtime() + result.remainingMs
                     attempt++
                 }
             }
@@ -273,6 +281,8 @@ internal fun RestrictedPinSetupSheet(
 }
 
 private val KeySize = 72.dp
+/** Keys in a short window (a phone held sideways), so all four rows and OK still fit. */
+private val CompactKeySize = 56.dp
 
 @Composable
 private fun PinPad(
@@ -286,11 +296,11 @@ private fun PinPad(
     footer: (@Composable () -> Unit)?,
 ) {
     var pin by remember(resetKey) { mutableStateOf("") }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     // Ticks only while the keypad is locked, to count the wait down.
     LaunchedEffect(lockedOutUntil) {
         while (lockedOutUntil > 0L) {
-            now = System.currentTimeMillis()
+            now = SystemClock.elapsedRealtime()
             if (now >= lockedOutUntil) {
                 onLockoutEnded()
                 break
@@ -300,6 +310,7 @@ private fun PinPad(
     }
     val lockedOut = lockedOutUntil > now
     val keysEnabled = !lockedOut
+    val keySize = if (LocalConfiguration.current.screenHeightDp < 600) CompactKeySize else KeySize
     val message = when {
         lockedOut -> stringResource(
             R.string.restricted_pin_locked_out,
@@ -308,9 +319,11 @@ private fun PinPad(
         else -> error
     }
 
+    // Scrolls when even the compact keypad does not fit, so OK is always reachable.
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -348,7 +361,7 @@ private fun PinPad(
             rows.forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     row.forEach { digit ->
-                        DigitKey(digit, enabled = keysEnabled && pin.length < RestrictedModePin.MAX_LENGTH) {
+                        DigitKey(digit, keySize, enabled = keysEnabled && pin.length < RestrictedModePin.MAX_LENGTH) {
                             pin += digit
                         }
                     }
@@ -359,7 +372,7 @@ private fun PinPad(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val deleteLabel = stringResource(R.string.restricted_delete_digit)
-                Box(modifier = Modifier.size(KeySize), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(keySize), contentAlignment = Alignment.Center) {
                     IconButtonTooltip(deleteLabel) {
                         IconButton(
                             onClick = { pin = pin.dropLast(1) },
@@ -371,17 +384,17 @@ private fun PinPad(
                         }
                     }
                 }
-                DigitKey("0", enabled = keysEnabled && pin.length < RestrictedModePin.MAX_LENGTH) {
+                DigitKey("0", keySize, enabled = keysEnabled && pin.length < RestrictedModePin.MAX_LENGTH) {
                     pin += "0"
                 }
                 val confirmLabel = stringResource(R.string.ok)
-                Box(modifier = Modifier.size(KeySize), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(keySize), contentAlignment = Alignment.Center) {
                     IconButtonTooltip(confirmLabel) {
                         FilledIconButton(
                             onClick = { onSubmit(pin) },
                             enabled = keysEnabled && RestrictedModePin.isValid(pin),
                             shapes = IconButtonDefaults.shapes(),
-                            modifier = Modifier.size(KeySize),
+                            modifier = Modifier.size(keySize),
                         ) {
                             Icon(Icons.Default.Check, contentDescription = confirmLabel)
                         }
@@ -430,13 +443,13 @@ private fun pluralCount(length: Int): String {
 }
 
 @Composable
-private fun DigitKey(digit: String, enabled: Boolean, onClick: () -> Unit) {
+private fun DigitKey(digit: String, size: androidx.compose.ui.unit.Dp, enabled: Boolean, onClick: () -> Unit) {
     FilledTonalButton(
         onClick = onClick,
         enabled = enabled,
         shapes = ButtonDefaults.shapes(),
         contentPadding = PaddingValues(0.dp),
-        modifier = Modifier.sizeIn(minWidth = KeySize, minHeight = KeySize),
+        modifier = Modifier.sizeIn(minWidth = size, minHeight = size),
     ) {
         Text(
             text = digit,
@@ -454,7 +467,10 @@ internal object RestrictedBiometrics {
     fun isAvailable(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
         val manager = context.getSystemService(BiometricManager::class.java) ?: return false
-        return manager.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
+        // A missing permission or an OEM quirk means "not available", never a crash.
+        return runCatching {
+            manager.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
+        }.getOrDefault(false)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

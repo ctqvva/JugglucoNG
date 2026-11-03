@@ -201,6 +201,11 @@ private fun HistoryRoute(
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
     val restricted by RestrictedMode.state.collectAsStateWithLifecycle()
     val requestFullMode = LocalRequestFullMode.current
+    val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
+    // Restricted again with the editor open (an adult left it a minute): close it.
+    LaunchedEffect(restricted.canEditJournal) {
+        if (!restricted.canEditJournal) journalEditorRequest = null
+    }
 
     // Journal entries are time-bound user events (insulin, food, fingersticks);
     // they must stay visible across sensor swaps. The History route deliberately
@@ -303,19 +308,25 @@ private fun HistoryRoute(
             existingEntry = request.existingEntry,
             onDismiss = { journalEditorRequest = null },
             onSave = { input ->
-                dashboardViewModel.saveJournalEntry(input)
-                lastJournalType = input.type
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, listOf(input.type)) {
+                    dashboardViewModel.saveJournalEntry(input)
+                    lastJournalType = input.type
+                    journalEditorRequest = null
+                }
             },
             onSaveEntries = { inputs ->
-                inputs.forEach(dashboardViewModel::saveJournalEntry)
-                inputs.firstOrNull()?.let { lastJournalType = it.type }
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, inputs.map { it.type }) {
+                    inputs.forEach(dashboardViewModel::saveJournalEntry)
+                    inputs.firstOrNull()?.let { lastJournalType = it.type }
+                    journalEditorRequest = null
+                }
             },
             onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
-                dashboardViewModel.deleteJournalEntry(entryId)
-                journalEditorRequest = null
+                journalGuard.delete {
+                    dashboardViewModel.deleteJournalEntry(entryId)
+                    journalEditorRequest = null
+                }
             },
             sensorSerialProvider = { sensorName.ifBlank { null } }
         )
@@ -373,6 +384,7 @@ private fun JournalRoute(
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var lastJournalType by rememberSaveable { mutableStateOf(JournalEntryType.INSULIN) }
+    val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
 
     fun openJournalEditor(
         timestamp: Long,
@@ -469,19 +481,25 @@ private fun JournalRoute(
             existingEntry = request.existingEntry,
             onDismiss = { journalEditorRequest = null },
             onSave = { input ->
-                dashboardViewModel.saveJournalEntry(input)
-                lastJournalType = input.type
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, listOf(input.type)) {
+                    dashboardViewModel.saveJournalEntry(input)
+                    lastJournalType = input.type
+                    journalEditorRequest = null
+                }
             },
             onSaveEntries = { inputs ->
-                inputs.forEach(dashboardViewModel::saveJournalEntry)
-                inputs.firstOrNull()?.let { lastJournalType = it.type }
-                journalEditorRequest = null
+                journalGuard.save(request.existingEntry, inputs.map { it.type }) {
+                    inputs.forEach(dashboardViewModel::saveJournalEntry)
+                    inputs.firstOrNull()?.let { lastJournalType = it.type }
+                    journalEditorRequest = null
+                }
             },
             onSaveFood = dashboardViewModel::saveJournalFood,
             onDelete = { entryId ->
-                dashboardViewModel.deleteJournalEntry(entryId)
-                journalEditorRequest = null
+                journalGuard.delete {
+                    dashboardViewModel.deleteJournalEntry(entryId)
+                    journalEditorRequest = null
+                }
             },
             sensorSerialProvider = { sensorName.ifBlank { null } }
         )
@@ -794,6 +812,18 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
             navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
             if (!justLocked && blocked != null) {
                 requestFullMode { navController.navigate(blocked) { launchSingleTop = true } }
+            }
+        }
+    }
+
+    // The TalkBack legacy menus live outside Compose, on MainActivity's back stack, and reach
+    // every setting. Left open when the session locks again, they are closed the way Back
+    // would close them: the menus and everything opened from them.
+    LaunchedEffect(restricted.locked) {
+        if (restricted.locked && tk.glucodata.LegacyScreensAccess.menusOn) {
+            var steps = 0
+            while (tk.glucodata.MainActivity.onbacknr() > 0 && steps++ < 32) {
+                tk.glucodata.MainActivity.doonback()
             }
         }
     }

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.Slider
 import tk.glucodata.ui.components.TabScreenDefaults
+import tk.glucodata.ui.restricted.addableSensorTypes
 import tk.glucodata.ui.components.TabScreenHeader
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.material3.TextButton
@@ -312,16 +313,22 @@ fun SensorScreen(
     // Restricted mode: simplified cards, and adding only the families the adult allowed.
     val restricted by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
     val restrictedLocked = restricted.locked
-    val allowedSensorTypes: Set<tk.glucodata.ui.components.SensorType>? = if (restrictedLocked) {
-        if (restricted.config.allowSensorChange) {
-            restricted.config.allowedSensorTypes.mapNotNull { name ->
-                tk.glucodata.ui.components.SensorType.entries.firstOrNull { it.name == name }
-            }.toSet()
-        } else {
-            emptySet()
-        }
-    } else {
-        null
+    val allowedSensorTypes = restricted.addableSensorTypes()
+    // Restricted again (or a family no longer allowed) with its setup open: close it.
+    LaunchedEffect(allowedSensorTypes) {
+        val allowed = allowedSensorTypes ?: return@LaunchedEffect
+        if (tk.glucodata.ui.components.SensorType.SIBIONICS !in allowed) showSibionicsWizard = false
+        if (tk.glucodata.ui.components.SensorType.LIBRE !in allowed) showLibreWizard = false
+        if (tk.glucodata.ui.components.SensorType.DEXCOM !in allowed) showDexcomWizard = false
+        if (tk.glucodata.ui.components.SensorType.ACCUCHEK !in allowed) showAccuChekWizard = false
+        if (tk.glucodata.ui.components.SensorType.CARESENS_AIR !in allowed) showCareSensAirWizard = false
+        if (tk.glucodata.ui.components.SensorType.AIDEX !in allowed) showAiDexWizard = false
+        if (tk.glucodata.ui.components.SensorType.ICANHEALTH !in allowed) showICanHealthWizard = false
+        if (tk.glucodata.ui.components.SensorType.MQ !in allowed) showMQWizard = false
+        if (tk.glucodata.ui.components.SensorType.ANYTIME !in allowed) showAnytimeWizard = false
+        if (tk.glucodata.ui.components.SensorType.OTTAI !in allowed) showOttaiWizard = false
+        if (tk.glucodata.ui.components.SensorType.MEDTRUM !in allowed) showMedtrumWizard = false
+        if (allowed.isEmpty()) showSensorPicker = false
     }
     val canAddSensor = allowedSensorTypes == null || allowedSensorTypes.isNotEmpty()
     val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current

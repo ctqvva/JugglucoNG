@@ -60,6 +60,7 @@ fun AiDexSetupWizard(
     onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
+    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
     val tag = "AiDexSetupWizard"
     val ui = rememberWizardUiMetrics()
     var currentStep by remember { mutableStateOf(AiDexSetupStep.SCAN) }
@@ -99,7 +100,8 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     onNavigateToReadiness = onNavigateToReadiness,
-                    onManageKeys = { currentStep = AiDexSetupStep.KEY_MANAGEMENT },
+                    // Saved pairing keys can be deleted there: full mode on a restricted phone.
+                    onManageKeys = { requestFullMode { currentStep = AiDexSetupStep.KEY_MANAGEMENT } },
                     onDeviceSelected = { selectedName, address ->
                         try {
                             val name = selectedName.trim()

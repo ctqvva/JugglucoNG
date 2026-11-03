@@ -240,7 +240,9 @@ fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
     onImportHistory: () -> Unit,
     modifier: Modifier = Modifier,
-    readinessContent: (@Composable () -> Unit)? = null
+    readinessContent: (@Composable () -> Unit)? = null,
+    /** Restricted mode's allowed families; null offers every family, empty offers none. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val sidePadding = 16.dp
@@ -289,30 +291,34 @@ fun DashboardEmptyState(
             Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
         }
 
-        SensorSelectionCards(
-            onSensorSelected = onSensorSelected
-        )
-        
-        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
-        
-        // Divider with "or"
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = if (compact) 4.dp else 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.or_divider),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        if (allowedTypes == null || allowedTypes.isNotEmpty()) {
+            SensorSelectionCards(
+                onSensorSelected = onSensorSelected,
+                allowedTypes = allowedTypes,
             )
-            HorizontalDivider(modifier = Modifier.weight(1f))
+        
+            Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
+        
+            // Divider with "or"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (compact) 4.dp else 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.or_divider),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+        
+            Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
+        
         }
-        
-        Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
-        
+
         // Import History card
         ImportHistoryCard(
             onClick = onImportHistory,

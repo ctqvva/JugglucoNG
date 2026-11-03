@@ -29,17 +29,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
         val customAlertId = intent.getStringExtra(Notify.EXTRA_CUSTOM_ALERT_ID)
         val fallbackAlertTypeId = intent.getIntExtra(EXTRA_ALERT_TYPE_ID, -1)
 
-        // Restricted mode can leave alarms snooze-only. A Stop from the notification, a
-        // swipe set to dismiss, or a companion device's dismiss then snoozes instead, so the
-        // alarm returns rather than going quiet for the rest of the episode.
-        val action = if (intent.action == ACTION_DISMISS && !tk.glucodata.RestrictedMode.allowsAlarmStop()) {
-            Log.i(LOG_ID, "dismiss while restricted: snoozing instead")
-            ACTION_SNOOZE
-        } else {
-            intent.action
-        }
-
-        when (action) {
+        when (intent.action) {
             ACTION_DISMISS -> tk.glucodata.alerts.AlertActions.handle(
                 fallbackAlertTypeId.takeIf { it >= 0 } ?: Notify.resolveAlertKind(-1), customAlertId
             )
@@ -48,8 +38,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
                 val kind = fallbackAlertTypeId.takeIf { it >= 0 } ?: Notify.resolveAlertKind(-1)
                 val minutes = if (intent.hasExtra(EXTRA_SNOOZE_MINUTES)) {
                     intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 15)
-                } else if (customAlertId != null) 15
-                else AlertType.fromId(kind)?.let { AlertRepository.loadConfig(it).defaultSnoozeMinutes } ?: 15
+                } else tk.glucodata.alerts.AlertActions.defaultSnoozeMinutes(kind, customAlertId)
                 tk.glucodata.alerts.AlertActions.handle(kind, customAlertId, minutes)
             }
 

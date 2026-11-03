@@ -167,6 +167,7 @@ import tk.glucodata.data.prediction.buildGlucosePrediction
 import tk.glucodata.ui.journal.JournalDoseProfile
 import tk.glucodata.ui.journal.JournalEntrySheet
 import tk.glucodata.ui.journal.JournalExpandableFab
+import tk.glucodata.ui.restricted.addableSensorTypes
 import tk.glucodata.ui.journal.rememberJournalCob
 import tk.glucodata.ui.journal.JournalFloatingActionMenu
 import tk.glucodata.ui.journal.JournalInlineChip
@@ -378,6 +379,7 @@ fun DashboardScreen(
     val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
     val journalEditable = restrictedMode.canEditJournal
     val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
+    val journalGuard = tk.glucodata.ui.restricted.rememberRestrictedJournalGuard()
     val glucoseRangeColorsDisplayEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
     val glucoseArrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsStateWithLifecycle()
     val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
@@ -441,6 +443,23 @@ fun DashboardScreen(
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
     var showMedtrumWizard by remember { mutableStateOf(false) }
+    // Restricted mode: the empty dashboard offers only the families that may be added, and
+    // a setup left open when the session locks again (or its family is dropped) closes.
+    val addableSensorTypes = restrictedMode.addableSensorTypes()
+    LaunchedEffect(addableSensorTypes) {
+        val allowed = addableSensorTypes ?: return@LaunchedEffect
+        if (tk.glucodata.ui.components.SensorType.SIBIONICS !in allowed) showSibionicsWizard = false
+        if (tk.glucodata.ui.components.SensorType.LIBRE !in allowed) showLibreWizard = false
+        if (tk.glucodata.ui.components.SensorType.DEXCOM !in allowed) showDexcomWizard = false
+        if (tk.glucodata.ui.components.SensorType.ACCUCHEK !in allowed) showAccuChekWizard = false
+        if (tk.glucodata.ui.components.SensorType.CARESENS_AIR !in allowed) showCareSensAirWizard = false
+        if (tk.glucodata.ui.components.SensorType.AIDEX !in allowed) showAiDexWizard = false
+        if (tk.glucodata.ui.components.SensorType.ICANHEALTH !in allowed) showICanHealthWizard = false
+        if (tk.glucodata.ui.components.SensorType.MQ !in allowed) showMQWizard = false
+        if (tk.glucodata.ui.components.SensorType.ANYTIME !in allowed) showAnytimeWizard = false
+        if (tk.glucodata.ui.components.SensorType.OTTAI !in allowed) showOttaiWizard = false
+        if (tk.glucodata.ui.components.SensorType.MEDTRUM !in allowed) showMedtrumWizard = false
+    }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
     // Where the chart draws the tapped time's dot, for the journal menu to grow from.
@@ -746,16 +765,18 @@ fun DashboardScreen(
             journalEditorRequest = null
         }
     }
-    LaunchedEffect(journalEditable) {
-        if (!journalEditable) clearJournalAction()
-    }
-    // Every way into the editor (markers, rows, menus) sets journalEditorRequest; while the
-    // journal is closed the request waits for full mode instead of opening.
+    // Every way into the editor (markers, rows, menus) sets journalEditorRequest. Opened
+    // while the journal is closed, the request waits for full mode; an editor left open when
+    // the session locks again just closes, without asking.
+    var journalWasEditable by remember { mutableStateOf(journalEditable) }
     LaunchedEffect(journalEditorRequest, journalEditable) {
+        val justClosed = journalWasEditable && !journalEditable
+        journalWasEditable = journalEditable
+        if (!journalEditable) clearJournalAction()
         val request = journalEditorRequest
         if (request != null && !journalEditable) {
             journalEditorRequest = null
-            requestFullMode { journalEditorRequest = request }
+            if (!justClosed) requestFullMode { journalEditorRequest = request }
         }
     }
 
@@ -988,22 +1009,28 @@ fun DashboardScreen(
             existingEntry = request.existingEntry,
             onDismiss = { journalEditorRequest = null },
             onSave = { input ->
-                viewModel.saveJournalEntry(input)
-                lastJournalType = input.type
-                journalEditorRequest = null
-                clearJournalAction()
+                journalGuard.save(request.existingEntry, listOf(input.type)) {
+                    viewModel.saveJournalEntry(input)
+                    lastJournalType = input.type
+                    journalEditorRequest = null
+                    clearJournalAction()
+                }
             },
             onSaveEntries = { inputs ->
-                inputs.forEach(viewModel::saveJournalEntry)
-                inputs.firstOrNull()?.let { lastJournalType = it.type }
-                journalEditorRequest = null
-                clearJournalAction()
+                journalGuard.save(request.existingEntry, inputs.map { it.type }) {
+                    inputs.forEach(viewModel::saveJournalEntry)
+                    inputs.firstOrNull()?.let { lastJournalType = it.type }
+                    journalEditorRequest = null
+                    clearJournalAction()
+                }
             },
             onSaveFood = viewModel::saveJournalFood,
             onDelete = { entryId ->
-                viewModel.deleteJournalEntry(entryId)
-                journalEditorRequest = null
-                clearJournalAction()
+                journalGuard.delete {
+                    viewModel.deleteJournalEntry(entryId)
+                    journalEditorRequest = null
+                    clearJournalAction()
+                }
             },
             sensorSerialProvider = { sensorName.ifBlank { null } }
         )
@@ -1455,6 +1482,7 @@ fun DashboardScreen(
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
             } else if (glucoseHistory.isEmpty() && !hasSensorContext) {
             tk.glucodata.ui.components.DashboardEmptyState(
+                allowedTypes = addableSensorTypes,
                 onSensorSelected = { type ->
                     when (type) {
                         tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true

@@ -508,6 +508,9 @@ fun OttaiSetupWizard(
 ) {
     val tag = "OttaiSetupWizard"
     val ui = rememberWizardUiMetrics()
+    // Restricted mode: adding the sensor works as usual; releasing bindings, deleting or
+    // exporting saved keys and the manual firmware entry ask for full mode first.
+    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -1393,10 +1396,12 @@ fun OttaiSetupWizard(
                 OttaiCloudClient.loadOtaSession(context),
                 OttaiConstants.normalizeBleAddress(bleAddress) != null,
                 OttaiFirmwareSession.hasPendingSetup(context, cloudId))) ({
-                setupAfterFirmware = false
-                firmwareLaunchId++
-                OttaiSetupScanHold.stopPanelScans()
-                showFirmwareTest = true
+                requestFullMode {
+                    setupAfterFirmware = false
+                    firmwareLaunchId++
+                    OttaiSetupScanHold.stopPanelScans()
+                    showFirmwareTest = true
+                }
             }) else null,
             onSignIn = { openSignIn() },
             onExport = if (hasMaterials && hasSensorCode) {
@@ -1451,12 +1456,14 @@ fun OttaiSetupWizard(
                     },
                     onSelectSaved = selectSaved,
                     onExport = { sensor ->
-                        exportTargetId = sensor.sensorId
-                        exportLauncher.launch("ottai_${sensor.sensorId}.json")
+                        requestFullMode {
+                            exportTargetId = sensor.sensorId
+                            exportLauncher.launch("ottai_${sensor.sensorId}.json")
+                        }
                     },
-                    onDelete = { pendingDelete = it },
+                    onDelete = { sensor -> requestFullMode { pendingDelete = sensor } },
                     onSelectAccountDevice = selectAccountDevice,
-                    onUnbind = { pendingCloudUnbind = it },
+                    onUnbind = { device -> requestFullMode { pendingCloudUnbind = device } },
                     onImport = launchImport,
                     onRefreshAccount = { refreshAccountDevices(cloudId) },
                     onSignIn = { openSignIn() },
@@ -1516,7 +1523,7 @@ fun OttaiSetupWizard(
                                 OttaiUnusedBindingCard(
                                     sensorId = OttaiConstants.canonicalSensorId(binding.mac),
                                     enabled = !busy && !devicesLoading,
-                                    onUnbind = { pendingCloudUnbind = binding },
+                                    onUnbind = { requestFullMode { pendingCloudUnbind = binding } },
                                     modifier = Modifier.padding(
                                         start = ui.horizontalPadding,
                                         end = ui.horizontalPadding,

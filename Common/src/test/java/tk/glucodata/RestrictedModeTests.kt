@@ -49,6 +49,26 @@ class RestrictedModeTests {
         assertEquals(15L * 60_000L, RestrictedModePin.lockoutMs(1_000))
     }
 
+    @Test fun lockoutRunsOnTheElapsedClockWithinOneBoot() {
+        val wait = 60_000L
+        // Same boot: only elapsed time counts, whatever the wall clock says.
+        assertEquals(wait, RestrictedModePin.remainingLockoutMs(7, 100_000L + wait, wait, 7, 100_000L))
+        assertEquals(1L, RestrictedModePin.remainingLockoutMs(7, 100_000L + wait, wait, 7, 100_000L + wait - 1))
+        assertEquals(0L, RestrictedModePin.remainingLockoutMs(7, 100_000L + wait, wait, 7, 100_000L + wait))
+    }
+
+    @Test fun restartingThePhoneNeverShortensALockout() {
+        val wait = 15L * 60_000L
+        // A new boot restarts the elapsed clock: the whole wait counts again from boot.
+        assertEquals(wait - 120_000L, RestrictedModePin.remainingLockoutMs(7, 9_000_000L, wait, 8, 120_000L))
+        assertEquals(0L, RestrictedModePin.remainingLockoutMs(7, 9_000_000L, wait, 8, wait))
+        // Boot unknown: treated as a new boot, never as "already over".
+        assertEquals(wait - 1_000L, RestrictedModePin.remainingLockoutMs(-1, 9_000_000L, wait, -1, 1_000L))
+        // Never more than the wait itself, and nothing without a saved lockout.
+        assertEquals(wait, RestrictedModePin.remainingLockoutMs(7, Long.MAX_VALUE, wait, 7, 0L))
+        assertEquals(0L, RestrictedModePin.remainingLockoutMs(7, 0L, 0L, 7, 0L))
+    }
+
     @Test fun fullModeEndsAfterTheGraceAwayOrWhenTheClockGoesBack() {
         val away = 1_000_000L
         assertFalse(RestrictedMode.shouldRelock(away, away + RestrictedMode.RELOCK_GRACE_MS - 1))

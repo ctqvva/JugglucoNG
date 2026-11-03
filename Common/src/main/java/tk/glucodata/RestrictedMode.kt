@@ -2,6 +2,7 @@ package tk.glucodata
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -69,32 +70,68 @@ object RestrictedMode {
     private const val KEY_BIOMETRIC = "biometric_unlock"
     private const val KEY_PIN = "pin_hash"
     private const val KEY_FAILED_ATTEMPTS = "pin_failed_attempts"
-    private const val KEY_LOCKOUT_UNTIL = "pin_lockout_until_ms"
+    private const val KEY_LOCKOUT_UNTIL_ELAPSED = "pin_lockout_until_elapsed_ms"
+    private const val KEY_LOCKOUT_DURATION = "pin_lockout_duration_ms"
+    private const val KEY_LOCKOUT_BOOT = "pin_lockout_boot"
 
     /** How long the app may be off screen before full mode ends by itself. */
     const val RELOCK_GRACE_MS = 60_000L
 
     private val stateFlow = MutableStateFlow(RestrictedModeState())
     private var loaded = false
-    private var backgroundedAtMs = 0L
+    /** When the app left the screen, on the elapsed-time clock; 0 while it is on screen. */
+    @Volatile private var backgroundedAtElapsed = 0L
 
     /** Live state for the UI. Reading it loads the stored configuration once. */
     @JvmStatic
     val state: StateFlow<RestrictedModeState>
         get() {
             ensureLoaded()
+            expireIfDue()
             return stateFlow.asStateFlow()
         }
 
+    /**
+     * The state now. Full mode that has been off screen past the grace ends here, so an
+     * alarm receiver or a Quick Settings tile reading this never sees a stale unlock.
+     */
     @JvmStatic
     fun current(): RestrictedModeState {
         ensureLoaded()
+        expireIfDue()
         return stateFlow.value
+    }
+
+    private fun expireIfDue(nowElapsed: Long = SystemClock.elapsedRealtime()) {
+        val since = backgroundedAtElapsed
+        if (since > 0L && stateFlow.value.unlocked && shouldRelock(since, nowElapsed)) lock()
     }
 
     /** Restrictions apply right now. */
     @JvmStatic
     fun isLocked(): Boolean = current().locked
+
+    /** The family name the phone's sensor picker uses for Libre (`SensorType.LIBRE`). */
+    const val LIBRE_FAMILY = "LIBRE"
+
+    /** Whether a sensor of this family (a `SensorType` name) may be added right now. */
+    @JvmStatic
+    fun canAddSensorFamily(family: String): Boolean = current().let {
+        !it.locked || (it.config.allowSensorChange && family in it.config.allowedSensorTypes)
+    }
+
+    /**
+     * Whether an NFC tap on a Libre must be refused because it would add a sensor. Libre 3
+     * NFC only activates or pairs, so it needs Libre allowed; a Libre 1/2 tap is refused
+     * only for a sensor this phone does not have yet, so reading a known one keeps working.
+     */
+    @JvmStatic
+    fun refusesNfcSensor(isLibre3: Boolean, serial: String?): Boolean {
+        if (canAddSensorFamily(LIBRE_FAMILY)) return false
+        if (isLibre3 || serial.isNullOrBlank()) return true
+        val known = runCatching { Natives.activeSensors() }.getOrNull() ?: return true
+        return known.none { SensorIdentity.matches(it, serial) }
+    }
 
     /** Whether an alarm may be stopped outright rather than only snoozed. */
     @JvmStatic
@@ -140,25 +177,26 @@ object RestrictedMode {
         }
     }
 
-    fun onAppBackgrounded(nowMs: Long = System.currentTimeMillis()) {
-        backgroundedAtMs = nowMs
+    fun onAppBackgrounded() {
+        backgroundedAtElapsed = SystemClock.elapsedRealtime().coerceAtLeast(1L)
     }
 
-    fun onAppForegrounded(nowMs: Long = System.currentTimeMillis()) {
-        val since = backgroundedAtMs
-        backgroundedAtMs = 0L
-        if (since > 0L && shouldRelock(since, nowMs)) lock()
+    fun onAppForegrounded() {
+        expireIfDue()
+        backgroundedAtElapsed = 0L
     }
 
-    internal fun shouldRelock(backgroundedAtMs: Long, nowMs: Long): Boolean =
-        nowMs - backgroundedAtMs >= RELOCK_GRACE_MS || nowMs < backgroundedAtMs
+    /** Both times on the elapsed-time clock, which the phone's time setting cannot move. */
+    internal fun shouldRelock(backgroundedAtElapsed: Long, nowElapsed: Long): Boolean =
+        nowElapsed - backgroundedAtElapsed >= RELOCK_GRACE_MS || nowElapsed < backgroundedAtElapsed
 
     // --- PIN ---------------------------------------------------------------------------
 
     sealed class PinCheck {
         object Accepted : PinCheck()
-        data class Rejected(val lockedOutUntilMs: Long) : PinCheck()
-        data class LockedOut(val untilMs: Long) : PinCheck()
+        /** Wrong PIN; [lockoutMs] is the wait it started, 0 for none. */
+        data class Rejected(val lockoutMs: Long) : PinCheck()
+        data class LockedOut(val remainingMs: Long) : PinCheck()
     }
 
     /** Stores a new PIN, or removes it with null. Removing the PIN also drops biometrics. */
@@ -167,7 +205,9 @@ object RestrictedMode {
             ensureLoaded(context)
             val editor = prefs(context).edit()
                 .remove(KEY_FAILED_ATTEMPTS)
-                .remove(KEY_LOCKOUT_UNTIL)
+                .remove(KEY_LOCKOUT_UNTIL_ELAPSED)
+                .remove(KEY_LOCKOUT_DURATION)
+                .remove(KEY_LOCKOUT_BOOT)
             if (pin == null) {
                 editor.remove(KEY_PIN).putBoolean(KEY_BIOMETRIC, false)
             } else {
@@ -185,32 +225,53 @@ object RestrictedMode {
         }
     }
 
-    /** When wrong guesses have locked the keypad, the time it opens again; else 0. */
-    fun pinLockoutUntil(context: Context, nowMs: Long = System.currentTimeMillis()): Long {
-        val until = prefs(context).getLong(KEY_LOCKOUT_UNTIL, 0L)
-        return if (until > nowMs) until else 0L
+    /**
+     * How long the keypad stays locked after wrong guesses; 0 when it is open. Measured on
+     * the elapsed-time clock, so changing the phone's time does not shorten it; after a
+     * restart the whole wait is counted again from boot.
+     */
+    fun pinLockoutRemainingMs(context: Context): Long {
+        val prefs = prefs(context)
+        return RestrictedModePin.remainingLockoutMs(
+            savedBoot = prefs.getInt(KEY_LOCKOUT_BOOT, -1),
+            savedUntilElapsed = prefs.getLong(KEY_LOCKOUT_UNTIL_ELAPSED, 0L),
+            savedDurationMs = prefs.getLong(KEY_LOCKOUT_DURATION, 0L),
+            currentBoot = bootCount(context),
+            nowElapsed = SystemClock.elapsedRealtime(),
+        )
     }
 
-    fun checkPin(context: Context, pin: String, nowMs: Long = System.currentTimeMillis()): PinCheck {
+    fun checkPin(context: Context, pin: String): PinCheck {
         synchronized(this) {
             val prefs = prefs(context)
-            val lockedUntil = pinLockoutUntil(context, nowMs)
-            if (lockedUntil > 0L) return PinCheck.LockedOut(lockedUntil)
+            val remaining = pinLockoutRemainingMs(context)
+            if (remaining > 0L) return PinCheck.LockedOut(remaining)
             val stored = prefs.getString(KEY_PIN, null) ?: return PinCheck.Accepted
             if (RestrictedModePin.matches(pin, stored)) {
-                prefs.edit().remove(KEY_FAILED_ATTEMPTS).remove(KEY_LOCKOUT_UNTIL).apply()
+                prefs.edit()
+                    .remove(KEY_FAILED_ATTEMPTS)
+                    .remove(KEY_LOCKOUT_UNTIL_ELAPSED)
+                    .remove(KEY_LOCKOUT_DURATION)
+                    .remove(KEY_LOCKOUT_BOOT)
+                    .apply()
                 return PinCheck.Accepted
             }
             val failures = prefs.getInt(KEY_FAILED_ATTEMPTS, 0) + 1
             val lockout = RestrictedModePin.lockoutMs(failures)
-            val until = if (lockout > 0L) nowMs + lockout else 0L
             prefs.edit()
                 .putInt(KEY_FAILED_ATTEMPTS, failures)
-                .putLong(KEY_LOCKOUT_UNTIL, until)
+                .putLong(KEY_LOCKOUT_UNTIL_ELAPSED, if (lockout > 0L) SystemClock.elapsedRealtime() + lockout else 0L)
+                .putLong(KEY_LOCKOUT_DURATION, lockout)
+                .putInt(KEY_LOCKOUT_BOOT, bootCount(context))
                 .apply()
-            return PinCheck.Rejected(until)
+            return PinCheck.Rejected(lockout)
         }
     }
+
+    /** Android's boot counter, so a saved elapsed-time deadline is only trusted on its own boot. */
+    private fun bootCount(context: Context): Int = runCatching {
+        android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT)
+    }.getOrDefault(-1)
 
     // --- storage -----------------------------------------------------------------------
 
@@ -276,6 +337,24 @@ object RestrictedModePin {
         val salt = runCatching { b64.decode(parts[2]) }.getOrNull() ?: return false
         val expected = runCatching { b64.decode(parts[3]) }.getOrNull() ?: return false
         return MessageDigest.isEqual(derive(pin, salt, iterations), expected)
+    }
+
+    /**
+     * What is left of a lockout. On the boot it was set, the elapsed-time deadline decides;
+     * on any other boot (or when the boot is unknown) the elapsed clock has restarted, so the
+     * whole wait is counted from boot again: restarting the phone never shortens it.
+     */
+    fun remainingLockoutMs(
+        savedBoot: Int,
+        savedUntilElapsed: Long,
+        savedDurationMs: Long,
+        currentBoot: Int,
+        nowElapsed: Long,
+    ): Long {
+        if (savedUntilElapsed <= 0L || savedDurationMs <= 0L) return 0L
+        val sameBoot = savedBoot >= 0 && savedBoot == currentBoot
+        val remaining = if (sameBoot) savedUntilElapsed - nowElapsed else savedDurationMs - nowElapsed
+        return remaining.coerceIn(0L, savedDurationMs)
     }
 
     /**
