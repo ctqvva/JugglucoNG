@@ -442,6 +442,7 @@
     <string name="scan_sensor_title">扫描二维码</string>
     <string name="scan_sensor_instruction">扫描 Sibionics 传感器包装盒上的二维码。</string>
     <string name="scan_sensor_instruction_sibionics2">扫描 Sibionics 2 发射器上的连接码，或在下方通过蓝牙选择发射器。</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3（中国版）通过蓝牙配对。请让传感器靠近手机，并在下方列表中选择它。</string>
     <string name="scan_qr_button">扫描二维码</string>
     <string name="select_gallery_button">从图库选择</string>
     <string name="skip_fake_sensor">跳过 (使用模拟传感器)</string>
@@ -943,6 +944,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensorstreamed"></string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3（中国版）</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">稳定性</string>
     <string name="start_tracking">开始追踪您的血糖以查看统计数据</string>

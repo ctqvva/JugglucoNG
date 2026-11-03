@@ -404,6 +404,7 @@
     <string name="hematonix">Hematonix</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (China)</string>
     <string name="datapresent">"Data present: "</string>
     <string name="overwrite">Overwrite?</string>
     <string name="autoqr">Auto QR</string>
@@ -988,6 +989,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="scan_sensor_title">Scan QR Code</string>
     <string name="scan_sensor_instruction">Scan the QR code on your generic Sibionics sensor box.</string>
     <string name="scan_sensor_instruction_sibionics2">Scan the connection code on the Sibionics 2 transmitter, or pick the transmitter from Bluetooth below.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (China) pairs over Bluetooth. Keep the sensor close and pick it from the list below.</string>
     <string name="scan_qr_button">Scan QR code</string>
     <string name="select_gallery_button">Select from Gallery</string>
     <string name="skip_fake_sensor">Skip (Use Fake Sensor)</string>
