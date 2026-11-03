@@ -383,6 +383,7 @@
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Chiny)</string>
     <string name="datapresent">&quot;Dane obecne: &quot;</string>
     <string name="overwrite">Nadpisać?</string>
     <string name="autoqr">Auto QR</string>
@@ -510,6 +511,7 @@
     <string name="scan_sensor_title">Zeskanuj Kod QR</string>
     <string name="scan_sensor_instruction">Zeskanuj kod QR na pudełku sensora Sibionics.</string>
     <string name="scan_sensor_instruction_sibionics2">Zeskanuj kod połączenia na nadajniku Sibionics 2 lub wybierz nadajnik przez Bluetooth poniżej.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Chiny) paruje się przez Bluetooth. Trzymaj sensor blisko i wybierz go z listy poniżej.</string>
     <string name="scan_qr_button">Skanuj QR</string>
     <string name="select_gallery_button">Wybierz z Galerii</string>
     <string name="skip_fake_sensor">Pomiń (Użyj fałszywego sensora)</string>

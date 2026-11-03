@@ -532,6 +532,7 @@
     <string name="scan_sensor_title">Сканировать</string>
     <string name="scan_sensor_instruction">QR-код на коробке вашего сенсора Sibionics</string>
     <string name="scan_sensor_instruction_sibionics2">Отсканируйте код подключения на передатчике Sibionics 2 или выберите передатчик через Bluetooth ниже.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Китай) подключается по Bluetooth. Держите датчик рядом и выберите его в списке ниже.</string>
     <string name="scan_qr_button">Сканировать QR</string>
     <string name="select_gallery_button">Выбрать из Галереи</string>
     <string name="skip_fake_sensor">Пропустить (Исп. фиктивный сенсор)</string>
@@ -973,6 +974,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensorstreamed"></string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Китай)</string>
     <string name="specifyblood">"First select the label for blood glucose"</string>
     <string name="stability">Стабильность</string>
     <string name="start_tracking">Начните отслеживать уровень глюкозы, чтобы увидеть статистику</string>

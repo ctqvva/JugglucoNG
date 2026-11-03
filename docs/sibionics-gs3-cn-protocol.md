@@ -49,6 +49,14 @@ handshake: it scans the saved address for an advertisement carrying one and retr
 
 No MTU request is made (vendor behaviour); `onMtuChanged` is logged.
 
+A device whose service discovery **completes** without FF30/FF31/FF32 is rejected: its address is
+never reconnected to automatically, and the status says it is not a GS3 CN sensor. Only an
+explicit reconnect from the UI clears that. A discovery that *fails* is retried as in §5.
+
+Auth frames carry the session key, so their bytes are never logged — only the first two bytes and
+the length. (In `PLAIN` the wire bytes are the key itself; the encrypted forms are reversible with
+the constants in this file.)
+
 ## 2. Framing and crypto
 
 ```
@@ -109,7 +117,9 @@ arriving before auth are ignored, not counted as an answer.
 IdBind: result `2` is a sensor bound to another account (fail); `0` continues; anything else
 retries once with `seq = 2`, then fails. Other ACKs advance on their type, as the vendor does;
 `result`/`arg` are logged. After auth each handshake step has a 15 s deadline; a missed one fails
-the connection, and a failed connection retries after 60 s.
+the connection, and a failed connection retries after 60 s. Every request actually sent gets its
+own deadline (the IdBind `seq = 2` retry included); a notification that is ignored does not extend
+the current one.
 
 The data request starts at `cursor == 0 ? 1 : cursor + 1`; after each non-empty page the cursor
 becomes the page's first index (kept monotonic here) and is persisted with the sensor.
@@ -137,7 +147,11 @@ family's interval).
 
 **Timestamps.** A record's time is `start time + index × 60 s`. The start time is derived from the
 newest record in a page (`now − age × 60 s − index × 60 s`), persisted, and moved only by a current
-(age 0) record that disagrees by more than 3 minutes — then the native stream window is rebased.
+(age 0) record that disagrees by more than 3 minutes. The native stream window is **not** rebased
+when that happens: `rebaseDirectStreamWindow` clears every stored native sample, and the cursor has
+already moved past the pages that wrote them. The window only sets the origin of the minute slots;
+records keep their absolute times. (Only readings from before the first anchor's index 0, i.e. the
+first minutes of wear, could fall outside it; Room keeps them regardless.)
 Index-anchored times make the deliberately overlapping re-requests land on the same minutes
 instead of creating near-duplicates. The newest record of a page is published live when its age is
 0 and it is within 3 minutes of now; this does not depend on the `0x32`/`0x39` distinction, whose
@@ -148,7 +162,7 @@ vendor-side `isLive` flag could not be read reliably.
 | Timer | Value | Action |
 | --- | --- | --- |
 | Service discovery retry | 3 s, max 2 | re-run discovery, then disconnect |
-| Write callback | 4 s | unblock the write queue |
+| Write callback | 4 s | reconnect (see below) |
 | Write retry | 120 ms (25 attempts) | retry a write the stack refused |
 | Stale data | 90 s | > 180 s without a page: disconnect; else request the next page |
 | Connect watchdog | 90 s × 2ⁿ (n ≤ 3) | `CONNECTING` is stale; reconnect |
@@ -156,7 +170,10 @@ vendor-side `isLive` flag could not be read reliably.
 | Auth step | 5 s | next auth fallback |
 | Handshake step | 15 s | fail the connection |
 
-Writes are serialised: one in flight, the next after `onCharacteristicWrite` or the 4 s timeout.
+Writes are serialised: one in flight, the next after its `onCharacteristicWrite`. The vendor
+unblocks the queue after 4 s without a callback; here the connection is restarted instead, because
+a write callback carries no identity of its own — a late one for the timed-out write would
+otherwise complete whichever write went out next and release later commands early.
 
 ## 6. Storage
 

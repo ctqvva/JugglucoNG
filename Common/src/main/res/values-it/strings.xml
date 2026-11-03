@@ -308,6 +308,7 @@
     <string name="scan_sensor_title">Scansiona Codice QR</string>
     <string name="scan_sensor_instruction">Scansiona il codice QR sulla scatola del sensore Sibionics generico.</string>
     <string name="scan_sensor_instruction_sibionics2">Scansiona il codice di connessione sul trasmettitore Sibionics 2 oppure scegli il trasmettitore dal Bluetooth qui sotto.</string>
+    <string name="scan_sensor_instruction_gs3cn">Il Sibionics GS3 (Cina) si associa tramite Bluetooth. Tieni il sensore vicino e sceglilo dall\'elenco qui sotto.</string>
     <string name="scan_qr_button">Scansiona Codice QR</string>
     <string name="select_gallery_button">Seleziona da Galleria</string>
     <string name="skip_fake_sensor">Salta (Usa sensore falso)</string>
@@ -885,6 +886,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="separate">Separate</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Cina)</string>
     <string name="speakalarms">Speak alarms</string>
     <string name="speakglucose">Speak glucose</string>
     <string name="speakmessages">Speak messages</string>
