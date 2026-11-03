@@ -194,10 +194,11 @@ class MessageReceiver: WearableListenerService() {
                         galaxy = true;
                     } else {
                         name = sourceId
-                        val it = sender.findnodeid(sourceId)
-                        if (it < 0)
+                        val node = nodes.firstOrNull { it.id == sourceId }
+                        if (node == null) {
+                            Log.e(LOG_ID, "Can't find $sourceId")
                             return@launch
-                        val node: Node = nodes.elementAt(it)
+                        }
                         galaxy = isGalaxy(node)
                     }
 
