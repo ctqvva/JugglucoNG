@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,13 @@ import tk.glucodata.R
 // Keep wrapped row subtitles compact without tightening paragraph text elsewhere in the app.
 private val Typography.settingsSubtitle: TextStyle
     get() = bodyMedium.copy(lineHeight = 18.sp)
+
+// Keep a little leading around Plex titles instead of inserting a separate subtitle gap.
+// Single-line titles otherwise trim away the line-height adjustment entirely.
+private fun TextStyle.withSettingsTitleLeading(): TextStyle = copy(
+    lineHeight = 26.sp,
+    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+)
 
 /**
  * A settings row that opens its own content underneath, inside the same card:
@@ -86,8 +94,8 @@ fun ExpandableSettingsCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = title, style = MaterialTheme.typography.titleMedium.withSettingsTitleLeading())
                         Text(
                             text = summary,
                             style = MaterialTheme.typography.settingsSubtitle,
@@ -157,8 +165,8 @@ fun DisclosingSwitchCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = title, style = MaterialTheme.typography.titleMedium.withSettingsTitleLeading())
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.settingsSubtitle,
@@ -294,9 +302,9 @@ fun SettingsItem(
                     Spacer(Modifier.width(IconTileDefaults.Gap))
                 }
 
-                // Separate the title from supporting copy without loosening wrapped title lines.
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
+                Column(modifier = Modifier.weight(1f)) {
+                    val titleStyle = MaterialTheme.typography.titleMedium
+                    Text(title, style = if (subtitle == null) titleStyle else titleStyle.withSettingsTitleLeading())
                     if (subtitle != null) {
                         Text(
                             subtitle,
@@ -460,10 +468,10 @@ fun MasterSwitchCard(
 
                 Spacer(modifier = Modifier.width(IconTileDefaults.Gap))
 
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMediumEmphasized,)
+                        style = MaterialTheme.typography.titleMediumEmphasized.withSettingsTitleLeading())
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.settingsSubtitle,

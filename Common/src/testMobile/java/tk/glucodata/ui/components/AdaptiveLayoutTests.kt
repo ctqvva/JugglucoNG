@@ -8,6 +8,11 @@ import android.os.LocaleList
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Webhook
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -17,9 +22,12 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -31,9 +39,11 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import java.util.Locale
@@ -489,6 +499,46 @@ class AdaptiveLayoutTests {
     }
 
     @Test
+    fun sharingRowsKeepTheirLabelsTogetherInDarkTheme() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(2f, 1f)) {
+                MaterialTheme(
+                    typography = AppTypography,
+                    colorScheme = darkColorScheme(
+                        surfaceContainerHigh = Color(0xFF202022),
+                        onSurface = Color(0xFFE0E0E3),
+                        onSurfaceVariant = Color(0xFFA6A6AA),
+                        tertiary = Color(0xFFE5DFFF),
+                    ),
+                ) {
+                    Surface(color = MaterialTheme.colorScheme.background) {
+                        Column(Modifier.width(416.dp).testTag("sharing"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            val tint = MaterialTheme.colorScheme.tertiary
+                            SettingsItem("Apps on this phone", "Not sending to any app", onClick = {}, icon = Icons.Default.PhoneAndroid, iconTint = tint, position = CardPosition.TOP)
+                            SettingsNavSwitchItem("Nightscout", false, {}, {}, "Send or receive readings", Icons.Default.CloudUpload, tint, CardPosition.MIDDLE)
+                            SettingsItem("Mirror", "Send or receive readings between your devices", onClick = {}, icon = Icons.Default.Devices, iconTint = tint, position = CardPosition.MIDDLE)
+                            SettingsNavSwitchItem("Web server", false, {}, {}, "Nightscout API on this phone", Icons.Default.Dns, tint, CardPosition.MIDDLE)
+                            SettingsItem("API destinations", "Preset-based chatbot, webhook and emergency SMS delivery", onClick = {}, icon = Icons.Default.Webhook, iconTint = tint, position = CardPosition.BOTTOM)
+                        }
+                    }
+                }
+            }
+        }
+        val title = compose.onNodeWithText("Apps on this phone", useUnmergedTree = true).textLayout()
+        assertEquals(26.sp, title.layoutInput.style.lineHeight)
+        assertEquals(LineHeightStyle.Trim.None, title.layoutInput.style.lineHeightStyle?.trim)
+        for (text in listOf("Apps on this phone", "Not sending to any app", "Nightscout", "Send or receive readings", "API destinations", "Preset-based chatbot, webhook and emergency SMS delivery")) {
+            compose.onNodeWithText(text, useUnmergedTree = true).assertTextFits()
+        }
+        val output = File("build/outputs/layout-regressions/settings-sharing.png")
+        output.parentFile?.mkdirs()
+        output.outputStream().use {
+            compose.onNodeWithTag("sharing").captureToImage().asAndroidBitmap()
+                .compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
+    @Test
     fun wrappedSettingsSubtitlesStayCompactAndReadableAcrossTextSizes() {
         var env by mutableStateOf(Environment(width = 400, fontScale = 1f))
         var russian by mutableStateOf(true)
@@ -550,7 +600,7 @@ class AdaptiveLayoutTests {
                 val row = compose.onNodeWithTag("navRow").fetchSemanticsNode().boundsInRoot
                 val text = label.fetchSemanticsNode().boundsInRoot
                 val headingBounds = heading.fetchSemanticsNode().boundsInRoot
-                assertEquals("title/subtitle separation", 4f * environment.density, text.top - headingBounds.bottom, 0.5f)
+                assertEquals("title/subtitle separation", 0f, text.top - headingBounds.bottom, 0.5f)
                 val toggle = compose.onNode(isToggleable())
                 val control = toggle.fetchSemanticsNode().boundsInRoot
                 assertTrue(text.bottom <= row.bottom)
