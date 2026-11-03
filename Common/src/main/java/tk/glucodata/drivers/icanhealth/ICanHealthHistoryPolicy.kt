@@ -121,4 +121,19 @@ internal object ICanHealthHistoryPolicy {
         }
         return coveredTimestampMs > 0L && sampleTimeMs > 0L && sampleTimeMs <= coveredTimestampMs
     }
+
+    /**
+     * Whether a decrypted glucose-history batch shows that this sensor's history lane is unusable.
+     *
+     * Only a batch where no record decoded to a usable reading counts. A record dropped because it
+     * is already stored ([skippedCoveredCount]) or because no timestamp anchor was available yet
+     * ([skippedUnanchoredCount]) decoded correctly, so the lane works. Counting covered records as
+     * "unsupported" disabled automatic and live-gap backfill for the whole callback after a single
+     * duplicate-only batch, until the app restarted (#742).
+     */
+    fun glucoseBatchShowsUnsupportedHistory(
+        importedCount: Int,
+        skippedUnanchoredCount: Int,
+        skippedCoveredCount: Int,
+    ): Boolean = importedCount <= 0 && skippedUnanchoredCount <= 0 && skippedCoveredCount <= 0
 }

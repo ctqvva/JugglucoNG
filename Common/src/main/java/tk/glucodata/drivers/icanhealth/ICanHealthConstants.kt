@@ -58,7 +58,7 @@ object ICanHealthConstants {
      * Recovered from the vendor packer VM's own memory (arena diff between two encode
      * runs, 2026-10-22). Challenge-independent constant, like the bundled keys above;
      * validated by re-encoding two device sessions and 69 sweep lines byte-for-byte
-     * (docs/superpowers/plans/2026-10-19-ican-calibration-plan.md §7.8).
+     * (PR #711; the plan document was kept out of the tree).
      */
     const val DEFAULT_CORRECT_CODE_AES_KEY_ASCII = "e4c\$E9gSvZv&c*65"
     const val DEFAULT_AUTH_USER_ID = ""
