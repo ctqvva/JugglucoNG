@@ -116,6 +116,10 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                     )
                 }
                 if (sent && pendingAlerts[id] == pending) pendingAlerts.remove(id)
+                else if (!sent && pendingAlerts[id] == pending) {
+                    pendingAlerts.remove(id)
+                    refresh()
+                }
             }
         }
     }
