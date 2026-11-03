@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -40,12 +39,8 @@ import tk.glucodata.R
 private val Typography.settingsSubtitle: TextStyle
     get() = bodyMedium.copy(lineHeight = 18.sp)
 
-// Keep a little leading around Plex titles instead of inserting a separate subtitle gap.
-// Single-line titles otherwise trim away the line-height adjustment entirely.
-private fun TextStyle.withSettingsTitleLeading(): TextStyle = copy(
-    lineHeight = 26.sp,
-    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
-)
+// Deliberate optical spacing for Plex: keep the title and subtitle close together.
+private val SettingsTitleSubtitleGap = 2.dp
 
 /**
  * A settings row that opens its own content underneath, inside the same card:
@@ -94,8 +89,8 @@ fun ExpandableSettingsCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium.withSettingsTitleLeading())
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
+                        Text(text = title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             text = summary,
                             style = MaterialTheme.typography.settingsSubtitle,
@@ -165,8 +160,8 @@ fun DisclosingSwitchCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(icon = icon, tint = tint)
                     Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, style = MaterialTheme.typography.titleMedium.withSettingsTitleLeading())
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
+                        Text(text = title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.settingsSubtitle,
@@ -302,9 +297,8 @@ fun SettingsItem(
                     Spacer(Modifier.width(IconTileDefaults.Gap))
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    val titleStyle = MaterialTheme.typography.titleMedium
-                    Text(title, style = if (subtitle == null) titleStyle else titleStyle.withSettingsTitleLeading())
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
                     if (subtitle != null) {
                         Text(
                             subtitle,
@@ -468,10 +462,11 @@ fun MasterSwitchCard(
 
                 Spacer(modifier = Modifier.width(IconTileDefaults.Gap))
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsTitleSubtitleGap)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMediumEmphasized.withSettingsTitleLeading())
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.settingsSubtitle,

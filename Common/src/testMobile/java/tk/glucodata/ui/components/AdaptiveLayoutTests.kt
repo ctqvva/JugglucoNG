@@ -39,7 +39,6 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -525,8 +524,8 @@ class AdaptiveLayoutTests {
             }
         }
         val title = compose.onNodeWithText("Apps on this phone", useUnmergedTree = true).textLayout()
-        assertEquals(26.sp, title.layoutInput.style.lineHeight)
-        assertEquals(LineHeightStyle.Trim.None, title.layoutInput.style.lineHeightStyle?.trim)
+        assertEquals(24.sp, title.layoutInput.style.lineHeight)
+        assertEquals(AppTypography.titleMedium.lineHeightStyle, title.layoutInput.style.lineHeightStyle)
         for (text in listOf("Apps on this phone", "Not sending to any app", "Nightscout", "Send or receive readings", "API destinations", "Preset-based chatbot, webhook and emergency SMS delivery")) {
             compose.onNodeWithText(text, useUnmergedTree = true).assertTextFits()
         }
@@ -600,7 +599,7 @@ class AdaptiveLayoutTests {
                 val row = compose.onNodeWithTag("navRow").fetchSemanticsNode().boundsInRoot
                 val text = label.fetchSemanticsNode().boundsInRoot
                 val headingBounds = heading.fetchSemanticsNode().boundsInRoot
-                assertEquals("title/subtitle separation", 0f, text.top - headingBounds.bottom, 0.5f)
+                assertEquals("title/subtitle separation", 2f * environment.density, text.top - headingBounds.bottom, 0.5f)
                 val toggle = compose.onNode(isToggleable())
                 val control = toggle.fetchSemanticsNode().boundsInRoot
                 assertTrue(text.bottom <= row.bottom)
