@@ -417,6 +417,18 @@ class CloneReceptionSafetyTests {
         }
     }
 
+    /**
+     * Managed-driver readings wake the stream without reconnecting, but the stream carries polls
+     * only: a sensor no host has in sensors.dat yet gets one full update first.
+     */
+    @Test
+    fun streamOnlyWakeSendsANewSensorFirst() {
+        val jni = source("Common/src/main/cpp/backupjava.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(jni.contains("host.startsensors <= lastsensor"))
+        assertTrue(jni.contains("backup->wakebackup(unsentsensor ? Backup::wakeall : Backup::wakestream);"))
+    }
+
     @Test
     fun fastLocalConnectionPreservesTheFirstPeerRequest() {
         val transport = source("Common/src/main/cpp/net/ICE/ICE_data.hpp")

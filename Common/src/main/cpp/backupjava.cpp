@@ -704,11 +704,26 @@ extern "C" JNIEXPORT void JNICALL fromjava(wakehereonly)(JNIEnv *env,
 // A new reading: the same wake the native drivers give their readings. Clone
 // sends the stream over the open link; a reconnect would redo the handshake
 // and every profile push once a minute, keeping the phone off deep sleep.
+// The stream carries polls only, so while a host still lacks a sensor's entry
+// in sensors.dat (a sensor started since its last full update) run the full
+// update once, still without reconnecting; the receiver can't place the
+// readings until it knows the sensor.
 extern "C" JNIEXPORT void JNICALL fromjava(wakestreamonly)(JNIEnv *env,
                                                            jclass cl) {
-  if (backup) {
-    backup->wakebackup(Backup::wakestream);
+  if (!backup)
+    return;
+  const int lastsensor = sensors ? sensors->last() : -1;
+  const auto *data = backup->getupdatedata();
+  bool unsentsensor = false;
+  for (int h = 0; h < data->sendnr && h < maxsendtohost; ++h) {
+    const updateone &host = data->tosend[h];
+    if ((host.sendstream || host.sendscans) && !data->allhosts[host.allindex].deactivated &&
+        host.startsensors <= lastsensor) {
+      unsentsensor = true;
+      break;
+    }
   }
+  backup->wakebackup(unsentsensor ? Backup::wakeall : Backup::wakestream);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
