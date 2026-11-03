@@ -18,25 +18,32 @@ std::vector<Reading> selectReadings(const std::vector<Reading> &input,
                                     size_t limit, const std::vector<SensorSource> &sources) {
     // Order only the small set of sensor activation boundaries, never readings.
     // A stopped/removed source remains here through the persisted sources list.
+    // Activation order, as Outbox::prepare: see its newer().
     auto newer = [](const SensorSource &a, const SensorSource &b) {
-        return std::tie(a.end, a.start, a.sensor) > std::tie(b.end, b.start, b.sensor);
+        return std::tie(a.start, a.end, a.sensor) > std::tie(b.start, b.end, b.sensor);
     };
-    std::map<int64_t, SensorSource> timeline;
-    std::set<std::string> known;
+    // Each sensor's earliest usable reading, whichever input reported it.
+    std::map<std::string, SensorSource> earliest;
     auto add = [&](const SensorSource &s) {
-        if (s.first > now || s.first < s.start || !known.insert(s.sensor).second)
+        if (s.first > now || s.first < s.start)
             return;
-        auto [it, inserted] = timeline.try_emplace(s.first, s);
-        if (!inserted && newer(s, it->second))
-            it->second = s;
+        auto [it, inserted] = earliest.try_emplace(s.sensor, s);
+        if (!inserted && s.first < it->second.first)
+            it->second.first = s.first;
     };
     for (const auto &s : sources)
         add(s);
     for (const auto &r : input)
         if (r.time <= now && r.time >= r.start && r.mgdl >= 20 && r.mgdl <= 600)
             add({r.sensor, r.start, r.start + r.sessionLength, r.time});
-    // Only a strictly higher expected end date (with deterministic ties) can
-    // supersede the current source. Expiry and missing data never undo it.
+    std::map<int64_t, SensorSource> timeline;
+    for (const auto &[name, s] : earliest) {
+        auto [it, inserted] = timeline.try_emplace(s.first, s);
+        if (!inserted && newer(s, it->second))
+            it->second = s;
+    }
+    // Only a later-activated source (with deterministic ties) can supersede
+    // the current one. Expiry and missing data never undo it.
     for (auto it = timeline.begin(); it != timeline.end();) {
         if (it != timeline.begin() && !newer(it->second, std::prev(it)->second))
             it = timeline.erase(it);

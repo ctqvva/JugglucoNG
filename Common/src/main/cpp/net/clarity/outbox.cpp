@@ -242,12 +242,15 @@ struct Outbox::Impl {
             logEvent(phase,p.id,e.deleted?"Deleted":e.updated?"Updated":"New",e);
         }
     }
+    // The later-activated sensor wins, with deterministic ties. Upstream used
+    // the planned wear end, which only orders sensors of equal wear length: a
+    // 10-day G7 started during a 15-day Libre's life could then never take over.
     bool newer(uint64_t a, uint64_t b, uint64_t end) const {
         if (!b) return true;
         const auto &one = data.get<SensorNode>(a, end);
         const auto &two = data.get<SensorNode>(b, end);
-        return std::tuple(one.end, one.start, data.get(one.sensor, end)) >
-               std::tuple(two.end, two.start, data.get(two.sensor, end));
+        return std::tuple(one.start, one.end, data.get(one.sensor, end)) >
+               std::tuple(two.start, two.end, data.get(two.sensor, end));
     }
     bool prepare(const Snapshot &s,int64_t since,int64_t now,bool sendNumbers) {
         healthy();
@@ -256,16 +259,27 @@ struct Outbox::Impl {
         // acknowledgment. This does not change any of that request's content.
         MappedIndexEdit discovery(data, r.end);
         auto remember = [&](const SensorSource &source) {
-            if (source.first > now || source.first < source.start ||
-                discovery.findString(r.sourceIndex, source.sensor)) return;
+            if (source.first > now || source.first < source.start) return;
             SensorNode node{};
+            if (const auto known = discovery.findString(r.sourceIndex, source.sensor)) {
+                // Backfill that arrives after a sensor was first seen (a G7's
+                // 24 h, say) can reveal an earlier first reading. Move the
+                // sensor's boundary back, or those readings are never selected.
+                node = data.get<SensorNode>(known, r.end); // copy: puts below can remap
+                if (source.first >= node.first) return;
+                diagnostic("sensor source starts earlier: first=%lld (was %lld)",
+                           (long long)source.first, (long long)node.first);
+                node.first = source.first;
+            } else {
+                node.sensor = data.put(r.end, std::string_view(source.sensor));
+                node.start = source.start; node.end = source.end; node.first = source.first;
+            }
             node.previous = r.sources;
-            node.sensor = data.put(r.end, std::string_view(source.sensor));
-            node.start = source.start; node.end = source.end; node.first = source.first;
             r.sources = data.put(r.end, node);
             r.sourceIndex = discovery.putString(r.sourceIndex, node.sensor, r.sources);
-            // Persist the same monotonic wear-end selection timeline that was
-            // previously reconstructed in selectReadings on every scan.
+            // Persist the same monotonic activation-order timeline that
+            // selectReadings reconstructs. A sensor that moved earlier is
+            // inserted again; its own later entry is then not newer and goes.
             const auto prior = discovery.floor(r.timelineIndex, source.first);
             if (newer(r.sources, prior ? prior->value : 0, r.end)) {
                 r.timelineIndex = discovery.putNumber(r.timelineIndex, source.first, r.sources);
