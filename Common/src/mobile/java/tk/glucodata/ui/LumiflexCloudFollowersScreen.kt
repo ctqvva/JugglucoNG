@@ -50,6 +50,24 @@ import tk.glucodata.share.lumiflex.LumiflexCloudFollowerManager
 import tk.glucodata.share.lumiflex.LumiflexCloudSettings
 import tk.glucodata.ui.components.AppTopBar
 
+/** Alert switches of one follower, kept locally until the vendor confirms them. */
+private data class Alerts(val normal: Boolean, val urgent: Boolean, val extremeHigh: Boolean) {
+
+    fun applyTo(row: FollowerInfo): FollowerInfo = row.copy(
+        normalPushState = if (normal) 1 else 0,
+        emergePushState = if (urgent) 1 else 0,
+        extremeHighPushState = if (extremeHigh) 1 else 0,
+    )
+
+    companion object {
+        fun from(row: FollowerInfo?): Alerts = Alerts(
+            normal = row?.normalPushState == 1,
+            urgent = row?.emergePushState == 1,
+            extremeHigh = row?.extremeHighPushState == 1,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LumiflexCloudFollowersScreen(navController: NavController) {
@@ -59,6 +77,7 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
     val manager = remember { LumiflexCloudFollowerManager(LumiflexCloudClient(), settings) }
 
     var followers by remember { mutableStateOf<List<FollowerInfo>>(emptyList()) }
+    val pendingAlerts = remember { mutableMapOf<String, Alerts>() }
     var account by remember { mutableStateOf("") }
     var alias by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
@@ -69,7 +88,7 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
         scope.launch {
             val loaded = withContext(Dispatchers.IO) { manager.list() }
             if (loaded != null) {
-                followers = loaded
+                followers = loaded.map { row -> pendingAlerts[row.userAuthorizationId]?.applyTo(row) ?: row }
             } else {
                 status = context.getString(R.string.lumiflex_status_load_failed)
             }
@@ -87,17 +106,26 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
     fun pushAlerts(id: String) {
         scope.launch {
             alertLocks.getOrPut(id) { Mutex() }.withLock {
-                val current = followers.firstOrNull { it.userAuthorizationId == id } ?: return@withLock
-                withContext(Dispatchers.IO) {
+                val pending = pendingAlerts[id] ?: return@withLock
+                val sent = withContext(Dispatchers.IO) {
                     manager.setAlerts(
                         id,
-                        normal = current.normalPushState == 1,
-                        urgent = current.emergePushState == 1,
-                        extremeHigh = current.extremeHighPushState == 1,
+                        normal = pending.normal,
+                        urgent = pending.urgent,
+                        extremeHigh = pending.extremeHigh,
                     )
                 }
+                if (sent && pendingAlerts[id] == pending) pendingAlerts.remove(id)
             }
         }
+    }
+
+    fun setAlert(id: String, transform: (Alerts) -> Alerts) {
+        val current = pendingAlerts[id] ?: Alerts.from(followers.firstOrNull { it.userAuthorizationId == id })
+        val next = transform(current)
+        pendingAlerts[id] = next
+        update(id) { next.applyTo(it) }
+        pushAlerts(id)
     }
 
     Scaffold(
@@ -187,22 +215,13 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                             }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_regular_reminders), follower.normalPushState == 1) { checked ->
-                            update(follower.userAuthorizationId) {
-                                it.copy(normalPushState = if (checked) 1 else 0)
-                            }
-                            pushAlerts(follower.userAuthorizationId)
+                            setAlert(follower.userAuthorizationId) { it.copy(normal = checked) }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_urgent_low), follower.emergePushState == 1) { checked ->
-                            update(follower.userAuthorizationId) {
-                                it.copy(emergePushState = if (checked) 1 else 0)
-                            }
-                            pushAlerts(follower.userAuthorizationId)
+                            setAlert(follower.userAuthorizationId) { it.copy(urgent = checked) }
                         }
                         ToggleRow(stringResource(R.string.lumiflex_extreme_high), follower.extremeHighPushState == 1) { checked ->
-                            update(follower.userAuthorizationId) {
-                                it.copy(extremeHighPushState = if (checked) 1 else 0)
-                            }
-                            pushAlerts(follower.userAuthorizationId)
+                            setAlert(follower.userAuthorizationId) { it.copy(extremeHigh = checked) }
                         }
 
                         if (renameId == follower.userAuthorizationId) {
@@ -253,6 +272,7 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                                         val ok = withContext(Dispatchers.IO) {
                                             manager.remove(follower.userAuthorizationId)
                                         }
+                                        if (ok) pendingAlerts.remove(follower.userAuthorizationId)
                                         status = context.getString(
                                             if (ok) R.string.lumiflex_status_removed
                                             else R.string.lumiflex_status_remove_failed,
