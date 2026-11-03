@@ -26,7 +26,13 @@ class LumiflexCloudUploaderTests {
 
     private val start = 1_700_000_000_000L
 
-    private fun uploader(code: Int): Triple<LumiflexCloudSettings, LumiflexCloudQueue, LumiflexCloudUploader> {
+    private fun uploader(code: Int): Triple<LumiflexCloudSettings, LumiflexCloudQueue, LumiflexCloudUploader> =
+        uploaderWithDevices(code) { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) }
+
+    private fun uploaderWithDevices(
+        code: Int,
+        sensorIds: () -> LumiflexCloudClient.DeviceList,
+    ): Triple<LumiflexCloudSettings, LumiflexCloudQueue, LumiflexCloudUploader> {
         val context = RuntimeEnvironment.getApplication()
         val settings = LumiflexCloudSettings(context)
         settings.enabled = true
@@ -42,7 +48,7 @@ class LumiflexCloudUploaderTests {
                 settings,
                 queue,
                 sleep = {},
-                sensorIds = { mapOf("SN1" to "SID1") },
+                sensorIds = sensorIds,
             ),
         )
     }
@@ -71,6 +77,26 @@ class LumiflexCloudUploaderTests {
         queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
         assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Unauthorized)
         assertEquals("", settings.token)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
+    fun flush401OnDeviceListClearsTokenAndKeepsQueue() {
+        val (settings, queue, up) = uploaderWithDevices(200) { LumiflexCloudClient.DeviceList.Unauthorized }
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Unauthorized)
+        assertEquals("", settings.token)
+        assertEquals(1, queue.size())
+    }
+
+    @Test
+    fun flushDeviceListFailureKeepsQueueAndDoesNotReportSync() {
+        val (settings, queue, up) = uploaderWithDevices(200) {
+            LumiflexCloudClient.DeviceList.Failed(0, "Network error")
+        }
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Failed)
+        assertEquals(0L, settings.lastSyncMs)
         assertEquals(1, queue.size())
     }
 

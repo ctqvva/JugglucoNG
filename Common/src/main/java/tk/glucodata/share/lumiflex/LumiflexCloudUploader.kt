@@ -13,7 +13,9 @@ class LumiflexCloudUploader(
     private val settings: LumiflexCloudSettings,
     private val queue: LumiflexCloudQueue,
     private val sleep: (Long) -> Unit = { Thread.sleep(it) },
-    private val sensorIds: () -> Map<String, String>? = { emptyMap() },
+    private val sensorIds: () -> LumiflexCloudClient.DeviceList = {
+        LumiflexCloudClient.DeviceList.Ok(emptyMap())
+    },
 ) {
 
     data class Row(
@@ -42,8 +44,16 @@ class LumiflexCloudUploader(
         if (usable.isEmpty()) return FlushResult.Success(0)
 
         var uploaded = 0
-        val sensorIdBySerial = sensorIds()
-            ?: return FlushResult.Failed(0, 0, "Device list unavailable")
+        val sensorIdBySerial = when (val devices = sensorIds()) {
+            is LumiflexCloudClient.DeviceList.Ok -> devices.sensorIdBySerial
+            LumiflexCloudClient.DeviceList.Unauthorized -> {
+                settings.token = ""
+                return FlushResult.Unauthorized(0)
+            }
+            is LumiflexCloudClient.DeviceList.Failed -> {
+                return FlushResult.Failed(0, devices.code, devices.message)
+            }
+        }
         usable.groupBy { it.serial }.forEach { (serial, items) ->
             val sensorId = sensorIdFor(sensorIdBySerial, serial)
             if (sensorId.isNullOrBlank()) return@forEach

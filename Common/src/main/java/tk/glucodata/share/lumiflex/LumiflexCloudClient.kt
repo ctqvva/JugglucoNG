@@ -46,6 +46,13 @@ class LumiflexCloudClient(
         ) : SyncResult()
     }
 
+    /** Device lookup outcome, kept apart from an empty list so a failure cannot look like "no sensors". */
+    sealed class DeviceList {
+        data class Ok(val sensorIdBySerial: Map<String, String>) : DeviceList()
+        object Unauthorized : DeviceList()
+        data class Failed(val code: Int, val message: String) : DeviceList()
+    }
+
     /**
      * Signs in and persists the session. Prefer the settings-free overload when the caller has to
      * decide whether a reply is still wanted (for example after a sign-out).
@@ -147,16 +154,25 @@ class LumiflexCloudClient(
         }
     }
 
-    fun devicesBySensorSerial(token: String): Map<String, String>? {
+    fun devicesBySensorSerial(token: String): DeviceList {
         val response = transport.get(
             url(LumiflexCloudConstants.PATH_FIRST_LAST_DEVICE),
             headers(token, ""),
         )
-        if (response.code !in 200..299) return null
-        val plain = decoded(response.body) ?: return null
-        val json = runCatching { JSONObject(plain) }.getOrNull() ?: return null
-        if (json.optInt("code", 200) != 200) return null
-        val data = json.optJSONObject("data") ?: return emptyMap()
+        if (response.code == UNAUTHORIZED) return DeviceList.Unauthorized
+        if (response.code == TRANSPORT_FAILURE_CODE) {
+            return DeviceList.Failed(response.code, response.body.ifBlank { "Network error" })
+        }
+        if (response.code !in 200..299) {
+            return DeviceList.Failed(response.code, LumiflexCloudError.message(decoded(response.body)))
+        }
+        val plain = decoded(response.body)
+            ?: return DeviceList.Failed(response.code, "Unreadable device list")
+        val json = runCatching { JSONObject(plain) }.getOrNull()
+            ?: return DeviceList.Failed(response.code, "Unreadable device list")
+        val code = json.optInt("code", 200)
+        if (code != 200) return DeviceList.Failed(code, LumiflexCloudError.message(plain))
+        val data = json.optJSONObject("data") ?: return DeviceList.Ok(emptyMap())
         val result = LinkedHashMap<String, String>()
         listOf("firstList", "lastList").forEach { key ->
             val array = data.optJSONArray(key) ?: return@forEach
@@ -167,7 +183,7 @@ class LumiflexCloudClient(
                 if (sn.isNotBlank() && sensorId.isNotBlank()) result[sn] = sensorId
             }
         }
-        return result
+        return DeviceList.Ok(result)
     }
 
     fun addFollower(token: String, account: String, alias: String, userId: String = ""): FollowerInfo? {

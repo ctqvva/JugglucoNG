@@ -168,8 +168,33 @@ class LumiflexCloudClientTests {
                 envelope("{\"code\":200,\"data\":{\"firstList\":[{\"deviceSn\":\"SN1\",\"sensorId\":\"SID1\"}]}}"),
             )
         }
-        val map = newClient(transport).devicesBySensorSerial("tok")
-        assertEquals("SID1", map?.get("SN1"))
+        val list = newClient(transport).devicesBySensorSerial("tok")
+        assertEquals("SID1", (list as LumiflexCloudClient.DeviceList.Ok).sensorIdBySerial["SN1"])
+    }
+
+    @Test
+    fun devicesBySensorSerialReportsUnauthorizedSeparately() {
+        val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(401, "") }
+        assertEquals(
+            LumiflexCloudClient.DeviceList.Unauthorized,
+            newClient(transport).devicesBySensorSerial("tok"),
+        )
+    }
+
+    @Test
+    fun devicesBySensorSerialReportsUnreadableReplyAsFailure() {
+        val transport = FakeTransport { _, _ -> LumiflexCloudClient.HttpResult(200, "oops") }
+        assertTrue(newClient(transport).devicesBySensorSerial("tok") is LumiflexCloudClient.DeviceList.Failed)
+    }
+
+    @Test
+    fun devicesBySensorSerialReportsBusinessErrorAsFailure() {
+        val transport = FakeTransport { _, _ ->
+            LumiflexCloudClient.HttpResult(200, envelope("{\"code\":802,\"message\":\"expired\"}"))
+        }
+        val result = newClient(transport).devicesBySensorSerial("tok")
+        assertTrue(result is LumiflexCloudClient.DeviceList.Failed)
+        assertEquals(802, (result as LumiflexCloudClient.DeviceList.Failed).code)
     }
 
     @Test

@@ -86,7 +86,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
 
     fun login() {
         if (!hasCredentials) {
-            testMessage = "Enter account and password"
+            testMessage = context.getString(R.string.lumiflex_credentials_required)
             return
         }
         testing = true
@@ -108,12 +108,15 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
                         enabled = true
                         save()
                         signedIn = true
-                        testMessage = "Signed in"
+                        testMessage = context.getString(R.string.lumiflex_status_signed_in)
                         password = ""
                     }
                     is LumiflexCloudClient.LoginResult.Failed -> {
                         signedIn = false
-                        testMessage = "Sign-in failed: ${result.message.ifBlank { result.kind.name }}"
+                        testMessage = context.getString(
+                            R.string.lumiflex_status_sign_in_failed,
+                            result.message.ifBlank { result.kind.name },
+                        )
                     }
                 }
             }
@@ -128,7 +131,7 @@ fun LumiflexCloudSettingsScreen(navController: NavController) {
         settings.enabled = false
         enabled = false
         signedIn = false
-        testMessage = "Signed out"
+        testMessage = context.getString(R.string.lumiflex_status_signed_out)
         save()
     }
 

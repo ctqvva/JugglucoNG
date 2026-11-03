@@ -3479,4 +3479,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="lumiflex_status_load_failed">Could not load followers</string>
     <string name="lumiflex_show_password">Show password</string>
     <string name="lumiflex_hide_password">Hide password</string>
+    <string name="lumiflex_status_signed_in">Signed in</string>
+    <string name="lumiflex_status_signed_out">Signed out</string>
+    <string name="lumiflex_status_sign_in_failed">Sign-in failed: %1$s</string>
 </resources>
