@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "mapped.hpp"
-#include "inout.hpp"
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
+#include <fcntl.h>
 #include <sys/file.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <zlib.h>
 namespace clarity {
 namespace {
@@ -12,15 +17,36 @@ namespace {
     throw Error(std::string("Clarity mapped storage ") + operation + " failed");
 }
 }
+// Maps through the descriptor it already holds. Juggluco's Mmap reopens by
+// path and logs that path on failure, and an outbox path contains the Dexcom
+// account ID (its folder name). Errors here report the operation and errno only.
 struct MappedFile::Impl {
-    std::string path;
     int fd = -1;
     bool created = false;
-    std::unique_ptr<Mmap<unsigned char>> memory;
-    explicit Impl(std::string p):path(std::move(p)) {}
-    ~Impl() { memory.reset(); if (fd >= 0 && close(fd)) diagnostic("error: close Clarity mapped file: errno=%d", errno); }
+    unsigned char *memory = nullptr;
+    size_t length = 0;
+    void unmap() {
+        if (memory && munmap(memory, length)) diagnostic("error: unmap Clarity mapped file: errno=%d", errno);
+        memory = nullptr;
+        length = 0;
+    }
+    // Grows the file first, so every mapped byte is backed by the file.
+    void map(size_t size) {
+        unmap();
+        struct stat st{};
+        if (fstat(fd, &st)) mappingError("stat");
+        if (st.st_size < 0 || size_t(st.st_size) < size) {
+            if (ftruncate(fd, off_t(size))) mappingError("extend");
+        } else
+            size = size_t(st.st_size);
+        void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (p == MAP_FAILED) mappingError("map");
+        memory = static_cast<unsigned char *>(p);
+        length = size;
+    }
+    ~Impl() { unmap(); if (fd >= 0 && close(fd)) diagnostic("error: close Clarity mapped file: errno=%d", errno); }
 };
-MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_unique<Impl>(path)) {
+MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_unique<Impl>()) {
     impl->fd = open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
     if (impl->fd < 0) mappingError("open");
     if (exclusive && flock(impl->fd, LOCK_EX | LOCK_NB)) mappingError("lock (another uploader may be running)");
@@ -29,8 +55,7 @@ MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_u
     if (!S_ISREG(st.st_mode) || st.st_size < 0 || st.st_size > 1024LL * 1024 * 1024)
         throw Error("Invalid Clarity mapped file size or type");
     impl->created = !st.st_size;
-    impl->memory = std::make_unique<Mmap<unsigned char>>(path.c_str(), std::max<int64_t>(4096, st.st_size));
-    if (!impl->memory->data()) throw Error("Cannot map Clarity data");
+    impl->map(std::max<size_t>(4096, size_t(st.st_size)));
     if (impl->created) {
         if (fsync(impl->fd)) mappingError("sync new file");
         auto slash = path.find_last_of('/');
@@ -44,22 +69,26 @@ MappedFile::MappedFile(const std::string &path, bool exclusive):impl(std::make_u
 }
 MappedFile::~MappedFile() = default;
 bool MappedFile::created() const { return impl->created; }
-size_t MappedFile::size() const { return impl->memory->size(); }
+size_t MappedFile::size() const { return impl->length; }
 unsigned char *MappedFile::data() {
-    if (!impl->memory->data()) throw Error("Clarity file mapping is unavailable; reopen required");
-    return impl->memory->data();
+    if (!impl->memory) throw Error("Clarity file mapping is unavailable; reopen required");
+    return impl->memory;
 }
 const unsigned char *MappedFile::data() const {
-    if (!impl->memory->data()) throw Error("Clarity file mapping is unavailable; reopen required");
-    return impl->memory->data();
+    if (!impl->memory) throw Error("Clarity file mapping is unavailable; reopen required");
+    return impl->memory;
+}
+bool MappedFile::zero(size_t from, size_t to) const {
+    if (from > to || to > size()) throw Error("Invalid Clarity mapped range");
+    const auto *p = data();
+    return std::all_of(p + from, p + to, [](unsigned char c) { return c == 0; });
 }
 void MappedFile::ensure(size_t n) {
     (void)data(); // A failed previous remap must not lead to a null-pointer write.
     if (n <= size()) return;
     if (n > 1024ULL * 1024 * 1024) throw Error("Clarity mapped file exceeds size limit");
     size_t capacity = std::max(n, std::min(size() * 2, size_t(1024) * 1024 * 1024));
-    impl->memory->extend(impl->path.c_str(), capacity);
-    if (!impl->memory->data()) throw Error("Cannot extend Clarity mapped file");
+    impl->map(capacity);
 }
 void MappedFile::sync(size_t from, size_t to) {
     if (from == to) return;

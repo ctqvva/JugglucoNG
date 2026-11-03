@@ -9,6 +9,8 @@
 namespace clarity {
 struct Status {
     bool available = false, enabled = false, libre3History = false, numbers = false;
+    // Tokens of an interrupted sign-in are saved; Finish pending sign-in can resume it.
+    bool loginPending = false;
     int64_t since = 0, lastSuccess = 0, acknowledgedCount = 0, acknowledgedLast = 0;
     int64_t pendingCount = 0, pendingFirst = 0, pendingLast = 0;
     std::string account, status;
@@ -35,6 +37,12 @@ struct Status {
 #include <thread>
 extern Sensoren *sensors;
 extern Backup *backup;
+// net/watchserver/common.cpp: the value every other export sends (the user's
+// calibration and chosen lane), so the clinic sees what the app shows.
+extern int resolveExportedMgdl(const SensorGlucoseData *sens, const ScanData *val,
+                               const sensorname_t *sensorname);
+extern int resolveExportedMgdlAt(const SensorGlucoseData *sens, const sensorname_t *sensorname,
+                                 const uint32_t tim, const int storedMgdl, const int rawCurrent);
 namespace clarity {
 class Worker {
     std::mutex mutex, sourcesMutex, networkMutex;
@@ -46,6 +54,8 @@ class Worker {
     // Suppress repeated scan summaries while the same retained rows remain.
     std::map<std::string, std::array<int64_t, 7>> numberDiagnostics;
     std::string root, status = "Disabled";
+    // Mirrors whether pending-login.map holds saved tokens (changed under mutex).
+    bool loginPending = false;
     int64_t lastSuccess = 0;
     Json config, loginAttempt;
     GlucoseProgress glucoseProgress;
@@ -69,18 +79,25 @@ class Worker {
                     if (!first && time >= start && time <= now && mgdl >= 20 && mgdl <= 600)
                         first = time;
                 };
-                auto add = [&](int64_t time, int mgdl, double rate) {
+                // `resolve` is only called for readings that will be sent: it can
+                // call into Java, and older readings are never uploaded.
+                auto add = [&](int64_t time, int mgdl, double rate, auto resolve) {
                     noteFirst(time, mgdl);
-                    if (time >= o.since)
-                        result.readings.push_back({name, time, start, mgdl, rate, wear, warmup, history});
+                    if (time >= o.since) {
+                        const int exported = resolve();
+                        result.readings.push_back({name, time, start, exported > 0 ? exported : mgdl, rate,
+                                                   wear, warmup, history});
+                    }
                 };
                 if (history) {
                     const int end = receivedHistoryEnd(*s);
                     for (int p = s->getstarthistory(); p < end; ++p) {
                         auto *r = s->getglucose(p);
                         if (r->valid())
-                            add(r->gettime(), r->getmgdL(),
-                                std::numeric_limits<double>::quiet_NaN());
+                            // History records have no raw counterpart (rawCurrent 0), as in LibreView.
+                            add(r->gettime(), r->getmgdL(), std::numeric_limits<double>::quiet_NaN(),
+                                [&] { return resolveExportedMgdlAt(s, s->shortsensorname(), r->gettime(),
+                                                                   r->getmgdL(), 0); });
                     }
                     // A newly active source still supersedes an older one
                     // while its first upload is waiting for backfill.
@@ -95,7 +112,8 @@ class Worker {
                     const auto rows = receivedStream(*s);
                     for (const auto &r : rows)
                         if (r.valid(0))
-                            add(r.gettime(), r.getmgdL(), r.getchange());
+                            add(r.gettime(), r.getmgdL(), r.getchange(),
+                                [&] { return resolveExportedMgdl(s, &r, s->shortsensorname()); });
                     if (!first)
                         for (const auto &r : s->getPolldata()) {
                             if (r.valid(0))
@@ -360,6 +378,11 @@ class Worker {
         diagnostic("upload settings: enabled=%d Libre3History=%d numbers=%d start=%s",
                    int(o.enabled), int(o.libre3History), int(o.numbers), timestamp(o.since).c_str());
         try {
+            loginPending = !AccountStore(root + "/pending-login.map").load().is_null();
+        } catch (...) {
+            caught("load pending Clarity sign-in");
+        }
+        try {
             config = AccountStore(root + "/account.map").load();
             if (!config.is_null()) validateConfig(config);
             else {
@@ -467,7 +490,7 @@ class Worker {
         std::lock_guard lock(mutex);
         checkCategoriesLocked();
         const auto o = settings->data()->clarity;
-        return {true, bool(o.enabled), bool(o.libre3History), bool(o.numbers), o.since,
+        return {true, bool(o.enabled), bool(o.libre3History), bool(o.numbers), loginPending, o.since,
                 lastSuccess, glucoseProgress.acknowledged.count, glucoseProgress.acknowledged.last,
                 glucoseProgress.pending.count, glucoseProgress.pending.first,
                 glucoseProgress.pending.last, config.is_null() ? "" : config.value("account", ""),
@@ -536,6 +559,7 @@ class Worker {
             auto attempt =
                 beginLogin(country, locale, device, time(nullptr));
             AccountStore(root + "/pending-login.map").clear();
+            loginPending = false;
             loginAttempt = std::move(attempt);
             ++generation;
             diagnostic("Dexcom sign-in begun; waiting for authorization callback");
@@ -580,6 +604,7 @@ class Worker {
                 if (generation != revision || settings->data()->clarity.enabled)
                     throw Error("Clarity configuration changed; sign in again");
                 AccountStore(root + "/pending-login.map").save(staged);
+                loginPending = true;
             };
             if (!callback.empty()) {
                 next =
@@ -596,6 +621,7 @@ class Worker {
                     throw Error("Clarity configuration changed; sign in again");
                 acceptConfig(std::move(next));
                 AccountStore(root + "/pending-login.map").clear();
+                loginPending = false;
                 diagnostic("Dexcom sign-in completed; account saved, uploads disabled");
                 status = "Signed in; uploads disabled";
             }
@@ -626,6 +652,7 @@ class Worker {
             acceptConfig(std::move(c));
             loginAttempt = nullptr;
             AccountStore(root + "/pending-login.map").clear();
+            loginPending = false;
             diagnostic("account imported; uploads disabled");
             status = "Account imported; uploads disabled";
             return "";
@@ -762,6 +789,7 @@ extern "C" JNIEXPORT jobject JNICALL fromjava(clarityStatus)(JNIEnv *env, jclass
     boolean("enabled", value.enabled);
     boolean("libre3History", value.libre3History);
     boolean("numbers", value.numbers);
+    boolean("loginPending", value.loginPending);
     number("since", value.since);
     number("lastSuccess", value.lastSuccess);
     number("acknowledgedCount", value.acknowledgedCount);
