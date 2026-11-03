@@ -11,12 +11,26 @@ requested in [issue 790](https://github.com/ctqvva/JugglucoNG/issues/790).
   `FLAG_SECURE`, only `https://*.dexcom.com`/`*.dexcom.eu` may load). The `dexcomg7:`
   callback goes straight to native code, which exchanges the code and discovers the
   account's regional endpoints. Tokens, the account's TLS client certificate and the
-  outbox stay in native code and never cross JNI.
+  outbox stay in native code and never cross JNI. If discovery fails after Dexcom
+  accepted the sign-in, its tokens are kept (also across restarts) and the settings
+  screen offers **Finish pending sign-in**; starting a new sign-in discards them.
 - **Upload** runs on a native worker thread. It snapshots the native sensor streams
   (Dexcom, Libre 3 and the other natively stored sensors), keeps a memory-mapped
   outbox under `<app data>/clarity-indexed/<account>/`, and posts batches over mutual TLS.
   It wakes on every new reading (`wakewithcurrent`), on network changes and every
   five minutes, and backs off exponentially on errors with the batch kept.
+- **Values** are the ones the app shows: each reading goes through
+  `resolveExportedMgdl()` (calibration and chosen lane), like Nightscout,
+  the webserver and LibreView. Libre 3 history records have no raw value, so
+  they use the auto lane there too.
+- **Which sensor** a reading may come from: the one activated last, from its
+  first usable reading on. Upstream ordered sensors by planned wear end, which
+  blocked a 10-day G7 that replaced a 15-day Libre early. A sensor's first
+  reading moves earlier when backfill arrives after it was first seen.
+- **Storage** maps through its own file descriptor and logs only the operation
+  and errno, never a path: outbox paths contain the Dexcom account ID. A
+  checkpoint whose creation was interrupted before its first save restarts;
+  one that saved data and is damaged still stops uploads.
 - **Options** live at the end of `Tings` (`settings->data()->clarity`): enabled,
   start date (default: 14 days before first start), Libre 3 history instead of
   stream, and amounts.
@@ -66,4 +80,6 @@ report "not built" rather than failing to link.
 `ContextHTTPS` gained two per-request options for it: `client` (a TLS client
 certificate for that one connection) and `location` (the `Location` header of the
 final response; redirects are still the caller's decision).
-`tools/test-context-https.py` covers both.
+`tools/test-context-https.py` covers both. `tools/test-clarity-native.py` runs the
+outbox and storage on the host: sensor replacement, late backfill and interrupted
+checkpoint creation.
