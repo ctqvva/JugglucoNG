@@ -3346,28 +3346,42 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="tts_trend_rising_quickly">schnell steigend</string>
     <string name="tts_trend_falling_quickly">schnell sinkend</string>
 
-    <!-- Dexcom Clarity upload (ported from upstream Juggluco) -->
-    <string name="clarity_login_instructions">Melden Sie sich auf der Dexcom-Website mit Ihrer Konto-E-Mail-Adresse oder Ihrem Benutzernamen und Ihrem Passwort an.</string>
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Werte an Ihr Dexcom-Clarity-Konto hochladen</string>
+    <string name="clarity_active_desc">Lädt Sensorwerte hoch, damit Ihre Klinik sie in Clarity sieht</string>
+    <string name="clarity_send_enabled">An Clarity senden</string>
+    <string name="clarity_section_upload">Hochladen</string>
+    <string name="clarity_section_account">Dexcom-Konto</string>
+    <string name="clarity_change_start">Startdatum ändern</string>
+    <string name="clarity_start_date">Beginn: %1$s</string>
+    <string name="clarity_change_start_title">Clarity-Startdatum ändern?</string>
+    <string name="clarity_change_start_confirm">%1$s verwenden? Ein früheres Datum sendet ältere, noch nicht bestätigte Daten. Ein späteres Datum überspringt ältere, nicht gesendete Daten. Bestätigte Daten und ausstehende Pakete bleiben erhalten; der Clarity-Verlauf wird nicht gelöscht oder zurückgesetzt.</string>
+    <string name="clarity_use_history">Libre-3-Verlauf verwenden</string>
+    <string name="clarity_use_history_desc">Den Libre-3-Verlauf statt der Minutenwerte senden</string>
+    <string name="clarity_not_signed_in">Nicht angemeldet</string>
+    <string name="clarity_signed_in_as">Angemeldet (Konto %1$s)</string>
     <string name="clarity_login_country">Ländercode (2 Buchstaben)</string>
     <string name="clarity_sign_in">Bei Dexcom anmelden</string>
+    <string name="clarity_change_account_hint">Schalten Sie „An Clarity senden“ aus, um sich mit einem anderen Konto anzumelden.</string>
+    <string name="clarity_login_pending_hint">Eine Anmeldung wurde unterbrochen, nachdem Dexcom sie akzeptiert hatte. Schließen Sie sie ab, um sie zu behalten, oder melden Sie sich neu an.</string>
     <string name="clarity_login_finish_pending">Ausstehende Anmeldung abschließen</string>
-    <string name="clarity_login_tls_error">Die sichere Verbindung zu Dexcom konnte nicht verifiziert werden.</string>
-    <string name="clarity_login_load_error">Die Dexcom-Anmeldeseite konnte nicht geladen werden.</string>
-    <string name="clarity_login_http_error">Die Dexcom-Anmeldeseite hat den HTTP-Status %1$d zurückgegeben.</string>
+    <string name="clarity_try_again">Erneut versuchen</string>
+    <string name="clarity_login_tls_error">Die sichere Verbindung zu Dexcom konnte nicht überprüft werden.</string>
+    <string name="clarity_login_load_error">Die Anmeldeseite von Dexcom konnte nicht geladen werden.</string>
+    <string name="clarity_login_http_error">Die Anmeldeseite von Dexcom antwortete mit HTTP %1$d.</string>
     <string name="clarity_login_destination_error">Die Anmeldeseite hat ein nicht unterstütztes Ziel angefordert.</string>
     <string name="clarity_login_start_error">Die Dexcom-Anmeldung kann nicht gestartet werden.</string>
-    <string name="clarity_login_in_progress">Eine Anmeldung wird gerade abgeschlossen. Bitte warten Sie und versuchen Sie dann „Ausstehende Anmeldung abschließen“.</string>
+    <string name="clarity_login_in_progress">Eine Anmeldung wird noch abgeschlossen. Warten Sie und versuchen Sie dann „Ausstehende Anmeldung abschließen“.</string>
     <string name="clarity_login_completing">Dexcom-Anmeldung wird abgeschlossen…</string>
     <string name="clarity_login_complete_error">Die Dexcom-Anmeldung kann nicht abgeschlossen werden.</string>
-    <string name="clarity_login_retry_error">%1$s\nFalls die Anmeldedaten akzeptiert wurden, versuchen Sie „Ausstehende Anmeldung abschließen“; melden Sie sich andernfalls erneut an.</string>
+    <string name="clarity_login_retry_error">%1$s\nWenn Dexcom Ihre Anmeldung akzeptiert hat, versuchen Sie „Ausstehende Anmeldung abschließen“; andernfalls melden Sie sich erneut an.</string>
     <string name="clarity_last_ack">Letzte Bestätigung: %1$s</string>
-    <string name="clarity_ack_count">Bestätigte Sensor-Glukosewerte: %1$d</string>
-    <string name="clarity_ack_latest">Zuletzt bestätigter Messwert: %1$s</string>
-    <string name="clarity_pending_glucose">Ausstehende Glukosewerte: %1$d, %2$s bis %3$s</string>
+    <string name="clarity_ack_count">Bestätigte Sensorwerte: %1$d</string>
+    <string name="clarity_ack_latest">Letzter bestätigter Wert: %1$s</string>
+    <string name="clarity_pending_glucose">Ausstehende Werte: %1$d, %2$s bis %3$s</string>
     <string name="clarity_read_settings_error">Clarity-Einstellungen können nicht gelesen werden</string>
-    <string name="clarity_send_enabled">An Clarity senden</string>
-    <string name="clarity_use_history">Libre 3-History verwenden</string>
-    <string name="clarity_start_date">Start: %1$s</string>
-    <string name="clarity_change_start_title">Clarity-Startdatum ändern?</string>
     <string name="clarity_save_settings_error">Clarity-Einstellungen können nicht gespeichert werden</string>
+    <string name="clarity_unavailable">Clarity-Upload ist in dieser Version nicht verfügbar</string>
+    <string name="clarity_warning">Inoffiziell: JugglucoNG meldet sich an und lädt hoch wie die Dexcom-App selbst. Dexcom kann dies jederzeit ändern oder sperren.</string>
 </resources>

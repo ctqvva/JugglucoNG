@@ -3239,4 +3239,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">en baisse</string>
     <string name="tts_trend_rising_quickly">en hausse rapide</string>
     <string name="tts_trend_falling_quickly">en baisse rapide</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Envoyer les mesures vers votre compte Dexcom Clarity</string>
+    <string name="clarity_active_desc">Envoie les mesures du capteur pour que votre clinique les voie dans Clarity</string>
+    <string name="clarity_send_enabled">Envoyer vers Clarity</string>
+    <string name="clarity_section_upload">Envoi</string>
+    <string name="clarity_section_account">Compte Dexcom</string>
+    <string name="clarity_change_start">Modifier la date de début</string>
+    <string name="clarity_start_date">Début : %1$s</string>
+    <string name="clarity_change_start_title">Modifier la date de début Clarity ?</string>
+    <string name="clarity_change_start_confirm">Utiliser le %1$s ? Une date plus ancienne envoie les données antérieures pas encore confirmées. Une date plus récente ignore les données antérieures non envoyées. Les données confirmées et les lots en attente sont conservés ; l\'historique Clarity n\'est ni effacé ni réinitialisé.</string>
+    <string name="clarity_use_history">Utiliser l\'historique Libre 3</string>
+    <string name="clarity_use_history_desc">Envoyer l\'historique Libre 3 au lieu des valeurs à la minute</string>
+    <string name="clarity_not_signed_in">Non connecté</string>
+    <string name="clarity_signed_in_as">Connecté (compte %1$s)</string>
+    <string name="clarity_login_country">Code pays (2 lettres)</string>
+    <string name="clarity_sign_in">Se connecter à Dexcom</string>
+    <string name="clarity_change_account_hint">Désactivez « Envoyer vers Clarity » pour vous connecter avec un autre compte.</string>
+    <string name="clarity_login_pending_hint">Une connexion a été interrompue après son acceptation par Dexcom. Terminez-la pour la conserver, ou reconnectez-vous.</string>
+    <string name="clarity_login_finish_pending">Terminer la connexion en attente</string>
+    <string name="clarity_try_again">Réessayer</string>
+    <string name="clarity_login_tls_error">La connexion sécurisée à Dexcom n\'a pas pu être vérifiée.</string>
+    <string name="clarity_login_load_error">Impossible de charger la page de connexion Dexcom.</string>
+    <string name="clarity_login_http_error">La page de connexion Dexcom a renvoyé HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">La page de connexion a demandé une destination non prise en charge.</string>
+    <string name="clarity_login_start_error">Impossible de démarrer la connexion Dexcom.</string>
+    <string name="clarity_login_in_progress">Une connexion est encore en cours. Patientez, puis essayez « Terminer la connexion en attente ».</string>
+    <string name="clarity_login_completing">Finalisation de la connexion Dexcom…</string>
+    <string name="clarity_login_complete_error">Impossible de terminer la connexion Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nSi Dexcom a accepté votre connexion, essayez « Terminer la connexion en attente » ; sinon, reconnectez-vous.</string>
+    <string name="clarity_last_ack">Dernière confirmation : %1$s</string>
+    <string name="clarity_ack_count">Mesures du capteur confirmées : %1$d</string>
+    <string name="clarity_ack_latest">Dernière mesure confirmée : %1$s</string>
+    <string name="clarity_pending_glucose">Mesures en attente : %1$d, de %2$s à %3$s</string>
+    <string name="clarity_read_settings_error">Impossible de lire les réglages Clarity</string>
+    <string name="clarity_save_settings_error">Impossible d\'enregistrer les réglages Clarity</string>
+    <string name="clarity_unavailable">L\'envoi vers Clarity n\'est pas disponible dans cette version</string>
+    <string name="clarity_warning">Non officiel : JugglucoNG se connecte et envoie les données comme l\'application Dexcom elle-même. Dexcom peut modifier ou bloquer cela à tout moment.</string>
 </resources>

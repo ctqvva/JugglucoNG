@@ -3232,4 +3232,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">sjunkande</string>
     <string name="tts_trend_rising_quickly">snabbt stigande</string>
     <string name="tts_trend_falling_quickly">snabbt sjunkande</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Ladda upp värden till ditt Dexcom Clarity-konto</string>
+    <string name="clarity_active_desc">Laddar upp sensorvärden så att din klinik ser dem i Clarity</string>
+    <string name="clarity_send_enabled">Skicka till Clarity</string>
+    <string name="clarity_section_upload">Uppladdning</string>
+    <string name="clarity_section_account">Dexcom-konto</string>
+    <string name="clarity_change_start">Ändra startdatum</string>
+    <string name="clarity_start_date">Startdatum: %1$s</string>
+    <string name="clarity_change_start_title">Ändra startdatum för Clarity?</string>
+    <string name="clarity_change_start_confirm">Använd %1$s? Ett tidigare datum skickar äldre data som ännu inte har bekräftats. Ett senare datum hoppar över äldre data som inte har skickats. Bekräftade data och väntande batcher behålls; Clarity-historiken raderas inte och återställs inte.</string>
+    <string name="clarity_use_history">Använd Libre 3-historik</string>
+    <string name="clarity_use_history_desc">Skicka Libre 3-historiken i stället för minutvärdena</string>
+    <string name="clarity_not_signed_in">Inte inloggad</string>
+    <string name="clarity_signed_in_as">Inloggad (konto %1$s)</string>
+    <string name="clarity_login_country">Landskod (2 bokstäver)</string>
+    <string name="clarity_sign_in">Logga in hos Dexcom</string>
+    <string name="clarity_change_account_hint">Stäng av ”Skicka till Clarity” för att logga in med ett annat konto.</string>
+    <string name="clarity_login_pending_hint">En inloggning avbröts efter att Dexcom hade godkänt den. Slutför den för att behålla den, eller logga in igen.</string>
+    <string name="clarity_login_finish_pending">Slutför avbruten inloggning</string>
+    <string name="clarity_try_again">Försök igen</string>
+    <string name="clarity_login_tls_error">Dexcoms säkra anslutning kunde inte verifieras.</string>
+    <string name="clarity_login_load_error">Dexcoms inloggningssida kunde inte laddas.</string>
+    <string name="clarity_login_http_error">Dexcoms inloggningssida svarade med HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">Inloggningssidan begärde ett mål som inte stöds.</string>
+    <string name="clarity_login_start_error">Det går inte att starta Dexcom-inloggningen.</string>
+    <string name="clarity_login_in_progress">En inloggning håller fortfarande på att slutföras. Vänta och prova sedan ”Slutför avbruten inloggning”.</string>
+    <string name="clarity_login_completing">Slutför Dexcom-inloggningen…</string>
+    <string name="clarity_login_complete_error">Det går inte att slutföra Dexcom-inloggningen.</string>
+    <string name="clarity_login_retry_error">%1$s\nOm Dexcom godkände din inloggning, prova ”Slutför avbruten inloggning”; logga annars in igen.</string>
+    <string name="clarity_last_ack">Senaste bekräftelse: %1$s</string>
+    <string name="clarity_ack_count">Bekräftade sensorvärden: %1$d</string>
+    <string name="clarity_ack_latest">Senaste bekräftade värde: %1$s</string>
+    <string name="clarity_pending_glucose">Väntande värden: %1$d, %2$s till %3$s</string>
+    <string name="clarity_read_settings_error">Det går inte att läsa Clarity-inställningarna</string>
+    <string name="clarity_save_settings_error">Det går inte att spara Clarity-inställningarna</string>
+    <string name="clarity_unavailable">Clarity-uppladdning är inte tillgänglig i den här versionen</string>
+    <string name="clarity_warning">Inofficiellt: JugglucoNG loggar in och laddar upp på samma sätt som Dexcoms egen app. Dexcom kan ändra eller blockera detta när som helst.</string>
 </resources>

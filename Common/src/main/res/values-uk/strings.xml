@@ -3321,4 +3321,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">знижується</string>
     <string name="tts_trend_rising_quickly">швидко підвищується</string>
     <string name="tts_trend_falling_quickly">швидко знижується</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Завантажувати показники у ваш обліковий запис Dexcom Clarity</string>
+    <string name="clarity_active_desc">Завантажує показники сенсора, щоб ваша клініка бачила їх у Clarity</string>
+    <string name="clarity_send_enabled">Надсилати в Clarity</string>
+    <string name="clarity_section_upload">Завантаження</string>
+    <string name="clarity_section_account">Обліковий запис Dexcom</string>
+    <string name="clarity_change_start">Змінити дату початку</string>
+    <string name="clarity_start_date">Початок: %1$s</string>
+    <string name="clarity_change_start_title">Змінити дату початку Clarity?</string>
+    <string name="clarity_change_start_confirm">Використати %1$s? Раніша дата надішле старіші дані, які ще не підтверджені. Пізніша дата пропустить старіші ненадіслані дані. Підтверджені дані та пакети в черзі зберігаються; історія Clarity не видаляється і не скидається.</string>
+    <string name="clarity_use_history">Використовувати історію Libre 3</string>
+    <string name="clarity_use_history_desc">Надсилати історію Libre 3 замість похвилинних значень</string>
+    <string name="clarity_not_signed_in">Вхід не виконано</string>
+    <string name="clarity_signed_in_as">Вхід виконано (обліковий запис %1$s)</string>
+    <string name="clarity_login_country">Код країни (2 літери)</string>
+    <string name="clarity_sign_in">Увійти в Dexcom</string>
+    <string name="clarity_change_account_hint">Вимкніть «Надсилати в Clarity», щоб увійти в інший обліковий запис.</string>
+    <string name="clarity_login_pending_hint">Вхід перервано після того, як Dexcom його прийняв. Завершіть його, щоб зберегти, або увійдіть знову.</string>
+    <string name="clarity_login_finish_pending">Завершити перерваний вхід</string>
+    <string name="clarity_try_again">Спробувати ще раз</string>
+    <string name="clarity_login_tls_error">Не вдалося перевірити захищене з’єднання з Dexcom.</string>
+    <string name="clarity_login_load_error">Не вдалося завантажити сторінку входу Dexcom.</string>
+    <string name="clarity_login_http_error">Сторінка входу Dexcom повернула HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">Сторінка входу запросила непідтримувану адресу.</string>
+    <string name="clarity_login_start_error">Не вдається почати вхід у Dexcom.</string>
+    <string name="clarity_login_in_progress">Вхід ще завершується. Зачекайте, потім спробуйте «Завершити перерваний вхід».</string>
+    <string name="clarity_login_completing">Завершення входу в Dexcom…</string>
+    <string name="clarity_login_complete_error">Не вдається завершити вхід у Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nЯкщо Dexcom прийняв вхід, спробуйте «Завершити перерваний вхід»; інакше увійдіть знову.</string>
+    <string name="clarity_last_ack">Останнє підтвердження: %1$s</string>
+    <string name="clarity_ack_count">Підтверджено показників сенсора: %1$d</string>
+    <string name="clarity_ack_latest">Останній підтверджений показник: %1$s</string>
+    <string name="clarity_pending_glucose">У черзі: %1$d, з %2$s до %3$s</string>
+    <string name="clarity_read_settings_error">Не вдається прочитати налаштування Clarity</string>
+    <string name="clarity_save_settings_error">Не вдається зберегти налаштування Clarity</string>
+    <string name="clarity_unavailable">Завантаження в Clarity недоступне в цій збірці</string>
+    <string name="clarity_warning">Неофіційно: JugglucoNG входить і завантажує дані так само, як застосунок Dexcom. Dexcom може змінити або заблокувати це будь-коли.</string>
 </resources>

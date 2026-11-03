@@ -3260,4 +3260,43 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="tts_trend_decreasing">düşüyor</string>
     <string name="tts_trend_rising_quickly">hızla yükseliyor</string>
     <string name="tts_trend_falling_quickly">hızla düşüyor</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Ölçümleri Dexcom Clarity hesabınıza yükleyin</string>
+    <string name="clarity_active_desc">Sensör ölçümlerini yükler, böylece kliniğiniz bunları Clarity\'de görür</string>
+    <string name="clarity_send_enabled">Clarity\'ye gönder</string>
+    <string name="clarity_section_upload">Yükleme</string>
+    <string name="clarity_section_account">Dexcom hesabı</string>
+    <string name="clarity_change_start">Başlangıç tarihini değiştir</string>
+    <string name="clarity_start_date">Başlangıç: %1$s</string>
+    <string name="clarity_change_start_title">Clarity başlangıç tarihi değiştirilsin mi?</string>
+    <string name="clarity_change_start_confirm">%1$s kullanılsın mı? Daha erken bir tarih, henüz onaylanmamış eski verileri gönderir. Daha geç bir tarih, gönderilmemiş eski verileri atlar. Onaylanmış veriler ve bekleyen paketler korunur; Clarity geçmişi silinmez veya sıfırlanmaz.</string>
+    <string name="clarity_use_history">Libre 3 geçmişini kullan</string>
+    <string name="clarity_use_history_desc">Dakikalık değerler yerine Libre 3 geçmişini gönder</string>
+    <string name="clarity_not_signed_in">Oturum açılmadı</string>
+    <string name="clarity_signed_in_as">Oturum açıldı (hesap %1$s)</string>
+    <string name="clarity_login_country">Ülke kodu (2 harf)</string>
+    <string name="clarity_sign_in">Dexcom\'da oturum aç</string>
+    <string name="clarity_change_account_hint">Başka bir hesapla oturum açmak için \"Clarity\'ye gönder\"i kapatın.</string>
+    <string name="clarity_login_pending_hint">Dexcom kabul ettikten sonra bir oturum açma işlemi yarıda kaldı. Korumak için tamamlayın veya yeniden oturum açın.</string>
+    <string name="clarity_login_finish_pending">Bekleyen oturum açmayı tamamla</string>
+    <string name="clarity_try_again">Tekrar dene</string>
+    <string name="clarity_login_tls_error">Dexcom\'un güvenli bağlantısı doğrulanamadı.</string>
+    <string name="clarity_login_load_error">Dexcom\'un oturum açma sayfası yüklenemedi.</string>
+    <string name="clarity_login_http_error">Dexcom\'un oturum açma sayfası HTTP %1$d döndürdü.</string>
+    <string name="clarity_login_destination_error">Oturum açma sayfası desteklenmeyen bir hedef istedi.</string>
+    <string name="clarity_login_start_error">Dexcom oturum açma işlemi başlatılamıyor.</string>
+    <string name="clarity_login_in_progress">Bir oturum açma işlemi hâlâ tamamlanıyor. Bekleyin, sonra \"Bekleyen oturum açmayı tamamla\"yı deneyin.</string>
+    <string name="clarity_login_completing">Dexcom oturum açma tamamlanıyor…</string>
+    <string name="clarity_login_complete_error">Dexcom oturum açma işlemi tamamlanamıyor.</string>
+    <string name="clarity_login_retry_error">%1$s\nDexcom oturum açmanızı kabul ettiyse \"Bekleyen oturum açmayı tamamla\"yı deneyin; aksi halde yeniden oturum açın.</string>
+    <string name="clarity_last_ack">Son onay: %1$s</string>
+    <string name="clarity_ack_count">Onaylanan sensör ölçümleri: %1$d</string>
+    <string name="clarity_ack_latest">Son onaylanan ölçüm: %1$s</string>
+    <string name="clarity_pending_glucose">Bekleyen ölçümler: %1$d, %2$s - %3$s</string>
+    <string name="clarity_read_settings_error">Clarity ayarları okunamıyor</string>
+    <string name="clarity_save_settings_error">Clarity ayarları kaydedilemiyor</string>
+    <string name="clarity_unavailable">Clarity yüklemesi bu sürümde kullanılamıyor</string>
+    <string name="clarity_warning">Resmi değil: JugglucoNG, Dexcom\'un kendi uygulaması gibi oturum açar ve yükleme yapar. Dexcom bunu istediği zaman değiştirebilir veya engelleyebilir.</string>
 </resources>

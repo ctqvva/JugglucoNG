@@ -3234,4 +3234,43 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">a descer</string>
     <string name="tts_trend_rising_quickly">a subir rapidamente</string>
     <string name="tts_trend_falling_quickly">a descer rapidamente</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Enviar leituras para sua conta Dexcom Clarity</string>
+    <string name="clarity_active_desc">Envia as leituras do sensor para que sua clínica as veja no Clarity</string>
+    <string name="clarity_send_enabled">Enviar para o Clarity</string>
+    <string name="clarity_section_upload">Envio</string>
+    <string name="clarity_section_account">Conta Dexcom</string>
+    <string name="clarity_change_start">Alterar data de início</string>
+    <string name="clarity_start_date">Início: %1$s</string>
+    <string name="clarity_change_start_title">Alterar a data de início do Clarity?</string>
+    <string name="clarity_change_start_confirm">Usar %1$s? Uma data anterior envia dados mais antigos ainda não confirmados. Uma data posterior pula dados mais antigos não enviados. Os dados confirmados e os lotes pendentes são mantidos; o histórico do Clarity não é apagado nem redefinido.</string>
+    <string name="clarity_use_history">Usar histórico do Libre 3</string>
+    <string name="clarity_use_history_desc">Enviar o histórico do Libre 3 em vez dos valores por minuto</string>
+    <string name="clarity_not_signed_in">Não conectado</string>
+    <string name="clarity_signed_in_as">Conectado (conta %1$s)</string>
+    <string name="clarity_login_country">Código do país (2 letras)</string>
+    <string name="clarity_sign_in">Entrar na Dexcom</string>
+    <string name="clarity_change_account_hint">Desative “Enviar para o Clarity” para entrar com outra conta.</string>
+    <string name="clarity_login_pending_hint">Um login foi interrompido depois que a Dexcom o aceitou. Conclua-o para mantê-lo ou entre novamente.</string>
+    <string name="clarity_login_finish_pending">Concluir login pendente</string>
+    <string name="clarity_try_again">Tentar novamente</string>
+    <string name="clarity_login_tls_error">Não foi possível verificar a conexão segura com a Dexcom.</string>
+    <string name="clarity_login_load_error">Não foi possível carregar a página de login da Dexcom.</string>
+    <string name="clarity_login_http_error">A página de login da Dexcom retornou HTTP %1$d.</string>
+    <string name="clarity_login_destination_error">A página de login solicitou um destino não suportado.</string>
+    <string name="clarity_login_start_error">Não é possível iniciar o login na Dexcom.</string>
+    <string name="clarity_login_in_progress">Um login ainda está sendo concluído. Aguarde e depois tente “Concluir login pendente”.</string>
+    <string name="clarity_login_completing">Concluindo login na Dexcom…</string>
+    <string name="clarity_login_complete_error">Não é possível concluir o login na Dexcom.</string>
+    <string name="clarity_login_retry_error">%1$s\nSe a Dexcom aceitou seu login, tente “Concluir login pendente”; caso contrário, entre novamente.</string>
+    <string name="clarity_last_ack">Última confirmação: %1$s</string>
+    <string name="clarity_ack_count">Leituras do sensor confirmadas: %1$d</string>
+    <string name="clarity_ack_latest">Última leitura confirmada: %1$s</string>
+    <string name="clarity_pending_glucose">Leituras pendentes: %1$d, de %2$s a %3$s</string>
+    <string name="clarity_read_settings_error">Não é possível ler as configurações do Clarity</string>
+    <string name="clarity_save_settings_error">Não é possível salvar as configurações do Clarity</string>
+    <string name="clarity_unavailable">O envio para o Clarity não está disponível nesta versão</string>
+    <string name="clarity_warning">Não oficial: o JugglucoNG faz login e envia dados como o próprio app da Dexcom. A Dexcom pode alterar ou bloquear isso a qualquer momento.</string>
 </resources>

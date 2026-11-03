@@ -3301,4 +3301,43 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="tts_trend_decreasing">csökken</string>
     <string name="tts_trend_rising_quickly">gyorsan emelkedik</string>
     <string name="tts_trend_falling_quickly">gyorsan csökken</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Értékek feltöltése a Dexcom Clarity-fiókjába</string>
+    <string name="clarity_active_desc">Feltölti a szenzorértékeket, hogy a klinikája lássa őket a Clarityben</string>
+    <string name="clarity_send_enabled">Küldés a Claritynek</string>
+    <string name="clarity_section_upload">Feltöltés</string>
+    <string name="clarity_section_account">Dexcom-fiók</string>
+    <string name="clarity_change_start">Kezdő dátum módosítása</string>
+    <string name="clarity_start_date">Kezdés: %1$s</string>
+    <string name="clarity_change_start_title">Módosítja a Clarity kezdő dátumát?</string>
+    <string name="clarity_change_start_confirm">Legyen %1$s? Korábbi dátum esetén a még nem nyugtázott régebbi adatok is elküldésre kerülnek. Későbbi dátum esetén a régebbi, el nem küldött adatok kimaradnak. A nyugtázott adatok és a várakozó csomagok megmaradnak; a Clarity-előzmények nem törlődnek és nem állnak vissza.</string>
+    <string name="clarity_use_history">Libre 3 előzmények használata</string>
+    <string name="clarity_use_history_desc">A Libre 3 előzményeinek küldése a percenkénti értékek helyett</string>
+    <string name="clarity_not_signed_in">Nincs bejelentkezve</string>
+    <string name="clarity_signed_in_as">Bejelentkezve (fiók: %1$s)</string>
+    <string name="clarity_login_country">Országkód (2 betű)</string>
+    <string name="clarity_sign_in">Bejelentkezés a Dexcomba</string>
+    <string name="clarity_change_account_hint">Kapcsolja ki a „Küldés a Claritynek” beállítást, ha másik fiókkal szeretne bejelentkezni.</string>
+    <string name="clarity_login_pending_hint">Egy bejelentkezés megszakadt, miután a Dexcom elfogadta. Fejezze be a megtartásához, vagy jelentkezzen be újra.</string>
+    <string name="clarity_login_finish_pending">Függő bejelentkezés befejezése</string>
+    <string name="clarity_try_again">Újra</string>
+    <string name="clarity_login_tls_error">A Dexcom biztonságos kapcsolata nem ellenőrizhető.</string>
+    <string name="clarity_login_load_error">A Dexcom bejelentkezési oldala nem tölthető be.</string>
+    <string name="clarity_login_http_error">A Dexcom bejelentkezési oldala HTTP %1$d választ adott.</string>
+    <string name="clarity_login_destination_error">A bejelentkezési oldal nem támogatott célt kért.</string>
+    <string name="clarity_login_start_error">A Dexcom-bejelentkezés nem indítható el.</string>
+    <string name="clarity_login_in_progress">Egy bejelentkezés még folyamatban van. Várjon, majd próbálja a „Függő bejelentkezés befejezése” lehetőséget.</string>
+    <string name="clarity_login_completing">Dexcom-bejelentkezés befejezése…</string>
+    <string name="clarity_login_complete_error">A Dexcom-bejelentkezés nem fejezhető be.</string>
+    <string name="clarity_login_retry_error">%1$s\nHa a Dexcom elfogadta a bejelentkezést, próbálja a „Függő bejelentkezés befejezése” lehetőséget; különben jelentkezzen be újra.</string>
+    <string name="clarity_last_ack">Utolsó nyugtázás: %1$s</string>
+    <string name="clarity_ack_count">Nyugtázott szenzorértékek: %1$d</string>
+    <string name="clarity_ack_latest">Utolsó nyugtázott érték: %1$s</string>
+    <string name="clarity_pending_glucose">Várakozó értékek: %1$d, %2$s és %3$s között</string>
+    <string name="clarity_read_settings_error">A Clarity-beállítások nem olvashatók</string>
+    <string name="clarity_save_settings_error">A Clarity-beállítások nem menthetők</string>
+    <string name="clarity_unavailable">A Clarity-feltöltés ebben a verzióban nem érhető el</string>
+    <string name="clarity_warning">Nem hivatalos: a JugglucoNG úgy jelentkezik be és tölt fel, mint a Dexcom saját alkalmazása. A Dexcom ezt bármikor megváltoztathatja vagy letilthatja.</string>
 </resources>

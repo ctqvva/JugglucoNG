@@ -3495,11 +3495,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_rising_quickly">rising quickly</string>
     <string name="tts_trend_falling_quickly">falling quickly</string>
 
-    <!-- Dexcom Clarity upload (ported from upstream Juggluco) -->
-    <string name="clarity_login_instructions">Sign in on Dexcom\'s page with your account email or username and password.</string>
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Upload readings to your Dexcom Clarity account</string>
+    <string name="clarity_active_desc">Uploads sensor readings so your clinic can see them in Clarity</string>
+    <string name="clarity_send_enabled">Send to Clarity</string>
+    <string name="clarity_section_upload">Upload</string>
+    <string name="clarity_section_account">Dexcom account</string>
+    <string name="clarity_change_start">Change start date</string>
+    <string name="clarity_start_date">Start: %1$s</string>
+    <string name="clarity_change_start_title">Change Clarity start date?</string>
+    <string name="clarity_change_start_confirm">Use %1$s? An earlier date sends eligible older data that has not been acknowledged. A later date skips unsent older data. Acknowledged data and pending batches are kept; this does not erase or reset Clarity history.</string>
+    <string name="clarity_use_history">Use Libre 3 history</string>
+    <string name="clarity_use_history_desc">Send Libre 3 history instead of the minute stream</string>
+    <string name="clarity_not_signed_in">Not signed in</string>
+    <string name="clarity_signed_in_as">Signed in (account %1$s)</string>
     <string name="clarity_login_country">2-letter country code</string>
     <string name="clarity_sign_in">Sign in to Dexcom</string>
+    <string name="clarity_change_account_hint">Turn off Send to Clarity to sign in to another account.</string>
+    <string name="clarity_login_pending_hint">A sign-in was interrupted after Dexcom accepted it. Finish it to keep it, or sign in again to start over.</string>
     <string name="clarity_login_finish_pending">Finish pending sign-in</string>
+    <string name="clarity_try_again">Try again</string>
     <string name="clarity_login_tls_error">Dexcom\'s secure connection could not be verified.</string>
     <string name="clarity_login_load_error">Could not load Dexcom\'s sign-in page.</string>
     <string name="clarity_login_http_error">Dexcom\'s sign-in page returned HTTP %1$d.</string>
@@ -3508,29 +3524,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="clarity_login_in_progress">A sign-in is still completing. Wait, then try Finish pending sign-in.</string>
     <string name="clarity_login_completing">Completing Dexcom sign-in…</string>
     <string name="clarity_login_complete_error">Cannot complete Dexcom sign-in.</string>
-    <string name="clarity_login_retry_error">%1$s\nIf credentials were accepted, try Finish pending sign-in; otherwise sign in again.</string>
+    <string name="clarity_login_retry_error">%1$s\nIf Dexcom accepted your sign-in, try Finish pending sign-in; otherwise sign in again.</string>
     <string name="clarity_last_ack">Last acknowledgment: %1$s</string>
     <string name="clarity_ack_count">Sensor glucose acknowledged: %1$d</string>
     <string name="clarity_ack_latest">Latest acknowledged reading: %1$s</string>
     <string name="clarity_pending_glucose">Pending glucose: %1$d, %2$s to %3$s</string>
     <string name="clarity_read_settings_error">Cannot read Clarity settings</string>
-    <string name="clarity_send_enabled">Send to Clarity</string>
-    <string name="clarity_use_history">Use Libre 3 history</string>
-    <string name="clarity_start_date">Start: %1$s</string>
-    <string name="clarity_change_start_title">Change Clarity start date?</string>
     <string name="clarity_save_settings_error">Cannot save Clarity settings</string>
-    <string name="clarity_title">Dexcom Clarity</string>
-    <string name="clarity_desc">Upload readings to your Dexcom Clarity account</string>
-    <string name="clarity_active_desc">Uploads sensor readings so your clinic can see them in Clarity</string>
-    <string name="clarity_section_account">Dexcom account</string>
-    <string name="clarity_section_upload">Upload</string>
-    <string name="clarity_not_signed_in">Not signed in</string>
-    <string name="clarity_signed_in_as">Signed in (account %1$s)</string>
-    <string name="clarity_change_account_hint">Turn off Send to Clarity to sign in to another account.</string>
-    <string name="clarity_use_history_desc">Send Libre 3 history instead of the minute stream</string>
-    <string name="clarity_change_start">Change start date</string>
-    <string name="clarity_change_start_confirm">Use %1$s? An earlier date sends eligible older data that has not been acknowledged. A later date skips unsent older data. Acknowledged data and pending batches are kept; this does not erase or reset Clarity history.</string>
     <string name="clarity_unavailable">Clarity upload is not available in this build</string>
-    <string name="clarity_try_again">Try again</string>
     <string name="clarity_warning">Unofficial: JugglucoNG signs in and uploads the way Dexcom\'s own app does. Dexcom may change or block this at any time.</string>
 </resources>

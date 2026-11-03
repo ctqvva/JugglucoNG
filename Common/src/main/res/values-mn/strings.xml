@@ -3333,4 +3333,43 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="tts_trend_decreasing">буурч байна</string>
     <string name="tts_trend_rising_quickly">хурдан өсөж байна</string>
     <string name="tts_trend_falling_quickly">хурдан буурч байна</string>
+
+    <!-- Dexcom Clarity upload (net/clarity) -->
+    <string name="clarity_title">Dexcom Clarity</string>
+    <string name="clarity_desc">Үзүүлэлтийг таны Dexcom Clarity бүртгэл рүү байршуулах</string>
+    <string name="clarity_active_desc">Таны эмнэлэг Clarity дээр харах боломжтойгоор мэдрэгчийн үзүүлэлтийг байршуулна</string>
+    <string name="clarity_send_enabled">Clarity руу илгээх</string>
+    <string name="clarity_section_upload">Байршуулалт</string>
+    <string name="clarity_section_account">Dexcom бүртгэл</string>
+    <string name="clarity_change_start">Эхлэх огноог өөрчлөх</string>
+    <string name="clarity_start_date">Эхлэх: %1$s</string>
+    <string name="clarity_change_start_title">Clarity-ийн эхлэх огноог өөрчлөх үү?</string>
+    <string name="clarity_change_start_confirm">%1$s-г ашиглах уу? Эрт огноо нь хараахан баталгаажаагүй хуучин өгөгдлийг илгээнэ. Хожуу огноо нь илгээгээгүй хуучин өгөгдлийг алгасна. Баталгаажсан өгөгдөл болон хүлээгдэж буй багцууд хадгалагдана; Clarity-ийн түүх устахгүй, дахин тохируулагдахгүй.</string>
+    <string name="clarity_use_history">Libre 3 түүхийг ашиглах</string>
+    <string name="clarity_use_history_desc">Минут тутмын утгын оронд Libre 3 түүхийг илгээх</string>
+    <string name="clarity_not_signed_in">Нэвтрээгүй</string>
+    <string name="clarity_signed_in_as">Нэвтэрсэн (бүртгэл %1$s)</string>
+    <string name="clarity_login_country">Улсын код (2 үсэг)</string>
+    <string name="clarity_sign_in">Dexcom-д нэвтрэх</string>
+    <string name="clarity_change_account_hint">Өөр бүртгэлээр нэвтрэхийн тулд «Clarity руу илгээх»-ийг унтраана уу.</string>
+    <string name="clarity_login_pending_hint">Dexcom зөвшөөрсний дараа нэвтрэлт тасалдсан. Хадгалахын тулд дуусгах эсвэл дахин нэвтэрнэ үү.</string>
+    <string name="clarity_login_finish_pending">Тасалдсан нэвтрэлтийг дуусгах</string>
+    <string name="clarity_try_again">Дахин оролдох</string>
+    <string name="clarity_login_tls_error">Dexcom-той хамгаалалттай холболтыг шалгаж чадсангүй.</string>
+    <string name="clarity_login_load_error">Dexcom-ийн нэвтрэх хуудсыг ачаалж чадсангүй.</string>
+    <string name="clarity_login_http_error">Dexcom-ийн нэвтрэх хуудас HTTP %1$d буцаалаа.</string>
+    <string name="clarity_login_destination_error">Нэвтрэх хуудас дэмжигдээгүй хаяг хүссэн.</string>
+    <string name="clarity_login_start_error">Dexcom-д нэвтрэлтийг эхлүүлэх боломжгүй.</string>
+    <string name="clarity_login_in_progress">Нэвтрэлт дуусаж байна. Хүлээгээд «Тасалдсан нэвтрэлтийг дуусгах»-ыг оролдоно уу.</string>
+    <string name="clarity_login_completing">Dexcom-д нэвтрэлтийг дуусгаж байна…</string>
+    <string name="clarity_login_complete_error">Dexcom-д нэвтрэлтийг дуусгах боломжгүй.</string>
+    <string name="clarity_login_retry_error">%1$s\nХэрэв Dexcom таны нэвтрэлтийг зөвшөөрсөн бол «Тасалдсан нэвтрэлтийг дуусгах»-ыг оролдоно уу; эс бөгөөс дахин нэвтэрнэ үү.</string>
+    <string name="clarity_last_ack">Сүүлийн баталгаажуулалт: %1$s</string>
+    <string name="clarity_ack_count">Баталгаажсан мэдрэгчийн үзүүлэлт: %1$d</string>
+    <string name="clarity_ack_latest">Сүүлд баталгаажсан үзүүлэлт: %1$s</string>
+    <string name="clarity_pending_glucose">Хүлээгдэж буй үзүүлэлт: %1$d, %2$s-аас %3$s хүртэл</string>
+    <string name="clarity_read_settings_error">Clarity-ийн тохиргоог уншиж чадахгүй байна</string>
+    <string name="clarity_save_settings_error">Clarity-ийн тохиргоог хадгалж чадахгүй байна</string>
+    <string name="clarity_unavailable">Энэ хувилбарт Clarity руу байршуулах боломжгүй</string>
+    <string name="clarity_warning">Албан бус: JugglucoNG нь Dexcom-ийн өөрийн аппын адилаар нэвтэрч, байршуулдаг. Dexcom үүнийг хэзээ ч өөрчлөх эсвэл хааж болно.</string>
 </resources>
