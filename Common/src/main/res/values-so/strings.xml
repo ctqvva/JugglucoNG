@@ -3417,4 +3417,61 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="tts_trend_decreasing">hoos u dhacaya</string>
     <string name="tts_trend_rising_quickly">si degdeg ah kor ugu kacaya</string>
     <string name="tts_trend_falling_quickly">si degdeg ah hoos ugu dhacaya</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Habka xaddidan</string>
+    <string name="restricted_mode_desc">App fudud oo loogu talagalay ilmo ama qof kaliya la socda gluukooskiisa</string>
+    <string name="restricted_mode_summary_on">Shidan · dejimuhu waxay codsadaan habka buuxa</string>
+    <string name="restricted_full_mode_title">Hadda habka buuxa</string>
+    <string name="restricted_full_mode_desc">Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka, ama markaad xirto.</string>
+    <string name="restricted_lock_now">Hadda xir</string>
+    <string name="restricted_section_unlock">U gudub habka buuxa</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">Shidan · waa la weydiiyaa ka hor habka buuxa</string>
+    <string name="restricted_pin_not_set">Dansan · qof walba wuu u gudbi karaa habka buuxa</string>
+    <string name="restricted_biometric_title">Faraha ama wejiga</string>
+    <string name="restricted_biometric_desc">Sidoo kale ku fur biometric-ka taleefanka</string>
+    <string name="restricted_biometric_needs_pin">Marka hore deji PIN</string>
+    <string name="restricted_section_allowed">Waa la oggol yahay xilliga xaddidan</string>
+    <string name="restricted_allow_sensor_change">Beddel dareemayaasha</string>
+    <string name="restricted_allow_sensor_change_desc">Ku dar dareeme cusub oo ka saar kii hore</string>
+    <string name="restricted_sensor_types_label">Dareemayaasha lagu dari karo</string>
+    <string name="restricted_sensor_types_none">Dooro ugu yaraan hal, haddii kale dareeme lama dari karo.</string>
+    <string name="restricted_handover_on">Wareejinta tooska ah ee dareemaha waa shidan tahay: dareemaha cusub ayaa la wareegaya marka kii hore dhammaado.</string>
+    <string name="restricted_handover_off">Wareejinta tooska ah ee dareemaha waa dansan tahay. Shid si dareemaha cusub ula wareego marka kii hore dhammaado.</string>
+    <string name="restricted_turn_on_handover">Shid wareejinta</string>
+    <string name="restricted_allow_journal">Qoraallada buugga</string>
+    <string name="restricted_allow_journal_desc">Ku dar oo wax ka beddel insulin, cunto iyo qoraallo</string>
+    <string name="restricted_allow_calibration_desc">Ku dar oo wax ka beddel cabbir-hagaajinta</string>
+    <string name="restricted_allow_alarm_stop">Jooji alaarmiyada</string>
+    <string name="restricted_allow_alarm_stop_desc">Marka la damiyo, alaarmiyada waa la dib u dhigi karaa oo keliya</string>
+    <string name="restricted_always_hidden">Dejimaha, dib-u-dejinta dareemaha, kontaroolada horumarsan iyo tirtirista xogta had iyo jeer waxay u baahan yihiin habka buuxa.</string>
+    <string name="restricted_pin_options_desc">Beddel PIN-ka, ama ka saar si habka buuxa hal taabasho ugu furmo.</string>
+    <string name="restricted_change_pin">Beddel PIN</string>
+    <string name="restricted_remove_pin">Ka saar PIN</string>
+    <string name="restricted_use_biometric">Isticmaal faraha ama wejiga</string>
+    <string name="restricted_unlock_title">U gudub habka buuxa</string>
+    <string name="restricted_unlock_desc">Dejimaha iyo dhammaan kontaroolada dareemaha ayaa furmaya. Habka xaddidan wuxuu soo laabanayaa daqiiqad kadib markaad ka baxdo app-ka.</string>
+    <string name="restricted_enter_pin">Geli PIN</string>
+    <string name="restricted_enter_pin_desc">Si aad ugu gudubto habka buuxa</string>
+    <string name="restricted_wrong_pin">PIN khaldan</string>
+    <string name="restricted_pin_locked_out">Isku day badan · sug %1$s</string>
+    <string name="restricted_choose_pin">Dooro PIN</string>
+    <string name="restricted_confirm_pin">Mar kale geli PIN-ka</string>
+    <string name="restricted_choose_pin_desc">%1$d ilaa %2$d god</string>
+    <string name="restricted_pin_mismatch">PIN-yadu isma waafaqin. Mar kale dooro PIN.</string>
+    <string name="restricted_delete_digit">Tirtir godka</string>
+    <string name="restricted_disconnect_desc">Taleefankani wuu joojinayaa akhrinta dareemaha. Akhrisyadii hore waa la hayaa.</string>
+    <string name="restricted_sensor_ended">Dhammaaday</string>
+    <string name="restricted_sensor_ends_today">Maanta ayuu dhammaanayaa</string>
+    <string name="restricted_sensors_locked">Ku darista dareeme waxay u baahan tahay habka buuxa.</string>
+    <string name="restricted_tab_locked">Waxay u baahan tahay habka buuxa</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d god ayaa la geliyay</item>
+        <item quantity="other">%d god ayaa la geliyay</item>
+    </plurals>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d maalin ayaa haray</item>
+        <item quantity="other">%d maalmood ayaa haray</item>
+    </plurals>
 </resources>

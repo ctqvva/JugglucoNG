@@ -3260,4 +3260,61 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="tts_trend_decreasing">düşüyor</string>
     <string name="tts_trend_rising_quickly">hızla yükseliyor</string>
     <string name="tts_trend_falling_quickly">hızla düşüyor</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Kısıtlı mod</string>
+    <string name="restricted_mode_desc">Bir çocuk ya da yalnızca glikozunu takip etmesi gereken biri için daha basit bir uygulama</string>
+    <string name="restricted_mode_summary_on">Açık · ayarlar tam mod ister</string>
+    <string name="restricted_full_mode_title">Şimdilik tam mod</string>
+    <string name="restricted_full_mode_desc">Kısıtlı mod, uygulamadan çıktıktan bir dakika sonra ya da kilitlediğinizde geri gelir.</string>
+    <string name="restricted_lock_now">Şimdi kilitle</string>
+    <string name="restricted_section_unlock">Tam moda geçiş</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">Açık · tam moddan önce sorulur</string>
+    <string name="restricted_pin_not_set">Kapalı · herkes tam moda geçebilir</string>
+    <string name="restricted_biometric_title">Parmak izi veya yüz</string>
+    <string name="restricted_biometric_desc">Telefonun biyometrisiyle de kilidi aç</string>
+    <string name="restricted_biometric_needs_pin">Önce bir PIN belirleyin</string>
+    <string name="restricted_section_allowed">Kısıtlı modda izin verilenler</string>
+    <string name="restricted_allow_sensor_change">Sensör değiştirme</string>
+    <string name="restricted_allow_sensor_change_desc">Yeni sensör ekle ve eskisinin bağlantısını kes</string>
+    <string name="restricted_sensor_types_label">Eklenebilecek sensörler</string>
+    <string name="restricted_sensor_types_none">En az birini seçin, yoksa hiçbir sensör eklenemez.</string>
+    <string name="restricted_handover_on">Otomatik sensör devri açık: eski sensör bitince yenisi devralır.</string>
+    <string name="restricted_handover_off">Otomatik sensör devri kapalı. Eski sensör bitince yenisinin devralması için açın.</string>
+    <string name="restricted_turn_on_handover">Devri aç</string>
+    <string name="restricted_allow_journal">Günlük kayıtları</string>
+    <string name="restricted_allow_journal_desc">İnsülin, öğün ve not ekle ve düzenle</string>
+    <string name="restricted_allow_calibration_desc">Kalibrasyon ekle ve düzenle</string>
+    <string name="restricted_allow_alarm_stop">Alarmları durdurma</string>
+    <string name="restricted_allow_alarm_stop_desc">Kapalıyken alarmlar yalnızca ertelenebilir</string>
+    <string name="restricted_always_hidden">Ayarlar, sensör sıfırlama, gelişmiş sensör denetimleri ve veri silme her zaman tam mod gerektirir.</string>
+    <string name="restricted_pin_options_desc">PIN\'i değiştirin ya da tam modun tek dokunuşla açılması için kaldırın.</string>
+    <string name="restricted_change_pin">PIN\'i değiştir</string>
+    <string name="restricted_remove_pin">PIN\'i kaldır</string>
+    <string name="restricted_use_biometric">Parmak izi veya yüz kullan</string>
+    <string name="restricted_unlock_title">Tam moda geç</string>
+    <string name="restricted_unlock_desc">Ayarlar ve tüm sensör denetimleri açılır. Kısıtlı mod, uygulamadan çıktıktan bir dakika sonra geri gelir.</string>
+    <string name="restricted_enter_pin">PIN girin</string>
+    <string name="restricted_enter_pin_desc">Tam moda geçmek için</string>
+    <string name="restricted_wrong_pin">Yanlış PIN</string>
+    <string name="restricted_pin_locked_out">Çok fazla deneme · %1$s bekleyin</string>
+    <string name="restricted_choose_pin">PIN seçin</string>
+    <string name="restricted_confirm_pin">PIN\'i tekrar girin</string>
+    <string name="restricted_choose_pin_desc">%1$d–%2$d basamak</string>
+    <string name="restricted_pin_mismatch">PIN\'ler eşleşmedi. Yeniden PIN seçin.</string>
+    <string name="restricted_delete_digit">Basamağı sil</string>
+    <string name="restricted_disconnect_desc">Bu telefon sensörü okumayı bırakır. Şimdiye kadarki ölçümler saklanır.</string>
+    <string name="restricted_sensor_ended">Bitti</string>
+    <string name="restricted_sensor_ends_today">Bugün bitiyor</string>
+    <string name="restricted_sensors_locked">Sensör eklemek için tam mod gerekir.</string>
+    <string name="restricted_tab_locked">Tam mod gerekir</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d basamak girildi</item>
+        <item quantity="other">%d basamak girildi</item>
+    </plurals>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d gün kaldı</item>
+        <item quantity="other">%d gün kaldı</item>
+    </plurals>
 </resources>

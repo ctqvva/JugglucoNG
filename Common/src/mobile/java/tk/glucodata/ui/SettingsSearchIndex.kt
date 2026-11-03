@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudUpload
@@ -354,6 +355,9 @@ internal object SettingsSearchIndex {
             keywords = listOf(R.string.debug_logs_desc), terms = listOf("logcat", "trace")),
         SettingsSearchEntry(R.string.cgm_readiness_title, ADVANCED, Icons.Default.Security, N, route("settings/cgm-readiness"),
             keywords = listOf(R.string.cgm_readiness_settings_desc), terms = listOf("CGM readiness")),
+        SettingsSearchEntry(R.string.restricted_mode_title, ADVANCED, Icons.Default.ChildCare, N,
+            route("settings/restricted-mode"), keywords = listOf(R.string.restricted_mode_desc),
+            terms = listOf("PIN", "child", "kid", "parental", "elderly", "simple")),
         SettingsSearchEntry(R.string.settings_sensor_connection_title, ADVANCED, Icons.Default.Bluetooth, N,
             route("settings/sensor-connection"), keywords = listOf(R.string.settings_sensor_connection_desc)),
         SettingsSearchEntry(R.string.sensor_handover_title, CONNECTION, Icons.Default.SwapHoriz, N,

@@ -159,7 +159,7 @@ private fun BadgeLabel(
  * every card's name starts on the same x, tinted with the sensor's colour.
  */
 @Composable
-private fun SensorModelBadge(
+internal fun SensorModelBadge(
     badge: SensorBadge,
     vendor: SensorVendor,
     color: Color,
@@ -395,6 +395,23 @@ private fun SensorCurrentValueChip(
 //            )
         }
     }
+}
+
+/**
+ * When the sensor's wear ends, for the lifetime fill and the restricted card's dates: AiDex
+ * trusts its official end, the others their expected end, and without either the rated
+ * wear (AiDex by model, 15 days) or 14 days from the start.
+ */
+internal fun tk.glucodata.ui.viewmodel.SensorInfo.lifetimeEndMs(): Long = when {
+    isAidex && officialEndMs > 0 -> officialEndMs
+    !isAidex && expectedEndMs > 0 -> expectedEndMs
+    officialEndMs > 0 -> officialEndMs
+    isAidex -> {
+        val days = tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
+            .ratedDays(vendorModel) ?: 15
+        startMs + (days.toLong() * 24 * 3600 * 1000)
+    }
+    else -> startMs + (14L * 24 * 3600 * 1000)
 }
 
 @Composable
@@ -1861,17 +1878,7 @@ fun SensorCard(
         // --- Dynamic Background Logic ---
         val now = System.currentTimeMillis()
         val start = sensor.startMs
-        val end = when {
-            sensor.isAidex && sensor.officialEndMs > 0 -> sensor.officialEndMs
-            !sensor.isAidex && sensor.expectedEndMs > 0 -> sensor.expectedEndMs
-            sensor.officialEndMs > 0 -> sensor.officialEndMs
-            sensor.isAidex -> {
-                val days = tk.glucodata.drivers.aidex.native.protocol.AiDexWearProfile
-                    .ratedDays(sensor.vendorModel) ?: 15
-                start + (days.toLong() * 24 * 3600 * 1000)
-            }
-            else -> start + (14L * 24 * 3600 * 1000)
-        }
+        val end = sensor.lifetimeEndMs()
         
         val totalDuration = (end - start).coerceAtLeast(1) // Avoid div/0
         val usedDuration = (now - start).coerceAtLeast(0)

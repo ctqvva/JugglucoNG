@@ -3275,4 +3275,61 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="tts_trend_decreasing">dalend</string>
     <string name="tts_trend_rising_quickly">snel stijgend</string>
     <string name="tts_trend_falling_quickly">snel dalend</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Beperkte modus</string>
+    <string name="restricted_mode_desc">Een eenvoudigere app voor een kind of iedereen die alleen de glucose wil volgen</string>
+    <string name="restricted_mode_summary_on">Aan · instellingen vragen om de volledige modus</string>
+    <string name="restricted_full_mode_title">Voorlopig volledige modus</string>
+    <string name="restricted_full_mode_desc">De beperkte modus keert een minuut nadat je de app verlaat terug, of wanneer je hem vergrendelt.</string>
+    <string name="restricted_lock_now">Nu vergrendelen</string>
+    <string name="restricted_section_unlock">Naar volledige modus</string>
+    <string name="restricted_pin_title">Pincode</string>
+    <string name="restricted_pin_set">Aan · gevraagd voor de volledige modus</string>
+    <string name="restricted_pin_not_set">Uit · iedereen kan naar de volledige modus</string>
+    <string name="restricted_biometric_title">Vingerafdruk of gezicht</string>
+    <string name="restricted_biometric_desc">Ook ontgrendelen met de biometrie van de telefoon</string>
+    <string name="restricted_biometric_needs_pin">Stel eerst een pincode in</string>
+    <string name="restricted_section_allowed">Toegestaan in beperkte modus</string>
+    <string name="restricted_allow_sensor_change">Sensoren wisselen</string>
+    <string name="restricted_allow_sensor_change_desc">Een nieuwe sensor toevoegen en de oude loskoppelen</string>
+    <string name="restricted_sensor_types_label">Sensoren die toegevoegd kunnen worden</string>
+    <string name="restricted_sensor_types_none">Kies er minstens één, anders kan er geen sensor worden toegevoegd.</string>
+    <string name="restricted_handover_on">Automatische sensoroverdracht staat aan: de nieuwe sensor neemt het over als de oude afloopt.</string>
+    <string name="restricted_handover_off">Automatische sensoroverdracht staat uit. Zet hem aan zodat de nieuwe sensor het overneemt als de oude afloopt.</string>
+    <string name="restricted_turn_on_handover">Overdracht aanzetten</string>
+    <string name="restricted_allow_journal">Dagboekitems</string>
+    <string name="restricted_allow_journal_desc">Insuline, maaltijden en notities toevoegen en bewerken</string>
+    <string name="restricted_allow_calibration_desc">Kalibraties toevoegen en bewerken</string>
+    <string name="restricted_allow_alarm_stop">Alarmen stoppen</string>
+    <string name="restricted_allow_alarm_stop_desc">Indien uit, kunnen alarmen alleen worden gesluimerd</string>
+    <string name="restricted_always_hidden">Instellingen, sensorresets, geavanceerde sensorbediening en gegevens wissen vragen altijd de volledige modus.</string>
+    <string name="restricted_pin_options_desc">Wijzig de pincode, of verwijder hem zodat de volledige modus met één tik opent.</string>
+    <string name="restricted_change_pin">Pincode wijzigen</string>
+    <string name="restricted_remove_pin">Pincode verwijderen</string>
+    <string name="restricted_use_biometric">Vingerafdruk of gezicht gebruiken</string>
+    <string name="restricted_unlock_title">Naar volledige modus</string>
+    <string name="restricted_unlock_desc">Instellingen en alle sensorbediening gaan open. De beperkte modus keert een minuut nadat je de app verlaat terug.</string>
+    <string name="restricted_enter_pin">Pincode invoeren</string>
+    <string name="restricted_enter_pin_desc">Om naar de volledige modus te gaan</string>
+    <string name="restricted_wrong_pin">Onjuiste pincode</string>
+    <string name="restricted_pin_locked_out">Te veel pogingen · wacht %1$s</string>
+    <string name="restricted_choose_pin">Kies een pincode</string>
+    <string name="restricted_confirm_pin">Voer de pincode opnieuw in</string>
+    <string name="restricted_choose_pin_desc">%1$d tot %2$d cijfers</string>
+    <string name="restricted_pin_mismatch">De pincodes komen niet overeen. Kies opnieuw een pincode.</string>
+    <string name="restricted_delete_digit">Cijfer wissen</string>
+    <string name="restricted_disconnect_desc">Deze telefoon stopt met het uitlezen van de sensor. De metingen tot nu toe blijven bewaard.</string>
+    <string name="restricted_sensor_ended">Afgelopen</string>
+    <string name="restricted_sensor_ends_today">Eindigt vandaag</string>
+    <string name="restricted_sensors_locked">Voor het toevoegen van een sensor is de volledige modus nodig.</string>
+    <string name="restricted_tab_locked">Volledige modus nodig</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d cijfer ingevoerd</item>
+        <item quantity="other">%d cijfers ingevoerd</item>
+    </plurals>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">nog %d dag</item>
+        <item quantity="other">nog %d dagen</item>
+    </plurals>
 </resources>

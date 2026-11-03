@@ -3494,4 +3494,61 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">decreasing</string>
     <string name="tts_trend_rising_quickly">rising quickly</string>
     <string name="tts_trend_falling_quickly">falling quickly</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Restricted mode</string>
+    <string name="restricted_mode_desc">A simpler app for a child, or anyone who only needs to follow their glucose</string>
+    <string name="restricted_mode_summary_on">On · settings ask to switch to full mode</string>
+    <string name="restricted_full_mode_title">Full mode, for now</string>
+    <string name="restricted_full_mode_desc">Restricted mode comes back a minute after you leave the app, or when you lock it.</string>
+    <string name="restricted_lock_now">Lock now</string>
+    <string name="restricted_section_unlock">Switching to full mode</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">On · asked for before full mode</string>
+    <string name="restricted_pin_not_set">Off · anyone can switch to full mode</string>
+    <string name="restricted_biometric_title">Fingerprint or face</string>
+    <string name="restricted_biometric_desc">Also unlock with the phone\'s biometrics</string>
+    <string name="restricted_biometric_needs_pin">Set a PIN first</string>
+    <string name="restricted_section_allowed">Allowed while restricted</string>
+    <string name="restricted_allow_sensor_change">Change sensors</string>
+    <string name="restricted_allow_sensor_change_desc">Add a new sensor and disconnect the old one</string>
+    <string name="restricted_sensor_types_label">Sensors that can be added</string>
+    <string name="restricted_sensor_types_none">Choose at least one, or no sensor can be added.</string>
+    <string name="restricted_handover_on">Automatic sensor handover is on: the new sensor takes over when the old one ends.</string>
+    <string name="restricted_handover_off">Automatic sensor handover is off. Turn it on so the new sensor takes over when the old one ends.</string>
+    <string name="restricted_turn_on_handover">Turn on handover</string>
+    <string name="restricted_allow_journal">Journal entries</string>
+    <string name="restricted_allow_journal_desc">Add and edit insulin, meals and notes</string>
+    <string name="restricted_allow_calibration_desc">Add and edit calibrations</string>
+    <string name="restricted_allow_alarm_stop">Stop alarms</string>
+    <string name="restricted_allow_alarm_stop_desc">When off, alarms can only be snoozed</string>
+    <string name="restricted_always_hidden">Settings, sensor resets, advanced sensor controls and deleting data always need full mode.</string>
+    <string name="restricted_pin_options_desc">Change the PIN, or remove it so full mode opens with one tap.</string>
+    <string name="restricted_change_pin">Change PIN</string>
+    <string name="restricted_remove_pin">Remove PIN</string>
+    <string name="restricted_use_biometric">Use fingerprint or face</string>
+    <string name="restricted_unlock_title">Switch to full mode</string>
+    <string name="restricted_unlock_desc">Settings and all sensor controls open. Restricted mode comes back a minute after you leave the app.</string>
+    <string name="restricted_enter_pin">Enter PIN</string>
+    <string name="restricted_enter_pin_desc">To switch to full mode</string>
+    <string name="restricted_wrong_pin">Wrong PIN</string>
+    <string name="restricted_pin_locked_out">Too many tries · wait %1$s</string>
+    <string name="restricted_choose_pin">Choose a PIN</string>
+    <string name="restricted_confirm_pin">Enter the PIN again</string>
+    <string name="restricted_choose_pin_desc">%1$d to %2$d digits</string>
+    <string name="restricted_pin_mismatch">The PINs didn\'t match. Choose a PIN again.</string>
+    <string name="restricted_delete_digit">Delete digit</string>
+    <string name="restricted_disconnect_desc">This phone stops reading the sensor. Its readings so far are kept.</string>
+    <string name="restricted_sensor_ended">Ended</string>
+    <string name="restricted_sensor_ends_today">Ends today</string>
+    <string name="restricted_sensors_locked">Adding a sensor needs full mode.</string>
+    <string name="restricted_tab_locked">Needs full mode</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d digit entered</item>
+        <item quantity="other">%d digits entered</item>
+    </plurals>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
 </resources>

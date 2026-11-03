@@ -3345,4 +3345,61 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="tts_trend_decreasing">sinkend</string>
     <string name="tts_trend_rising_quickly">schnell steigend</string>
     <string name="tts_trend_falling_quickly">schnell sinkend</string>
+
+    <!-- Restricted mode -->
+    <string name="restricted_mode_title">Eingeschränkter Modus</string>
+    <string name="restricted_mode_desc">Eine einfachere App für ein Kind oder alle, die nur ihren Glukosewert verfolgen</string>
+    <string name="restricted_mode_summary_on">An · Einstellungen fragen nach dem Vollmodus</string>
+    <string name="restricted_full_mode_title">Vorerst Vollmodus</string>
+    <string name="restricted_full_mode_desc">Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück oder wenn du ihn sperrst.</string>
+    <string name="restricted_lock_now">Jetzt sperren</string>
+    <string name="restricted_section_unlock">Wechsel in den Vollmodus</string>
+    <string name="restricted_pin_title">PIN</string>
+    <string name="restricted_pin_set">An · wird vor dem Vollmodus abgefragt</string>
+    <string name="restricted_pin_not_set">Aus · jeder kann in den Vollmodus wechseln</string>
+    <string name="restricted_biometric_title">Fingerabdruck oder Gesicht</string>
+    <string name="restricted_biometric_desc">Auch mit der Biometrie des Telefons entsperren</string>
+    <string name="restricted_biometric_needs_pin">Lege zuerst eine PIN fest</string>
+    <string name="restricted_section_allowed">Im eingeschränkten Modus erlaubt</string>
+    <string name="restricted_allow_sensor_change">Sensoren wechseln</string>
+    <string name="restricted_allow_sensor_change_desc">Neuen Sensor hinzufügen und den alten trennen</string>
+    <string name="restricted_sensor_types_label">Sensoren, die hinzugefügt werden können</string>
+    <string name="restricted_sensor_types_none">Wähle mindestens einen aus, sonst kann kein Sensor hinzugefügt werden.</string>
+    <string name="restricted_handover_on">Automatische Sensorübergabe ist an: Der neue Sensor übernimmt, wenn der alte endet.</string>
+    <string name="restricted_handover_off">Automatische Sensorübergabe ist aus. Schalte sie ein, damit der neue Sensor übernimmt, wenn der alte endet.</string>
+    <string name="restricted_turn_on_handover">Übergabe einschalten</string>
+    <string name="restricted_allow_journal">Tagebucheinträge</string>
+    <string name="restricted_allow_journal_desc">Insulin, Mahlzeiten und Notizen hinzufügen und bearbeiten</string>
+    <string name="restricted_allow_calibration_desc">Kalibrierungen hinzufügen und bearbeiten</string>
+    <string name="restricted_allow_alarm_stop">Alarme beenden</string>
+    <string name="restricted_allow_alarm_stop_desc">Wenn aus, können Alarme nur schlummern</string>
+    <string name="restricted_always_hidden">Einstellungen, Sensor-Resets, erweiterte Sensorsteuerung und das Löschen von Daten brauchen immer den Vollmodus.</string>
+    <string name="restricted_pin_options_desc">Ändere die PIN oder entferne sie, damit der Vollmodus mit einem Tippen öffnet.</string>
+    <string name="restricted_change_pin">PIN ändern</string>
+    <string name="restricted_remove_pin">PIN entfernen</string>
+    <string name="restricted_use_biometric">Fingerabdruck oder Gesicht verwenden</string>
+    <string name="restricted_unlock_title">In den Vollmodus wechseln</string>
+    <string name="restricted_unlock_desc">Einstellungen und alle Sensorsteuerungen werden geöffnet. Der eingeschränkte Modus kehrt eine Minute nach Verlassen der App zurück.</string>
+    <string name="restricted_enter_pin">PIN eingeben</string>
+    <string name="restricted_enter_pin_desc">Um in den Vollmodus zu wechseln</string>
+    <string name="restricted_wrong_pin">Falsche PIN</string>
+    <string name="restricted_pin_locked_out">Zu viele Versuche · warte %1$s</string>
+    <string name="restricted_choose_pin">PIN festlegen</string>
+    <string name="restricted_confirm_pin">PIN erneut eingeben</string>
+    <string name="restricted_choose_pin_desc">%1$d bis %2$d Ziffern</string>
+    <string name="restricted_pin_mismatch">Die PINs stimmen nicht überein. Lege die PIN erneut fest.</string>
+    <string name="restricted_delete_digit">Ziffer löschen</string>
+    <string name="restricted_disconnect_desc">Dieses Telefon liest den Sensor nicht mehr. Bisherige Messwerte bleiben erhalten.</string>
+    <string name="restricted_sensor_ended">Beendet</string>
+    <string name="restricted_sensor_ends_today">Endet heute</string>
+    <string name="restricted_sensors_locked">Zum Hinzufügen eines Sensors ist der Vollmodus nötig.</string>
+    <string name="restricted_tab_locked">Braucht Vollmodus</string>
+    <plurals name="restricted_pin_digits_entered">
+        <item quantity="one">%d Ziffer eingegeben</item>
+        <item quantity="other">%d Ziffern eingegeben</item>
+    </plurals>
+    <plurals name="restricted_sensor_days_left">
+        <item quantity="one">noch %d Tag</item>
+        <item quantity="other">noch %d Tage</item>
+    </plurals>
 </resources>

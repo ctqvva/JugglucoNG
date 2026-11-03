@@ -250,6 +250,7 @@ object SettingsExporter {
 
         prefFiles.forEach { file ->
             val name = file.name.removeSuffix(".xml")
+            if (name in deviceLocalPreferenceFiles) return@forEach
             val values = JSONObject()
             context.getSharedPreferences(name, Context.MODE_PRIVATE)
                 .all
@@ -270,6 +271,13 @@ object SettingsExporter {
         return result
     }
 
+    /**
+     * Preference files that belong to this phone and never travel in a backup. Restricted
+     * mode: restoring a backup must not lift a child's restrictions, and its PIN hash is not
+     * something to hand around in a file.
+     */
+    private val deviceLocalPreferenceFiles = setOf(tk.glucodata.RestrictedMode.PREFS_NAME)
+
     internal fun importSharedPreferences(
         context: Context,
         exportedPreferences: JSONObject,
@@ -288,9 +296,9 @@ object SettingsExporter {
             } else editor.clear()
             return editor
         }
-        val importedNames = exportedPreferences.keySet()
+        val importedNames = exportedPreferences.keySet().filterNot { it in deviceLocalPreferenceFiles }.toSet()
         discoverSharedPreferenceNames(context)
-            .filterNot { it in importedNames }
+            .filterNot { it in importedNames || it in deviceLocalPreferenceFiles }
             .forEach { name ->
                 importEditor(name).commit()
             }

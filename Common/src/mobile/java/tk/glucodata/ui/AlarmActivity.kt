@@ -109,11 +109,15 @@ class AlarmActivity : ComponentActivity() {
                     )
                     leaveAlarmScreen()
                 },
-                onDismiss = {
-                    tk.glucodata.alerts.AlertActions.handle(
-                        model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId
-                    )
-                    leaveAlarmScreen()
+                onDismiss = if (tk.glucodata.RestrictedMode.allowsAlarmStop()) {
+                    {
+                        tk.glucodata.alerts.AlertActions.handle(
+                            model.alertType?.id ?: Notify.resolveAlertKind(-1), customAlertId
+                        )
+                        leaveAlarmScreen()
+                    }
+                } else {
+                    null
                 }
             )
         }

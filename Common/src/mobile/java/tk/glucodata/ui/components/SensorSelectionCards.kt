@@ -57,7 +57,9 @@ private fun jugglucoBrandFamily(weight: Int, width: Float): FontFamily {
 @Composable
 fun SensorSelectionCards(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Restricted mode's allowed families; null offers every family. */
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val horizontalPadding = 0.dp
@@ -79,7 +81,7 @@ fun SensorSelectionCards(
             verticalArrangement = Arrangement.spacedBy(cardGap) // Generous spacing (M3 Expressive)
         ) {
 
-            sensorTypeOptions.forEach { option ->
+            sensorTypeOptions.filter { allowedTypes == null || it.type in allowedTypes }.forEach { option ->
                 val highlighted = option.type == SensorType.SIBIONICS
                 SensorCard(
                     icon = option.icon,
@@ -288,7 +290,8 @@ fun DashboardEmptyState(
         }
 
         SensorSelectionCards(
-            onSensorSelected = onSensorSelected
+            onSensorSelected = onSensorSelected,
+            allowedTypes = allowedTypes,
         )
         
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
@@ -327,7 +330,8 @@ fun DashboardEmptyState(
 @Composable
 fun SensorsEmptyState(
     onSensorSelected: (SensorType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowedTypes: Set<SensorType>? = null,
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     Column(
@@ -344,7 +348,8 @@ fun SensorsEmptyState(
         )
         
         SensorSelectionCards(
-            onSensorSelected = onSensorSelected
+            onSensorSelected = onSensorSelected,
+            allowedTypes = allowedTypes,
         )
     }
 }

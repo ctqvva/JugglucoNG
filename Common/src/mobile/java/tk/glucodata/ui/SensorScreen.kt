@@ -293,26 +293,53 @@ fun SensorScreen(
     var showOttaiWizard by remember { mutableStateOf(false) }
     var showMedtrumWizard by remember { mutableStateOf(false) }
 
+    val openWizard: (tk.glucodata.ui.components.SensorType) -> Unit = { type ->
+        when (type) {
+            tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true
+            tk.glucodata.ui.components.SensorType.LIBRE -> showLibreWizard = true
+            tk.glucodata.ui.components.SensorType.DEXCOM -> showDexcomWizard = true
+            tk.glucodata.ui.components.SensorType.ACCUCHEK -> showAccuChekWizard = true
+            tk.glucodata.ui.components.SensorType.CARESENS_AIR -> showCareSensAirWizard = true
+            tk.glucodata.ui.components.SensorType.AIDEX -> showAiDexWizard = true
+            tk.glucodata.ui.components.SensorType.ICANHEALTH -> showICanHealthWizard = true
+            tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
+            tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
+            tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
+            tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
+        }
+    }
+
+    // Restricted mode: simplified cards, and adding only the families the adult allowed.
+    val restricted by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    val restrictedLocked = restricted.locked
+    val allowedSensorTypes: Set<tk.glucodata.ui.components.SensorType>? = if (restrictedLocked) {
+        if (restricted.config.allowSensorChange) {
+            restricted.config.allowedSensorTypes.mapNotNull { name ->
+                tk.glucodata.ui.components.SensorType.entries.firstOrNull { it.name == name }
+            }.toSet()
+        } else {
+            emptySet()
+        }
+    } else {
+        null
+    }
+    val canAddSensor = allowedSensorTypes == null || allowedSensorTypes.isNotEmpty()
+    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
+    val onAddSensor: () -> Unit = {
+        // One allowed family: straight to its setup, no picker with a single row.
+        val only = allowedSensorTypes?.singleOrNull()
+        if (only != null) openWizard(only) else showSensorPicker = true
+    }
+
     // Sensor Type Picker Bottom Sheet
-    if (showSensorPicker) {
+    if (showSensorPicker && canAddSensor) {
         tk.glucodata.ui.components.SensorTypePicker(
             onDismiss = { showSensorPicker = false },
             onSensorSelected = { type ->
                 showSensorPicker = false
-                when (type) {
-                    tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true
-                    tk.glucodata.ui.components.SensorType.LIBRE -> showLibreWizard = true
-                    tk.glucodata.ui.components.SensorType.DEXCOM -> showDexcomWizard = true
-                    tk.glucodata.ui.components.SensorType.ACCUCHEK -> showAccuChekWizard = true
-                    tk.glucodata.ui.components.SensorType.CARESENS_AIR -> showCareSensAirWizard = true
-                    tk.glucodata.ui.components.SensorType.AIDEX -> showAiDexWizard = true
-                    tk.glucodata.ui.components.SensorType.ICANHEALTH -> showICanHealthWizard = true
-                    tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
-                    tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
-                    tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
-                    tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
-                }
-            }
+                openWizard(type)
+            },
+            allowedTypes = allowedSensorTypes,
         )
     }
 
@@ -476,25 +503,20 @@ fun SensorScreen(
             ) {
                 Spacer(modifier = Modifier.height(TabScreenDefaults.Gutter))
                 TabScreenHeader(title = stringResource(R.string.sensors_title))
-                SensorsCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                if (!restrictedLocked) {
+                    SensorsCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                }
                 Spacer(modifier = Modifier.height(panelPadding))
-                tk.glucodata.ui.components.SensorsEmptyState(
-                    onSensorSelected = { type ->
-                        when (type) {
-                            tk.glucodata.ui.components.SensorType.SIBIONICS -> showSibionicsWizard = true
-                            tk.glucodata.ui.components.SensorType.LIBRE -> showLibreWizard = true
-                            tk.glucodata.ui.components.SensorType.DEXCOM -> showDexcomWizard = true
-                            tk.glucodata.ui.components.SensorType.ACCUCHEK -> showAccuChekWizard = true
-                            tk.glucodata.ui.components.SensorType.CARESENS_AIR -> showCareSensAirWizard = true
-                            tk.glucodata.ui.components.SensorType.AIDEX -> showAiDexWizard = true
-                            tk.glucodata.ui.components.SensorType.ICANHEALTH -> showICanHealthWizard = true
-                            tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
-                            tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
-                            tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
-                            tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
-                        }
-                    }
-                )
+                if (canAddSensor) {
+                    tk.glucodata.ui.components.SensorsEmptyState(
+                        onSensorSelected = openWizard,
+                        allowedTypes = allowedSensorTypes,
+                    )
+                } else {
+                    tk.glucodata.ui.restricted.RestrictedSensorsLockedState(
+                        onUnlock = { requestFullMode {} },
+                    )
+                }
                 Spacer(modifier = Modifier.height(panelPadding))
             }
         } else {
@@ -508,29 +530,39 @@ fun SensorScreen(
                 item {
                     TabScreenHeader(title = stringResource(R.string.sensors_title))
                 }
-                item {
-                    SensorsCgmReadinessBanner(
-                        modifier = Modifier.padding(bottom = panelPadding),
-                        onOpenReadiness = onNavigateToReadiness
-                    )
+                if (!restrictedLocked) {
+                    item {
+                        SensorsCgmReadinessBanner(
+                            modifier = Modifier.padding(bottom = panelPadding),
+                            onOpenReadiness = onNavigateToReadiness
+                        )
+                    }
                 }
                 items(sensors, key = { it.serial }) { sensor ->
                     FontScaleCap {
-                        SensorCard(
-                            sensor,
-                            viewModel,
-                            sensorCount = sensors.size,
-                            onNavigateToMqAccount = onNavigateToMqAccount,
-                        )
+                        if (restrictedLocked) {
+                            tk.glucodata.ui.restricted.RestrictedSensorCard(
+                                sensor = sensor,
+                                viewModel = viewModel,
+                                allowDisconnect = restricted.config.allowSensorChange,
+                            )
+                        } else {
+                            SensorCard(
+                                sensor,
+                                viewModel,
+                                sensorCount = sensors.size,
+                                onNavigateToMqAccount = onNavigateToMqAccount,
+                            )
+                        }
                     }
                 }
             }
         }
         
         // FAB overlay - only show when sensors exist
-        if (sensors.isNotEmpty()) {
+        if (sensors.isNotEmpty() && canAddSensor) {
             FloatingActionButton(
-                onClick = { showSensorPicker = true },
+                onClick = onAddSensor,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier

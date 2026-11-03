@@ -3910,6 +3910,11 @@ public class Notify {
                 remoteViewsExpanded.setViewVisibility(R.id.notification_alert_actions, View.VISIBLE);
                 remoteViewsExpanded.setOnClickPendingIntent(R.id.notification_action_snooze, snoozePendingIntent);
                 remoteViewsExpanded.setOnClickPendingIntent(R.id.notification_action_dismiss, dismissPendingIntent);
+                if (!RestrictedMode.allowsAlarmStop()) {
+                    // Restricted mode: snooze only. The receiver would turn Stop into a
+                    // snooze anyway; hiding it keeps the button from saying otherwise.
+                    remoteViewsExpanded.setViewVisibility(R.id.notification_action_dismiss, View.GONE);
+                }
 
                 remoteViewsHeadsUp.setTextViewText(R.id.notification_glucose, ssb);
                 remoteViewsHeadsUp.setTextColor(R.id.notification_glucose, glucoseColor);
@@ -3923,6 +3928,11 @@ public class Notify {
                 remoteViewsHeadsUp.setViewVisibility(R.id.notification_alert_actions, View.VISIBLE);
                 remoteViewsHeadsUp.setOnClickPendingIntent(R.id.notification_action_snooze, snoozePendingIntent);
                 remoteViewsHeadsUp.setOnClickPendingIntent(R.id.notification_action_dismiss, dismissPendingIntent);
+                if (!RestrictedMode.allowsAlarmStop()) {
+                    // Restricted mode: snooze only. The receiver would turn Stop into a
+                    // snooze anyway; hiding it keeps the button from saying otherwise.
+                    remoteViewsHeadsUp.setViewVisibility(R.id.notification_action_dismiss, View.GONE);
+                }
 
                 if (showArrow && arrowBitmap != null) {
                     remoteViewsHeadsUp.setViewVisibility(R.id.notification_arrow, View.VISIBLE);

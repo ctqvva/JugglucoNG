@@ -709,13 +709,25 @@ fun ExpressiveSettingsScreen(
 
         item(key = "advanced_group") {
             val advancedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsItem(
+                    title = stringResource(R.string.restricted_mode_title),
+                    subtitle = stringResource(
+                        if (restrictedMode.config.enabled) R.string.restricted_mode_summary_on
+                        else R.string.restricted_mode_desc
+                    ),
+                    icon = Icons.Default.ChildCare,
+                    iconTint = advancedColor,
+                    position = CardPosition.TOP,
+                    onClick = { navController.navigate("settings/restricted-mode") }
+                )
                 SettingsItem(
                     title = stringResource(R.string.debug_logs),
                     subtitle = stringResource(R.string.debug_logs_desc),
                     icon = Icons.Default.BugReport,
                     iconTint = advancedColor,
-                    position = CardPosition.TOP,
+                    position = CardPosition.MIDDLE,
                     onClick = { navController.navigate("settings/debug") }
                 )
                 SettingsItem(

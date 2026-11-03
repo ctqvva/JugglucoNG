@@ -103,7 +103,8 @@ fun AlarmScreen(
     trendResult: TrendEngine.TrendResult,
     timeText: String,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit
+    /** Null on a restricted phone that may only snooze: Snooze becomes the main action. */
+    onDismiss: (() -> Unit)?
 ) {
     val colorScheme = remember(severity) { severityColorScheme(severity) }
     val trend = remember(trendResult) { resolveTrend(trendResult) }
@@ -132,7 +133,7 @@ private fun PixelAlarmContent(
     trendResult: TrendEngine.TrendResult,
     typographyChoice: AlarmTypographyChoice,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: (() -> Unit)?
 ) {
     BackHandler(enabled = true) {}
 
@@ -411,7 +412,7 @@ private fun HeroBlock(
 private fun ActionDock(
     compact: Boolean,
     onSnooze: () -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -426,33 +427,37 @@ private fun ActionDock(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                // A share of the dock at least, and as wide as its label needs: on a
-                // narrow (low-dp) screen a fixed share was too small and broke the word.
-                FilledTonalButton(
-                    onClick = onSnooze,
-                    modifier = Modifier
-                        .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
-                        .heightIn(min = if (compact) 58.dp else 62.dp),
-                    shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
-                    contentPadding = PaddingValues(horizontal = 24.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (onDismiss != null) {
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
-                    Text(
-                        text = stringResource(R.string.snooze),
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    // A share of the dock at least, and as wide as its label needs: on a
+                    // narrow (low-dp) screen a fixed share was too small and broke the word.
+                    FilledTonalButton(
+                        onClick = onSnooze,
+                        modifier = Modifier
+                            .widthIn(min = maxWidth * if (compact) 0.42f else 0.36f, max = maxWidth)
+                            .heightIn(min = if (compact) 58.dp else 62.dp),
+                        shapes = ButtonDefaults.shapes(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.snooze),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
             }
 
+            // The one large button stops the alarm; where stopping is not allowed it
+            // snoozes, with the same weight, so the alarm is still answered in one tap.
             Button(
-                onClick = onDismiss,
+                onClick = onDismiss ?: onSnooze,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = if (compact) 82.dp else 90.dp),
@@ -464,7 +469,7 @@ private fun ActionDock(
                 )
             ) {
                 Text(
-                    text = stringResource(R.string.stop),
+                    text = stringResource(if (onDismiss != null) R.string.stop else R.string.snooze),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         letterSpacing = (-0.1).sp
                     )

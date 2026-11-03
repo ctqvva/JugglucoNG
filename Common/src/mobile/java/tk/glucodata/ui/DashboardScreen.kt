@@ -373,6 +373,11 @@ fun DashboardScreen(
     val journalEiobDisplayEnabled by viewModel.journalEiobDisplayEnabled.collectAsStateWithLifecycle()
     val journalQuickAddAlwaysNow by viewModel.journalQuickAddAlwaysNow.collectAsStateWithLifecycle()
     val journalDashboardQuickAdd by viewModel.journalDashboardQuickAddButton.collectAsStateWithLifecycle()
+    // Restricted mode without journal entries: the journal still shows, adding and editing
+    // ask for full mode.
+    val restrictedMode by tk.glucodata.RestrictedMode.state.collectAsStateWithLifecycle()
+    val journalEditable = restrictedMode.canEditJournal
+    val requestFullMode = tk.glucodata.ui.restricted.LocalRequestFullMode.current
     val glucoseRangeColorsDisplayEnabled by viewModel.glucoseValueRangeColorsEnabled.collectAsStateWithLifecycle()
     val glucoseArrowForecastEnabled by viewModel.glucoseArrowForecastColorsEnabled.collectAsStateWithLifecycle()
     val appChartRangeColorsEnabled by viewModel.glucoseAppChartRangeColorsEnabled.collectAsStateWithLifecycle()
@@ -719,6 +724,7 @@ fun DashboardScreen(
         }
     }
     fun showJournalAction(suggestion: ChartTimelineTapSuggestion) {
+        if (!journalEditable) return
         if (journalActionTimestamp != null && !suggestion.forceMenu) {
             clearJournalAction(withHaptic = true)
             return
@@ -738,6 +744,18 @@ fun DashboardScreen(
         if (!journalEnabled) {
             clearJournalAction()
             journalEditorRequest = null
+        }
+    }
+    LaunchedEffect(journalEditable) {
+        if (!journalEditable) clearJournalAction()
+    }
+    // Every way into the editor (markers, rows, menus) sets journalEditorRequest; while the
+    // journal is closed the request waits for full mode instead of opening.
+    LaunchedEffect(journalEditorRequest, journalEditable) {
+        val request = journalEditorRequest
+        if (request != null && !journalEditable) {
+            journalEditorRequest = null
+            requestFullMode { journalEditorRequest = request }
         }
     }
 
@@ -947,7 +965,7 @@ fun DashboardScreen(
         return
     }
 
-    journalEditorRequest?.let { request ->
+    journalEditorRequest?.takeIf { journalEditable }?.let { request ->
         JournalEntrySheet(
             unit = unit,
             selectedTimestamp = request.timestamp,
@@ -2181,7 +2199,7 @@ fun DashboardScreen(
             }
             }
 
-            if (journalEnabled && journalDashboardQuickAdd) {
+            if (journalEnabled && journalDashboardQuickAdd && journalEditable) {
                 JournalExpandableFab(
                     expanded = dashboardFabExpanded,
                     onExpandedChange = {
