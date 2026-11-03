@@ -308,6 +308,24 @@ fromjava(getDexbackfillcmd)(JNIEnv *envin, jclass _cl, jlong dataptr) {
   return nullptr;
 }
 
+// What getDexbackfillcmd decides from, so the sensor log can say why no
+// backfill was asked for.
+extern "C" JNIEXPORT jintArray JNICALL
+fromjava(dexBackfillState)(JNIEnv *envin, jclass _cl, jlong dataptr) {
+  if (!dataptr)
+    return nullptr;
+  const SensorGlucoseData *sens =
+      reinterpret_cast<const dexcomstream *>(dataptr)->hist;
+  if (!sens)
+    return nullptr;
+  const auto *info = sens->getinfo();
+  const jint state[2] = {static_cast<jint>(info->lastLifeCountReceived),
+                         static_cast<jint>(info->pollcount - 1)};
+  jintArray uit = envin->NewIntArray(2);
+  envin->SetIntArrayRegion(uit, 0, 2, state);
+  return uit;
+}
+
 struct dexbackfill {
   int32_t secsSinceStart;
   int16_t mgdL;

@@ -44,7 +44,7 @@ methods = '\n'.join(method(s) for s in [
     else 'private void releaselock(',
     'private void authenticate(', 'static private boolean equalpart(',
     'static boolean    createBond(', 'private void resetCerts(', 'private void resetconnect(',
-    'private    void getdata(', 'private boolean isWarmupReading(',
+    'private    void getdata(', 'private boolean isWarmupReading(', 'private static String hexBytes(',
     'private void docmd0(', 'private void requestAuth(', 'public int getAuthSlot(',
     'public synchronized boolean changeAuthSlot(',
 ])
@@ -147,7 +147,7 @@ class Natives {
     static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}
     static long lastglucosetime(){return lastGlucose<0?System.currentTimeMillis():lastGlucose;}
     static boolean authenticated=true;
-    static boolean isAuthenticated(long p){return authenticated;}static void dexbackfill(long p,byte[] v){}
+    static boolean isAuthenticated(long p){return authenticated;}static boolean dexbackfill(long p,byte[] v){return false;}
     static boolean dex8AES(long p,byte[] input,int from,byte[] output,int to){
         if(input.length<from+8)throw new AssertionError("JNI AES input would read beyond packet");
         if(!aesSuccess)return false;

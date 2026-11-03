@@ -136,6 +136,7 @@ private void docmd0(BluetoothGatt bluetoothGatt) {
             {if(doLog){Log.showbytes("onDescriptorWrite char: " + characteristic.getUuid().toString() + " desc: " + bluetoothGattDescriptor.getUuid().toString() + " status=" + status, value);};}
         }
        if(characteristic.equals(charact[2])) {
+             {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill notifications status=" + status);};};
              if(status == BluetoothGatt.GATT_SUCCESS)
                 backfilled = true;
             askbackfill();
@@ -865,6 +866,7 @@ private    void getdata(byte[] value) {
                 if(savename) saveDeviceName();
             };break;
            case 0x59:{
+              {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill response " + hexBytes(value));};};
               Applic.app.redraw();
               Natives.dexEndBackfill(dataptr);
               syncBackfillToRoom();
@@ -891,7 +893,8 @@ private    void getdata(byte[] value) {
             if(doLog)
                 {if(doLog){Log.showbytes("DexGattCallback onCharacteristicChanged UUID: " + bluetoothGattCharacteristic.getUuid().toString(), value);};}
             if (bluetoothGattCharacteristic.equals(charact[2])) {
-                Natives.dexbackfill(dataptr, value);
+                final boolean saved = Natives.dexbackfill(dataptr, value);
+                {if(doLog) {Log.i(LOG_ID, SerialNumber + " backfill " + value.length + " bytes saved=" + saved + " " + hexBytes(value));};};
                 return;
             }
 
@@ -1122,6 +1125,11 @@ public synchronized boolean changeAuthSlot(int slot) {
             noteBackfill(cmd);
             tryer(()-> write(0, cmd));
           }
+         else if(doLog) {
+            final int[] state = Natives.dexBackfillState(dataptr);
+            Log.i(LOG_ID, SerialNumber + " backfill not requested"
+                    + (state == null ? "" : ", received up to #" + state[0] + " of #" + state[1]));
+            }
        }
     }
 
@@ -1133,15 +1141,25 @@ public synchronized boolean changeAuthSlot(int slot) {
 private long backfillRoomSyncFromMsec=0L;
 private synchronized void noteBackfill(byte[] cmd) {
     // 0x59, then the window's start and end in little-endian seconds since sensor start.
-    if(cmd.length<5)
+    if(cmd.length<9)
         return;
     final int startSecs=(cmd[1]&0xFF)|((cmd[2]&0xFF)<<8)|((cmd[3]&0xFF)<<16)|(cmd[4]<<24);
     final long sensorStartMsec=Natives.getSensorStartmsec(dataptr);
     if(sensorStartMsec<=0L)
         return;
+    {if(doLog) {
+        final int endSecs=(cmd[5]&0xFF)|((cmd[6]&0xFF)<<8)|((cmd[7]&0xFF)<<16)|(cmd[8]<<24);
+        Log.i(LOG_ID, SerialNumber + " backfill request " + (sensorStartMsec/1000L+startSecs) + "-" + (sensorStartMsec/1000L+endSecs));
+        }};
     final long fromMsec=sensorStartMsec+(startSecs-5*60)*1000L;
     if(backfillRoomSyncFromMsec==0L||fromMsec<backfillRoomSyncFromMsec)
         backfillRoomSyncFromMsec=fromMsec;
+    }
+private static String hexBytes(byte[] value) {
+    final StringBuilder sb=new StringBuilder(value.length*2);
+    for(byte b:value)
+        sb.append(String.format("%02X",b&0xFF));
+    return sb.toString();
     }
 private synchronized void syncBackfillToRoom() {
     final long fromMsec=backfillRoomSyncFromMsec;

@@ -114,6 +114,7 @@ internal fun sensorTraceDriverTags(vendor: SensorVendor?): List<String> = when (
     SensorVendor.SINOCARE -> listOf("ICan")
     SensorVendor.NIGHTSCOUT -> listOf("Nightscout")
     SensorVendor.ISENS -> listOf("AirGattCallback")
+    SensorVendor.DEXCOM -> listOf("DexGattCallback")
     else -> emptyList()
 }
 

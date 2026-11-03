@@ -23,7 +23,7 @@ def method(text, signature):
 
 methods = [method(dex, x) for x in [
     'private  void askbackfill(', 'private synchronized void noteBackfill(',
-    'private synchronized void syncBackfillToRoom(', 'private    void getdata(',
+    'private synchronized void syncBackfillToRoom(', 'private    void getdata(', 'private static String hexBytes(',
     'public synchronized void close(',
 ]]
 fields = [re.search(r'private long backfillRoomSyncFromMsec=0L;', dex).group(0)]
@@ -35,7 +35,7 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 class Base { void close(){} }
 class DexGattCallback extends Base {
-    static boolean doLog=false;
+    static boolean doLog=true;
     static String LOG_ID="test";
     static final long DEXCOM_WARMUP_MSEC=0L, DEXCOM_WARMUP_RETRY_SLACK_MSEC=0L;
     String SerialNumber="synthetic";
@@ -45,7 +45,7 @@ class DexGattCallback extends Base {
     Object mBluetoothGatt=null, connectedAttempt=null;
     Object[] charact=new Object[4];
     List<byte[]> writes=new ArrayList<>();
-    static class Log { static void i(String a,String b){} }
+    static class Log { static List<String> lines=new ArrayList<>(); static void i(String a,String b){lines.add(b);} }
     static class Applic {
         static class App { void redraw(){} }
         static App app=new App();
@@ -55,6 +55,7 @@ class DexGattCallback extends Base {
         static byte[] cmd;
         static long sensorStartMsec;
         static byte[] getDexbackfillcmd(long p){return cmd;}
+        static int[] dexBackfillState(long p){return new int[]{99,102};}
         static long getSensorStartmsec(long p){return sensorStartMsec;}
         static void dexEndBackfill(long p){}
         static boolean dexcomProcessData(long p,byte[] v,long[] timeres){return false;}
@@ -99,6 +100,8 @@ body = preamble + '\n'.join(fields) + '\n' + '\n'.join(methods) + r'''
         long from=HistorySyncAccess.windows.get(0);
         check(from<=firstMissing,"window must reach the first missing reading: "+from+" > "+firstMissing);
         check(from>=sensorStart+last*1000L-5*60_000L,"window must not reach far behind the gap: "+from);
+        check(Log.lines.contains("synthetic backfill request "+(sensorStart/1000L+last+60)+"-"+(sensorStart/1000L+live-60)),"sensor log must show the requested window: "+Log.lines);
+        check(Log.lines.contains("synthetic backfill response 5900"),"sensor log must show the completion: "+Log.lines);
         cb.close();
         check(HistorySyncAccess.windows.size()==1,"disconnect after a finished backfill must not resync");
 
@@ -113,6 +116,7 @@ body = preamble + '\n'.join(fields) + '\n' + '\n'.join(methods) + r'''
         Natives.cmd=null;
         cb.askbackfill();cb.getdata(new byte[]{0x59,0});cb.close();
         check(cb.writes.isEmpty()&&HistorySyncAccess.windows.isEmpty(),"steady state must not sync a window");
+        check(Log.lines.contains("synthetic backfill not requested, received up to #99 of #102"),"sensor log must say why nothing was asked: "+Log.lines);
 
         // Unknown sensor start: do not sync from the epoch.
         reset();cb=new DexGattCallback();
