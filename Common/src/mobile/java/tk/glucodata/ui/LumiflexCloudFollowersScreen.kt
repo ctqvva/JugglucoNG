@@ -38,6 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,6 +80,24 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
 
     fun update(id: String, transform: (FollowerInfo) -> FollowerInfo) {
         followers = followers.map { if (it.userAuthorizationId == id) transform(it) else it }
+    }
+
+    val alertLocks = remember { mutableMapOf<String, Mutex>() }
+
+    fun pushAlerts(id: String) {
+        scope.launch {
+            alertLocks.getOrPut(id) { Mutex() }.withLock {
+                val current = followers.firstOrNull { it.userAuthorizationId == id } ?: return@withLock
+                withContext(Dispatchers.IO) {
+                    manager.setAlerts(
+                        id,
+                        normal = current.normalPushState == 1,
+                        urgent = current.emergePushState == 1,
+                        extremeHigh = current.extremeHighPushState == 1,
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -170,40 +190,19 @@ fun LumiflexCloudFollowersScreen(navController: NavController) {
                             update(follower.userAuthorizationId) {
                                 it.copy(normalPushState = if (checked) 1 else 0)
                             }
-                            scope.launch(Dispatchers.IO) {
-                                manager.setAlerts(
-                                    follower.userAuthorizationId,
-                                    normal = checked,
-                                    urgent = follower.emergePushState == 1,
-                                    extremeHigh = follower.extremeHighPushState == 1,
-                                )
-                            }
+                            pushAlerts(follower.userAuthorizationId)
                         }
                         ToggleRow(stringResource(R.string.lumiflex_urgent_low), follower.emergePushState == 1) { checked ->
                             update(follower.userAuthorizationId) {
                                 it.copy(emergePushState = if (checked) 1 else 0)
                             }
-                            scope.launch(Dispatchers.IO) {
-                                manager.setAlerts(
-                                    follower.userAuthorizationId,
-                                    normal = follower.normalPushState == 1,
-                                    urgent = checked,
-                                    extremeHigh = follower.extremeHighPushState == 1,
-                                )
-                            }
+                            pushAlerts(follower.userAuthorizationId)
                         }
                         ToggleRow(stringResource(R.string.lumiflex_extreme_high), follower.extremeHighPushState == 1) { checked ->
                             update(follower.userAuthorizationId) {
                                 it.copy(extremeHighPushState = if (checked) 1 else 0)
                             }
-                            scope.launch(Dispatchers.IO) {
-                                manager.setAlerts(
-                                    follower.userAuthorizationId,
-                                    normal = follower.normalPushState == 1,
-                                    urgent = follower.emergePushState == 1,
-                                    extremeHigh = checked,
-                                )
-                            }
+                            pushAlerts(follower.userAuthorizationId)
                         }
 
                         if (renameId == follower.userAuthorizationId) {

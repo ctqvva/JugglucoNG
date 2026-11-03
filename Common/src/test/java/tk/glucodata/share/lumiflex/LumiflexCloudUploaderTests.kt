@@ -101,6 +101,40 @@ class LumiflexCloudUploaderTests {
     }
 
     @Test
+    fun staleUnauthorizedDoesNotClearANewerToken() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LumiflexCloudSettings(context)
+        settings.enabled = true
+        settings.token = "old"
+        settings.userId = "u1"
+        val queue = LumiflexCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 100, 0))
+        val swapping = object : LumiflexCloudClient.Transport {
+            override fun post(
+                url: String,
+                body: String,
+                headers: Map<String, String>,
+            ): LumiflexCloudClient.HttpResult {
+                settings.token = "new"
+                return LumiflexCloudClient.HttpResult(401, "")
+            }
+
+            override fun get(url: String, headers: Map<String, String>): LumiflexCloudClient.HttpResult =
+                LumiflexCloudClient.HttpResult(401, "")
+        }
+        val up = LumiflexCloudUploader(
+            LumiflexCloudClient(swapping, decrypt = { it }),
+            settings,
+            queue,
+            sleep = {},
+            sensorIds = { LumiflexCloudClient.DeviceList.Ok(mapOf("SN1" to "SID1")) },
+        )
+        assertTrue(up.flush() is LumiflexCloudUploader.FlushResult.Unauthorized)
+        assertEquals("new", settings.token)
+    }
+
+    @Test
     fun flushDropsNonPositiveReadingsWithoutSending() {
         val (_, queue, up) = uploader(200)
         queue.enqueue(CgmRecord("SN1", "SN1", 0, 1, start + 60_000L, 0, 0))

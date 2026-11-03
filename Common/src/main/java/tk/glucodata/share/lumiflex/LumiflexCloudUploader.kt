@@ -47,7 +47,7 @@ class LumiflexCloudUploader(
         val sensorIdBySerial = when (val devices = sensorIds()) {
             is LumiflexCloudClient.DeviceList.Ok -> devices.sensorIdBySerial
             LumiflexCloudClient.DeviceList.Unauthorized -> {
-                settings.token = ""
+                clearTokenIfCurrent(token)
                 return FlushResult.Unauthorized(0)
             }
             is LumiflexCloudClient.DeviceList.Failed -> {
@@ -80,7 +80,7 @@ class LumiflexCloudUploader(
                             lastCode = result.code
                             lastMessage = result.message
                             if (result.kind == LumiflexCloudError.Kind.UNAUTHORIZED) {
-                                settings.token = ""
+                                clearTokenIfCurrent(token)
                                 return FlushResult.Unauthorized(uploaded)
                             }
                             if (attempt < LumiflexCloudConstants.RETRY_LIMIT) {
@@ -97,6 +97,11 @@ class LumiflexCloudUploader(
         }
         if (uploaded > 0) settings.lastSyncMs = System.currentTimeMillis()
         return FlushResult.Success(uploaded)
+    }
+
+    /** A 401 that belongs to a session the patient has already replaced must not sign them out. */
+    private fun clearTokenIfCurrent(session: String) {
+        if (settings.token == session) settings.token = ""
     }
 
     companion object {
