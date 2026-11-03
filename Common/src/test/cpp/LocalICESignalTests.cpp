@@ -333,7 +333,7 @@ static void recoverSnapshotFromConnectedPeer() {
 }
 
 // Connected, the multicast lock only lets every LAN multicast wake the phone.
-// It goes once the peer's address is known: signaling then also travels by
+// It goes once the peer's address is confirmed: signaling then also travels by
 // unicast, which the Wi-Fi filter passes, and the address survives a restart.
 static void connectedPeerDropsMulticastLockButStaysReachable() {
     char directory[] = "/tmp/juggluco-local-ice-XXXXXX";
@@ -341,6 +341,23 @@ static void connectedPeerDropsMulticastLockButStaysReachable() {
     globalbasedir = directory;
     const char *label = "unicast-reach-test";
     const in_addr_t peerAddress = htonl(0xC0000207); // 192.0.2.7
+    const in_addr_t replayAddress = htonl(0xC0000242); // 192.0.2.66
+    auto from = [](in_addr_t address) {
+        sockaddr_storage source{};
+        auto &ipv4 = reinterpret_cast<sockaddr_in &>(source);
+        ipv4.sin_family = AF_INET;
+        ipv4.sin_addr.s_addr = address;
+        return source;
+    };
+    auto sentTo = [](Link &link, in_addr_t address) {
+        std::lock_guard lock(link.mutex);
+        return std::find(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
+                         address) != link.ipv4Destinations.end();
+    };
+    auto clearSent = [](Link &link) {
+        std::lock_guard lock(link.mutex);
+        link.ipv4Destinations.clear();
+    };
     {
         Link link(true, false, label);
         auto *answerer = link.sessions[1]->impl.get();
@@ -349,45 +366,66 @@ static void connectedPeerDropsMulticastLockButStaysReachable() {
         require(answerer->multicastLockHeld,
                 "dropped the lock with no direct way to reach the peer");
 
-        sockaddr_storage source{};
-        auto &from = reinterpret_cast<sockaddr_in &>(source);
-        from.sin_family = AF_INET;
-        from.sin_addr.s_addr = peerAddress;
+        // Connected to the peer at .7 before hearing it on the LAN: ask it once.
+        link.sessions[1]->markConnected("192.0.2.7:47560");
+        require(answerer->multicastLockHeld, "dropped the lock before the peer answered");
+        require(sentTo(link, peerAddress), "no Hello sent to the ICE-verified peer");
+
+        // An authenticated, current packet replayed from elsewhere is not the peer.
+        const auto replay = from(replayAddress);
+        auto replayed = link.sessions[0]->impl->makePacket(
+            MessageType::Candidate, "candidate", std::string(32, 'b'));
+        answerer->handlePacket(replayed.data(), replayed.size(), &replay);
+        require(!answerer->peerConfirmedHere(), "trusted a replay's source address");
+        require(answerer->multicastLockHeld, "a replay dropped the lock");
+
+        const auto peer = from(peerAddress);
         auto stale = link.sessions[0]->impl->makePacket(
             MessageType::Hello, {}, std::string(32, 'c'));
-        answerer->handlePacket(stale.data(), stale.size(), &source);
-        require(!answerer->knowsPeer(), "learned an address from a stale echo");
+        answerer->handlePacket(stale.data(), stale.size(), &peer);
+        require(!answerer->peerConfirmedHere(), "confirmed from a stale echo");
         require(answerer->multicastLockHeld, "a stale echo dropped the lock");
 
         auto fresh = link.sessions[0]->impl->makePacket(
             MessageType::Hello, {}, std::string(32, 'b'));
-        answerer->handlePacket(fresh.data(), fresh.size(), &source);
-        require(answerer->knowsPeer(), "peer address not learned");
+        answerer->handlePacket(fresh.data(), fresh.size(), &peer);
+        require(answerer->peerConfirmedHere(), "peer address not confirmed");
         require(!answerer->multicastLockHeld, "connected peer kept the multicast lock");
+        require(loadPeerAddress(label) && loadPeerAddress(label)->s_addr == peerAddress,
+                "confirmed address not saved");
 
-        {
-            std::lock_guard lock(link.mutex);
-            link.ipv4Destinations.clear();
-        }
+        clearSent(link);
         answerer->sendPacket(MessageType::Hello);
+        require(sentTo(link, peerAddress), "signaling not sent to the peer directly");
         std::lock_guard lock(link.mutex);
-        require(std::find(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
-                          peerAddress) != link.ipv4Destinations.end(),
-                "signaling not sent to the peer directly");
         require(std::find_if(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
                              [&](in_addr_t a) { return a != peerAddress; }) !=
                     link.ipv4Destinations.end(),
                 "broadcast discovery was dropped");
     }
     {
+        // After a restart the saved address is used to reach the peer at once,
+        // but proves nothing about this network.
         Link restarted(true, false, label);
         auto *answerer = restarted.sessions[1]->impl.get();
-        require(answerer->knowsPeer(), "peer address lost across an app restart");
+        answerer->sendPacket(MessageType::Hello);
+        require(sentTo(restarted, peerAddress), "saved peer address not used after restart");
         answerer->multicastLockHeld = true;
-        restarted.sessions[1]->markConnected();
+        restarted.sessions[1]->markConnected("fe80::1%wlan0:47560");
+        require(answerer->multicastLockHeld, "IPv6-only connection dropped the lock");
+        restarted.sessions[1]->markConnected("192.0.2.7:47560");
+        require(answerer->multicastLockHeld,
+                "a saved address alone dropped the lock");
+        const auto peer = from(peerAddress);
+        auto fresh = restarted.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(fresh.data(), fresh.size(), &peer);
         require(!answerer->multicastLockHeld,
-                "remembered peer did not let the lock go on connect");
+                "confirmed peer did not let the lock go");
     }
+    require(selectedIPv4("::ffff:192.0.2.7:1") == peerAddress, "v4-mapped address not read");
+    require(!selectedIPv4("[fe80::1]:1") && !selectedIPv4("?") && !selectedIPv4(""),
+            "non-IPv4 selected address accepted");
     const auto path = peerAddressPath(label);
     unlink(path.c_str());
     rmdir(directory);

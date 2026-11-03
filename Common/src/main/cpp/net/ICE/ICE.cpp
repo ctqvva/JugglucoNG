@@ -862,8 +862,11 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
                 LOGGERICE("allindex=%d rendezvous: primary server recovered\n",allindex);
             con->connectTime=time(nullptr);
             refreshSelectedCloneTransport(con,agent);
-            if(auto local=con->currentLocalSignal())
-                local->markConnected();
+            if(auto local=con->currentLocalSignal()) {
+                char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN];
+                local->markConnected(juice_get_selected_addresses(agent,nullptr,0,
+                        remoteAddr,sizeof(remoteAddr))==0?remoteAddr:"");
+                }
             const uint64_t generation=con->currentAgentGeneration();
             struct CONNECTED {
                 static void thread(juice_agent_t *agent,int allindex,uint64_t generation) {

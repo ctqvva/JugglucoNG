@@ -250,6 +250,29 @@ void storePeerAddress(std::string_view label, in_addr address) {
         unlink(temporary.c_str());
 }
 
+sockaddr_in signalDestination(uint16_t port, in_addr_t address) {
+    sockaddr_in destination{};
+    destination.sin_family = AF_INET;
+    destination.sin_port = htons(port);
+    destination.sin_addr.s_addr = address;
+    return destination;
+}
+
+// The remote side of the selected ICE pair, as libjuice prints it ("ip:port").
+std::optional<in_addr_t> selectedIPv4(std::string_view address) {
+    const auto colon = address.rfind(':');
+    if (colon == std::string_view::npos) return std::nullopt;
+    const std::string host(address.substr(0, colon));
+    in_addr v4{};
+    if (inet_pton(AF_INET, host.c_str(), &v4) == 1)
+        return v4.s_addr ? std::optional(v4.s_addr) : std::nullopt;
+    in6_addr v6{};
+    if (inet_pton(AF_INET6, host.c_str(), &v6) != 1 || !IN6_IS_ADDR_V4MAPPED(&v6))
+        return std::nullopt;
+    std::memcpy(&v4.s_addr, &v6.s6_addr[12], sizeof(v4.s_addr));
+    return v4.s_addr ? std::optional(v4.s_addr) : std::nullopt;
+}
+
 std::vector<unsigned> multicastInterfaces() {
     std::vector<unsigned> interfaces;
     ifaddrs *addresses = nullptr;
@@ -298,10 +321,20 @@ struct LocalICESignalSession::Impl {
     int socketFd{-1};
     int multicastFd{-1};
     std::vector<unsigned> joinedInterfaces; // Protected by sendMutex.
-    // Held while discovering. Once connected and the peer's address is known,
+    // Held while discovering. Once connected and the peer's address is confirmed,
     // it is dropped: it lets every multicast on the LAN wake the phone.
     std::atomic_bool multicastLockHeld{false};
+    // Where signaling also goes by unicast. Starts as the last confirmed
+    // address, so a restarted app reaches a peer that dropped its lock.
     std::optional<sockaddr_in> peerAddress; // Protected by stateMutex.
+    // Below: protected by stateMutex; 0 means none.
+    in_addr_t savedPeer{};       // What is persisted.
+    in_addr_t connectedRemote{}; // Peer side of the connected ICE pair.
+    bool peerConfirmed{false};   // Confirmed in this session, not just loaded.
+    // IPv4 sources of packets echoing our generation. Unconfirmed: a replay of
+    // an authenticated packet can arrive from any address.
+    std::array<in_addr_t, 8> echoSources{};
+    size_t echoSourceCount{}, nextEchoSource{};
     // The same authenticated datagram is sent twice on each discovery family.
     // Ignore those copies, but allow retry snapshots with fresh nonces.
     std::array<std::array<uint8_t, nonceLength>, 64> receivedNonces{};
@@ -321,11 +354,8 @@ struct LocalICESignalSession::Impl {
           port(localPortForLabel(connectionLabel)),
           localGeneration(connectionGeneration) {
         if (const auto address = loadPeerAddress(label)) {
-            sockaddr_in destination{};
-            destination.sin_family = AF_INET;
-            destination.sin_port = htons(port);
-            destination.sin_addr = *address;
-            peerAddress = destination;
+            savedPeer = address->s_addr;
+            peerAddress = signalDestination(port, savedPeer);
         }
     }
 
@@ -336,30 +366,72 @@ struct LocalICESignalSession::Impl {
         }
     }
 
-    // Only an echo of our current generation counts: that packet is fresh from
-    // the paired peer, not a replay of an older one from elsewhere.
-    void rememberPeer(const sockaddr_storage &source) {
+    bool echoedFromLocked(in_addr_t address) const {
+        const auto end = echoSources.begin() + echoSourceCount;
+        return std::find(echoSources.begin(), end, address) != end;
+    }
+
+    void noteEchoSource(const sockaddr_storage &source) {
         if (source.ss_family != AF_INET) return;
-        auto address = reinterpret_cast<const sockaddr_in &>(source);
-        address.sin_port = htons(port);
-        bool changed;
+        const auto address =
+            reinterpret_cast<const sockaddr_in &>(source).sin_addr.s_addr;
+        if (!address) return;
+        bool connectedThere;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
-            changed = !peerAddress ||
-                      peerAddress->sin_addr.s_addr != address.sin_addr.s_addr;
-            if (changed) peerAddress = address;
+            if (!echoedFromLocked(address)) {
+                echoSources[nextEchoSource] = address;
+                nextEchoSource = (nextEchoSource + 1) % echoSources.size();
+                echoSourceCount = std::min(echoSourceCount + 1, echoSources.size());
+            }
+            connectedThere = address == connectedRemote;
         }
-        if (changed) {
-            storePeerAddress(label, address.sin_addr);
+        if (connectedThere) confirmPeer(address);
+    }
+
+    // The connected ICE pair proves the peer holds this address (its checks
+    // need the pairing's ICE password), and an authenticated packet from it
+    // proves our signaling port reaches the peer there. Only then is it saved
+    // and the lock dropped: a restarted peer will find us by unicast.
+    void confirmPeer(in_addr_t address) {
+        bool store;
+        {
+            const std::lock_guard<std::mutex> lock(stateMutex);
+            peerAddress = signalDestination(port, address);
+            peerConfirmed = true;
+            store = savedPeer != address;
+            savedPeer = address;
+        }
+        if (store) {
+            storePeerAddress(label, in_addr{address});
             LOGARLOCALICE("remembered peer LAN address");
         }
         if (connected.load(std::memory_order_acquire))
             releaseMulticastLock();
     }
 
-    bool knowsPeer() {
+    void connectedTo(std::optional<in_addr_t> remote) {
+        if (!remote) return; // e.g. IPv6 only: keep the lock.
+        bool seen, probe;
+        {
+            const std::lock_guard<std::mutex> lock(stateMutex);
+            connectedRemote = *remote;
+            seen = echoedFromLocked(*remote);
+            probe = !seen && !peerConfirmed;
+            // ICE verified it, so it is safe to send to, just not yet to save.
+            if (probe) peerAddress = signalDestination(port, *remote);
+        }
+        if (seen)
+            confirmPeer(*remote);
+        else if (probe)
+            // Connected without hearing the peer on the LAN (say the saved
+            // address went stale). One Hello asks for the echo that confirms it.
+            sendPacket(MessageType::Hello);
+    }
+
+    bool peerConfirmedHere() {
         const std::lock_guard<std::mutex> lock(stateMutex);
-        return peerAddress.has_value();
+        return peerConfirmed;
     }
 
     bool createIPv4Socket() {
@@ -638,7 +710,7 @@ struct LocalICESignalSession::Impl {
 
         const bool echoMatches = echo == localGeneration;
         if (echoMatches && source)
-            rememberPeer(*source);
+            noteEchoSource(*source);
         bool peerChanged = false;
         bool unconfirmedPeerChange = false;
         {
@@ -881,12 +953,11 @@ void LocalICESignalSession::publishGatheringDone() {
 }
 
 // Keep listening while connected so a restarted peer can reach us, but with the
-// peer's address known its packets arrive by unicast: no multicast lock needed.
-// Without one (e.g. connected over TURN) the lock stays, as before.
-void LocalICESignalSession::markConnected() {
+// peer's address confirmed its packets arrive by unicast: no multicast lock
+// needed. Unconfirmed (TURN, IPv6 only, another network) the lock stays.
+void LocalICESignalSession::markConnected(std::string_view remoteAddress) {
     impl->connected = true;
-    if (impl->knowsPeer())
-        impl->releaseMulticastLock();
+    impl->connectedTo(selectedIPv4(remoteAddress));
 }
 
 bool LocalICESignalSession::requestPromotionProbe() {
