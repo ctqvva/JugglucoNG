@@ -1,3 +1,4 @@
+#include "net/clarity/clarity.hpp"
 /*      This file is part of Juggluco, an Android app to receive and display         */
 /*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
 /*                                                                                   */
@@ -26,6 +27,7 @@ extern vector<Numdata*> numdatas;
 
 extern "C" JNIEXPORT void JNICALL fromjava(closeNums)(JNIEnv *env, jclass thiz,jlong ptr) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	claritynumsremove(numdata);
 	for (auto it = numdatas.begin(); it != numdatas.end(); ++it) {
 		if(*it==numdata) {
 			numdatas.erase(it);

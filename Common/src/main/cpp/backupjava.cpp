@@ -1,3 +1,4 @@
+#include "net/clarity/clarity.hpp"
 /*      This file is part of Juggluco, an Android app to receive and display */
 /*      glucose values from Freestyle Libre 2 and 3 sensors. */
 /*                                                                                   */
@@ -478,6 +479,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(networkpresent)(JNIEnv *env,
   wakeuploader();
 #if !defined(WEAROS) && !defined(TESTMENU)
   wakeaftermin(0);
+  wakeclarity();
 #endif
   LOGAR("end networkpresend");
 }
