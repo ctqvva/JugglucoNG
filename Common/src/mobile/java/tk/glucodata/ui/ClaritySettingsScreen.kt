@@ -219,16 +219,51 @@ fun ClaritySettingsScreen(navController: NavController) {
                 enabled = !s.enabled,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             )
-            Button(
-                onClick = { navController.navigate("settings/clarity/login/${Uri.encode(country)}") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                enabled = !s.enabled && country.length == 2,
-                shapes = ButtonDefaults.shapes(),
-                contentPadding = ButtonDefaults.ContentPadding,
-            ) {
-                Text(stringResource(R.string.clarity_sign_in))
+            // An interrupted sign-in saved its tokens. Offer to finish it first: starting a new
+            // sign-in discards them (native code clears them once Dexcom's page is requested).
+            val resumable = s.loginPending && !s.enabled
+            if (resumable) {
+                Text(
+                    text = stringResource(R.string.clarity_login_pending_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(
+                    onClick = { navController.navigate("settings/clarity/resume") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    Text(stringResource(R.string.clarity_login_finish_pending))
+                }
+            }
+            val signIn = { navController.navigate("settings/clarity/login/${Uri.encode(country)}") }
+            if (resumable) {
+                OutlinedButton(
+                    onClick = signIn,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    enabled = country.length == 2,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    Text(stringResource(R.string.clarity_sign_in))
+                }
+            } else {
+                Button(
+                    onClick = signIn,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    enabled = !s.enabled && country.length == 2,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                ) {
+                    Text(stringResource(R.string.clarity_sign_in))
+                }
             }
             if (s.enabled) {
                 Text(
@@ -361,23 +396,27 @@ private fun isDexcomPage(uri: Uri): Boolean {
  * Dexcom's own OAuth page in a WebView. Dexcom owns the credential form; JugglucoNG only sees the
  * `dexcomg7:` callback, which goes straight to native code for the token exchange. The window is
  * FLAG_SECURE while the page is shown, and only https Dexcom pages may load.
+ *
+ * With [resume] it opens no page: it finishes a sign-in whose tokens were saved before endpoint
+ * discovery failed, which survives leaving this screen and process death.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun ClarityLoginScreen(navController: NavController, country: String) {
+fun ClarityLoginScreen(navController: NavController, country: String, resume: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var attempted by remember { mutableStateOf(false) }
+    // Whether native code holds saved tokens that "Finish pending sign-in" can resume.
+    var pendingSaved by remember { mutableStateOf(false) }
     var attempt by remember { mutableStateOf(0) }
 
     DisposableEffect(Unit) {
         val window = context.findActivity()?.window
-        val wasSecure = window == null || (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+        val wasSecure = window != null && (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
         window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { if (!wasSecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+        onDispose { if (window != null && !wasSecure) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
 
     fun complete(callback: String) {
@@ -387,7 +426,6 @@ fun ClarityLoginScreen(navController: NavController, country: String) {
             return
         }
         busy = true
-        attempted = true
         url = null
         scope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -403,9 +441,18 @@ fun ClarityLoginScreen(navController: NavController, country: String) {
         }
     }
 
+    // Re-read after every failure: a failed exchange saves nothing, a failed discovery does.
+    LaunchedEffect(error) {
+        if (error != null) pendingSaved = withContext(Dispatchers.IO) { Clarity.status()?.loginPending == true }
+    }
+
     LaunchedEffect(attempt) {
         error = null
         url = null
+        if (resume && attempt == 0) {
+            complete("")
+            return@LaunchedEffect
+        }
         if (clarityLoginFinishing.get()) {
             error = context.getString(R.string.clarity_login_in_progress)
             return@LaunchedEffect
@@ -444,12 +491,15 @@ fun ClarityLoginScreen(navController: NavController, country: String) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(error!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                    Button(
-                        onClick = { attempt++ },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                        shapes = ButtonDefaults.shapes(),
-                    ) { Text(stringResource(R.string.clarity_try_again)) }
-                    if (attempted) {
+                    // Resuming has no country to start a new sign-in with; that is the settings screen's.
+                    if (!resume) {
+                        Button(
+                            onClick = { attempt++ },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                            shapes = ButtonDefaults.shapes(),
+                        ) { Text(stringResource(R.string.clarity_try_again)) }
+                    }
+                    if (pendingSaved) {
                         OutlinedButton(
                             onClick = { error = null; complete("") },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),

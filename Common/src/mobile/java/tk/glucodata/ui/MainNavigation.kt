@@ -1202,6 +1202,7 @@ private fun NavGraphBuilder.appDestinations(
     gatedComposable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     gatedComposable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
     gatedComposable("settings/clarity") { ClaritySettingsScreen(navController) }
+    gatedComposable("settings/clarity/resume") { ClarityLoginScreen(navController, country = "", resume = true) }
     gatedComposable("settings/clarity/login/{country}") { entry ->
         ClarityLoginScreen(navController, entry.arguments?.getString("country").orEmpty())
     }
