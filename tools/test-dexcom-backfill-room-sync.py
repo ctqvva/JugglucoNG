@@ -24,9 +24,13 @@ def method(text, signature):
 methods = [method(dex, x) for x in [
     'private  void askbackfill(', 'private synchronized void noteBackfill(',
     'private synchronized void syncBackfillToRoom(', 'private    void getdata(', 'private static String hexBytes(',
+    'private static int littleEndianInt(', 'private synchronized void noteBackfillRecords(', 'private void noteBackfillFrom(',
     'public synchronized void close(',
 ]]
 fields = [re.search(r'private long backfillRoomSyncFromMsec=0L;', dex).group(0)]
+# Every saved backfill notification must queue the Room copy, not only our own request.
+changed = method(dex, 'public void onCharacteristicChanged(@NonNull')
+assert re.search(r'saved\s*=\s*Natives\.dexbackfill\(dataptr,\s*value\);\s*\n\s*if\s*\(saved\)\s*noteBackfillRecords\(value\);', changed), 'backfill notifications must queue a Room sync'
 
 preamble = r'''
 package tk.glucodata;
@@ -118,12 +122,27 @@ body = preamble + '\n'.join(fields) + '\n' + '\n'.join(methods) + r'''
         check(cb.writes.isEmpty()&&HistorySyncAccess.windows.isEmpty(),"steady state must not sync a window");
         check(Log.lines.contains("synthetic backfill not requested, received up to #99 of #102"),"sensor log must say why nothing was asked: "+Log.lines);
 
+        // The G7 streams the gap unasked once notifications are on (#767, 1.2.8): native then
+        // sees no gap and requests nothing, but the saved records must still reach Room.
+        reset();cb=new DexGattCallback();
+        Natives.cmd=null;
+        byte[] pushed=new byte[18];
+        for(int r=0;r<2;r++){int secs=(100+r)*300;for(int i=0;i<4;i++)pushed[r*9+i]=(byte)(secs>>(8*i));pushed[r*9+6]=6;}
+        cb.noteBackfillRecords(pushed);
+        cb.askbackfill();
+        check(cb.writes.isEmpty(),"nothing to request once the push closed the gap");
+        cb.getdata(new byte[]{0x59,0});
+        check(HistorySyncAccess.windows.size()==1,"pushed backfill must sync Room once");
+        check(HistorySyncAccess.windows.get(0)==firstMissing-5*60_000L,"window must start before the earliest pushed reading: "+HistorySyncAccess.windows.get(0));
+        cb.close();
+        check(HistorySyncAccess.windows.size()==1,"disconnect after a finished push must not resync");
+
         // Unknown sensor start: do not sync from the epoch.
         reset();cb=new DexGattCallback();
         Natives.cmd=cmd(last+60,live-60);Natives.sensorStartMsec=0L;
         cb.askbackfill();cb.getdata(new byte[]{0x59,0});
         check(HistorySyncAccess.windows.isEmpty(),"no window without a sensor start");
-        System.out.println("PASS: Dexcom backfill syncs Room from the requested window once the sensor finishes or disconnects");
+        System.out.println("PASS: Dexcom backfill, requested or pushed, syncs Room once the sensor finishes or disconnects");
     }
 }
 '''
