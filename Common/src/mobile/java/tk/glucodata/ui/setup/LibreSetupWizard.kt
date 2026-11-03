@@ -56,6 +56,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -217,6 +218,12 @@ fun LibreSetupWizard(
 
     DisposableEffect(Unit) {
         onDispose { saveSettings() }
+    }
+
+    // Restricted again with the LibreView account step open (an adult left it a minute):
+    // back to the scan step, which is all a restricted phone gets.
+    LaunchedEffect(restrictedSetup) {
+        if (restrictedSetup && currentStep == 1) currentStep = 0
     }
 
     BackHandler {
