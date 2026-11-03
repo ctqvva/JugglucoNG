@@ -78,6 +78,7 @@ struct SensorGlucoseData {
     Stream* getstream(int index){assert(index>=0&&index<int(stream.size()));return &stream[index];}
     const Stream* getstream(int index)const{assert(index>=0&&index<int(stream.size()));return &stream[index];}
     bool validPollIndex(int64_t index)const{return index>=0&&index<int64_t(stream.size());}
+    bool hasStreamID(int index)const{return validPollIndex(index)&&stream[index].timestamp;}
     template<int Interval> void savepollallIDs(uint32_t t,int index,int glucose,int,float rate){
         assert(index>=0&&index<int(stream.size()));
         saved++;lastSaved=index;stream[index].timestamp=t;

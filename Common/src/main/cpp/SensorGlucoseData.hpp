@@ -1791,6 +1791,8 @@ private:
       return;
     }
     repairPollMetadata();
+    if (isDexcom())
+      repairDexcomMinuteSlots();
     if (isSibionics2())
       getinfo()->days = 45;
     if (const ScanData *last = lastpoll()) {
@@ -2150,12 +2152,91 @@ uint32_t getlastpolltime() const {
   // in [start+id*300, start+id*300+300); allow some clock drift either side.
   // Readings written at minute indices (#767) do not fit their slot.
   bool dexSlotTimeFits(const int id) const {
-    if (!validPollIndex(id))
+    if (!hasStreamID(id))
       return false;
     const int64_t t = getstream(id)->gettime();
     const int64_t slotstart =
         static_cast<int64_t>(getstarttime()) + static_cast<int64_t>(id) * 300;
     return t && t >= slotstart - 300 && t < slotstart + 600;
+  }
+  // Slot of a Dexcom reading taken at tim. The sensor reads on a fixed
+  // 5-minute grid, so a copy timed by another device's clock (the watch) goes
+  // to the nearest grid point of the readings already here; plain division
+  // put a copy timed a little late into the next slot, as if that reading had
+  // arrived (#767). Without such a reading, plain division.
+  int dexSlotFor(const uint32_t tim) const {
+    const int64_t start = getstarttime();
+    const int64_t secs = static_cast<int64_t>(tim) - start;
+    if (!start || secs < 0)
+      return -1;
+    int ref = getinfo()->lastLifeCountReceived;
+    if (!dexSlotTimeFits(ref))
+      for (ref = pollcount() - 1; ref >= 0 && !dexSlotTimeFits(ref); --ref)
+        ;
+    if (ref < 0)
+      return static_cast<int>(secs / 300);
+    const int64_t phase = static_cast<int64_t>(getstream(ref)->gettime()) -
+                          start - static_cast<int64_t>(ref) * 300;
+    const int64_t snapped = secs - phase + 150;
+    return snapped < 0 ? 0 : static_cast<int>(snapped / 300);
+  }
+  // Before #767 was fixed, readings mirrored from the paired watch were
+  // stored here at minute indices, padding the stream days past the live
+  // slot. Its end then held an old copy: the backfill window came out empty
+  // and the last reading stayed stuck. Move each copy into its own slot when
+  // the sensor left that slot empty, drop it when the slot has the sensor's
+  // own reading, and end the stream at the newest reading left. Entries
+  // timed neither by slot nor by minute are kept as they are.
+  void repairDexcomMinuteSlots() {
+    auto *info = getinfo();
+    const int64_t start = getstarttime();
+    const int count =
+        std::min<int64_t>(pollcount(), static_cast<int64_t>(pollStorageCapacity()));
+    if (!info || !start || count <= 0)
+      return;
+    int moved = 0, dropped = 0, end = 0;
+    for (int i = 0; i < count; ++i) {
+      const ScanData el = polls[i];
+      if (!el.g)
+        continue;
+      if (el.id == i && dexSlotTimeFits(i)) {
+        end = i + 1;
+        continue;
+      }
+      const int64_t secs = static_cast<int64_t>(el.t) - start;
+      if (el.id != i || i < 5 || secs < int64_t{i} * 60 - 300 ||
+          secs > int64_t{i} * 60 + 300) {
+        end = i + 1;
+        continue;
+      }
+      const int slot = dexSlotFor(el.t);
+      if (slot >= 0 && slot < i && !hasStreamID(slot)) {
+        polls[slot] = {el.t, slot, el.g, el.tr, el.ch};
+        rawpolls[slot] = rawpolls[i];
+        temppolls[slot] = temppolls[i];
+        end = std::max(end, slot + 1);
+        ++moved;
+      } else
+        ++dropped;
+      polls[i] = {static_cast<uint32_t>(start + int64_t{i} * 300), i, 0, 0, 0};
+      rawpolls[i] = {0};
+      temppolls[i] = 0;
+    }
+    if (!moved && !dropped)
+      return;
+    LOGGER("repairDexcomMinuteSlots moved=%d dropped=%d count=%d->%d\n", moved,
+           dropped, count, std::min(end, count));
+    if (end >= count)
+      return;
+    info->pollcount = end;
+    if (info->pollstart >= end)
+      info->pollstart = std::max(end - 1, 0);
+    if (info->lastLifeCountReceived >= end)
+      info->lastLifeCountReceived = std::max(end - 1, 0);
+    for (auto &up : info->update) {
+      up.streamstart = std::min<uint32_t>(up.streamstart, end);
+      up.rawstreamstart = std::min<uint32_t>(up.rawstreamstart, end);
+    }
   }
   template <int secs>
   int savepollallIDsonly(time_t tim, const int id, int glu, int trend,

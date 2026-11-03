@@ -1504,7 +1504,8 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   const bool dexslots = hist->isDexcom();
   int lifeCount = 0;
   if (start > 0 && timestamp >= start)
-    lifeCount = (timestamp - start) / (dexslots ? 300 : 60);
+    lifeCount = dexslots ? hist->dexSlotFor(timestamp)
+                         : (timestamp - start) / 60;
   const uint16_t mgVal = (uint16_t)(glucose * 10.0f);
 
   if (!hist->validPollIndex(lifeCount)) {
@@ -1522,9 +1523,8 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   const ScanData *pollsbuf = hist->getPollsData();
   const bool fillsPollGap = pollsbuf && pollsbuf[lifeCount].g <= 0;
   // The driver's own reading for a slot wins; a mirrored copy only fills a
-  // slot it missed (or one holding a minute-indexed leftover).
-  if (dexslots && lifeCount < hist->pollcount() && !fillsPollGap &&
-      hist->dexSlotTimeFits(lifeCount))
+  // slot it missed.
+  if (dexslots && lifeCount < hist->pollcount() && !fillsPollGap)
     return false;
   if (hist->hasStreamID(lifeCount)) {
     const RawData *rawbuf = hist->getRawPollsData();
