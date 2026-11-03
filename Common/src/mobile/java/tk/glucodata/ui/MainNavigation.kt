@@ -999,6 +999,10 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/mirror") { MirrorSettingsScreen(navController) }
     composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
+    composable("settings/clarity") { ClaritySettingsScreen(navController) }
+    composable("settings/clarity/login/{country}") { entry ->
+        ClarityLoginScreen(navController, entry.arguments?.getString("country").orEmpty())
+    }
     composable("settings/api-source") { ApiSourceSettingsScreen(navController) }
     composable("settings/glucose-meters") { GlucoseMeterSettingsScreen(navController) }
     composable("settings/insulin-pens") { InsulinPenSettingsScreen(navController) }
