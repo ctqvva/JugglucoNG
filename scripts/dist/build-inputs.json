@@ -36,6 +36,11 @@
       "sha256": "1e1c6ef4a723fcde932f2cff36cdc3461cb946b4e0892a075634e0fcd8119dac"
     },
     {
+      "path": "Common/src/main/jniLibs/arm64-v8a/liblibre_receiver_skb.so",
+      "size": 4468408,
+      "sha256": "7b946a3012ad278a74c9cccfc7da615582a494ae963439e8c9f0b6931b7fa038"
+    },
+    {
       "path": "Common/src/main/jniLibs/armeabi-v7a/libCALCULATION.so",
       "size": 460157,
       "sha256": "d3d7f162b38e4d0bbe635abc25998ed92d2afc8b5cfae5f3b51df94ba2d613e9"
@@ -69,6 +74,11 @@
       "path": "Common/src/main/jniLibs/armeabi-v7a/liblibre3extension.so",
       "size": 4067532,
       "sha256": "034a45892828a4bf8fb9ee64b545f4ec215ab9a5f31598a55faa9ec9a26270b1"
+    },
+    {
+      "path": "Common/src/main/jniLibs/armeabi-v7a/liblibre_receiver_skb.so",
+      "size": 4819728,
+      "sha256": "b8b2fad33c68e46762a11b6e08fa0e2e38a3f60d5acdae165af0097109877492"
     }
   ],
   "removedFiles": [
@@ -93,5 +103,6 @@
     "Common/src/main/jniLibs/armeabi-v7a/libmodpng.so",
     "Common/src/main/jniLibs/armeabi-v7a/libobjectbox-jni.so",
     "Common/src/main/jniLibs/armeabi-v7a/libscannative.so"
-  ]
+  ],
+  "bootstrapRequired": true
 }
