@@ -19,6 +19,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+// Production reads the app files directory from here; empty disables persistence.
+std::string_view globalbasedir;
 #include "net/ICE/GenerationWatchRetry.hpp"
 #include "net/ICE/RendezvousCandidateStream.hpp"
 #include "net/ICE/RecoveryWakeLease.hpp"
@@ -89,6 +92,7 @@ struct Link {
     std::array<int, 2> v6sockets{-1, -1};
     std::atomic_bool blockIPv4{false};
     size_t ipv4Packets{}, ipv6Packets{};
+    std::vector<in_addr_t> ipv4Destinations;
     std::atomic_int joins{0}, leaves{0};
     bool failJoin{false};
     std::array<uint8_t, 16> key{};
@@ -99,7 +103,8 @@ struct Link {
     size_t dropped{};
     static inline Link *active{};
 
-    Link(bool ipv4 = true, bool ipv6 = false) {
+    Link(bool ipv4 = true, bool ipv6 = false,
+         const char *label = "paired-lan-test") {
         if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sockets.data()) != 0)
             throw std::runtime_error("socketpair failed");
         active = this;
@@ -107,7 +112,7 @@ struct Link {
             throw std::runtime_error("IPv6 test socketpair failed");
         for (int side = 0; side != 2; ++side) {
             sessions[side] = std::make_unique<LocalICESignalSession>(
-                side, nullptr, 1, "paired-lan-test", side, key,
+                side, nullptr, 1, label, side, key,
                 std::string(32, side ? 'b' : 'a'));
             sessions[side]->impl->socketFd = ipv4 ? sockets[side] : -1;
             sessions[side]->impl->multicastFd = v6sockets[side];
@@ -223,6 +228,8 @@ static ssize_t testSendTo(int socket, const void *data, size_t length, int flags
         ++link.ipv6Packets;
     } else {
         ++link.ipv4Packets;
+        link.ipv4Destinations.push_back(
+            reinterpret_cast<const sockaddr_in *>(destination)->sin_addr.s_addr);
         if (link.blockIPv4) return static_cast<ssize_t>(length);
     }
     if (link.drop && link.drop(side, static_cast<MessageType>(plain[0]))) {
@@ -323,6 +330,68 @@ static void recoverSnapshotFromConnectedPeer() {
     require(waitUntil([&] {
         return link.peers[1].candidates > 0 && link.peers[1].gatheringDone;
     }), "connected peer did not repair lost candidate/gathering completion");
+}
+
+// Connected, the multicast lock only lets every LAN multicast wake the phone.
+// It goes once the peer's address is known: signaling then also travels by
+// unicast, which the Wi-Fi filter passes, and the address survives a restart.
+static void connectedPeerDropsMulticastLockButStaysReachable() {
+    char directory[] = "/tmp/juggluco-local-ice-XXXXXX";
+    if (!mkdtemp(directory)) throw std::runtime_error("mkdtemp failed");
+    globalbasedir = directory;
+    const char *label = "unicast-reach-test";
+    const in_addr_t peerAddress = htonl(0xC0000207); // 192.0.2.7
+    {
+        Link link(true, false, label);
+        auto *answerer = link.sessions[1]->impl.get();
+        answerer->multicastLockHeld = true;
+        link.sessions[1]->markConnected();
+        require(answerer->multicastLockHeld,
+                "dropped the lock with no direct way to reach the peer");
+
+        sockaddr_storage source{};
+        auto &from = reinterpret_cast<sockaddr_in &>(source);
+        from.sin_family = AF_INET;
+        from.sin_addr.s_addr = peerAddress;
+        auto stale = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'c'));
+        answerer->handlePacket(stale.data(), stale.size(), &source);
+        require(!answerer->knowsPeer(), "learned an address from a stale echo");
+        require(answerer->multicastLockHeld, "a stale echo dropped the lock");
+
+        auto fresh = link.sessions[0]->impl->makePacket(
+            MessageType::Hello, {}, std::string(32, 'b'));
+        answerer->handlePacket(fresh.data(), fresh.size(), &source);
+        require(answerer->knowsPeer(), "peer address not learned");
+        require(!answerer->multicastLockHeld, "connected peer kept the multicast lock");
+
+        {
+            std::lock_guard lock(link.mutex);
+            link.ipv4Destinations.clear();
+        }
+        answerer->sendPacket(MessageType::Hello);
+        std::lock_guard lock(link.mutex);
+        require(std::find(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
+                          peerAddress) != link.ipv4Destinations.end(),
+                "signaling not sent to the peer directly");
+        require(std::find_if(link.ipv4Destinations.begin(), link.ipv4Destinations.end(),
+                             [&](in_addr_t a) { return a != peerAddress; }) !=
+                    link.ipv4Destinations.end(),
+                "broadcast discovery was dropped");
+    }
+    {
+        Link restarted(true, false, label);
+        auto *answerer = restarted.sessions[1]->impl.get();
+        require(answerer->knowsPeer(), "peer address lost across an app restart");
+        answerer->multicastLockHeld = true;
+        restarted.sessions[1]->markConnected();
+        require(!answerer->multicastLockHeld,
+                "remembered peer did not let the lock go on connect");
+    }
+    const auto path = peerAddressPath(label);
+    unlink(path.c_str());
+    rmdir(directory);
+    globalbasedir = {};
 }
 
 static void noTrafficAfterBothConnected() {
@@ -752,6 +821,7 @@ int main() {
         {"lost answer after peer authentication", [] { recoverLostDescription(1); }},
         {"connected peer repairs lost snapshot", recoverSnapshotFromConnectedPeer},
         {"both connected stop broadcasts", noTrafficAfterBothConnected},
+        {"connected peer drops multicast lock but stays reachable", connectedPeerDropsMulticastLockButStaysReachable},
         {"Rendezvous winner remains authoritative", [] { rendezvousWinnerIsPreserved(); }},
         {"late Hello cannot start a connected reply loop", [] { lateHelloDoesNotStartAReplyLoop(); }},
         {"existing Rendezvous connection is not renegotiated", [] { lateHelloDoesNotStartAReplyLoop(true); }},

@@ -1,6 +1,7 @@
 #include "LocalICESignal.hpp"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <poll.h>
@@ -11,6 +12,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <optional>
@@ -66,6 +68,8 @@ namespace { bool multicastLease(bool) { return false; } }
 
 #include "logs.hpp"
 #include "net/makerandom.hpp"
+
+extern std::string_view globalbasedir;
 
 #define LOGGERLOCALICE(...) LOGGER("ICE local signal: " __VA_ARGS__)
 #define LOGARLOCALICE(...) LOGAR("ICE local signal: " __VA_ARGS__)
@@ -209,6 +213,43 @@ in6_addr multicastGroup(std::string_view label) {
     return group;
 }
 
+// The peer's LAN IPv4 address, kept per pairing so a restarted app still has it.
+// Signaling also goes there directly: unicast passes the Wi-Fi receive filter,
+// so a connected peer can drop its multicast lock and still hear a restart.
+std::string peerAddressPath(std::string_view label) {
+    if (globalbasedir.empty()) return {};
+    char name[32];
+    std::snprintf(name, sizeof(name), "/localicepeer-%08lx",
+                  static_cast<unsigned long>(crc32(0,
+                      reinterpret_cast<const Bytef *>(label.data()),
+                      static_cast<uInt>(label.size()))));
+    return std::string(globalbasedir) + name;
+}
+
+std::optional<in_addr> loadPeerAddress(std::string_view label) {
+    const auto path = peerAddressPath(label);
+    if (path.empty()) return std::nullopt;
+    const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return std::nullopt;
+    in_addr address{};
+    const bool complete = read(fd, &address, sizeof(address)) == sizeof(address);
+    close(fd);
+    if (!complete || address.s_addr == 0) return std::nullopt;
+    return address;
+}
+
+void storePeerAddress(std::string_view label, in_addr address) {
+    const auto path = peerAddressPath(label);
+    if (path.empty()) return;
+    const auto temporary = path + ".tmp";
+    const int fd = open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    if (fd < 0) return;
+    const bool complete = write(fd, &address, sizeof(address)) == sizeof(address);
+    close(fd);
+    if (!complete || rename(temporary.c_str(), path.c_str()) != 0)
+        unlink(temporary.c_str());
+}
+
 std::vector<unsigned> multicastInterfaces() {
     std::vector<unsigned> interfaces;
     ifaddrs *addresses = nullptr;
@@ -257,7 +298,10 @@ struct LocalICESignalSession::Impl {
     int socketFd{-1};
     int multicastFd{-1};
     std::vector<unsigned> joinedInterfaces; // Protected by sendMutex.
-    bool multicastLockHeld{false};
+    // Held while discovering. Once connected and the peer's address is known,
+    // it is dropped: it lets every multicast on the LAN wake the phone.
+    std::atomic_bool multicastLockHeld{false};
+    std::optional<sockaddr_in> peerAddress; // Protected by stateMutex.
     // The same authenticated datagram is sent twice on each discovery family.
     // Ignore those copies, but allow retry snapshots with fresh nonces.
     std::array<std::array<uint8_t, nonceLength>, 64> receivedNonces{};
@@ -275,7 +319,48 @@ struct LocalICESignalSession::Impl {
           side(connectionSide),
           key(connectionKey),
           port(localPortForLabel(connectionLabel)),
-          localGeneration(connectionGeneration) {}
+          localGeneration(connectionGeneration) {
+        if (const auto address = loadPeerAddress(label)) {
+            sockaddr_in destination{};
+            destination.sin_family = AF_INET;
+            destination.sin_port = htons(port);
+            destination.sin_addr = *address;
+            peerAddress = destination;
+        }
+    }
+
+    void releaseMulticastLock() {
+        if (multicastLockHeld.exchange(false)) {
+            multicastLease(false);
+            LOGARLOCALICE("connected; multicast lock released");
+        }
+    }
+
+    // Only an echo of our current generation counts: that packet is fresh from
+    // the paired peer, not a replay of an older one from elsewhere.
+    void rememberPeer(const sockaddr_storage &source) {
+        if (source.ss_family != AF_INET) return;
+        auto address = reinterpret_cast<const sockaddr_in &>(source);
+        address.sin_port = htons(port);
+        bool changed;
+        {
+            const std::lock_guard<std::mutex> lock(stateMutex);
+            changed = !peerAddress ||
+                      peerAddress->sin_addr.s_addr != address.sin_addr.s_addr;
+            if (changed) peerAddress = address;
+        }
+        if (changed) {
+            storePeerAddress(label, address.sin_addr);
+            LOGARLOCALICE("remembered peer LAN address");
+        }
+        if (connected.load(std::memory_order_acquire))
+            releaseMulticastLock();
+    }
+
+    bool knowsPeer() {
+        const std::lock_guard<std::mutex> lock(stateMutex);
+        return peerAddress.has_value();
+    }
 
     bool createIPv4Socket() {
         socketFd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -411,10 +496,12 @@ struct LocalICESignalSession::Impl {
         if (stopping.load(std::memory_order_acquire))
             return;
         std::string echo;
+        std::optional<sockaddr_in> peer;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
             echo = explicitEcho.empty() ? peerGeneration
                                         : std::string(explicitEcho);
+            peer = peerAddress;
         }
         auto packet = makePacket(type, data, echo);
         if (packet.empty())
@@ -422,12 +509,19 @@ struct LocalICESignalSession::Impl {
         const auto destinations = broadcastDestinations(port);
         const std::lock_guard<std::mutex> lock(sendMutex);
         if (stopping.load(std::memory_order_acquire)) return;
-        if (socketFd >= 0)
-        for (const auto &destination : destinations) {
-            for (int attempt = 0; attempt < 2; ++attempt)
-                sendto(socketFd, packet.data(), packet.size(), MSG_NOSIGNAL,
-                       reinterpret_cast<const sockaddr *>(&destination),
-                       sizeof(destination));
+        if (socketFd >= 0) {
+            for (const auto &destination : destinations) {
+                for (int attempt = 0; attempt < 2; ++attempt)
+                    sendto(socketFd, packet.data(), packet.size(), MSG_NOSIGNAL,
+                           reinterpret_cast<const sockaddr *>(&destination),
+                           sizeof(destination));
+            }
+            if (peer) {
+                for (int attempt = 0; attempt < 2; ++attempt)
+                    sendto(socketFd, packet.data(), packet.size(), MSG_NOSIGNAL,
+                           reinterpret_cast<const sockaddr *>(&*peer),
+                           sizeof(*peer));
+            }
         }
         if (multicastFd >= 0) {
             sockaddr_in6 destination{};
@@ -507,7 +601,8 @@ struct LocalICESignalSession::Impl {
             applyLocalICEGatheringDone(allindex, agent, agentGeneration);
     }
 
-    void handlePacket(const uint8_t *packet, size_t length) {
+    void handlePacket(const uint8_t *packet, size_t length,
+                      const sockaddr_storage *source = nullptr) {
         std::vector<uint8_t> plain;
         if (!decryptPacket(packet, length, plain))
             return;
@@ -542,6 +637,8 @@ struct LocalICESignalSession::Impl {
         receivedNonceCount = std::min(receivedNonceCount + 1, receivedNonces.size());
 
         const bool echoMatches = echo == localGeneration;
+        if (echoMatches && source)
+            rememberPeer(*source);
         bool peerChanged = false;
         bool unconfirmedPeerChange = false;
         {
@@ -690,10 +787,15 @@ struct LocalICESignalSession::Impl {
             if (result <= 0) continue;
             for (const auto &descriptor : descriptors) {
                 if (!(descriptor.revents & POLLIN)) continue;
+                sockaddr_storage source{};
+                socklen_t sourceLength = sizeof(source);
                 const ssize_t received = recvfrom(descriptor.fd, packet.data(),
-                                              packet.size(), 0, nullptr, nullptr);
+                                              packet.size(), 0,
+                                              reinterpret_cast<sockaddr *>(&source),
+                                              &sourceLength);
                 if (received > 0)
-                    handlePacket(packet.data(), static_cast<size_t>(received));
+                    handlePacket(packet.data(), static_cast<size_t>(received),
+                                 sourceLength > 0 ? &source : nullptr);
             }
         }
     }
@@ -742,10 +844,8 @@ void LocalICESignalSession::stop() {
         close(impl->multicastFd);
         impl->multicastFd = -1;
     }
-    if (impl->multicastLockHeld) {
+    if (impl->multicastLockHeld.exchange(false))
         multicastLease(false);
-        impl->multicastLockHeld = false;
-    }
 }
 
 void LocalICESignalSession::publishDescription(std::string_view description) {
@@ -780,7 +880,14 @@ void LocalICESignalSession::publishGatheringDone() {
     impl->sendPacket(MessageType::GatheringDone);
 }
 
-void LocalICESignalSession::markConnected() { impl->connected = true; }
+// Keep listening while connected so a restarted peer can reach us, but with the
+// peer's address known its packets arrive by unicast: no multicast lock needed.
+// Without one (e.g. connected over TURN) the lock stays, as before.
+void LocalICESignalSession::markConnected() {
+    impl->connected = true;
+    if (impl->knowsPeer())
+        impl->releaseMulticastLock();
+}
 
 bool LocalICESignalSession::requestPromotionProbe() {
     const auto token = makeProbeToken();
