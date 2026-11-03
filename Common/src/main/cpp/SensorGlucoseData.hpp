@@ -2146,6 +2146,17 @@ uint32_t getlastpolltime() const {
       return false;
     return polls[id].id == id && polls[id].g;
   }
+  // A Dexcom slot is (sensor seconds)/300, so a reading stored at id was taken
+  // in [start+id*300, start+id*300+300); allow some clock drift either side.
+  // Readings written at minute indices (#767) do not fit their slot.
+  bool dexSlotTimeFits(const int id) const {
+    if (!validPollIndex(id))
+      return false;
+    const int64_t t = getstream(id)->gettime();
+    const int64_t slotstart =
+        static_cast<int64_t>(getstarttime()) + static_cast<int64_t>(id) * 300;
+    return t && t >= slotstart - 300 && t < slotstart + 600;
+  }
   template <int secs>
   int savepollallIDsonly(time_t tim, const int id, int glu, int trend,
                          float change, int raw = 0, uint16_t temp = 0) {

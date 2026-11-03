@@ -37,7 +37,7 @@ fixture = fixture.replace('/* SENSOR_METHODS */', methods('SensorGlucoseData.hpp
     'const int historybytes(', 'int32_t maxstreampos(', 'int32_t pollStorageSize(',
     'int initialHistoryBytes(', 'static bool mkdatabaseDex(',
     '[[nodiscard]] const std::array<uint8_t, 4> getDexPin()',
-    'bool hasData(', 'int getweardurationMIN()', 'int getweardurationSEC()',
+    'bool hasData(', 'bool dexSlotTimeFits(', 'int getweardurationMIN()', 'int getweardurationSEC()',
     'uint32_t officialendtime()', 'int expectedWearDuration()', 'uint32_t expectedEndTime()',
 ]))
 fixture = fixture.replace('/* REGISTRY_METHODS */', methods('sensoren.hpp', [
