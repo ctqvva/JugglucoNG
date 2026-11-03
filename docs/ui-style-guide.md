@@ -100,8 +100,7 @@ in `ui/theme/Type.kt`, with `titleMedium` at 400 for the "sleek list" look.
 | `displayLarge` (condensed) | The current glucose value |
 | `displaySmall` / `headlineMedium` | Tab titles (`TabScreenHeader`, by window size) |
 | `titleLarge` | Top app bar titles |
-| `titleMedium` | General list and card titles (`…Emphasized` for a card's title) |
-| `settingsTitle` | Shared settings row and control titles, at weight 500 |
+| `titleMedium` | Settings row titles, card titles (`…Emphasized` for a card's title) |
 | `bodyMedium` | Row subtitles, card body |
 | `labelLarge` | Buttons, section labels |
 | `labelMedium` / `labelSmall` | Chips, metadata, chart axis (11sp minimum) |

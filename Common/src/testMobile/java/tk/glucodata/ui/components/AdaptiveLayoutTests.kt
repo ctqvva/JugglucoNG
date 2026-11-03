@@ -536,7 +536,9 @@ class AdaptiveLayoutTests {
                 val label = compose.onNodeWithText(subtitle(), useUnmergedTree = true)
                 val layout = label.textLayout()
                 label.assertTextFits()
-                compose.onNodeWithText(title, useUnmergedTree = true).assertTextFits()
+                val heading = compose.onNodeWithText(title, useUnmergedTree = true)
+                heading.assertTextFits()
+                assertEquals(FontWeight.Normal, heading.textLayout().layoutInput.style.fontWeight)
                 assertTrue("fixture should wrap: $environment/$ru", layout.lineCount >= 2)
                 for (line in 1 until layout.lineCount) {
                     val baselineGap = layout.getLineBaseline(line) - layout.getLineBaseline(line - 1)
@@ -547,6 +549,8 @@ class AdaptiveLayoutTests {
                 }
                 val row = compose.onNodeWithTag("navRow").fetchSemanticsNode().boundsInRoot
                 val text = label.fetchSemanticsNode().boundsInRoot
+                val headingBounds = heading.fetchSemanticsNode().boundsInRoot
+                assertEquals("title/subtitle separation", 4f * environment.density, text.top - headingBounds.bottom, 0.5f)
                 val toggle = compose.onNode(isToggleable())
                 val control = toggle.fetchSemanticsNode().boundsInRoot
                 assertTrue(text.bottom <= row.bottom)

@@ -307,10 +307,6 @@ val Typography.labelSmallPrim: TextStyle
         letterSpacing = 0.5.sp
     )
 
-// Settings row and control titles use medium weight with the standard title metrics.
-val Typography.settingsTitle: TextStyle
-    get() = titleMedium.copy(fontWeight = FontWeight.Medium)
-
 // Settings Labels
 val Typography.labelLargeExpressive: TextStyle
     get() = labelLarge.copy(
