@@ -129,7 +129,9 @@ class SibionicsGs3BleManager(
     /** MAC carried by the latest advertisement (0x55AA / 0x5347). */
     @Volatile private var advertisedIdentityMac: ByteArray? = null
 
-    private val writeQueue = ArrayDeque<Pair<ByteArray, String>>()
+    private class PendingWrite(val bytes: ByteArray, val label: String, val sensitive: Boolean)
+
+    private val writeQueue = ArrayDeque<PendingWrite>()
     private var writeInFlight = false
     private var writeAttempts = 0
 
@@ -145,6 +147,12 @@ class SibionicsGs3BleManager(
     @Volatile private var nativeShellStartSec: Long = 0L
     @Volatile private var lastFailure: String = ""
     @Volatile private var preserveResumeStateOnRemoval: Boolean = false
+
+    /**
+     * Address whose completed service discovery showed it is not a GS3 (no FF30/FF31/FF32).
+     * Never reconnected to automatically; only an explicit reconnect clears it.
+     */
+    @Volatile private var incompatibleAddress: String? = null
 
     @Volatile private var viewModeValue: Int = ManagedSensorViewModeStore.read(Applic.app, serial, 0)
 
@@ -206,6 +214,12 @@ class SibionicsGs3BleManager(
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop) return false
         if (advertisementRecovery.isActive) return true
+        if (isIncompatible(knownBleAddress())) {
+            // Handled: nothing to connect to, and nothing for the shared scanner to look for.
+            phase = Phase.ERROR
+            setStatus(lastFailure)
+            return true
+        }
         if (phase != Phase.IDLE && phase != Phase.ERROR && mBluetoothGatt != null) {
             Log.d(TAG, "connect coalesced phase=$phase serial=$SerialNumber")
             return true
@@ -245,6 +259,9 @@ class SibionicsGs3BleManager(
     @Synchronized
     override fun softReconnect() {
         stop = false
+        // The user asked to try again: give a previously rejected device another discovery.
+        incompatibleAddress = null
+        lastFailure = ""
         phase = Phase.IDLE
         connectDevice(0)
     }
@@ -288,6 +305,7 @@ class SibionicsGs3BleManager(
      */
     override fun matchDeviceName(deviceName: String?, address: String?): Boolean {
         val scanned = SibionicsConstants.normalizeBleAddress(address)
+        if (isIncompatible(scanned)) return false
         val known = knownBleAddress()
         if (known != null && scanned != null) return known.equals(scanned, ignoreCase = true)
         val name = SibionicsConstants.normalizeBleName(deviceName)
@@ -298,6 +316,7 @@ class SibionicsGs3BleManager(
     }
 
     override fun matchScanResult(result: ScanResult): Boolean {
+        if (isIncompatible(result.device?.address)) return false
         val expected = identityMac ?: return false
         val advertised = advertisedMac(result) ?: return false
         return advertised.contentEquals(expected)
@@ -433,8 +452,14 @@ class SibionicsGs3BleManager(
         notifyChar = service?.getCharacteristic(SibionicsConstants.CHAR_NOTIFY_FF31)
         writeChar = service?.getCharacteristic(SibionicsConstants.CHAR_WRITE_FF32)
         if (notifyChar == null || writeChar == null) {
-            // Leave the retry timer armed: it re-runs discovery, then disconnects.
-            Log.w(TAG, "FF30/FF31/FF32 missing after discovery status=$status serial=$SerialNumber")
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // Discovery completed and the device simply lacks the GS3 GATT layout.
+                // Retrying or reconnecting cannot change that.
+                rejectIncompatibleDevice(gatt, if (service == null) "FF30 missing" else "FF31/FF32 missing")
+            } else {
+                // Discovery itself failed; the retry timer re-runs it, then disconnects.
+                Log.w(TAG, "service discovery status=$status serial=$SerialNumber")
+            }
             return
         }
         handler.removeCallbacks(discoveryRetryRunnable)
@@ -448,6 +473,22 @@ class SibionicsGs3BleManager(
             Log.w(TAG, "serial number characteristic unavailable=${identity == null} serial=$SerialNumber")
             enableNotifications(gatt)
         }
+    }
+
+    private fun rejectIncompatibleDevice(gatt: BluetoothGatt, reason: String) {
+        val address = SibionicsConstants.normalizeBleAddress(gatt.device?.address) ?: knownBleAddress()
+        incompatibleAddress = address
+        lastFailure = "Not a Sibionics GS3 CN sensor ($reason)"
+        Log.w(TAG, "rejecting $address: $reason; not reconnecting serial=$SerialNumber")
+        handler.removeCallbacks(reconnectRunnable)
+        prepareForReconnect()
+        phase = Phase.ERROR
+        setStatus(lastFailure)
+    }
+
+    private fun isIncompatible(address: String?): Boolean {
+        val rejected = incompatibleAddress ?: return false
+        return SibionicsConstants.normalizeBleAddress(address)?.equals(rejected, ignoreCase = true) == true
     }
 
     private val identityReadTimeoutRunnable = Runnable {
@@ -535,6 +576,9 @@ class SibionicsGs3BleManager(
         if (status != BluetoothGatt.GATT_SUCCESS) Log.w(TAG, "write ${characteristic.uuid} status=$status")
         if (!isCurrentGatt(gatt) || characteristic.uuid != SibionicsConstants.CHAR_WRITE_FF32) return
         handler.post {
+            // After a callback timeout the link is torn down, so a late callback for that
+            // write finds a retired GATT above; this guards the remaining window.
+            if (gatt !== mBluetoothGatt || !writeInFlight) return@post
             handler.removeCallbacks(writeCallbackTimeoutRunnable)
             writeInFlight = false
             pumpWrites()
@@ -601,7 +645,7 @@ class SibionicsGs3BleManager(
         val current = session
         for (action in actions) {
             when (action) {
-                is SibionicsGs3Session.Action.Send -> enqueueWrite(action.wire, action.label, action.plain)
+                is SibionicsGs3Session.Action.Send -> enqueueWrite(action)
                 is SibionicsGs3Session.Action.Page -> processPage(action.page)
                 is SibionicsGs3Session.Action.Note -> Log.i(TAG, "${action.text} serial=$SerialNumber")
                 is SibionicsGs3Session.Action.Failed -> {
@@ -627,9 +671,12 @@ class SibionicsGs3BleManager(
                     Log.i(TAG, "streaming v3=${current.isV3} cipher=${current.cipher} serial=$SerialNumber")
                 }
             }
+            // Keyed by the request count: a retry in the same state (IdBind seq 2, the next
+            // auth fallback) gets its own deadline; an ignored notification sends nothing
+            // and so cannot extend the current one.
             SibionicsGs3Session.State.WAITING_AUTH ->
-                armStepTimeout("auth-${current.authAttempt}", AUTH_STEP_TIMEOUT_MS)
-            else -> armStepTimeout(current.state.name, HANDSHAKE_STEP_TIMEOUT_MS)
+                armStepTimeout("auth-${current.authAttempt}-${current.sendCount}", AUTH_STEP_TIMEOUT_MS)
+            else -> armStepTimeout("${current.state.name}-${current.sendCount}", HANDSHAKE_STEP_TIMEOUT_MS)
         }
     }
 
@@ -694,19 +741,33 @@ class SibionicsGs3BleManager(
 
     // ---- writes ----
 
-    private fun enqueueWrite(bytes: ByteArray, label: String, plain: ByteArray) {
-        Log.i(TAG, "queue $label plain=${SibionicsGs3Protocol.toHex(plain)} serial=$SerialNumber")
-        if (bytes.size > mtu - 3) {
+    private fun enqueueWrite(send: SibionicsGs3Session.Action.Send) {
+        Log.i(TAG, "queue ${send.label} plain=${loggable(send.plain, send.sensitive)} serial=$SerialNumber")
+        if (send.wire.size > mtu - 3) {
             // Only a write with response is split by the stack (long write).
-            Log.d(TAG, "$label is ${bytes.size} bytes over mtu=$mtu")
+            Log.d(TAG, "${send.label} is ${send.wire.size} bytes over mtu=$mtu")
         }
-        writeQueue.addLast(bytes to label)
+        writeQueue.addLast(PendingWrite(send.wire, send.label, send.sensitive))
         pumpWrites()
     }
 
+    /**
+     * Auth frames carry the session key — in PLAIN the wire bytes are the key itself, and the
+     * encrypted forms are reversible with constants in this file — so only their header and
+     * length are ever logged. Log.i lines are kept in the trace ring and exported with it.
+     */
+    private fun loggable(bytes: ByteArray, sensitive: Boolean): String =
+        if (sensitive) {
+            "${SibionicsGs3Protocol.toHex(bytes.copyOf(minOf(2, bytes.size)))} …(${bytes.size} bytes, redacted)"
+        } else {
+            SibionicsGs3Protocol.toHex(bytes)
+        }
+
     private fun pumpWrites() {
         if (writeInFlight) return
-        val (bytes, label) = writeQueue.peekFirst() ?: return
+        val pending = writeQueue.peekFirst() ?: return
+        val bytes = pending.bytes
+        val label = pending.label
         val gatt = mBluetoothGatt
         val ch = writeChar
         if (gatt == null || ch == null) {
@@ -719,7 +780,7 @@ class SibionicsGs3BleManager(
             writeInFlight = true
             handler.removeCallbacks(writeCallbackTimeoutRunnable)
             handler.postDelayed(writeCallbackTimeoutRunnable, WRITE_CALLBACK_TIMEOUT_MS)
-            Log.i(TAG, "write $label bytes=${SibionicsGs3Protocol.toHex(bytes)}")
+            Log.i(TAG, "write $label bytes=${loggable(bytes, pending.sensitive)}")
             return
         }
         writeAttempts++
@@ -736,12 +797,16 @@ class SibionicsGs3BleManager(
 
     private val writeRetryRunnable = Runnable { pumpWrites() }
 
-    /** The stack never confirmed the last write: unblock the queue. */
+    /**
+     * The stack never confirmed the last write. The vendor just unblocks its queue, but a
+     * callback can carry no write identity: a late one for this write would then complete
+     * whichever write went out next, releasing commands before the sensor has them. Start
+     * over on a fresh connection instead.
+     */
     private val writeCallbackTimeoutRunnable = Runnable {
-        if (writeInFlight) {
-            Log.w(TAG, "write callback timeout serial=$SerialNumber")
-            writeInFlight = false
-            pumpWrites()
+        if (writeInFlight && mBluetoothGatt != null) {
+            Log.w(TAG, "write callback timeout; reconnecting serial=$SerialNumber")
+            reconnectNow("write callback timeout")
         }
     }
 
@@ -816,11 +881,10 @@ class SibionicsGs3BleManager(
         startTimeMs = candidate
         Applic.app?.let { SibionicsRegistry.saveStartTimeMs(it, SerialNumber, candidate) }
         Log.i(TAG, "session anchor start=$candidate previous=$previous ref idx=${reference.index} age=${reference.ageRecords}")
-        if (previous > 0L && nativeShellStartSec > 0L) {
-            runCatching { Natives.rebaseDirectStreamWindow(SerialNumber, candidate / 1000L) }
-                .onFailure { Log.stack(TAG, "rebaseDirectStreamWindow", it) }
-            nativeShellStartSec = candidate / 1000L
-        }
+        // The native window is deliberately left where it is. rebaseDirectStreamWindow clears
+        // every stored sample, and the cursor has moved past the pages that wrote them, so they
+        // would never come back. The window only sets the origin of minute slots; records keep
+        // their absolute times, so later readings still land in the right minutes.
     }
 
     private fun storeHistory(readings: List<Reading>) {

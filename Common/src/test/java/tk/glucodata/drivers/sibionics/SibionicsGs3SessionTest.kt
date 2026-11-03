@@ -256,6 +256,34 @@ class SibionicsGs3SessionTest {
     }
 
     @Test
+    fun `only auth frames are marked as carrying the session key`() {
+        val s = session()
+        assertTrue(s.start().onlySend().sensitive)
+        assertTrue(s.onStepTimeout().onlySend().sensitive)
+        assertTrue(s.onStepTimeout().onlySend().sensitive)
+        val idBind = s.onNotification(reply(s, ack(0x02))).onlySend()
+        assertFalse(idBind.sensitive)
+        val v3 = session()
+        v3.start()
+        assertFalse(v3.onNotification(reply(v3, ack(0xE3))).onlySend().sensitive)
+    }
+
+    @Test
+    fun `each real request bumps the send count and ignored frames do not`() {
+        val s = session()
+        toIdBind(s)
+        val afterFirst = s.sendCount
+        // An ignored frame in the same state sends nothing.
+        s.onNotification(reply(s, sysInfo(9)))
+        assertEquals(afterFirst, s.sendCount)
+        assertEquals(State.WAITING_ID_BIND, s.state)
+        // The seq 2 retry stays in WAITING_ID_BIND but is a new attempt.
+        s.onNotification(reply(s, ack(0x14, result = 1)))
+        assertEquals(State.WAITING_ID_BIND, s.state)
+        assertEquals(afterFirst + 1, s.sendCount)
+    }
+
+    @Test
     fun `handshake silence after auth fails the connection`() {
         val s = session()
         s.start()

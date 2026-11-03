@@ -39,7 +39,16 @@ internal class SibionicsGs3Session(
     enum class AuthAttempt { V3_REGISTERED, V3_PLAIN, V2_RC4 }
 
     sealed class Action {
-        data class Send(val label: String, val plain: ByteArray, val wire: ByteArray) : Action()
+        /**
+         * @param sensitive the frame carries the session key (auth); neither [plain] nor
+         *   [wire] may be logged — in PLAIN the wire bytes are the key itself.
+         */
+        data class Send(
+            val label: String,
+            val plain: ByteArray,
+            val wire: ByteArray,
+            val sensitive: Boolean = false,
+        ) : Action()
         data class Page(val page: Message.GlucosePage) : Action()
         data class Failed(val reason: String) : Action()
         data class Note(val text: String) : Action()
@@ -64,6 +73,14 @@ internal class SibionicsGs3Session(
     var cursor: Int = initialCursor.coerceIn(0, 0xFFFF)
         private set
     var lastReplyCipher: FrameCipher? = null
+        private set
+
+    /**
+     * Frames emitted so far. Changes only when a request actually goes out, so it tells a real
+     * new attempt (an IdBind retry, the next auth fallback) apart from a notification that was
+     * merely ignored.
+     */
+    var sendCount: Int = 0
         private set
 
     private var idBindSeq = 1
@@ -118,17 +135,17 @@ internal class SibionicsGs3Session(
             AuthAttempt.V3_REGISTERED -> {
                 isV3 = true
                 cipher = FrameCipher.REGISTERED_V3
-                listOf(send("auth-v3", SibionicsGs3Protocol.buildAuthV3(mac)))
+                listOf(send("auth-v3", SibionicsGs3Protocol.buildAuthV3(mac), sensitive = true))
             }
             AuthAttempt.V3_PLAIN -> {
                 isV3 = true
                 cipher = FrameCipher.PLAIN
-                listOf(send("auth-v3-plain", SibionicsGs3Protocol.buildAuthV3(mac)))
+                listOf(send("auth-v3-plain", SibionicsGs3Protocol.buildAuthV3(mac), sensitive = true))
             }
             AuthAttempt.V2_RC4 -> {
                 isV3 = false
                 cipher = FrameCipher.RC4
-                listOf(send("auth-v2", SibionicsGs3Protocol.buildAuthV2(mac)))
+                listOf(send("auth-v2", SibionicsGs3Protocol.buildAuthV2(mac), sensitive = true))
             }
         }
     }
@@ -288,12 +305,15 @@ internal class SibionicsGs3Session(
         return null
     }
 
-    private fun send(label: String, plain: ByteArray): Action.Send =
-        Action.Send(
+    private fun send(label: String, plain: ByteArray, sensitive: Boolean = false): Action.Send {
+        sendCount++
+        return Action.Send(
             label = label,
             plain = plain,
             wire = SibionicsGs3Protocol.encodeOutgoing(cipher, mac, plain) ?: plain,
+            sensitive = sensitive,
         )
+    }
 
     private fun fail(reason: String): List<Action> {
         state = State.FAILED
