@@ -290,8 +290,7 @@ fun DashboardEmptyState(
         }
 
         SensorSelectionCards(
-            onSensorSelected = onSensorSelected,
-            allowedTypes = allowedTypes,
+            onSensorSelected = onSensorSelected
         )
         
         Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
