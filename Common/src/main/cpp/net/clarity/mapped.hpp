@@ -7,7 +7,7 @@
 #include <memory>
 #include <type_traits>
 namespace clarity {
-// Uses Juggluco's Mmap (inout.hpp). No pointers, STL containers or JSON trees
+// A shared file mapping (mapped.cpp). No pointers, STL containers or JSON trees
 // are written to disk. All persisted layouts have fixed-width fields.
 class MappedFile {
     struct Impl;
@@ -16,6 +16,8 @@ class MappedFile {
     explicit MappedFile(const std::string &path, bool exclusive = false);
     ~MappedFile();
     bool created() const;
+    // Whether bytes [from, to) of the mapping are all zero.
+    bool zero(size_t from, size_t to) const;
     size_t size() const;
     unsigned char *data();
     const unsigned char *data() const;
@@ -56,13 +58,24 @@ template<class T> class MappedCheckpoint {
   public:
     MappedCheckpoint(const std::string &path, const char (&tag)[9], const T &initial, bool exclusive = true)
         : file(path, exclusive), magic(tag, 8) {
-        if (!file.created() && file.size() < 2 * stride)
+        // The first save always writes `initial` to slot 0, and slot 1 is first
+        // written by the second. So a file whose slot 1 was never written has
+        // never held anything but `initial`: it is an interrupted creation (the
+        // file is grown before that first checkpoint is published), not damaged
+        // saved data, and starting it again loses nothing. Files that did save
+        // data still refuse to open when truncated or unreadable.
+        const auto slot1 = std::min(file.size(), stride);
+        const bool unpublished = file.created() || file.size() <= stride ||
+            file.zero(slot1, std::min(file.size(), 2 * stride));
+        if (!unpublished && file.size() < 2 * stride)
             throw Error("Truncated Clarity mapped checkpoint");
         file.ensure(2 * stride);
         bool a = valid(0), b = valid(1);
         if (!a && !b) {
-            if (!file.created())
+            if (!unpublished)
                 throw Error("Invalid Clarity mapped checkpoint; upload stopped");
+            if (!file.created())
+                diagnostic("restarting a Clarity checkpoint whose creation was interrupted");
             save(initial);
             return;
         }
