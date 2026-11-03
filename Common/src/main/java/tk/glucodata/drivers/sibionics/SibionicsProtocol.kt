@@ -194,6 +194,10 @@ object SibionicsProtocol {
         SibionicsConstants.Variant.CHINESE -> buildChineseResetPacket()
         SibionicsConstants.Variant.SIBIONICS2,
         SibionicsConstants.Variant.GS3 -> buildResetPacket(0)
+
+        // Never sent: SibionicsGs3BleManager offers no reset, and no GS3 CN reset command
+        // is known. Exhaustive only so a new variant has to be placed here deliberately.
+        SibionicsConstants.Variant.GS3_CN -> buildResetPacket(0)
     }
 
     fun estimateChineseHistoryTotal(
