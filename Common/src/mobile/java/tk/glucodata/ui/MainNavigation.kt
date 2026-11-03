@@ -1000,6 +1000,7 @@ private fun NavGraphBuilder.appDestinations(
     composable("settings/outbound-api") { OutboundApiSettingsScreen(navController) }
     composable("settings/dexcom-share") { DexcomShareSettingsScreen(navController) }
     composable("settings/clarity") { ClaritySettingsScreen(navController) }
+    composable("settings/clarity/resume") { ClarityLoginScreen(navController, country = "", resume = true) }
     composable("settings/clarity/login/{country}") { entry ->
         ClarityLoginScreen(navController, entry.arguments?.getString("country").orEmpty())
     }
