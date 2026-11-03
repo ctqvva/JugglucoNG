@@ -32,6 +32,12 @@ def cases():
         ('connection-delimited JSON', [b'HTTP/1.0 201 Created\r\n\r\n', BODY[:7], BODY[7:]], 'close'),
         ('unauthenticated EOF', [b'HTTP/1.0 201 Created\r\n\r\n', BODY], 'abrupt'),
         ('interim response', [b'HTTP/1.1 100 Continue\r\n\r\n', header, BODY], 'token'),
+        ('interim Location is dropped', [b'HTTP/1.1 100 Continue\r\nLocation: https://localhost/no\r\n\r\n',
+                                         header, BODY], 'token'),
+        ('redirect Location', [b'HTTP/1.1 307 Temporary Redirect\r\nLocation:  https://localhost/moved?x=1 \r\n'
+                               b'Content-Length: 0\r\n\r\n'], 'redirect'),
+        ('mutual TLS client certificate', [header, BODY], 'mtls'),
+        ('mutual TLS without certificate', [header, BODY], 'mtls-missing'),
         ('empty response', [b'HTTP/1.1 204 No Content\r\n\r\n'], 'empty'),
         ('truncated length', [header, BODY[:7]], 'reject'),
         ('truncated chunks', chunks[:-1], 'reject'),
@@ -45,7 +51,7 @@ def cases():
     )
 
 
-def run_case(binary, context, cert, parts, mode):
+def run_case(binary, context, cert, parts, mode, client_env=None):
     listener = socket.socket()
     listener.bind(('127.0.0.1', 0)); listener.listen(1); listener.settimeout(4)
     port = listener.getsockname()[1]
@@ -84,6 +90,9 @@ def run_case(binary, context, cert, parts, mode):
                         pass
         except (BrokenPipeError, ConnectionResetError, ssl.SSLEOFError):
             pass  # expected when the client rejects framing before the last write
+        except ssl.SSLError:
+            if mode != 'mtls-missing':  # the server refuses a client without a certificate
+                raise
         except Exception as error:
             errors.append(error)
         finally:
@@ -93,7 +102,7 @@ def run_case(binary, context, cert, parts, mode):
     thread.start()
     try:
         result = subprocess.run([str(binary), str(port), mode],
-                                env=dict(os.environ, SSL_CERT_FILE=str(cert)), timeout=6)
+                                env=dict(os.environ, SSL_CERT_FILE=str(cert), **(client_env or {})), timeout=6)
     finally:
         thread.join(timeout=5)
     assert not thread.is_alive()
@@ -118,9 +127,30 @@ def main():
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(cert, key)
+        # Mutual TLS: a client certificate issued by a separate CA, which the
+        # client must send along with its issuer (as Dexcom Clarity requires).
+        ca, ca_key = directory / 'ca.pem', directory / 'ca-key.pem'
+        subprocess.run(['openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256',
+                        '-nodes', '-keyout', str(ca_key), '-out', str(ca), '-days', '1',
+                        '-subj', '/CN=synthetic client CA', '-addext', 'basicConstraints=critical,CA:TRUE',
+                        '-addext', 'keyUsage=critical,keyCertSign'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        client_key, client_csr, client_cert = (directory / n for n in ('client-key.pem', 'client.csr', 'client.pem'))
+        subprocess.run(['openssl', 'req', '-new', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256',
+                        '-nodes', '-keyout', str(client_key), '-out', str(client_csr), '-subj', '/CN=synthetic client'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['openssl', 'x509', '-req', '-in', str(client_csr), '-CA', str(ca), '-CAkey', str(ca_key),
+                        '-CAcreateserial', '-out', str(client_cert), '-days', '1'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        mutual = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        mutual.load_cert_chain(cert, key)
+        mutual.load_verify_locations(ca)
+        mutual.verify_mode = ssl.CERT_REQUIRED
+        client_env = {'CLIENT_CERT': str(client_cert), 'CLIENT_KEY': str(client_key), 'CLIENT_ISSUER': str(ca)}
         for name, parts, mode in cases():
             print(name, flush=True)
-            assert run_case(binary, context, cert, parts, mode) == 0
+            server = mutual if mode.startswith('mtls') else context
+            assert run_case(binary, server, cert, parts, mode, client_env) == 0
 
 
 if __name__ == '__main__':
