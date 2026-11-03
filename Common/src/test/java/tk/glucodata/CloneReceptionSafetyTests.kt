@@ -417,6 +417,15 @@ class CloneReceptionSafetyTests {
         }
     }
 
+    /** A web request asks only the phones this one mirrors from to send; it reconnected every peer. */
+    @Test
+    fun webRequestsWakeOnlyTheHostsThisPhoneReceivesFrom() {
+        val backup = source("Common/src/main/cpp/datbackup.cpp").replace(Regex("\\s+"), " ")
+
+        assertTrue(backup.contains("else if(sourcesOnly&&!host.receivedatafrom()) {"))
+        assertTrue(backup.contains("void wakesender() { backup->getupdatedata()->wakesender(8 /*wakeall*/,true); }"))
+    }
+
     @Test
     fun fastLocalConnectionPreservesTheFirstPeerRequest() {
         val transport = source("Common/src/main/cpp/net/ICE/ICE_data.hpp")

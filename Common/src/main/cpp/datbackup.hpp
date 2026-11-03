@@ -234,7 +234,8 @@ struct updatedata {
   uint8_t reservedturn[3];
   turnserver_t turnserver[1];
 
-  void wakesender(uintptr_t kind = 8 /*wakeall*/);
+  // sourcesOnly: only the hosts this phone receives data from.
+  void wakesender(uintptr_t kind = 8 /*wakeall*/, bool sourcesOnly = false);
   void wakestreamsender();
 };
 
