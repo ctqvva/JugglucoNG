@@ -1244,6 +1244,10 @@ sendindex); extern bool doend(int sendindex); */
 #endif
     }
     uintptr_t current = 0;
+    // Every fifth stream wake of this host runs the full update instead.
+    // Counted per sender thread: a function static was shared, unlocked,
+    // by every host's thread.
+    int streamwakes = 0;
     if (resumeCloneRecoveryForHost(allindex, sendindex) == 1) {
       con_vars[sendindex]->wakebackup(wakerecovery);
     }
@@ -1262,11 +1266,11 @@ sendindex); extern bool doend(int sendindex); */
       if (!passive) {
         notpassive(current, sendindex);
       }
-      static int count = 0;
-      if (current == wakestream) {
-        if (count++ % 5 == 4) {
-          current = wakeall;
-        }
+      // A stream wake also carrying other flags (reconnect, nums) counts too,
+      // and keeps those flags when it becomes the full update.
+      if ((current & wakestream) && !(current & wakeall) &&
+          streamwakes++ % 5 == 4) {
+        current = (current & ~wakestream) | wakeall;
       }
       doupdates(current, sendindex);
     }
